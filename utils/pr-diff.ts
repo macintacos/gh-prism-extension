@@ -41,6 +41,19 @@ export function parsePrHunks(patch: string): PrHunk[] {
   return hunks;
 }
 
+/** A run of head-file lines, 1-based and inclusive. */
+export interface HeadLineSpan {
+  readonly first: number;
+  readonly last: number;
+}
+
+/** The head-file lines a hunk's new side covers; `undefined` when it has none. */
+export function hunkHeadSpan(hunk: PrHunk): HeadLineSpan | undefined {
+  // A patch has no trailing newline, or its final empty line would count as a head line.
+  const count = hunk.lines.filter((line) => !line.startsWith("-") && !line.startsWith("\\")).length;
+  return count === 0 ? undefined : { first: hunk.newStart, last: hunk.newStart + count - 1 };
+}
+
 /** Splits a unified `git diff` into one entry per file. */
 export function parsePrDiff(diff: string): PrFileDiff[] {
   const blocks: string[][] = [];

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import { findFilesPage } from "../entrypoints/content/files-page";
-import type { IntentResult } from "../entrypoints/content/intent";
+import type { IntentResult, IntentSection, Placement } from "../entrypoints/content/intent";
 import { showSections } from "../entrypoints/content/sections-view";
 import css from "../entrypoints/content/sections-view.css?raw";
 import { byId, loadFixture } from "./fixtures/files-page";
@@ -34,6 +34,8 @@ const nativeLink = (path: string) => {
 
 // Past the 50 ms debounce; the async advance runs the MutationObserver's pending microtask first.
 const afterDebounce = () => vi.advanceTimersByTimeAsync(100);
+
+const whole = (section: IntentSection): Placement => ({ kind: "whole", section });
 
 const pathsIn = (section: string) =>
   [...document.querySelectorAll<HTMLElement>(`[data-section="${section}"] a.gh-prism-file`)].map(
@@ -234,9 +236,9 @@ describe("showSections", () => {
     remountWith(deferred.promise);
     deferred.resolve({
       ok: true,
-      overrides: new Map([
-        ["src/parser.rs", "docs"],
-        ["src/notes.rs", "docs"],
+      placements: new Map([
+        ["src/parser.rs", whole("docs")],
+        ["src/notes.rs", whole("docs")],
       ]),
     });
     await afterDebounce();
@@ -249,10 +251,13 @@ describe("showSections", () => {
     expect(document.querySelector(".gh-prism-notice")).toBeNull();
   });
 
-  it("moves a tests override out of Implementation once intent settles", async () => {
+  it("moves a file intent places in tests out of Implementation once it settles", async () => {
     const deferred = Promise.withResolvers<IntentResult>();
     remountWith(deferred.promise);
-    deferred.resolve({ ok: true, overrides: new Map([["src/lib.rs", "tests"]]) });
+    deferred.resolve({
+      ok: true,
+      placements: new Map([["src/lib.rs", whole("tests")]]),
+    });
     await afterDebounce();
     expect(pathsIn("tests")).toEqual(["src/lib.rs", "tests/integration.rs"]);
     expect(pathsIn("implementation")).not.toContain("src/lib.rs");
@@ -263,9 +268,9 @@ describe("showSections", () => {
     remountWith(deferred.promise);
     deferred.resolve({
       ok: true,
-      overrides: new Map([
-        ["src/parser.rs", "docs"],
-        ["src/notes.rs", "docs"],
+      placements: new Map([
+        ["src/parser.rs", whole("docs")],
+        ["src/notes.rs", whole("docs")],
       ]),
     });
     await afterDebounce();
@@ -277,6 +282,19 @@ describe("showSections", () => {
       "src/parser.rs",
       "README.md",
     ]);
+  });
+
+  it("keeps focus on a file's row when intent moves the file whole", async () => {
+    const deferred = Promise.withResolvers<IntentResult>();
+    remountWith(deferred.promise);
+    row("src/render.rs").focus();
+    deferred.resolve({
+      ok: true,
+      placements: new Map([["src/render.rs", whole("docs")]]),
+    });
+    await afterDebounce();
+    expect(row("src/render.rs").dataset.section).toBe("docs");
+    expect(document.activeElement).toBe(row("src/render.rs"));
   });
 
   it.each([
@@ -305,8 +323,301 @@ describe("showSections", () => {
     const deferred = Promise.withResolvers<IntentResult>();
     remountWith(deferred.promise);
     controller.abort();
-    deferred.resolve({ ok: true, overrides: new Map([["src/parser.rs", "docs"]]) });
+    deferred.resolve({
+      ok: true,
+      placements: new Map([["src/parser.rs", whole("docs")]]),
+    });
     await afterDebounce();
     expect(view()).toBeNull();
+  });
+
+  describe("a split file", () => {
+    const RENDER_DIFF = "diff-0a09";
+    const RENDER_SPLIT: IntentResult = {
+      ok: true,
+      placements: new Map([
+        [
+          "src/render.rs",
+          {
+            kind: "split",
+            shares: [
+              { section: "implementation", hunks: [{ first: 2, last: 8 }] },
+              { section: "docs", hunks: [{ first: 22, last: 28 }] },
+            ],
+          },
+        ],
+      ]),
+    };
+
+    let scrollIntoView: MockInstance<Element["scrollIntoView"]>;
+
+    beforeEach(() => {
+      scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => {});
+    });
+    afterEach(() => {
+      scrollIntoView.mockRestore();
+    });
+
+    /** Mounts the view with `result` already landed, and lets it render. */
+    async function landed(result: IntentResult): Promise<void> {
+      remountWith(Promise.resolve(result));
+      await afterDebounce();
+    }
+
+    const inSection = (section: string, selector: string) => {
+      const found = document.querySelector<HTMLElement>(`[data-section="${section}"] ${selector}`);
+      if (!found) throw new Error(`no ${selector} in ${section}`);
+      return found;
+    };
+
+    const diffList = () => {
+      const diffs = document.querySelector('[data-testid="diff-content"]');
+      if (!diffs) throw new Error("fixture has no diff list");
+      return diffs;
+    };
+
+    /** Mounts render.rs's diff under the fixture's diff list, with a row for each of `lines`. */
+    function mountRenderDiff(...lines: number[]): void {
+      const region = document.createElement("div");
+      region.id = RENDER_DIFF;
+      region.innerHTML = `<table>${lines
+        .map((n) => `<tr><td data-line-anchor="${RENDER_DIFF}R${n}">${n}</td></tr>`)
+        .join("")}</table>`;
+      diffList().append(region);
+    }
+
+    const lineRow = (line: number) => {
+      const found = document
+        .querySelector(`[data-line-anchor="${RENDER_DIFF}R${line}"]`)
+        ?.closest("tr");
+      if (!found) throw new Error(`no diff row for line ${line}`);
+      return found;
+    };
+
+    const clickAt = (target: Element, init: MouseEventInit = {}) => {
+      const event = new MouseEvent("click", { bubbles: true, cancelable: true, ...init });
+      target.dispatchEvent(event);
+      return event;
+    };
+
+    it("lists the file under each section its hunks land in, with its own hunk rows", async () => {
+      await landed(RENDER_SPLIT);
+      const entries = [
+        ...document.querySelectorAll<HTMLElement>('a.gh-prism-file[data-path="src/render.rs"]'),
+      ].map((file) => ({
+        section: file.dataset.section,
+        label: file.getAttribute("aria-label"),
+        partial: file.querySelector(".gh-prism-partial") !== null,
+        hunks: [...(file.closest("li")?.querySelectorAll<HTMLElement>(".gh-prism-hunk") ?? [])].map(
+          (hunk) => [hunk.textContent, hunk.getAttribute("href")],
+        ),
+      }));
+      expect(entries).toEqual([
+        {
+          section: "implementation",
+          label: "render.rs, partial",
+          partial: true,
+          hunks: [["Lines 2–8", "#diff-0a09R2"]],
+        },
+        {
+          section: "docs",
+          label: "render.rs, partial",
+          partial: true,
+          hunks: [["Lines 22–28", "#diff-0a09R22"]],
+        },
+      ]);
+    });
+
+    it("counts the file in each section it is listed under", async () => {
+      await landed(RENDER_SPLIT);
+      const counts = [...document.querySelectorAll<HTMLElement>(".gh-prism-section")].map(
+        (section) => [
+          section.dataset.section,
+          section.querySelector(".gh-prism-counter")?.textContent,
+        ],
+      );
+      expect(counts).toEqual([
+        ["implementation", "7"],
+        ["tests", "1"],
+        ["docs", "3"],
+        ["config", "2"],
+        ["generated", "1"],
+      ]);
+    });
+
+    it("gives a whole-file move and a path-only file no marker and no hunk list", async () => {
+      await landed({
+        ok: true,
+        placements: new Map([["src/parser.rs", whole("docs")]]),
+      });
+      expect(pathsIn("docs")).toContain("src/parser.rs");
+      expect(document.querySelector(".gh-prism-partial, .gh-prism-hunks")).toBeNull();
+    });
+
+    it("labels a one-line hunk by its line", async () => {
+      await landed({
+        ok: true,
+        placements: new Map([
+          [
+            "src/render.rs",
+            {
+              kind: "split",
+              shares: [
+                { section: "implementation", hunks: [{ first: 2, last: 2 }] },
+                { section: "docs", hunks: [{ first: 22, last: 28 }] },
+              ],
+            },
+          ],
+        ]),
+      });
+      expect(inSection("implementation", ".gh-prism-hunk").textContent).toBe("Line 2");
+    });
+
+    it("renders a hunk with no head lines as a disabled row that a click leaves alone", async () => {
+      await landed({
+        ok: true,
+        placements: new Map([
+          [
+            "src/render.rs",
+            {
+              kind: "split",
+              shares: [
+                { section: "implementation", hunks: [undefined] },
+                { section: "docs", hunks: [{ first: 22, last: 28 }] },
+              ],
+            },
+          ],
+        ]),
+      });
+      const removed = inSection("implementation", ".gh-prism-hunk");
+      expect(removed.matches('span.gh-prism-hunk[aria-disabled="true"]')).toBe(true);
+      expect(removed.textContent).toBe("Removed lines");
+      expect(removed.title).not.toBe("");
+      const click = vi.spyOn(nativeLink("src/render.rs"), "click");
+      const event = clickAt(removed);
+      expect(event.defaultPrevented).toBe(false);
+      expect(click).not.toHaveBeenCalled();
+    });
+
+    it("reveals a hunk's row on a plain click, keeping the default from following the link", async () => {
+      await landed(RENDER_SPLIT);
+      mountRenderDiff(2, 22);
+      const event = clickAt(inSection("docs", ".gh-prism-hunk"));
+      await afterDebounce();
+      expect(event.defaultPrevented).toBe(true);
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: "center" });
+      expect(scrollIntoView.mock.contexts[0]).toBe(lineRow(22));
+    });
+
+    it.each([{ metaKey: true }, { ctrlKey: true }])(
+      "lets %o hunk clicks follow the href",
+      async (modifiers) => {
+        await landed(RENDER_SPLIT);
+        mountRenderDiff(2, 22);
+        const click = vi.spyOn(nativeLink("src/render.rs"), "click");
+        const event = clickAt(inSection("docs", ".gh-prism-hunk"), modifiers);
+        await afterDebounce();
+        expect(event.defaultPrevented).toBe(false);
+        expect(click).not.toHaveBeenCalled();
+        expect(scrollIntoView).not.toHaveBeenCalled();
+      },
+    );
+
+    it("cancels a jump still waiting for its diff to mount when another hunk is clicked", async () => {
+      await landed(RENDER_SPLIT);
+      clickAt(inSection("implementation", ".gh-prism-hunk"));
+      clickAt(inSection("docs", ".gh-prism-hunk"));
+      mountRenderDiff(2, 22);
+      await afterDebounce();
+      expect(scrollIntoView).toHaveBeenCalledOnce();
+      expect(scrollIntoView.mock.contexts[0]).toBe(lineRow(22));
+    });
+
+    it("cancels a jump still waiting for its diff to mount when the view is aborted", async () => {
+      await landed(RENDER_SPLIT);
+      clickAt(inSection("docs", ".gh-prism-hunk"));
+      controller.abort();
+      mountRenderDiff(22);
+      await afterDebounce();
+      expect(scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    it("cancels a jump still waiting for its diff to mount when a file row is clicked", async () => {
+      await landed(RENDER_SPLIT);
+      clickAt(inSection("docs", ".gh-prism-hunk"));
+      clickAt(row("src/render.rs"));
+      mountRenderDiff(22);
+      await afterDebounce();
+      expect(scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    it("leaves a hunk click alone when its native row is gone", async () => {
+      await landed(RENDER_SPLIT);
+      const docsHunk = inSection("docs", ".gh-prism-hunk");
+      byId("src/render.rs").remove();
+      const event = clickAt(docsHunk);
+      expect(event.defaultPrevented).toBe(false);
+      expect(scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["file row", 'a.gh-prism-file[data-path="src/render.rs"]'],
+      ["hunk row", ".gh-prism-hunk"],
+    ])("keeps focus on the Documentation entry's %s across a re-render", async (_, selector) => {
+      await landed(RENDER_SPLIT);
+      inSection("docs", selector).focus();
+      byId("src/lib.rs").removeAttribute("aria-current");
+      await afterDebounce();
+      expect(document.activeElement).toBe(inSection("docs", selector));
+    });
+
+    it("moves focus to the file's first row when the focused row is split away", async () => {
+      const deferred = Promise.withResolvers<IntentResult>();
+      remountWith(deferred.promise);
+      row("src/render.rs").focus();
+      deferred.resolve({
+        ok: true,
+        placements: new Map([
+          [
+            "src/render.rs",
+            {
+              kind: "split",
+              shares: [
+                { section: "tests", hunks: [{ first: 2, last: 8 }] },
+                { section: "docs", hunks: [{ first: 22, last: 28 }] },
+              ],
+            },
+          ],
+        ]),
+      });
+      await afterDebounce();
+      expect(row("src/render.rs").dataset.section).toBe("tests");
+      expect(document.activeElement).toBe(row("src/render.rs"));
+    });
+
+    it("renders a split file's path as text and attributes only", async () => {
+      const path = "src/<b>render</b>.rs";
+      const native = byId("src/render.rs").cloneNode(true);
+      if (!(native instanceof HTMLElement)) throw new Error("clone is not an element");
+      native.id = path;
+      byId("src/render.rs").after(native);
+      await landed({
+        ok: true,
+        placements: new Map([
+          [
+            path,
+            {
+              kind: "split",
+              shares: [
+                { section: "implementation", hunks: [{ first: 2, last: 8 }] },
+                { section: "docs", hunks: [{ first: 22, last: 28 }] },
+              ],
+            },
+          ],
+        ]),
+      });
+      expect(view()?.querySelector("b")).toBeNull();
+      expect(inSection("docs", ".gh-prism-hunk").dataset.path).toBe(path);
+    });
   });
 });

@@ -40,22 +40,18 @@ export function docHunkVerdict(path: string, hunk: PrHunk, head?: ScannedHead): 
 }
 
 /**
- * "docs" only when the file has at least one hunk and every hunk is "docs". With a head scan, the
- * hunks that need content are resolved against it.
+ * One verdict per hunk, aligned with `parsePrHunks(file.patch)`; `[]` for a binary or renamed file.
+ * With a head scan, only the hunks that need content are judged again, against it.
  */
-export function docFileVerdict(file: PrFileDiff): DocVerdict;
-export function docFileVerdict(file: PrFileDiff, head: ScannedHead): "docs" | "path";
-export function docFileVerdict(file: PrFileDiff, head?: ScannedHead): DocVerdict {
-  if (file.kind === "binary" || file.previousPath !== undefined) return "path";
-  const hunks = parsePrHunks(file.patch);
-  const verdicts = hunks.map((hunk) => docHunkVerdict(file.path, hunk));
-  if (hunks.length === 0 || verdicts.includes("path")) return "path";
-  if (verdicts.every((verdict) => verdict === "docs")) return "docs";
-  if (head === undefined) return "needs-content";
-  const docsWithHead = hunks.every(
-    (hunk, i) => verdicts[i] === "docs" || docHunkVerdict(file.path, hunk, head) === "docs",
-  );
-  return docsWithHead ? "docs" : "path";
+export function docHunkVerdicts(file: PrFileDiff): DocVerdict[];
+export function docHunkVerdicts(file: PrFileDiff, head: ScannedHead): ("docs" | "path")[];
+export function docHunkVerdicts(file: PrFileDiff, head?: ScannedHead): DocVerdict[] {
+  if (file.kind === "binary" || file.previousPath !== undefined) return [];
+  return parsePrHunks(file.patch).map((hunk) => {
+    const verdict = docHunkVerdict(file.path, hunk);
+    if (verdict !== "needs-content" || head === undefined) return verdict;
+    return docHunkVerdict(file.path, hunk, head);
+  });
 }
 
 interface Block {

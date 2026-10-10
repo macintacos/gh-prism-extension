@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrFileDiff, PrHunk } from "../utils/pr-diff";
-import { parsePrDiff, parsePrHunks } from "../utils/pr-diff";
+import { type HeadLineSpan, hunkHeadSpan, parsePrDiff, parsePrHunks } from "../utils/pr-diff";
 
 const lines = (...text: string[]) => text.join("\n");
 
@@ -311,5 +311,58 @@ const hunkCases: [string, string, PrHunk[]][] = [
 describe("parsePrHunks", () => {
   it.each(hunkCases)("parses %s", (_name, patch, expected) => {
     expect(parsePrHunks(patch)).toEqual(expected);
+  });
+});
+
+const hunkOf = (patch: string): PrHunk => {
+  const [hunk] = parsePrHunks(patch);
+  if (hunk === undefined) throw new Error("patch has no hunk");
+  return hunk;
+};
+
+const renderCodePatch = lines(
+  "@@ -2,7 +2,7 @@ pub fn render(items: &[String]) -> String {",
+  " pub fn render(items: &[String]) -> String {",
+  "     items",
+  "         .iter()",
+  '-        .map(|item| format!("- {item}"))',
+  '+        .map(|item| format!("* {item}"))',
+  "         .collect::<Vec<_>>()",
+  '         .join("\\n")',
+  " }",
+);
+const renderDocPatch = lines(
+  "@@ -22,7 +22,7 @@ pub fn blank() -> String {",
+  "     String::new()",
+  " }",
+  " ",
+  "-/// Renders a count summary.",
+  '+/// Renders a count summary such as "3 items".',
+  " pub fn summary(count: usize) -> String {",
+  '     format!("{count} items")',
+  " }",
+);
+const addedPatch = lines("@@ -0,0 +1,3 @@", "+a", "+b", "+c");
+const deletedPatch = lines("@@ -1,3 +0,0 @@", "-a", "-b", "-c");
+
+const headSpanCases: [string, string, HeadLineSpan | undefined][] = [
+  ["a sandbox code hunk covers head lines 2 to 8", renderCodePatch, { first: 2, last: 8 }],
+  [
+    "a sandbox doc-comment hunk covers head lines 22 to 28",
+    renderDocPatch,
+    { first: 22, last: 28 },
+  ],
+  ["an added file's hunk covers every line it adds", addedPatch, { first: 1, last: 3 }],
+  ["a deleted file's hunk covers no head line", deletedPatch, undefined],
+  ["a \\ No newline line is not counted", noNewlinePatch, { first: 1, last: 1 }],
+];
+
+describe("hunkHeadSpan", () => {
+  it.each(headSpanCases)("%s", (_name, patch, expected) => {
+    expect(hunkHeadSpan(hunkOf(patch))).toEqual(expected);
+  });
+
+  it("counts a blank context line written as an empty string", () => {
+    expect(hunkHeadSpan({ newStart: 4, lines: ["-a", "", "+b"] })).toEqual({ first: 4, last: 5 });
   });
 });

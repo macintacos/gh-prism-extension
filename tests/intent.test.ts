@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import type { FilesRoute } from "../entrypoints/content/files-page";
-import { intentFor, readIntent } from "../entrypoints/content/intent";
+import {
+  type IntentSection,
+  intentFor,
+  type Placement,
+  readIntent,
+} from "../entrypoints/content/intent";
 import type { PrFileDiff } from "../utils/pr-diff";
 import type { PrRef } from "../utils/pr-ref";
 import type { PrFileContentResult, PrFilesResult } from "../utils/pr-source";
@@ -9,6 +14,8 @@ const lines = (...text: string[]) => text.join("\n");
 
 const pr: PrRef = { owner: "macintacos", repo: "gh-prism-sandbox", number: 1 };
 const route: FilesRoute = { pr, commitFiltered: false };
+
+const whole = (section: IntentSection): Placement => ({ kind: "whole", section });
 
 const unreadable: PrFileContentResult = { ok: false, problem: "failed" };
 
@@ -124,6 +131,189 @@ const describePatch = lines(
   "+describe('parses', () => {",
 );
 
+// The sandbox's src/render.rs: a code hunk and a doc-comment hunk.
+const renderSplitPatch = lines(
+  "@@ -2,7 +2,7 @@ pub fn render(items: &[String]) -> String {",
+  " pub fn render(items: &[String]) -> String {",
+  "     items",
+  "         .iter()",
+  '-        .map(|item| format!("- {item}"))',
+  '+        .map(|item| format!("* {item}"))',
+  "         .collect::<Vec<_>>()",
+  '         .join("\\n")',
+  " }",
+  "@@ -22,7 +22,7 @@ pub fn blank() -> String {",
+  "     String::new()",
+  " }",
+  " ",
+  "-/// Renders a count summary.",
+  '+/// Renders a count summary such as "3 items".',
+  " pub fn summary(count: usize) -> String {",
+  '     format!("{count} items")',
+  " }",
+);
+const renderSplitHead = lines(
+  "use std::fmt;",
+  "pub fn render(items: &[String]) -> String {",
+  "    items",
+  "        .iter()",
+  '        .map(|item| format!("* {item}"))',
+  "        .collect::<Vec<_>>()",
+  '        .join("\\n")',
+  "}",
+  "",
+  "pub fn count(items: &[String]) -> usize {",
+  "    items.len()",
+  "}",
+  "",
+  "pub fn trim(text: &str) -> &str {",
+  "    text.trim()",
+  "}",
+  "",
+  "pub fn one() -> u8 {",
+  "    1",
+  "}",
+  "pub fn blank() -> String {",
+  "    String::new()",
+  "}",
+  "",
+  '/// Renders a count summary such as "3 items".',
+  "pub fn summary(count: usize) -> String {",
+  '    format!("{count} items")',
+  "}",
+);
+
+const engineDocsAndTestsPatch = lines(
+  "@@ -1,2 +1,2 @@",
+  "-//! Engine docs.",
+  "+//! Engine docs for maintainers.",
+  " pub fn run() -> u8 {",
+  "@@ -10 +10 @@",
+  "-        assert_eq!(run(), 1);",
+  "+        assert_eq!(run(), 2);",
+);
+const engineDocsAndTestsHead = lines(
+  "//! Engine docs for maintainers.",
+  "pub fn run() -> u8 {",
+  "    2",
+  "}",
+  "",
+  "#[cfg(test)]",
+  "mod tests {",
+  "    #[test]",
+  "    fn runs() {",
+  "        assert_eq!(run(), 2);",
+  "    }",
+  "}",
+);
+
+const testsOnlyDocPatch = lines(
+  "@@ -3 +3 @@",
+  "-    /// Checks the pinned value.",
+  "+    /// Checks the version.",
+  "@@ -6 +6 @@",
+  '-        assert_eq!(version(), "0.1.0");',
+  '+        assert_eq!(version(), "0.2.0");',
+);
+const testsOnlyDocHead = lines(
+  "#[cfg(test)]",
+  "mod tests {",
+  "    /// Checks the version.",
+  "    #[test]",
+  "    fn reports_version() {",
+  '        assert_eq!(version(), "0.2.0");',
+  "    }",
+  "}",
+);
+
+const codeAndTestDocPatch = lines(
+  "@@ -2 +2 @@",
+  "-    2",
+  "+    3",
+  "@@ -7 +7 @@",
+  "-    /// Checks the pinned value.",
+  "+    /// Checks the value.",
+);
+const codeAndTestDocHead = lines(
+  "pub fn run() -> u8 {",
+  "    3",
+  "}",
+  "",
+  "#[cfg(test)]",
+  "mod tests {",
+  "    /// Checks the value.",
+  "    #[test]",
+  "    fn runs() {",
+  "        assert_eq!(run(), 3);",
+  "    }",
+  "}",
+);
+
+// Hunk 1 is a gutter-only block-comment change that needs the head; hunk 2 is a `///` line in `mod tests`.
+const allDocsPatch = lines(
+  "@@ -2,3 +2,3 @@",
+  " * Returns the first line.",
+  "-* Trims surrounding whitespace.",
+  "+* Trims surrounding whitespace and blank lines.",
+  " * Empty input gives an empty string.",
+  "@@ -14 +14 @@",
+  "-    /// Checks the pinned value.",
+  "+    /// Checks the version.",
+);
+const allDocsHead = lines(
+  "/**",
+  " * Returns the first line.",
+  " * Trims surrounding whitespace and blank lines.",
+  " * Empty input gives an empty string.",
+  " */",
+  "pub fn first(input: &str) -> &str {",
+  '    input.lines().next().unwrap_or("")',
+  "}",
+  "",
+  "#[cfg(test)]",
+  "mod tests {",
+  "    use super::*;",
+  "",
+  "    /// Checks the version.",
+  "    #[test]",
+  "    fn reports_first() {",
+  '        assert_eq!(first("a"), "a");',
+  "    }",
+  "}",
+);
+
+const goNeedsContentPatch = lines(
+  "@@ -4,3 +4,3 @@",
+  " * Returns the first line.",
+  "-* Trims surrounding whitespace.",
+  "+* Trims surrounding whitespace and blank lines.",
+  " * Empty input gives an empty string.",
+  "@@ -9 +9 @@",
+  "-\treturn parse(input)",
+  "+\treturn parse(input, true)",
+);
+const goNeedsContentHead = lines(
+  "package engine",
+  "",
+  "/**",
+  "* Returns the first line.",
+  "* Trims surrounding whitespace and blank lines.",
+  "* Empty input gives an empty string.",
+  "*/",
+  "func First(input string) string {",
+  "\treturn parse(input, true)",
+  "}",
+);
+
+const goSplitPatch = lines(
+  "@@ -2 +2 @@",
+  "-\treturn parse(input)",
+  "+\treturn parse(input, true)",
+  "@@ -10 +10 @@",
+  "-// Run keeps the first lines.",
+  "+// Run keeps the first non-blank lines.",
+);
+
 function fakeClient(files: PrFilesResult, content: PrFileContentResult) {
   return {
     files: vi.fn(async () => files),
@@ -147,7 +337,7 @@ describe("readIntent", () => {
 
     expect(await readIntent(client)).toEqual({
       ok: true,
-      overrides: new Map([["src/parser.rs", "docs"]]),
+      placements: new Map([["src/parser.rs", whole("docs")]]),
     });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
@@ -158,7 +348,7 @@ describe("readIntent", () => {
       unreadable,
     );
 
-    expect(await readIntent(client)).toEqual({ ok: true, overrides: new Map() });
+    expect(await readIntent(client)).toEqual({ ok: true, placements: new Map() });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
 
@@ -168,7 +358,7 @@ describe("readIntent", () => {
       { ok: true, text: renderHead },
     );
 
-    expect(await readIntent(client)).toEqual({ ok: true, overrides: new Map() });
+    expect(await readIntent(client)).toEqual({ ok: true, placements: new Map() });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
     expect(client.fileContent).toHaveBeenCalledWith("src/render.rs");
   });
@@ -181,19 +371,33 @@ describe("readIntent", () => {
 
     expect(await readIntent(client)).toEqual({
       ok: true,
-      overrides: new Map([["src/notes.rs", "docs"]]),
+      placements: new Map([["src/notes.rs", whole("docs")]]),
     });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
     expect(client.fileContent).toHaveBeenCalledWith("src/notes.rs");
   });
 
-  it("leaves out a needs-content file whose content can't be read, and stays ok", async () => {
+  it("splits out a needs-content file's docs hunk when its content can't be read, and keeps the rest in its path section", async () => {
     const client = fakeClient(
       { ok: true, files: [modified("src/notes.rs", notesPatch)] },
       unreadable,
     );
 
-    expect(await readIntent(client)).toEqual({ ok: true, overrides: new Map() });
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      placements: new Map([
+        [
+          "src/notes.rs",
+          {
+            kind: "split",
+            shares: [
+              { section: "implementation", hunks: [{ first: 24, last: 30 }] },
+              { section: "docs", hunks: [{ first: 1, last: 7 }] },
+            ],
+          },
+        ],
+      ]),
+    });
   });
 
   it("maps a Rust implementation file whose only hunk is inside `mod tests` to tests", async () => {
@@ -204,7 +408,7 @@ describe("readIntent", () => {
 
     expect(await readIntent(client)).toEqual({
       ok: true,
-      overrides: new Map([["src/lib.rs", "tests"]]),
+      placements: new Map([["src/lib.rs", whole("tests")]]),
     });
   });
 
@@ -216,7 +420,7 @@ describe("readIntent", () => {
 
     expect(await readIntent(client)).toEqual({
       ok: true,
-      overrides: new Map([["src/engine.rs", "tests"]]),
+      placements: new Map([["src/engine.rs", whole("tests")]]),
     });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
   });
@@ -229,7 +433,7 @@ describe("readIntent", () => {
 
     expect(await readIntent(client)).toEqual({
       ok: true,
-      overrides: new Map([["src/lib.rs", "docs"]]),
+      placements: new Map([["src/lib.rs", whole("docs")]]),
     });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
@@ -240,7 +444,7 @@ describe("readIntent", () => {
       unreadable,
     );
 
-    expect(await readIntent(client)).toEqual({ ok: true, overrides: new Map() });
+    expect(await readIntent(client)).toEqual({ ok: true, placements: new Map() });
   });
 
   it("never reads a JavaScript file, a test-directory file or a renamed file", async () => {
@@ -262,7 +466,7 @@ describe("readIntent", () => {
       { ok: true, text: versionHead },
     );
 
-    expect(await readIntent(client)).toEqual({ ok: true, overrides: new Map() });
+    expect(await readIntent(client)).toEqual({ ok: true, placements: new Map() });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
 
@@ -275,7 +479,197 @@ describe("readIntent", () => {
       unreadable,
     );
 
-    expect(await readIntent(client)).toEqual({ ok: true, overrides: new Map() });
+    expect(await readIntent(client)).toEqual({ ok: true, placements: new Map() });
+    expect(client.fileContent).not.toHaveBeenCalled();
+  });
+
+  it("splits the sandbox's src/render.rs into its code and doc-comment hunks, reading its head once", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("src/render.rs", renderSplitPatch)] },
+      { ok: true, text: renderSplitHead },
+    );
+
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      placements: new Map([
+        [
+          "src/render.rs",
+          {
+            kind: "split",
+            shares: [
+              { section: "implementation", hunks: [{ first: 2, last: 8 }] },
+              { section: "docs", hunks: [{ first: 22, last: 28 }] },
+            ],
+          },
+        ],
+      ]),
+    });
+    expect(client.fileContent).toHaveBeenCalledTimes(1);
+  });
+
+  it("splits a Rust file's doc-comment hunk and its inline-test hunk, with no implementation share", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("src/engine.rs", engineDocsAndTestsPatch)] },
+      { ok: true, text: engineDocsAndTestsHead },
+    );
+
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      placements: new Map([
+        [
+          "src/engine.rs",
+          {
+            kind: "split",
+            shares: [
+              { section: "tests", hunks: [{ first: 10, last: 10 }] },
+              { section: "docs", hunks: [{ first: 1, last: 2 }] },
+            ],
+          },
+        ],
+      ]),
+    });
+    expect(client.fileContent).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a Rust file whose hunks all sit in `mod tests`, one editing only a /// line, as a whole tests placement", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("src/lib.rs", testsOnlyDocPatch)] },
+      { ok: true, text: testsOnlyDocHead },
+    );
+
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      placements: new Map([["src/lib.rs", whole("tests")]]),
+    });
+    expect(client.fileContent).toHaveBeenCalledTimes(1);
+  });
+
+  it("splits a Rust file's code hunk outside any test block from its docstring-only hunk inside `mod tests`", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("src/engine.rs", codeAndTestDocPatch)] },
+      { ok: true, text: codeAndTestDocHead },
+    );
+
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      placements: new Map([
+        [
+          "src/engine.rs",
+          {
+            kind: "split",
+            shares: [
+              { section: "implementation", hunks: [{ first: 2, last: 2 }] },
+              { section: "tests", hunks: [{ first: 7, last: 7 }] },
+            ],
+          },
+        ],
+      ]),
+    });
+  });
+
+  it("keeps a Rust file whose every hunk is docs whole in Documentation, though one sits inside `mod tests`", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("src/report.rs", allDocsPatch)] },
+      { ok: true, text: allDocsHead },
+    );
+
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      placements: new Map([["src/report.rs", whole("docs")]]),
+    });
+    expect(client.fileContent).toHaveBeenCalledTimes(1);
+  });
+
+  it("splits a Go file's code hunk from its patch-settled docs hunk without reading its content", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("engine/engine.go", goSplitPatch)] },
+      unreadable,
+    );
+
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      placements: new Map([
+        [
+          "engine/engine.go",
+          {
+            kind: "split",
+            shares: [
+              { section: "implementation", hunks: [{ first: 2, last: 2 }] },
+              { section: "docs", hunks: [{ first: 10, last: 10 }] },
+            ],
+          },
+        ],
+      ]),
+    });
+    expect(client.fileContent).not.toHaveBeenCalled();
+  });
+
+  it("reads a Go file's head once to settle its needs-content hunk, and splits it from the code hunk", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("engine/engine.go", goNeedsContentPatch)] },
+      { ok: true, text: goNeedsContentHead },
+    );
+
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      placements: new Map([
+        [
+          "engine/engine.go",
+          {
+            kind: "split",
+            shares: [
+              { section: "implementation", hunks: [{ first: 9, last: 9 }] },
+              { section: "docs", hunks: [{ first: 4, last: 6 }] },
+            ],
+          },
+        ],
+      ]),
+    });
+    expect(client.fileContent).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a test-directory file's unclaimed code hunk in Tests, beside its docs hunk in Documentation", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("tests/engine.go", goSplitPatch)] },
+      unreadable,
+    );
+
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      placements: new Map([
+        [
+          "tests/engine.go",
+          {
+            kind: "split",
+            shares: [
+              { section: "tests", hunks: [{ first: 2, last: 2 }] },
+              { section: "docs", hunks: [{ first: 10, last: 10 }] },
+            ],
+          },
+        ],
+      ]),
+    });
+    expect(client.fileContent).not.toHaveBeenCalled();
+  });
+
+  it("leaves a renamed mixed file out of the placements, without reading it", async () => {
+    const client = fakeClient(
+      {
+        ok: true,
+        files: [
+          {
+            kind: "text",
+            path: "src/render.rs",
+            previousPath: "src/old_render.rs",
+            status: "renamed",
+            patch: renderSplitPatch,
+          },
+        ],
+      },
+      { ok: true, text: renderSplitHead },
+    );
+
+    expect(await readIntent(client)).toEqual({ ok: true, placements: new Map() });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
 });

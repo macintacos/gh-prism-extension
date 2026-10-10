@@ -1,7 +1,7 @@
 /**
- * Locates a pull request's Files changed markup and follows it across navigation. Selectors
- * come from EXC-1662's survey of GitHub's PR UI; this module holds no UI of its own and
- * imports nothing from WXT, so other features can reuse it.
+ * Locates a pull request's Files changed markup, follows it across navigation, and reveals a
+ * diff line in it. Selectors come from EXC-1662's survey of GitHub's PR UI; this module holds
+ * no UI of its own and imports nothing from WXT, so other features can reuse it.
  */
 
 import type { PrRef } from "@/utils/pr-ref";
@@ -11,6 +11,10 @@ const DEBOUNCE_MS = 50;
 const POLL_MS = 100;
 // Long enough for popstate's ~200 ms early fire and a slow cold render.
 const SETTLE_POLLS = 10_000 / POLL_MS;
+// ponytail: one fixed 5 s wait per step; make it adaptive if slow networks miss it.
+const REVEAL_TIMEOUT_MS = 5_000;
+const HIDDEN_PATCH = '[class*="HiddenDiffPatch-module"]';
+const LOAD_DIFF_LABEL = "Load Diff";
 
 /** The pull request a Files changed URL names, and whether a commit or range narrows it. */
 export interface FilesRoute {
@@ -147,8 +151,9 @@ export function observeTree(
 }
 
 /**
- * Calls `onChange` 50 ms after a diff mounts or unmounts anywhere under `diffs`, until `signal`
- * aborts. Attribute changes inside a diff do not count: diff internals churn them constantly.
+ * Calls `onChange` 50 ms after any child-list change under `diffs` (a diff mounting or unmounting,
+ * or rows arriving in one), until `signal` aborts. Attribute changes inside a diff do not count:
+ * diff internals churn them constantly.
  */
 export function observeDiffs(
   diffs: Node,
@@ -167,6 +172,97 @@ export function findDiff(diffs: Element, link: HTMLAnchorElement): Element | nul
   if (!id) return null;
   const diff = diffs.ownerDocument.getElementById(id);
   return diff && diffs.contains(diff) ? diff : null;
+}
+
+/**
+ * Scrolls the file's diff to `line`, centred. Mounts, expands or loads the diff first when GitHub
+ * has not rendered that far, and falls back to the file's header when no row carries the line.
+ * `link` is the native tree row's link, whose click mounts the diff; `line` is a 1-based
+ * head-file line. Never rejects; once `signal` aborts, it neither clicks nor scrolls again.
+ */
+export async function revealDiffLine(
+  diffs: Element,
+  link: HTMLAnchorElement,
+  line: number,
+  { signal }: { signal: AbortSignal },
+): Promise<void> {
+  if (signal.aborted) return;
+  // Re-found each time: GitHub may replace a region when it expands or loads it.
+  const diff = () => findDiff(diffs, link);
+  const row = () => lineRow(diff(), line);
+  if (!diff()) {
+    link.click(); // GitHub mounts a virtualized diff and scrolls to its header
+    if (!(await untilFound(diffs, diff, signal))) return;
+  }
+  if (!row() && expandDiff(diff())) await untilFound(diffs, () => uncollapsed(diff()), signal);
+  if (signal.aborted) return;
+  let target = row();
+  if (!target && loadDiff(diff())) target = await untilFound(diffs, row, signal);
+  if (signal.aborted) return;
+  if (target) target.scrollIntoView({ block: "center" });
+  else link.click(); // the file's header
+}
+
+/** The hunk header's row when it carries `line`'s anchor, else the line's own row. */
+function lineRow(diff: Element | null, line: number): HTMLTableRowElement | null {
+  if (!diff) return null;
+  return diff.querySelector(`[data-line-anchor="${diff.id}R${line}"]`)?.closest("tr") ?? null;
+}
+
+/**
+ * Clicks the header's first button when the diff is collapsed to its header alone; returns
+ * whether it clicked.
+ */
+function expandDiff(diff: Element | null): boolean {
+  if (diff?.children.length !== 1) return false;
+  const button = diff.firstElementChild?.querySelector("button");
+  // The toggle has no aria-expanded: its chevron-right marks a collapsed diff.
+  if (!button?.querySelector(".octicon-chevron-right")) return false;
+  button.click();
+  return true;
+}
+
+function uncollapsed(diff: Element | null): Element | null {
+  return diff && diff.children.length > 1 ? diff : null;
+}
+
+/** Clicks the Load Diff button of an unloaded diff's placeholder; returns whether it clicked. */
+function loadDiff(diff: Element | null): boolean {
+  const buttons = diff?.querySelector(HIDDEN_PATCH)?.querySelectorAll("button") ?? [];
+  const button = [...buttons].find((b) => b.textContent?.trim() === LOAD_DIFF_LABEL);
+  if (!button) return false;
+  button.click();
+  return true;
+}
+
+/**
+ * Resolves with `find()` once it is non-null, checked now and after each debounced mutation
+ * under `diffs`. Resolves with `find()`'s value at `REVEAL_TIMEOUT_MS`, or with `null` once
+ * `signal` aborts.
+ */
+function untilFound<T>(
+  diffs: Element,
+  find: () => T | null,
+  signal: AbortSignal,
+): Promise<T | null> {
+  return new Promise((resolve) => {
+    if (signal.aborted) return resolve(null);
+    const watching = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const finish = (found: T | null) => {
+      watching.abort(); // ends the observer, its debounce timer, and the abort listener
+      clearTimeout(timer);
+      resolve(found);
+    };
+    const check = () => {
+      const found = find();
+      if (found !== null) finish(found);
+    };
+    signal.addEventListener("abort", () => finish(null), { signal: watching.signal });
+    timer = setTimeout(() => finish(find()), REVEAL_TIMEOUT_MS);
+    observeDiffs(diffs, check, { signal: watching.signal });
+    check();
+  });
 }
 
 export interface FilesPageHandlers {

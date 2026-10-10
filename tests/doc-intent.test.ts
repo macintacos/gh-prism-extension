@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DocVerdict } from "../utils/doc-intent";
-import { docFileVerdict, docHunkVerdict, scanHeadText } from "../utils/doc-intent";
+import { docHunkVerdict, docHunkVerdicts, scanHeadText } from "../utils/doc-intent";
 import type { PrFileDiff, PrHunk } from "../utils/pr-diff";
 import { parsePrHunks } from "../utils/pr-diff";
 
@@ -959,14 +959,14 @@ const headCases: HeadHunkCase[] = [
 interface FileCase {
   name: string;
   file: PrFileDiff;
-  verdict: DocVerdict;
+  verdicts: DocVerdict[];
 }
 
 const fileCases: FileCase[] = [
   {
-    name: "Binary: a binary file is path",
+    name: "Binary: a binary file has no hunks to judge",
     file: { kind: "binary", path: "web/public/logo.png", status: "added" },
-    verdict: "path",
+    verdicts: [],
   },
   {
     name: "Unknown language: a Cargo.lock comment change is path",
@@ -980,7 +980,7 @@ const fileCases: FileCase[] = [
         " version = 3",
       ),
     ),
-    verdict: "path",
+    verdicts: ["path"],
   },
   {
     name: "Unknown language: a config/app.toml comment change is path",
@@ -994,10 +994,10 @@ const fileCases: FileCase[] = [
         " timeout_ms = 500",
       ),
     ),
-    verdict: "path",
+    verdicts: ["path"],
   },
   {
-    name: "Empty patch: a pure rename is path",
+    name: "Empty patch: a pure rename has no hunks to judge",
     file: {
       kind: "text",
       path: "src/helpers.rs",
@@ -1005,10 +1005,10 @@ const fileCases: FileCase[] = [
       status: "renamed",
       patch: "",
     },
-    verdict: "path",
+    verdicts: [],
   },
   {
-    name: "TypeScript: one path hunk among needs-content hunks is path",
+    name: "TypeScript: a needs-content hunk beside a path hunk is left unresolved without a head",
     file: modified(
       "src/app.ts",
       lines(
@@ -1023,10 +1023,10 @@ const fileCases: FileCase[] = [
         " }",
       ),
     ),
-    verdict: "path",
+    verdicts: ["needs-content", "path"],
   },
   {
-    name: "Renamed: a file renamed with only a // comment changed is path",
+    name: "Renamed: a renamed file has no hunks to judge, even with a // comment changed",
     file: {
       kind: "text",
       path: "src/b.ts",
@@ -1040,10 +1040,10 @@ const fileCases: FileCase[] = [
         " export { run };",
       ),
     },
-    verdict: "path",
+    verdicts: [],
   },
   {
-    name: "TypeScript: wrapping a function in /* */ across two hunks is path with no head text",
+    name: "TypeScript: wrapping a function in /* */ across two hunks, with no head text",
     file: modified(
       "src/app.ts",
       lines(
@@ -1058,7 +1058,7 @@ const fileCases: FileCase[] = [
         "+*/",
       ),
     ),
-    verdict: "path",
+    verdicts: ["path", "needs-content"],
   },
   {
     name: "Rust: a deleted file whose removed lines are all // comments is docs",
@@ -1072,22 +1072,22 @@ const fileCases: FileCase[] = [
         "-// Blank lines are dropped.",
       ),
     },
-    verdict: "docs",
+    verdicts: ["docs"],
   },
   {
     name: "Rust: src/parser.rs is docs",
     file: modified("src/parser.rs", parserHunk),
-    verdict: "docs",
+    verdicts: ["docs"],
   },
   {
-    name: "Rust: src/render.rs's code hunk and docs hunk make the file path",
+    name: "Rust: src/render.rs's code hunk is path and its docs hunk is docs",
     file: modified("src/render.rs", renderPatch),
-    verdict: "path",
+    verdicts: ["path", "docs"],
   },
   {
-    name: "Rust: src/notes.rs needs content without a head text",
+    name: "Rust: src/notes.rs's second hunk needs content without a head text",
     file: modified("src/notes.rs", lines(notesHunk1, notesHunk2)),
-    verdict: "needs-content",
+    verdicts: ["docs", "needs-content"],
   },
 ];
 
@@ -1095,21 +1095,46 @@ interface HeadFileCase {
   name: string;
   file: PrFileDiff;
   headText: string;
-  verdict: "docs" | "path";
+  verdicts: ("docs" | "path")[];
 }
+
+const proseHead = lines(
+  "/*",
+  "Design notes for the fixture engine.",
+  "Summary of the engine.",
+  "Behaviour is documented below.",
+  "The engine reads text and splits it into lines.",
+  "Each line is trimmed of surrounding whitespace first.",
+  "Empty lines never reach the limit check.",
+);
 
 const headFileCases: HeadFileCase[] = [
   {
-    name: "Rust: src/notes.rs is docs once the head shows its block open",
+    name: "Rust: both hunks of src/notes.rs are docs once the head shows its block open",
     file: modified("src/notes.rs", lines(notesHunk1, notesHunk2)),
     headText: notesHead,
-    verdict: "docs",
+    verdicts: ["docs", "docs"],
   },
   {
-    name: "Rust: src/notes.rs is path once the head closes its block before the second hunk",
+    name: "Rust: src/notes.rs's second hunk is path once the head closes its block first",
     file: modified("src/notes.rs", lines(notesHunk1, notesHunk2)),
     headText: notesHeadClosed,
-    verdict: "path",
+    verdicts: ["docs", "path"],
+  },
+  {
+    name: "Rust: a prose hunk that is path from the patch stays path under a head that opens a block above it",
+    file: modified(
+      "src/notes.rs",
+      lines(
+        "@@ -5,3 +5,3 @@",
+        " The engine reads text and splits it into lines.",
+        "-Each line is trimmed before anything else happens.",
+        "+Each line is trimmed of surrounding whitespace first.",
+        " Empty lines never reach the limit check.",
+      ),
+    ),
+    headText: proseHead,
+    verdicts: ["path"],
   },
 ];
 
@@ -1123,13 +1148,13 @@ describe("docHunkVerdict", () => {
   });
 });
 
-describe("docFileVerdict", () => {
-  it.each(fileCases)("$name", ({ file, verdict }) => {
-    expect(docFileVerdict(file)).toBe(verdict);
+describe("docHunkVerdicts", () => {
+  it.each(fileCases)("$name", ({ file, verdicts }) => {
+    expect(docHunkVerdicts(file)).toEqual(verdicts);
   });
 
-  it.each(headFileCases)("$name", ({ file, headText, verdict }) => {
-    expect(docFileVerdict(file, headOf(file.path, headText))).toBe(verdict);
+  it.each(headFileCases)("$name", ({ file, headText, verdicts }) => {
+    expect(docHunkVerdicts(file, headOf(file.path, headText))).toEqual(verdicts);
   });
 });
 

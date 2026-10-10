@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { scanHeadText } from "../utils/doc-intent";
-import { changesOnlyInlineTests, inlineTestRuleApplies } from "../utils/inline-tests";
+import { inlineTestHunkVerdicts, inlineTestRuleApplies } from "../utils/inline-tests";
 import type { PrFileDiff } from "../utils/pr-diff";
 
 const lines = (...text: string[]) => text.join("\n");
@@ -852,11 +852,47 @@ describe("inlineTestRuleApplies", () => {
   });
 });
 
-describe("changesOnlyInlineTests", () => {
+describe("inlineTestHunkVerdicts", () => {
   it.each([...rustCases, ...pythonCases, ...typescriptCases])(
     "$name",
     ({ path, head, patch, expected }) => {
-      expect(changesOnlyInlineTests(modified(path, patch), headOf(path, head))).toBe(expected);
+      const verdicts = inlineTestHunkVerdicts(modified(path, patch), headOf(path, head));
+      expect(verdicts.length > 0 && verdicts.every(Boolean)).toBe(expected);
     },
   );
+
+  it("judges each hunk on its own, in diff order", () => {
+    const head = lines(
+      "pub fn a() -> u8 { 2 }",
+      "",
+      "#[cfg(test)]",
+      "mod tests {",
+      "    #[test]",
+      "    fn it_works() {",
+      "        assert_eq!(a(), 2);",
+      "    }",
+      "}",
+    );
+    const patch = lines(
+      "@@ -1 +1 @@",
+      "-pub fn a() -> u8 { 1 }",
+      "+pub fn a() -> u8 { 2 }",
+      "@@ -7 +7 @@",
+      "-        assert_eq!(a(), 1);",
+      "+        assert_eq!(a(), 2);",
+    );
+
+    expect(
+      inlineTestHunkVerdicts(modified("src/lib.rs", patch), headOf("src/lib.rs", head)),
+    ).toEqual([false, true]);
+  });
+
+  it("gives no verdicts when the rule does not apply to the file", () => {
+    expect(
+      inlineTestHunkVerdicts(
+        modified("src/app.js", itBlockPatch),
+        headOf("src/app.js", itBlockHead),
+      ),
+    ).toEqual([]);
+  });
 });
