@@ -4,5 +4,4 @@
 
 set -euo pipefail
 
-# Reaching here means every task in `depends` passed.
 echo "preflight: all checks passed"
