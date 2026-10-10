@@ -32,6 +32,12 @@ const renderPatch = lines(
   "-    items.len()",
   "+    items.len() + 1",
 );
+const renderHead = lines(
+  "use std::fmt;",
+  "pub fn render(items: &[String]) -> String {",
+  "    items.len() + 1",
+  "}",
+);
 
 // Hunk 1 is docs; hunk 2 opens at line 24, inside the block that line 1 opens, so only the head decides it.
 const notesPatch = lines(
@@ -56,6 +62,68 @@ const notesPatch = lines(
 );
 const notesHead = lines("/*", "Design notes for the fixture engine.");
 
+// The `mod tests` block spans head lines 5 to 13, with its `#[cfg(test)]` widened in.
+const versionHead = lines(
+  "pub fn version() -> &'static str {",
+  '    "0.1.0"',
+  "}",
+  "",
+  "#[cfg(test)]",
+  "mod tests {",
+  "    use super::*;",
+  "",
+  "    #[test]",
+  "    fn reports_version() {",
+  '        assert_eq!(version(), "0.1.0");',
+  "    }",
+  "}",
+);
+const pinnedHead = lines(
+  "pub fn version() -> &'static str {",
+  '    "0.1.0"',
+  "}",
+  "",
+  "#[cfg(test)]",
+  "mod tests {",
+  "    use super::*;",
+  "",
+  "    #[test]",
+  "    fn reports_version() {",
+  '        let expected = "0.1.0"; /* pinned */',
+  "        assert_eq!(version(), expected);",
+  "    }",
+  "}",
+);
+
+const versionTestPatch = lines(
+  "@@ -10,3 +10,3 @@",
+  "     fn reports_version() {",
+  '-        assert_eq!(version(), "0.1.0");',
+  '+        assert_eq!(version(), "0.2.0");',
+  "     }",
+);
+// The `*/` makes the hunk ambiguous until the head says whether line 10 starts inside a comment.
+const pinnedTestPatch = lines(
+  "@@ -10,3 +10,3 @@",
+  "     fn reports_version() {",
+  '-        let expected = "0.1.0"; /* pinned */',
+  '+        let expected = "0.2.0"; /* pinned */',
+  "         assert_eq!(version(), expected);",
+);
+const commentTestPatch = lines(
+  "@@ -10,3 +10,3 @@",
+  "     fn reports_version() {",
+  "-        // checks the pinned value",
+  "+        // checks the version",
+  "     }",
+);
+
+const describePatch = lines(
+  "@@ -1,1 +1,2 @@",
+  " import { parse } from './parse';",
+  "+describe('parses', () => {",
+);
+
 function fakeClient(files: PrFilesResult, content: PrFileContentResult) {
   return {
     files: vi.fn(async () => files),
@@ -77,18 +145,32 @@ describe("readIntent", () => {
       unreadable,
     );
 
-    expect(await readIntent(client)).toEqual({ ok: true, paths: new Set(["src/parser.rs"]) });
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      overrides: new Map([["src/parser.rs", "docs"]]),
+    });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
 
-  it("leaves out a file with a code change, without reading its content", async () => {
+  it("leaves out a file with a code change outside the inline-test rule, without reading its content", async () => {
     const client = fakeClient(
-      { ok: true, files: [modified("src/render.rs", renderPatch)] },
+      { ok: true, files: [modified("src/render.go", renderPatch)] },
       unreadable,
     );
 
-    expect(await readIntent(client)).toEqual({ ok: true, paths: new Set() });
+    expect(await readIntent(client)).toEqual({ ok: true, overrides: new Map() });
     expect(client.fileContent).not.toHaveBeenCalled();
+  });
+
+  it("reads a Rust file's head once, and leaves it out when no hunk is inside a test block", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("src/render.rs", renderPatch)] },
+      { ok: true, text: renderHead },
+    );
+
+    expect(await readIntent(client)).toEqual({ ok: true, overrides: new Map() });
+    expect(client.fileContent).toHaveBeenCalledTimes(1);
+    expect(client.fileContent).toHaveBeenCalledWith("src/render.rs");
   });
 
   it("reads a needs-content file's head text once, and lists the file when that text settles it", async () => {
@@ -97,7 +179,10 @@ describe("readIntent", () => {
       { ok: true, text: notesHead },
     );
 
-    expect(await readIntent(client)).toEqual({ ok: true, paths: new Set(["src/notes.rs"]) });
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      overrides: new Map([["src/notes.rs", "docs"]]),
+    });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
     expect(client.fileContent).toHaveBeenCalledWith("src/notes.rs");
   });
@@ -108,7 +193,77 @@ describe("readIntent", () => {
       unreadable,
     );
 
-    expect(await readIntent(client)).toEqual({ ok: true, paths: new Set() });
+    expect(await readIntent(client)).toEqual({ ok: true, overrides: new Map() });
+  });
+
+  it("maps a Rust implementation file whose only hunk is inside `mod tests` to tests", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("src/lib.rs", versionTestPatch)] },
+      { ok: true, text: versionHead },
+    );
+
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      overrides: new Map([["src/lib.rs", "tests"]]),
+    });
+  });
+
+  it("reads a file that needs content for both rules exactly once", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("src/engine.rs", pinnedTestPatch)] },
+      { ok: true, text: pinnedHead },
+    );
+
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      overrides: new Map([["src/engine.rs", "tests"]]),
+    });
+    expect(client.fileContent).toHaveBeenCalledTimes(1);
+  });
+
+  it("maps a comment-only change inside a test block to docs without reading its content", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("src/lib.rs", commentTestPatch)] },
+      unreadable,
+    );
+
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      overrides: new Map([["src/lib.rs", "docs"]]),
+    });
+    expect(client.fileContent).not.toHaveBeenCalled();
+  });
+
+  it("leaves out a test-block file whose content can't be read, and stays ok", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("src/lib.rs", versionTestPatch)] },
+      unreadable,
+    );
+
+    expect(await readIntent(client)).toEqual({ ok: true, overrides: new Map() });
+  });
+
+  it("never reads a JavaScript file, a test-directory file or a renamed file", async () => {
+    const client = fakeClient(
+      {
+        ok: true,
+        files: [
+          modified("src/parser.js", describePatch),
+          modified("tests/foo.rs", versionTestPatch),
+          {
+            kind: "text",
+            path: "src/lib.rs",
+            previousPath: "src/old.rs",
+            status: "renamed",
+            patch: versionTestPatch,
+          },
+        ],
+      },
+      { ok: true, text: versionHead },
+    );
+
+    expect(await readIntent(client)).toEqual({ ok: true, overrides: new Map() });
+    expect(client.fileContent).not.toHaveBeenCalled();
   });
 
   it("never reads a binary file", async () => {
@@ -120,7 +275,7 @@ describe("readIntent", () => {
       unreadable,
     );
 
-    expect(await readIntent(client)).toEqual({ ok: true, paths: new Set() });
+    expect(await readIntent(client)).toEqual({ ok: true, overrides: new Map() });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
 });

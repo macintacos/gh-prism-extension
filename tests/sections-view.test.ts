@@ -232,7 +232,13 @@ describe("showSections", () => {
   it("moves intent-marked files into Documentation once it settles", async () => {
     const deferred = Promise.withResolvers<IntentResult>();
     remountWith(deferred.promise);
-    deferred.resolve({ ok: true, paths: new Set(["src/parser.rs", "src/notes.rs"]) });
+    deferred.resolve({
+      ok: true,
+      overrides: new Map([
+        ["src/parser.rs", "docs"],
+        ["src/notes.rs", "docs"],
+      ]),
+    });
     await afterDebounce();
     expect(pathsIn("docs")).toEqual([
       "docs/guide.md",
@@ -243,10 +249,25 @@ describe("showSections", () => {
     expect(document.querySelector(".gh-prism-notice")).toBeNull();
   });
 
+  it("moves a tests override out of Implementation once intent settles", async () => {
+    const deferred = Promise.withResolvers<IntentResult>();
+    remountWith(deferred.promise);
+    deferred.resolve({ ok: true, overrides: new Map([["src/lib.rs", "tests"]]) });
+    await afterDebounce();
+    expect(pathsIn("tests")).toEqual(["src/lib.rs", "tests/integration.rs"]);
+    expect(pathsIn("implementation")).not.toContain("src/lib.rs");
+  });
+
   it("keeps the moved files across a re-render", async () => {
     const deferred = Promise.withResolvers<IntentResult>();
     remountWith(deferred.promise);
-    deferred.resolve({ ok: true, paths: new Set(["src/parser.rs", "src/notes.rs"]) });
+    deferred.resolve({
+      ok: true,
+      overrides: new Map([
+        ["src/parser.rs", "docs"],
+        ["src/notes.rs", "docs"],
+      ]),
+    });
     await afterDebounce();
     byId("src/lib.rs").removeAttribute("aria-current");
     await afterDebounce();
@@ -261,11 +282,11 @@ describe("showSections", () => {
   it.each([
     {
       problem: "commit-filtered",
-      copy: "Grouped by path. Docstring-only changes are detected when viewing all commits.",
+      copy: "Grouped by path. Docstring-only and inline-test changes are detected when viewing all commits.",
     },
     {
       problem: "no-access",
-      copy: "Grouped by path. Sign in to GitHub to detect docstring-only changes.",
+      copy: "Grouped by path. Sign in to GitHub to detect docstring-only and inline-test changes.",
     },
   ] as const)(
     "keeps path sections and shows a notice when the intent is $problem",
@@ -284,7 +305,7 @@ describe("showSections", () => {
     const deferred = Promise.withResolvers<IntentResult>();
     remountWith(deferred.promise);
     controller.abort();
-    deferred.resolve({ ok: true, paths: new Set(["src/parser.rs"]) });
+    deferred.resolve({ ok: true, overrides: new Map([["src/parser.rs", "docs"]]) });
     await afterDebounce();
     expect(view()).toBeNull();
   });
