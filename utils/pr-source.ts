@@ -51,9 +51,9 @@ function problemFor(response: Response): PrDataProblem {
 }
 
 /**
- * A {@link PrDataSource} over `fetchFn` that caches successful results in memory, one head per
- * PR: a request naming another head replaces that PR's entry, and problems are never cached.
- * Create one per service worker.
+ * A {@link PrDataSource} over `fetchFn` that caches successful `files` and `content` results in
+ * memory, one head per PR: a request naming another head replaces that PR's entry, and problems
+ * are never cached. Create one per service worker.
  */
 export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
   // ponytail: unbounded across PRs, bounded by the worker's idle shutdown — add LRU if memory
@@ -99,7 +99,7 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
       const diff = await fetchText(`${base(pr)}/pull/${pr.number}.diff`, signal);
       if (!diff.ok) return diff;
       const files = parsePrDiff(diff.text);
-      // A 200 that names no files is an interstitial page, not an empty PR.
+      // A non-empty 200 that parses to no files is an interstitial page, not an empty PR.
       if (files.length === 0 && diff.text.trim() !== "") return { ok: false, problem: "failed" };
       entry.files = files;
       return { ok: true, files };

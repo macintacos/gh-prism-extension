@@ -75,7 +75,7 @@ function asPrHead(value: unknown): PrHead | undefined {
   return { ...pr, headSha: value.headSha };
 }
 
-// Empty, . or .. segments would normalize the URL out of /raw/<sha>/ onto other github.com
+// `.` and `..` segments would normalize the URL out of /raw/<sha>/ onto other github.com
 // paths, sent with the user's cookies.
 function isSafePath(path: unknown): path is string {
   return (
