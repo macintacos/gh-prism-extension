@@ -1132,3 +1132,10 @@ describe("docFileVerdict", () => {
     expect(docFileVerdict(file, headOf(file.path, headText))).toBe(verdict);
   });
 });
+
+describe("scanHeadText", () => {
+  it("Python: a line that starts inside a triple-quoted string reads as a string", () => {
+    const head = headOf("src/app.py", lines('x = """', "column zero", '"""', "y = 1"));
+    expect(head.kinds).toEqual(["code", "string", "string", "code"]);
+  });
+});

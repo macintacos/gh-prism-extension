@@ -2,7 +2,7 @@
  * Path rules ported from changeset.nvim's `lua/changeset/sections.lua` at
  * macintacos/changeset.nvim@2b6115db3a5394a207836afdeaa8237225b8de93 — the glob strings are
  * copied verbatim, so diff that file against this one when syncing. Labels are this sidebar's
- * own; upstream's icons and symbol rules (`test_rule`) are not ported.
+ * own; upstream's icons are not ported. Its `test_rule` lives in `utils/inline-tests.ts`.
  */
 
 /** The sidebar's sections, in display order. */

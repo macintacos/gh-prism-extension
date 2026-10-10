@@ -255,11 +255,13 @@ function isGutterRun(body: readonly HunkLine[], gutter: string): boolean {
   return nonBlankLines.length > 0 && nonBlankLines.every((text) => text.startsWith(gutter));
 }
 
-/** A head file split and comment-scanned once, shared by every hunk that reads it. */
+/** A head file split and comment-scanned once, shared by every hunk and rule that reads it. */
 export interface ScannedHead {
   readonly lines: readonly string[];
   /** The comment scan's state before each line, then the state at end of file. */
   readonly starts: readonly ScanState[];
+  /** How each line reads; `"string"` is a line that starts inside a string literal. */
+  readonly kinds: readonly ("blank" | "code" | "comment" | "string")[];
 }
 
 /** `undefined` for an extension with no comment syntax. */
@@ -268,11 +270,17 @@ export function scanHeadText(path: string, text: string): ScannedHead | undefine
   if (syntax === undefined) return undefined;
   const lines = text.split("\n");
   const starts: ScanState[] = [];
+  const kinds: ScannedHead["kinds"][number][] = [];
   let state = FILE_START;
   for (const line of lines) {
     starts.push(state);
-    state = scanLine(syntax, state, line).state;
+    const scanned = scanLine(syntax, state, line);
+    kinds.push(insideString(state) ? "string" : scanned.kind);
+    state = scanned.state;
   }
   starts.push(state);
-  return { lines, starts };
+  return { lines, starts, kinds };
 }
+
+const insideString = (state: ScanState) =>
+  state.position !== "code" && state.position.kind === "string";
