@@ -573,7 +573,6 @@ const pythonCases: InlineCase[] = [
   },
 ];
 
-// A one-assertion `it` block and a patch that changes its assertion.
 const itBlockHead = lines('it("adds", () => {', "  expect(add(1, 2)).toBe(3);", "});");
 const itBlockPatch = lines(
   "@@ -2 +2 @@",

@@ -34,8 +34,8 @@ export function inlineTestRuleApplies(file: PrFileDiff): boolean {
 }
 
 /**
- * Whether the file passes the gate, has a hunk, and every hunk's non-blank changed lines sit in the
- * head's test blocks.
+ * Whether the file is one the rule applies to, has a hunk, and every hunk changes a non-blank
+ * line, all of them inside the head's test blocks.
  */
 export function changesOnlyInlineTests(file: PrFileDiff, head: ScannedHead): boolean {
   const findBlocks = candidateFinder(file);
@@ -165,7 +165,7 @@ function leads(row: Row | undefined, leader?: RegExp): boolean {
   return row.kind === "comment" || (row.kind === "code" && leader?.test(row.text) === true);
 }
 
-/** Each row from `index` in `step`'s direction, with its index, read in place, not copied. */
+/** Each row from `index` in `step`'s direction, with its index. */
 function* rowsFrom(rows: readonly Row[], index: number, step: 1 | -1): Generator<[number, Row]> {
   for (let at = index; at >= 0 && at < rows.length; at += step) {
     const row = rows[at];
