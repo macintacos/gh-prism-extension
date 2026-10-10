@@ -1,3 +1,5 @@
+import { defineContentScript } from "wxt/utils/define-content-script";
+
 export default defineContentScript({
   // TODO: a static match misses PRs reached by client-side navigation, and its path * also spans "/"
   // (blob/tree paths containing /pull/) — move to a pathname check on wxt:locationchange.
