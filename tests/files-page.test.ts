@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { FilesPage } from "../entrypoints/content/files-page";
+import type { FilesPage, FilesRoute } from "../entrypoints/content/files-page";
 import {
   findDiff,
   findFilesPage,
@@ -8,6 +8,7 @@ import {
   observeDiffs,
   observeTree,
   readChangedFiles,
+  readFilesRoute,
   watchFilesPages,
 } from "../entrypoints/content/files-page";
 import { byId, loadFixture } from "./fixtures/files-page";
@@ -58,6 +59,24 @@ describe("isFilesPath", () => {
     "/o/r/pull/1/changesets",
     "/o/r/tree/pull/1/changes/x",
   ])("rejects %s", (path) => expect(isFilesPath(path)).toBe(false));
+});
+
+describe("readFilesRoute", () => {
+  const pr = { owner: "o", repo: "r", number: 3 };
+
+  it.each(["/o/r/pull/3/changes", "/o/r/pull/3/changes/", "/o/r/pull/3/files"])(
+    "reads the whole pull request from %s",
+    (path) => expect(readFilesRoute(path)).toEqual({ pr, commitFiltered: false }),
+  );
+
+  it.each(["/o/r/pull/3/changes/04bb63f", "/o/r/pull/3/changes/aaa..bbb"])(
+    "reads a commit filter from %s",
+    (path) => expect(readFilesRoute(path)).toEqual({ pr, commitFiltered: true }),
+  );
+
+  it.each(["/o/r/pull/3", "/o/r/issues/3"])("is undefined off the Files changed tab: %s", (path) =>
+    expect(readFilesRoute(path)).toBeUndefined(),
+  );
 });
 
 describe("findFilesPage", () => {
@@ -254,12 +273,12 @@ describe("findDiff", () => {
 
 describe("watchFilesPages", () => {
   let controller: AbortController;
-  let pages: { page: FilesPage; signal: AbortSignal }[];
+  let pages: { page: FilesPage; route: FilesRoute; signal: AbortSignal }[];
   const onMissing = vi.fn();
   const watch = () =>
     watchFilesPages(
       window,
-      { onPage: (page, signal) => pages.push({ page, signal }), onMissing },
+      { onPage: (page, route, signal) => pages.push({ page, route, signal }), onMissing },
       controller.signal,
     );
 
@@ -311,6 +330,39 @@ describe("watchFilesPages", () => {
     expect(pages).toHaveLength(2);
     expect(pages[0]?.signal.aborted).toBe(true);
     expect(pages[1]?.page.sidebar).toBe(byId("pr-file-tree"));
+  });
+
+  it("shows the page again when the pathname changes under the same markup", () => {
+    watch();
+    history.replaceState(null, "", "/o/r/pull/1/changes/04bb63f");
+    document.dispatchEvent(new Event("soft-nav:end"));
+    vi.advanceTimersByTime(20_000);
+    expect(pages).toHaveLength(2);
+    expect(pages[0]?.signal.aborted).toBe(true);
+  });
+
+  it("hands onPage the route of the URL it fired on", () => {
+    watch();
+    expect(pages[0]?.route).toEqual({
+      pr: { owner: "o", repo: "r", number: 1 },
+      commitFiltered: false,
+    });
+    history.replaceState(null, "", "/o/r/pull/1/changes/04bb63f");
+    document.dispatchEvent(new Event("soft-nav:end"));
+    vi.advanceTimersByTime(20_000);
+    expect(pages[1]?.route).toEqual({
+      pr: { owner: "o", repo: "r", number: 1 },
+      commitFiltered: true,
+    });
+  });
+
+  it("keeps the page when only the hash changes", () => {
+    watch();
+    history.replaceState(null, "", "/o/r/pull/1/changes#diff-abc");
+    document.dispatchEvent(new Event("soft-nav:end"));
+    vi.advanceTimersByTime(20_000);
+    expect(pages).toHaveLength(1);
+    expect(pages[0]?.signal.aborted).toBe(false);
   });
 
   it("keeps the page when popstate leaves the sidebar in place", () => {
