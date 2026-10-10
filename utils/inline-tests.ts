@@ -279,19 +279,19 @@ function tsTestCall(row: Row, index: number, rows: readonly Row[]): number | und
   if (!TS_TEST_CALL.test(row.text)) return undefined;
   const end = closingLine(rows, index, TS_BRACKETS);
   if (end === undefined) return undefined;
-  const code = rows.slice(index, end + 1).map((line) => codeOf(line, TS_LITERALS));
-  if (definesMethod(code.join("\n"))) return undefined;
-  return code.some((line) => TS_CALLBACK.test(line)) ? end : undefined;
+  const codeLines = rows.slice(index, end + 1).map((line) => codeOf(line, TS_LITERALS));
+  if (definesMethod(codeLines.join("\n"))) return undefined;
+  return codeLines.some((line) => TS_CALLBACK.test(line)) ? end : undefined;
 }
 
 /** Whether the first parenthesis of the call's code closes and is followed by `{` or `:`. */
 function definesMethod(code: string): boolean {
-  const close = closeOf(code, code.indexOf("("));
+  const close = closingParen(code, code.indexOf("("));
   return close !== undefined && /^\s*[{:]/.test(code.slice(close + 1));
 }
 
 /** The index of the `)` closing the `(` at `open`, when the line closes it. */
-function closeOf(code: string, open: number): number | undefined {
+function closingParen(code: string, open: number): number | undefined {
   let depth = 0;
   for (let at = open; at < code.length; at++) {
     const char = code.charAt(at);

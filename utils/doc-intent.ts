@@ -28,9 +28,9 @@ export function docHunkVerdict(path: string, hunk: PrHunk, head?: ScannedHead): 
   const syntax = syntaxFor(path);
   if (syntax === undefined) return "path";
   if (head !== undefined) {
-    // The index is clamped into `starts`, so the `??` fallback never applies.
-    const index = Math.min(Math.max(hunk.newStart - 1, 0), head.lines.length);
-    return hunkVerdictFrom(syntax, hunk, head.starts[index] ?? FILE_START);
+    // `linesAbove` is clamped into `starts`, so the `??` fallback never applies.
+    const linesAbove = Math.min(Math.max(hunk.newStart - 1, 0), head.lines.length);
+    return hunkVerdictFrom(syntax, hunk, head.starts[linesAbove] ?? FILE_START);
   }
   const verdicts = new Set(
     plausibleStarts(syntax, hunk).map((start) => hunkVerdictFrom(syntax, hunk, start)),

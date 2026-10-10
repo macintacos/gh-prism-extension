@@ -28,15 +28,15 @@ async function sectionFromContent(
   client: Pick<PrDataClient, "fileContent">,
   file: PrFileDiff,
 ): Promise<IntentSection | undefined> {
-  const docs = docFileVerdict(file);
-  if (docs === "docs") return "docs";
+  const docVerdict = docFileVerdict(file);
+  if (docVerdict === "docs") return "docs";
   const testable = inlineTestRuleApplies(file);
-  if (docs === "path" && !testable) return undefined;
+  if (docVerdict === "path" && !testable) return undefined;
   const content = await client.fileContent(file.path);
   if (!content.ok) return undefined;
   const head = scanHeadText(file.path, content.text);
   if (head === undefined) return undefined;
-  if (docs === "needs-content" && docFileVerdict(file, head) === "docs") return "docs";
+  if (docVerdict === "needs-content" && docFileVerdict(file, head) === "docs") return "docs";
   return testable && changesOnlyInlineTests(file, head) ? "tests" : undefined;
 }
 
