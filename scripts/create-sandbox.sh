@@ -362,9 +362,9 @@ EOF
 gh repo view "$repo" >/dev/null 2>&1 ||
 	gh repo create "$repo" --private --description "Fake fixture repo for gh-prism PR UI scenarios"
 
-clone=$(mktemp -d)
-gh repo clone "$repo" "$clone" -- -q
-cd "$clone"
+clone_dir=$(mktemp -d)
+gh repo clone "$repo" "$clone_dir" -- -q
+cd "$clone_dir"
 
 # Call order fixes the PR numbers (#1 small, #2 large, #3 complicated) that Linear cites.
 seed_main
