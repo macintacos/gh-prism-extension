@@ -3,5 +3,6 @@
 
 set -euo pipefail
 
+# A fresh clone may skip setup; postinstall (wxt prepare) generates .wxt/.
 bun install
 bun run dev

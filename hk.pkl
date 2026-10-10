@@ -68,8 +68,7 @@ local linters = new Mapping<String, Step> {
   ["TOML(Lint)        [[builtins.taplo]]"] = Builtins.taplo
 
   // pkl lints by evaluating the file (`pkl eval`), which resolves the remote
-  // amends/import package (cached after first run). Exclude template/fixture
-  // .pkl files you don't want evaluated.
+  // amends/import package (cached after first run).
   ["Pkl(Lint)         [[builtins.pkl]]"] = Builtins.pkl
 
   ["TS(Lint)          [[builtins.biome]]"] = (Builtins.biome) {
@@ -89,15 +88,8 @@ local linters = new Mapping<String, Step> {
   }
 
   ["TS(Type)          [[builtins.tsc]]"] = (Builtins.tsc) {
-    check = "bunx tsc --noEmit -p {{workspace_indicator}}"
+    check = "bunx --no-install tsc --noEmit -p {{workspace_indicator}}"
   }
-
-  // Project-specific steps go here. Glob-scope so a step only runs when relevant
-  // files change; omit {{ files }} to run a command once (e.g. a test suite):
-  // ["Custom(Test)     [[my-tests]]"] = new Step {
-  //   glob = List("src/**/*.py", "tests/**/*.py")
-  //   check = "uv run pytest"
-  // }
 }
 
 hooks {
@@ -121,8 +113,7 @@ hooks {
     steps = linters
   }
 
-  // `mise run test` on push, when the `test` task is chosen. The glob comes from each
-  // loaded language reference — union them in a multi-language repo.
+  // Tests run on push, not commit, to keep commits fast.
   ["pre-push"] {
     steps = new Mapping<String, Step> {
       ["Project(Test)     [[tasks.test]]"] = new Step {

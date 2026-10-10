@@ -1,6 +1,5 @@
 {
-  // Run `biome migrate --write` after `mise install`: it bumps $schema to the
-  // installed biome and rewrites keys that version deprecates.
+  // After upgrading biome, run `biome migrate --write` to bump $schema and migrate deprecated keys.
   "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
   "vcs": {
     "enabled": true,
@@ -27,15 +26,5 @@
       "quoteStyle": "double",
       "semicolons": "always"
     }
-  },
-  "overrides": [
-    {
-      "includes": ["**/*.test.ts", "test/**"],
-      "linter": {
-        "rules": {
-          "style": { "noNonNullAssertion": "off" }
-        }
-      }
-    }
-  ]
+  }
 }

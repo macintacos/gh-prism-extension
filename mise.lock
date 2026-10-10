@@ -16,6 +16,10 @@ backend = "core:bun"
 version = "2.5.0"
 backend = "aqua:jdx/hk"
 
+[[tools.node]]
+version = "24.21.0"
+backend = "core:node"
+
 [[tools.pkl]]
 version = "0.32.1"
 backend = "aqua:apple/pkl"
