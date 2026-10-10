@@ -1,0 +1,37 @@
+[settings]
+# Commit mise.lock for reproducible, checksum-pinned tool versions.
+lockfile = true
+
+npm.package_manager = "bun" # route the npm: backend through bun
+
+# HK_MISE routes hk's git-hook subprocesses through `mise x`, so each hook step
+# uses the versions pinned below — even for committers who never activated mise.
+[env]
+HK_MISE = 1
+
+[tools]
+# hk evaluates hk.pkl itself; pkl powers the Pkl(Format) / Pkl(Lint) steps
+# (`pkl format` and `pkl eval`).
+hk  = "2.5.0"  # keep in lockstep with hk.pkl's amends/import
+pkl = "latest"
+
+bun   = "latest"
+biome = "latest"
+
+# The cross-language baseline — recommended in EVERY project. Per-language
+# tools (uv, bun, biome, go, golangci-lint, rust, …) are added on top from the
+# language reference files.
+"aqua:google/yamlfmt" = "latest" # YAML format
+taplo                 = "latest" # TOML format + lint (config in taplo.toml)
+shellcheck            = "latest" # Shell lint
+shfmt                 = "latest" # Shell format (see note below)
+rumdl                 = "latest" # Markdown lint + format (config in .rumdl.toml)
+
+# shfmt: the registry shorthand occasionally resolves the wrong build. If
+# `mise run format` reports an unexpected shfmt version, pin mvdan's shfmt via
+# the go backend instead — replace the `shfmt` line above with:
+#   "go:mvdan.cc/sh/v3/cmd/shfmt" = "latest"
+
+# (Re)register git hooks whenever tools are installed or updated.
+[hooks]
+postinstall = "hk install --mise"
