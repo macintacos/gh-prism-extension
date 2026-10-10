@@ -15,6 +15,7 @@ export default defineConfig({
     },
   },
   manifest: {
+    // github.com's .diff and raw/ URLs redirect to these two githubusercontent hosts.
     host_permissions: [
       "https://github.com/*",
       "https://patch-diff.githubusercontent.com/*",

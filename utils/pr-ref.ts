@@ -1,17 +1,25 @@
+/** A pull request as its github.com URL names it; owner and repo compare case-insensitively. */
 export interface PrRef {
   owner: string;
   repo: string;
   number: number;
 }
 
+/**
+ * A pull request at a commit. `headSha` is the full 40-hex SHA, never a ref — github.com's raw/
+ * 404s on ref paths.
+ */
 export interface PrHead extends PrRef {
   headSha: string;
+}
+
+export function isPrHeadSha(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{40}$/.test(value);
 }
 
 const EMBEDDED_DATA_SELECTOR = 'script[data-target="react-app.embeddedData"]';
 const EMBEDDED_DATA_SCRIPT =
   /<script[^>]*data-target="react-app\.embeddedData"[^>]*>([\s\S]*?)<\/script>/;
-const SHA = /^[0-9a-f]{40}$/;
 
 function at(value: unknown, ...keys: string[]): unknown {
   let current = value;
@@ -52,7 +60,7 @@ export function prHeadShaFromEmbeddedData(
     at(route, "pullRequest", "number") === pr.number &&
     sameName(at(route, "repository", "ownerLogin"), pr.owner) &&
     sameName(at(route, "repository", "name"), pr.repo);
-  return matches && typeof headSha === "string" && SHA.test(headSha) ? headSha : undefined;
+  return matches && isPrHeadSha(headSha) ? headSha : undefined;
 }
 
 /** The embedded page-data JSON from a PR page's HTML, for contexts without a `DOMParser`. */
@@ -60,6 +68,7 @@ export function prEmbeddedDataFromHtml(html: string): string | undefined {
   return EMBEDDED_DATA_SCRIPT.exec(html)?.[1];
 }
 
+/** {@link prHeadShaFromEmbeddedData} for a live page's `document`. */
 export function readPrPageHeadSha(
   doc: { querySelector(selectors: string): { textContent: string | null } | null },
   pr: PrRef,

@@ -194,6 +194,35 @@ const cases: [string, string, PrFileDiff[]][] = [
       },
     ],
   ],
+  [
+    "a C-quoted path with a carriage return",
+    lines(
+      String.raw`diff --git "a/cr\rname.txt" "b/cr\rname.txt"`,
+      "index 1111111..2222222 100644",
+      String.raw`--- "a/cr\rname.txt"`,
+      String.raw`+++ "b/cr\rname.txt"`,
+      "@@ -1 +1 @@",
+      "-a",
+      "+b",
+    ),
+    [
+      {
+        kind: "text",
+        path: "cr\rname.txt",
+        status: "modified",
+        patch: lines("@@ -1 +1 @@", "-a", "+b"),
+      },
+    ],
+  ],
+  [
+    "a binary file with a C-quoted path",
+    lines(
+      String.raw`diff --git "a/caf\303\251 pic.png" "b/caf\303\251 pic.png"`,
+      "index 1111111..2222222 100644",
+      String.raw`Binary files "a/caf\303\251 pic.png" and "b/caf\303\251 pic.png" differ`,
+    ),
+    [{ kind: "binary", path: "café pic.png", status: "modified" }],
+  ],
   ["empty input", "", []],
 ];
 

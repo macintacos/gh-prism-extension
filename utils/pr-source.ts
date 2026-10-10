@@ -6,23 +6,31 @@ import {
   prHeadShaFromEmbeddedData,
 } from "./pr-ref";
 
+/**
+ * Why a PR read failed.
+ * - `no-access`: 401, 403 or 404 — signed out or no access; GitHub hides a private repo as 404.
+ *   Prompt the user to sign in to GitHub, never for a token.
+ * - `rate-limited`: 429, or 403 with `retry-after` or `x-ratelimit-remaining: 0`.
+ * - `too-large`: the result exceeds Chrome's 64 MiB extension-message cap.
+ * - `failed`: anything else — another status, a network error, an interstitial page, or the
+ *   service worker stopping mid-request. Retrying may succeed.
+ */
 export type PrDataProblem = "no-access" | "rate-limited" | "too-large" | "failed";
-export type PrHeadResult = { ok: true; headSha: string } | { ok: false; problem: PrDataProblem };
-export type PrFilesResult =
-  | { ok: true; files: PrFileDiff[] }
-  | { ok: false; problem: PrDataProblem };
-export type PrFileContentResult =
-  | { ok: true; text: string }
-  | { ok: false; problem: PrDataProblem };
+export type PrFailure = { ok: false; problem: PrDataProblem };
+export type PrHeadResult = { ok: true; headSha: string } | PrFailure;
+export type PrFilesResult = { ok: true; files: PrFileDiff[] } | PrFailure;
+export type PrFileContentResult = { ok: true; text: string } | PrFailure;
 
-/** Reads a PR's data through github.com with the browser's session; aborting `signal` rejects with `AbortError`. */
+/**
+ * Reads a PR's data through github.com with the browser's session; aborting `signal` rejects
+ * with `AbortError`. Callers validate `pr` and `path` first, as {@link servePrDataPort} does:
+ * URLs are built from them with per-segment encoding only.
+ */
 export interface PrDataSource {
   head(pr: PrRef, signal: AbortSignal): Promise<PrHeadResult>;
   files(pr: PrHead, signal: AbortSignal): Promise<PrFilesResult>;
   content(pr: PrHead, path: string, signal: AbortSignal): Promise<PrFileContentResult>;
 }
-
-type TextResult = { ok: true; text: string } | { ok: false; problem: PrDataProblem };
 
 interface PrCacheEntry {
   headSha: string;
@@ -42,8 +50,14 @@ function problemFor(response: Response): PrDataProblem {
   return "failed";
 }
 
+/**
+ * A {@link PrDataSource} over `fetchFn` that caches successful results in memory, one head per
+ * PR: a request naming another head replaces that PR's entry, and problems are never cached.
+ * Create one per service worker.
+ */
 export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
-  // ponytail: unbounded across PRs; the service worker's idle shutdown bounds it — add LRU if memory shows up.
+  // ponytail: unbounded across PRs, bounded by the worker's idle shutdown — add LRU if memory
+  // shows up. Two clients on different heads of one PR evict each other's entry every request.
   const cache = new Map<string, PrCacheEntry>();
 
   function entryFor(pr: PrHead): PrCacheEntry {
@@ -56,7 +70,8 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
     return entry;
   }
 
-  async function fetchText(url: string, signal: AbortSignal): Promise<TextResult> {
+  // Both endpoints redirect to a `?token=` URL: never log it or read the response's URL.
+  async function fetchText(url: string, signal: AbortSignal): Promise<PrFileContentResult> {
     try {
       const response = await fetchFn(url, { credentials: "include", signal });
       if (!response.ok) return { ok: false, problem: problemFor(response) };
@@ -78,23 +93,26 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
     },
 
     async files(pr, signal) {
-      const cached = entryFor(pr).files;
+      const entry = entryFor(pr);
+      const cached = entry.files;
       if (cached) return { ok: true, files: cached };
       const diff = await fetchText(`${base(pr)}/pull/${pr.number}.diff`, signal);
       if (!diff.ok) return diff;
       const files = parsePrDiff(diff.text);
       // A 200 that names no files is an interstitial page, not an empty PR.
       if (files.length === 0 && diff.text.trim() !== "") return { ok: false, problem: "failed" };
-      entryFor(pr).files = files;
+      entry.files = files;
       return { ok: true, files };
     },
 
     async content(pr, path, signal) {
-      const cached = entryFor(pr).contents.get(path);
+      const entry = entryFor(pr);
+      const cached = entry.contents.get(path);
       if (cached !== undefined) return { ok: true, text: cached };
       const encoded = path.split("/").map(encodeURIComponent).join("/");
+      // Through github.com: raw.githubusercontent.com and ref paths both 404 on private repos.
       const result = await fetchText(`${base(pr)}/raw/${pr.headSha}/${encoded}`, signal);
-      if (result.ok) entryFor(pr).contents.set(path, result.text);
+      if (result.ok) entry.contents.set(path, result.text);
       return result;
     },
   };

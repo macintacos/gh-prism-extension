@@ -1,6 +1,10 @@
 export type PrFileStatus = "added" | "deleted" | "modified" | "renamed";
 
-/** One file of a PR's `.diff`. A text file's `patch` is its hunks from the first `@@` to the last line, with no trailing newline — the REST API's `patch` shape — and is empty for a mode-only change or a pure rename. */
+/**
+ * One file of a PR's `.diff`. A text file's `patch` is its hunks from the first `@@` to the last
+ * line, with no trailing newline — the REST API's `patch` shape — and is empty for a mode-only
+ * change or a pure rename.
+ */
 export type PrFileDiff =
   | {
       kind: "text";
@@ -64,11 +68,13 @@ function pathOf(header: string[], value: (prefix: string) => string | undefined)
     const second = names.lastIndexOf(' "');
     return dropPrefix(unquote(names.slice(second + 1)));
   }
+  // No ---/+++/rename lines, so both names are equal: "a/<p> b/<p>" is 2n + 5 characters.
   return names.slice(2, 2 + (names.length - 5) / 2);
 }
 
 const dropPrefix = (name: string) => name.replace(/^[ab]\//, "");
 
+/** Decodes git's C-quoted path; git appends a tab to a ---/+++ name containing a space. */
 function unquote(raw: string): string {
   const name = raw.endsWith("\t") ? raw.slice(0, -1) : raw;
   if (!name.startsWith('"')) return name;
@@ -87,7 +93,11 @@ function unquote(raw: string): string {
       bytes.push(Number.parseInt(octal[0], 8));
       i += 2;
     } else {
-      bytes.push(...encoder.encode({ t: "\t", n: "\n" }[next] ?? next));
+      bytes.push(
+        ...encoder.encode(
+          { a: "\x07", b: "\b", t: "\t", n: "\n", v: "\v", f: "\f", r: "\r" }[next] ?? next,
+        ),
+      );
     }
   }
   return new TextDecoder().decode(new Uint8Array(bytes));

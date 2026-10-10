@@ -75,6 +75,22 @@ describe("files", () => {
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps the newer head's cache when an older head's request finishes late", async () => {
+    let finishA: (r: Response) => void = () => {};
+    const fetchFn = vi
+      .fn()
+      .mockReturnValueOnce(new Promise<Response>((r) => (finishA = r)))
+      .mockResolvedValue(new Response(diff));
+    const source = createPrDataSource(fetchFn);
+    const headB = { ...sandbox, headSha: shaB };
+    const lateA = source.files(sandbox, signal());
+    await source.files(headB, signal());
+    finishA(new Response(diff));
+    await lateA;
+    await source.files(headB, signal());
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
   it("reports an empty diff as no files", async () => {
     expect(await createPrDataSource(okFetch("")).files(sandbox, signal())).toEqual({
       ok: true,
@@ -154,6 +170,16 @@ describe("content", () => {
     await source.content({ ...head, headSha: shaB }, "a", signal());
     await source.content(head, "a", signal());
     expect(fetchFn).toHaveBeenCalledTimes(4);
+  });
+
+  it("retries after a problem", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("", { status: 500 }))
+      .mockResolvedValueOnce(new Response("x"));
+    const source = createPrDataSource(fetchFn);
+    expect(await source.content(head, "a", signal())).toEqual({ ok: false, problem: "failed" });
+    expect(await source.content(head, "a", signal())).toEqual({ ok: true, text: "x" });
   });
 });
 

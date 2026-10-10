@@ -157,6 +157,87 @@ describe("openPrData", () => {
     expect(urls(fetchFn).filter((u) => u === `${base}/pull/7`)).toHaveLength(1);
   });
 
+  it("reports a throwing connect as failed", async () => {
+    const client = openPrData(
+      () => {
+        throw new Error("Extension context invalidated.");
+      },
+      pr,
+      sha,
+    );
+    expect(await client.files()).toEqual({ ok: false, problem: "failed" });
+  });
+
+  it("reports a throwing post as failed and reconnects on the next call", async () => {
+    const fetchFn = routedFetch(okRoutes());
+    const { connect: connectServed } = harness(fetchFn);
+    let first = true;
+    const connect = vi.fn(() => {
+      const port = connectServed();
+      if (first) {
+        first = false;
+        port.postMessage = () => {
+          throw new Error("Attempting to use a disconnected port object");
+        };
+      }
+      return port;
+    });
+    const client = openPrData(connect, pr, sha);
+    expect(await client.fileContent("src/engine.rs")).toEqual({ ok: false, problem: "failed" });
+    expect((await client.fileContent("src/engine.rs")).ok).toBe(true);
+    expect(connect).toHaveBeenCalledTimes(2);
+  });
+
+  it("fetches the diff once for concurrent and repeated files calls", async () => {
+    const fetchFn = routedFetch(okRoutes());
+    const client = openPrData(harness(fetchFn).connect, pr, sha);
+    await Promise.all([client.files(), client.files()]);
+    await client.files();
+    expect(urls(fetchFn)).toEqual([`${base}/pull/7.diff`]);
+  });
+
+  it("retries files after a problem", async () => {
+    const fetchFn = routedFetch({});
+    const client = openPrData(harness(fetchFn).connect, pr, sha);
+    expect(await client.files()).toEqual({ ok: false, problem: "failed" });
+    await client.files();
+    expect(urls(fetchFn)).toEqual([`${base}/pull/7.diff`, `${base}/pull/7.diff`]);
+  });
+
+  it("reports a source error as failed", async () => {
+    const source = {
+      head: vi.fn(),
+      files: vi.fn(async () => {
+        throw new Error("bug");
+      }),
+      content: vi.fn(),
+    };
+    const connect = () => {
+      const [client, server] = portPair();
+      servePrDataPort(server, source);
+      return client;
+    };
+    const onUnhandled = vi.fn();
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      expect(await openPrData(connect, pr, sha).files()).toEqual({ ok: false, problem: "failed" });
+      await new Promise((r) => setTimeout(r, 0));
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+
+  it("never settles or connects for a call made after close", async () => {
+    const { connect } = harness(routedFetch(okRoutes()));
+    const client = openPrData(connect, pr, sha);
+    client.close();
+    const settled = vi.fn();
+    void client.files().then(settled);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(settled).not.toHaveBeenCalled();
+    expect(connect).not.toHaveBeenCalled();
+  });
+
   it("reports too-large when the result cannot be posted", async () => {
     const { connect } = harness(routedFetch(okRoutes()), (server) => {
       const post = server.postMessage;
@@ -176,21 +257,35 @@ describe("openPrData", () => {
 
 describe("servePrDataPort", () => {
   const head = { ...pr, headSha: sha };
-  it.each([
-    ["a non-object", "hi"],
-    ["a missing id", { request: { kind: "files", pr: head } }],
-    ["an unknown kind", { id: 1, request: { kind: "nope", pr: head } }],
-    ["a slash in owner", { id: 1, request: { kind: "files", pr: { ...head, owner: "a/b" } } }],
-    ["a zero number", { id: 1, request: { kind: "files", pr: { ...head, number: 0 } } }],
-    ["a short SHA", { id: 1, request: { kind: "files", pr: { ...head, headSha: "abc" } } }],
-    ["a .. path segment", { id: 1, request: { kind: "content", pr: head, path: "../x" } }],
-    ["an empty path segment", { id: 1, request: { kind: "content", pr: head, path: "a//b" } }],
-  ])("ignores %s without fetching", async (_, message) => {
+  const settle = async (message: unknown) => {
     const fetchFn = routedFetch(okRoutes());
     const [client, server] = portPair();
+    const replies: unknown[] = [];
+    client.listeners.push((m) => replies.push(m));
     servePrDataPort(server, createPrDataSource(fetchFn));
     client.postMessage(message);
     await new Promise((r) => setTimeout(r, 0));
     expect(fetchFn).not.toHaveBeenCalled();
+    return replies;
+  };
+
+  it.each([
+    ["a non-object", "hi"],
+    ["a missing id", { request: { kind: "files", pr: head } }],
+  ])("ignores %s without fetching", async (_, message) => {
+    expect(await settle(message)).toEqual([]);
+  });
+
+  it.each([
+    ["an unknown kind", { id: 1, request: { kind: "nope", pr: head } }],
+    ["a slash in owner", { id: 1, request: { kind: "files", pr: { ...head, owner: "a/b" } } }],
+    ["a .. owner", { id: 1, request: { kind: "files", pr: { ...head, owner: ".." } } }],
+    ["a . repo", { id: 1, request: { kind: "files", pr: { ...head, repo: "." } } }],
+    ["a zero number", { id: 1, request: { kind: "files", pr: { ...head, number: 0 } } }],
+    ["a short SHA", { id: 1, request: { kind: "files", pr: { ...head, headSha: "abc" } } }],
+    ["a .. path segment", { id: 1, request: { kind: "content", pr: head, path: "../x" } }],
+    ["an empty path segment", { id: 1, request: { kind: "content", pr: head, path: "a//b" } }],
+  ])("answers %s failed without fetching", async (_, message) => {
+    expect(await settle(message)).toEqual([{ id: 1, result: { ok: false, problem: "failed" } }]);
   });
 });
