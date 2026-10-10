@@ -5,9 +5,9 @@ import { type PrFileDiff, type PrHunk, parsePrHunks } from "./pr-diff";
  * tokens. Block openers count only at line start, so a mid-line `/*` is code. A Python triple
  * quote opens a docstring only at file start or after a line ending in `:`; otherwise it opens a
  * string. A patch hides the state a hunk starts in, so each hunk is judged from every start its
- * lines make plausible, and reads the head text only when those starts disagree. Prose with no
- * delimiter or gutter in view has only the code start, so it stays "path" without a read, by
- * design. A renamed file is never "docs": moving a module can break its imports.
+ * lines make plausible, and consults the head file's scan only when those starts disagree. Prose
+ * with no delimiter or gutter in view has only the code start, so it stays "path" without a scan,
+ * by design. A renamed file is never "docs": moving a module can break its imports.
  */
 
 /**
@@ -18,17 +18,19 @@ import { type PrFileDiff, type PrHunk, parsePrHunks } from "./pr-diff";
 export type DocVerdict = "docs" | "path" | "needs-content";
 
 /**
- * Judges one hunk. Without head text, every start state the hunk could begin in must agree; with
- * head text, the start state is read from the head file's lines above the hunk. The extension of
- * `path` picks the comment syntax, and an unsupported extension is `"path"`.
+ * Judges one hunk. Without a head scan, every start state the hunk could begin in must agree; with
+ * one, the start state is the scan's state just above the hunk. The extension of `path` picks the
+ * comment syntax, and an unsupported extension is `"path"`.
  */
 export function docHunkVerdict(path: string, hunk: PrHunk): DocVerdict;
-export function docHunkVerdict(path: string, hunk: PrHunk, headText: string): "docs" | "path";
-export function docHunkVerdict(path: string, hunk: PrHunk, headText?: string): DocVerdict {
+export function docHunkVerdict(path: string, hunk: PrHunk, head: ScannedHead): "docs" | "path";
+export function docHunkVerdict(path: string, hunk: PrHunk, head?: ScannedHead): DocVerdict {
   const syntax = syntaxFor(path);
   if (syntax === undefined) return "path";
-  if (headText !== undefined) {
-    return hunkVerdictFrom(syntax, hunk, stateAbove(syntax, headText, hunk.newStart));
+  if (head !== undefined) {
+    // The index is clamped into `starts`, so the `??` fallback never applies.
+    const index = Math.min(Math.max(hunk.newStart - 1, 0), head.lines.length);
+    return hunkVerdictFrom(syntax, hunk, head.starts[index] ?? FILE_START);
   }
   const verdicts = new Set(
     plausibleStarts(syntax, hunk).map((start) => hunkVerdictFrom(syntax, hunk, start)),
@@ -38,20 +40,20 @@ export function docHunkVerdict(path: string, hunk: PrHunk, headText?: string): D
 }
 
 /**
- * "docs" only when the file has at least one hunk and every hunk is "docs". With head text, the
+ * "docs" only when the file has at least one hunk and every hunk is "docs". With a head scan, the
  * hunks that need content are resolved against it.
  */
 export function docFileVerdict(file: PrFileDiff): DocVerdict;
-export function docFileVerdict(file: PrFileDiff, headText: string): "docs" | "path";
-export function docFileVerdict(file: PrFileDiff, headText?: string): DocVerdict {
+export function docFileVerdict(file: PrFileDiff, head: ScannedHead): "docs" | "path";
+export function docFileVerdict(file: PrFileDiff, head?: ScannedHead): DocVerdict {
   if (file.kind === "binary" || file.previousPath !== undefined) return "path";
   const hunks = parsePrHunks(file.patch);
   const verdicts = hunks.map((hunk) => docHunkVerdict(file.path, hunk));
   if (hunks.length === 0 || verdicts.includes("path")) return "path";
   if (verdicts.every((verdict) => verdict === "docs")) return "docs";
-  if (headText === undefined) return "needs-content";
+  if (head === undefined) return "needs-content";
   const docsWithHead = hunks.every(
-    (hunk, i) => verdicts[i] === "docs" || docHunkVerdict(file.path, hunk, headText) === "docs",
+    (hunk, i) => verdicts[i] === "docs" || docHunkVerdict(file.path, hunk, head) === "docs",
   );
   return docsWithHead ? "docs" : "path";
 }
@@ -253,10 +255,24 @@ function isGutterRun(body: readonly HunkLine[], gutter: string): boolean {
   return nonBlankLines.length > 0 && nonBlankLines.every((text) => text.startsWith(gutter));
 }
 
-function stateAbove(syntax: Syntax, headText: string, newStart: number): ScanState {
+/** A head file split and comment-scanned once, shared by every hunk that reads it. */
+export interface ScannedHead {
+  readonly lines: readonly string[];
+  /** The comment scan's state before each line, then the state at end of file. */
+  readonly starts: readonly ScanState[];
+}
+
+/** `undefined` for an extension with no comment syntax. */
+export function scanHeadText(path: string, text: string): ScannedHead | undefined {
+  const syntax = syntaxFor(path);
+  if (syntax === undefined) return undefined;
+  const lines = text.split("\n");
+  const starts: ScanState[] = [];
   let state = FILE_START;
-  for (const line of headText.split("\n").slice(0, Math.max(newStart - 1, 0))) {
+  for (const line of lines) {
+    starts.push(state);
     state = scanLine(syntax, state, line).state;
   }
-  return state;
+  starts.push(state);
+  return { lines, starts };
 }

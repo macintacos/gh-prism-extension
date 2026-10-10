@@ -1,4 +1,4 @@
-import { docFileVerdict } from "@/utils/doc-intent";
+import { docFileVerdict, scanHeadText } from "@/utils/doc-intent";
 import type { PrFileDiff } from "@/utils/pr-diff";
 import type { PrDataClient } from "@/utils/pr-port";
 import type { PrRef } from "@/utils/pr-ref";
@@ -19,7 +19,9 @@ async function isDocsOnly(
   const verdict = docFileVerdict(file);
   if (verdict !== "needs-content") return verdict === "docs";
   const content = await client.fileContent(file.path);
-  return content.ok && docFileVerdict(file, content.text) === "docs";
+  if (!content.ok) return false;
+  const head = scanHeadText(file.path, content.text);
+  return head !== undefined && docFileVerdict(file, head) === "docs";
 }
 
 /**

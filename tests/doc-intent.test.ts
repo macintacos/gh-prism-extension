@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DocVerdict } from "../utils/doc-intent";
-import { docFileVerdict, docHunkVerdict } from "../utils/doc-intent";
+import { docFileVerdict, docHunkVerdict, scanHeadText } from "../utils/doc-intent";
 import type { PrFileDiff, PrHunk } from "../utils/pr-diff";
 import { parsePrHunks } from "../utils/pr-diff";
 
@@ -18,6 +18,12 @@ const modified = (path: string, patch: string): PrFileDiff => ({
   status: "modified",
   patch,
 });
+
+const headOf = (path: string, text: string) => {
+  const head = scanHeadText(path, text);
+  if (head === undefined) throw new Error(`no comment syntax for ${path}`);
+  return head;
+};
 
 // The new side of src/notes.rs, lines 1–23: the block opened on line 1 is still open before hunk 2.
 const notesProse = [
@@ -1113,7 +1119,7 @@ describe("docHunkVerdict", () => {
   });
 
   it.each(headCases)("$name", ({ path, patch, headText, verdict }) => {
-    expect(docHunkVerdict(path, hunkOf(patch), headText)).toBe(verdict);
+    expect(docHunkVerdict(path, hunkOf(patch), headOf(path, headText))).toBe(verdict);
   });
 });
 
@@ -1123,6 +1129,6 @@ describe("docFileVerdict", () => {
   });
 
   it.each(headFileCases)("$name", ({ file, headText, verdict }) => {
-    expect(docFileVerdict(file, headText)).toBe(verdict);
+    expect(docFileVerdict(file, headOf(file.path, headText))).toBe(verdict);
   });
 });
