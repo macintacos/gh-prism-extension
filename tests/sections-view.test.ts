@@ -31,7 +31,7 @@ const nativeLink = (path: string) => {
   return link;
 };
 
-// Past the MutationObserver's debounce, with its microtask run first.
+// Past the 50 ms debounce; the async advance runs the MutationObserver's pending microtask first.
 const afterDebounce = () => vi.advanceTimersByTimeAsync(100);
 
 beforeEach(() => {
