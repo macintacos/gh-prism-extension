@@ -7,6 +7,14 @@
   font-size: var(--text-body-size-medium);
 }
 
+.gh-prism-notice {
+  margin: 0;
+  padding: 6px 8px 4px;
+  font-size: var(--text-body-size-small);
+  line-height: var(--text-body-lineHeight-small);
+  color: var(--fgColor-muted);
+}
+
 .gh-prism-section + .gh-prism-section {
   margin-top: 8px;
 }

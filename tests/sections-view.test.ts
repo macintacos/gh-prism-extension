@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { DocPaths } from "../entrypoints/content/doc-paths";
 import { findFilesPage } from "../entrypoints/content/files-page";
 import { showSections } from "../entrypoints/content/sections-view";
 import css from "../entrypoints/content/sections-view.css?raw";
@@ -33,6 +34,20 @@ const nativeLink = (path: string) => {
 
 // Past the 50 ms debounce; the async advance runs the MutationObserver's pending microtask first.
 const afterDebounce = () => vi.advanceTimersByTimeAsync(100);
+
+const pathsIn = (section: string) =>
+  [...document.querySelectorAll<HTMLElement>(`[data-section="${section}"] a.gh-prism-file`)].map(
+    (file) => file.dataset.path,
+  );
+
+/** Replaces the view `beforeEach` mounted with one that waits on `intent`. */
+function remountWith(intent: Promise<DocPaths>): void {
+  controller.abort();
+  controller = new AbortController();
+  const page = findFilesPage(document);
+  if (!page) throw new Error("fixture lacks the Files changed markup");
+  showSections(page, controller.signal, intent);
+}
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -204,6 +219,72 @@ describe("showSections", () => {
     controller.abort();
     expect(view()).toBeNull();
     byId("src/lib.rs").removeAttribute("aria-current");
+    await afterDebounce();
+    expect(view()).toBeNull();
+  });
+
+  it("keeps path sections while the intent is pending", () => {
+    remountWith(Promise.withResolvers<DocPaths>().promise);
+    expect(pathsIn("implementation")).toContain("src/notes.rs");
+    expect(pathsIn("implementation")).toContain("src/parser.rs");
+  });
+
+  it("moves intent-marked files into Documentation once it settles", async () => {
+    const intent = Promise.withResolvers<DocPaths>();
+    remountWith(intent.promise);
+    intent.resolve({ ok: true, paths: new Set(["src/parser.rs", "src/notes.rs"]) });
+    await afterDebounce();
+    expect(pathsIn("docs")).toEqual([
+      "docs/guide.md",
+      "src/notes.rs",
+      "src/parser.rs",
+      "README.md",
+    ]);
+    expect(document.querySelector(".gh-prism-notice")).toBeNull();
+  });
+
+  it("keeps the moved files across a re-render", async () => {
+    const intent = Promise.withResolvers<DocPaths>();
+    remountWith(intent.promise);
+    intent.resolve({ ok: true, paths: new Set(["src/parser.rs", "src/notes.rs"]) });
+    await afterDebounce();
+    byId("src/lib.rs").removeAttribute("aria-current");
+    await afterDebounce();
+    expect(pathsIn("docs")).toEqual([
+      "docs/guide.md",
+      "src/notes.rs",
+      "src/parser.rs",
+      "README.md",
+    ]);
+  });
+
+  it.each([
+    {
+      problem: "commit-filtered",
+      copy: "Grouped by path. Docstring-only changes are detected when viewing all commits.",
+    },
+    {
+      problem: "no-access",
+      copy: "Grouped by path. Sign in to GitHub to detect docstring-only changes.",
+    },
+  ] as const)(
+    "keeps path sections and shows a notice when the intent is $problem",
+    async ({ problem, copy }) => {
+      const intent = Promise.withResolvers<DocPaths>();
+      remountWith(intent.promise);
+      intent.resolve({ ok: false, problem });
+      await afterDebounce();
+      expect(pathsIn("implementation")).toContain("src/parser.rs");
+      expect(view()?.firstElementChild?.className).toBe("gh-prism-notice");
+      expect(view()?.firstElementChild?.textContent).toBe(copy);
+    },
+  );
+
+  it("drops an intent that settles after abort", async () => {
+    const intent = Promise.withResolvers<DocPaths>();
+    remountWith(intent.promise);
+    controller.abort();
+    intent.resolve({ ok: true, paths: new Set(["src/parser.rs"]) });
     await afterDebounce();
     expect(view()).toBeNull();
   });

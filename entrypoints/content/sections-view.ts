@@ -5,6 +5,7 @@
  */
 
 import { classify, SECTIONS, type SectionKey } from "@/utils/sections";
+import type { DocPaths, PathOnlyReason } from "./doc-paths";
 import { type ChangedFile, type FilesPage, observeTree, readChangedFiles } from "./files-page";
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
 import css from "./sections-view.css?raw";
@@ -15,9 +16,29 @@ interface FileSection {
   readonly files: ChangedFile[];
 }
 
-/** Non-empty sections in `SECTIONS` order, each with its files in native-tree order. */
-function groupBySection(files: readonly ChangedFile[]): FileSection[] {
-  const bySection = Map.groupBy(files, (file) => classify(file.path));
+const NO_DOC_PATHS: ReadonlySet<string> = new Set();
+
+const PATH_ONLY_COPY: Record<PathOnlyReason, string> = {
+  "commit-filtered":
+    "Grouped by path. Docstring-only changes are detected when viewing all commits.",
+  "no-access": "Grouped by path. Sign in to GitHub to detect docstring-only changes.",
+  "rate-limited":
+    "Grouped by path. GitHub is rate-limiting requests; reload to detect docstring-only changes.",
+  "too-large": "Grouped by path. This diff is too large to check for docstring-only changes.",
+  failed: "Grouped by path. The diff didn't load; reload to detect docstring-only changes.",
+};
+
+/**
+ * Non-empty sections in `SECTIONS` order, each with its files in native-tree order. A file in
+ * `docPaths` is Documentation whatever its path says.
+ */
+function groupBySection(
+  files: readonly ChangedFile[],
+  docPaths: ReadonlySet<string>,
+): FileSection[] {
+  const bySection = Map.groupBy(files, (file) =>
+    docPaths.has(file.path) ? "docs" : classify(file.path),
+  );
   return SECTIONS.flatMap(({ key, label }) => {
     const sectionFiles = bySection.get(key);
     return sectionFiles ? [{ key, label, files: sectionFiles }] : [];
@@ -176,18 +197,34 @@ function isPlainLeftClick(event: MouseEvent): boolean {
   return event.button === 0 && !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey);
 }
 
-/** Mirrors `page`'s native file tree as sections inside its sidebar until `signal` aborts. */
-export function showSections(page: FilesPage, signal: AbortSignal): void {
+/**
+ * Mirrors `page`'s native file tree as sections inside its sidebar until `signal` aborts. Files
+ * in `intent`'s doc paths move to Documentation once it settles; until then, and without one,
+ * sections follow the paths alone.
+ */
+export function showSections(
+  page: FilesPage,
+  signal: AbortSignal,
+  intent?: Promise<DocPaths>,
+): void {
   const doc = page.sidebar.ownerDocument;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   const view = el(doc, "nav", "gh-prism-sections");
   view.setAttribute("aria-label", "Changed files by section");
   const collapsed = new Set<string>();
+  let landed: DocPaths | undefined;
 
   const render = () => {
     const focusedKey = view.contains(doc.activeElement) ? focusKey(doc.activeElement) : undefined;
-    const sections = groupBySection(readChangedFiles(page.sidebar));
-    view.replaceChildren(...sections.map((section) => sectionView(section, doc, collapsed)));
+    const docPaths = landed?.ok ? landed.paths : NO_DOC_PATHS;
+    const sections = groupBySection(readChangedFiles(page.sidebar), docPaths);
+    // No role="status": every render rebuilds this, so a live region would re-announce on scroll.
+    const notice =
+      landed?.ok === false ? [el(doc, "p", "gh-prism-notice", PATH_ONLY_COPY[landed.problem])] : [];
+    view.replaceChildren(
+      ...notice,
+      ...sections.map((section) => sectionView(section, doc, collapsed)),
+    );
     if (focusedKey === undefined) return;
     [...view.querySelectorAll("[data-path], [data-dir]")]
       .find(
@@ -225,6 +262,12 @@ export function showSections(page: FilesPage, signal: AbortSignal): void {
   page.tree.before(view);
   doc.head.append(style);
   render();
+  // Detached: DocPaths never rejects, so a rejection is a bug that should surface.
+  void intent?.then((result) => {
+    if (signal.aborted) return;
+    landed = result;
+    render();
+  });
   observeTree(page.sidebar, render, { signal, ignore: view });
   signal.addEventListener("abort", () => {
     view.remove();
