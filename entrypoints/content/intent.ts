@@ -1,48 +1,106 @@
-import { docFileVerdict, scanHeadText } from "@/utils/doc-intent";
-import { changesOnlyInlineTests, inlineTestRuleApplies } from "@/utils/inline-tests";
-import type { PrFileDiff } from "@/utils/pr-diff";
+import {
+  type DocVerdict,
+  docHunkVerdicts,
+  type ScannedHead,
+  scanHeadText,
+} from "@/utils/doc-intent";
+import { inlineTestHunkVerdicts, inlineTestRuleApplies } from "@/utils/inline-tests";
+import { type HeadLineSpan, hunkHeadSpan, type PrFileDiff, parsePrHunks } from "@/utils/pr-diff";
 import type { PrDataClient } from "@/utils/pr-port";
 import type { PrRef } from "@/utils/pr-ref";
 import type { PrDataProblem } from "@/utils/pr-source";
-import type { SectionKey } from "@/utils/sections";
+import { classify, SECTIONS, type SectionKey } from "@/utils/sections";
 import type { FilesRoute } from "./files-page";
 
 /** Why the view keeps path-only sections. */
 export type PathOnlyReason = PrDataProblem | "commit-filtered";
-/** The sections intent can place a file in, whatever its path says. */
+/** The sections intent can move a whole file into, whatever its path says. */
 export type IntentSection = Extract<SectionKey, "docs" | "tests">;
-/**
- * The docs and tests overrides, or why the view keeps path-only sections: each file whose every
- * change is documentation or inline-test code, keyed by path to its section. A file absent from
- * `overrides` keeps its path section.
- */
-export type IntentResult =
-  | { ok: true; overrides: ReadonlyMap<string, IntentSection> }
-  | { ok: false; problem: PathOnlyReason };
 
-/**
- * The section a file's changes place it in, or `undefined` to keep its path section. The head text
- * is read only when the patch can't settle the docs verdict or the inline-test rule could apply.
- */
-async function sectionFromContent(
-  client: Pick<PrDataClient, "fileContent">,
-  file: PrFileDiff,
-): Promise<IntentSection | undefined> {
-  const docVerdict = docFileVerdict(file);
-  if (docVerdict === "docs") return "docs";
-  const testable = inlineTestRuleApplies(file);
-  if (docVerdict === "path" && !testable) return undefined;
-  const content = await client.fileContent(file.path);
-  if (!content.ok) return undefined;
-  const head = scanHeadText(file.path, content.text);
-  if (head === undefined) return undefined;
-  if (docVerdict === "needs-content" && docFileVerdict(file, head) === "docs") return "docs";
-  return testable && changesOnlyInlineTests(file, head) ? "tests" : undefined;
+/** One section's part of a file whose hunks span several sections. */
+export interface SectionShare {
+  readonly section: SectionKey;
+  /** The head-file lines of each hunk placed here, in diff order; `undefined` for a hunk with none. */
+  readonly hunks: readonly (HeadLineSpan | undefined)[];
 }
 
 /**
- * Reads the PR's files and returns their docs and tests overrides. A file whose head can't be read
- * keeps its path section, so only a `files()` failure makes the result not ok.
+ * Where the changed files land, or why the view keeps path-only sections. A file in `overrides` is
+ * moved whole to its section; a file in `splits` is listed in each section its hunks land in. A file
+ * in neither keeps its path section.
+ */
+export type IntentResult =
+  | {
+      ok: true;
+      overrides: ReadonlyMap<string, IntentSection>;
+      /** Keyed by path, with each file's shares in `SECTIONS` order. */
+      splits: ReadonlyMap<string, readonly SectionShare[]>;
+    }
+  | { ok: false; problem: PathOnlyReason };
+
+type Placement = { readonly override: IntentSection } | { readonly split: readonly SectionShare[] };
+
+const isDocs = (verdict: DocVerdict) => verdict === "docs";
+
+async function readHead(
+  client: Pick<PrDataClient, "fileContent">,
+  file: PrFileDiff,
+): Promise<ScannedHead | undefined> {
+  const content = await client.fileContent(file.path);
+  return content.ok ? scanHeadText(file.path, content.text) : undefined;
+}
+
+/**
+ * Each hunk's rule section, or `undefined` to keep it in the path section; aligned with
+ * `parsePrHunks`. The head is read only when the patch can't settle every hunk as docs and a rule
+ * needs it.
+ */
+async function hunkSections(
+  client: Pick<PrDataClient, "fileContent">,
+  file: PrFileDiff,
+): Promise<(IntentSection | undefined)[]> {
+  const byPatch = docHunkVerdicts(file);
+  if (byPatch.every(isDocs)) return byPatch.map(() => "docs"); // also [] for binary or renamed
+  const needsHead = inlineTestRuleApplies(file) || byPatch.includes("needs-content");
+  const head = needsHead ? await readHead(client, file) : undefined;
+  if (head === undefined) return byPatch.map((verdict) => (isDocs(verdict) ? "docs" : undefined));
+  const docs = docHunkVerdicts(file, head);
+  if (docs.every(isDocs)) return docs.map(() => "docs");
+  const tests = inlineTestHunkVerdicts(file, head);
+  return docs.map((verdict, i) => (tests[i] ? "tests" : isDocs(verdict) ? "docs" : undefined));
+}
+
+/**
+ * Pure: a split when the hunks resolve to two or more sections; an override when every hunk lands in
+ * the same rule section; otherwise nothing, so the file keeps its path section.
+ */
+function placementOf(
+  path: string,
+  spans: readonly (HeadLineSpan | undefined)[],
+  sections: readonly (IntentSection | undefined)[],
+): Placement | undefined {
+  const resolved = sections.map((section) => section ?? classify(path));
+  if (new Set(resolved).size > 1) {
+    return {
+      split: SECTIONS.flatMap(({ key }) => {
+        const hunks = resolved.flatMap((section, i) => (section === key ? [spans[i]] : []));
+        return hunks.length > 0 ? [{ section: key, hunks }] : [];
+      }),
+    };
+  }
+  const [first] = sections;
+  return first !== undefined && sections.every((section) => section === first)
+    ? { override: first }
+    : undefined;
+}
+
+const spansOf = (file: PrFileDiff) =>
+  file.kind === "text" ? parsePrHunks(file.patch).map((hunk) => hunkHeadSpan(hunk)) : [];
+
+/**
+ * Reads the PR's files and places each one's hunks. A file whose head can't be read keeps the hunks
+ * its patch settles, and the rest stay in its path section; only a `files()` failure makes the
+ * result not ok.
  */
 export async function readIntent(
   client: Pick<PrDataClient, "files" | "fileContent">,
@@ -51,17 +109,20 @@ export async function readIntent(
   if (!listed.ok) return listed;
   // ponytail: unbounded concurrency; every file a rule needs content for reads at once.
   // Cap it with a worker pool if reads trip rate-limited.
-  const sections = await Promise.all(
+  const placements = await Promise.all(
     listed.files.map(async (file) => ({
       path: file.path,
-      section: await sectionFromContent(client, file),
+      placement: placementOf(file.path, spansOf(file), await hunkSections(client, file)),
     })),
   );
   const overrides = new Map<string, IntentSection>();
-  for (const { path, section } of sections) {
-    if (section !== undefined) overrides.set(path, section);
+  const splits = new Map<string, readonly SectionShare[]>();
+  for (const { path, placement } of placements) {
+    if (placement === undefined) continue;
+    if ("override" in placement) overrides.set(path, placement.override);
+    else splits.set(path, placement.split);
   }
-  return { ok: true, overrides };
+  return { ok: true, overrides, splits };
 }
 
 /**

@@ -238,6 +238,7 @@ describe("showSections", () => {
         ["src/parser.rs", "docs"],
         ["src/notes.rs", "docs"],
       ]),
+      splits: new Map(),
     });
     await afterDebounce();
     expect(pathsIn("docs")).toEqual([
@@ -252,7 +253,11 @@ describe("showSections", () => {
   it("moves a tests override out of Implementation once intent settles", async () => {
     const deferred = Promise.withResolvers<IntentResult>();
     remountWith(deferred.promise);
-    deferred.resolve({ ok: true, overrides: new Map([["src/lib.rs", "tests"]]) });
+    deferred.resolve({
+      ok: true,
+      overrides: new Map([["src/lib.rs", "tests"]]),
+      splits: new Map(),
+    });
     await afterDebounce();
     expect(pathsIn("tests")).toEqual(["src/lib.rs", "tests/integration.rs"]);
     expect(pathsIn("implementation")).not.toContain("src/lib.rs");
@@ -267,6 +272,7 @@ describe("showSections", () => {
         ["src/parser.rs", "docs"],
         ["src/notes.rs", "docs"],
       ]),
+      splits: new Map(),
     });
     await afterDebounce();
     byId("src/lib.rs").removeAttribute("aria-current");
@@ -305,7 +311,11 @@ describe("showSections", () => {
     const deferred = Promise.withResolvers<IntentResult>();
     remountWith(deferred.promise);
     controller.abort();
-    deferred.resolve({ ok: true, overrides: new Map([["src/parser.rs", "docs"]]) });
+    deferred.resolve({
+      ok: true,
+      overrides: new Map([["src/parser.rs", "docs"]]),
+      splits: new Map(),
+    });
     await afterDebounce();
     expect(view()).toBeNull();
   });

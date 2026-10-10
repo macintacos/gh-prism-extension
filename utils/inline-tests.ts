@@ -6,7 +6,7 @@ import { classify } from "./sections";
  * The inline-test rule of changeset.nvim's `test_rule` (`lua/changeset/sections.lua`, at
  * `macintacos/changeset.nvim@2b6115db3a5394a207836afdeaa8237225b8de93`), ported as a line scan of
  * the head file. A hunk that changes only lines inside a test block of a Rust, Python or TypeScript
- * file counts as Tests, and a file whose hunks all count moves to Tests.
+ * file counts as Tests; `inlineTestHunkVerdicts` judges each hunk, and intent places them.
  *
  * A test block is a Rust `mod test`/`mod tests` body, a TypeScript `namespace tests` body or a
  * `describe`/`it`/`test` call given a callback, or a Python `class Test*` or non-method
@@ -15,7 +15,8 @@ import { classify } from "./sections";
  *
  * Divergences from upstream: no syntax marks are read (`#[test]`, `#[cfg(test)]`,
  * `import.meta.vitest`); a hunk counts only when every non-blank changed line sits in a block, so a
- * partly overlapping hunk or a mixed file keeps its path section; a renamed file never moves.
+ * partly overlapping hunk keeps its path section; a file whose hunks span sections is split per hunk
+ * by intent rather than moved whole; a renamed file never moves.
  */
 
 // ponytail: a line scan, not a parser. Braces in multi-line strings, template literals, Rust raw
@@ -34,15 +35,14 @@ export function inlineTestRuleApplies(file: PrFileDiff): boolean {
 }
 
 /**
- * Whether the file is one the rule applies to, has a hunk, and every hunk changes a non-blank
- * line, all of them inside the head's test blocks.
+ * One verdict per hunk, aligned with `parsePrHunks(file.patch)`: `true` when every non-blank changed
+ * line sits inside the head's test blocks. `[]` when the rule does not apply to the file.
  */
-export function changesOnlyInlineTests(file: PrFileDiff, head: ScannedHead): boolean {
+export function inlineTestHunkVerdicts(file: PrFileDiff, head: ScannedHead): boolean[] {
   const findBlocks = candidateFinder(file);
-  if (findBlocks === undefined || file.kind !== "text") return false;
-  const hunks = parsePrHunks(file.patch);
+  if (findBlocks === undefined || file.kind !== "text") return [];
   const blocks = findBlocks(head);
-  return hunks.length > 0 && hunks.every((hunk) => hunkIsInTests(hunk, blocks));
+  return parsePrHunks(file.patch).map((hunk) => hunkIsInTests(hunk, blocks));
 }
 
 function candidateFinder(file: PrFileDiff): BlockFinder | undefined {
