@@ -192,12 +192,12 @@ export async function revealDiffLine(
   const row = () => lineRow(diff(), line);
   if (!diff()) {
     link.click(); // GitHub mounts a virtualized diff and scrolls to its header
-    if (!(await waitForDiff(diffs, diff, signal))) return;
+    if (!(await untilFound(diffs, diff, signal))) return;
   }
-  if (!row() && expandDiff(diff())) await waitForDiff(diffs, () => expandedDiff(diff()), signal);
+  if (!row() && expandDiff(diff())) await untilFound(diffs, () => uncollapsed(diff()), signal);
   if (signal.aborted) return;
   let target = row();
-  if (!target && loadDiff(diff())) target = await waitForDiff(diffs, row, signal);
+  if (!target && loadDiff(diff())) target = await untilFound(diffs, row, signal);
   if (signal.aborted) return;
   if (target) target.scrollIntoView({ block: "center" });
   else link.click(); // the file's header
@@ -222,7 +222,7 @@ function expandDiff(diff: Element | null): boolean {
   return true;
 }
 
-function expandedDiff(diff: Element | null): Element | null {
+function uncollapsed(diff: Element | null): Element | null {
   return diff && diff.children.length > 1 ? diff : null;
 }
 
@@ -240,7 +240,7 @@ function loadDiff(diff: Element | null): boolean {
  * under `diffs`. Resolves with `find()`'s value at `REVEAL_TIMEOUT_MS`, or with `null` once
  * `signal` aborts.
  */
-function waitForDiff<T>(
+function untilFound<T>(
   diffs: Element,
   find: () => T | null,
   signal: AbortSignal,

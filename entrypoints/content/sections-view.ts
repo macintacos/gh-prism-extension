@@ -143,22 +143,22 @@ interface RenderContext {
 
 function hunkRow(
   file: ChangedFile,
-  span: SectionShare["hunks"][number],
+  range: SectionShare["hunks"][number],
   ctx: RenderContext,
 ): HTMLElement {
-  if (span === undefined) {
+  if (range === undefined) {
     const row = el(ctx.doc, "span", "gh-prism-hunk", "Removed lines");
     row.setAttribute("aria-disabled", "true");
     row.title = "No line in the new file to jump to.";
     return row;
   }
   const label =
-    span.first === span.last ? `Line ${span.first}` : `Lines ${span.first}–${span.last}`;
+    range.first === range.last ? `Line ${range.first}` : `Lines ${range.first}–${range.last}`;
   const row = el(ctx.doc, "a", "gh-prism-hunk", label);
-  row.href = `${nativeHref(file)}R${span.first}`;
+  row.href = `${nativeHref(file)}R${range.first}`;
   row.dataset.path = file.path;
   row.dataset.section = ctx.sectionKey;
-  row.dataset.line = String(span.first);
+  row.dataset.line = String(range.first);
   return row;
 }
 
@@ -171,7 +171,7 @@ function hunkList(
     ctx.doc,
     "ul",
     "gh-prism-hunks",
-    ...hunks.map((span) => el(ctx.doc, "li", "", hunkRow(file, span, ctx))),
+    ...hunks.map((range) => el(ctx.doc, "li", "", hunkRow(file, range, ctx))),
   );
 }
 

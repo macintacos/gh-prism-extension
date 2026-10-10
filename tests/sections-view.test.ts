@@ -553,9 +553,9 @@ describe("showSections", () => {
 
     it("leaves a hunk click alone when its native row is gone", async () => {
       await landed(RENDER_SPLIT);
-      const docs = inSection("docs", ".gh-prism-hunk");
+      const docsHunk = inSection("docs", ".gh-prism-hunk");
       byId("src/render.rs").remove();
-      const event = clickAt(docs);
+      const event = clickAt(docsHunk);
       expect(event.defaultPrevented).toBe(false);
       expect(scrollIntoView).not.toHaveBeenCalled();
     });

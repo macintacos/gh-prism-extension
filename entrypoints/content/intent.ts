@@ -58,15 +58,19 @@ async function hunkSections(
   client: Pick<PrDataClient, "fileContent">,
   file: PrFileDiff,
 ): Promise<(IntentSection | undefined)[]> {
-  const byPatch = docHunkVerdicts(file);
-  if (byPatch.every(isDocs)) return byPatch.map(() => "docs"); // also [] for binary or renamed
-  const needsHead = inlineTestRuleApplies(file) || byPatch.includes("needs-content");
+  const patchVerdicts = docHunkVerdicts(file);
+  // also [] for binary or renamed
+  if (patchVerdicts.every(isDocs)) return patchVerdicts.map(() => "docs");
+  const needsHead = inlineTestRuleApplies(file) || patchVerdicts.includes("needs-content");
   const head = needsHead ? await readHead(client, file) : undefined;
-  if (head === undefined) return byPatch.map((verdict) => (isDocs(verdict) ? "docs" : undefined));
-  const docs = docHunkVerdicts(file, head);
-  if (docs.every(isDocs)) return docs.map(() => "docs");
-  const tests = inlineTestHunkVerdicts(file, head);
-  return docs.map((verdict, i) => (tests[i] ? "tests" : isDocs(verdict) ? "docs" : undefined));
+  if (head === undefined)
+    return patchVerdicts.map((verdict) => (isDocs(verdict) ? "docs" : undefined));
+  const headVerdicts = docHunkVerdicts(file, head);
+  if (headVerdicts.every(isDocs)) return headVerdicts.map(() => "docs");
+  const inTests = inlineTestHunkVerdicts(file, head);
+  return headVerdicts.map((verdict, i) =>
+    inTests[i] ? "tests" : isDocs(verdict) ? "docs" : undefined,
+  );
 }
 
 /**
