@@ -14,6 +14,13 @@ export default defineConfig({
       mkdirSync(chromeProfile, { recursive: true, mode: 0o700 });
     },
   },
+  manifest: {
+    host_permissions: [
+      "https://github.com/*",
+      "https://patch-diff.githubusercontent.com/*",
+      "https://raw.githubusercontent.com/*",
+    ],
+  },
   webExt: {
     chromiumProfile: chromeProfile,
     keepProfileChanges: true,
