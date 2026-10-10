@@ -4,15 +4,37 @@
  * imports nothing from WXT, so other features can reuse it.
  */
 
-const FILES_PATH = /^\/[^/]+\/[^/]+\/pull\/\d+\/(changes|files)(\/|$)/;
+import type { PrRef } from "@/utils/pr-ref";
+
+const FILES_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)\/(?:changes|files)(?:\/([^/]*).*)?$/;
 const DEBOUNCE_MS = 50;
 const POLL_MS = 100;
 // Long enough for popstate's ~200 ms early fire and a slow cold render.
 const SETTLE_POLLS = 10_000 / POLL_MS;
 
+/** The pull request a Files changed URL names, and whether a commit or range narrows it. */
+export interface FilesRoute {
+  readonly pr: PrRef;
+  /** The URL names one commit or a range: `/changes/<sha>` or `/changes/<base>..<head>`. */
+  readonly commitFiltered: boolean;
+}
+
+/**
+ * The pull request and commit filter a Files changed `pathname` names, or `undefined` off
+ * that tab.
+ */
+export function readFilesRoute(pathname: string): FilesRoute | undefined {
+  const match = FILES_PATH.exec(pathname);
+  if (!match) return undefined;
+  const [, owner, repo, prNumber, filter] = match;
+  // FILES_PATH always captures these; the checks narrow them for noUncheckedIndexedAccess.
+  if (owner === undefined || repo === undefined || prNumber === undefined) return undefined;
+  return { pr: { owner, repo, number: Number(prNumber) }, commitFiltered: Boolean(filter) };
+}
+
 /** Whether `pathname` is a pull request's Files changed tab, any commit or range included. */
 export function isFilesPath(pathname: string): boolean {
-  return FILES_PATH.test(pathname);
+  return readFilesRoute(pathname) !== undefined;
 }
 
 /** A pull request's Files changed markup, as `findFilesPage` finds it. */
@@ -172,7 +194,7 @@ export function watchFilesPages(
   handlers: FilesPageHandlers,
   signal: AbortSignal,
 ): void {
-  let shown: { page: FilesPage; controller: AbortController } | undefined;
+  let shown: { page: FilesPage; pathname: string; controller: AbortController } | undefined;
   let timer: number | undefined;
   let missingReported = false;
 
@@ -182,12 +204,13 @@ export function watchFilesPages(
   };
 
   const sync = () => {
-    if (!isFilesPath(win.location.pathname)) return drop();
+    const { pathname } = win.location;
+    if (!isFilesPath(pathname)) return drop();
     const page = findFilesPage(win.document);
-    if (page && shown && sameMarkup(page, shown.page)) return;
+    if (page && shown && sameMarkup(page, shown.page) && shown.pathname === pathname) return;
     drop();
     if (!page) return;
-    shown = { page, controller: new AbortController() };
+    shown = { page, pathname, controller: new AbortController() };
     handlers.onPage(page, shown.controller.signal);
   };
 
