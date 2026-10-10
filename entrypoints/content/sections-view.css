@@ -1,0 +1,124 @@
+/* Hidden, not removed: the filter keeps editing these rows, and the view mirrors them. */
+#pr-file-tree:has(.gh-prism-sections) ul[role="tree"] {
+  display: none;
+}
+
+.gh-prism-sections {
+  font-size: var(--text-body-size-medium);
+}
+
+.gh-prism-section + .gh-prism-section {
+  margin-top: 8px;
+}
+
+.gh-prism-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 8px 4px;
+  font-size: var(--text-body-size-small);
+  font-weight: var(--base-text-weight-semibold);
+  line-height: var(--text-body-lineHeight-small);
+  color: var(--fgColor-muted);
+}
+
+.gh-prism-counter {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 2em;
+  background: var(--counter-bgColor-muted);
+  color: var(--fgColor-default);
+  font-size: var(--text-body-size-small);
+  font-weight: var(--base-text-weight-medium);
+  line-height: var(--text-body-lineHeight-small);
+  text-align: center;
+}
+
+.gh-prism-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gh-prism-file,
+.gh-prism-dir {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 8px 0 calc(var(--gh-prism-inset) + var(--gh-prism-level, 0) * 8px);
+  border: 0;
+  border-radius: var(--borderRadius-medium);
+  background: transparent;
+  color: var(--fgColor-default);
+  font: inherit;
+  line-height: 20px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.gh-prism-file:hover,
+.gh-prism-dir:hover {
+  background: var(--control-transparent-bgColor-hover);
+  text-decoration: none;
+}
+
+.gh-prism-file[aria-current="true"] {
+  background: var(--control-transparent-bgColor-selected);
+}
+
+.gh-prism-file:focus-visible,
+.gh-prism-dir:focus-visible {
+  outline: 2px solid var(--focus-outlineColor);
+  outline-offset: -2px;
+}
+
+.gh-prism-dir {
+  --gh-prism-inset: 8px;
+}
+
+/* Lines file icons up under the directory icon, past the chevron's column. */
+.gh-prism-file {
+  --gh-prism-inset: 32px;
+}
+
+.gh-prism-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-prism-visual {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.gh-prism-chevron,
+.gh-prism-dir-icon {
+  flex-shrink: 0;
+}
+
+.gh-prism-chevron {
+  fill: var(--fgColor-muted);
+  transition: transform 80ms;
+}
+
+.gh-prism-dir-icon {
+  fill: var(--treeViewItem-leadingVisual-iconColor-rest);
+}
+
+.gh-prism-dir[aria-expanded="false"] .gh-prism-chevron {
+  transform: rotate(-90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-prism-chevron {
+    transition: none;
+  }
+}
