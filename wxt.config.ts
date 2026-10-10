@@ -14,6 +14,14 @@ export default defineConfig({
       mkdirSync(chromeProfile, { recursive: true, mode: 0o700 });
     },
   },
+  manifest: {
+    // github.com's .diff and raw/ URLs redirect to these two githubusercontent hosts.
+    host_permissions: [
+      "https://github.com/*",
+      "https://patch-diff.githubusercontent.com/*",
+      "https://raw.githubusercontent.com/*",
+    ],
+  },
   webExt: {
     chromiumProfile: chromeProfile,
     keepProfileChanges: true,
