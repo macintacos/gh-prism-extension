@@ -82,11 +82,11 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
     }
   }
 
-  const base = (pr: PrRef) => `https://github.com/${pr.owner}/${pr.repo}`;
+  const repoUrl = (pr: PrRef) => `https://github.com/${pr.owner}/${pr.repo}`;
 
   return {
     async head(pr, signal) {
-      const page = await fetchText(`${base(pr)}/pull/${pr.number}`, signal);
+      const page = await fetchText(`${repoUrl(pr)}/pull/${pr.number}`, signal);
       if (!page.ok) return page;
       const headSha = prHeadShaFromEmbeddedData(prEmbeddedDataFromHtml(page.text), pr);
       return headSha ? { ok: true, headSha } : { ok: false, problem: "failed" };
@@ -96,7 +96,7 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
       const entry = entryFor(pr);
       const cached = entry.files;
       if (cached) return { ok: true, files: cached };
-      const diff = await fetchText(`${base(pr)}/pull/${pr.number}.diff`, signal);
+      const diff = await fetchText(`${repoUrl(pr)}/pull/${pr.number}.diff`, signal);
       if (!diff.ok) return diff;
       const files = parsePrDiff(diff.text);
       // A non-empty 200 that parses to no files is an interstitial page, not an empty PR.
@@ -111,7 +111,7 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
       if (cached !== undefined) return { ok: true, text: cached };
       const encoded = path.split("/").map(encodeURIComponent).join("/");
       // Through github.com: raw.githubusercontent.com and ref paths both 404 on private repos.
-      const result = await fetchText(`${base(pr)}/raw/${pr.headSha}/${encoded}`, signal);
+      const result = await fetchText(`${repoUrl(pr)}/raw/${pr.headSha}/${encoded}`, signal);
       if (result.ok) entry.contents.set(path, result.text);
       return result;
     },

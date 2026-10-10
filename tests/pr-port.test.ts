@@ -17,18 +17,21 @@ const diff =
   "diff --git a/src/engine.rs b/src/engine.rs\n--- a/src/engine.rs\n+++ b/src/engine.rs\n@@ -1 +1 @@\n-a\n+b\n";
 const base = "https://github.com/o/r";
 
-type Side = PrDataPort & { listeners: ((m: unknown) => void)[]; gone: (() => void)[] };
+type Side = PrDataPort & {
+  messageListeners: ((m: unknown) => void)[];
+  disconnectListeners: (() => void)[];
+};
 
 function side(): Side {
-  const listeners: ((m: unknown) => void)[] = [];
-  const gone: (() => void)[] = [];
+  const messageListeners: ((m: unknown) => void)[] = [];
+  const disconnectListeners: (() => void)[] = [];
   return {
-    listeners,
-    gone,
+    messageListeners,
+    disconnectListeners,
     postMessage() {},
     disconnect() {},
-    onMessage: { addListener: (l) => listeners.push(l) },
-    onDisconnect: { addListener: (l) => gone.push(l) },
+    onMessage: { addListener: (listener) => messageListeners.push(listener) },
+    onDisconnect: { addListener: (listener) => disconnectListeners.push(listener) },
   };
 }
 
@@ -43,11 +46,11 @@ function portPair(): [Side, Side] {
     from.postMessage = (message) => {
       const copy = JSON.parse(JSON.stringify(message));
       queueMicrotask(() => {
-        for (const l of to.listeners) l(copy);
+        for (const listener of to.messageListeners) listener(copy);
       });
     };
     from.disconnect = () => {
-      for (const l of to.gone) l();
+      for (const listener of to.disconnectListeners) listener();
     };
   }
   return [a, b];
@@ -171,11 +174,11 @@ describe("openPrData", () => {
   it("reports a throwing post as failed and reconnects on the next call", async () => {
     const fetchFn = routedFetch(okRoutes());
     const { connect: connectServed } = harness(fetchFn);
-    let first = true;
+    let failFirstPort = true;
     const connect = vi.fn(() => {
       const port = connectServed();
-      if (first) {
-        first = false;
+      if (failFirstPort) {
+        failFirstPort = false;
         port.postMessage = () => {
           throw new Error("Attempting to use a disconnected port object");
         };
@@ -241,10 +244,10 @@ describe("openPrData", () => {
   it("reports too-large when the result cannot be posted", async () => {
     const { connect } = harness(routedFetch(okRoutes()), (server) => {
       const post = server.postMessage;
-      let first = true;
+      let failNextPost = true;
       server.postMessage = (m) => {
-        if (first) {
-          first = false;
+        if (failNextPost) {
+          failNextPost = false;
           throw new Error("Message length exceeded maximum allowed length.");
         }
         post(m);
@@ -257,11 +260,11 @@ describe("openPrData", () => {
 
 describe("servePrDataPort", () => {
   const head = { ...pr, headSha: sha };
-  const settle = async (message: unknown) => {
+  const repliesTo = async (message: unknown) => {
     const fetchFn = routedFetch(okRoutes());
     const [client, server] = portPair();
     const replies: unknown[] = [];
-    client.listeners.push((m) => replies.push(m));
+    client.messageListeners.push((m) => replies.push(m));
     servePrDataPort(server, createPrDataSource(fetchFn));
     client.postMessage(message);
     await new Promise((r) => setTimeout(r, 0));
@@ -273,7 +276,7 @@ describe("servePrDataPort", () => {
     ["a non-object", "hi"],
     ["a missing id", { request: { kind: "files", pr: head } }],
   ])("ignores %s without fetching", async (_, message) => {
-    expect(await settle(message)).toEqual([]);
+    expect(await repliesTo(message)).toEqual([]);
   });
 
   it.each([
@@ -286,6 +289,6 @@ describe("servePrDataPort", () => {
     ["a .. path segment", { id: 1, request: { kind: "content", pr: head, path: "../x" } }],
     ["an empty path segment", { id: 1, request: { kind: "content", pr: head, path: "a//b" } }],
   ])("answers %s failed without fetching", async (_, message) => {
-    expect(await settle(message)).toEqual([{ id: 1, result: { ok: false, problem: "failed" } }]);
+    expect(await repliesTo(message)).toEqual([{ id: 1, result: { ok: false, problem: "failed" } }]);
   });
 });

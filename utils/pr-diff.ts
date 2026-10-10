@@ -34,39 +34,41 @@ function parseBlock(block: string[]): PrFileDiff {
   while (block.length > 1 && block.at(-1) === "") block.pop();
   const hunkStart = block.findIndex((line) => line.startsWith("@@"));
   const header = hunkStart === -1 ? block : block.slice(0, hunkStart);
-  const value = (prefix: string) =>
+  const headerValue = (prefix: string) =>
     header.find((line) => line.startsWith(prefix))?.slice(prefix.length);
 
-  const renameFrom = value("rename from ");
+  const renameFrom = headerValue("rename from ");
   const status: PrFileStatus =
-    value("new file mode") !== undefined
+    headerValue("new file mode") !== undefined
       ? "added"
-      : value("deleted file mode") !== undefined
+      : headerValue("deleted file mode") !== undefined
         ? "deleted"
         : renameFrom !== undefined
           ? "renamed"
           : "modified";
-  const path = pathOf(header, value);
+  const path = pathOf(header, headerValue);
   const previousPath = renameFrom === undefined ? {} : { previousPath: unquote(renameFrom) };
 
-  if (header.some((l) => l.startsWith("Binary files ") || l.startsWith("GIT binary patch")))
+  if (
+    header.some((line) => line.startsWith("Binary files ") || line.startsWith("GIT binary patch"))
+  )
     return { kind: "binary", path, ...previousPath, status };
   const patch = hunkStart === -1 ? "" : block.slice(hunkStart).join("\n");
   return { kind: "text", path, ...previousPath, status, patch };
 }
 
-function pathOf(header: string[], value: (prefix: string) => string | undefined): string {
-  const renameTo = value("rename to ");
+function pathOf(header: string[], headerValue: (prefix: string) => string | undefined): string {
+  const renameTo = headerValue("rename to ");
   if (renameTo !== undefined) return unquote(renameTo);
-  const newName = value("+++ ");
+  const newName = headerValue("+++ ");
   if (newName !== undefined && newName !== "/dev/null") return dropPrefix(unquote(newName));
-  const oldName = value("--- ");
+  const oldName = headerValue("--- ");
   if (oldName !== undefined && oldName !== "/dev/null") return dropPrefix(unquote(oldName));
 
   const names = header[0]?.slice("diff --git ".length) ?? "";
   if (names.endsWith('"')) {
-    const second = names.lastIndexOf(' "');
-    return dropPrefix(unquote(names.slice(second + 1)));
+    const separator = names.lastIndexOf(' "');
+    return dropPrefix(unquote(names.slice(separator + 1)));
   }
   // No ---/+++/rename lines, so both names are equal: "a/<p> b/<p>" is 2n + 5 characters.
   return names.slice(2, 2 + (names.length - 5) / 2);
@@ -87,7 +89,7 @@ function unquote(raw: string): string {
       bytes.push(...encoder.encode(char));
       continue;
     }
-    const next = body[++i] ?? "";
+    const escaped = body[++i] ?? "";
     const octal = /^[0-7]{3}/.exec(body.slice(i));
     if (octal) {
       bytes.push(Number.parseInt(octal[0], 8));
@@ -95,7 +97,7 @@ function unquote(raw: string): string {
     } else {
       bytes.push(
         ...encoder.encode(
-          { a: "\x07", b: "\b", t: "\t", n: "\n", v: "\v", f: "\f", r: "\r" }[next] ?? next,
+          { a: "\x07", b: "\b", t: "\t", n: "\n", v: "\v", f: "\f", r: "\r" }[escaped] ?? escaped,
         ),
       );
     }

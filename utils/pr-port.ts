@@ -14,12 +14,12 @@ export type PrDataRequest =
   | { kind: "files"; pr: PrHead }
   | { kind: "content"; pr: PrHead; path: string };
 
-type PrDataResults = {
+type PrDataResultsByKind = {
   head: PrHeadResult;
   files: PrFilesResult;
   content: PrFileContentResult;
 };
-type PrDataResult = PrDataResults[PrDataRequest["kind"]];
+type PrDataResult = PrDataResultsByKind[PrDataRequest["kind"]];
 
 /** The slice of `browser.runtime.Port` both ends use. */
 export interface PrDataPort {
@@ -50,11 +50,11 @@ export interface PrDataClient {
 }
 
 // A content script shares a renderer with the page, so its messages are untrusted.
-const NAME = /^[A-Za-z0-9_.-]+$/;
+const OWNER_OR_REPO = /^[A-Za-z0-9_.-]+$/;
 const FAILED: PrFailure = { ok: false, problem: "failed" };
 
-function isName(value: unknown): value is string {
-  return typeof value === "string" && NAME.test(value) && value !== "." && value !== "..";
+function isOwnerOrRepo(value: unknown): value is string {
+  return typeof value === "string" && OWNER_OR_REPO.test(value) && value !== "." && value !== "..";
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -64,7 +64,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 function asPrRef(value: unknown): PrRef | undefined {
   if (!isObject(value)) return undefined;
   const { owner, repo, number } = value;
-  if (!isName(owner) || !isName(repo)) return undefined;
+  if (!isOwnerOrRepo(owner) || !isOwnerOrRepo(repo)) return undefined;
   if (typeof number !== "number" || !Number.isSafeInteger(number) || number < 1) return undefined;
   return { owner, repo, number };
 }
@@ -193,7 +193,7 @@ export function openPrData(
     return opened;
   }
 
-  function send<Q extends PrDataRequest>(request: Q): Promise<PrDataResults[Q["kind"]]> {
+  function send<Q extends PrDataRequest>(request: Q): Promise<PrDataResultsByKind[Q["kind"]]> {
     if (closed) return new Promise(() => {});
     const id = nextId++;
     return new Promise((resolve) => {

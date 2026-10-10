@@ -31,8 +31,8 @@ function at(value: unknown, ...keys: string[]): unknown {
   return current;
 }
 
-function sameName(a: unknown, b: string): boolean {
-  return typeof a === "string" && a.toLowerCase() === b.toLowerCase();
+function sameName(actual: unknown, expected: string): boolean {
+  return typeof actual === "string" && actual.toLowerCase() === expected.toLowerCase();
 }
 
 /**
