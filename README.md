@@ -10,17 +10,19 @@ config separately. It is for anyone who reviews pull requests on GitHub in Chrom
 
 - gh-prism groups files by path into Implementation, Tests, Documentation, Config, and
   Generated / lockfiles.
-- gh-prism moves a file whose changes are only docstrings or comments to Documentation.
+- gh-prism moves a TypeScript, JavaScript, Rust, Go, Python, or Lua file whose changes are
+  only comments or docstrings to Documentation.
 - gh-prism moves a Rust, Python, or TypeScript file whose changes sit only inside inline
   test blocks to Tests. Examples of inline test blocks are a Rust `mod tests` block, a
   Python `def test_` function, and a TypeScript `describe` or `it` call.
-- gh-prism lists a file with several kinds of change under each section it touches. Each
-  entry is marked `Partial`, with rows such as `Lines 2–8` that jump to that hunk, a block
-  of contiguous changed lines.
-- When you pick one commit instead of all commits in the Files changed view, gh-prism
-  keeps path-only grouping and shows this notice:
+- gh-prism lists a file whose hunks belong in different sections under each of those
+  sections. A hunk is one block of the diff: the changed lines plus a few unchanged lines
+  around them. Each entry is marked `Partial`, with one row per hunk, such as `Lines 2–8`,
+  that jumps to that hunk.
+- When you view one commit or a range of commits instead of all commits in the Files
+  changed view, gh-prism keeps path-only grouping and shows this notice:
   `Grouped by path. Docstring-only and inline-test changes are detected when viewing all commits.`
-- gh-prism works only on GitHub's new Files changed page, whose URL ends in `/changes`. It
+- gh-prism works only on GitHub's new Files changed page, at `/pull/<number>/changes`. It
   leaves the classic page untouched.
 
 ## Install
@@ -49,7 +51,9 @@ in a terminal.
 
    The build writes the unpacked extension to `.output/chrome-mv3`.
 4. In Chrome, open `chrome://extensions` and turn on **Developer mode**.
-5. Click **Load unpacked** and choose the `.output/chrome-mv3` folder.
+5. Click **Load unpacked** and choose the `.output/chrome-mv3` folder inside the clone.
+   The picker hides folders whose names start with a dot. Press Cmd+Shift+. on macOS, or
+   Ctrl+H on Linux, to show them.
 
 To update gh-prism:
 
@@ -57,18 +61,21 @@ To update gh-prism:
 2. Run `bun install`.
 3. Run `bun run build`.
 4. Click the reload button on the gh-prism card in `chrome://extensions`.
+5. Reload any open GitHub tabs.
 
 ## Try it
 
 1. Sign in to GitHub in the Chrome profile where you loaded gh-prism.
-2. Open the Files changed tab of any pull request you can see, at a URL that ends in
-   `/changes`.
+2. Open the Files changed tab of any pull request you can see, at a URL that contains
+   `/pull/<number>/changes`. Reload any GitHub tab that was already open when you loaded
+   gh-prism.
 
 When it works, the sidebar shows the section headings.
 
 No token or setup is needed, because gh-prism reads each pull request through your
 signed-in browser session. It sees only the repositories your account can see. If it can't
-read the diff, it still groups files by path. It also shows a one-line notice saying why.
+read the diff, it still groups files by path. It also shows a short notice above the
+sections saying why.
 
 ## Permissions
 
@@ -81,16 +88,18 @@ gh-prism needs access to three hosts, and nothing else.
 - `https://patch-diff.githubusercontent.com/*` is where GitHub redirects diff downloads.
 - `https://raw.githubusercontent.com/*` is where GitHub redirects raw-file downloads.
 
-It doesn't store anything in your browser.
+It saves nothing to browser storage; the diffs and files it reads stay in memory.
 
 ## Troubleshooting
 
-- **No sections appear.** Open the Files changed page at a URL that ends in `/changes`.
-- **A notice asks you to sign in while you are signed in.** Chrome's "Block third-party
-  cookies" setting is untested with gh-prism. Sign in to GitHub in that profile, then
-  reload the page.
+- **No sections appear.** Reload the page. Tabs that were open before you loaded or
+  reloaded gh-prism don't run it. Then check that the URL contains
+  `/pull/<number>/changes`.
+- **A notice asks you to sign in while you are signed in.** Check that you are signed in
+  to GitHub in the same Chrome profile where you loaded gh-prism, then reload the page.
+  Chrome's "Block third-party cookies" setting is untested with gh-prism.
 - **`bun` fails with a `mise` error about an untrusted config.** If Bun comes from mise, a
-  tool version manager, run `mise trust` in the clone, then run `bun install` again.
+  tool version manager, run `mise trust` in the clone, then rerun the command that failed.
 
 ## Development
 
@@ -102,8 +111,8 @@ Contributors start with these commands:
   `~/.local/share/gh-prism-extension/chrome-profile`. Only one dev session can run at a
   time.
 - `mise tasks` lists the rest.
-- `scripts/create-sandbox.sh [owner/repo]` creates a private sandbox repository with test
-  pull requests.
+- `scripts/create-sandbox.sh <owner>/<repo>` uses the `gh` CLI to create a private
+  repository under an account you control, with three test pull requests.
 
 ## License
 
