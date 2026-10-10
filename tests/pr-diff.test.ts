@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { PrFileDiff } from "../utils/pr-diff";
-import { parsePrDiff } from "../utils/pr-diff";
+import type { PrFileDiff, PrHunk } from "../utils/pr-diff";
+import { parsePrDiff, parsePrHunks } from "../utils/pr-diff";
 
 const lines = (...text: string[]) => text.join("\n");
 
@@ -229,5 +229,87 @@ const cases: [string, string, PrFileDiff[]][] = [
 describe("parsePrDiff", () => {
   it.each(cases)("parses %s", (_name, diff, expected) => {
     expect(parsePrDiff(diff)).toEqual(expected);
+  });
+});
+
+const twoHunks = lines(
+  "@@ -1,2 +1,2 @@",
+  "-old title",
+  "+new title",
+  " body",
+  "@@ -20,2 +20,2 @@ fn later() {",
+  "-    keep()",
+  "+    keep_more()",
+  " }",
+);
+
+const hunkCases: [string, string, PrHunk[]][] = [
+  [
+    "one hunk",
+    helpersPatch,
+    [
+      {
+        newStart: 11,
+        lines: [
+          " }",
+          " ",
+          " pub fn first_word(text: &str) -> &str {",
+          '-    text.split_whitespace().next().unwrap_or("")',
+          "+    text.split_whitespace().next().unwrap_or_default()",
+          " }",
+        ],
+      },
+    ],
+  ],
+  [
+    "two hunks",
+    twoHunks,
+    [
+      { newStart: 1, lines: ["-old title", "+new title", " body"] },
+      { newStart: 20, lines: ["-    keep()", "+    keep_more()", " }"] },
+    ],
+  ],
+  [
+    "a header without counts",
+    lines("@@ -1 +1 @@", "-old", "+new"),
+    [{ newStart: 1, lines: ["-old", "+new"] }],
+  ],
+  [
+    "a deleted file",
+    lines("@@ -1,3 +0,0 @@", "-a", "-b", "-c"),
+    [{ newStart: 0, lines: ["-a", "-b", "-c"] }],
+  ],
+  [
+    "a hunk without a newline at end of file",
+    noNewlinePatch,
+    [{ newStart: 1, lines: ["-old", "+new", "\\ No newline at end of file"] }],
+  ],
+  [
+    "a header's trailing function context",
+    lines(
+      "@@ -24,3 +24,3 @@ Notes like these are for maintainers.",
+      " They change rarely and stay in prose.",
+      "-Each sentence sits on its own line.",
+      "+Every sentence sits on a line of its own.",
+      " End of design notes.",
+    ),
+    [
+      {
+        newStart: 24,
+        lines: [
+          " They change rarely and stay in prose.",
+          "-Each sentence sits on its own line.",
+          "+Every sentence sits on a line of its own.",
+          " End of design notes.",
+        ],
+      },
+    ],
+  ],
+  ["an empty patch", "", []],
+];
+
+describe("parsePrHunks", () => {
+  it.each(hunkCases)("parses %s", (_name, patch, expected) => {
+    expect(parsePrHunks(patch)).toEqual(expected);
   });
 });

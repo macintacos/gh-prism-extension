@@ -20,6 +20,27 @@ export type PrFileDiff =
       status: PrFileStatus;
     };
 
+/** One `@@` hunk of a {@link PrFileDiff} patch. */
+export interface PrHunk {
+  /** 1-based head-file line where the hunk's new side starts; 0 for a deleted file's `+0,0`. */
+  readonly newStart: number;
+  /** The hunk's body lines, each keeping git's ` `, `+`, `-` or `\` prefix. */
+  readonly lines: readonly string[];
+}
+
+const HUNK_HEADER = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
+
+/** Splits a text file's `patch` at each `@@` header, dropping the header's function context. */
+export function parsePrHunks(patch: string): PrHunk[] {
+  const hunks: { newStart: number; lines: string[] }[] = [];
+  for (const line of patch.split("\n")) {
+    const header = HUNK_HEADER.exec(line);
+    if (header) hunks.push({ newStart: Number(header[1]), lines: [] });
+    else hunks.at(-1)?.lines.push(line);
+  }
+  return hunks;
+}
+
 /** Splits a unified `git diff` into one entry per file. */
 export function parsePrDiff(diff: string): PrFileDiff[] {
   const blocks: string[][] = [];
