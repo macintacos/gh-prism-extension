@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { FilesPage } from "../entrypoints/content/files-page";
+import type { FilesPage, FilesRoute } from "../entrypoints/content/files-page";
 import {
   findDiff,
   findFilesPage,
@@ -273,12 +273,12 @@ describe("findDiff", () => {
 
 describe("watchFilesPages", () => {
   let controller: AbortController;
-  let pages: { page: FilesPage; signal: AbortSignal }[];
+  let pages: { page: FilesPage; route: FilesRoute; signal: AbortSignal }[];
   const onMissing = vi.fn();
   const watch = () =>
     watchFilesPages(
       window,
-      { onPage: (page, signal) => pages.push({ page, signal }), onMissing },
+      { onPage: (page, route, signal) => pages.push({ page, route, signal }), onMissing },
       controller.signal,
     );
 
@@ -339,6 +339,21 @@ describe("watchFilesPages", () => {
     vi.advanceTimersByTime(20_000);
     expect(pages).toHaveLength(2);
     expect(pages[0]?.signal.aborted).toBe(true);
+  });
+
+  it("hands onPage the route of the URL it fired on", () => {
+    watch();
+    expect(pages[0]?.route).toEqual({
+      pr: { owner: "o", repo: "r", number: 1 },
+      commitFiltered: false,
+    });
+    history.replaceState(null, "", "/o/r/pull/1/changes/04bb63f");
+    document.dispatchEvent(new Event("soft-nav:end"));
+    vi.advanceTimersByTime(20_000);
+    expect(pages[1]?.route).toEqual({
+      pr: { owner: "o", repo: "r", number: 1 },
+      commitFiltered: true,
+    });
   });
 
   it("keeps the page when only the hash changes", () => {

@@ -7,14 +7,11 @@ import type { FilesRoute } from "./files-page";
 
 /** Why the view keeps path-only sections. */
 export type PathOnlyReason = PrDataProblem | "commit-filtered";
-export type DocPaths =
+/** The paths whose every change is documentation, or why they couldn't be read. */
+export type DocPathsResult =
   | { ok: true; paths: ReadonlySet<string> }
   | { ok: false; problem: PathOnlyReason };
 
-/**
- * Whether every change in `file` is documentation. Reads its head text only when the patch
- * can't tell.
- */
 async function isDocsOnly(
   client: Pick<PrDataClient, "fileContent">,
   file: PrFileDiff,
@@ -26,12 +23,13 @@ async function isDocsOnly(
 }
 
 /**
- * Paths whose every change is documentation. Reads a file's head text only when its patch can't
- * tell.
+ * Paths whose every change is documentation. A file's head text is read only when its patch can't
+ * tell; a file whose head can't be read keeps its path section, so only a `files()` failure is
+ * returned.
  */
 export async function readDocPaths(
   client: Pick<PrDataClient, "files" | "fileContent">,
-): Promise<DocPaths> {
+): Promise<DocPathsResult> {
   const listed = await client.files();
   if (!listed.ok) return listed;
   // ponytail: unbounded concurrency; every ambiguous file reads at once. Cap it with a worker pool if many trip rate-limited.
@@ -43,13 +41,13 @@ export async function readDocPaths(
 
 /**
  * Doc paths for one Files view. A commit-filtered route connects nothing; otherwise the client
- * is closed when `signal` aborts.
+ * is closed when `signal` aborts. Never rejects; once `signal` aborts it may never settle.
  */
 export async function docPathsFor(
   route: FilesRoute,
   signal: AbortSignal,
   connect: (pr: PrRef) => PrDataClient,
-): Promise<DocPaths> {
+): Promise<DocPathsResult> {
   if (route.commitFiltered) return { ok: false, problem: "commit-filtered" };
   const client = connect(route.pr);
   signal.addEventListener("abort", () => client.close(), { once: true });

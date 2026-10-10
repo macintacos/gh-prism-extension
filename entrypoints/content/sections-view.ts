@@ -5,7 +5,7 @@
  */
 
 import { classify, SECTIONS, type SectionKey } from "@/utils/sections";
-import type { DocPaths, PathOnlyReason } from "./doc-paths";
+import type { DocPathsResult, PathOnlyReason } from "./doc-paths";
 import { type ChangedFile, type FilesPage, observeTree, readChangedFiles } from "./files-page";
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
 import css from "./sections-view.css?raw";
@@ -200,19 +200,20 @@ function isPlainLeftClick(event: MouseEvent): boolean {
 /**
  * Mirrors `page`'s native file tree as sections inside its sidebar until `signal` aborts. Files
  * in `intent`'s doc paths move to Documentation once it settles; until then, and without one,
- * sections follow the paths alone.
+ * sections follow the paths alone. If it settles as a failure, a notice above the sections says
+ * why.
  */
 export function showSections(
   page: FilesPage,
   signal: AbortSignal,
-  intent?: Promise<DocPaths>,
+  intent?: Promise<DocPathsResult>,
 ): void {
   const doc = page.sidebar.ownerDocument;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   const view = el(doc, "nav", "gh-prism-sections");
   view.setAttribute("aria-label", "Changed files by section");
   const collapsed = new Set<string>();
-  let landed: DocPaths | undefined;
+  let landed: DocPathsResult | undefined;
 
   const render = () => {
     const focusedKey = view.contains(doc.activeElement) ? focusKey(doc.activeElement) : undefined;
@@ -262,7 +263,7 @@ export function showSections(
   page.tree.before(view);
   doc.head.append(style);
   render();
-  // Detached: DocPaths never rejects, so a rejection is a bug that should surface.
+  // Detached: intent reports failures as values, so a rejection is a bug left to surface.
   void intent?.then((result) => {
     if (signal.aborted) return;
     landed = result;

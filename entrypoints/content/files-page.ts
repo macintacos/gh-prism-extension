@@ -24,10 +24,7 @@ export interface FilesRoute {
  * that tab.
  */
 export function readFilesRoute(pathname: string): FilesRoute | undefined {
-  const match = FILES_PATH.exec(pathname);
-  if (!match) return undefined;
-  const [, owner, repo, prNumber, filter] = match;
-  // FILES_PATH always captures these; the checks narrow them for noUncheckedIndexedAccess.
+  const [, owner, repo, prNumber, filter] = FILES_PATH.exec(pathname) ?? [];
   if (owner === undefined || repo === undefined || prNumber === undefined) return undefined;
   return { pr: { owner, repo, number: Number(prNumber) }, commitFiltered: Boolean(filter) };
 }
@@ -173,8 +170,11 @@ export function findDiff(diffs: Element, link: HTMLAnchorElement): Element | nul
 }
 
 export interface FilesPageHandlers {
-  /** A Files changed page is on screen; `signal` aborts when it is replaced, removed, or left. */
-  onPage(page: FilesPage, signal: AbortSignal): void;
+  /**
+   * A Files changed page is on screen at `route`; `signal` aborts when it is replaced, removed,
+   * or left. A new pathname under the same markup is a new page; a hash change is not.
+   */
+  onPage(page: FilesPage, route: FilesRoute, signal: AbortSignal): void;
   /**
    * The Files changed tab's markup never appeared. Fires at most once for each
    * `watchFilesPages` call.
@@ -185,6 +185,7 @@ export interface FilesPageHandlers {
 /**
  * Calls `onPage` for each Files changed page in `win`, on first load and on GitHub's own
  * `soft-nav:end` (fired once the new page has rendered) and `popstate`, until `signal` aborts.
+ * A new pathname under the same markup is a new page; a hash change is not.
  * Each trigger polls for the markup over a settle window, since `popstate` fires before the
  * DOM swap. Not WXT's location-change event: it fires at navigation start, before GitHub
  * renders, and on every hash change a file click makes.
@@ -205,13 +206,14 @@ export function watchFilesPages(
 
   const sync = () => {
     const { pathname } = win.location;
-    if (!isFilesPath(pathname)) return drop();
+    const route = readFilesRoute(pathname);
+    if (!route) return drop();
     const page = findFilesPage(win.document);
     if (page && shown && sameMarkup(page, shown.page) && shown.pathname === pathname) return;
     drop();
     if (!page) return;
     shown = { page, pathname, controller: new AbortController() };
-    handlers.onPage(page, shown.controller.signal);
+    handlers.onPage(page, route, shown.controller.signal);
   };
 
   const poll = (pollsLeft: number) => {

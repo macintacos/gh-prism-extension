@@ -33,11 +33,12 @@ export interface PrDataPort {
  * One PR view's access to its diff and file contents.
  *
  * @remarks
- * Open one client per PR view and keep it across soft navigation within the PR. `close()`
- * it on leaving the PR: that cancels in-flight fetches, and calls pending at or made after
- * `close()` never settle. When the service worker stops, calls in flight settle `failed`; the
- * next call reconnects. The client pins its head SHA, and the page's embedded SHA is the last
- * full page load's, so a push is reliably picked up only after a reload.
+ * Open one client per view and `close()` it when the view goes away: that cancels in-flight
+ * fetches, and calls pending at or made after `close()` never settle. The worker keeps one head's
+ * diff and file contents per PR, so reconnecting for the same head is cheap. When the service
+ * worker stops, calls in flight settle `failed`; the next call reconnects. The client pins its
+ * head SHA, and the page's embedded SHA is the last full page load's, so a push is reliably
+ * picked up only after a reload.
  */
 export interface PrDataClient {
   files(): Promise<PrFilesResult>;

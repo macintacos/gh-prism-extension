@@ -1,15 +1,26 @@
-import type { PrFileDiff, PrHunk } from "./pr-diff";
-import { parsePrHunks } from "./pr-diff";
+import { type PrFileDiff, type PrHunk, parsePrHunks } from "./pr-diff";
 
 /**
- * "docs": every change is a comment or docstring. "path": keep the path section. "needs-content":
- * only the head file's text can tell.
+ * Judges whether a diff changes only comments and docstrings, by scanning lines rather than
+ * tokens. Block openers count only at line start, so a mid-line `/*` is code. A Python triple
+ * quote opens a docstring only at file start or after a line ending in `:`; otherwise it opens a
+ * string. A patch hides the state a hunk starts in, so each hunk is judged from every start its
+ * lines make plausible, and reads the head text only when those starts disagree. Prose with no
+ * delimiter or gutter in view has only the code start, so it stays "path" without a read, by
+ * design. A renamed file is never "docs": moving a module can break its imports.
+ */
+
+/**
+ * - `"docs"`: every change is a comment or docstring.
+ * - `"path"`: keep the path section.
+ * - `"needs-content"`: only the head file's text can tell.
  */
 export type DocVerdict = "docs" | "path" | "needs-content";
 
 /**
  * Judges one hunk. Without head text, every start state the hunk could begin in must agree; with
- * head text, the start state is read from the head file's lines above the hunk.
+ * head text, the start state is read from the head file's lines above the hunk. The extension of
+ * `path` picks the comment syntax, and an unsupported extension is `"path"`.
  */
 export function docHunkVerdict(path: string, hunk: PrHunk): DocVerdict;
 export function docHunkVerdict(path: string, hunk: PrHunk, headText: string): "docs" | "path";
@@ -33,7 +44,7 @@ export function docHunkVerdict(path: string, hunk: PrHunk, headText?: string): D
 export function docFileVerdict(file: PrFileDiff): DocVerdict;
 export function docFileVerdict(file: PrFileDiff, headText: string): "docs" | "path";
 export function docFileVerdict(file: PrFileDiff, headText?: string): DocVerdict {
-  if (file.kind === "binary") return "path";
+  if (file.kind === "binary" || file.previousPath !== undefined) return "path";
   const hunks = parsePrHunks(file.patch);
   const verdicts = hunks.map((hunk) => docHunkVerdict(file.path, hunk));
   if (hunks.length === 0 || verdicts.includes("path")) return "path";
@@ -50,32 +61,40 @@ interface Block {
   readonly closer: string;
   /** The marker that starts each middle line of the block, such as the `*` of a JSDoc comment. */
   readonly gutter?: string;
-  /** Also opens a string when it appears mid-line with an odd count, as Python's triple quotes do. */
-  readonly symmetric?: boolean;
+  /**
+   * Also delimits string literals, as Python's triple quotes do: a line-start opener is a string
+   * where no docstring may open, and an odd count mid-line opens one.
+   */
+  readonly delimitsStrings?: boolean;
 }
 
 interface Syntax {
   readonly lineMarker: string;
   readonly blocks: readonly Block[];
+  /** Comment prefixes of compiler directives. They change what compiles, so they read as code. */
+  readonly directives?: readonly string[];
 }
 
 // ponytail: a line scan, not a tokenizer. It misreads `//` or `/*` inside a template literal or Go
-// raw string, Rust's nested `/* /* */ */`, and Lua's level-n `--[==[` brackets. Upgrade path: a real
+// raw string, Rust's nested `/* /* */ */`, and Lua's level-n `--[==[` brackets. A `#` or `//` line
+// inside any string whose delimiters are out of view also reads as a comment. Upgrade path: a real
 // tokenizer per language.
 const C_LIKE: Syntax = { lineMarker: "//", blocks: [{ opener: "/*", closer: "*/", gutter: "*" }] };
+const GO: Syntax = { ...C_LIKE, directives: ["//go:", "// +build"] };
 const PYTHON: Syntax = {
   lineMarker: "#",
   blocks: [
-    { opener: '"""', closer: '"""', symmetric: true },
-    { opener: "'''", closer: "'''", symmetric: true },
+    { opener: '"""', closer: '"""', delimitsStrings: true },
+    { opener: "'''", closer: "'''", delimitsStrings: true },
   ],
 };
 const LUA: Syntax = { lineMarker: "--", blocks: [{ opener: "--[[", closer: "]]" }] };
 
 const SYNTAX_BY_EXTENSION = new Map<string, Syntax>([
-  ...["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs", "go", "rs"].map(
+  ...["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs", "rs"].map(
     (ext) => [ext, C_LIKE] as const,
   ),
+  ["go", GO],
   ...["py", "pyi"].map((ext) => [ext, PYTHON] as const),
   ["lua", LUA],
 ]);
@@ -91,38 +110,74 @@ interface Inside {
   readonly kind: "comment" | "string";
 }
 
+/** Where a line leaves the scan: in code, or inside a block awaiting its closer. */
+type Position = "code" | Inside;
+
+/** What one side's scan knows between two lines. */
+interface ScanState {
+  readonly position: Position;
+  /** Whether a line-start `"""` here opens a docstring rather than a string. */
+  readonly docstringMayOpen: boolean;
+}
+
+const FILE_START: ScanState = { position: "code", docstringMayOpen: true };
+
 type LineKind = "blank" | "code" | "comment";
+
+/** How one line reads, and where it leaves the scan before the docstring fact is updated. */
+interface Step {
+  readonly kind: LineKind;
+  readonly position: Position;
+}
 
 interface Scanned {
   readonly kind: LineKind;
-  readonly inside: Inside | undefined;
+  readonly state: ScanState;
 }
 
-function scanLine(syntax: Syntax, inside: Inside | undefined, rawLine: string): Scanned {
+function scanLine(syntax: Syntax, state: ScanState, rawLine: string): Scanned {
   const line = rawLine.trim();
-  if (inside !== undefined) return scanInside(inside, line);
-  if (line === "") return { kind: "blank", inside: undefined };
-  const opened = syntax.blocks.find((block) => line.startsWith(block.opener));
+  const step =
+    state.position === "code"
+      ? scanCode(syntax, state.docstringMayOpen, line)
+      : scanInside(state.position, line);
+  return {
+    kind: step.kind,
+    state: {
+      position: step.position,
+      docstringMayOpen: step.kind === "code" ? line.endsWith(":") : state.docstringMayOpen,
+    },
+  };
+}
+
+function scanCode(syntax: Syntax, docstringMayOpen: boolean, line: string): Step {
+  if (line === "") return { kind: "blank", position: "code" };
+  const opened = syntax.blocks.find(
+    (block) => line.startsWith(block.opener) && (!block.delimitsStrings || docstringMayOpen),
+  );
   if (opened !== undefined) {
     return scanInside({ closer: opened.closer, kind: "comment" }, line.slice(opened.opener.length));
   }
-  if (line.startsWith(syntax.lineMarker)) return { kind: "comment", inside: undefined };
+  const isDirective = (syntax.directives ?? []).some((prefix) => line.startsWith(prefix));
+  if (line.startsWith(syntax.lineMarker) && !isDirective) {
+    return { kind: "comment", position: "code" };
+  }
   const quoted = syntax.blocks.find(
-    (block) => block.symmetric && countOf(line, block.closer) % 2 === 1,
+    (block) => block.delimitsStrings && countOf(line, block.closer) % 2 === 1,
   );
   if (quoted !== undefined) {
-    return { kind: "code", inside: { closer: quoted.closer, kind: "string" } };
+    return { kind: "code", position: { closer: quoted.closer, kind: "string" } };
   }
-  return { kind: "code", inside: undefined };
+  return { kind: "code", position: "code" };
 }
 
 /** A line that starts inside a block. Its closer ends the block; text after the closer makes it code. */
-function scanInside(inside: Inside, line: string): Scanned {
+function scanInside(inside: Inside, line: string): Step {
   const at = line.indexOf(inside.closer);
-  if (at === -1) return { kind: inside.kind === "comment" ? "comment" : "code", inside };
+  if (at === -1) return { kind: inside.kind === "comment" ? "comment" : "code", position: inside };
   const trailing = line.slice(at + inside.closer.length).trim();
   const comment = inside.kind === "comment" && trailing === "";
-  return { kind: comment ? "comment" : "code", inside: undefined };
+  return { kind: comment ? "comment" : "code", position: "code" };
 }
 
 const countOf = (line: string, delimiter: string) => line.split(delimiter).length - 1;
@@ -138,49 +193,58 @@ function bodyOf(hunk: PrHunk): HunkLine[] {
     .map((line) => ({ marker: line.charAt(0), text: line.slice(1) }));
 }
 
-function hunkKind(syntax: Syntax, hunk: PrHunk, start: Inside | undefined): "docs" | "path" {
-  const body = bodyOf(hunk);
-  const kinds = [
-    ...changedKinds(syntax, body, start, "-"),
-    ...changedKinds(syntax, body, start, "+"),
-  ];
-  return kinds.includes("code") || !kinds.includes("comment") ? "path" : "docs";
-}
-
-/** The kinds of one side's changed lines, scanning that side's context and changes from `start`. */
-function changedKinds(
-  syntax: Syntax,
-  body: readonly HunkLine[],
-  start: Inside | undefined,
-  side: "+" | "-",
-): LineKind[] {
-  const otherSide = side === "+" ? "-" : "+";
-  const kinds: LineKind[] = [];
-  let inside = start;
-  for (const { marker, text } of body) {
-    if (marker === otherSide) continue;
-    const scanned = scanLine(syntax, inside, text);
-    inside = scanned.inside;
-    if (marker === side) kinds.push(scanned.kind);
+/**
+ * Scans both sides of the hunk from `start`. A context line must read the same on both sides, or
+ * the change has altered the block it sits in, so a context line that differs with code on either
+ * side is "path".
+ */
+function hunkKind(syntax: Syntax, hunk: PrHunk, start: ScanState): "docs" | "path" {
+  // The old side reuses the head's start state: only the head file can be read.
+  let before = start;
+  let after = start;
+  const changed: LineKind[] = [];
+  for (const { marker, text } of bodyOf(hunk)) {
+    if (marker === "-") {
+      const scanned = scanLine(syntax, before, text);
+      before = scanned.state;
+      changed.push(scanned.kind);
+    } else if (marker === "+") {
+      const scanned = scanLine(syntax, after, text);
+      after = scanned.state;
+      changed.push(scanned.kind);
+    } else {
+      const old = scanLine(syntax, before, text);
+      const now = scanLine(syntax, after, text);
+      before = old.state;
+      after = now.state;
+      if (old.kind !== now.kind && (old.kind === "code" || now.kind === "code")) return "path";
+    }
   }
-  return kinds;
+  return changed.includes("code") || !changed.includes("comment") ? "path" : "docs";
 }
 
-/** The start states a hunk could begin in, judged from its patch alone. `undefined` is code. */
-function plausibleStarts(syntax: Syntax, hunk: PrHunk): (Inside | undefined)[] {
-  if (hunk.newStart <= 1) return [undefined];
+/**
+ * The start states a hunk could begin in, judged from its patch alone. A hunk that opens on a
+ * line-start triple quote may begin on either side of a docstring boundary, so every position is
+ * tried both ways.
+ */
+function plausibleStarts(syntax: Syntax, hunk: PrHunk): ScanState[] {
+  if (hunk.newStart <= 1) return [FILE_START];
   const body = bodyOf(hunk);
-  const starts: (Inside | undefined)[] = [undefined];
+  const positions: Position[] = ["code"];
   for (const block of syntax.blocks) {
     if (!body.some(({ text }) => text.includes(block.closer))) continue;
-    starts.push({ closer: block.closer, kind: "comment" });
-    if (block.symmetric) starts.push({ closer: block.closer, kind: "string" });
+    positions.push({ closer: block.closer, kind: "comment" });
+    if (block.delimitsStrings) positions.push({ closer: block.closer, kind: "string" });
   }
   const gutterBlock = syntax.blocks.find(
     (block) => block.gutter !== undefined && isGutterRun(body, block.gutter),
   );
-  if (gutterBlock !== undefined) starts.push({ closer: gutterBlock.closer, kind: "comment" });
-  return starts;
+  if (gutterBlock !== undefined) positions.push({ closer: gutterBlock.closer, kind: "comment" });
+  return positions.flatMap((position) => [
+    { position, docstringMayOpen: true },
+    { position, docstringMayOpen: false },
+  ]);
 }
 
 /** Whether every non-blank line starts with `gutter`: a block's middle with no delimiter in view. */
@@ -189,10 +253,10 @@ function isGutterRun(body: readonly HunkLine[], gutter: string): boolean {
   return content.length > 0 && content.every((text) => text.startsWith(gutter));
 }
 
-function stateAbove(syntax: Syntax, headText: string, newStart: number): Inside | undefined {
-  let inside: Inside | undefined;
+function stateAbove(syntax: Syntax, headText: string, newStart: number): ScanState {
+  let state = FILE_START;
   for (const line of headText.split("\n").slice(0, Math.max(newStart - 1, 0))) {
-    inside = scanLine(syntax, inside, line).inside;
+    state = scanLine(syntax, state, line).state;
   }
-  return inside;
+  return state;
 }

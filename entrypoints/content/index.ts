@@ -1,7 +1,7 @@
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { connectPrData } from "@/utils/pr-port";
 import { docPathsFor } from "./doc-paths";
-import { readFilesRoute, watchFilesPages } from "./files-page";
+import { watchFilesPages } from "./files-page";
 import { showSections } from "./sections-view";
 
 export default defineContentScript({
@@ -11,10 +11,8 @@ export default defineContentScript({
     watchFilesPages(
       window,
       {
-        onPage: (page, signal) => {
-          const route = readFilesRoute(location.pathname);
-          showSections(page, signal, route && docPathsFor(route, signal, connectPrData));
-        },
+        onPage: (page, route, signal) =>
+          showSections(page, signal, docPathsFor(route, signal, connectPrData)),
         onMissing: () =>
           console.warn("gh-prism: Files changed tree not found; leaving GitHub's tree as is"),
       },
