@@ -9,7 +9,7 @@ let controller: AbortController;
 
 const view = () => document.querySelector(".gh-prism-sections");
 
-const generatedDir = "implementation:src/generated";
+const generatedDirKey = "implementation:src/generated";
 
 const dirToggle = (key: string) => {
   const found = document.querySelector(`.gh-prism-dir[data-dir="${key}"]`);
@@ -19,7 +19,7 @@ const dirToggle = (key: string) => {
 
 const row = (path: string) => {
   const found = [...document.querySelectorAll<HTMLElement>("a.gh-prism-file")].find(
-    (a) => a.dataset.path === path,
+    (file) => file.dataset.path === path,
   );
   if (!found) throw new Error(`view has no row for ${path}`);
   return found;
@@ -49,10 +49,14 @@ afterEach(() => {
 
 describe("showSections", () => {
   it("groups the files into non-empty sections in order", () => {
-    const sections = [...document.querySelectorAll<HTMLElement>(".gh-prism-section")].map((s) => [
-      s.dataset.section,
-      [...s.querySelectorAll<HTMLElement>("a.gh-prism-file")].map((a) => a.dataset.path),
-    ]);
+    const sections = [...document.querySelectorAll<HTMLElement>(".gh-prism-section")].map(
+      (section) => [
+        section.dataset.section,
+        [...section.querySelectorAll<HTMLElement>("a.gh-prism-file")].map(
+          (file) => file.dataset.path,
+        ),
+      ],
+    );
     expect(sections).toEqual([
       [
         "implementation",
@@ -75,7 +79,7 @@ describe("showSections", () => {
 
   it("counts each section's files", () => {
     const counts = [...document.querySelectorAll(".gh-prism-section")].map(
-      (s) => s.querySelector(".gh-prism-counter")?.textContent,
+      (section) => section.querySelector(".gh-prism-counter")?.textContent,
     );
     expect(counts).toEqual(["7", "1", "2", "2", "1"]);
   });
@@ -155,36 +159,36 @@ describe("showSections", () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
-  it.each([{ metaKey: true }, { ctrlKey: true }])("lets %o clicks follow the href", (mods) => {
+  it.each([{ metaKey: true }, { ctrlKey: true }])("lets %o clicks follow the href", (modifiers) => {
     const click = vi.spyOn(nativeLink("src/render.rs"), "click");
-    const event = new MouseEvent("click", { bubbles: true, cancelable: true, ...mods });
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true, ...modifiers });
     row("src/render.rs").dispatchEvent(event);
     expect(click).not.toHaveBeenCalled();
     expect(event.defaultPrevented).toBe(false);
   });
 
   it("collapses a directory across re-renders", async () => {
-    dirToggle(generatedDir).click();
-    expect(dirToggle(generatedDir).getAttribute("aria-expanded")).toBe("false");
+    dirToggle(generatedDirKey).click();
+    expect(dirToggle(generatedDirKey).getAttribute("aria-expanded")).toBe("false");
     expect(row("src/generated/schema.rs").closest("[hidden]")).not.toBeNull();
     byId("src/lib.rs").removeAttribute("aria-current");
     await afterDebounce();
-    expect(dirToggle(generatedDir).getAttribute("aria-expanded")).toBe("false");
+    expect(dirToggle(generatedDirKey).getAttribute("aria-expanded")).toBe("false");
     expect(row("src/generated/schema.rs").closest("[hidden]")).not.toBeNull();
   });
 
   it("re-expands a collapsed directory", () => {
-    dirToggle(generatedDir).click();
-    dirToggle(generatedDir).click();
-    expect(dirToggle(generatedDir).getAttribute("aria-expanded")).toBe("true");
+    dirToggle(generatedDirKey).click();
+    dirToggle(generatedDirKey).click();
+    expect(dirToggle(generatedDirKey).getAttribute("aria-expanded")).toBe("true");
     expect(row("src/generated/schema.rs").closest("[hidden]")).toBeNull();
   });
 
   it("keeps focus on a directory toggle after activating it", () => {
-    const before = dirToggle(generatedDir);
+    const before = dirToggle(generatedDirKey);
     before.focus();
     before.click();
-    expect(document.activeElement).toBe(dirToggle(generatedDir));
+    expect(document.activeElement).toBe(dirToggle(generatedDirKey));
   });
 
   it("keeps focus on the same file across a re-render", async () => {

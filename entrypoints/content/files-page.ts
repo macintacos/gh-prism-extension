@@ -174,7 +174,7 @@ export function watchFilesPages(
 ): void {
   let shown: { page: FilesPage; controller: AbortController } | undefined;
   let timer: number | undefined;
-  let warned = false;
+  let missingReported = false;
 
   const drop = () => {
     shown?.controller.abort();
@@ -191,12 +191,12 @@ export function watchFilesPages(
     handlers.onPage(page, shown.controller.signal);
   };
 
-  const poll = (left: number) => {
+  const poll = (pollsLeft: number) => {
     sync();
-    if (left > 0) {
-      timer = win.setTimeout(() => poll(left - 1), POLL_MS);
-    } else if (!shown && !warned && isFilesPath(win.location.pathname)) {
-      warned = true;
+    if (pollsLeft > 0) {
+      timer = win.setTimeout(() => poll(pollsLeft - 1), POLL_MS);
+    } else if (!shown && !missingReported && isFilesPath(win.location.pathname)) {
+      missingReported = true;
       handlers.onMissing();
     }
   };

@@ -17,7 +17,7 @@ interface FileSection {
 
 /** Non-empty sections in `SECTIONS` order, each with its files in native-tree order. */
 function groupBySection(files: readonly ChangedFile[]): FileSection[] {
-  const bySection = Map.groupBy(files, (f) => classify(f.path));
+  const bySection = Map.groupBy(files, (file) => classify(file.path));
   return SECTIONS.flatMap(({ key, label }) => {
     const sectionFiles = bySection.get(key);
     return sectionFiles ? [{ key, label, files: sectionFiles }] : [];
@@ -58,16 +58,16 @@ const CHEVRON =
 const DIRECTORY =
   "M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z";
 
-function octicon(doc: Document, className: string, path: string): SVGSVGElement {
+function octicon(doc: Document, className: string, pathData: string): SVGSVGElement {
   const svg = doc.createElementNS(SVG_NS, "svg");
   svg.setAttribute("class", `octicon ${className}`);
   svg.setAttribute("viewBox", "0 0 16 16");
   svg.setAttribute("width", "16");
   svg.setAttribute("height", "16");
   svg.setAttribute("aria-hidden", "true");
-  const d = doc.createElementNS(SVG_NS, "path");
-  d.setAttribute("d", path);
-  svg.append(d);
+  const pathElement = doc.createElementNS(SVG_NS, "path");
+  pathElement.setAttribute("d", pathData);
+  svg.append(pathElement);
   return svg;
 }
 
@@ -83,7 +83,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
-function decoration(doc: Document, source: Element | null): Node[] {
+function cloneVisual(doc: Document, source: Element | null): Node[] {
   if (!source) return [];
   const wrapper = el(doc, "span", "gh-prism-visual", source.cloneNode(true));
   wrapper.setAttribute("aria-hidden", "true");
@@ -95,9 +95,9 @@ function fileRow(doc: Document, file: ChangedFile, level: number): HTMLLIElement
     doc,
     "a",
     "gh-prism-file",
-    ...decoration(doc, file.statusIcon),
+    ...cloneVisual(doc, file.statusIcon),
     el(doc, "span", "gh-prism-name", file.path.slice(file.path.lastIndexOf("/") + 1)),
-    ...decoration(doc, file.comments),
+    ...cloneVisual(doc, file.comments),
   );
   link.href = file.link.getAttribute("href") ?? "";
   link.dataset.path = file.path;
@@ -109,7 +109,7 @@ function fileRow(doc: Document, file: ChangedFile, level: number): HTMLLIElement
 
 interface RenderContext {
   readonly doc: Document;
-  readonly section: SectionKey;
+  readonly sectionKey: SectionKey;
   readonly collapsed: ReadonlySet<string>;
 }
 
@@ -119,14 +119,14 @@ function dirList(node: DirNode, ctx: RenderContext): HTMLUListElement {
     "ul",
     "gh-prism-list",
     ...[...node.dirs].map(([name, child]) => dirRow(name, child, ctx)),
-    ...node.files.map((f) => fileRow(ctx.doc, f, node.depth)),
+    ...node.files.map((file) => fileRow(ctx.doc, file, node.depth)),
   );
 }
 
 function dirRow(name: string, node: DirNode, ctx: RenderContext): HTMLLIElement {
   // A directory can recur in several sections.
-  const key = `${ctx.section}:${node.path}`;
-  const open = !ctx.collapsed.has(key);
+  const key = `${ctx.sectionKey}:${node.path}`;
+  const expanded = !ctx.collapsed.has(key);
   const toggle = el(
     ctx.doc,
     "button",
@@ -137,11 +137,11 @@ function dirRow(name: string, node: DirNode, ctx: RenderContext): HTMLLIElement 
   );
   toggle.type = "button";
   toggle.dataset.dir = key;
-  toggle.setAttribute("aria-expanded", String(open));
+  toggle.setAttribute("aria-expanded", String(expanded));
   // The toggle sits in the parent's list, one level above this node's rows.
   toggle.style.setProperty("--gh-prism-level", String(node.depth - 1));
   const children = dirList(node, ctx);
-  children.hidden = !open;
+  children.hidden = !expanded;
   return el(ctx.doc, "li", "", toggle, children);
 }
 
@@ -161,7 +161,7 @@ function sectionView(
       section.label,
       el(doc, "span", "gh-prism-counter", String(section.files.length)),
     ),
-    dirList(buildTree(section.files), { doc, section: section.key, collapsed }),
+    dirList(buildTree(section.files), { doc, sectionKey: section.key, collapsed }),
   );
   root.dataset.section = section.key;
   return root;
@@ -185,12 +185,15 @@ export function showSections(page: FilesPage, signal: AbortSignal): void {
   const collapsed = new Set<string>();
 
   const render = () => {
-    const focused = view.contains(doc.activeElement) ? focusKey(doc.activeElement) : undefined;
+    const focusedKey = view.contains(doc.activeElement) ? focusKey(doc.activeElement) : undefined;
     const sections = groupBySection(readChangedFiles(page.sidebar));
-    view.replaceChildren(...sections.map((s) => sectionView(s, doc, collapsed)));
-    if (focused === undefined) return;
+    view.replaceChildren(...sections.map((section) => sectionView(section, doc, collapsed)));
+    if (focusedKey === undefined) return;
     [...view.querySelectorAll("[data-path], [data-dir]")]
-      .find((e): e is HTMLElement => e instanceof HTMLElement && focusKey(e) === focused)
+      .find(
+        (element): element is HTMLElement =>
+          element instanceof HTMLElement && focusKey(element) === focusedKey,
+      )
       ?.focus();
   };
 
@@ -207,7 +210,9 @@ export function showSections(page: FilesPage, signal: AbortSignal): void {
       }
       const row = event.target.closest(".gh-prism-file");
       if (!(row instanceof HTMLAnchorElement) || !isPlainLeftClick(event)) return;
-      const native = readChangedFiles(page.sidebar).find((f) => f.path === row.dataset.path)?.link;
+      const native = readChangedFiles(page.sidebar).find(
+        (file) => file.path === row.dataset.path,
+      )?.link;
       if (!native) return;
       event.preventDefault();
       native.click();

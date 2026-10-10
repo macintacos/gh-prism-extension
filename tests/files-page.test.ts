@@ -140,12 +140,12 @@ describe("observeTree", () => {
   const flush = () => vi.advanceTimersByTimeAsync(0);
 
   it("debounces a burst into one call after the last mutation", async () => {
-    const tree = byId("src");
+    const srcRow = byId("src");
     observeTree(byId("pr-file-tree"), onChange, { signal: controller.signal });
-    tree.append(document.createElement("li"));
+    srcRow.append(document.createElement("li"));
     await flush();
     await vi.advanceTimersByTimeAsync(10);
-    tree.append(document.createElement("li"));
+    srcRow.append(document.createElement("li"));
     await flush();
     await vi.advanceTimersByTimeAsync(49);
     expect(onChange).not.toHaveBeenCalled();
