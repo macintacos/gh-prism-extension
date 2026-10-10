@@ -123,12 +123,12 @@ hooks {
 
   // `mise run test` on push, when the `test` task is chosen. The glob comes from each
   // loaded language reference — union them in a multi-language repo.
-  // ["pre-push"] {
-  //   steps = new Mapping<String, Step> {
-  //     ["Project(Test)     [[tasks.test]]"] = new Step {
-  //       glob = List("**/*.go", "go.mod", "go.sum")
-  //       check = "mise run test"
-  //     }
-  //   }
-  // }
+  ["pre-push"] {
+    steps = new Mapping<String, Step> {
+      ["Project(Test)     [[tasks.test]]"] = new Step {
+        glob = List("**/*.{js,jsx,mjs,cjs,ts,tsx}", "package.json", "bun.lock")
+        check = "mise run test"
+      }
+    }
+  }
 }

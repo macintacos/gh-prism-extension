@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Build the extension and open it in the dedicated dev Chrome profile, reloading on change"
+
+set -euo pipefail
+
+bun install
+bun run dev
