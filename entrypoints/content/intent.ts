@@ -12,8 +12,9 @@ export type PathOnlyReason = PrDataProblem | "commit-filtered";
 /** The sections intent can place a file in, whatever its path says. */
 export type IntentSection = Extract<SectionKey, "docs" | "tests">;
 /**
- * The docs and tests overrides: each file whose every change is documentation or inline-test code,
- * keyed by path to its section. A file absent from `overrides` keeps its path section.
+ * The docs and tests overrides, or why the view keeps path-only sections: each file whose every
+ * change is documentation or inline-test code, keyed by path to its section. A file absent from
+ * `overrides` keeps its path section.
  */
 export type IntentResult =
   | { ok: true; overrides: ReadonlyMap<string, IntentSection> }
@@ -40,15 +41,16 @@ async function sectionFromContent(
 }
 
 /**
- * The docs and tests overrides for one Files view. A file whose head can't be read keeps its path
- * section, so only a `files()` failure makes the result not ok.
+ * Reads the PR's files and returns their docs and tests overrides. A file whose head can't be read
+ * keeps its path section, so only a `files()` failure makes the result not ok.
  */
 export async function readIntent(
   client: Pick<PrDataClient, "files" | "fileContent">,
 ): Promise<IntentResult> {
   const listed = await client.files();
   if (!listed.ok) return listed;
-  // ponytail: unbounded concurrency; every ambiguous file reads at once. Cap it with a worker pool if many trip rate-limited.
+  // ponytail: unbounded concurrency; every file a rule needs content for reads at once.
+  // Cap it with a worker pool if reads trip rate-limited.
   const sections = await Promise.all(
     listed.files.map(async (file) => ({
       path: file.path,

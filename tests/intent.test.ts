@@ -74,7 +74,7 @@ const versionHead = lines(
   "",
   "    #[test]",
   "    fn reports_version() {",
-  '        assert_eq!(version(), "0.1.0");',
+  '        assert_eq!(version(), "0.2.0");',
   "    }",
   "}",
 );
@@ -89,7 +89,7 @@ const pinnedHead = lines(
   "",
   "    #[test]",
   "    fn reports_version() {",
-  '        let expected = "0.1.0"; /* pinned */',
+  '        let expected = "0.2.0"; /* pinned */',
   "        assert_eq!(version(), expected);",
   "    }",
   "}",

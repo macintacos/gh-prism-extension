@@ -3,10 +3,15 @@ import { type PrFileDiff, type PrHunk, parsePrHunks } from "./pr-diff";
 import { classify } from "./sections";
 
 /**
- * The inline-test rule of changeset.nvim's `test_rule` (`lua/changeset/sections.lua`, at commit
- * 2b6115d), ported as a line scan of the head file. A hunk that changes only lines inside a test
- * block of a Rust, Python or TypeScript file counts as Tests, and a file whose hunks all count
- * moves to Tests.
+ * The inline-test rule of changeset.nvim's `test_rule` (`lua/changeset/sections.lua`, at
+ * `macintacos/changeset.nvim@2b6115db3a5394a207836afdeaa8237225b8de93`), ported as a line scan of
+ * the head file. A hunk that changes only lines inside a test block of a Rust, Python or TypeScript
+ * file counts as Tests, and a file whose hunks all count moves to Tests.
+ *
+ * A test block is a Rust `mod test`/`mod tests` body, a TypeScript `namespace tests` body or a
+ * `describe`/`it`/`test` call given a callback, or a Python `class Test*` or non-method
+ * `def test_*`, widened over the comments, attributes and decorators directly above it; blank
+ * changed lines are neutral.
  *
  * Divergences from upstream: no syntax marks are read (`#[test]`, `#[cfg(test)]`,
  * `import.meta.vitest`); a hunk counts only when every non-blank changed line sits in a block, so a
@@ -16,14 +21,22 @@ import { classify } from "./sections";
 // ponytail: a line scan, not a parser. Braces in multi-line strings, template literals, Rust raw
 // strings spanning lines, or regex literals miscount; an opener inside a multi-line template literal
 // or raw string still opens; a multi-line decorator stops the widening; an unbalanced block is
-// dropped rather than guessed. Upgrade path: tree-sitter grammars (~3.3 MB of wasm) in the worker.
+// dropped rather than guessed; a member call on a local named `it`/`test`/`describe` opens a block;
+// a docstring directly above a Python test widens into it; an attribute on the `mod tests` line
+// itself is not recognised. Upgrade path: tree-sitter grammars (~3.3 MB of wasm) in the worker.
 
-/** Whether the rule can judge a file: a current Rust, Python or TypeScript implementation file. */
+/**
+ * Whether the rule can judge a file: a text Rust, Python or TypeScript file the path rules put in
+ * Implementation, neither renamed nor deleted.
+ */
 export function inlineTestRuleApplies(file: PrFileDiff): boolean {
   return candidateFinder(file) !== undefined;
 }
 
-/** Whether every hunk changes only lines inside its test blocks, judged from the head scan. */
+/**
+ * Whether the file passes the gate, has a hunk, and every hunk's non-blank changed lines sit in the
+ * head's test blocks.
+ */
 export function changesOnlyInlineTests(file: PrFileDiff, head: ScannedHead): boolean {
   const findBlocks = candidateFinder(file);
   if (findBlocks === undefined || file.kind !== "text") return false;
@@ -87,43 +100,35 @@ function runsOf(hunk: PrHunk): Run[] {
 }
 
 /**
- * One verdict per non-blank changed line: `true` when it sits inside a block. Context and added
- * lines advance the head-line counter; a removed run is judged at the counter's line, which is the
- * line its replacement takes, or else the gap before it.
+ * One verdict per non-blank added line and per removed run with a non-blank line: `true` when it
+ * sits inside a block. Context and added lines advance the head-line counter; a removed run is
+ * judged at the counter's line, which is the line its replacement takes, or else the gap before it.
  */
 function changeVerdicts(hunk: PrHunk, blocks: readonly Block[]): boolean[] {
   const runs = runsOf(hunk);
   const verdicts: boolean[] = [];
   let line = hunk.newStart;
   for (const [index, run] of runs.entries()) {
-    const removedIn = runs[index + 1]?.marker === "+" ? containsLine : containsGap;
-    verdicts.push(...runVerdicts(run, line, removedIn, blocks));
+    const changed = run.texts.flatMap((text, offset) =>
+      text.trim() === "" ? [] : [line + offset],
+    );
+    if (run.marker === "+") verdicts.push(...changed.map((at) => containsLine(blocks, at)));
+    if (run.marker === "-" && changed.length > 0) {
+      const replaced = runs[index + 1]?.marker === "+";
+      verdicts.push(replaced ? containsLine(blocks, line) : containsGap(blocks, line));
+    }
     if (run.marker !== "-") line += run.texts.length;
   }
   return verdicts;
 }
 
-type Membership = (blocks: readonly Block[], line: number) => boolean;
-
-function runVerdicts(
-  run: Run,
-  line: number,
-  removedIn: Membership,
-  blocks: readonly Block[],
-): boolean[] {
-  return run.texts.flatMap((text, offset) => {
-    if (text.trim() === "") return [];
-    if (run.marker === "+") return [containsLine(blocks, line + offset)];
-    if (run.marker === "-") return [removedIn(blocks, line)];
-    return [];
-  });
+function containsLine(blocks: readonly Block[], line: number): boolean {
+  return blocks.some((block) => block.start <= line && line <= block.end);
 }
 
-const containsLine: Membership = (blocks, line) =>
-  blocks.some((block) => block.start <= line && line <= block.end);
-
-const containsGap: Membership = (blocks, line) =>
-  blocks.some((block) => block.start < line && line <= block.end);
+function containsGap(blocks: readonly Block[], line: number): boolean {
+  return blocks.some((block) => block.start < line && line <= block.end);
+}
 
 function rowsOf(head: ScannedHead): Row[] {
   return head.lines.map((line, index) => ({
@@ -160,16 +165,20 @@ function leads(row: Row | undefined, leader?: RegExp): boolean {
   return row.kind === "comment" || (row.kind === "code" && leader?.test(row.text) === true);
 }
 
+/** Each row from `index` in `step`'s direction, with its index, read in place, not copied. */
+function* rowsFrom(rows: readonly Row[], index: number, step: 1 | -1): Generator<[number, Row]> {
+  for (let at = index; at >= 0 && at < rows.length; at += step) {
+    const row = rows[at];
+    if (row !== undefined) yield [at, row];
+  }
+}
+
 /** The 0-based index of the line that returns the brackets opened at `index` to zero, if any. */
-function closingLine(
-  rows: readonly Row[],
-  index: number,
-  depthOf: (row: Row) => number,
-): number | undefined {
+function closingLine(rows: readonly Row[], index: number, brackets: Brackets): number | undefined {
   let depth = 0;
-  for (const [offset, row] of rows.slice(index).entries()) {
-    depth += depthOf(row);
-    if (depth <= 0) return index + offset;
+  for (const [at, row] of rowsFrom(rows, index, 1)) {
+    depth += netDepth(row, brackets);
+    if (depth <= 0) return at;
   }
   return undefined;
 }
@@ -179,8 +188,15 @@ function codeOf(row: Row, literals: RegExp): string {
   return row.kind === "code" ? row.text.replace(literals, "") : "";
 }
 
+/** The bracket characters to count, and the literal and comment pattern to strip first. */
+interface Brackets {
+  readonly literals: RegExp;
+  readonly open: string;
+  readonly close: string;
+}
+
 /** Opening minus closing brackets in a line's code. */
-function netDepth(row: Row, literals: RegExp, open: string, close: string): number {
+function netDepth(row: Row, { literals, open, close }: Brackets): number {
   let depth = 0;
   for (const char of codeOf(row, literals)) {
     if (open.includes(char)) depth++;
@@ -191,13 +207,12 @@ function netDepth(row: Row, literals: RegExp, open: string, close: string): numb
 
 // Strings, char literals (a lifetime has no closing quote, so it is kept), and comments.
 const RUST_LITERALS = /"(?:\\.|[^"\\])*"|'(?:\\.[^']*|[^\\'])'|\/\/.*|\/\*.*?\*\//g;
+const RUST_BRACES: Brackets = { literals: RUST_LITERALS, open: "{", close: "}" };
 const RUST_TEST_MOD = /^(pub(\([^)]*\))?\s+)?mod\s+tests?\s*\{/;
 const RUST_ATTRIBUTE = /^#\[.*\]$/;
 
 const rustTestMod: Opener = (row, index, rows) =>
-  RUST_TEST_MOD.test(row.text)
-    ? closingLine(rows, index, (line) => netDepth(line, RUST_LITERALS, "{", "}"))
-    : undefined;
+  RUST_TEST_MOD.test(row.text) ? closingLine(rows, index, RUST_BRACES) : undefined;
 
 const rustTestBlocks: BlockFinder = (head) => blocksIn(rowsOf(head), rustTestMod, RUST_ATTRIBUTE);
 
@@ -212,6 +227,7 @@ const pythonTestBlock: Opener = (row, index, rows) => {
   if (PY_TEST_CLASS.test(row.text)) return pythonBlockEnd(rows, index, row.indent);
   if (!PY_TEST_DEF.test(row.text)) return undefined;
   const scope = enclosingScope(rows, index, row.indent);
+  // Upstream counts functions, not methods; a Test* class's block already covers its methods.
   if (scope !== undefined && PY_CLASS.test(scope.text)) return undefined;
   return pythonBlockEnd(rows, index, row.indent);
 };
@@ -219,7 +235,8 @@ const pythonTestBlock: Opener = (row, index, rows) => {
 /** The def or class a line sits in: the nearest scope header above it with less indentation. */
 function enclosingScope(rows: readonly Row[], index: number, indent: number): Row | undefined {
   let limit = indent;
-  for (const row of rows.slice(0, index).reverse()) {
+  for (const [, row] of rowsFrom(rows, index - 1, -1)) {
+    if (limit === 0) break;
     if (row.kind !== "code" || row.indent >= limit || PY_CLOSER.test(row.text)) continue;
     if (PY_SCOPE.test(row.text)) return row;
     limit = row.indent;
@@ -228,15 +245,16 @@ function enclosingScope(rows: readonly Row[], index: number, indent: number): Ro
 }
 
 /**
- * Ends at the last line before the first code line at or above the opener's indentation, which
- * is not a closing bracket. Blank lines and comments at that indentation belong to what follows.
+ * The 0-based index of the block's last line: before the first code line indented no deeper than
+ * the opener (a line starting `)`, `]` or `}` excepted), the last line that is neither blank nor a
+ * comment at the opener's indentation or shallower.
  */
 function pythonBlockEnd(rows: readonly Row[], index: number, indent: number): number {
   let end = index;
-  for (const [offset, row] of rows.slice(index + 1).entries()) {
+  for (const [at, row] of rowsFrom(rows, index + 1, 1)) {
     if (row.kind === "code" && row.indent <= indent && !PY_CLOSER.test(row.text)) break;
     if (row.kind !== "blank" && (row.kind !== "comment" || row.indent > indent)) {
-      end = index + 1 + offset;
+      end = at;
     }
   }
   return end;
@@ -247,27 +265,26 @@ const pythonTestBlocks: BlockFinder = (head) =>
 
 // Strings, template literals and comments. TypeScript has no lifetimes, so `'` always quotes.
 const TS_LITERALS = /"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\/\/.*|\/\*.*?\*\//g;
+const TS_BRACES: Brackets = { literals: TS_LITERALS, open: "{", close: "}" };
+const TS_BRACKETS: Brackets = { literals: TS_LITERALS, open: "([{", close: ")]}" };
 const TS_NAMESPACE = /^(export\s+)?(declare\s+)?(namespace|module)\s+tests?\s*\{/;
 const TS_TEST_CALL = /^(describe|it|test)(\.[\w$]+)*\s*\(/;
 const TS_CALLBACK = /=>|\bfunction\b/;
 
 const tsTestBlock: Opener = (row, index, rows) =>
-  TS_NAMESPACE.test(row.text)
-    ? closingLine(rows, index, (line) => netDepth(line, TS_LITERALS, "{", "}"))
-    : tsTestCall(row, index, rows);
+  TS_NAMESPACE.test(row.text) ? closingLine(rows, index, TS_BRACES) : tsTestCall(row, index, rows);
 
 /** A test-runner call that takes a callback. A definition named like one opens nothing. */
 function tsTestCall(row: Row, index: number, rows: readonly Row[]): number | undefined {
-  if (!TS_TEST_CALL.test(row.text) || definesMethod(codeOf(row, TS_LITERALS))) return undefined;
-  const end = closingLine(rows, index, (line) => netDepth(line, TS_LITERALS, "([{", ")]}"));
+  if (!TS_TEST_CALL.test(row.text)) return undefined;
+  const end = closingLine(rows, index, TS_BRACKETS);
   if (end === undefined) return undefined;
-  const takesCallback = rows
-    .slice(index, end + 1)
-    .some((line) => TS_CALLBACK.test(codeOf(line, TS_LITERALS)));
-  return takesCallback ? end : undefined;
+  const code = rows.slice(index, end + 1).map((line) => codeOf(line, TS_LITERALS));
+  if (definesMethod(code.join("\n"))) return undefined;
+  return code.some((line) => TS_CALLBACK.test(line)) ? end : undefined;
 }
 
-/** Whether the call's first parenthesis closes on this line and is followed by `{` or `:`. */
+/** Whether the first parenthesis of the call's code closes and is followed by `{` or `:`. */
 function definesMethod(code: string): boolean {
   const close = closeOf(code, code.indexOf("("));
   return close !== undefined && /^\s*[{:]/.test(code.slice(close + 1));

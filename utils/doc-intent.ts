@@ -264,7 +264,10 @@ export interface ScannedHead {
   readonly kinds: readonly ("blank" | "code" | "comment" | "string")[];
 }
 
-/** `undefined` for an extension with no comment syntax. */
+/**
+ * Splits and comment-scans `text` once, with `path`'s comment syntax; `undefined` for an extension
+ * with none.
+ */
 export function scanHeadText(path: string, text: string): ScannedHead | undefined {
   const syntax = syntaxFor(path);
   if (syntax === undefined) return undefined;
