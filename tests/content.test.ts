@@ -4,7 +4,9 @@ import contentScript from "../entrypoints/content";
 
 const runsOn = (url: string) => {
   const { matches } = contentScript;
-  return Array.isArray(matches) && matches.some((m) => new MatchPattern(m).includes(url));
+  return (
+    Array.isArray(matches) && matches.some((pattern) => new MatchPattern(pattern).includes(url))
+  );
 };
 
 describe("content script", () => {
