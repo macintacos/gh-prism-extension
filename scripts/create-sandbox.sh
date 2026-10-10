@@ -338,12 +338,14 @@ EOF
 	edit src/helpers.rs 's/unwrap_or\(""\)/unwrap_or_default()/'
 	commit "Test reset and rename util to helpers"
 
-	# notes.rs edits sit 20+ lines apart so hunk two opens inside the block comment; render.rs edits sit 10+ apart so code and docstring stay separate hunks; parser.rs changes only /// lines.
 	edit README.md 's/keeps a few/keeps up to a limit/'
 	edit docs/guide.md 's/to get a bulleted list/to get a bulleted list, one item per line/'
+	# Only /// lines change.
 	edit src/parser.rs 's/Blank lines are dropped\./Blank and whitespace-only lines are dropped./'
+	# These edits sit 10+ lines apart so code and docstring stay separate hunks.
 	edit src/render.rs 's/"- \{item\}"/"* {item}"/'
 	edit src/render.rs 's/Renders a count summary\./Renders a count summary such as "3 items"./'
+	# These edits sit 20+ lines apart so the second hunk opens inside the block comment.
 	edit src/notes.rs 's/^Each line is trimmed before anything else happens\./Each line is trimmed of surrounding whitespace first./m'
 	edit src/notes.rs 's/^Each sentence sits on its own line\./Every sentence sits on a line of its own./m'
 	commit "Polish docs and comments"
