@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+#MISE description="Run the test suite"
+#USAGE flag "-w --watch" help="Re-run on file changes"
+#USAGE arg "[filter]" help="Only run test files whose path contains this string"
+
+set -euo pipefail
+
+mode=run
+[ "${usage_watch:-false}" = "true" ] && mode=watch
+bunx --no-install vitest "$mode" ${usage_filter:+"$usage_filter"}

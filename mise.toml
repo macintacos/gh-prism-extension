@@ -1,0 +1,31 @@
+[settings]
+# Commit mise.lock for reproducible, version-pinned tool versions.
+lockfile = true
+
+npm.package_manager = "bun" # route the npm: backend through bun
+
+# HK_MISE routes hk's git-hook subprocesses through `mise x`, so each hook step
+# uses the versions pinned below — even for committers who never activated mise.
+[env]
+HK_MISE = 1
+
+[tools]
+# hk evaluates hk.pkl itself; pkl powers the Pkl(Format) / Pkl(Lint) steps
+# (`pkl format` and `pkl eval`).
+hk  = "2.5.0"  # keep in lockstep with hk.pkl's amends/import
+pkl = "latest"
+
+bun   = "latest"
+node  = "24"
+biome = "latest"
+
+# Cross-language formatters and linters.
+"aqua:google/yamlfmt" = "latest" # YAML format
+taplo                 = "latest" # TOML format + lint (config in taplo.toml)
+shellcheck            = "latest" # Shell lint
+shfmt                 = "latest" # Shell format
+rumdl                 = "latest" # Markdown lint + format (config in .rumdl.toml)
+
+# (Re)register git hooks whenever tools are installed or updated.
+[hooks]
+postinstall = "hk install --mise"

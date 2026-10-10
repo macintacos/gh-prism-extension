@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Run the project's checks before pushing / opening a PR"
+#MISE depends=["lint", "test"]
+
+set -euo pipefail
+
+echo "preflight: all checks passed"
