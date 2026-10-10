@@ -4,7 +4,7 @@
 }
 
 .gh-prism-sections {
-  font-size: var(--text-body-size-medium, 14px);
+  font-size: var(--text-body-size-medium);
 }
 
 .gh-prism-section + .gh-prism-section {
@@ -17,9 +17,9 @@
   gap: 6px;
   margin: 0;
   padding: 6px 8px 4px;
-  font-size: 12px;
-  font-weight: var(--base-text-weight-semibold, 600);
-  line-height: 18px;
+  font-size: var(--text-body-size-small);
+  font-weight: var(--base-text-weight-semibold);
+  line-height: var(--text-body-lineHeight-small);
   color: var(--fgColor-muted);
 }
 
@@ -29,9 +29,9 @@
   border-radius: 2em;
   background: var(--counter-bgColor-muted);
   color: var(--fgColor-default);
-  font-size: 12px;
-  font-weight: var(--base-text-weight-medium, 500);
-  line-height: 18px;
+  font-size: var(--text-body-size-small);
+  font-weight: var(--base-text-weight-medium);
+  line-height: var(--text-body-lineHeight-small);
   text-align: center;
 }
 
@@ -48,9 +48,9 @@
   gap: 8px;
   width: 100%;
   min-height: 32px;
-  padding: 0 8px 0 calc(8px + var(--gh-prism-level, 0) * 8px);
+  padding: 0 8px 0 calc(var(--gh-prism-inset) + var(--gh-prism-level, 0) * 8px);
   border: 0;
-  border-radius: var(--borderRadius-medium, 6px);
+  border-radius: var(--borderRadius-medium);
   background: transparent;
   color: var(--fgColor-default);
   font: inherit;
@@ -72,13 +72,17 @@
 
 .gh-prism-file:focus-visible,
 .gh-prism-dir:focus-visible {
-  outline: 2px solid var(--focus-outlineColor, var(--fgColor-accent));
+  outline: 2px solid var(--focus-outlineColor);
   outline-offset: -2px;
+}
+
+.gh-prism-dir {
+  --gh-prism-inset: 8px;
 }
 
 /* Lines file icons up under the directory icon, past the chevron's column. */
 .gh-prism-file {
-  padding-left: calc(32px + var(--gh-prism-level, 0) * 8px);
+  --gh-prism-inset: 32px;
 }
 
 .gh-prism-name {
@@ -98,12 +102,15 @@
 .gh-prism-chevron,
 .gh-prism-dir-icon {
   flex-shrink: 0;
-  fill: var(--treeViewItem-leadingVisual-iconColor-rest, var(--fgColor-muted));
 }
 
 .gh-prism-chevron {
   fill: var(--fgColor-muted);
   transition: transform 80ms;
+}
+
+.gh-prism-dir-icon {
+  fill: var(--treeViewItem-leadingVisual-iconColor-rest);
 }
 
 .gh-prism-dir[aria-expanded="false"] .gh-prism-chevron {

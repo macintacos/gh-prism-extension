@@ -2,17 +2,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { findFilesPage } from "../entrypoints/content/files-page";
 import { showSections } from "../entrypoints/content/sections-view";
-import fixture from "./fixtures/files-page.html?raw";
+import css from "../entrypoints/content/sections-view.css?raw";
+import { byId, loadFixture } from "./fixtures/files-page";
 
 let controller: AbortController;
 
-const byId = (id: string) => {
-  const el = document.getElementById(id);
-  if (!el) throw new Error(`fixture has no #${id}`);
-  return el;
-};
-
 const view = () => document.querySelector(".gh-prism-sections");
+
+const generatedDir = "implementation:src/generated";
+
+const dirToggle = (key: string) => {
+  const found = document.querySelector(`.gh-prism-dir[data-dir="${key}"]`);
+  if (!(found instanceof HTMLButtonElement)) throw new Error(`no toggle for ${key}`);
+  return found;
+};
 
 const row = (path: string) => {
   const found = [...document.querySelectorAll<HTMLElement>("a.gh-prism-file")].find(
@@ -28,12 +31,12 @@ const nativeLink = (path: string) => {
   return link;
 };
 
-// Lets the MutationObserver's microtask run, then the 50 ms debounce.
-const settle = () => vi.advanceTimersByTimeAsync(50);
+// Past the MutationObserver's debounce, with its microtask run first.
+const afterDebounce = () => vi.advanceTimersByTimeAsync(100);
 
 beforeEach(() => {
   vi.useFakeTimers();
-  document.body.innerHTML = fixture;
+  loadFixture();
   controller = new AbortController();
   const page = findFilesPage(document);
   if (!page) throw new Error("fixture lacks the Files changed markup");
@@ -81,9 +84,27 @@ describe("showSections", () => {
     expect(document.querySelector('ul[role="tree"]')?.previousElementSibling).toBe(view());
   });
 
+  it("injects its stylesheet into the document head until aborted", () => {
+    const stylesheet = () => document.head.querySelector("style");
+    expect(stylesheet()?.textContent).toBe(css);
+    controller.abort();
+    expect(stylesheet()).toBeNull();
+  });
+
+  it("keeps one view when the sidebar comes back holding a stale one", () => {
+    const sidebar = byId("pr-file-tree");
+    sidebar.replaceWith(sidebar.cloneNode(true));
+    const page = findFilesPage(document);
+    if (!page) throw new Error("fixture lacks the Files changed markup");
+    const fresh = new AbortController();
+    showSections(page, fresh.signal);
+    expect(document.querySelectorAll(".gh-prism-sections")).toHaveLength(1);
+    fresh.abort();
+  });
+
   it("drops a section once its last file leaves the tree", async () => {
     byId("Cargo.lock").remove();
-    await settle();
+    await afterDebounce();
     expect(document.querySelector('[data-section="generated"]')).toBeNull();
     expect(document.querySelectorAll("a.gh-prism-file")).toHaveLength(12);
   });
@@ -92,7 +113,7 @@ describe("showSections", () => {
     expect(row("src/lib.rs").getAttribute("aria-current")).toBe("true");
     byId("src/lib.rs").removeAttribute("aria-current");
     byId("src/engine.rs").setAttribute("aria-current", "true");
-    await settle();
+    await afterDebounce();
     expect(row("src/engine.rs").getAttribute("aria-current")).toBe("true");
     expect(row("src/lib.rs").hasAttribute("aria-current")).toBe(false);
   });
@@ -112,7 +133,7 @@ describe("showSections", () => {
     if (!(native instanceof HTMLElement)) throw new Error("clone is not an element");
     native.id = path;
     byId("docs/guide.md").after(native);
-    await settle();
+    await afterDebounce();
     expect(view()?.querySelector("img")).toBeNull();
     expect(row(path).querySelector(".gh-prism-name")?.textContent).toBe(
       "<img src=x onerror=alert(1)>.md",
@@ -127,36 +148,50 @@ describe("showSections", () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
+  it("leaves a click alone when its native file has gone", () => {
+    byId("src/render.rs").remove();
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+    row("src/render.rs").dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
   it.each([{ metaKey: true }, { ctrlKey: true }])("lets %o clicks follow the href", (mods) => {
     const click = vi.spyOn(nativeLink("src/render.rs"), "click");
-    row("src/render.rs").dispatchEvent(
-      new MouseEvent("click", { bubbles: true, cancelable: true, ...mods }),
-    );
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true, ...mods });
+    row("src/render.rs").dispatchEvent(event);
     expect(click).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
   });
 
   it("collapses a directory across re-renders", async () => {
-    const toggle = () => {
-      const found = document.querySelector<HTMLElement>(
-        '.gh-prism-dir[data-dir="implementation:src/generated"]',
-      );
-      if (!found) throw new Error("no src/generated toggle");
-      return found;
-    };
-    toggle().click();
-    expect(toggle().getAttribute("aria-expanded")).toBe("false");
+    dirToggle(generatedDir).click();
+    expect(dirToggle(generatedDir).getAttribute("aria-expanded")).toBe("false");
     expect(row("src/generated/schema.rs").closest("[hidden]")).not.toBeNull();
     byId("src/lib.rs").removeAttribute("aria-current");
-    await settle();
-    expect(toggle().getAttribute("aria-expanded")).toBe("false");
+    await afterDebounce();
+    expect(dirToggle(generatedDir).getAttribute("aria-expanded")).toBe("false");
     expect(row("src/generated/schema.rs").closest("[hidden]")).not.toBeNull();
+  });
+
+  it("re-expands a collapsed directory", () => {
+    dirToggle(generatedDir).click();
+    dirToggle(generatedDir).click();
+    expect(dirToggle(generatedDir).getAttribute("aria-expanded")).toBe("true");
+    expect(row("src/generated/schema.rs").closest("[hidden]")).toBeNull();
+  });
+
+  it("keeps focus on a directory toggle after activating it", () => {
+    const before = dirToggle(generatedDir);
+    before.focus();
+    before.click();
+    expect(document.activeElement).toBe(dirToggle(generatedDir));
   });
 
   it("keeps focus on the same file across a re-render", async () => {
     const before = row("src/render.rs");
     before.focus();
     byId("src/lib.rs").removeAttribute("aria-current");
-    await settle();
+    await afterDebounce();
     expect(row("src/render.rs")).not.toBe(before);
     expect(document.activeElement).toBe(row("src/render.rs"));
   });
@@ -165,7 +200,7 @@ describe("showSections", () => {
     controller.abort();
     expect(view()).toBeNull();
     byId("src/lib.rs").removeAttribute("aria-current");
-    await settle();
+    await afterDebounce();
     expect(view()).toBeNull();
   });
 });

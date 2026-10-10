@@ -2,13 +2,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FilesPage } from "../entrypoints/content/files-page";
 import {
+  findDiff,
   findFilesPage,
   isFilesPath,
-  observe,
+  observeDiffs,
+  observeTree,
   readChangedFiles,
   watchFilesPages,
 } from "../entrypoints/content/files-page";
-import fixture from "./fixtures/files-page.html?raw";
+import { byId, loadFixture } from "./fixtures/files-page";
 
 const PATHS = [
   "config/app.toml",
@@ -26,14 +28,16 @@ const PATHS = [
   "README.md",
 ];
 
-const byId = (id: string) => {
-  const el = document.getElementById(id);
-  if (!el) throw new Error(`fixture has no #${id}`);
-  return el;
+const diffList = () => {
+  const diffs = document.querySelector('[data-testid="diff-content"]');
+  if (!diffs) throw new Error("fixture has no diff list");
+  return diffs;
 };
 
+const ENGINE_DIFF = "diff-ff278ec599adfd033d35a083ebe8948db8bf177c9817dee8ddc4f3a9e3f5728e";
+
 beforeEach(() => {
-  document.body.innerHTML = fixture;
+  loadFixture();
 });
 
 describe("isFilesPath", () => {
@@ -118,7 +122,7 @@ describe("readChangedFiles", () => {
   });
 });
 
-describe("observe", () => {
+describe("observeTree", () => {
   let controller: AbortController;
   const onChange = vi.fn();
 
@@ -137,7 +141,7 @@ describe("observe", () => {
 
   it("debounces a burst into one call after the last mutation", async () => {
     const tree = byId("src");
-    observe(byId("pr-file-tree"), onChange, controller.signal);
+    observeTree(byId("pr-file-tree"), onChange, { signal: controller.signal });
     tree.append(document.createElement("li"));
     await flush();
     await vi.advanceTimersByTimeAsync(10);
@@ -150,14 +154,14 @@ describe("observe", () => {
   });
 
   it("reacts to the active file changing", async () => {
-    observe(byId("pr-file-tree"), onChange, controller.signal);
+    observeTree(byId("pr-file-tree"), onChange, { signal: controller.signal });
     byId("src/lib.rs").removeAttribute("aria-current");
     await vi.advanceTimersByTimeAsync(100);
     expect(onChange).toHaveBeenCalledOnce();
   });
 
   it("ignores unwatched attributes", async () => {
-    observe(byId("pr-file-tree"), onChange, controller.signal);
+    observeTree(byId("pr-file-tree"), onChange, { signal: controller.signal });
     byId("src/lib.rs").setAttribute("tabindex", "-1");
     await vi.advanceTimersByTimeAsync(100);
     expect(onChange).not.toHaveBeenCalled();
@@ -166,18 +170,85 @@ describe("observe", () => {
   it("ignores mutations inside the ignored node", async () => {
     const ignored = document.createElement("nav");
     byId("pr-file-tree").append(ignored);
-    observe(byId("pr-file-tree"), onChange, controller.signal, ignored);
+    observeTree(byId("pr-file-tree"), onChange, { signal: controller.signal, ignore: ignored });
     ignored.append(document.createElement("a"));
     await vi.advanceTimersByTimeAsync(100);
     expect(onChange).not.toHaveBeenCalled();
   });
 
   it("stops once aborted", async () => {
-    observe(byId("pr-file-tree"), onChange, controller.signal);
+    observeTree(byId("pr-file-tree"), onChange, { signal: controller.signal });
     controller.abort();
     byId("src").append(document.createElement("li"));
     await vi.advanceTimersByTimeAsync(100);
     expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("observeDiffs", () => {
+  let controller: AbortController;
+  const onChange = vi.fn();
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    controller = new AbortController();
+    onChange.mockReset();
+  });
+  afterEach(() => {
+    controller.abort();
+    vi.useRealTimers();
+  });
+
+  it("calls once after a diff mounts in the list", async () => {
+    observeDiffs(diffList(), onChange, { signal: controller.signal });
+    diffList().append(document.createElement("div"));
+    await vi.advanceTimersByTimeAsync(100);
+    expect(onChange).toHaveBeenCalledOnce();
+  });
+
+  it("calls once after a diff unmounts from the list", async () => {
+    observeDiffs(diffList(), onChange, { signal: controller.signal });
+    byId(ENGINE_DIFF).remove();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(onChange).toHaveBeenCalledOnce();
+  });
+
+  it("ignores attribute changes inside a diff", async () => {
+    observeDiffs(diffList(), onChange, { signal: controller.signal });
+    byId(ENGINE_DIFF).setAttribute("data-collapsed", "true");
+    await vi.advanceTimersByTimeAsync(100);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("stops once aborted", async () => {
+    observeDiffs(diffList(), onChange, { signal: controller.signal });
+    controller.abort();
+    diffList().append(document.createElement("div"));
+    await vi.advanceTimersByTimeAsync(100);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("findDiff", () => {
+  const linkTo = (path: string) => {
+    const found = readChangedFiles(document).find((f) => f.path === path);
+    if (!found) throw new Error(`no changed file ${path}`);
+    return found.link;
+  };
+
+  it("finds the mounted diff for a file's link", () => {
+    expect(findDiff(diffList(), linkTo("src/engine.rs"))).toBe(byId(ENGINE_DIFF));
+  });
+
+  it("is null while a file's diff is unmounted", () => {
+    expect(findDiff(diffList(), linkTo("docs/guide.md"))).toBeNull();
+  });
+
+  it("is null for a diff with the same id outside the diff list", () => {
+    const stray = document.createElement("div");
+    stray.id = "diff-c2a0fff5575ebf83634ea4da334a24d52775bcef6700ed6f9d0bc4e3db79e42a";
+    document.body.append(stray);
+    expect(findDiff(diffList(), linkTo("src/helpers.rs"))).toBeNull();
   });
 });
 
@@ -225,7 +296,7 @@ describe("watchFilesPages", () => {
     document.body.innerHTML = "";
     watch();
     vi.advanceTimersByTime(500);
-    document.body.innerHTML = fixture;
+    loadFixture();
     vi.advanceTimersByTime(20_000);
     expect(pages).toHaveLength(1);
     expect(onMissing).not.toHaveBeenCalled();
@@ -250,6 +321,46 @@ describe("watchFilesPages", () => {
     expect(pages[0]?.signal.aborted).toBe(false);
   });
 
+  it("follows a sidebar swapped in after popstate fires", () => {
+    watch();
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    vi.advanceTimersByTime(200);
+    const sidebar = byId("pr-file-tree");
+    sidebar.replaceWith(sidebar.cloneNode(true));
+    vi.advanceTimersByTime(20_000);
+    expect(pages).toHaveLength(2);
+    expect(pages[0]?.signal.aborted).toBe(true);
+  });
+
+  it("shows the page again when only the diff list is replaced", () => {
+    watch();
+    const diffs = diffList();
+    diffs.replaceWith(diffs.cloneNode(true));
+    document.dispatchEvent(new Event("soft-nav:end"));
+    vi.advanceTimersByTime(20_000);
+    expect(pages).toHaveLength(2);
+    expect(pages[0]?.signal.aborted).toBe(true);
+    expect(pages[1]?.page.diffs).toBe(diffList());
+  });
+
+  it("drops a page whose sidebar is removed with no replacement", () => {
+    watch();
+    byId("pr-file-tree").remove();
+    document.dispatchEvent(new Event("soft-nav:end"));
+    vi.advanceTimersByTime(20_000);
+    expect(pages[0]?.signal.aborted).toBe(true);
+    expect(onMissing).toHaveBeenCalledOnce();
+  });
+
+  it("reports missing markup once per watcher, however many navigations follow", () => {
+    document.body.innerHTML = "";
+    watch();
+    vi.advanceTimersByTime(20_000);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    vi.advanceTimersByTime(20_000);
+    expect(onMissing).toHaveBeenCalledOnce();
+  });
+
   it("drops the page when navigation leaves the Files tab", () => {
     watch();
     history.replaceState(null, "", "/o/r/pull/1");
@@ -262,7 +373,7 @@ describe("watchFilesPages", () => {
   it("drops the page and goes quiet when aborted", () => {
     document.body.innerHTML = "";
     watch();
-    document.body.innerHTML = fixture;
+    loadFixture();
     vi.advanceTimersByTime(100);
     controller.abort();
     expect(pages[0]?.signal.aborted).toBe(true);
