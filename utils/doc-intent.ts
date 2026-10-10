@@ -194,9 +194,8 @@ function bodyOf(hunk: PrHunk): HunkLine[] {
 }
 
 /**
- * Scans both sides of the hunk from `start`. A context line must read the same on both sides, or
- * the change has altered the block it sits in, so a context line that differs with code on either
- * side is "path".
+ * Scans both sides of the hunk from `start`. A context line that reads differently on the two
+ * sides, with code on either, means the change altered its block: "path".
  */
 function hunkKind(syntax: Syntax, hunk: PrHunk, start: ScanState): "docs" | "path" {
   // The old side reuses the head's start state: only the head file can be read.
@@ -224,9 +223,9 @@ function hunkKind(syntax: Syntax, hunk: PrHunk, start: ScanState): "docs" | "pat
 }
 
 /**
- * The start states a hunk could begin in, judged from its patch alone. A hunk that opens on a
- * line-start triple quote may begin on either side of a docstring boundary, so every position is
- * tried both ways.
+ * The start states a hunk could begin in, judged from its patch alone. Whether a line-start
+ * triple quote opens a docstring depends on the unseen start, so every position is tried both
+ * ways.
  */
 function plausibleStarts(syntax: Syntax, hunk: PrHunk): ScanState[] {
   if (hunk.newStart <= 1) return [FILE_START];

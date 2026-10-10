@@ -185,7 +185,6 @@ export interface FilesPageHandlers {
 /**
  * Calls `onPage` for each Files changed page in `win`, on first load and on GitHub's own
  * `soft-nav:end` (fired once the new page has rendered) and `popstate`, until `signal` aborts.
- * A new pathname under the same markup is a new page; a hash change is not.
  * Each trigger polls for the markup over a settle window, since `popstate` fires before the
  * DOM swap. Not WXT's location-change event: it fires at navigation start, before GitHub
  * renders, and on every hash change a file click makes.
