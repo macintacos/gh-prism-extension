@@ -5,8 +5,8 @@
  */
 
 import { classify, SECTIONS, type SectionKey } from "@/utils/sections";
-import type { DocPathsResult, PathOnlyReason } from "./doc-paths";
 import { type ChangedFile, type FilesPage, observeTree, readChangedFiles } from "./files-page";
+import type { IntentResult, PathOnlyReason } from "./intent";
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
 import css from "./sections-view.css?raw";
 
@@ -206,14 +206,14 @@ function isPlainLeftClick(event: MouseEvent): boolean {
 export function showSections(
   page: FilesPage,
   signal: AbortSignal,
-  intent?: Promise<DocPathsResult>,
+  intent?: Promise<IntentResult>,
 ): void {
   const doc = page.sidebar.ownerDocument;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   const view = el(doc, "nav", "gh-prism-sections");
   view.setAttribute("aria-label", "Changed files by section");
   const collapsed = new Set<string>();
-  let landed: DocPathsResult | undefined;
+  let landed: IntentResult | undefined;
 
   const render = () => {
     const focusedKey = view.contains(doc.activeElement) ? focusKey(doc.activeElement) : undefined;

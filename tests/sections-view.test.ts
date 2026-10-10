@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { DocPathsResult } from "../entrypoints/content/doc-paths";
 import { findFilesPage } from "../entrypoints/content/files-page";
+import type { IntentResult } from "../entrypoints/content/intent";
 import { showSections } from "../entrypoints/content/sections-view";
 import css from "../entrypoints/content/sections-view.css?raw";
 import { byId, loadFixture } from "./fixtures/files-page";
@@ -41,7 +41,7 @@ const pathsIn = (section: string) =>
   );
 
 /** Replaces the view `beforeEach` mounted with one that waits on `intent`. */
-function remountWith(intent: Promise<DocPathsResult>): void {
+function remountWith(intent: Promise<IntentResult>): void {
   controller.abort();
   controller = new AbortController();
   const page = findFilesPage(document);
@@ -224,13 +224,13 @@ describe("showSections", () => {
   });
 
   it("keeps path sections while the intent is pending", () => {
-    remountWith(Promise.withResolvers<DocPathsResult>().promise);
+    remountWith(Promise.withResolvers<IntentResult>().promise);
     expect(pathsIn("implementation")).toContain("src/notes.rs");
     expect(pathsIn("implementation")).toContain("src/parser.rs");
   });
 
   it("moves intent-marked files into Documentation once it settles", async () => {
-    const deferred = Promise.withResolvers<DocPathsResult>();
+    const deferred = Promise.withResolvers<IntentResult>();
     remountWith(deferred.promise);
     deferred.resolve({ ok: true, paths: new Set(["src/parser.rs", "src/notes.rs"]) });
     await afterDebounce();
@@ -244,7 +244,7 @@ describe("showSections", () => {
   });
 
   it("keeps the moved files across a re-render", async () => {
-    const deferred = Promise.withResolvers<DocPathsResult>();
+    const deferred = Promise.withResolvers<IntentResult>();
     remountWith(deferred.promise);
     deferred.resolve({ ok: true, paths: new Set(["src/parser.rs", "src/notes.rs"]) });
     await afterDebounce();
@@ -270,7 +270,7 @@ describe("showSections", () => {
   ] as const)(
     "keeps path sections and shows a notice when the intent is $problem",
     async ({ problem, copy }) => {
-      const deferred = Promise.withResolvers<DocPathsResult>();
+      const deferred = Promise.withResolvers<IntentResult>();
       remountWith(deferred.promise);
       deferred.resolve({ ok: false, problem });
       await afterDebounce();
@@ -281,7 +281,7 @@ describe("showSections", () => {
   );
 
   it("leaves no view when the intent settles after abort", async () => {
-    const deferred = Promise.withResolvers<DocPathsResult>();
+    const deferred = Promise.withResolvers<IntentResult>();
     remountWith(deferred.promise);
     controller.abort();
     deferred.resolve({ ok: true, paths: new Set(["src/parser.rs"]) });

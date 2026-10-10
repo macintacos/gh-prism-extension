@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { docPathsFor, readDocPaths } from "../entrypoints/content/doc-paths";
 import type { FilesRoute } from "../entrypoints/content/files-page";
+import { intentFor, readIntent } from "../entrypoints/content/intent";
 import type { PrFileDiff } from "../utils/pr-diff";
 import type { PrRef } from "../utils/pr-ref";
 import type { PrFileContentResult, PrFilesResult } from "../utils/pr-source";
@@ -64,11 +64,11 @@ function fakeClient(files: PrFilesResult, content: PrFileContentResult) {
   };
 }
 
-describe("readDocPaths", () => {
+describe("readIntent", () => {
   it("returns a files() failure as is", async () => {
     const client = fakeClient({ ok: false, problem: "rate-limited" }, unreadable);
 
-    expect(await readDocPaths(client)).toEqual({ ok: false, problem: "rate-limited" });
+    expect(await readIntent(client)).toEqual({ ok: false, problem: "rate-limited" });
   });
 
   it("lists a file whose every change is a comment, without reading its content", async () => {
@@ -77,7 +77,7 @@ describe("readDocPaths", () => {
       unreadable,
     );
 
-    expect(await readDocPaths(client)).toEqual({ ok: true, paths: new Set(["src/parser.rs"]) });
+    expect(await readIntent(client)).toEqual({ ok: true, paths: new Set(["src/parser.rs"]) });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
 
@@ -87,7 +87,7 @@ describe("readDocPaths", () => {
       unreadable,
     );
 
-    expect(await readDocPaths(client)).toEqual({ ok: true, paths: new Set() });
+    expect(await readIntent(client)).toEqual({ ok: true, paths: new Set() });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
 
@@ -97,7 +97,7 @@ describe("readDocPaths", () => {
       { ok: true, text: notesHead },
     );
 
-    expect(await readDocPaths(client)).toEqual({ ok: true, paths: new Set(["src/notes.rs"]) });
+    expect(await readIntent(client)).toEqual({ ok: true, paths: new Set(["src/notes.rs"]) });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
     expect(client.fileContent).toHaveBeenCalledWith("src/notes.rs");
   });
@@ -108,7 +108,7 @@ describe("readDocPaths", () => {
       unreadable,
     );
 
-    expect(await readDocPaths(client)).toEqual({ ok: true, paths: new Set() });
+    expect(await readIntent(client)).toEqual({ ok: true, paths: new Set() });
   });
 
   it("never reads a binary file", async () => {
@@ -120,16 +120,16 @@ describe("readDocPaths", () => {
       unreadable,
     );
 
-    expect(await readDocPaths(client)).toEqual({ ok: true, paths: new Set() });
+    expect(await readIntent(client)).toEqual({ ok: true, paths: new Set() });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
 });
 
-describe("docPathsFor", () => {
+describe("intentFor", () => {
   it("resolves a commit-filtered route without connecting", async () => {
     const connect = vi.fn((_pr: PrRef) => fakeClient({ ok: true, files: [] }, unreadable));
 
-    const result = await docPathsFor(
+    const result = await intentFor(
       { pr, commitFiltered: true },
       new AbortController().signal,
       connect,
@@ -144,7 +144,7 @@ describe("docPathsFor", () => {
     const connect = vi.fn((_pr: PrRef) => client);
     const controller = new AbortController();
 
-    await docPathsFor(route, controller.signal, connect);
+    await intentFor(route, controller.signal, connect);
 
     expect(connect).toHaveBeenCalledTimes(1);
     expect(connect).toHaveBeenCalledWith(pr);
