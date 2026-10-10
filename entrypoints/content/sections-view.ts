@@ -5,8 +5,8 @@
  */
 
 import { classify, SECTIONS, type SectionKey } from "@/utils/sections";
-import type { DocPathsResult, PathOnlyReason } from "./doc-paths";
 import { type ChangedFile, type FilesPage, observeTree, readChangedFiles } from "./files-page";
+import type { IntentResult, IntentSection, PathOnlyReason } from "./intent";
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
 import css from "./sections-view.css?raw";
 
@@ -16,29 +16,30 @@ interface FileSection {
   readonly files: ChangedFile[];
 }
 
-const NO_DOC_PATHS: ReadonlySet<string> = new Set();
+const NO_OVERRIDES: ReadonlyMap<string, IntentSection> = new Map();
 
 const PATH_ONLY_COPY: Record<PathOnlyReason, string> = {
   "commit-filtered":
-    "Grouped by path. Docstring-only changes are detected when viewing all commits.",
-  "no-access": "Grouped by path. Sign in to GitHub to detect docstring-only changes.",
+    "Grouped by path. Docstring-only and inline-test changes are detected when viewing all commits.",
+  "no-access":
+    "Grouped by path. Sign in to GitHub to detect docstring-only and inline-test changes.",
   "rate-limited":
-    "Grouped by path. GitHub is rate-limiting requests; reload to detect docstring-only changes.",
-  "too-large": "Grouped by path. This diff is too large to check for docstring-only changes.",
-  failed: "Grouped by path. The diff didn't load; reload to detect docstring-only changes.",
+    "Grouped by path. GitHub is rate-limiting requests; reload to detect docstring-only and inline-test changes.",
+  "too-large":
+    "Grouped by path. This diff is too large to check for docstring-only and inline-test changes.",
+  failed:
+    "Grouped by path. The diff didn't load; reload to detect docstring-only and inline-test changes.",
 };
 
 /**
  * Non-empty sections in `SECTIONS` order, each with its files in native-tree order. A file in
- * `docPaths` is Documentation whatever its path says.
+ * `overrides` goes to that section whatever its path says.
  */
 function groupBySection(
   files: readonly ChangedFile[],
-  docPaths: ReadonlySet<string>,
+  overrides: ReadonlyMap<string, IntentSection>,
 ): FileSection[] {
-  const bySection = Map.groupBy(files, (file) =>
-    docPaths.has(file.path) ? "docs" : classify(file.path),
-  );
+  const bySection = Map.groupBy(files, (file) => overrides.get(file.path) ?? classify(file.path));
   return SECTIONS.flatMap(({ key, label }) => {
     const sectionFiles = bySection.get(key);
     return sectionFiles ? [{ key, label, files: sectionFiles }] : [];
@@ -199,26 +200,26 @@ function isPlainLeftClick(event: MouseEvent): boolean {
 
 /**
  * Mirrors `page`'s native file tree as sections inside its sidebar until `signal` aborts. Files
- * in `intent`'s doc paths move to Documentation once it settles; until then, and without one,
- * sections follow the paths alone. If it settles as a failure, a notice above the sections says
- * why.
+ * in `intent`'s overrides move to the section it places them in once it settles; until then, and
+ * without one, sections follow the paths alone. If it settles as a failure, a notice above the
+ * sections says why.
  */
 export function showSections(
   page: FilesPage,
   signal: AbortSignal,
-  intent?: Promise<DocPathsResult>,
+  intent?: Promise<IntentResult>,
 ): void {
   const doc = page.sidebar.ownerDocument;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   const view = el(doc, "nav", "gh-prism-sections");
   view.setAttribute("aria-label", "Changed files by section");
   const collapsed = new Set<string>();
-  let landed: DocPathsResult | undefined;
+  let landed: IntentResult | undefined;
 
   const render = () => {
     const focusedKey = view.contains(doc.activeElement) ? focusKey(doc.activeElement) : undefined;
-    const docPaths = landed?.ok ? landed.paths : NO_DOC_PATHS;
-    const sections = groupBySection(readChangedFiles(page.sidebar), docPaths);
+    const overrides = landed?.ok ? landed.overrides : NO_OVERRIDES;
+    const sections = groupBySection(readChangedFiles(page.sidebar), overrides);
     // No role="status": every render rebuilds this, so a live region would re-announce on scroll.
     const notice =
       landed?.ok === false ? [el(doc, "p", "gh-prism-notice", PATH_ONLY_COPY[landed.problem])] : [];

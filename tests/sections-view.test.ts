@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { DocPathsResult } from "../entrypoints/content/doc-paths";
 import { findFilesPage } from "../entrypoints/content/files-page";
+import type { IntentResult } from "../entrypoints/content/intent";
 import { showSections } from "../entrypoints/content/sections-view";
 import css from "../entrypoints/content/sections-view.css?raw";
 import { byId, loadFixture } from "./fixtures/files-page";
@@ -41,7 +41,7 @@ const pathsIn = (section: string) =>
   );
 
 /** Replaces the view `beforeEach` mounted with one that waits on `intent`. */
-function remountWith(intent: Promise<DocPathsResult>): void {
+function remountWith(intent: Promise<IntentResult>): void {
   controller.abort();
   controller = new AbortController();
   const page = findFilesPage(document);
@@ -224,15 +224,21 @@ describe("showSections", () => {
   });
 
   it("keeps path sections while the intent is pending", () => {
-    remountWith(Promise.withResolvers<DocPathsResult>().promise);
+    remountWith(Promise.withResolvers<IntentResult>().promise);
     expect(pathsIn("implementation")).toContain("src/notes.rs");
     expect(pathsIn("implementation")).toContain("src/parser.rs");
   });
 
   it("moves intent-marked files into Documentation once it settles", async () => {
-    const deferred = Promise.withResolvers<DocPathsResult>();
+    const deferred = Promise.withResolvers<IntentResult>();
     remountWith(deferred.promise);
-    deferred.resolve({ ok: true, paths: new Set(["src/parser.rs", "src/notes.rs"]) });
+    deferred.resolve({
+      ok: true,
+      overrides: new Map([
+        ["src/parser.rs", "docs"],
+        ["src/notes.rs", "docs"],
+      ]),
+    });
     await afterDebounce();
     expect(pathsIn("docs")).toEqual([
       "docs/guide.md",
@@ -243,10 +249,25 @@ describe("showSections", () => {
     expect(document.querySelector(".gh-prism-notice")).toBeNull();
   });
 
-  it("keeps the moved files across a re-render", async () => {
-    const deferred = Promise.withResolvers<DocPathsResult>();
+  it("moves a tests override out of Implementation once intent settles", async () => {
+    const deferred = Promise.withResolvers<IntentResult>();
     remountWith(deferred.promise);
-    deferred.resolve({ ok: true, paths: new Set(["src/parser.rs", "src/notes.rs"]) });
+    deferred.resolve({ ok: true, overrides: new Map([["src/lib.rs", "tests"]]) });
+    await afterDebounce();
+    expect(pathsIn("tests")).toEqual(["src/lib.rs", "tests/integration.rs"]);
+    expect(pathsIn("implementation")).not.toContain("src/lib.rs");
+  });
+
+  it("keeps the moved files across a re-render", async () => {
+    const deferred = Promise.withResolvers<IntentResult>();
+    remountWith(deferred.promise);
+    deferred.resolve({
+      ok: true,
+      overrides: new Map([
+        ["src/parser.rs", "docs"],
+        ["src/notes.rs", "docs"],
+      ]),
+    });
     await afterDebounce();
     byId("src/lib.rs").removeAttribute("aria-current");
     await afterDebounce();
@@ -261,16 +282,16 @@ describe("showSections", () => {
   it.each([
     {
       problem: "commit-filtered",
-      copy: "Grouped by path. Docstring-only changes are detected when viewing all commits.",
+      copy: "Grouped by path. Docstring-only and inline-test changes are detected when viewing all commits.",
     },
     {
       problem: "no-access",
-      copy: "Grouped by path. Sign in to GitHub to detect docstring-only changes.",
+      copy: "Grouped by path. Sign in to GitHub to detect docstring-only and inline-test changes.",
     },
   ] as const)(
     "keeps path sections and shows a notice when the intent is $problem",
     async ({ problem, copy }) => {
-      const deferred = Promise.withResolvers<DocPathsResult>();
+      const deferred = Promise.withResolvers<IntentResult>();
       remountWith(deferred.promise);
       deferred.resolve({ ok: false, problem });
       await afterDebounce();
@@ -281,10 +302,10 @@ describe("showSections", () => {
   );
 
   it("leaves no view when the intent settles after abort", async () => {
-    const deferred = Promise.withResolvers<DocPathsResult>();
+    const deferred = Promise.withResolvers<IntentResult>();
     remountWith(deferred.promise);
     controller.abort();
-    deferred.resolve({ ok: true, paths: new Set(["src/parser.rs"]) });
+    deferred.resolve({ ok: true, overrides: new Map([["src/parser.rs", "docs"]]) });
     await afterDebounce();
     expect(view()).toBeNull();
   });
