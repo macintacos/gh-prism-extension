@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { PrFileDiff, PrHunk } from "../utils/pr-diff";
-import { type HeadLineSpan, hunkHeadSpan, parsePrDiff, parsePrHunks } from "../utils/pr-diff";
+import type { LineCounts, PrFileDiff, PrHunk } from "../utils/pr-diff";
+import {
+  type HeadLineSpan,
+  hunkHeadSpan,
+  hunkLineCounts,
+  parsePrDiff,
+  parsePrHunks,
+} from "../utils/pr-diff";
 
 const lines = (...text: string[]) => text.join("\n");
 
@@ -364,5 +370,34 @@ describe("hunkHeadSpan", () => {
 
   it("counts a blank context line written as an empty string", () => {
     expect(hunkHeadSpan({ newStart: 4, lines: ["-a", "", "+b"] })).toEqual({ first: 4, last: 5 });
+  });
+});
+
+const lineCountCases: [string, PrHunk, LineCounts][] = [
+  [
+    "a removed and an added line",
+    { newStart: 1, lines: ["-old title", "+new title", " body"] },
+    { added: 1, removed: 1 },
+  ],
+  [
+    "a removed line whose text starts with --",
+    { newStart: 1, lines: ["--- old comment", "+-- new comment"] },
+    { added: 1, removed: 1 },
+  ],
+  [
+    "a deleted file's removals",
+    { newStart: 0, lines: ["-a", "-b", "-c"] },
+    { added: 0, removed: 3 },
+  ],
+  [
+    "context, blank and no-newline lines",
+    { newStart: 1, lines: ["-old", " ", "", "+new", "\\ No newline at end of file"] },
+    { added: 1, removed: 1 },
+  ],
+];
+
+describe("hunkLineCounts", () => {
+  it.each(lineCountCases)("counts %s", (_name, hunk, expected) => {
+    expect(hunkLineCounts(hunk)).toEqual(expected);
   });
 });

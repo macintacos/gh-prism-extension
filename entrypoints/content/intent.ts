@@ -5,7 +5,15 @@ import {
   scanHeadText,
 } from "@/utils/doc-intent";
 import { inlineTestHunkVerdicts, inlineTestRuleApplies } from "@/utils/inline-tests";
-import { type HeadLineSpan, hunkHeadSpan, type PrFileDiff, parsePrHunks } from "@/utils/pr-diff";
+import {
+  type HeadLineSpan,
+  hunkHeadSpan,
+  hunkLineCounts,
+  type LineCounts,
+  type PrFileDiff,
+  type PrHunk,
+  parsePrHunks,
+} from "@/utils/pr-diff";
 import type { PrDataClient } from "@/utils/pr-port";
 import type { PrRef } from "@/utils/pr-ref";
 import type { PrDataProblem } from "@/utils/pr-source";
@@ -22,6 +30,17 @@ export interface SectionShare {
   readonly section: SectionKey;
   /** The head-file lines of each hunk placed here, in diff order; `undefined` for a hunk with none. */
   readonly hunks: readonly (HeadLineSpan | undefined)[];
+  /** Lines the hunks placed here add and remove. */
+  readonly lines: LineCounts;
+}
+
+/** A file's whole-diff line counts, or `"binary"` for a binary file such as an image. */
+export type FileLines = LineCounts | "binary";
+
+/** How far `readIntent` has got: `checked` of the diff's `total` files placed. */
+export interface IntentProgress {
+  readonly checked: number;
+  readonly total: number;
 }
 
 /** Where intent moves one file: whole to a rule section, or across sections hunk by hunk. */
@@ -35,6 +54,8 @@ export type IntentResult =
       ok: true;
       /** Keyed by path; a file absent here keeps its path section. Split shares are in `SECTIONS` order. */
       placements: ReadonlyMap<string, Placement>;
+      /** Every file in the PR's diff, keyed by path. */
+      lines: ReadonlyMap<string, FileLines>;
     }
   | { ok: false; problem: PathOnlyReason };
 
@@ -84,12 +105,12 @@ function placementOf(
 ): Placement | undefined {
   const resolved = sections.map((section) => section ?? classify(file.path));
   if (new Set(resolved).size > 1) {
-    const spans = spansOf(file); // non-empty sections ⇒ a text file that wasn't renamed
+    const hunks = hunksOf(file); // non-empty sections ⇒ a text file that wasn't renamed
     return {
       kind: "split",
       shares: SECTIONS.flatMap(({ key }) => {
-        const hunks = resolved.flatMap((section, i) => (section === key ? [spans[i]] : []));
-        return hunks.length > 0 ? [{ section: key, hunks }] : [];
+        const placed = hunks.filter((_, i) => resolved[i] === key);
+        return placed.length > 0 ? [shareOf(key, placed)] : [];
       }),
     };
   }
@@ -99,33 +120,60 @@ function placementOf(
     : undefined;
 }
 
-const spansOf = (file: PrFileDiff): SectionShare["hunks"] =>
-  file.kind === "text" ? parsePrHunks(file.patch).map((hunk) => hunkHeadSpan(hunk)) : [];
+const sumHunkLines = (hunks: readonly PrHunk[]): LineCounts =>
+  hunks.reduce(
+    (sum, hunk) => {
+      const counts = hunkLineCounts(hunk);
+      return { added: sum.added + counts.added, removed: sum.removed + counts.removed };
+    },
+    { added: 0, removed: 0 },
+  );
+
+const shareOf = (section: SectionKey, hunks: readonly PrHunk[]): SectionShare => ({
+  section,
+  hunks: hunks.map((hunk) => hunkHeadSpan(hunk)),
+  lines: sumHunkLines(hunks),
+});
+
+const hunksOf = (file: PrFileDiff): PrHunk[] =>
+  file.kind === "text" ? parsePrHunks(file.patch) : [];
+
+const linesOf = (file: PrFileDiff): FileLines =>
+  file.kind === "binary" ? "binary" : sumHunkLines(hunksOf(file));
 
 /**
  * Reads the PR's files and places each one's hunks. A file whose head can't be read keeps the hunks
  * its patch settles, and the rest stay in its path section; only a `files()` failure makes the
- * result not ok.
+ * result not ok. `onProgress` reports once after `files()` succeeds, then once per file as it is
+ * placed.
  */
 export async function readIntent(
   client: Pick<PrDataClient, "files" | "fileContent">,
+  onProgress?: (progress: IntentProgress) => void,
 ): Promise<IntentResult> {
   const listed = await client.files();
   if (!listed.ok) return listed;
+  const total = listed.files.length;
+  onProgress?.({ checked: 0, total });
+  let checked = 0;
   // ponytail: unbounded concurrency; every file a rule needs content for reads at once.
   // Cap it with a worker pool if reads trip rate-limited.
   const placed = await Promise.all(
-    listed.files.map(async (file) => ({
-      path: file.path,
-      placement: placementOf(file, await hunkSections(client, file)),
-    })),
+    listed.files.map(async (file) => {
+      const placement = placementOf(file, await hunkSections(client, file));
+      checked += 1;
+      onProgress?.({ checked, total });
+      return { path: file.path, placement };
+    }),
   );
   const placements = new Map<string, Placement>();
   for (const { path, placement } of placed) {
     if (placement === undefined) continue;
     placements.set(path, placement);
   }
-  return { ok: true, placements };
+  const lines = new Map<string, FileLines>();
+  for (const file of listed.files) lines.set(file.path, linesOf(file));
+  return { ok: true, placements, lines };
 }
 
 /**
@@ -136,9 +184,10 @@ export async function intentFor(
   route: FilesRoute,
   signal: AbortSignal,
   connect: (pr: PrRef) => PrDataClient,
+  onProgress?: (progress: IntentProgress) => void,
 ): Promise<IntentResult> {
   if (route.commitFiltered) return { ok: false, problem: "commit-filtered" };
   const client = connect(route.pr);
   signal.addEventListener("abort", () => client.close(), { once: true });
-  return readIntent(client);
+  return readIntent(client, onProgress);
 }

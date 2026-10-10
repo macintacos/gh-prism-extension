@@ -4,7 +4,23 @@
 }
 
 .gh-prism-sections {
+  --gh-prism-hue-implementation: var(--fgColor-accent);
+  --gh-prism-hue-tests: var(--fgColor-done);
+  --gh-prism-hue-docs: var(--fgColor-attention);
+  --gh-prism-hue-config: var(--fgColor-sponsors);
+  --gh-prism-hue-generated: var(--fgColor-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   font-size: var(--text-body-size-medium);
+  interpolate-size: allow-keywords;
+}
+
+/* Keep in sync with the filter row's pr-lg-3, so the sections end where its button does. */
+@media (min-width: 1012px) {
+  .gh-prism-sections {
+    margin-inline-end: var(--base-size-16);
+  }
 }
 
 .gh-prism-notice {
@@ -15,20 +31,88 @@
   color: var(--fgColor-muted);
 }
 
-.gh-prism-section + .gh-prism-section {
-  margin-top: 8px;
+.gh-prism-section[data-section="implementation"] {
+  --gh-prism-hue: var(--gh-prism-hue-implementation);
+}
+
+.gh-prism-section[data-section="tests"] {
+  --gh-prism-hue: var(--gh-prism-hue-tests);
+}
+
+.gh-prism-section[data-section="docs"] {
+  --gh-prism-hue: var(--gh-prism-hue-docs);
+}
+
+.gh-prism-section[data-section="config"] {
+  --gh-prism-hue: var(--gh-prism-hue-config);
+}
+
+.gh-prism-section[data-section="generated"] {
+  --gh-prism-hue: var(--gh-prism-hue-generated);
+}
+
+/* Opaque, so the tree's truncated names can fade into it. */
+.gh-prism-section {
+  --gh-prism-tint: color-mix(in srgb, var(--gh-prism-hue) 8%, var(--bgColor-default));
+  border-radius: var(--borderRadius-medium);
+  background: var(--gh-prism-tint);
 }
 
 .gh-prism-section-header {
+  margin: 0;
+  font-size: var(--text-body-size-medium);
+  font-weight: var(--base-text-weight-semibold);
+}
+
+.gh-prism-section-toggle {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin: 0;
-  padding: 6px 8px 4px;
-  font-size: var(--text-body-size-small);
-  font-weight: var(--base-text-weight-semibold);
-  line-height: var(--text-body-lineHeight-small);
-  color: var(--fgColor-muted);
+  gap: 8px;
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--borderRadius-medium);
+  background: none;
+  color: var(--fgColor-default);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.gh-prism-section-toggle:hover {
+  background: var(--control-transparent-bgColor-hover);
+}
+
+.gh-prism-section-toggle:focus-visible {
+  outline: 2px solid var(--focus-outlineColor);
+  outline-offset: -2px;
+}
+
+.gh-prism-chevron {
+  flex-shrink: 0;
+  color: var(--gh-prism-hue);
+  transition: rotate 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gh-prism-section-toggle[aria-expanded="false"] .gh-prism-chevron {
+  rotate: -90deg;
+}
+
+/* Collapsed as inert, not hidden: GitHub forces [hidden] to display: none, which can't animate. */
+.gh-prism-files {
+  overflow: clip;
+  padding-bottom: 4px;
+  transition-property: height, padding-bottom, opacity, visibility;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gh-prism-files[inert] {
+  height: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  visibility: hidden;
 }
 
 .gh-prism-counter {
@@ -43,126 +127,154 @@
   text-align: center;
 }
 
-.gh-prism-partial {
-  flex-shrink: 0;
-  padding: 0 6px;
-  border: 1px solid var(--borderColor-default);
-  border-radius: 2em;
-  color: var(--fgColor-muted);
-  font-size: var(--text-body-size-small);
-  line-height: var(--text-body-lineHeight-small);
+/* @pierre/trees reads these through each tree's shadow root. */
+.gh-prism-tree {
+  --trees-bg-override: var(--gh-prism-tint);
+  --trees-bg-muted-override: var(--control-transparent-bgColor-hover);
+  --trees-selected-bg-override: var(--control-transparent-bgColor-selected);
+  --trees-fg-override: var(--fgColor-default);
+  --trees-fg-muted-override: var(--fgColor-muted);
+  --trees-selected-fg-override: var(--fgColor-default);
+  --trees-font-family-override: var(--fontStack-monospace);
+  /* The size GitHub sets the diff's code at. */
+  --trees-font-size-override: var(--text-body-size-small);
+  --trees-focus-ring-color-override: var(--focus-outlineColor);
+  --trees-focus-ring-width-override: 2px;
+  --trees-focus-ring-offset-override: -2px;
+  --trees-selected-focused-border-color-override: var(--focus-outlineColor);
+  --trees-border-radius-override: var(--borderRadius-medium);
+  --trees-indent-guide-bg-override: var(--borderColor-muted);
+  --trees-padding-inline-override: 4px;
+  --trees-scrollbar-gutter-override: 0px;
+  --gh-prism-marker-fg: var(--fgColor-muted);
+  --gh-prism-comment-fg: var(--fgColor-muted);
 }
 
-.gh-prism-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.gh-prism-loading {
+  padding: 8px 8px 4px;
 }
 
-.gh-prism-file,
-.gh-prism-dir {
+.gh-prism-loading-label {
   display: flex;
-  align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  width: 100%;
-  min-height: 32px;
-  padding: 0 8px 0 calc(var(--gh-prism-inset) + var(--gh-prism-level, 0) * 8px);
-  border: 0;
-  border-radius: var(--borderRadius-medium);
-  background: transparent;
-  color: var(--fgColor-default);
-  font: inherit;
-  line-height: 20px;
-  text-align: left;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.gh-prism-file:hover,
-.gh-prism-dir:hover,
-a.gh-prism-hunk:hover {
-  background: var(--control-transparent-bgColor-hover);
-  text-decoration: none;
-}
-
-.gh-prism-file[aria-current="true"] {
-  background: var(--control-transparent-bgColor-selected);
-}
-
-.gh-prism-file:focus-visible,
-.gh-prism-dir:focus-visible,
-.gh-prism-hunk:focus-visible {
-  outline: 2px solid var(--focus-outlineColor);
-  outline-offset: -2px;
-}
-
-.gh-prism-dir {
-  --gh-prism-inset: 8px;
-}
-
-/* Lines file icons and hunk lists up under the directory icon, past the chevron's column. */
-.gh-prism-file,
-.gh-prism-hunks {
-  --gh-prism-inset: 32px;
-}
-
-.gh-prism-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.gh-prism-visual {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.gh-prism-chevron,
-.gh-prism-dir-icon {
-  flex-shrink: 0;
-}
-
-.gh-prism-chevron {
-  fill: var(--fgColor-muted);
-  transition: transform 80ms;
-}
-
-.gh-prism-dir-icon {
-  fill: var(--treeViewItem-leadingVisual-iconColor-rest);
-}
-
-.gh-prism-dir[aria-expanded="false"] .gh-prism-chevron {
-  transform: rotate(-90deg);
-}
-
-.gh-prism-hunks {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* Starts under the file name: past the file's status icon and its gap. */
-.gh-prism-hunk {
-  display: block;
-  padding: 4px 8px 4px calc(var(--gh-prism-inset) + var(--gh-prism-level, 0) * 8px + 24px);
-  border-radius: var(--borderRadius-medium);
-  color: var(--fgColor-muted);
   font-size: var(--text-body-size-small);
   line-height: var(--text-body-lineHeight-small);
-  text-decoration: none;
-  cursor: pointer;
+  color: var(--fgColor-muted);
 }
 
-span.gh-prism-hunk {
-  color: var(--fgColor-disabled);
-  cursor: default;
+.gh-prism-loading-count {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The five section hues, in section order, filling as intent checks files. */
+.gh-prism-spectrum {
+  height: 3px;
+  margin: 8px 0 6px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--bgColor-neutral-muted);
+}
+
+.gh-prism-spectrum::before {
+  content: "";
+  display: block;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--gh-prism-hue-implementation) 0 20%,
+    var(--gh-prism-hue-tests) 20% 40%,
+    var(--gh-prism-hue-docs) 40% 60%,
+    var(--gh-prism-hue-config) 60% 80%,
+    var(--gh-prism-hue-generated) 80%
+  );
+  clip-path: inset(0 calc(100% - var(--gh-prism-progress, 0) * 100%) 0 0);
+  transition: clip-path 240ms ease-out;
+}
+
+.gh-prism-loading:not([aria-valuenow]) .gh-prism-spectrum::before {
+  animation: gh-prism-sweep 1.4s ease-in-out infinite;
+}
+
+.gh-prism-skeleton > span {
+  display: block;
+  height: 10px;
+  margin: 9px 0;
+  border-radius: 5px;
+  background: var(--borderColor-muted);
+  animation: gh-prism-pulse 1.2s ease-in-out infinite alternate;
+}
+
+.gh-prism-skeleton > span:nth-child(1) {
+  width: 32%;
+}
+
+.gh-prism-skeleton > span:nth-child(2) {
+  width: 52%;
+  margin-left: 20px;
+}
+
+.gh-prism-skeleton > span:nth-child(3) {
+  width: 44%;
+  margin-left: 20px;
+}
+
+.gh-prism-skeleton > span:nth-child(4) {
+  width: 36%;
+  margin-left: 40px;
+}
+
+.gh-prism-skeleton > span:nth-child(5) {
+  width: 58%;
+  margin-left: 20px;
+}
+
+/* The settled sections drop out of the spectrum one after another. */
+.gh-prism-sections[data-reveal] .gh-prism-section {
+  animation: gh-prism-reveal 280ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  animation-delay: calc(var(--gh-prism-order, 0) * 50ms);
+}
+
+@keyframes gh-prism-sweep {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+
+  50% {
+    clip-path: inset(0);
+  }
+
+  to {
+    clip-path: inset(0 0 0 100%);
+  }
+}
+
+@keyframes gh-prism-pulse {
+  to {
+    opacity: 0.45;
+  }
+}
+
+@keyframes gh-prism-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .gh-prism-chevron {
+  .gh-prism-spectrum::before,
+  .gh-prism-skeleton > span,
+  .gh-prism-sections[data-reveal] .gh-prism-section,
+  .gh-prism-chevron,
+  .gh-prism-files {
     transition: none;
+    animation: none;
+  }
+
+  .gh-prism-loading:not([aria-valuenow]) .gh-prism-spectrum::before {
+    clip-path: none;
+    opacity: 0.4;
+    animation: none;
   }
 }

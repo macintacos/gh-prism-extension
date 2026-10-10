@@ -1,0 +1,88 @@
+/* Styles inside each section tree's shadow root; @pierre/trees layers them over its own. */
+
+/* Status letters stay quiet: in this sidebar, color marks sections and lines added or removed. */
+[data-item-git-status] > [data-item-section="content"],
+[data-item-git-status] > [data-item-section="icon"] > * {
+  color: inherit;
+}
+
+/* Names are code, set in its font; counts, markers and status letters are not. */
+[data-item-section="decoration"],
+[data-item-section="git"] {
+  font-family: var(--fontStack-sansSerif);
+}
+
+/* A directory shows a folder in its section's hue, open while expanded, in the chevron's
+   place; the chevron's turn for collapsed rows would tip it over. */
+[data-icon-name="file-tree-icon-chevron"] {
+  color: var(--gh-prism-hue);
+  transform: none;
+}
+
+[aria-expanded="true"] > [data-item-section="icon"] {
+  --gh-prism-folder-open: 1;
+}
+
+.gh-prism-folder-open {
+  opacity: var(--gh-prism-folder-open, 0);
+}
+
+.gh-prism-folder-closed {
+  opacity: calc(1 - var(--gh-prism-folder-open, 0));
+}
+
+[data-item-section="git"] {
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+}
+
+[data-item-contains-git-change="true"] > [data-item-section="git"] {
+  visibility: hidden;
+}
+
+[data-item-section="decoration"] {
+  font-size: var(--text-body-size-small);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-item-section="decoration"] > span {
+  gap: 6px;
+}
+
+/* Decoration parts carry only text and a color, so each kind of part takes its color from a
+   custom property that these rules key on. */
+[style*="--gh-prism-marker-fg"] {
+  padding: 0 6px;
+  border: 1px solid var(--borderColor-default);
+  border-radius: 2em;
+  line-height: 18px;
+}
+
+[style*="--gh-prism-comment-fg"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Lucide message-square (ISC). */
+[style*="--gh-prism-comment-fg"]::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  background: currentColor;
+  mask:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+/* The diff in view, marked as GitHub marks its current tree item, in the section's hue. */
+[data-type="item"][data-item-selected="true"]::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 0;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--gh-prism-hue);
+}

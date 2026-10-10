@@ -1,10 +1,12 @@
 /**
- * Mirrors GitHub's Files changed tree as sections. The native tree stays mounted but hidden as
- * the source of truth: each render re-reads it, and file clicks go to its row's link, whose
- * handler mounts a virtualized diff that a bare hash jump would not. A file whose hunks span
- * sections is listed in each, with the hunks that land there; clicking a hunk reveals it.
+ * Mirrors GitHub's Files changed tree as sections, each a file tree of its own. The native tree
+ * stays mounted but hidden as the source of truth: each render re-reads it, and file clicks go to
+ * its row's link, whose handler mounts a virtualized diff that a bare hash jump would not. A file
+ * whose hunks span sections is listed, marked Partial, in each; clicking it there reveals the
+ * first of that section's hunks.
  */
 
+import type { FileTreeRowDecoration, GitStatus } from "@pierre/trees";
 import { classify, SECTIONS, type SectionKey } from "@/utils/sections";
 import {
   type ChangedFile,
@@ -13,15 +15,22 @@ import {
   readChangedFiles,
   revealDiffLine,
 } from "./files-page";
-import type { IntentResult, PathOnlyReason, Placement, SectionShare } from "./intent";
+import type {
+  FileLines,
+  IntentProgress,
+  IntentResult,
+  PathOnlyReason,
+  Placement,
+  SectionShare,
+} from "./intent";
+import { SectionTree, type TreeFile } from "./section-tree";
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
 import css from "./sections-view.css?raw";
 
-/** A file as one section lists it: whole, or with the hunks of a split that land in this section. */
+/** A file as one section lists it: whole, or with the share of a split that lands in this section. */
 interface FileEntry {
   readonly file: ChangedFile;
-  /** `undefined` for a whole file. */
-  readonly hunks?: SectionShare["hunks"];
+  readonly share?: SectionShare;
 }
 
 interface FileSection {
@@ -30,7 +39,19 @@ interface FileSection {
   readonly entries: FileEntry[];
 }
 
+interface ShownSection {
+  readonly root: HTMLElement;
+  readonly counter: HTMLElement;
+  readonly tree: SectionTree;
+}
+
+/** Reads where the changed files land, reporting its progress through `onProgress`. */
+export type PendingIntent = (
+  onProgress: (progress: IntentProgress) => void,
+) => Promise<IntentResult>;
+
 const NO_PLACEMENTS: ReadonlyMap<string, Placement> = new Map();
+const NO_LINES: ReadonlyMap<string, FileLines> = new Map();
 
 const PATH_ONLY_COPY: Record<PathOnlyReason, string> = {
   "commit-filtered":
@@ -45,6 +66,20 @@ const PATH_ONLY_COPY: Record<PathOnlyReason, string> = {
     "Grouped by path. The diff didn't load; reload to detect docstring-only and inline-test changes.",
 };
 
+const STATUS_BY_OCTICON: ReadonlyMap<string, GitStatus> = new Map([
+  ["octicon-file-added", "added"],
+  ["octicon-file-removed", "deleted"],
+  ["octicon-file-moved", "renamed"],
+  ["octicon-file-diff", "modified"],
+]);
+
+const ADDED = "var(--fgColor-success)";
+const REMOVED = "var(--fgColor-danger)";
+const UNCHANGED = "var(--fgColor-muted)";
+// section-tree.css styles these parts by the custom property each color names.
+const MARKER = "var(--gh-prism-marker-fg)";
+const COMMENTS = "var(--gh-prism-comment-fg)";
+
 /**
  * Non-empty sections in `SECTIONS` order, each with its entries in native-tree order. A file placed
  * whole goes to that section whatever its path says; a split file is listed in each section its
@@ -57,7 +92,7 @@ function groupBySection(
   const placed = files.flatMap((file) => {
     const placement = placements.get(file.path);
     return placement?.kind === "split"
-      ? placement.shares.map(({ section, hunks }) => ({ section, entry: { file, hunks } }))
+      ? placement.shares.map((share) => ({ section: share.section, entry: { file, share } }))
       : [{ section: placement?.section ?? classify(file.path), entry: { file } }];
   });
   const bySection = Map.groupBy(placed, ({ section }) => section);
@@ -67,52 +102,50 @@ function groupBySection(
   });
 }
 
-interface DirNode {
-  /** `/`-separated path from the section root, with no trailing slash; empty at the root. */
-  readonly path: string;
-  /** Indentation level of this node's rows. */
-  readonly depth: number;
-  readonly dirs: Map<string, DirNode>;
-  readonly entries: FileEntry[];
-}
+const statusOf = (icon: Element | null): GitStatus | undefined =>
+  [...STATUS_BY_OCTICON].find(([octicon]) => icon?.classList.contains(octicon))?.[1];
 
-function buildTree(entries: readonly FileEntry[]): DirNode {
-  const root: DirNode = { path: "", depth: 0, dirs: new Map(), entries: [] };
-  for (const entry of entries) {
-    let node = root;
-    for (const dir of entry.file.path.split("/").slice(0, -1)) {
-      let child = node.dirs.get(dir);
-      if (!child) {
-        const path = node.path ? `${node.path}/${dir}` : dir;
-        child = { path, depth: node.depth + 1, dirs: new Map(), entries: [] };
-        node.dirs.set(dir, child);
-      }
-      node = child;
-    }
-    node.entries.push(entry);
+/**
+ * A row's comment count, Partial or Binary marker, and lines added and removed, as known. Its
+ * title, which the row's accessible name ends with, says each in words.
+ */
+function decorationOf(
+  { file, share }: FileEntry,
+  lines: FileLines | undefined,
+): FileTreeRowDecoration | undefined {
+  const parts: { text: string; color: string }[] = [];
+  const phrases: string[] = [];
+  const comments = file.comments?.textContent?.trim();
+  if (comments) {
+    parts.push({ text: comments, color: COMMENTS });
+    phrases.push(`${comments} comment${comments === "1" ? "" : "s"}`);
   }
-  return root;
+  if (share) {
+    parts.push({ text: "Partial", color: MARKER });
+    phrases.push("Partial: other sections hold the rest");
+  }
+  const counted = share?.lines ?? lines;
+  if (counted === "binary") {
+    parts.push({ text: "Binary", color: MARKER });
+    phrases.push("Binary file: no line counts");
+  } else if (counted && counted.added + counted.removed > 0) {
+    const { added, removed } = counted;
+    parts.push(
+      { text: `+${added}`, color: added > 0 ? ADDED : UNCHANGED },
+      { text: `−${removed}`, color: removed > 0 ? REMOVED : UNCHANGED },
+    );
+    phrases.push(`${added} added, ${removed} removed${share ? " in this section" : ""}`);
+  }
+  if (parts.length === 0) return undefined;
+  return { text: parts.map(({ text }) => text).join(" "), title: phrases.join(". "), parts };
 }
 
-const SVG_NS = "http://www.w3.org/2000/svg";
-// Octicons chevron-down-16 and file-directory-fill-16.
-const CHEVRON =
-  "M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z";
-const DIRECTORY =
-  "M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z";
-
-function octicon(doc: Document, className: string, pathData: string): SVGSVGElement {
-  const svg = doc.createElementNS(SVG_NS, "svg");
-  svg.setAttribute("class", `octicon ${className}`);
-  svg.setAttribute("viewBox", "0 0 16 16");
-  svg.setAttribute("width", "16");
-  svg.setAttribute("height", "16");
-  svg.setAttribute("aria-hidden", "true");
-  const pathElement = doc.createElementNS(SVG_NS, "path");
-  pathElement.setAttribute("d", pathData);
-  svg.append(pathElement);
-  return svg;
-}
+const treeFilesOf = ({ entries }: FileSection, lines: ReadonlyMap<string, FileLines>): TreeFile[] =>
+  entries.map((entry) => ({
+    path: entry.file.path,
+    status: statusOf(entry.file.statusIcon),
+    decoration: decorationOf(entry, lines.get(entry.file.path)),
+  }));
 
 function el<K extends keyof HTMLElementTagNameMap>(
   doc: Document,
@@ -126,222 +159,186 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
-function cloneVisual(doc: Document, source: Element | null): Node[] {
-  if (!source) return [];
-  const wrapper = el(doc, "span", "gh-prism-visual", source.cloneNode(true));
-  wrapper.setAttribute("aria-hidden", "true");
-  return [wrapper];
-}
+const SVG_NS = "http://www.w3.org/2000/svg";
 
-const nativeHref = (file: ChangedFile) => file.link.getAttribute("href") ?? "";
-
-interface RenderContext {
-  readonly doc: Document;
-  readonly sectionKey: SectionKey;
-  readonly collapsed: ReadonlySet<string>;
-}
-
-function hunkRow(
-  file: ChangedFile,
-  range: SectionShare["hunks"][number],
-  ctx: RenderContext,
-): HTMLElement {
-  if (range === undefined) {
-    const row = el(ctx.doc, "span", "gh-prism-hunk", "Removed lines");
-    row.setAttribute("aria-disabled", "true");
-    row.title = "No line in the new file to jump to.";
-    return row;
+/** Lucide chevron-down (ISC licence). */
+function chevron(doc: Document): SVGSVGElement {
+  const svg = doc.createElementNS(SVG_NS, "svg");
+  for (const [name, value] of Object.entries({
+    class: "gh-prism-chevron",
+    viewBox: "0 0 24 24",
+    width: "16",
+    height: "16",
+    fill: "none",
+    stroke: "currentColor",
+    "stroke-width": "2",
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round",
+    "aria-hidden": "true",
+  })) {
+    svg.setAttribute(name, value);
   }
-  const label =
-    range.first === range.last ? `Line ${range.first}` : `Lines ${range.first}–${range.last}`;
-  const row = el(ctx.doc, "a", "gh-prism-hunk", label);
-  row.href = `${nativeHref(file)}R${range.first}`;
-  row.dataset.path = file.path;
-  row.dataset.section = ctx.sectionKey;
-  row.dataset.line = String(range.first);
-  return row;
+  const path = doc.createElementNS(SVG_NS, "path");
+  path.setAttribute("d", "m6 9 6 6 6-6");
+  svg.append(path);
+  return svg;
 }
 
-function hunkList(
-  file: ChangedFile,
-  hunks: SectionShare["hunks"],
-  ctx: RenderContext,
-): HTMLUListElement {
-  return el(
-    ctx.doc,
-    "ul",
-    "gh-prism-hunks",
-    ...hunks.map((range) => el(ctx.doc, "li", "", hunkRow(file, range, ctx))),
-  );
-}
-
-function fileRow(entry: FileEntry, level: number, ctx: RenderContext): HTMLLIElement {
-  const { file, hunks } = entry;
-  const link = el(
-    ctx.doc,
-    "a",
-    "gh-prism-file",
-    ...cloneVisual(ctx.doc, file.statusIcon),
-    el(ctx.doc, "span", "gh-prism-name", file.path.slice(file.path.lastIndexOf("/") + 1)),
-    ...(hunks ? [el(ctx.doc, "span", "gh-prism-partial", "Partial")] : []),
-    ...cloneVisual(ctx.doc, file.comments),
-  );
-  link.href = nativeHref(file);
-  link.dataset.path = file.path;
-  link.dataset.section = ctx.sectionKey;
-  link.setAttribute("aria-label", hunks ? `${file.label}, partial` : file.label);
-  if (file.active) link.setAttribute("aria-current", "true");
-  const row = el(ctx.doc, "li", "", link);
-  row.style.setProperty("--gh-prism-level", String(level));
-  if (hunks) row.append(hunkList(file, hunks, ctx));
-  return row;
-}
-
-function dirList(node: DirNode, ctx: RenderContext): HTMLUListElement {
-  return el(
-    ctx.doc,
-    "ul",
-    "gh-prism-list",
-    ...[...node.dirs].map(([name, child]) => dirRow(name, child, ctx)),
-    ...node.entries.map((entry) => fileRow(entry, node.depth, ctx)),
-  );
-}
-
-function dirRow(name: string, node: DirNode, ctx: RenderContext): HTMLLIElement {
-  // A directory can recur in several sections.
-  const key = `${ctx.sectionKey}:${node.path}`;
-  const expanded = !ctx.collapsed.has(key);
-  const toggle = el(
-    ctx.doc,
-    "button",
-    "gh-prism-dir",
-    octicon(ctx.doc, "gh-prism-chevron", CHEVRON),
-    octicon(ctx.doc, "gh-prism-dir-icon", DIRECTORY),
-    el(ctx.doc, "span", "gh-prism-name", name),
-  );
+/**
+ * A section, `order` places from the top, whose header button shows and hides an empty host for
+ * its tree. `expand` sets which it does.
+ */
+function sectionShell(doc: Document, { key, label }: FileSection, order: number) {
+  const counter = el(doc, "span", "gh-prism-counter");
+  const toggle = el(doc, "button", "gh-prism-section-toggle", chevron(doc), label, counter);
   toggle.type = "button";
-  toggle.dataset.dir = key;
-  toggle.setAttribute("aria-expanded", String(expanded));
-  // The toggle sits in the parent's list, one level above this node's rows.
-  toggle.style.setProperty("--gh-prism-level", String(node.depth - 1));
-  const children = dirList(node, ctx);
-  children.hidden = !expanded;
-  return el(ctx.doc, "li", "", toggle, children);
+  const header = el(doc, "h3", "gh-prism-section-header", toggle);
+  header.id = `gh-prism-heading-${key}`;
+  const host = el(doc, "div", "gh-prism-tree");
+  const files = el(doc, "div", "gh-prism-files", host);
+  files.id = `gh-prism-files-${key}`;
+  toggle.setAttribute("aria-controls", files.id);
+  const root = el(doc, "section", "gh-prism-section", header, files);
+  root.setAttribute("aria-labelledby", header.id);
+  root.dataset.section = key;
+  root.style.setProperty("--gh-prism-order", String(order));
+  const expand = (expanded: boolean) => {
+    toggle.setAttribute("aria-expanded", String(expanded));
+    files.inert = !expanded;
+  };
+  return { root, counter, host, toggle, expand };
 }
 
-function sectionView(
-  section: FileSection,
-  doc: Document,
-  collapsed: ReadonlySet<string>,
-): HTMLElement {
+/** A progress bar that reads the diff, then counts the files checked, over a skeleton list. */
+function loadingView(doc: Document) {
+  const label = el(doc, "span", "", "Reading the diff");
+  const count = el(doc, "span", "gh-prism-loading-count");
+  const skeleton = Array.from({ length: 5 }, () => el(doc, "span", ""));
   const root = el(
     doc,
-    "section",
-    "gh-prism-section",
-    el(
-      doc,
-      "h3",
-      "gh-prism-section-header",
-      section.label,
-      el(doc, "span", "gh-prism-counter", String(section.entries.length)),
-    ),
-    dirList(buildTree(section.entries), { doc, sectionKey: section.key, collapsed }),
+    "div",
+    "gh-prism-loading",
+    el(doc, "div", "gh-prism-loading-label", label, count),
+    el(doc, "div", "gh-prism-spectrum"),
+    el(doc, "div", "gh-prism-skeleton", ...skeleton),
   );
-  root.dataset.section = section.key;
-  return root;
-}
-
-function focusKey(node: Element | null): string | undefined {
-  if (!(node instanceof HTMLElement)) return undefined;
-  const subject = node.dataset.path ?? node.dataset.dir;
-  if (subject === undefined) return undefined;
-  return [node.dataset.section, subject, node.dataset.line].join("|");
+  root.setAttribute("role", "progressbar");
+  root.setAttribute("aria-label", "Reading the diff");
+  const progress = ({ checked, total }: IntentProgress) => {
+    label.textContent = "Sorting files into sections";
+    count.textContent = `${checked} of ${total}`;
+    root.setAttribute("aria-label", label.textContent);
+    root.setAttribute("aria-valuemax", String(total));
+    root.setAttribute("aria-valuenow", String(checked));
+    root.style.setProperty("--gh-prism-progress", String(total > 0 ? checked / total : 1));
+  };
+  return { root, progress };
 }
 
 function isPlainLeftClick(event: MouseEvent): boolean {
   return event.button === 0 && !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey);
 }
 
+/** The file row and section a click inside a section tree landed on. */
+function clickedFile(event: Event): { section: string; path: string } | undefined {
+  const elements = event.composedPath().filter((node) => node instanceof HTMLElement);
+  const row = elements.find((node) => node.dataset.type === "item");
+  const section = elements.find((node) => node.classList.contains("gh-prism-section"))?.dataset
+    .section;
+  const path = row?.dataset.itemPath;
+  return row?.dataset.itemType === "file" && section && path ? { section, path } : undefined;
+}
+
 /**
- * Mirrors `page`'s native file tree as sections inside its sidebar until `signal` aborts. Files
- * that `intent` places whole move to that section once it settles; a split file is listed in each
- * section its hunks land in, and a hunk click reveals that hunk. Until intent settles, and without
- * one, sections follow the paths alone. If it settles as a failure, a notice above the sections
- * says why.
+ * Mirrors `page`'s native file tree as sections inside its sidebar until `signal` aborts. With an
+ * `intent`, a progress bar stands in until it settles; then files it places whole sit in that
+ * section, and a split file is listed in each section its hunks land in, with the lines each
+ * share adds and removes. If it settles as a failure, the sections follow the paths alone under a
+ * notice saying why. Without one, path sections show at once.
  */
-export function showSections(
-  page: FilesPage,
-  signal: AbortSignal,
-  intent?: Promise<IntentResult>,
-): void {
+export function showSections(page: FilesPage, signal: AbortSignal, intent?: PendingIntent): void {
   const doc = page.sidebar.ownerDocument;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   const view = el(doc, "nav", "gh-prism-sections");
   view.setAttribute("aria-label", "Changed files by section");
-  const collapsed = new Set<string>();
+  const shown = new Map<SectionKey, ShownSection>();
+  // Outlives the sections themselves, so one that empties and comes back stays collapsed.
+  const collapsed = new Set<SectionKey>();
+  let loading: ReturnType<typeof loadingView> | undefined;
   let landed: IntentResult | undefined;
-  // The reveal in flight. A newer hunk or file click, or the view's abort, cancels it.
+  // The reveal in flight. A newer file click, or the view's abort, cancels it.
   let jump: AbortController | undefined;
 
-  const nativeLinkFor = (path: string | undefined) =>
-    readChangedFiles(page.sidebar).find((file) => file.path === path)?.link;
+  const placements = () => (landed?.ok ? landed.placements : NO_PLACEMENTS);
+  const lines = () => (landed?.ok ? landed.lines : NO_LINES);
 
-  const jumpToHunk = (hunk: HTMLAnchorElement, event: MouseEvent) => {
-    if (!isPlainLeftClick(event)) return;
-    const native = nativeLinkFor(hunk.dataset.path);
+  const open = (section: string, path: string) => {
+    const native = readChangedFiles(page.sidebar).find((file) => file.path === path)?.link;
     if (!native) return;
-    event.preventDefault();
     jump?.abort();
+    const placement = placements().get(path);
+    const share =
+      placement?.kind === "split"
+        ? placement.shares.find((candidate) => candidate.section === section)
+        : undefined;
+    const line = share?.hunks.find((span) => span !== undefined)?.first;
+    if (line === undefined) {
+      native.click();
+      return;
+    }
     jump = new AbortController();
-    void revealDiffLine(page.diffs, native, Number(hunk.dataset.line), { signal: jump.signal });
+    void revealDiffLine(page.diffs, native, line, { signal: jump.signal });
+  };
+
+  const dropAllBut = (sections: readonly FileSection[]) => {
+    for (const [key, { root, tree }] of shown) {
+      if (sections.some((section) => section.key === key)) continue;
+      tree.cleanUp();
+      root.remove();
+      shown.delete(key);
+    }
+  };
+
+  /** Updates `section`'s tree, or builds it as section `order` after `previous`. Returns its root. */
+  const showSection = (section: FileSection, order: number, previous: Element | null) => {
+    const files = treeFilesOf(section, lines());
+    const active = section.entries.find(({ file }) => file.active)?.file.path;
+    let current = shown.get(section.key);
+    if (current) {
+      current.tree.update(files, active);
+    } else {
+      const { root, counter, host, toggle, expand } = sectionShell(doc, section, order);
+      expand(!collapsed.has(section.key));
+      toggle.addEventListener("click", () => {
+        const expanded = collapsed.has(section.key);
+        if (expanded) collapsed.delete(section.key);
+        else collapsed.add(section.key);
+        expand(expanded);
+      });
+      if (previous) previous.after(root);
+      else view.prepend(root);
+      current = { root, counter, tree: new SectionTree(host, files, active) };
+      shown.set(section.key, current);
+    }
+    const count = String(section.entries.length);
+    if (current.counter.textContent !== count) current.counter.textContent = count;
+    return current.root;
   };
 
   const render = () => {
-    const focused = view.contains(doc.activeElement) ? doc.activeElement : null;
-    const focusedKey = focusKey(focused);
-    const focusedPath = focused instanceof HTMLElement ? focused.dataset.path : undefined;
-    const placements = landed?.ok ? landed.placements : NO_PLACEMENTS;
-    const sections = groupBySection(readChangedFiles(page.sidebar), placements);
-    // No role="status": every render rebuilds this, so a live region would re-announce on scroll.
-    const notice =
-      landed?.ok === false ? [el(doc, "p", "gh-prism-notice", PATH_ONLY_COPY[landed.problem])] : [];
-    view.replaceChildren(
-      ...notice,
-      ...sections.map((section) => sectionView(section, doc, collapsed)),
-    );
-    if (focusedKey === undefined) return;
-    const rows = [...view.querySelectorAll<HTMLElement>("[data-path], [data-dir]")];
-    const sameRow = rows.find((row) => focusKey(row) === focusedKey);
-    // When intent moves or splits a focused file, focus moves to its first row.
-    const sameFile = rows.find(
-      (row) => focusedPath !== undefined && row.dataset.path === focusedPath,
-    );
-    (sameRow ?? sameFile)?.focus();
+    if (loading) return;
+    const sections = groupBySection(readChangedFiles(page.sidebar), placements());
+    dropAllBut(sections);
+    let previous = view.querySelector(".gh-prism-notice");
+    for (const [order, section] of sections.entries())
+      previous = showSection(section, order, previous);
   };
 
   view.addEventListener(
     "click",
     (event) => {
-      if (!(event.target instanceof Element)) return;
-      const toggle = event.target.closest(".gh-prism-dir");
-      if (toggle instanceof HTMLButtonElement && toggle.dataset.dir) {
-        const key = toggle.dataset.dir;
-        if (!collapsed.delete(key)) collapsed.add(key);
-        render();
-        return;
-      }
-      const hunk = event.target.closest("a.gh-prism-hunk");
-      if (hunk instanceof HTMLAnchorElement) {
-        jumpToHunk(hunk, event);
-        return;
-      }
-      const row = event.target.closest(".gh-prism-file");
-      if (!(row instanceof HTMLAnchorElement) || !isPlainLeftClick(event)) return;
-      const native = nativeLinkFor(row.dataset.path);
-      if (!native) return;
-      event.preventDefault();
-      jump?.abort();
-      native.click();
+      const clicked = clickedFile(event);
+      if (clicked && isPlainLeftClick(event)) open(clicked.section, clicked.path);
     },
     { signal },
   );
@@ -350,15 +347,33 @@ export function showSections(
   for (const stale of page.sidebar.querySelectorAll(".gh-prism-sections")) stale.remove();
   page.tree.before(view);
   doc.head.append(style);
+  if (intent) {
+    const pending = loadingView(doc);
+    loading = pending;
+    view.setAttribute("aria-busy", "true");
+    view.append(pending.root);
+    void intent(pending.progress)
+      .catch((error: unknown): IntentResult => {
+        console.error("gh-prism: reading intent failed", error);
+        return { ok: false, problem: "failed" };
+      })
+      .then((result) => {
+        if (signal.aborted) return;
+        landed = result;
+        loading = undefined;
+        pending.root.remove();
+        view.removeAttribute("aria-busy");
+        view.toggleAttribute("data-reveal", true);
+        if (!result.ok) {
+          view.prepend(el(doc, "p", "gh-prism-notice", PATH_ONLY_COPY[result.problem]));
+        }
+        render();
+      });
+  }
   render();
-  // Detached: intent reports failures as values, so a rejection is a bug left to surface.
-  void intent?.then((result) => {
-    if (signal.aborted) return;
-    landed = result;
-    render();
-  });
   observeTree(page.sidebar, render, { signal, ignore: view });
   signal.addEventListener("abort", () => {
+    for (const { tree } of shown.values()) tree.cleanUp();
     view.remove();
     style.remove();
     jump?.abort();

@@ -135,10 +135,8 @@ describe("readChangedFiles", () => {
     expect(file("src/engine.rs").comments?.textContent).toBe("1");
   });
 
-  it("carries the row's label and diff link", () => {
-    const engine = file("src/engine.rs");
-    expect(engine.label).toBe("engine.rs has 1 comment");
-    expect(engine.link.getAttribute("href")).toMatch(/^#diff-/);
+  it("carries the row's diff link", () => {
+    expect(file("src/engine.rs").link.getAttribute("href")).toMatch(/^#diff-/);
   });
 });
 

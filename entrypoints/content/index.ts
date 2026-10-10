@@ -12,7 +12,9 @@ export default defineContentScript({
       window,
       {
         onPage: (page, route, signal) =>
-          showSections(page, signal, intentFor(route, signal, connectPrData)),
+          showSections(page, signal, (onProgress) =>
+            intentFor(route, signal, connectPrData, onProgress),
+          ),
         onMissing: () =>
           console.warn("gh-prism: Files changed tree not found; leaving GitHub's tree as is"),
       },

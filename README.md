@@ -16,11 +16,20 @@ config separately. It is for anyone who reviews pull requests on GitHub in Chrom
   test blocks to Tests. Examples of inline test blocks are a Rust `mod tests` block, a
   Python `def test_` function, and a TypeScript `describe` or `it` call.
 - gh-prism lists a file whose hunks belong in different sections under each of those
-  sections. A hunk is one block of the diff: the changed lines plus a few unchanged lines
-  around them. Each entry is marked `Partial`, with one row per hunk, such as `Lines 2–8`,
-  that jumps to that hunk.
+  sections and marks each entry `Partial`. A hunk is one block of the diff: the changed
+  lines plus a few unchanged lines around them. Clicking a `Partial` entry jumps to the
+  first of its hunks in that entry's section.
+- When gh-prism can read the diff, each row for a file that adds or removes lines shows
+  how many, such as `+12 −3`. A `Partial` entry counts only its hunks in its own section,
+  so it can show fewer lines than GitHub's total for the file. An image or other binary
+  file shows `Binary` instead, because it has no lines to count.
+- Click a section's heading to collapse or expand its files. A collapsed section still
+  shows its file count.
+- A progress bar replaces the sections while gh-prism reads the diff. The sections appear
+  once gh-prism has placed every file in its sections.
 - When you view one commit or a range of commits instead of all commits in the Files
-  changed view, gh-prism keeps path-only grouping and shows this notice:
+  changed view, gh-prism keeps grouping files by path only. It shows no line counts,
+  `Binary` markers, or `Partial` entries. It also shows this notice:
   `Grouped by path. Docstring-only and inline-test changes are detected when viewing all commits.`
 - gh-prism works only on GitHub's new Files changed page, at `/pull/<number>/changes`. It
   leaves the classic page untouched.

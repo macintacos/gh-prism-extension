@@ -72,8 +72,6 @@ export interface ChangedFile {
   readonly path: string;
   /** The native row's link; `.click()` scrolls to the file's diff. */
   readonly link: HTMLAnchorElement;
-  /** The native row's accessible label, e.g. "engine.rs has 1 comment". */
-  readonly label: string;
   /** The row is `aria-current`: its diff is the one in view. */
   readonly active: boolean;
   /** The row's first octicon: added, modified, moved, and so on. */
@@ -96,7 +94,6 @@ export function readChangedFiles(sidebar: ParentNode): ChangedFile[] {
       {
         path: row.id,
         link,
-        label: row.getAttribute("aria-label") ?? "",
         active: row.getAttribute("aria-current") === "true",
         statusIcon: row.querySelector("svg.octicon"),
         comments: row.querySelector(".octicon-comment")?.parentElement ?? null,

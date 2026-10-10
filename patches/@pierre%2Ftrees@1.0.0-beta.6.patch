@@ -1,0 +1,13 @@
+diff --git a/dist/render/FileTreeView.js b/dist/render/FileTreeView.js
+index 7d3b818c43a7621ab9170da32b180232ed3c9472..9b847e0ef697770d50b8bf759cbed5be84c80c68 100644
+--- a/dist/render/FileTreeView.js
++++ b/dist/render/FileTreeView.js
+@@ -438,7 +438,7 @@ function renderStyledRow(frame, row, key, options = {}) {
+ 	});
+ 	const commonProps = {
+ 		...computeFileTreeRowElementAttributes({
+-			ariaLabel: getFileTreeRowAriaLabel(row),
++			ariaLabel: customDecoration?.title ? `${getFileTreeRowAriaLabel(row)}, ${customDecoration.title}` : getFileTreeRowAriaLabel(row),
+ 			domId: row.isFocused ? getFileTreeFocusedRowDomId(instanceId, targetPath, isParked) : void 0,
+ 			extraStyle: style,
+ 			features: {

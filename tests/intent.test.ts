@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { FilesRoute } from "../entrypoints/content/files-page";
 import {
+  type FileLines,
   type IntentSection,
   intentFor,
   type Placement,
@@ -329,6 +330,69 @@ describe("readIntent", () => {
     expect(await readIntent(client)).toEqual({ ok: false, problem: "rate-limited" });
   });
 
+  it("reports no progress when files() fails", async () => {
+    const client = fakeClient({ ok: false, problem: "rate-limited" }, unreadable);
+    const onProgress = vi.fn();
+
+    await readIntent(client, onProgress);
+
+    expect(onProgress).not.toHaveBeenCalled();
+  });
+
+  it("reports progress from zero once files() succeeds, then once per file", async () => {
+    const client = fakeClient(
+      {
+        ok: true,
+        files: [
+          modified("src/parser.rs", parserPatch),
+          { kind: "binary", path: "web/public/logo.png", status: "added" },
+          modified("src/render.rs", renderPatch),
+        ],
+      },
+      { ok: true, text: renderHead },
+    );
+    const onProgress = vi.fn();
+
+    await readIntent(client, onProgress);
+
+    expect(onProgress.mock.calls).toEqual([
+      [{ checked: 0, total: 3 }],
+      [{ checked: 1, total: 3 }],
+      [{ checked: 2, total: 3 }],
+      [{ checked: 3, total: 3 }],
+    ]);
+  });
+
+  it("counts each file's lines from its patch, and marks a binary file as binary", async () => {
+    const client = fakeClient(
+      {
+        ok: true,
+        files: [
+          { kind: "binary", path: "web/public/logo.png", status: "added" },
+          { kind: "text", path: "b.txt", previousPath: "a.txt", status: "renamed", patch: "" },
+          {
+            kind: "text",
+            path: "src/old.rs",
+            status: "deleted",
+            patch: lines("@@ -1,3 +0,0 @@", "-a", "-b", "-c"),
+          },
+        ],
+      },
+      unreadable,
+    );
+
+    const result = await readIntent(client);
+
+    if (!result.ok) throw new Error(result.problem);
+    expect(result.lines).toEqual(
+      new Map<string, FileLines>([
+        ["web/public/logo.png", "binary"],
+        ["b.txt", { added: 0, removed: 0 }],
+        ["src/old.rs", { added: 0, removed: 3 }],
+      ]),
+    );
+  });
+
   it("lists a file whose every change is a comment, without reading its content", async () => {
     const client = fakeClient(
       { ok: true, files: [modified("src/parser.rs", parserPatch)] },
@@ -338,6 +402,7 @@ describe("readIntent", () => {
     expect(await readIntent(client)).toEqual({
       ok: true,
       placements: new Map([["src/parser.rs", whole("docs")]]),
+      lines: new Map([["src/parser.rs", { added: 1, removed: 1 }]]),
     });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
@@ -348,7 +413,11 @@ describe("readIntent", () => {
       unreadable,
     );
 
-    expect(await readIntent(client)).toEqual({ ok: true, placements: new Map() });
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      placements: new Map(),
+      lines: new Map([["src/render.go", { added: 1, removed: 1 }]]),
+    });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
 
@@ -358,7 +427,11 @@ describe("readIntent", () => {
       { ok: true, text: renderHead },
     );
 
-    expect(await readIntent(client)).toEqual({ ok: true, placements: new Map() });
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      placements: new Map(),
+      lines: new Map([["src/render.rs", { added: 1, removed: 1 }]]),
+    });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
     expect(client.fileContent).toHaveBeenCalledWith("src/render.rs");
   });
@@ -372,6 +445,7 @@ describe("readIntent", () => {
     expect(await readIntent(client)).toEqual({
       ok: true,
       placements: new Map([["src/notes.rs", whole("docs")]]),
+      lines: new Map([["src/notes.rs", { added: 2, removed: 2 }]]),
     });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
     expect(client.fileContent).toHaveBeenCalledWith("src/notes.rs");
@@ -391,12 +465,17 @@ describe("readIntent", () => {
           {
             kind: "split",
             shares: [
-              { section: "implementation", hunks: [{ first: 24, last: 30 }] },
-              { section: "docs", hunks: [{ first: 1, last: 7 }] },
+              {
+                section: "implementation",
+                hunks: [{ first: 24, last: 30 }],
+                lines: { added: 1, removed: 1 },
+              },
+              { section: "docs", hunks: [{ first: 1, last: 7 }], lines: { added: 1, removed: 1 } },
             ],
           },
         ],
       ]),
+      lines: new Map([["src/notes.rs", { added: 2, removed: 2 }]]),
     });
   });
 
@@ -409,6 +488,7 @@ describe("readIntent", () => {
     expect(await readIntent(client)).toEqual({
       ok: true,
       placements: new Map([["src/lib.rs", whole("tests")]]),
+      lines: new Map([["src/lib.rs", { added: 1, removed: 1 }]]),
     });
   });
 
@@ -421,6 +501,7 @@ describe("readIntent", () => {
     expect(await readIntent(client)).toEqual({
       ok: true,
       placements: new Map([["src/engine.rs", whole("tests")]]),
+      lines: new Map([["src/engine.rs", { added: 1, removed: 1 }]]),
     });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
   });
@@ -434,6 +515,7 @@ describe("readIntent", () => {
     expect(await readIntent(client)).toEqual({
       ok: true,
       placements: new Map([["src/lib.rs", whole("docs")]]),
+      lines: new Map([["src/lib.rs", { added: 1, removed: 1 }]]),
     });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
@@ -444,7 +526,11 @@ describe("readIntent", () => {
       unreadable,
     );
 
-    expect(await readIntent(client)).toEqual({ ok: true, placements: new Map() });
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      placements: new Map(),
+      lines: new Map([["src/lib.rs", { added: 1, removed: 1 }]]),
+    });
   });
 
   it("never reads a JavaScript file, a test-directory file or a renamed file", async () => {
@@ -466,7 +552,15 @@ describe("readIntent", () => {
       { ok: true, text: versionHead },
     );
 
-    expect(await readIntent(client)).toEqual({ ok: true, placements: new Map() });
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      placements: new Map(),
+      lines: new Map([
+        ["src/parser.js", { added: 1, removed: 0 }],
+        ["tests/foo.rs", { added: 1, removed: 1 }],
+        ["src/lib.rs", { added: 1, removed: 1 }],
+      ]),
+    });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
 
@@ -479,7 +573,11 @@ describe("readIntent", () => {
       unreadable,
     );
 
-    expect(await readIntent(client)).toEqual({ ok: true, placements: new Map() });
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      placements: new Map(),
+      lines: new Map([["web/public/logo.png", "binary"]]),
+    });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
 
@@ -497,12 +595,21 @@ describe("readIntent", () => {
           {
             kind: "split",
             shares: [
-              { section: "implementation", hunks: [{ first: 2, last: 8 }] },
-              { section: "docs", hunks: [{ first: 22, last: 28 }] },
+              {
+                section: "implementation",
+                hunks: [{ first: 2, last: 8 }],
+                lines: { added: 1, removed: 1 },
+              },
+              {
+                section: "docs",
+                hunks: [{ first: 22, last: 28 }],
+                lines: { added: 1, removed: 1 },
+              },
             ],
           },
         ],
       ]),
+      lines: new Map([["src/render.rs", { added: 2, removed: 2 }]]),
     });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
   });
@@ -521,12 +628,17 @@ describe("readIntent", () => {
           {
             kind: "split",
             shares: [
-              { section: "tests", hunks: [{ first: 10, last: 10 }] },
-              { section: "docs", hunks: [{ first: 1, last: 2 }] },
+              {
+                section: "tests",
+                hunks: [{ first: 10, last: 10 }],
+                lines: { added: 1, removed: 1 },
+              },
+              { section: "docs", hunks: [{ first: 1, last: 2 }], lines: { added: 1, removed: 1 } },
             ],
           },
         ],
       ]),
+      lines: new Map([["src/engine.rs", { added: 2, removed: 2 }]]),
     });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
   });
@@ -540,6 +652,7 @@ describe("readIntent", () => {
     expect(await readIntent(client)).toEqual({
       ok: true,
       placements: new Map([["src/lib.rs", whole("tests")]]),
+      lines: new Map([["src/lib.rs", { added: 2, removed: 2 }]]),
     });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
   });
@@ -558,12 +671,17 @@ describe("readIntent", () => {
           {
             kind: "split",
             shares: [
-              { section: "implementation", hunks: [{ first: 2, last: 2 }] },
-              { section: "tests", hunks: [{ first: 7, last: 7 }] },
+              {
+                section: "implementation",
+                hunks: [{ first: 2, last: 2 }],
+                lines: { added: 1, removed: 1 },
+              },
+              { section: "tests", hunks: [{ first: 7, last: 7 }], lines: { added: 1, removed: 1 } },
             ],
           },
         ],
       ]),
+      lines: new Map([["src/engine.rs", { added: 2, removed: 2 }]]),
     });
   });
 
@@ -576,6 +694,7 @@ describe("readIntent", () => {
     expect(await readIntent(client)).toEqual({
       ok: true,
       placements: new Map([["src/report.rs", whole("docs")]]),
+      lines: new Map([["src/report.rs", { added: 2, removed: 2 }]]),
     });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
   });
@@ -594,14 +713,72 @@ describe("readIntent", () => {
           {
             kind: "split",
             shares: [
-              { section: "implementation", hunks: [{ first: 2, last: 2 }] },
-              { section: "docs", hunks: [{ first: 10, last: 10 }] },
+              {
+                section: "implementation",
+                hunks: [{ first: 2, last: 2 }],
+                lines: { added: 1, removed: 1 },
+              },
+              {
+                section: "docs",
+                hunks: [{ first: 10, last: 10 }],
+                lines: { added: 1, removed: 1 },
+              },
             ],
           },
         ],
       ]),
+      lines: new Map([["engine/engine.go", { added: 2, removed: 2 }]]),
     });
     expect(client.fileContent).not.toHaveBeenCalled();
+  });
+
+  it("counts each split share's lines from only the hunks placed in it", async () => {
+    const client = fakeClient(
+      {
+        ok: true,
+        files: [
+          modified(
+            "engine/engine.go",
+            lines(
+              "@@ -2,3 +2,2 @@",
+              "-\treturn parse(input)",
+              "-\tlog(input)",
+              "+\treturn parse(input, true)",
+              " }",
+              "@@ -10 +10 @@",
+              "-// Run keeps the first lines.",
+              "+// Run keeps the first non-blank lines.",
+            ),
+          ),
+        ],
+      },
+      unreadable,
+    );
+
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      placements: new Map([
+        [
+          "engine/engine.go",
+          {
+            kind: "split",
+            shares: [
+              {
+                section: "implementation",
+                hunks: [{ first: 2, last: 3 }],
+                lines: { added: 1, removed: 2 },
+              },
+              {
+                section: "docs",
+                hunks: [{ first: 10, last: 10 }],
+                lines: { added: 1, removed: 1 },
+              },
+            ],
+          },
+        ],
+      ]),
+      lines: new Map([["engine/engine.go", { added: 2, removed: 3 }]]),
+    });
   });
 
   it("reads a Go file's head once to settle its needs-content hunk, and splits it from the code hunk", async () => {
@@ -618,12 +795,21 @@ describe("readIntent", () => {
           {
             kind: "split",
             shares: [
-              { section: "implementation", hunks: [{ first: 9, last: 9 }] },
-              { section: "docs", hunks: [{ first: 4, last: 6 }] },
+              {
+                section: "implementation",
+                hunks: [{ first: 9, last: 9 }],
+                lines: { added: 1, removed: 1 },
+              },
+              {
+                section: "docs",
+                hunks: [{ first: 4, last: 6 }],
+                lines: { added: 1, removed: 1 },
+              },
             ],
           },
         ],
       ]),
+      lines: new Map([["engine/engine.go", { added: 2, removed: 2 }]]),
     });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
   });
@@ -642,12 +828,17 @@ describe("readIntent", () => {
           {
             kind: "split",
             shares: [
-              { section: "tests", hunks: [{ first: 2, last: 2 }] },
-              { section: "docs", hunks: [{ first: 10, last: 10 }] },
+              { section: "tests", hunks: [{ first: 2, last: 2 }], lines: { added: 1, removed: 1 } },
+              {
+                section: "docs",
+                hunks: [{ first: 10, last: 10 }],
+                lines: { added: 1, removed: 1 },
+              },
             ],
           },
         ],
       ]),
+      lines: new Map([["tests/engine.go", { added: 2, removed: 2 }]]),
     });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
@@ -669,7 +860,11 @@ describe("readIntent", () => {
       { ok: true, text: renderSplitHead },
     );
 
-    expect(await readIntent(client)).toEqual({ ok: true, placements: new Map() });
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      placements: new Map(),
+      lines: new Map([["src/render.rs", { added: 2, removed: 2 }]]),
+    });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
 });
@@ -686,6 +881,31 @@ describe("intentFor", () => {
 
     expect(result).toEqual({ ok: false, problem: "commit-filtered" });
     expect(connect).not.toHaveBeenCalled();
+  });
+
+  it("reports no progress for a commit-filtered route", async () => {
+    const onProgress = vi.fn();
+
+    await intentFor(
+      { pr, commitFiltered: true },
+      new AbortController().signal,
+      () => fakeClient({ ok: true, files: [] }, unreadable),
+      onProgress,
+    );
+
+    expect(onProgress).not.toHaveBeenCalled();
+  });
+
+  it("passes progress through to readIntent", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("src/parser.rs", parserPatch)] },
+      unreadable,
+    );
+    const onProgress = vi.fn();
+
+    await intentFor(route, new AbortController().signal, () => client, onProgress);
+
+    expect(onProgress.mock.calls).toEqual([[{ checked: 0, total: 1 }], [{ checked: 1, total: 1 }]]);
   });
 
   it("connects to the route's PR, and closes the client when the signal aborts", async () => {

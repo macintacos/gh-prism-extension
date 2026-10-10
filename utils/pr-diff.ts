@@ -54,6 +54,20 @@ export function hunkHeadSpan(hunk: PrHunk): HeadLineSpan | undefined {
   return count === 0 ? undefined : { first: hunk.newStart, last: hunk.newStart + count - 1 };
 }
 
+/** Lines added and removed by a hunk, or by several hunks summed. */
+export interface LineCounts {
+  readonly added: number;
+  readonly removed: number;
+}
+
+/** Counts a hunk's `+` and `-` body lines; context and `\ No newline` lines count as neither. */
+export function hunkLineCounts(hunk: PrHunk): LineCounts {
+  return {
+    added: hunk.lines.filter((line) => line.startsWith("+")).length,
+    removed: hunk.lines.filter((line) => line.startsWith("-")).length,
+  };
+}
+
 /** Splits a unified `git diff` into one entry per file. */
 export function parsePrDiff(diff: string): PrFileDiff[] {
   const blocks: string[][] = [];
