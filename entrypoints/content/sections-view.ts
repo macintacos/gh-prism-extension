@@ -1,22 +1,38 @@
 /**
  * Mirrors GitHub's Files changed tree as sections. The native tree stays mounted but hidden as
  * the source of truth: each render re-reads it, and file clicks go to its row's link, whose
- * handler mounts a virtualized diff that a bare hash jump would not.
+ * handler mounts a virtualized diff that a bare hash jump would not. A file whose hunks span
+ * sections is listed in each, with the hunks that land there; clicking a hunk reveals it.
  */
 
+import type { HeadLineSpan } from "@/utils/pr-diff";
 import { classify, SECTIONS, type SectionKey } from "@/utils/sections";
-import { type ChangedFile, type FilesPage, observeTree, readChangedFiles } from "./files-page";
-import type { IntentResult, IntentSection, PathOnlyReason } from "./intent";
+import {
+  type ChangedFile,
+  type FilesPage,
+  observeTree,
+  readChangedFiles,
+  revealDiffLine,
+} from "./files-page";
+import type { IntentResult, IntentSection, PathOnlyReason, SectionShare } from "./intent";
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
 import css from "./sections-view.css?raw";
+
+/** A file as one section lists it: whole, or with the hunks of a split that land in this section. */
+interface FileEntry {
+  readonly file: ChangedFile;
+  /** This section's hunks of a split file, in diff order; `undefined` for a whole file. */
+  readonly hunks?: readonly (HeadLineSpan | undefined)[];
+}
 
 interface FileSection {
   readonly key: SectionKey;
   readonly label: string;
-  readonly files: ChangedFile[];
+  readonly entries: FileEntry[];
 }
 
 const NO_OVERRIDES: ReadonlyMap<string, IntentSection> = new Map();
+const NO_SPLITS: ReadonlyMap<string, readonly SectionShare[]> = new Map();
 
 const PATH_ONLY_COPY: Record<PathOnlyReason, string> = {
   "commit-filtered":
@@ -32,17 +48,25 @@ const PATH_ONLY_COPY: Record<PathOnlyReason, string> = {
 };
 
 /**
- * Non-empty sections in `SECTIONS` order, each with its files in native-tree order. A file in
- * `overrides` goes to that section whatever its path says.
+ * Non-empty sections in `SECTIONS` order, each with its entries in native-tree order. A file in
+ * `overrides` goes to that section whatever its path says; a file in `splits` is listed in each
+ * section its hunks land in.
  */
 function groupBySection(
   files: readonly ChangedFile[],
   overrides: ReadonlyMap<string, IntentSection>,
+  splits: ReadonlyMap<string, readonly SectionShare[]>,
 ): FileSection[] {
-  const bySection = Map.groupBy(files, (file) => overrides.get(file.path) ?? classify(file.path));
+  const placed = files.flatMap((file) => {
+    const shares = splits.get(file.path);
+    return shares
+      ? shares.map(({ section, hunks }) => ({ section, entry: { file, hunks } }))
+      : [{ section: overrides.get(file.path) ?? classify(file.path), entry: { file } }];
+  });
+  const bySection = Map.groupBy(placed, ({ section }) => section);
   return SECTIONS.flatMap(({ key, label }) => {
-    const sectionFiles = bySection.get(key);
-    return sectionFiles ? [{ key, label, files: sectionFiles }] : [];
+    const sectionPlaced = bySection.get(key);
+    return sectionPlaced ? [{ key, label, entries: sectionPlaced.map(({ entry }) => entry) }] : [];
   });
 }
 
@@ -52,23 +76,23 @@ interface DirNode {
   /** Indentation level of this node's rows. */
   readonly depth: number;
   readonly dirs: Map<string, DirNode>;
-  readonly files: ChangedFile[];
+  readonly entries: FileEntry[];
 }
 
-function buildTree(files: readonly ChangedFile[]): DirNode {
-  const root: DirNode = { path: "", depth: 0, dirs: new Map(), files: [] };
-  for (const file of files) {
+function buildTree(entries: readonly FileEntry[]): DirNode {
+  const root: DirNode = { path: "", depth: 0, dirs: new Map(), entries: [] };
+  for (const entry of entries) {
     let node = root;
-    for (const dir of file.path.split("/").slice(0, -1)) {
+    for (const dir of entry.file.path.split("/").slice(0, -1)) {
       let child = node.dirs.get(dir);
       if (!child) {
         const path = node.path ? `${node.path}/${dir}` : dir;
-        child = { path, depth: node.depth + 1, dirs: new Map(), files: [] };
+        child = { path, depth: node.depth + 1, dirs: new Map(), entries: [] };
         node.dirs.set(dir, child);
       }
       node = child;
     }
-    node.files.push(file);
+    node.entries.push(entry);
   }
   return root;
 }
@@ -112,21 +136,62 @@ function cloneVisual(doc: Document, source: Element | null): Node[] {
   return [wrapper];
 }
 
-function fileRow(doc: Document, file: ChangedFile, level: number): HTMLLIElement {
+const nativeHref = (file: ChangedFile) => file.link.getAttribute("href") ?? "";
+
+function hunkRow(
+  ctx: RenderContext,
+  file: ChangedFile,
+  span: HeadLineSpan | undefined,
+): HTMLElement {
+  if (span === undefined) {
+    const row = el(ctx.doc, "span", "gh-prism-hunk", "Removed lines");
+    row.setAttribute("aria-disabled", "true");
+    row.title = "No line in the new file to jump to.";
+    return row;
+  }
+  const label =
+    span.first === span.last ? `Line ${span.first}` : `Lines ${span.first}–${span.last}`;
+  const row = el(ctx.doc, "a", "gh-prism-hunk", label);
+  row.href = `${nativeHref(file)}R${span.first}`;
+  row.dataset.path = file.path;
+  row.dataset.section = ctx.sectionKey;
+  row.dataset.line = String(span.first);
+  return row;
+}
+
+function hunkList(
+  ctx: RenderContext,
+  file: ChangedFile,
+  hunks: readonly (HeadLineSpan | undefined)[],
+): HTMLUListElement {
+  return el(
+    ctx.doc,
+    "ul",
+    "gh-prism-hunks",
+    ...hunks.map((span) => el(ctx.doc, "li", "", hunkRow(ctx, file, span))),
+  );
+}
+
+function fileRow(ctx: RenderContext, entry: FileEntry, level: number): HTMLLIElement {
+  const { file, hunks } = entry;
   const link = el(
-    doc,
+    ctx.doc,
     "a",
     "gh-prism-file",
-    ...cloneVisual(doc, file.statusIcon),
-    el(doc, "span", "gh-prism-name", file.path.slice(file.path.lastIndexOf("/") + 1)),
-    ...cloneVisual(doc, file.comments),
+    ...cloneVisual(ctx.doc, file.statusIcon),
+    el(ctx.doc, "span", "gh-prism-name", file.path.slice(file.path.lastIndexOf("/") + 1)),
+    ...(hunks ? [el(ctx.doc, "span", "gh-prism-partial", "Partial")] : []),
+    ...cloneVisual(ctx.doc, file.comments),
   );
-  link.href = file.link.getAttribute("href") ?? "";
+  link.href = nativeHref(file);
   link.dataset.path = file.path;
-  link.setAttribute("aria-label", file.label);
+  link.dataset.section = ctx.sectionKey;
+  link.setAttribute("aria-label", hunks ? `${file.label}, partial` : file.label);
   if (file.active) link.setAttribute("aria-current", "true");
-  link.style.setProperty("--gh-prism-level", String(level));
-  return el(doc, "li", "", link);
+  const row = el(ctx.doc, "li", "", link);
+  row.style.setProperty("--gh-prism-level", String(level));
+  if (hunks) row.append(hunkList(ctx, file, hunks));
+  return row;
 }
 
 interface RenderContext {
@@ -141,7 +206,7 @@ function dirList(node: DirNode, ctx: RenderContext): HTMLUListElement {
     "ul",
     "gh-prism-list",
     ...[...node.dirs].map(([name, child]) => dirRow(name, child, ctx)),
-    ...node.files.map((file) => fileRow(ctx.doc, file, node.depth)),
+    ...node.entries.map((entry) => fileRow(ctx, entry, node.depth)),
   );
 }
 
@@ -181,9 +246,9 @@ function sectionView(
       "h3",
       "gh-prism-section-header",
       section.label,
-      el(doc, "span", "gh-prism-counter", String(section.files.length)),
+      el(doc, "span", "gh-prism-counter", String(section.entries.length)),
     ),
-    dirList(buildTree(section.files), { doc, sectionKey: section.key, collapsed }),
+    dirList(buildTree(section.entries), { doc, sectionKey: section.key, collapsed }),
   );
   root.dataset.section = section.key;
   return root;
@@ -191,7 +256,9 @@ function sectionView(
 
 function focusKey(node: Element | null): string | undefined {
   if (!(node instanceof HTMLElement)) return undefined;
-  return node.dataset.path ?? node.dataset.dir;
+  const subject = node.dataset.path ?? node.dataset.dir;
+  if (subject === undefined) return undefined;
+  return [node.dataset.section, subject, node.dataset.line].join("|");
 }
 
 function isPlainLeftClick(event: MouseEvent): boolean {
@@ -200,9 +267,10 @@ function isPlainLeftClick(event: MouseEvent): boolean {
 
 /**
  * Mirrors `page`'s native file tree as sections inside its sidebar until `signal` aborts. Files
- * in `intent`'s overrides move to the section it places them in once it settles; until then, and
- * without one, sections follow the paths alone. If it settles as a failure, a notice above the
- * sections says why.
+ * in `intent`'s overrides move to the section it places them in once it settles; a file in its
+ * splits is listed in each section its hunks land in, and a hunk click reveals that hunk. Until
+ * intent settles, and without one, sections follow the paths alone. If it settles as a failure,
+ * a notice above the sections says why.
  */
 export function showSections(
   page: FilesPage,
@@ -215,11 +283,29 @@ export function showSections(
   view.setAttribute("aria-label", "Changed files by section");
   const collapsed = new Set<string>();
   let landed: IntentResult | undefined;
+  // The reveal in flight. A newer hunk or file click, or the view's abort, cancels it.
+  let jump: AbortController | undefined;
+
+  const nativeLinkFor = (path: string | undefined) =>
+    readChangedFiles(page.sidebar).find((file) => file.path === path)?.link;
+
+  const jumpToHunk = (hunk: HTMLAnchorElement, event: MouseEvent) => {
+    if (!isPlainLeftClick(event)) return;
+    const native = nativeLinkFor(hunk.dataset.path);
+    if (!native) return;
+    event.preventDefault();
+    jump?.abort();
+    jump = new AbortController();
+    void revealDiffLine(page.diffs, native, Number(hunk.dataset.line), { signal: jump.signal });
+  };
 
   const render = () => {
-    const focusedKey = view.contains(doc.activeElement) ? focusKey(doc.activeElement) : undefined;
+    const focused = view.contains(doc.activeElement) ? doc.activeElement : null;
+    const focusedKey = focusKey(focused);
+    const focusedPath = focused instanceof HTMLElement ? focused.dataset.path : undefined;
     const overrides = landed?.ok ? landed.overrides : NO_OVERRIDES;
-    const sections = groupBySection(readChangedFiles(page.sidebar), overrides);
+    const splits = landed?.ok ? landed.splits : NO_SPLITS;
+    const sections = groupBySection(readChangedFiles(page.sidebar), overrides, splits);
     // No role="status": every render rebuilds this, so a live region would re-announce on scroll.
     const notice =
       landed?.ok === false ? [el(doc, "p", "gh-prism-notice", PATH_ONLY_COPY[landed.problem])] : [];
@@ -228,12 +314,13 @@ export function showSections(
       ...sections.map((section) => sectionView(section, doc, collapsed)),
     );
     if (focusedKey === undefined) return;
-    [...view.querySelectorAll("[data-path], [data-dir]")]
-      .find(
-        (element): element is HTMLElement =>
-          element instanceof HTMLElement && focusKey(element) === focusedKey,
-      )
-      ?.focus();
+    const rows = [...view.querySelectorAll<HTMLElement>("[data-path], [data-dir]")];
+    const sameRow = rows.find((row) => focusKey(row) === focusedKey);
+    // A file whose focused row was split away keeps focus on its first row.
+    const sameFile = rows.find(
+      (row) => focusedPath !== undefined && row.dataset.path === focusedPath,
+    );
+    (sameRow ?? sameFile)?.focus();
   };
 
   view.addEventListener(
@@ -247,13 +334,17 @@ export function showSections(
         render();
         return;
       }
+      const hunk = event.target.closest("a.gh-prism-hunk");
+      if (hunk instanceof HTMLAnchorElement) {
+        jumpToHunk(hunk, event);
+        return;
+      }
       const row = event.target.closest(".gh-prism-file");
       if (!(row instanceof HTMLAnchorElement) || !isPlainLeftClick(event)) return;
-      const native = readChangedFiles(page.sidebar).find(
-        (file) => file.path === row.dataset.path,
-      )?.link;
+      const native = nativeLinkFor(row.dataset.path);
       if (!native) return;
       event.preventDefault();
+      jump?.abort();
       native.click();
     },
     { signal },
@@ -274,5 +365,6 @@ export function showSections(
   signal.addEventListener("abort", () => {
     view.remove();
     style.remove();
+    jump?.abort();
   });
 }
