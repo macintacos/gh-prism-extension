@@ -230,9 +230,9 @@ describe("showSections", () => {
   });
 
   it("moves intent-marked files into Documentation once it settles", async () => {
-    const intent = Promise.withResolvers<DocPathsResult>();
-    remountWith(intent.promise);
-    intent.resolve({ ok: true, paths: new Set(["src/parser.rs", "src/notes.rs"]) });
+    const deferred = Promise.withResolvers<DocPathsResult>();
+    remountWith(deferred.promise);
+    deferred.resolve({ ok: true, paths: new Set(["src/parser.rs", "src/notes.rs"]) });
     await afterDebounce();
     expect(pathsIn("docs")).toEqual([
       "docs/guide.md",
@@ -244,9 +244,9 @@ describe("showSections", () => {
   });
 
   it("keeps the moved files across a re-render", async () => {
-    const intent = Promise.withResolvers<DocPathsResult>();
-    remountWith(intent.promise);
-    intent.resolve({ ok: true, paths: new Set(["src/parser.rs", "src/notes.rs"]) });
+    const deferred = Promise.withResolvers<DocPathsResult>();
+    remountWith(deferred.promise);
+    deferred.resolve({ ok: true, paths: new Set(["src/parser.rs", "src/notes.rs"]) });
     await afterDebounce();
     byId("src/lib.rs").removeAttribute("aria-current");
     await afterDebounce();
@@ -270,9 +270,9 @@ describe("showSections", () => {
   ] as const)(
     "keeps path sections and shows a notice when the intent is $problem",
     async ({ problem, copy }) => {
-      const intent = Promise.withResolvers<DocPathsResult>();
-      remountWith(intent.promise);
-      intent.resolve({ ok: false, problem });
+      const deferred = Promise.withResolvers<DocPathsResult>();
+      remountWith(deferred.promise);
+      deferred.resolve({ ok: false, problem });
       await afterDebounce();
       expect(pathsIn("implementation")).toContain("src/parser.rs");
       expect(view()?.firstElementChild?.className).toBe("gh-prism-notice");
@@ -281,10 +281,10 @@ describe("showSections", () => {
   );
 
   it("leaves no view when the intent settles after abort", async () => {
-    const intent = Promise.withResolvers<DocPathsResult>();
-    remountWith(intent.promise);
+    const deferred = Promise.withResolvers<DocPathsResult>();
+    remountWith(deferred.promise);
     controller.abort();
-    intent.resolve({ ok: true, paths: new Set(["src/parser.rs"]) });
+    deferred.resolve({ ok: true, paths: new Set(["src/parser.rs"]) });
     await afterDebounce();
     expect(view()).toBeNull();
   });

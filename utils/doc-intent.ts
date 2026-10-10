@@ -28,13 +28,13 @@ export function docHunkVerdict(path: string, hunk: PrHunk, headText?: string): D
   const syntax = syntaxFor(path);
   if (syntax === undefined) return "path";
   if (headText !== undefined) {
-    return hunkKind(syntax, hunk, stateAbove(syntax, headText, hunk.newStart));
+    return hunkVerdictFrom(syntax, hunk, stateAbove(syntax, headText, hunk.newStart));
   }
-  const kinds = new Set(
-    plausibleStarts(syntax, hunk).map((start) => hunkKind(syntax, hunk, start)),
+  const verdicts = new Set(
+    plausibleStarts(syntax, hunk).map((start) => hunkVerdictFrom(syntax, hunk, start)),
   );
-  if (kinds.size > 1) return "needs-content";
-  return kinds.has("docs") ? "docs" : "path";
+  if (verdicts.size > 1) return "needs-content";
+  return verdicts.has("docs") ? "docs" : "path";
 }
 
 /**
@@ -162,20 +162,21 @@ function scanCode(syntax: Syntax, docstringMayOpen: boolean, line: string): Step
   if (line.startsWith(syntax.lineMarker) && !isDirective) {
     return { kind: "comment", position: "code" };
   }
-  const quoted = syntax.blocks.find(
+  const openedString = syntax.blocks.find(
     (block) => block.delimitsStrings && countOf(line, block.closer) % 2 === 1,
   );
-  if (quoted !== undefined) {
-    return { kind: "code", position: { closer: quoted.closer, kind: "string" } };
+  if (openedString !== undefined) {
+    return { kind: "code", position: { closer: openedString.closer, kind: "string" } };
   }
   return { kind: "code", position: "code" };
 }
 
 /** A line that starts inside a block. Its closer ends the block; text after the closer makes it code. */
 function scanInside(inside: Inside, line: string): Step {
-  const at = line.indexOf(inside.closer);
-  if (at === -1) return { kind: inside.kind === "comment" ? "comment" : "code", position: inside };
-  const trailing = line.slice(at + inside.closer.length).trim();
+  const closerIndex = line.indexOf(inside.closer);
+  if (closerIndex === -1)
+    return { kind: inside.kind === "comment" ? "comment" : "code", position: inside };
+  const trailing = line.slice(closerIndex + inside.closer.length).trim();
   const comment = inside.kind === "comment" && trailing === "";
   return { kind: comment ? "comment" : "code", position: "code" };
 }
@@ -197,7 +198,7 @@ function bodyOf(hunk: PrHunk): HunkLine[] {
  * Scans both sides of the hunk from `start`. A context line that reads differently on the two
  * sides, with code on either, means the change altered its block: "path".
  */
-function hunkKind(syntax: Syntax, hunk: PrHunk, start: ScanState): "docs" | "path" {
+function hunkVerdictFrom(syntax: Syntax, hunk: PrHunk, start: ScanState): "docs" | "path" {
   // The old side reuses the head's start state: only the head file can be read.
   let before = start;
   let after = start;
@@ -248,8 +249,8 @@ function plausibleStarts(syntax: Syntax, hunk: PrHunk): ScanState[] {
 
 /** Whether every non-blank line starts with `gutter`: a block's middle with no delimiter in view. */
 function isGutterRun(body: readonly HunkLine[], gutter: string): boolean {
-  const content = body.map(({ text }) => text.trim()).filter((text) => text !== "");
-  return content.length > 0 && content.every((text) => text.startsWith(gutter));
+  const nonBlankLines = body.map(({ text }) => text.trim()).filter((text) => text !== "");
+  return nonBlankLines.length > 0 && nonBlankLines.every((text) => text.startsWith(gutter));
 }
 
 function stateAbove(syntax: Syntax, headText: string, newStart: number): ScanState {

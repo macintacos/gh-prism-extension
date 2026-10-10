@@ -12,7 +12,7 @@ const route: FilesRoute = { pr, commitFiltered: false };
 
 const unreadable: PrFileContentResult = { ok: false, problem: "failed" };
 
-const text = (path: string, patch: string): PrFileDiff => ({
+const modified = (path: string, patch: string): PrFileDiff => ({
   kind: "text",
   path,
   status: "modified",
@@ -73,7 +73,7 @@ describe("readDocPaths", () => {
 
   it("lists a file whose every change is a comment, without reading its content", async () => {
     const client = fakeClient(
-      { ok: true, files: [text("src/parser.rs", parserPatch)] },
+      { ok: true, files: [modified("src/parser.rs", parserPatch)] },
       unreadable,
     );
 
@@ -83,7 +83,7 @@ describe("readDocPaths", () => {
 
   it("leaves out a file with a code change, without reading its content", async () => {
     const client = fakeClient(
-      { ok: true, files: [text("src/render.rs", renderPatch)] },
+      { ok: true, files: [modified("src/render.rs", renderPatch)] },
       unreadable,
     );
 
@@ -93,7 +93,7 @@ describe("readDocPaths", () => {
 
   it("reads a needs-content file's head text once, and lists the file when that text settles it", async () => {
     const client = fakeClient(
-      { ok: true, files: [text("src/notes.rs", notesPatch)] },
+      { ok: true, files: [modified("src/notes.rs", notesPatch)] },
       { ok: true, text: notesHead },
     );
 
@@ -103,7 +103,10 @@ describe("readDocPaths", () => {
   });
 
   it("leaves out a needs-content file whose content can't be read, and stays ok", async () => {
-    const client = fakeClient({ ok: true, files: [text("src/notes.rs", notesPatch)] }, unreadable);
+    const client = fakeClient(
+      { ok: true, files: [modified("src/notes.rs", notesPatch)] },
+      unreadable,
+    );
 
     expect(await readDocPaths(client)).toEqual({ ok: true, paths: new Set() });
   });

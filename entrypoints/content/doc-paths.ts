@@ -18,8 +18,8 @@ async function isDocsOnly(
 ): Promise<boolean> {
   const verdict = docFileVerdict(file);
   if (verdict !== "needs-content") return verdict === "docs";
-  const head = await client.fileContent(file.path);
-  return head.ok && docFileVerdict(file, head.text) === "docs";
+  const content = await client.fileContent(file.path);
+  return content.ok && docFileVerdict(file, content.text) === "docs";
 }
 
 /**
@@ -33,10 +33,10 @@ export async function readDocPaths(
   const listed = await client.files();
   if (!listed.ok) return listed;
   // ponytail: unbounded concurrency; every ambiguous file reads at once. Cap it with a worker pool if many trip rate-limited.
-  const docOnly = await Promise.all(
+  const docOnlyPaths = await Promise.all(
     listed.files.map(async (file) => ((await isDocsOnly(client, file)) ? file.path : undefined)),
   );
-  return { ok: true, paths: new Set(docOnly.filter((path) => path !== undefined)) };
+  return { ok: true, paths: new Set(docOnlyPaths.filter((path) => path !== undefined)) };
 }
 
 /**
