@@ -15,8 +15,8 @@ import { classify } from "./sections";
  *
  * Divergences from upstream: no syntax marks are read (`#[test]`, `#[cfg(test)]`,
  * `import.meta.vitest`); a hunk counts only when every non-blank changed line sits in a block, so a
- * partly overlapping hunk keeps its path section; a file whose hunks span sections is split per hunk
- * by intent rather than moved whole; a renamed file never moves.
+ * partly overlapping hunk keeps its path section; a mixed file is split per hunk where upstream
+ * splits per line; a renamed file never moves.
  */
 
 // ponytail: a line scan, not a parser. Braces in multi-line strings, template literals, Rust raw
@@ -35,8 +35,9 @@ export function inlineTestRuleApplies(file: PrFileDiff): boolean {
 }
 
 /**
- * One verdict per hunk, aligned with `parsePrHunks(file.patch)`: `true` when every non-blank changed
- * line sits inside the head's test blocks. `[]` when the rule does not apply to the file.
+ * One verdict per hunk, aligned with `parsePrHunks(file.patch)`: `true` when the hunk changes a
+ * non-blank line and every such change sits inside the head's test blocks. `[]` when the rule does
+ * not apply to the file.
  */
 export function inlineTestHunkVerdicts(file: PrFileDiff, head: ScannedHead): boolean[] {
   const findBlocks = candidateFinder(file);

@@ -5,7 +5,6 @@
  * sections is listed in each, with the hunks that land there; clicking a hunk reveals it.
  */
 
-import type { HeadLineSpan } from "@/utils/pr-diff";
 import { classify, SECTIONS, type SectionKey } from "@/utils/sections";
 import {
   type ChangedFile,
@@ -14,15 +13,15 @@ import {
   readChangedFiles,
   revealDiffLine,
 } from "./files-page";
-import type { IntentResult, IntentSection, PathOnlyReason, SectionShare } from "./intent";
+import type { IntentResult, PathOnlyReason, Placement, SectionShare } from "./intent";
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
 import css from "./sections-view.css?raw";
 
 /** A file as one section lists it: whole, or with the hunks of a split that land in this section. */
 interface FileEntry {
   readonly file: ChangedFile;
-  /** This section's hunks of a split file, in diff order; `undefined` for a whole file. */
-  readonly hunks?: readonly (HeadLineSpan | undefined)[];
+  /** `undefined` for a whole file. */
+  readonly hunks?: SectionShare["hunks"];
 }
 
 interface FileSection {
@@ -31,8 +30,7 @@ interface FileSection {
   readonly entries: FileEntry[];
 }
 
-const NO_OVERRIDES: ReadonlyMap<string, IntentSection> = new Map();
-const NO_SPLITS: ReadonlyMap<string, readonly SectionShare[]> = new Map();
+const NO_PLACEMENTS: ReadonlyMap<string, Placement> = new Map();
 
 const PATH_ONLY_COPY: Record<PathOnlyReason, string> = {
   "commit-filtered":
@@ -48,20 +46,19 @@ const PATH_ONLY_COPY: Record<PathOnlyReason, string> = {
 };
 
 /**
- * Non-empty sections in `SECTIONS` order, each with its entries in native-tree order. A file in
- * `overrides` goes to that section whatever its path says; a file in `splits` is listed in each
- * section its hunks land in.
+ * Non-empty sections in `SECTIONS` order, each with its entries in native-tree order. A file placed
+ * whole goes to that section whatever its path says; a split file is listed in each section its
+ * hunks land in.
  */
 function groupBySection(
   files: readonly ChangedFile[],
-  overrides: ReadonlyMap<string, IntentSection>,
-  splits: ReadonlyMap<string, readonly SectionShare[]>,
+  placements: ReadonlyMap<string, Placement>,
 ): FileSection[] {
   const placed = files.flatMap((file) => {
-    const shares = splits.get(file.path);
-    return shares
-      ? shares.map(({ section, hunks }) => ({ section, entry: { file, hunks } }))
-      : [{ section: overrides.get(file.path) ?? classify(file.path), entry: { file } }];
+    const placement = placements.get(file.path);
+    return placement?.kind === "split"
+      ? placement.shares.map(({ section, hunks }) => ({ section, entry: { file, hunks } }))
+      : [{ section: placement?.section ?? classify(file.path), entry: { file } }];
   });
   const bySection = Map.groupBy(placed, ({ section }) => section);
   return SECTIONS.flatMap(({ key, label }) => {
@@ -138,10 +135,16 @@ function cloneVisual(doc: Document, source: Element | null): Node[] {
 
 const nativeHref = (file: ChangedFile) => file.link.getAttribute("href") ?? "";
 
+interface RenderContext {
+  readonly doc: Document;
+  readonly sectionKey: SectionKey;
+  readonly collapsed: ReadonlySet<string>;
+}
+
 function hunkRow(
-  ctx: RenderContext,
   file: ChangedFile,
-  span: HeadLineSpan | undefined,
+  span: SectionShare["hunks"][number],
+  ctx: RenderContext,
 ): HTMLElement {
   if (span === undefined) {
     const row = el(ctx.doc, "span", "gh-prism-hunk", "Removed lines");
@@ -160,19 +163,19 @@ function hunkRow(
 }
 
 function hunkList(
-  ctx: RenderContext,
   file: ChangedFile,
-  hunks: readonly (HeadLineSpan | undefined)[],
+  hunks: SectionShare["hunks"],
+  ctx: RenderContext,
 ): HTMLUListElement {
   return el(
     ctx.doc,
     "ul",
     "gh-prism-hunks",
-    ...hunks.map((span) => el(ctx.doc, "li", "", hunkRow(ctx, file, span))),
+    ...hunks.map((span) => el(ctx.doc, "li", "", hunkRow(file, span, ctx))),
   );
 }
 
-function fileRow(ctx: RenderContext, entry: FileEntry, level: number): HTMLLIElement {
+function fileRow(entry: FileEntry, level: number, ctx: RenderContext): HTMLLIElement {
   const { file, hunks } = entry;
   const link = el(
     ctx.doc,
@@ -190,14 +193,8 @@ function fileRow(ctx: RenderContext, entry: FileEntry, level: number): HTMLLIEle
   if (file.active) link.setAttribute("aria-current", "true");
   const row = el(ctx.doc, "li", "", link);
   row.style.setProperty("--gh-prism-level", String(level));
-  if (hunks) row.append(hunkList(ctx, file, hunks));
+  if (hunks) row.append(hunkList(file, hunks, ctx));
   return row;
-}
-
-interface RenderContext {
-  readonly doc: Document;
-  readonly sectionKey: SectionKey;
-  readonly collapsed: ReadonlySet<string>;
 }
 
 function dirList(node: DirNode, ctx: RenderContext): HTMLUListElement {
@@ -206,7 +203,7 @@ function dirList(node: DirNode, ctx: RenderContext): HTMLUListElement {
     "ul",
     "gh-prism-list",
     ...[...node.dirs].map(([name, child]) => dirRow(name, child, ctx)),
-    ...node.entries.map((entry) => fileRow(ctx, entry, node.depth)),
+    ...node.entries.map((entry) => fileRow(entry, node.depth, ctx)),
   );
 }
 
@@ -267,10 +264,10 @@ function isPlainLeftClick(event: MouseEvent): boolean {
 
 /**
  * Mirrors `page`'s native file tree as sections inside its sidebar until `signal` aborts. Files
- * in `intent`'s overrides move to the section it places them in once it settles; a file in its
- * splits is listed in each section its hunks land in, and a hunk click reveals that hunk. Until
- * intent settles, and without one, sections follow the paths alone. If it settles as a failure,
- * a notice above the sections says why.
+ * `intent` places whole move to that section once it settles; a split file is listed in each
+ * section its hunks land in, and a hunk click reveals that hunk. Until intent settles, and without
+ * one, sections follow the paths alone. If it settles as a failure, a notice above the sections
+ * says why.
  */
 export function showSections(
   page: FilesPage,
@@ -303,9 +300,8 @@ export function showSections(
     const focused = view.contains(doc.activeElement) ? doc.activeElement : null;
     const focusedKey = focusKey(focused);
     const focusedPath = focused instanceof HTMLElement ? focused.dataset.path : undefined;
-    const overrides = landed?.ok ? landed.overrides : NO_OVERRIDES;
-    const splits = landed?.ok ? landed.splits : NO_SPLITS;
-    const sections = groupBySection(readChangedFiles(page.sidebar), overrides, splits);
+    const placements = landed?.ok ? landed.placements : NO_PLACEMENTS;
+    const sections = groupBySection(readChangedFiles(page.sidebar), placements);
     // No role="status": every render rebuilds this, so a live region would re-announce on scroll.
     const notice =
       landed?.ok === false ? [el(doc, "p", "gh-prism-notice", PATH_ONLY_COPY[landed.problem])] : [];
@@ -316,7 +312,7 @@ export function showSections(
     if (focusedKey === undefined) return;
     const rows = [...view.querySelectorAll<HTMLElement>("[data-path], [data-dir]")];
     const sameRow = rows.find((row) => focusKey(row) === focusedKey);
-    // A file whose focused row was split away keeps focus on its first row.
+    // A focused file whose section changed once intent landed (moved or split) keeps focus on its first row.
     const sameFile = rows.find(
       (row) => focusedPath !== undefined && row.dataset.path === focusedPath,
     );

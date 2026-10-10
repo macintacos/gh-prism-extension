@@ -443,6 +443,8 @@ describe("revealDiffLine", () => {
   // guide.md's tree link: the fixture lists the file but mounts no diff for it.
   const GUIDE_DIFF = "diff-0a02";
   const FILE_HEADER = '<div><button type="button">Viewed</button></div>';
+  const EXPAND_TOGGLE =
+    '<button type="button"><svg class="octicon octicon-chevron-right"></svg>Expand</button>';
 
   let controller: AbortController;
   let scrollIntoView: MockInstance<Element["scrollIntoView"]>;
@@ -540,9 +542,42 @@ describe("revealDiffLine", () => {
     expect(scrollIntoView).not.toHaveBeenCalled();
   });
 
+  it("gives up on a load that never adds rows: clicks the file link once and scrolls nothing", async () => {
+    const region = mountGuideDiff(
+      `${FILE_HEADER}<div class="HiddenDiffPatch-module__x"><button type="button">Load Diff</button></div>`,
+    );
+    const load = vi.fn();
+    buttonNamed(region, "Load Diff").addEventListener("click", load);
+    const click = vi.spyOn(guideLink(), "click").mockImplementation(() => {});
+    const done = reveal(2);
+    await vi.advanceTimersByTimeAsync(10_000);
+    await done;
+    expect(load).toHaveBeenCalledOnce();
+    expect(click).toHaveBeenCalledOnce();
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it("finds a row that arrives under constant churn when the timeout fires", async () => {
+    const region = mountGuideDiff(
+      `${FILE_HEADER}<div class="HiddenDiffPatch-module__x"><button type="button">Load Diff</button></div>`,
+    );
+    let churn: ReturnType<typeof setInterval> | undefined;
+    buttonNamed(region, "Load Diff").addEventListener("click", () => {
+      setTimeout(() => region.insertAdjacentHTML("beforeend", diffRows(2)), 100);
+      churn = setInterval(() => diffList().append(document.createElement("i")), 40);
+    });
+    const click = vi.spyOn(guideLink(), "click").mockImplementation(() => {});
+    const done = reveal(2);
+    await vi.advanceTimersByTimeAsync(10_000);
+    await done;
+    clearInterval(churn);
+    expect(click).not.toHaveBeenCalled();
+    expectScrolledTo(region.querySelector("tr"));
+  });
+
   it("expands a collapsed diff through its header's first button, then scrolls the row", async () => {
     const region = mountGuideDiff(
-      '<div><button type="button">Expand</button><button type="button">Viewed</button></div>',
+      `<div>${EXPAND_TOGGLE}<button type="button">Viewed</button></div>`,
     );
     const expand = vi.fn(() => {
       setTimeout(() => region.insertAdjacentHTML("beforeend", diffRows(2)), 100);
@@ -558,6 +593,20 @@ describe("revealDiffLine", () => {
     expect(viewed).not.toHaveBeenCalled();
     expect(click).not.toHaveBeenCalled();
     expectScrolledTo(region.querySelector("tr"));
+  });
+
+  it("does not click the toggle of a header-only diff whose chevron shows it open", async () => {
+    const region = mountGuideDiff(
+      '<div><button type="button"><svg class="octicon octicon-chevron-down"></svg>Collapse file</button></div>',
+    );
+    const toggle = vi.fn();
+    buttonNamed(region, "Collapse file").addEventListener("click", toggle);
+    const click = vi.spyOn(guideLink(), "click").mockImplementation(() => {});
+    const done = reveal(2);
+    await vi.advanceTimersByTimeAsync(10_000);
+    await done;
+    expect(toggle).not.toHaveBeenCalled();
+    expect(click).toHaveBeenCalledOnce();
   });
 
   it("loads an unloaded diff through its Load Diff button, not its other buttons, then scrolls", async () => {
@@ -582,7 +631,7 @@ describe("revealDiffLine", () => {
   });
 
   it("expands a collapsed diff whose expansion shows a Load Diff placeholder, then loads and scrolls", async () => {
-    const region = mountGuideDiff('<div><button type="button">Expand</button></div>');
+    const region = mountGuideDiff(`<div>${EXPAND_TOGGLE}</div>`);
     const steps: string[] = [];
     buttonNamed(region, "Expand").addEventListener("click", () => {
       steps.push("expand");
@@ -627,7 +676,7 @@ describe("revealDiffLine", () => {
   });
 
   it("leaves no later click or scroll once aborted while waiting for an expansion", async () => {
-    const region = mountGuideDiff('<div><button type="button">Expand</button></div>');
+    const region = mountGuideDiff(`<div>${EXPAND_TOGGLE}</div>`);
     const load = vi.fn();
     buttonNamed(region, "Expand").addEventListener("click", () => {
       setTimeout(() => {
@@ -649,7 +698,7 @@ describe("revealDiffLine", () => {
   });
 
   it("leaves no later click or scroll once aborted as an expansion settles", async () => {
-    const region = mountGuideDiff('<div><button type="button">Expand</button></div>');
+    const region = mountGuideDiff(`<div>${EXPAND_TOGGLE}</div>`);
     const load = vi.fn();
     buttonNamed(region, "Expand").addEventListener("click", () => {
       region.insertAdjacentHTML(
@@ -682,5 +731,23 @@ describe("revealDiffLine", () => {
     expect(load).toHaveBeenCalledOnce();
     expect(click).not.toHaveBeenCalled();
     expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it("neither clicks nor scrolls when the signal is already aborted", async () => {
+    const click = vi.spyOn(guideLink(), "click").mockImplementation(() => {});
+    controller.abort();
+    const done = reveal(2);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(click).not.toHaveBeenCalled();
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    await done;
+  });
+
+  it("releases its timers when a click aborts the signal while waiting for a diff", async () => {
+    vi.spyOn(guideLink(), "click").mockImplementation(() => controller.abort());
+    const done = reveal(2);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(vi.getTimerCount()).toBe(0);
+    await done;
   });
 });

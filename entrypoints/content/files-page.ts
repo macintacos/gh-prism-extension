@@ -151,8 +151,9 @@ export function observeTree(
 }
 
 /**
- * Calls `onChange` 50 ms after a diff mounts or unmounts anywhere under `diffs`, until `signal`
- * aborts. Attribute changes inside a diff do not count: diff internals churn them constantly.
+ * Calls `onChange` 50 ms after any child-list change under `diffs` (a diff mounting or unmounting,
+ * or rows arriving in one), until `signal` aborts. Attribute changes inside a diff do not count:
+ * diff internals churn them constantly.
  */
 export function observeDiffs(
   diffs: Node,
@@ -176,7 +177,8 @@ export function findDiff(diffs: Element, link: HTMLAnchorElement): Element | nul
 /**
  * Scrolls the file's diff to `line`, centred. Mounts, expands or loads the diff first when GitHub
  * has not rendered that far, and falls back to the file's header when no row carries the line.
- * Never rejects; once `signal` aborts, it neither clicks nor scrolls again.
+ * `link` is the native tree row's link, whose click mounts the diff; `line` is a 1-based
+ * head-file line. Never rejects; once `signal` aborts, it neither clicks nor scrolls again.
  */
 export async function revealDiffLine(
   diffs: Element,
@@ -184,6 +186,7 @@ export async function revealDiffLine(
   line: number,
   { signal }: { signal: AbortSignal },
 ): Promise<void> {
+  if (signal.aborted) return;
   // Re-found each time: GitHub may replace a region when it expands or loads it.
   const diff = () => findDiff(diffs, link);
   const row = () => lineRow(diff(), line);
@@ -206,11 +209,15 @@ function lineRow(diff: Element | null, line: number): HTMLTableRowElement | null
   return diff.querySelector(`[data-line-anchor="${diff.id}R${line}"]`)?.closest("tr") ?? null;
 }
 
-/** Clicks the header's first button when the diff is collapsed to its header alone. */
+/**
+ * Clicks the header's first button when the diff is collapsed to its header alone; returns
+ * whether it clicked.
+ */
 function expandDiff(diff: Element | null): boolean {
   if (diff?.children.length !== 1) return false;
   const button = diff.firstElementChild?.querySelector("button");
-  if (!button) return false;
+  // The toggle has no aria-expanded: its chevron-right marks a collapsed diff.
+  if (!button?.querySelector(".octicon-chevron-right")) return false;
   button.click();
   return true;
 }
@@ -219,7 +226,7 @@ function expandedDiff(diff: Element | null): Element | null {
   return diff && diff.children.length > 1 ? diff : null;
 }
 
-/** Clicks the Load Diff button of an unloaded diff's placeholder. */
+/** Clicks the Load Diff button of an unloaded diff's placeholder; returns whether it clicked. */
 function loadDiff(diff: Element | null): boolean {
   const buttons = diff?.querySelector(HIDDEN_PATCH)?.querySelectorAll("button") ?? [];
   const button = [...buttons].find((b) => b.textContent?.trim() === LOAD_DIFF_LABEL);
@@ -230,7 +237,8 @@ function loadDiff(diff: Element | null): boolean {
 
 /**
  * Resolves with `find()` once it is non-null, checked now and after each debounced mutation
- * under `diffs`. Resolves with `null` after `REVEAL_TIMEOUT_MS` or once `signal` aborts.
+ * under `diffs`. Resolves with `find()`'s value at `REVEAL_TIMEOUT_MS`, or with `null` once
+ * `signal` aborts.
  */
 function waitForDiff<T>(
   diffs: Element,
@@ -238,21 +246,20 @@ function waitForDiff<T>(
   signal: AbortSignal,
 ): Promise<T | null> {
   return new Promise((resolve) => {
+    if (signal.aborted) return resolve(null);
     const watching = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const onAbort = () => finish(null);
     const finish = (found: T | null) => {
-      watching.abort(); // disconnects the observer and clears its debounce timer
+      watching.abort(); // ends the observer, its debounce timer, and the abort listener
       clearTimeout(timer);
-      signal.removeEventListener("abort", onAbort);
       resolve(found);
     };
     const check = () => {
       const found = find();
       if (found !== null) finish(found);
     };
-    signal.addEventListener("abort", onAbort);
-    timer = setTimeout(() => finish(null), REVEAL_TIMEOUT_MS);
+    signal.addEventListener("abort", () => finish(null), { signal: watching.signal });
+    timer = setTimeout(() => finish(find()), REVEAL_TIMEOUT_MS);
     observeDiffs(diffs, check, { signal: watching.signal });
     check();
   });

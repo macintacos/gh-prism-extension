@@ -14,7 +14,7 @@ import type { FilesRoute } from "./files-page";
 
 /** Why the view keeps path-only sections. */
 export type PathOnlyReason = PrDataProblem | "commit-filtered";
-/** The sections intent can move a whole file into, whatever its path says. */
+/** The sections a rule can claim a file or hunk for, whatever its path says. */
 export type IntentSection = Extract<SectionKey, "docs" | "tests">;
 
 /** One section's part of a file whose hunks span several sections. */
@@ -24,21 +24,19 @@ export interface SectionShare {
   readonly hunks: readonly (HeadLineSpan | undefined)[];
 }
 
-/**
- * Where the changed files land, or why the view keeps path-only sections. A file in `overrides` is
- * moved whole to its section; a file in `splits` is listed in each section its hunks land in. A file
- * in neither keeps its path section.
- */
+/** Where intent moves one file: whole to a rule section, or across sections hunk by hunk. */
+export type Placement =
+  | { readonly kind: "whole"; readonly section: IntentSection }
+  | { readonly kind: "split"; readonly shares: readonly SectionShare[] };
+
+/** Where the changed files land, or why the view keeps path-only sections. */
 export type IntentResult =
   | {
       ok: true;
-      overrides: ReadonlyMap<string, IntentSection>;
-      /** Keyed by path, with each file's shares in `SECTIONS` order. */
-      splits: ReadonlyMap<string, readonly SectionShare[]>;
+      /** Keyed by path; a file absent here keeps its path section. Split shares are in `SECTIONS` order. */
+      placements: ReadonlyMap<string, Placement>;
     }
   | { ok: false; problem: PathOnlyReason };
-
-type Placement = { readonly override: IntentSection } | { readonly split: readonly SectionShare[] };
 
 const isDocs = (verdict: DocVerdict) => verdict === "docs";
 
@@ -53,7 +51,9 @@ async function readHead(
 /**
  * Each hunk's rule section, or `undefined` to keep it in the path section; aligned with
  * `parsePrHunks`. The head is read only when the patch can't settle every hunk as docs and a rule
- * needs it.
+ * needs it. A file whose every hunk is docs moves whole to Documentation; otherwise a hunk in a test
+ * block counts as Tests even if it only edits a doc comment, and a remaining docs hunk counts as
+ * Documentation.
  */
 async function hunkSections(
   client: Pick<PrDataClient, "fileContent">,
@@ -71,18 +71,20 @@ async function hunkSections(
 }
 
 /**
- * Pure: a split when the hunks resolve to two or more sections; an override when every hunk lands in
- * the same rule section; otherwise nothing, so the file keeps its path section.
+ * Once each unclaimed hunk takes the path section, a split when the hunks span two or more
+ * sections; a whole move when every hunk is claimed by one rule section; otherwise nothing, so the
+ * file keeps its path section.
  */
 function placementOf(
-  path: string,
-  spans: readonly (HeadLineSpan | undefined)[],
+  file: PrFileDiff,
   sections: readonly (IntentSection | undefined)[],
 ): Placement | undefined {
-  const resolved = sections.map((section) => section ?? classify(path));
+  const resolved = sections.map((section) => section ?? classify(file.path));
   if (new Set(resolved).size > 1) {
+    const spans = spansOf(file); // non-empty sections ⇒ a text file that wasn't renamed
     return {
-      split: SECTIONS.flatMap(({ key }) => {
+      kind: "split",
+      shares: SECTIONS.flatMap(({ key }) => {
         const hunks = resolved.flatMap((section, i) => (section === key ? [spans[i]] : []));
         return hunks.length > 0 ? [{ section: key, hunks }] : [];
       }),
@@ -90,11 +92,11 @@ function placementOf(
   }
   const [first] = sections;
   return first !== undefined && sections.every((section) => section === first)
-    ? { override: first }
+    ? { kind: "whole", section: first }
     : undefined;
 }
 
-const spansOf = (file: PrFileDiff) =>
+const spansOf = (file: PrFileDiff): SectionShare["hunks"] =>
   file.kind === "text" ? parsePrHunks(file.patch).map((hunk) => hunkHeadSpan(hunk)) : [];
 
 /**
@@ -109,24 +111,22 @@ export async function readIntent(
   if (!listed.ok) return listed;
   // ponytail: unbounded concurrency; every file a rule needs content for reads at once.
   // Cap it with a worker pool if reads trip rate-limited.
-  const placements = await Promise.all(
+  const placed = await Promise.all(
     listed.files.map(async (file) => ({
       path: file.path,
-      placement: placementOf(file.path, spansOf(file), await hunkSections(client, file)),
+      placement: placementOf(file, await hunkSections(client, file)),
     })),
   );
-  const overrides = new Map<string, IntentSection>();
-  const splits = new Map<string, readonly SectionShare[]>();
-  for (const { path, placement } of placements) {
+  const placements = new Map<string, Placement>();
+  for (const { path, placement } of placed) {
     if (placement === undefined) continue;
-    if ("override" in placement) overrides.set(path, placement.override);
-    else splits.set(path, placement.split);
+    placements.set(path, placement);
   }
-  return { ok: true, overrides, splits };
+  return { ok: true, placements };
 }
 
 /**
- * Section overrides for one Files view. A commit-filtered route connects nothing; otherwise the
+ * Where one Files view's files land. A commit-filtered route connects nothing; otherwise the
  * client is closed when `signal` aborts. Never rejects; once `signal` aborts it may never settle.
  */
 export async function intentFor(

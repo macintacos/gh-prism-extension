@@ -79,7 +79,8 @@
 }
 
 .gh-prism-file:hover,
-.gh-prism-dir:hover {
+.gh-prism-dir:hover,
+a.gh-prism-hunk:hover {
   background: var(--control-transparent-bgColor-hover);
   text-decoration: none;
 }
@@ -89,7 +90,8 @@
 }
 
 .gh-prism-file:focus-visible,
-.gh-prism-dir:focus-visible {
+.gh-prism-dir:focus-visible,
+.gh-prism-hunk:focus-visible {
   outline: 2px solid var(--focus-outlineColor);
   outline-offset: -2px;
 }
@@ -99,7 +101,8 @@
 }
 
 /* Lines file icons up under the directory icon, past the chevron's column. */
-.gh-prism-file {
+.gh-prism-file,
+.gh-prism-hunks {
   --gh-prism-inset: 32px;
 }
 
@@ -136,7 +139,6 @@
 }
 
 .gh-prism-hunks {
-  --gh-prism-inset: 32px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -154,17 +156,7 @@
   cursor: pointer;
 }
 
-.gh-prism-hunk:not([aria-disabled="true"]):hover {
-  background: var(--control-transparent-bgColor-hover);
-  text-decoration: none;
-}
-
-.gh-prism-hunk:focus-visible {
-  outline: 2px solid var(--focus-outlineColor);
-  outline-offset: -2px;
-}
-
-.gh-prism-hunk[aria-disabled="true"] {
+span.gh-prism-hunk {
   color: var(--fgColor-disabled);
   cursor: default;
 }
