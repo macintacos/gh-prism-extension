@@ -1,9 +1,11 @@
 /**
  * Path rules ported from changeset.nvim's `lua/changeset/sections.lua` at
  * macintacos/changeset.nvim@2b6115db3a5394a207836afdeaa8237225b8de93 — the glob strings are
- * copied verbatim, so diff that file against this one when syncing.
+ * copied verbatim, so diff that file against this one when syncing. Labels are this sidebar's
+ * own; upstream's icons and symbol rules (`test_rule`) are not ported.
  */
 
+/** The sidebar's sections, in display order. */
 export const SECTIONS = [
   { key: "implementation", label: "Implementation" },
   { key: "tests", label: "Tests" },
@@ -27,9 +29,12 @@ const SCRIPT_FILES = glob("{*.sh,*.bash,*.py,*.js,*.ts,*.rs,*.go,*.lua}");
 
 /**
  * The section a changed file belongs in, from its repo-relative `/`-separated path.
+ * Generated wins, then Tests, Documentation and Config in that order; anything unmatched is
+ * Implementation.
  *
- * @param generated - Whether the caller knows the file is generated. Upstream also
- *   reads a Go `// Code generated` header, which needs file contents and isn't ported.
+ * @param generated - Whether the file is known to be generated, e.g. from a
+ *   `linguist-generated` attribute or a Go `// Code generated … DO NOT EDIT.` header;
+ *   `classify` reads only the path.
  */
 export function classify(path: string, generated = false): SectionKey {
   const dirs = path.split("/").slice(0, -1);
@@ -47,11 +52,12 @@ function hasDir(dirs: readonly string[], names: ReadonlySet<string>): boolean {
   return dirs.some((dir) => names.has(dir));
 }
 
-// ponytail: handles only the `{a,b}` and `*` syntax upstream's globs use; extend if a sync adds more.
+// ponytail: accepts only upstream's `{a,b}` form with `*`, and throws on anything else.
 function glob(pattern: string): RegExp {
-  const alternatives = pattern
-    .slice(1, -1)
+  const body = /^\{([^{}?[\]]*)\}$/.exec(pattern)?.[1];
+  if (body === undefined) throw new Error(`Unsupported glob: ${pattern}`);
+  const alternatives = body
     .split(",")
     .map((alt) => alt.replace(/[.+?^$()|[\]\\]/g, "\\$&").replaceAll("*", ".*"));
-  return new RegExp(`^(?:${alternatives.join("|")})$`);
+  return new RegExp(`^(?:${alternatives.join("|")})$`, "s");
 }

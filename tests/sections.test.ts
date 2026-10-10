@@ -38,6 +38,7 @@ const cases: Record<SectionKey, string[]> = {
     "docs/usage.txt",
     "doc/help.txt",
     ".github/CONTRIBUTING.md",
+    "a\n.md",
   ],
   config: [
     "a.toml",
