@@ -131,7 +131,7 @@ const describePatch = lines(
   "+describe('parses', () => {",
 );
 
-// Both hunks of the sandbox's src/render.rs: a code change at head lines 2–8 and a doc-comment change at 22–28.
+// The sandbox's src/render.rs: a code hunk and a doc-comment hunk.
 const renderSplitPatch = lines(
   "@@ -2,7 +2,7 @@ pub fn render(items: &[String]) -> String {",
   " pub fn render(items: &[String]) -> String {",

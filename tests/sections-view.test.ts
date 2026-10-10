@@ -35,7 +35,6 @@ const nativeLink = (path: string) => {
 // Past the 50 ms debounce; the async advance runs the MutationObserver's pending microtask first.
 const afterDebounce = () => vi.advanceTimersByTimeAsync(100);
 
-/** A file intent moves whole into `section`. */
 const whole = (section: IntentSection): Placement => ({ kind: "whole", section });
 
 const pathsIn = (section: string) =>
@@ -365,7 +364,6 @@ describe("showSections", () => {
       await afterDebounce();
     }
 
-    /** The first element in `section` matching `selector`. */
     const inSection = (section: string, selector: string) => {
       const found = document.querySelector<HTMLElement>(`[data-section="${section}"] ${selector}`);
       if (!found) throw new Error(`no ${selector} in ${section}`);

@@ -52,8 +52,7 @@ async function readHead(
  * Each hunk's rule section, or `undefined` to keep it in the path section; aligned with
  * `parsePrHunks`. The head is read only when the patch can't settle every hunk as docs and a rule
  * needs it. A file whose every hunk is docs moves whole to Documentation; otherwise a hunk in a test
- * block counts as Tests even if it only edits a doc comment, and a remaining docs hunk counts as
- * Documentation.
+ * block counts as Tests even when it only edits a doc comment.
  */
 async function hunkSections(
   client: Pick<PrDataClient, "fileContent">,

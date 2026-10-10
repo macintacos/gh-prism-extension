@@ -6,7 +6,7 @@ import { classify } from "./sections";
  * The inline-test rule of changeset.nvim's `test_rule` (`lua/changeset/sections.lua`, at
  * `macintacos/changeset.nvim@2b6115db3a5394a207836afdeaa8237225b8de93`), ported as a line scan of
  * the head file. A hunk that changes only lines inside a test block of a Rust, Python or TypeScript
- * file counts as Tests; `inlineTestHunkVerdicts` judges each hunk, and intent places them.
+ * file counts as Tests.
  *
  * A test block is a Rust `mod test`/`mod tests` body, a TypeScript `namespace tests` body or a
  * `describe`/`it`/`test` call given a callback, or a Python `class Test*` or non-method

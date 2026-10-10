@@ -100,7 +100,7 @@ a.gh-prism-hunk:hover {
   --gh-prism-inset: 8px;
 }
 
-/* Lines file icons up under the directory icon, past the chevron's column. */
+/* Lines file icons and hunk lists up under the directory icon, past the chevron's column. */
 .gh-prism-file,
 .gh-prism-hunks {
   --gh-prism-inset: 32px;

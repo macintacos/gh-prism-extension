@@ -264,7 +264,7 @@ function isPlainLeftClick(event: MouseEvent): boolean {
 
 /**
  * Mirrors `page`'s native file tree as sections inside its sidebar until `signal` aborts. Files
- * `intent` places whole move to that section once it settles; a split file is listed in each
+ * that `intent` places whole move to that section once it settles; a split file is listed in each
  * section its hunks land in, and a hunk click reveals that hunk. Until intent settles, and without
  * one, sections follow the paths alone. If it settles as a failure, a notice above the sections
  * says why.
@@ -312,7 +312,7 @@ export function showSections(
     if (focusedKey === undefined) return;
     const rows = [...view.querySelectorAll<HTMLElement>("[data-path], [data-dir]")];
     const sameRow = rows.find((row) => focusKey(row) === focusedKey);
-    // A focused file whose section changed once intent landed (moved or split) keeps focus on its first row.
+    // When intent moves or splits a focused file, focus moves to its first row.
     const sameFile = rows.find(
       (row) => focusedPath !== undefined && row.dataset.path === focusedPath,
     );
