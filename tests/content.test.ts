@@ -10,14 +10,11 @@ const runsOn = (url: string) => {
 };
 
 describe("content script", () => {
-  it.each(["https://github.com/o/r/pull/1", "https://github.com/o/r/pull/1/files"])(
-    "runs on pull request page %s",
-    (url) => expect(runsOn(url)).toBe(true),
-  );
-
   it.each([
-    "https://github.com/o/r/pulls",
-    "https://github.com/o/r/issues/1",
     "https://github.com/o/r",
-  ])("skips non-pull-request page %s", (url) => expect(runsOn(url)).toBe(false));
+    "https://github.com/o/r/pull/1/changes",
+    "https://github.com/o/r/pulls",
+  ])("runs on GitHub page %s", (url) => expect(runsOn(url)).toBe(true));
+
+  it("skips other hosts", () => expect(runsOn("https://gist.github.com/o/1")).toBe(false));
 });
