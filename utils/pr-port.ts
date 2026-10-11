@@ -50,6 +50,8 @@ export interface PrDataPort {
  * picked up only after a reload.
  */
 export interface PrDataClient {
+  /** The commit the diff ends on, which `files` and `fileContent` read at. */
+  head(): Promise<PrHeadResult>;
   files(): Promise<PrFilesResult>;
   /**
    * Only for a `kind: "text"` entry whose status isn't `deleted`; any other path reads as
@@ -251,6 +253,7 @@ export function openPrData(
   const files = memoUntilFailure(() => atHead((head) => send({ kind: "files", pr: head })));
 
   return {
+    head: resolveHead,
     files,
     fileContent: (path) => atHead((head) => send({ kind: "content", pr: head, path })),
     close() {

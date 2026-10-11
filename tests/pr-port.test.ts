@@ -136,6 +136,14 @@ describe("openPrData", () => {
     expect(urls(fetchFn)).toContain(`${base}/raw/${sha}/src/engine.rs`);
   });
 
+  it("names the head it reads at, looking it up once when the page has none", async () => {
+    const fetchFn = routedFetch(okRoutes());
+    const client = openPrData(harness(fetchFn).connect, pr, undefined);
+    expect(await client.head()).toEqual({ ok: true, headSha: sha });
+    await client.files();
+    expect(urls(fetchFn).filter((u) => u === `${base}/pull/7`)).toHaveLength(1);
+  });
+
   it("reports a failed head lookup and retries it on the next call", async () => {
     const fetchFn = routedFetch({
       [`${base}/pull/7`]: async () => new Response("", { status: 404 }),

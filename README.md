@@ -59,6 +59,10 @@ requests or commits on GitHub in Chrome.
   tab, and when gh-prism can't read the diff.
 - A progress bar replaces the sections while gh-prism reads the diff. The sections appear
   once gh-prism has placed every file in its sections.
+- gh-prism remembers where it placed each file for the 50 diffs it read most recently.
+  When you reopen a pull request or commit whose diff hasn't changed, its sections and
+  diffs appear without gh-prism reading each file again. A new push, or a new base branch,
+  changes the diff, so gh-prism reads it again.
 - When you view one commit or a range of commits instead of all commits in the Files
   changed view, gh-prism keeps grouping files by path only. It shows no line counts,
   `Binary` markers, or `Partial` entries. It also shows this notice:
@@ -132,8 +136,9 @@ gh-prism needs access to three hosts and to Chrome's extension storage, and noth
   acts only on Files changed and commit pages.
 - `https://patch-diff.githubusercontent.com/*` is where GitHub redirects diff downloads.
 - `https://raw.githubusercontent.com/*` is where GitHub redirects raw-file downloads.
-- Extension storage holds one setting: the side you put the sidebar on. Chrome syncs it to
-  your other computers when Chrome sync is on.
+- Extension storage holds the side you put the sidebar on, and where gh-prism placed each
+  file for the 50 diffs it read most recently. Chrome syncs the side to your other
+  computers when Chrome sync is on. The placements stay on this computer.
 
 ## Troubleshooting
 

@@ -2,11 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 import type { FilesRoute } from "../entrypoints/content/files-page";
 import {
   type FileLines,
+  type IntentResult,
   type IntentSection,
   intentFor,
   type Placement,
   readIntent,
 } from "../entrypoints/content/intent";
+import type { IntentCache } from "../entrypoints/content/intent-cache";
 import type { PrFileDiff } from "../utils/pr-diff";
 import type { DiffRef, PrRef } from "../utils/pr-ref";
 import type { PrFileContentResult, PrFilesResult } from "../utils/pr-source";
@@ -315,8 +317,11 @@ const goSplitPatch = lines(
   "+// Run keeps the first non-blank lines.",
 );
 
+const headSha = "c".repeat(40);
+
 function fakeClient(files: PrFilesResult, content: PrFileContentResult) {
   return {
+    head: vi.fn(async () => ({ ok: true as const, headSha })),
     files: vi.fn(async () => files),
     fileContent: vi.fn(async (_path: string) => content),
     close: vi.fn(),
@@ -869,6 +874,29 @@ describe("readIntent", () => {
   });
 });
 
+/** An in-memory cache. */
+function memoryCache(): IntentCache {
+  const stored = new Map<string, Extract<IntentResult, { ok: true }>>();
+  return {
+    get: async (key) => stored.get(key),
+    set: async (key, intent) => {
+      stored.set(key, intent);
+    },
+  };
+}
+
+const noAccess: PrFileContentResult = { ok: false, problem: "no-access" };
+
+/** Opens the route twice with `cache`, first through `first` and then through `second`. */
+async function visitTwice(
+  cache: IntentCache,
+  first: ReturnType<typeof fakeClient>,
+  second: ReturnType<typeof fakeClient>,
+) {
+  await intentFor(route, new AbortController().signal, { connect: () => first, cache });
+  return intentFor(route, new AbortController().signal, { connect: () => second, cache });
+}
+
 describe("intentFor", () => {
   it("resolves a commit-filtered route without connecting", async () => {
     const connect = vi.fn((_diff: DiffRef) => fakeClient({ ok: true, files: [] }, unreadable));
@@ -876,7 +904,7 @@ describe("intentFor", () => {
     const result = await intentFor(
       { diff: pr, commitFiltered: true },
       new AbortController().signal,
-      connect,
+      { connect, cache: memoryCache() },
     );
 
     expect(result).toEqual({ ok: false, problem: "commit-filtered" });
@@ -889,7 +917,7 @@ describe("intentFor", () => {
     await intentFor(
       { diff: pr, commitFiltered: true },
       new AbortController().signal,
-      () => fakeClient({ ok: true, files: [] }, unreadable),
+      { connect: () => fakeClient({ ok: true, files: [] }, unreadable), cache: memoryCache() },
       onProgress,
     );
 
@@ -903,7 +931,12 @@ describe("intentFor", () => {
     );
     const onProgress = vi.fn();
 
-    await intentFor(route, new AbortController().signal, () => client, onProgress);
+    await intentFor(
+      route,
+      new AbortController().signal,
+      { connect: () => client, cache: memoryCache() },
+      onProgress,
+    );
 
     expect(onProgress.mock.calls).toEqual([[{ checked: 0, total: 1 }], [{ checked: 1, total: 1 }]]);
   });
@@ -913,7 +946,7 @@ describe("intentFor", () => {
     const connect = vi.fn((_diff: DiffRef) => client);
     const controller = new AbortController();
 
-    await intentFor(route, controller.signal, connect);
+    await intentFor(route, controller.signal, { connect, cache: memoryCache() });
 
     expect(connect).toHaveBeenCalledTimes(1);
     expect(connect).toHaveBeenCalledWith(pr);
@@ -922,5 +955,56 @@ describe("intentFor", () => {
     controller.abort();
 
     expect(client.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("answers a revisit to the same diff from the cache, reading no file's content", async () => {
+    const files: PrFilesResult = { ok: true, files: [modified("src/render.rs", renderPatch)] };
+    const first = fakeClient(files, noAccess);
+    const second = fakeClient(files, noAccess);
+
+    const revisited = await visitTwice(memoryCache(), first, second);
+
+    expect(revisited).toEqual(await readIntent(fakeClient(files, noAccess)));
+    expect(first.fileContent).toHaveBeenCalled();
+    expect(second.fileContent).not.toHaveBeenCalled();
+  });
+
+  it("reads again when the same head's diff has changed, as when its base moves", async () => {
+    const first = fakeClient(
+      { ok: true, files: [modified("src/render.rs", renderPatch)] },
+      noAccess,
+    );
+    const second = fakeClient(
+      {
+        ok: true,
+        files: [modified("src/parser.rs", parserPatch), modified("src/render.rs", renderPatch)],
+      },
+      noAccess,
+    );
+
+    await visitTwice(memoryCache(), first, second);
+
+    expect(second.fileContent).toHaveBeenCalled();
+  });
+
+  it("reads again when a file's content failed to load the first time", async () => {
+    const files: PrFilesResult = { ok: true, files: [modified("src/render.rs", renderPatch)] };
+    const second = fakeClient(files, noAccess);
+
+    await visitTwice(memoryCache(), fakeClient(files, unreadable), second);
+
+    expect(second.fileContent).toHaveBeenCalled();
+  });
+
+  it("stores nothing when the diff can't be read", async () => {
+    const cache = memoryCache();
+    const set = vi.spyOn(cache, "set");
+
+    await intentFor(route, new AbortController().signal, {
+      connect: () => fakeClient({ ok: false, problem: "rate-limited" }, unreadable),
+      cache,
+    });
+
+    expect(set).not.toHaveBeenCalled();
   });
 });

@@ -19,6 +19,7 @@ import type { DiffRef } from "@/utils/pr-ref";
 import type { PrDataProblem } from "@/utils/pr-source";
 import { classify, SECTIONS, type SectionKey } from "@/utils/sections";
 import type { FilesRoute } from "./files-page";
+import type { IntentCache } from "./intent-cache";
 
 /** Why the view keeps path-only sections. */
 export type PathOnlyReason = PrDataProblem | "commit-filtered";
@@ -176,18 +177,55 @@ export async function readIntent(
   return { ok: true, placements, lines };
 }
 
+/** Where `intentFor` reads a diff, and where it keeps what it read. */
+export interface IntentSources {
+  readonly connect: (diff: DiffRef) => PrDataClient;
+  readonly cache: IntentCache;
+}
+
+/** Problems a later read of a file may not hit. */
+const PASSING: ReadonlySet<PrDataProblem> = new Set(["rate-limited", "failed"]);
+
+/** A key for `files` read at `headSha`: a diff whose head or patches change gets a new one. */
+async function diffKey(headSha: string, files: readonly PrFileDiff[]): Promise<string> {
+  const bytes = new TextEncoder().encode(JSON.stringify([headSha, files]));
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 /**
- * Where one Files view's files land. A commit-filtered route connects nothing; otherwise the
- * client is closed when `signal` aborts. Never rejects; once `signal` aborts it may never settle.
+ * Where one Files view's files land: from `cache` when it holds this very diff, else read and
+ * cached. A read that a file's passing problem cut short isn't cached. A commit-filtered route
+ * connects nothing; otherwise the client is closed when `signal` aborts. Never rejects; once
+ * `signal` aborts it may never settle.
  */
 export async function intentFor(
   route: FilesRoute,
   signal: AbortSignal,
-  connect: (diff: DiffRef) => PrDataClient,
+  { connect, cache }: IntentSources,
   onProgress?: (progress: IntentProgress) => void,
 ): Promise<IntentResult> {
   if (route.commitFiltered) return { ok: false, problem: "commit-filtered" };
   const client = connect(route.diff);
   signal.addEventListener("abort", () => client.close(), { once: true });
-  return readIntent(client, onProgress);
+  const listed = await client.files();
+  if (!listed.ok) return listed;
+  const head = await client.head();
+  const key = await diffKey(head.ok ? head.headSha : "", listed.files);
+  const cached = await cache.get(key);
+  if (cached) return cached;
+  let cutShort = false;
+  const result = await readIntent(
+    {
+      files: () => client.files(),
+      fileContent: async (path) => {
+        const content = await client.fileContent(path);
+        if (!content.ok && PASSING.has(content.problem)) cutShort = true;
+        return content;
+      },
+    },
+    onProgress,
+  );
+  if (result.ok && !cutShort) void cache.set(key, result);
+  return result;
 }
