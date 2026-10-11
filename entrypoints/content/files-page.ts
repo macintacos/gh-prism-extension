@@ -8,9 +8,8 @@ import type { PrRef } from "@/utils/pr-ref";
 
 const FILES_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)\/(?:changes|files)(?:\/([^/]*).*)?$/;
 const DEBOUNCE_MS = 50;
-const POLL_MS = 100;
 // Long enough for popstate's ~200 ms early fire and a slow cold render.
-const SETTLE_POLLS = 10_000 / POLL_MS;
+const SETTLE_MS = 10_000;
 // ponytail: one fixed 5 s wait per step; make it adaptive if slow networks miss it.
 const REVEAL_TIMEOUT_MS = 5_000;
 const HIDDEN_PATCH = '[class*="HiddenDiffPatch-module"]';
@@ -65,10 +64,6 @@ export function findDiffstat(root: ParentNode): Element | undefined {
     root.querySelector('[class*="PullRequestHeader-module__rightContentWrapper"] > .d-flex') ??
     undefined
   );
-}
-
-function sameMarkup(a: FilesPage, b: FilesPage): boolean {
-  return a.sidebar === b.sidebar && a.diffs === b.diffs;
 }
 
 /**
@@ -270,12 +265,17 @@ function untilFound<T>(
   });
 }
 
+/** What to do with each Files changed markup GitHub renders during one visit. */
+export type OnPage = (page: FilesPage, signal: AbortSignal) => void;
+
 export interface FilesPageHandlers {
   /**
-   * A Files changed page is on screen at `route`; `signal` aborts when it is replaced, removed,
-   * or left. A new pathname under the same markup is a new page; a hash change is not.
+   * The Files changed tab's markup first appeared at `route`; `signal` aborts once the pathname
+   * changes or leaves the tab. A hash change is not a new visit. Returns the handler for that
+   * markup and each replacement GitHub renders during the visit, whose `signal` aborts once it is
+   * replaced or removed.
    */
-  onPage(page: FilesPage, route: FilesRoute, signal: AbortSignal): void;
+  onVisit(route: FilesRoute, signal: AbortSignal): OnPage;
   /**
    * The Files changed tab's markup never appeared. Fires at most once for each
    * `watchFilesPages` call.
@@ -283,19 +283,23 @@ export interface FilesPageHandlers {
   onMissing(): void;
 }
 
+const isShowing = ({ sidebar, diffs }: FilesPage) => sidebar.isConnected && diffs.isConnected;
+
 /**
- * Calls `onPage` for each Files changed page in `win`, on first load and on GitHub's own
- * `soft-nav:end` (fired once the new page has rendered) and `popstate`, until `signal` aborts.
- * Each trigger polls for the markup over a settle window, since `popstate` fires before the
- * DOM swap. Not WXT's location-change event: it fires at navigation start, before GitHub
- * renders, and on every hash change a file click makes.
+ * Calls `onVisit` for each visit to a Files changed tab in `win`, on first load and on GitHub's
+ * own `soft-nav:end` (fired once the new page has rendered) and `popstate`, until `signal`
+ * aborts. Each trigger follows the markup over a settle window, since `popstate` fires before the
+ * DOM swap and GitHub may re-render the markup while the page loads; a mutation observer hands
+ * over a replacement before it is painted. Not WXT's location-change event: it fires at navigation
+ * start, before GitHub renders, and on every hash change a file click makes.
  */
 export function watchFilesPages(
   win: Window,
   handlers: FilesPageHandlers,
   signal: AbortSignal,
 ): void {
-  let shown: { page: FilesPage; pathname: string; controller: AbortController } | undefined;
+  let visit: { pathname: string; onPage: OnPage; controller: AbortController } | undefined;
+  let shown: { page: FilesPage; controller: AbortController } | undefined;
   let timer: number | undefined;
   let missingReported = false;
 
@@ -304,38 +308,49 @@ export function watchFilesPages(
     shown = undefined;
   };
 
-  const sync = () => {
-    const { pathname } = win.location;
-    const route = readFilesRoute(pathname);
-    if (!route) return drop();
-    const page = findFilesPage(win.document);
-    if (page && shown && sameMarkup(page, shown.page) && shown.pathname === pathname) return;
+  const leave = () => {
     drop();
-    if (!page) return;
-    shown = { page, pathname, controller: new AbortController() };
-    handlers.onPage(page, route, shown.controller.signal);
+    visit?.controller.abort();
+    visit = undefined;
   };
 
-  const poll = (pollsLeft: number) => {
-    sync();
-    if (pollsLeft > 0) {
-      timer = win.setTimeout(() => poll(pollsLeft - 1), POLL_MS);
-    } else if (!shown && !missingReported && isFilesPath(win.location.pathname)) {
-      missingReported = true;
-      handlers.onMissing();
+  const sync = () => {
+    const { pathname } = win.location;
+    if (visit && visit.pathname !== pathname) leave();
+    if (shown && isShowing(shown.page)) return;
+    const route = readFilesRoute(pathname);
+    const page = route && findFilesPage(win.document);
+    drop();
+    if (!route || !page) return;
+    if (!visit) {
+      const controller = new AbortController();
+      visit = { pathname, controller, onPage: handlers.onVisit(route, controller.signal) };
     }
+    shown = { page, controller: new AbortController() };
+    visit.onPage(page, shown.controller.signal);
   };
+
+  const observer = new MutationObserver(sync);
 
   const settle = () => {
     win.clearTimeout(timer);
-    poll(SETTLE_POLLS);
+    sync();
+    observer.observe(win.document, { childList: true, subtree: true });
+    timer = win.setTimeout(() => {
+      observer.disconnect();
+      if (!shown && !missingReported && isFilesPath(win.location.pathname)) {
+        missingReported = true;
+        handlers.onMissing();
+      }
+    }, SETTLE_MS);
   };
 
   win.document.addEventListener("soft-nav:end", settle, { signal });
   win.addEventListener("popstate", settle, { signal });
   signal.addEventListener("abort", () => {
     win.clearTimeout(timer);
-    drop();
+    observer.disconnect();
+    leave();
   });
   settle();
 }

@@ -17,4 +17,7 @@ describe("content script", () => {
   ])("runs on GitHub page %s", (url) => expect(runsOn(url)).toBe(true));
 
   it("skips other hosts", () => expect(runsOn("https://gist.github.com/o/1")).toBe(false));
+
+  it("starts with the document, to catch GitHub's tree before it is painted", () =>
+    expect(contentScript.runAt).toBe("document_start"));
 });

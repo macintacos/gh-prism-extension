@@ -9,7 +9,11 @@ import type {
   IntentSection,
   Placement,
 } from "../entrypoints/content/intent";
-import { type PendingIntent, showSections } from "../entrypoints/content/sections-view";
+import {
+  type PendingIntent,
+  shareIntent,
+  showSections,
+} from "../entrypoints/content/sections-view";
 import css from "../entrypoints/content/sections-view.css?raw";
 import { byId, loadFixture } from "./fixtures/files-page";
 
@@ -899,6 +903,40 @@ describe("showSections", () => {
       expect(view()).toBeNull();
       expect(render).not.toHaveBeenCalled();
       render.mockRestore();
+    });
+  });
+
+  describe("intent shared by each view of one visit", () => {
+    it("is read once, however many views follow it", () => {
+      const read = vi.fn(pendingIntent().intent);
+      const shared = shareIntent(read);
+      remountWith(shared);
+      remountWith(shared);
+      expect(read).toHaveBeenCalledOnce();
+    });
+
+    it("resumes a view mounted mid-read at the latest progress", () => {
+      const pending = pendingIntent();
+      const shared = shareIntent(pending.intent);
+      remountWith(shared);
+      pending.progress({ checked: 2, total: 3 });
+      remountWith(shared);
+      expect(progressBar()?.getAttribute("aria-valuenow")).toBe("2");
+      pending.progress({ checked: 3, total: 3 });
+      expect(progressBar()?.getAttribute("aria-valuenow")).toBe("3");
+    });
+
+    it("shows a view mounted once it has settled at once, with no progress bar or reveal", async () => {
+      const shared = shareIntent(() =>
+        Promise.resolve(landedWith(new Map([["src/parser.rs", whole("docs")]]))),
+      );
+      remountWith(shared);
+      await afterDebounce();
+      remountWith(shared);
+      expect(progressBar()).toBeNull();
+      expect(view()?.hasAttribute("aria-busy")).toBe(false);
+      expect(view()?.hasAttribute("data-reveal")).toBe(false);
+      expect(filesIn("docs")).toContain("src/parser.rs");
     });
   });
 

@@ -49,10 +49,37 @@ interface ShownSection {
   readonly tree: SectionTree;
 }
 
-/** Reads where the changed files land, reporting its progress through `onProgress`. */
+/**
+ * Reads where the changed files land, reporting its progress through `onProgress`. Returns the
+ * result itself, not a promise, when it has already landed.
+ */
 export type PendingIntent = (
   onProgress: (progress: IntentProgress) => void,
-) => Promise<IntentResult>;
+) => IntentResult | Promise<IntentResult>;
+
+/**
+ * Starts `read` now and lets each view that follows it share that one read: a view joining
+ * mid-read starts at the latest progress, and one joining after it lands gets the result itself.
+ */
+export function shareIntent(read: PendingIntent): PendingIntent {
+  let latest: IntentProgress | undefined;
+  let result: IntentResult | undefined;
+  // ponytail: a dropped view's follower stays until the visit ends, updating detached nodes;
+  // unfollow on the view's signal if remounts ever pile up.
+  const followers = new Set<(progress: IntentProgress) => void>();
+  const landing = Promise.resolve(
+    read((progress) => {
+      latest = progress;
+      for (const follow of followers) follow(progress);
+    }),
+  ).then((landed) => (result = landed));
+  return (onProgress) => {
+    if (result) return result;
+    if (latest) onProgress(latest);
+    followers.add(onProgress);
+    return landing;
+  };
+}
 
 export interface SectionsOptions {
   readonly intent: PendingIntent;
@@ -238,11 +265,11 @@ function clickedFile(event: Event): { section: string; path: string } | undefine
 
 /**
  * Mirrors `page`'s native file tree as sections inside its sidebar until `signal` aborts. With an
- * `intent`, a progress bar stands in until it settles; then files it places whole sit in that
- * section, and a split file is listed in each section its hunks land in, with the lines each
- * share adds and removes, and the header's lines-changed counter breaks out by section. If it
- * settles as a failure, the sections follow the paths alone under a notice saying why. Without
- * one, path sections show at once.
+ * `intent`, a progress bar stands in until it settles, unless it already has; then files it places
+ * whole sit in that section, and a split file is listed in each section its hunks land in, with
+ * the lines each share adds and removes, and the header's lines-changed counter breaks out by
+ * section. If it settles as a failure, the sections follow the paths alone under a notice saying
+ * why. Without one, path sections show at once.
  */
 export function showSections(
   page: FilesPage,
@@ -335,36 +362,44 @@ export function showSections(
     { signal },
   );
 
+  const land = (result: IntentResult, diffstat: DiffstatChoice) => {
+    landed = result;
+    if (result.ok) {
+      const counter = findDiffstat(doc);
+      if (counter) showDiffstat(counter, result, { choice: diffstat, signal });
+    } else {
+      view.prepend(el(doc, "p", "gh-prism-notice", PATH_ONLY_COPY[result.problem]));
+    }
+  };
+
   // A DOM clone of the sidebar, such as a restored snapshot, can carry an earlier view.
   for (const stale of page.sidebar.querySelectorAll(".gh-prism-sections")) stale.remove();
   page.tree.before(view);
   doc.head.append(style);
   if (options) {
     const pending = loadingView(doc);
-    loading = pending;
-    view.setAttribute("aria-busy", "true");
-    view.append(pending.root);
-    void options
-      .intent(pending.progress)
-      .catch((error: unknown): IntentResult => {
-        console.error("gh-prism: reading intent failed", error);
-        return { ok: false, problem: "failed" };
-      })
-      .then((result) => {
-        if (signal.aborted) return;
-        landed = result;
-        loading = undefined;
-        pending.root.remove();
-        view.removeAttribute("aria-busy");
-        view.toggleAttribute("data-reveal", true);
-        if (result.ok) {
-          const counter = findDiffstat(doc);
-          if (counter) showDiffstat(counter, result, { choice: options.diffstat, signal });
-        } else {
-          view.prepend(el(doc, "p", "gh-prism-notice", PATH_ONLY_COPY[result.problem]));
-        }
-        render();
-      });
+    const intent = options.intent(pending.progress);
+    if (intent instanceof Promise) {
+      loading = pending;
+      view.setAttribute("aria-busy", "true");
+      view.append(pending.root);
+      void intent
+        .catch((error: unknown): IntentResult => {
+          console.error("gh-prism: reading intent failed", error);
+          return { ok: false, problem: "failed" };
+        })
+        .then((result) => {
+          if (signal.aborted) return;
+          loading = undefined;
+          pending.root.remove();
+          view.removeAttribute("aria-busy");
+          view.toggleAttribute("data-reveal", true);
+          land(result, options.diffstat);
+          render();
+        });
+    } else {
+      land(intent, options.diffstat);
+    }
   }
   render();
   observeTree(page.sidebar, render, { signal, ignore: view });
