@@ -69,6 +69,14 @@ export function findDiffstat(root: ParentNode): Element | undefined {
 }
 
 /**
+ * The toolbar's file-tree toggle: the wrapper around the buttons that collapse and expand the
+ * tree, or `undefined` when it's missing.
+ */
+export function findTreeToggle(root: ParentNode): Element | undefined {
+  return root.querySelector('[class*="RegularTreeToggle"]')?.parentElement ?? undefined;
+}
+
+/**
  * A file row in the native tree. Its nodes are GitHub's live, React-owned elements: clone
  * them, never move or mutate them.
  */

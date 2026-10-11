@@ -29,6 +29,18 @@ config separately. It is for anyone who reviews pull requests on GitHub in Chrom
 - Each section's heading starts with the section's icon. When you point at a heading, the
   icon turns into an arrow. Click the heading to collapse or expand its files. A collapsed
   section still shows its file count.
+- By default, the sidebar sits to the right of the diffs. While it does, GitHub's Collapse
+  file tree button moves to the right end of the toolbar above the diffs, next to the
+  sidebar.
+- To move the sidebar to the left, click the two-arrows button beside the Collapse file
+  tree button. Its tooltip reads `Move file tree to the left`. Click it again to move the
+  sidebar back to the right. gh-prism remembers the side you pick, so pages you open or
+  reload later use it. Tabs that are already open switch when you reload them.
+- When you switch sides, or collapse or expand the file tree, the sidebar slides into
+  place instead of jumping. If your system is set to reduce motion, it moves at once.
+- In a window too narrow for the sidebar beside the diffs, GitHub opens the file tree as
+  an overlay instead. gh-prism leaves that layout as GitHub has it and hides the
+  two-arrows button.
 - In the pull request's header, gh-prism splits GitHub's count of lines changed, such as
   `+1,604 −177`, into rounded labels called pills, one for each section that changed any
   lines. Each pill shows the section's icon and the lines that section adds and removes.
@@ -103,7 +115,7 @@ sections saying why.
 
 ## Permissions
 
-gh-prism needs access to three hosts, and nothing else.
+gh-prism needs access to three hosts and to Chrome's extension storage, and nothing else.
 
 - `https://github.com/*` serves the pull request page, its diff, and file contents. A
   content script, which is code that runs inside matching pages, also runs here, so
@@ -111,6 +123,8 @@ gh-prism needs access to three hosts, and nothing else.
   changed.
 - `https://patch-diff.githubusercontent.com/*` is where GitHub redirects diff downloads.
 - `https://raw.githubusercontent.com/*` is where GitHub redirects raw-file downloads.
+- Extension storage holds one setting: the side you put the sidebar on. Chrome syncs it to
+  your other computers when Chrome sync is on.
 
 ## Troubleshooting
 

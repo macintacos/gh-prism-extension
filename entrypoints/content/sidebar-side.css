@@ -1,0 +1,206 @@
+/* Primer's small invisible IconButton, like GitHub's tree toggle beside it. */
+.gh-prism-side-switch {
+  position: relative;
+  display: none;
+  flex-shrink: 0;
+  place-content: center;
+  width: var(--control-small-size, 28px);
+  height: var(--control-small-size, 28px);
+  padding: 0;
+  border: 0;
+  border-radius: var(--borderRadius-medium);
+  background: none;
+  color: var(--button-invisible-iconColor-rest);
+  font: inherit;
+  cursor: pointer;
+}
+
+.gh-prism-side-switch:hover {
+  background: var(--button-invisible-bgColor-hover);
+  color: var(--button-invisible-iconColor-hover);
+}
+
+.gh-prism-side-switch:active {
+  background: var(--button-invisible-bgColor-active);
+}
+
+.gh-prism-side-switch:focus-visible {
+  outline: 2px solid var(--focus-outlineColor);
+  outline-offset: -2px;
+}
+
+/* Primer's tooltip, opening toward the page's middle. */
+.gh-prism-side-switch::after {
+  content: attr(aria-label);
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline-start: 0;
+  z-index: 100;
+  padding: 4px 8px;
+  border-radius: var(--borderRadius-medium);
+  background: var(--tooltip-bgColor);
+  color: var(--tooltip-fgColor);
+  font-size: var(--text-body-size-small);
+  font-weight: var(--base-text-weight-normal);
+  line-height: var(--text-body-lineHeight-small);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 120ms ease-out,
+    visibility 120ms;
+}
+
+[data-gh-prism-side="right"] .gh-prism-side-switch::after {
+  inset-inline: auto 0;
+}
+
+.gh-prism-side-switch:is(:hover, :focus-visible)::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+[data-gh-prism-glide] [class*="PageLayout-PaneWrapper"]:has(#pr-file-tree) {
+  view-transition-name: gh-prism-pane;
+}
+
+/* Inside the wrapper's gutter, so the diffs before and after line up as they crossfade. */
+[data-gh-prism-glide] [class*="PageLayout-ContentWrapper"] > [class*="PageLayout-Content-"] {
+  view-transition-name: gh-prism-diffs;
+}
+
+::view-transition-group(gh-prism-pane),
+::view-transition-group(gh-prism-diffs) {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Solid and on top, so the pane covers the diffs it crosses whichever way it goes. */
+::view-transition-group(gh-prism-pane) {
+  z-index: 1;
+}
+
+::view-transition-old(gh-prism-pane),
+::view-transition-new(gh-prism-pane) {
+  background: var(--bgColor-default);
+}
+
+/* The diffs keep their scale as their box grows or shrinks, pinned to its top left. */
+::view-transition-image-pair(gh-prism-diffs) {
+  overflow: clip;
+}
+
+::view-transition-old(gh-prism-diffs),
+::view-transition-new(gh-prism-diffs) {
+  height: 100%;
+  object-fit: none;
+  object-position: left top;
+}
+
+/* Switching sides, the pane looks the same before and after, so it only moves. */
+:root[data-gh-prism-glide="switch"]::view-transition-old(gh-prism-pane) {
+  display: none;
+}
+
+:root[data-gh-prism-glide="switch"]::view-transition-new(gh-prism-pane) {
+  animation: none;
+}
+
+/* Collapsing and expanding, the pane slides off and back on at its own edge. */
+:root {
+  --gh-prism-pane-edge: -100%;
+}
+
+:root[data-gh-prism-side="right"] {
+  --gh-prism-pane-edge: 100%;
+}
+
+:root[data-gh-prism-glide="toggle"]::view-transition-old(gh-prism-pane) {
+  animation-name: gh-prism-pane-out;
+}
+
+:root[data-gh-prism-glide="toggle"]::view-transition-new(gh-prism-pane) {
+  animation-name: gh-prism-pane-in;
+}
+
+@keyframes gh-prism-pane-out {
+  to {
+    translate: var(--gh-prism-pane-edge);
+    opacity: 0;
+  }
+}
+
+@keyframes gh-prism-pane-in {
+  from {
+    translate: var(--gh-prism-pane-edge);
+    opacity: 0;
+  }
+}
+
+/* Narrower, GitHub opens the tree as an overlay, which has no side to switch. */
+@container diffComparisonViewer (width >= 1012px) {
+  .gh-prism-side-switch {
+    display: inline-grid;
+  }
+
+  /* Primer's own end-position styles: after the diffs, its divider on the inner edge. */
+  [data-gh-prism-side="right"] [class*="PageLayout-PaneWrapper"]:has(#pr-file-tree) {
+    order: var(--region-order-pane-end, 3);
+    flex-direction: row-reverse;
+  }
+
+  /* GitHub's gutter between the diffs and an expanded tree. */
+  [data-gh-prism-side="right"] [class*="PageLayout-ContentWrapper"][class*="WideExpanded"] {
+    padding-inline: 0 var(--base-size-16);
+  }
+
+  /* The filter row's pr-lg-3 is !important, like every Primer utility. */
+  [data-gh-prism-side="right"] #pr-file-tree > :first-child {
+    padding-inline: var(--base-size-16) 0 !important;
+  }
+
+  [data-gh-prism-side="right"] .gh-prism-sections {
+    margin-inline: var(--base-size-16) 0;
+  }
+
+  /* The toolbar's left group dissolves into the row, so the toggle and switch can end it. */
+  [data-gh-prism-side="right"] section[class*="PullRequestFilesToolbar-module__toolbar"] {
+    & > :has(> * > [class*="RegularTreeToggle"]) {
+      display: contents;
+    }
+
+    & > [data-component="Stack"]:not(:has([class*="RegularTreeToggle"])) {
+      margin-inline-start: auto;
+    }
+
+    & :has(> [class*="RegularTreeToggle"]) {
+      order: 2;
+    }
+
+    /* Set apart from the side-panel toggles by a divider like the toolbar's own. */
+    & .gh-prism-side-switch {
+      order: 1;
+      margin-inline-start: 17px;
+    }
+
+    & .gh-prism-side-switch::before {
+      content: "";
+      position: absolute;
+      inset-block: 0;
+      inset-inline-start: -13px;
+      border-inline-start: var(--borderWidth-thin, 1px) solid var(--borderColor-default);
+    }
+
+    /* Point the toggle's icon at the tree. */
+    & [class*="TreeToggle"] svg {
+      scale: -1 1;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-prism-side-switch::after {
+    transition: none;
+  }
+}
