@@ -141,6 +141,7 @@
 }
 
 .gh-prism-counter {
+  flex-shrink: 0;
   min-width: 20px;
   padding: 0 6px;
   border-radius: 2em;
@@ -150,6 +151,21 @@
   font-weight: var(--base-text-weight-medium);
   line-height: var(--text-body-lineHeight-small);
   text-align: center;
+}
+
+.gh-prism-section-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-prism-line-totals {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+  margin-inline-start: auto;
+  font-size: var(--text-body-size-small);
+  white-space: nowrap;
 }
 
 /* @pierre/trees reads these through each tree's shadow root. */

@@ -7,9 +7,10 @@
  */
 
 import type { FileTreeRowDecoration, GitStatus } from "@pierre/trees";
+import type { LineCounts } from "@/utils/pr-diff";
 import { classify, SECTIONS, type SectionKey } from "@/utils/sections";
 import { orderDiffs } from "./diff-order";
-import { type DiffstatChoice, showDiffstat } from "./diffstat-view";
+import { type DiffstatChoice, linesBySection, lineTotals, showDiffstat } from "./diffstat-view";
 import { el, icon } from "./dom";
 import {
   type ChangedFile,
@@ -203,12 +204,19 @@ const chevron = (doc: Document): SVGSVGElement =>
 /**
  * A section, `order` places from the top, whose header button shows and hides an empty host for
  * its tree. `expand` sets which it does. The button leads with the section's icon, which the
- * stylesheet swaps for the chevron while it is hovered or focused.
+ * stylesheet swaps for the chevron while it is hovered or focused, and ends with the `lines` it
+ * adds and removes, if known.
  */
-function sectionShell(doc: Document, { key, label }: FileSection, order: number) {
+function sectionShell(
+  doc: Document,
+  { key, label }: FileSection,
+  { order, lines }: { order: number; lines: LineCounts | undefined },
+) {
   const counter = el(doc, "span", "gh-prism-counter");
   const glyph = el(doc, "span", "gh-prism-glyph", sectionIcon(doc, key), chevron(doc));
-  const toggle = el(doc, "button", "gh-prism-section-toggle", glyph, label, counter);
+  const name = el(doc, "span", "gh-prism-section-label", label);
+  const toggle = el(doc, "button", "gh-prism-section-toggle", glyph, name, counter);
+  if (lines) toggle.append(lineTotals(doc, lines));
   toggle.type = "button";
   const header = el(doc, "h3", "gh-prism-section-header", toggle);
   header.id = `gh-prism-heading-${key}`;
@@ -314,6 +322,10 @@ export function showSections(
 
   const placements = () => (landed?.ok ? landed.placements : NO_PLACEMENTS);
   const lines = () => (landed?.ok ? landed.lines : NO_LINES);
+  const totalOf = (section: SectionKey) =>
+    linesBySection({ placements: placements(), lines: lines() }).find(
+      (total) => total.section === section,
+    )?.lines;
 
   const open = (section: string, path: string) => {
     const native = readChangedFiles(page.sidebar).find((file) => file.path === path)?.link;
@@ -347,7 +359,11 @@ export function showSections(
     if (current) {
       current.tree.update(files, active);
     } else {
-      const { root, counter, host, toggle, expand } = sectionShell(doc, section, order);
+      // Set once: a section is only built after intent lands, and the landed lines never change.
+      const { root, counter, host, toggle, expand } = sectionShell(doc, section, {
+        order,
+        lines: totalOf(section.key),
+      });
       expand(!collapsed.has(section.key));
       toggle.addEventListener("click", () => {
         const expanded = collapsed.has(section.key);

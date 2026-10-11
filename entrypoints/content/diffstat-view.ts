@@ -59,7 +59,7 @@ function sharesOf(
 }
 
 /** Each section's lines across the whole diff, in `SECTIONS` order, for sections that changed any. */
-function linesBySection({ placements, lines }: LandedLines): SectionLines[] {
+export function linesBySection({ placements, lines }: LandedLines): SectionLines[] {
   const shares = [...lines].flatMap(([path, fileLines]) =>
     sharesOf(path, fileLines, placements.get(path)),
   );
@@ -82,6 +82,16 @@ function counts(doc: Document, { added, removed }: LineCounts): HTMLElement[] {
     part(`−${count(removed)}`, removed > 0 ? "fgColor-danger" : "fgColor-muted"),
   ];
 }
+
+/** `lines` as a pill counts them, said in words to screen readers. */
+export const lineTotals = (doc: Document, lines: LineCounts): HTMLElement =>
+  el(
+    doc,
+    "span",
+    "gh-prism-line-totals",
+    ...counts(doc, lines),
+    el(doc, "span", "sr-only", `${count(lines.added)} added, ${count(lines.removed)} removed`),
+  );
 
 function tip(doc: Document, ...children: Node[]): HTMLElement {
   const node = el(doc, "span", "gh-prism-tip", ...children);

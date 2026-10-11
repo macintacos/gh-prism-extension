@@ -1064,6 +1064,28 @@ describe("showSections", () => {
       }
     });
 
+    it("ends each sidebar section's header with the lines its pill shows", async () => {
+      await landed(counted);
+      const headerCounts = sectionKeys().map((key) => [
+        key,
+        textsOf(document.querySelectorAll(`[data-section="${key}"] h3 .gh-prism-pill-count`)),
+      ]);
+      expect(headerCounts).toEqual([
+        ["implementation", ["+15", "−4"]],
+        ["tests", ["+20", "−0"]],
+        ["docs", ["+6", "−4"]],
+        ["config", []],
+        ["generated", ["+1,210", "−350"]],
+      ]);
+    });
+
+    it("says each sidebar section's lines in words in its header button's name", async () => {
+      await landed(counted);
+      expect(sectionToggle("implementation").querySelector(".sr-only")?.textContent).toBe(
+        "15 added, 4 removed",
+      );
+    });
+
     it("leaves GitHub's counter alone while intent is pending", () => {
       remountWith(pendingIntent().intent);
       expect(counter()).toBeNull();
