@@ -14,6 +14,8 @@ jobs:
           # mise-action forces `--locked`, which needs platform URLs this mise.lock lacks.
           install: false
       - run: mise install
+        env:
+          MISE_GITHUB_TOKEN: ${{ github.token }}
       - run: bun install --frozen-lockfile
       - run: mise run preflight
       - run: bun run build
