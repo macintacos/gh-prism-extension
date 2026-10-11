@@ -84,6 +84,56 @@ function glideTreeToggle(doc: Document, toggle: Element, signal: AbortSignal): v
   );
 }
 
+/** Whether a Primer start pane's divider sits at the pane's left, where only docking right puts it. */
+function dividerLeads(handle: Element): boolean {
+  const wrapper = handle.closest('[class*="PageLayout-PaneWrapper"][data-position="start"]');
+  if (!wrapper) return false;
+  const { left, width } = wrapper.getBoundingClientRect();
+  return handle.getBoundingClientRect().left < left + width / 2;
+}
+
+/**
+ * Mirrors drags on a pane divider that docking right moved to the pane's left, until `signal`
+ * aborts. Primer widens a start pane as the pointer moves right of where the drag began, and
+ * GitHub's tree stays a start pane on either side, so each move is replayed reflected about that
+ * point.
+ */
+function mirrorPaneDrag(doc: Document, signal: AbortSignal): void {
+  const view = doc.defaultView;
+  if (!view) return;
+  let origin: number | undefined;
+  let replaying = false;
+  view.addEventListener(
+    "pointerdown",
+    (event) => {
+      const handle =
+        event.target instanceof Element &&
+        event.target.closest('[data-component="PageLayout.DragHandle"]');
+      origin = handle && dividerLeads(handle) ? event.clientX : undefined;
+    },
+    { capture: true, signal },
+  );
+  view.addEventListener(
+    "pointermove",
+    (event) => {
+      if (replaying || origin === undefined || !event.buttons || !event.target) return;
+      event.stopImmediatePropagation();
+      const mirrored = new PointerEvent("pointermove", {
+        bubbles: true,
+        cancelable: true,
+        pointerId: event.pointerId,
+        buttons: event.buttons,
+        clientX: 2 * origin - event.clientX,
+        clientY: event.clientY,
+      });
+      replaying = true;
+      if (!event.target.dispatchEvent(mirrored)) event.preventDefault();
+      replaying = false;
+    },
+    { capture: true, signal },
+  );
+}
+
 /**
  * Docks the sidebar on `choice.side` and adds the switch just after GitHub's tree toggle, until
  * `signal` aborts. A click docks it on the other side, records that in `choice`, and `save`s it.
@@ -115,6 +165,7 @@ export function dockSidebar(
   dock(choice.side);
   toggle.after(button);
   glideTreeToggle(doc, toggle, signal);
+  mirrorPaneDrag(doc, signal);
   doc.head.append(style);
   signal.addEventListener("abort", () => {
     button.remove();

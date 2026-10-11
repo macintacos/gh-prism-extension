@@ -131,6 +131,40 @@ it("docks a commit page's sidebar, with the switch just after its tree toggle", 
   expect(switcher()?.previousElementSibling?.id).toBe("commit-tree-toggle");
 });
 
+// Trimmed from a commit page: the tree is Primer's start pane, sized by its divider's handle.
+const PANE = `
+<div class="prc-PageLayout-PaneWrapper-pHPop" data-position="start">
+  <div class="prc-PageLayout-Pane-AyzHK"><div id="diff_file_tree"></div></div>
+  <div data-component="PageLayout.VerticalDivider" data-position="start">
+    <div data-component="PageLayout.DragHandle" role="slider"></div>
+  </div>
+</div>`;
+
+/** Drags the pane's handle 30px right, returning the pointer x Primer reads on the move. */
+function dragHandle(handleLeft: number) {
+  document.body.innerHTML = COMMIT_TOOLBAR + PANE;
+  dock("right");
+  const wrapper = document.querySelector<HTMLElement>('[class*="PageLayout-PaneWrapper"]');
+  const handle = document.querySelector<HTMLElement>('[data-component="PageLayout.DragHandle"]');
+  if (!wrapper || !handle) throw new Error("no pane");
+  vi.spyOn(wrapper, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 300, 600));
+  vi.spyOn(handle, "getBoundingClientRect").mockReturnValue(new DOMRect(handleLeft, 0, 4, 600));
+  const primer: number[] = [];
+  document.body.addEventListener("pointermove", (event) => primer.push(event.clientX));
+  const pointer = { bubbles: true, cancelable: true, buttons: 1 };
+  handle.dispatchEvent(new PointerEvent("pointerdown", { ...pointer, clientX: 100 }));
+  handle.dispatchEvent(new PointerEvent("pointermove", { ...pointer, clientX: 130 }));
+  return primer;
+}
+
+it("mirrors a drag on the divider at the tree's left, so the tree narrows as it's dragged right", () => {
+  expect(dragHandle(0)).toEqual([70]);
+});
+
+it("passes a drag through where the divider stays at the tree's right", () => {
+  expect(dragHandle(296)).toEqual([130]);
+});
+
 it("replays a commit page's tree toggle click inside a glide, but not its narrow toggle's", async () => {
   document.body.innerHTML = COMMIT_TOOLBAR;
   const start = stubViewTransitions();
