@@ -283,7 +283,7 @@ export function showSections(
   view.setAttribute("aria-label", "Changed files by section");
   const shown = new Map<SectionKey, ShownSection>();
   // Outlives the sections themselves, so one that empties and comes back stays collapsed.
-  const collapsed = new Set<SectionKey>();
+  const collapsed = new Set<SectionKey>(["generated"]);
   let loading: ReturnType<typeof loadingView> | undefined;
   let landed: IntentResult | undefined;
   // The reveal in flight. A newer file click, or the view's abort, cancels it.

@@ -344,6 +344,14 @@ describe("showSections", () => {
       expect(filesOf("docs").inert).toBe(false);
     });
 
+    it("starts the Generated section collapsed and the rest expanded", () => {
+      expect(expanded("generated")).toBe("false");
+      expect(filesOf("generated").inert).toBe(true);
+      expect(expanded("implementation")).toBe("true");
+      sectionToggle("generated").click();
+      expect(expanded("generated")).toBe("true");
+    });
+
     it.each(["Enter", " "] as const)("toggles its section, keeping focus, on %j", (key) => {
       const toggle = sectionToggle("tests");
       toggle.focus();
