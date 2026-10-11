@@ -6,13 +6,13 @@ const EXTENSION = join(import.meta.dirname, "../.output/chrome-mv3");
 const PR_URL = "https://github.com/o/r/pull/1/changes";
 const COMMIT_URL = "https://github.com/o/r/commit/dd95cdc0d7a9a6817998ee6663563e888761f329";
 
-const fixture = (name: string) =>
+const readFixture = (name: string) =>
   readFileSync(join(import.meta.dirname, "../tests/fixtures", name), "utf8");
-const PR_BODY = `<!doctype html>${fixture("files-page.html")}`;
+const PR_BODY = `<!doctype html>${readFixture("files-page.html")}`;
 // README.md's tree row in tests/fixtures/files-page.html links to this id.
 const README_DIFF = "diff-0a13";
 // The wrapper supplies GitHub's layout container; the switch's container query needs ≥ 1012 px (default viewport: 1280).
-const COMMIT_BODY = `<!doctype html><div class="PageLayout-PageLayoutContent">${fixture("commit-page.html")}</div>`;
+const COMMIT_BODY = `<!doctype html><div class="PageLayout-PageLayoutContent">${readFixture("commit-page.html")}</div>`;
 
 const test = base.extend<{ context: BrowserContext }>({
   // biome-ignore lint/correctness/noEmptyPattern: Playwright reads fixture dependencies from this pattern.
