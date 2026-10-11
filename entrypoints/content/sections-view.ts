@@ -8,6 +8,7 @@
 
 import type { FileTreeRowDecoration, GitStatus } from "@pierre/trees";
 import { classify, SECTIONS, type SectionKey } from "@/utils/sections";
+import { orderDiffs } from "./diff-order";
 import { type DiffstatChoice, showDiffstat } from "./diffstat-view";
 import { el, icon } from "./dom";
 import {
@@ -90,6 +91,8 @@ export interface SectionsOptions {
 
 const NO_PLACEMENTS: ReadonlyMap<string, Placement> = new Map();
 const NO_LINES: ReadonlyMap<string, FileLines> = new Map();
+
+const FIXED_ORDER_COPY = "Diffs keep GitHub's order: gh-prism can't reorder this many files.";
 
 const PATH_ONLY_COPY: Record<PathOnlyReason, string> = {
   "commit-filtered":
@@ -224,18 +227,38 @@ function sectionShell(doc: Document, { key, label }: FileSection, order: number)
   return { root, counter, host, toggle, expand };
 }
 
-/** A progress bar that reads the diff, then counts the files checked, over a skeleton list. */
-function loadingView(doc: Document) {
+/** Placeholder rows for the sidebar's file list. */
+const listSkeleton = (doc: Document) =>
+  el(doc, "div", "gh-prism-skeleton", ...Array.from({ length: 5 }, () => el(doc, "span", "")));
+
+/** Placeholder diffs: a file header over a few lines of code each. */
+const diffSkeleton = (doc: Document) =>
+  el(
+    doc,
+    "div",
+    "gh-prism-diff-skeleton",
+    ...[4, 2, 3].map((lines) =>
+      el(
+        doc,
+        "div",
+        "gh-prism-diff-card",
+        el(doc, "span", "gh-prism-diff-card-header"),
+        ...Array.from({ length: lines }, () => el(doc, "span", "")),
+      ),
+    ),
+  );
+
+/** A progress bar that reads the diff, then counts the files checked, over `skeleton`. */
+function loadingView(doc: Document, skeleton: HTMLElement) {
   const label = el(doc, "span", "", "Reading the diff");
   const count = el(doc, "span", "gh-prism-loading-count");
-  const skeleton = Array.from({ length: 5 }, () => el(doc, "span", ""));
   const root = el(
     doc,
     "div",
     "gh-prism-loading",
     el(doc, "div", "gh-prism-loading-label", label, count),
     el(doc, "div", "gh-prism-spectrum"),
-    el(doc, "div", "gh-prism-skeleton", ...skeleton),
+    skeleton,
   );
   root.setAttribute("role", "progressbar");
   root.setAttribute("aria-label", "Reading the diff");
@@ -346,9 +369,20 @@ export function showSections(
     if (loading) return;
     const sections = groupBySection(readChangedFiles(page.sidebar), placements());
     dropAllBut(sections);
-    let previous = view.querySelector(".gh-prism-notice");
+    let previous = [...view.querySelectorAll(".gh-prism-notice")].at(-1) ?? null;
     for (const [order, section] of sections.entries())
       previous = showSection(section, order, previous);
+    diffOrder.arrange(
+      sections.map(({ entries }) => entries.map(({ file }) => file.link.hash.slice(1))),
+    );
+  };
+
+  /** Adds `text` under any notice already shown, above the sections. */
+  const notice = (text: string) => {
+    const shown = el(doc, "p", "gh-prism-notice", text);
+    const last = [...view.querySelectorAll(".gh-prism-notice")].at(-1);
+    if (last) last.after(shown);
+    else view.prepend(shown);
   };
 
   view.addEventListener(
@@ -366,21 +400,29 @@ export function showSections(
       const counter = findDiffstat(doc);
       if (counter) showDiffstat(counter, result, { choice: diffstat, signal });
     } else {
-      view.prepend(el(doc, "p", "gh-prism-notice", PATH_ONLY_COPY[result.problem]));
+      notice(PATH_ONLY_COPY[result.problem]);
     }
+    if (!diffOrder.reorderable()) notice(FIXED_ORDER_COPY);
   };
 
   // A DOM clone of the sidebar, such as a restored snapshot, can carry an earlier view.
   for (const stale of page.sidebar.querySelectorAll(".gh-prism-sections")) stale.remove();
   page.tree.before(view);
   doc.head.append(style);
+  const diffOrder = orderDiffs(page, signal);
   if (options) {
-    const pending = loadingView(doc);
-    const intent = options.intent(pending.progress);
+    const pending = loadingView(doc, listSkeleton(doc));
+    const diffsPending = loadingView(doc, diffSkeleton(doc));
+    diffsPending.root.classList.add("gh-prism-diff-loading");
+    const intent = options.intent((progress) => {
+      pending.progress(progress);
+      diffsPending.progress(progress);
+    });
     if (intent instanceof Promise) {
       loading = pending;
       view.setAttribute("aria-busy", "true");
       view.append(pending.root);
+      if (diffOrder.reorderable()) diffOrder.cover(diffsPending.root);
       void intent
         .catch((error: unknown): IntentResult => {
           console.error("gh-prism: reading intent failed", error);
@@ -394,6 +436,7 @@ export function showSections(
           view.toggleAttribute("data-reveal", true);
           land(result, options.diffstat);
           render();
+          diffOrder.reveal();
         });
     } else {
       land(intent, options.diffstat);

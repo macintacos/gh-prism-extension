@@ -1,9 +1,9 @@
 # gh-prism
 
 On a pull request's Files changed tab and on a commit's page, gh-prism replaces GitHub's
-file tree with a sidebar that groups changed files into sections. You can review
-implementation, tests, docs, and config separately. It is for anyone who reviews pull
-requests or commits on GitHub in Chrome.
+file tree with a sidebar that groups changed files into sections, and orders the diffs to
+match. You can review implementation, tests, docs, and config separately. It is for anyone
+who reviews pull requests or commits on GitHub in Chrome.
 
 ![The gh-prism sidebar with the sections Implementation, Tests, Documentation, Config, and Generated / lockfiles. src/render.rs is marked Partial under Implementation and Documentation.](docs/images/sidebar-grouped.png)
 
@@ -20,6 +20,13 @@ requests or commits on GitHub in Chrome.
   sections and marks each entry `Partial`. A hunk is one block of the diff: the changed
   lines plus a few unchanged lines around them. Clicking a `Partial` entry scrolls to the
   first of its hunks in that entry's section.
+- gh-prism lays out the diffs in the order the sidebar lists their files: section by
+  section, and in the sidebar's order within each section. A `Partial` file's diff sits
+  where the sidebar first lists the file. gh-prism changes only the order on screen: Tab,
+  screen readers, and Find in page (Ctrl+F or Cmd+F) still follow GitHub's order.
+- On a commit with more than 40 files, and on a pull request large enough that GitHub
+  loads its diffs as you scroll, the diffs keep GitHub's order. A notice above the
+  sections says so.
 - Clicking a file scrolls its diff smoothly into view. A long trip skips ahead to half a
   screen away first, so the scroll stays quick. On a commit's page, the scroll doesn't
   skip ahead, so a long trip takes longer. If your system is set to reduce motion, the
@@ -57,8 +64,11 @@ requests or commits on GitHub in Chrome.
 - The header keeps GitHub's own count while gh-prism reads the diff. It also keeps that
   count when you view one commit or a range of commits in a pull request's Files changed
   tab, and when gh-prism can't read the diff.
-- A progress bar replaces the sections while gh-prism reads the diff. The sections appear
-  once gh-prism has placed every file in its sections.
+- While gh-prism reads the diff, a progress bar replaces the sections, and a second
+  progress bar covers the diffs. The sections and the diffs appear once gh-prism has
+  placed every file in its sections. If reading takes longer than 15 seconds, the diffs
+  appear in GitHub's order, then move into the sidebar's order once gh-prism finishes
+  reading.
 - gh-prism remembers where it placed each file for the 50 diffs it read most recently.
   When you reopen a pull request or commit whose diff hasn't changed, its sections and
   diffs appear without gh-prism reading each file again. A new push, or a new base branch,

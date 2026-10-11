@@ -253,10 +253,18 @@ function followHash(link: HTMLAnchorElement, signal: AbortSignal): void {
   const win = link.ownerDocument.defaultView;
   const hash = link.getAttribute("href");
   if (!win || !hash || signal.aborted) return;
-  if (win.location.hash !== hash) {
-    replaceHash(win, hash);
-    return;
-  }
+  if (win.location.hash !== hash) replaceHash(win, hash);
+  else retakeHash(win, { signal });
+}
+
+/**
+ * Has GitHub take `win`'s URL hash as if it had just arrived, scrolling to what it names. GitHub
+ * ignores an unchanged hash, so the hash is first announced as left. Once `signal` aborts, it no
+ * longer announces the hash's return.
+ */
+export function retakeHash(win: Window, { signal }: { signal: AbortSignal }): void {
+  const hash = win.location.hash;
+  if (!hash || signal.aborted) return;
   replaceHash(win, "");
   const timer = win.setTimeout(() => replaceHash(win, hash));
   signal.addEventListener("abort", () => win.clearTimeout(timer), { once: true });

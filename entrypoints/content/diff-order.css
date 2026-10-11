@@ -1,0 +1,50 @@
+/* Keep the list selectors in sync with PR_LIST and COMMIT_LIST in diff-order.ts. */
+
+/* A commit's list; a pull request's is already a flex column. */
+#diff-content-parent > :has(> * > [role="region"]) {
+  display: flex;
+  flex-direction: column;
+}
+
+/* A file the sidebar doesn't list, such as one its filter hides, follows the ones it does. */
+[data-testid="progressive-diffs-list"] > :has([role="region"]),
+#diff-content-parent > :has(> * > [role="region"]) > :has([role="region"]) {
+  order: 999999;
+}
+
+/* What follows the files, such as GitHub's loader for more of them, stays after them. */
+[data-testid="progressive-diffs-list"] > :has([role="region"]) ~ :not(:has([role="region"])),
+#diff-content-parent
+  > :has(> * > [role="region"])
+  > :has([role="region"])
+  ~ :not(:has([role="region"])) {
+  order: 1000000;
+}
+
+/* A commit keeps its toolbar, the list's first child, in view. */
+html[data-gh-prism-diffs="covered"] [data-testid="progressive-diffs-list"],
+html[data-gh-prism-diffs="covered"]
+  #diff-content-parent
+  > :has(> * > [role="region"])
+  > :not(:first-child) {
+  display: none !important;
+}
+
+/* The files drop in a section at a time, as the sidebar's sections do. */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-gh-prism-diffs="revealed"] [data-testid="progressive-diffs-list"] > :has([role="region"]),
+  html[data-gh-prism-diffs="revealed"]
+    #diff-content-parent
+    > :has(> * > [role="region"])
+    > :has([role="region"]) {
+    animation: gh-prism-diff-reveal 280ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+    animation-delay: calc(var(--gh-prism-section-order, 0) * 50ms);
+  }
+}
+
+@keyframes gh-prism-diff-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
