@@ -8,6 +8,7 @@
 
 import type { FileTreeRowDecoration, GitStatus } from "@pierre/trees";
 import { classify, SECTIONS, type SectionKey } from "@/utils/sections";
+import { el, icon } from "./dom";
 import {
   type ChangedFile,
   type FilesPage,
@@ -23,6 +24,7 @@ import type {
   Placement,
   SectionShare,
 } from "./intent";
+import { sectionIcon } from "./section-icons";
 import { SectionTree, type TreeFile } from "./section-tree";
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
 import css from "./sections-view.css?raw";
@@ -147,50 +149,27 @@ const treeFilesOf = ({ entries }: FileSection, lines: ReadonlyMap<string, FileLi
     decoration: decorationOf(entry, lines.get(entry.file.path)),
   }));
 
-function el<K extends keyof HTMLElementTagNameMap>(
-  doc: Document,
-  tag: K,
-  className: string,
-  ...children: (Node | string)[]
-): HTMLElementTagNameMap[K] {
-  const node = doc.createElement(tag);
-  node.className = className;
-  node.append(...children);
-  return node;
-}
-
-const SVG_NS = "http://www.w3.org/2000/svg";
-
 /** Lucide chevron-down (ISC licence). */
-function chevron(doc: Document): SVGSVGElement {
-  const svg = doc.createElementNS(SVG_NS, "svg");
-  for (const [name, value] of Object.entries({
+const chevron = (doc: Document): SVGSVGElement =>
+  icon(doc, "m6 9 6 6 6-6", {
     class: "gh-prism-chevron",
     viewBox: "0 0 24 24",
-    width: "16",
-    height: "16",
     fill: "none",
     stroke: "currentColor",
     "stroke-width": "2",
     "stroke-linecap": "round",
     "stroke-linejoin": "round",
-    "aria-hidden": "true",
-  })) {
-    svg.setAttribute(name, value);
-  }
-  const path = doc.createElementNS(SVG_NS, "path");
-  path.setAttribute("d", "m6 9 6 6 6-6");
-  svg.append(path);
-  return svg;
-}
+  });
 
 /**
  * A section, `order` places from the top, whose header button shows and hides an empty host for
- * its tree. `expand` sets which it does.
+ * its tree. `expand` sets which it does. The button leads with the section's icon, which the
+ * stylesheet swaps for the chevron while it is hovered or focused.
  */
 function sectionShell(doc: Document, { key, label }: FileSection, order: number) {
   const counter = el(doc, "span", "gh-prism-counter");
-  const toggle = el(doc, "button", "gh-prism-section-toggle", chevron(doc), label, counter);
+  const glyph = el(doc, "span", "gh-prism-glyph", sectionIcon(doc, key), chevron(doc));
+  const toggle = el(doc, "button", "gh-prism-section-toggle", glyph, label, counter);
   toggle.type = "button";
   const header = el(doc, "h3", "gh-prism-section-header", toggle);
   header.id = `gh-prism-heading-${key}`;

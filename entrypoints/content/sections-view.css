@@ -89,10 +89,30 @@
   outline-offset: -2px;
 }
 
-.gh-prism-chevron {
+/* The section's icon at rest, swapped for the chevron while the header is hovered or focused. */
+.gh-prism-glyph {
+  display: grid;
   flex-shrink: 0;
   color: var(--gh-prism-hue);
-  transition: rotate 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gh-prism-glyph > svg {
+  grid-area: 1 / 1;
+}
+
+.gh-prism-section-toggle:not(:hover, :focus-visible) .gh-prism-chevron,
+.gh-prism-section-toggle:is(:hover, :focus-visible) .gh-prism-section-icon {
+  opacity: 0;
+}
+
+.gh-prism-section-icon {
+  transition: opacity 150ms ease-out;
+}
+
+.gh-prism-chevron {
+  transition:
+    rotate 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 150ms ease-out;
 }
 
 .gh-prism-section-toggle[aria-expanded="false"] .gh-prism-chevron {
@@ -266,6 +286,7 @@
   .gh-prism-spectrum::before,
   .gh-prism-skeleton > span,
   .gh-prism-sections[data-reveal] .gh-prism-section,
+  .gh-prism-section-icon,
   .gh-prism-chevron,
   .gh-prism-files {
     transition: none;

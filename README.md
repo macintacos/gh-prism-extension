@@ -23,8 +23,9 @@ config separately. It is for anyone who reviews pull requests on GitHub in Chrom
   how many, such as `+12 −3`. A `Partial` entry counts only its hunks in its own section,
   so it can show fewer lines than GitHub's total for the file. An image or other binary
   file shows `Binary` instead, because it has no lines to count.
-- Click a section's heading to collapse or expand its files. A collapsed section still
-  shows its file count.
+- Each section's heading starts with the section's icon. When you point at a heading, the
+  icon turns into an arrow. Click the heading to collapse or expand its files. A collapsed
+  section still shows its file count.
 - A progress bar replaces the sections while gh-prism reads the diff. The sections appear
   once gh-prism has placed every file in its sections.
 - When you view one commit or a range of commits instead of all commits in the Files
