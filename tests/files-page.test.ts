@@ -9,6 +9,7 @@ import {
   observeTree,
   readChangedFiles,
   readFilesRoute,
+  revealDiff,
   revealDiffLine,
   watchFilesPages,
 } from "../entrypoints/content/files-page";
@@ -481,6 +482,109 @@ describe("watchFilesPages", () => {
   });
 });
 
+/** Sets the media feature happy-dom reports for `prefers-reduced-motion`. */
+function preferReducedMotion(preference: "reduce" | "no-preference"): void {
+  const { happyDOM } = window as unknown as {
+    happyDOM: { settings: { device: { prefersReducedMotion: string } } };
+  };
+  happyDOM.settings.device.prefersReducedMotion = preference;
+}
+
+describe("revealDiff", () => {
+  let controller: AbortController;
+  let scrollTo: MockInstance<(options: ScrollToOptions) => void>;
+
+  const engineLink = () => {
+    const found = readChangedFiles(document).find((f) => f.path === "src/engine.rs");
+    if (!found) throw new Error("no changed file src/engine.rs");
+    return found.link;
+  };
+  /** Stands in for GitHub's handler: jumps the window to `top`, then focuses `focused`. */
+  const landOnClick = (top: number, focused = () => byId(ENGINE_DIFF)) =>
+    vi.spyOn(engineLink(), "click").mockImplementation(() => {
+      document.documentElement.scrollTop = top;
+      focused().focus();
+    });
+  const reveal = () => revealDiff(diffList(), engineLink(), { signal: controller.signal });
+
+  beforeEach(() => {
+    controller = new AbortController();
+    window.innerHeight = 800;
+    scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    controller.abort();
+    preferReducedMotion("no-preference");
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    { way: "down", from: 0, rewind: 4600 },
+    { way: "up", from: 9000, rewind: 5400 },
+  ])(
+    "jumps $way to half a viewport short of GitHub's landing, then glides in",
+    async ({ from, rewind }) => {
+      document.documentElement.scrollTop = from;
+      landOnClick(5000);
+      reveal();
+      await Promise.resolve();
+      expect(scrollTo.mock.calls).toEqual([
+        [{ top: rewind, behavior: "instant" }],
+        [{ top: 5000, behavior: "smooth" }],
+      ]);
+    },
+  );
+
+  it("glides the whole way to a landing within half a viewport", async () => {
+    document.documentElement.scrollTop = 4800;
+    landOnClick(5000);
+    reveal();
+    await Promise.resolve();
+    expect(scrollTo.mock.calls).toEqual([
+      [{ top: 4800, behavior: "instant" }],
+      [{ top: 5000, behavior: "smooth" }],
+    ]);
+  });
+
+  it("leaves GitHub's jump alone when the system asks for reduced motion", async () => {
+    preferReducedMotion("reduce");
+    landOnClick(5000);
+    reveal();
+    await Promise.resolve();
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(window.scrollY).toBe(5000);
+  });
+
+  it("ignores focus that lands on another file's diff", async () => {
+    const other = document.createElement("div");
+    diffList().append(other);
+    landOnClick(5000, () => other);
+    reveal();
+    await Promise.resolve();
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  it("glides once, not again when the diff is refocused later", async () => {
+    landOnClick(5000);
+    reveal();
+    await Promise.resolve();
+    byId(ENGINE_DIFF).blur();
+    byId(ENGINE_DIFF).focus();
+    await Promise.resolve();
+    expect(scrollTo).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not glide once aborted before GitHub lands", async () => {
+    vi.spyOn(engineLink(), "click").mockImplementation(() => {});
+    reveal();
+    controller.abort();
+    document.documentElement.scrollTop = 5000;
+    byId(ENGINE_DIFF).focus();
+    await Promise.resolve();
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+});
+
 describe("revealDiffLine", () => {
   // guide.md's tree link: the fixture lists the file but mounts no diff for it.
   const GUIDE_DIFF = "diff-0a02";
@@ -490,6 +594,7 @@ describe("revealDiffLine", () => {
 
   let controller: AbortController;
   let scrollIntoView: MockInstance<Element["scrollIntoView"]>;
+  let scrollTo: MockInstance<(options: ScrollToOptions) => void>;
 
   const guideLink = () => {
     const found = readChangedFiles(document).find((f) => f.path === "docs/guide.md");
@@ -526,6 +631,9 @@ describe("revealDiffLine", () => {
     vi.useFakeTimers();
     controller = new AbortController();
     scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => {});
+    scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    document.documentElement.scrollTop = 0;
+    window.innerHeight = 800;
   });
   afterEach(async () => {
     // A late mutation schedules a timer only if an observer outlived the case.
@@ -543,8 +651,20 @@ describe("revealDiffLine", () => {
     const click = vi.spyOn(guideLink(), "click").mockImplementation(() => {});
     await reveal(3);
     expect(click).not.toHaveBeenCalled();
-    expect(scrollIntoView).toHaveBeenCalledWith({ block: "center" });
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "instant" });
     expectScrolledTo(region.querySelectorAll("tr")[1]);
+  });
+
+  it("glides the last half viewport to the line's row", async () => {
+    mountGuideDiff(FILE_HEADER + diffRows(2, 3));
+    scrollIntoView.mockImplementation(() => {
+      document.documentElement.scrollTop = 3000;
+    });
+    await reveal(3);
+    expect(scrollTo.mock.calls).toEqual([
+      [{ top: 2600, behavior: "instant" }],
+      [{ top: 3000, behavior: "smooth" }],
+    ]);
   });
 
   it("scrolls the hunk-header row when it and the first line both carry the line's anchor", async () => {

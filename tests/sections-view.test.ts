@@ -778,7 +778,7 @@ describe("showSections", () => {
       mountRenderDiff(2, 22);
       clickAt(rowIn("docs", "src/render.rs"));
       await afterDebounce();
-      expect(scrollIntoView).toHaveBeenCalledWith({ block: "center" });
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "instant" });
       expect(scrollIntoView.mock.contexts[0]).toBe(lineRow(22));
     });
 

@@ -17,8 +17,11 @@ config separately. It is for anyone who reviews pull requests on GitHub in Chrom
   Python `def test_` function, and a TypeScript `describe` or `it` call.
 - gh-prism lists a file whose hunks belong in different sections under each of those
   sections and marks each entry `Partial`. A hunk is one block of the diff: the changed
-  lines plus a few unchanged lines around them. Clicking a `Partial` entry jumps to the
+  lines plus a few unchanged lines around them. Clicking a `Partial` entry scrolls to the
   first of its hunks in that entry's section.
+- Clicking a file scrolls its diff smoothly into view. A long trip skips ahead to half a
+  screen away first, so the scroll stays quick. If your system is set to reduce motion,
+  the click jumps straight to the diff instead.
 - When gh-prism can read the diff, each row for a file that adds or removes lines shows
   how many, such as `+12 −3`. A `Partial` entry counts only its hunks in its own section,
   so it can show fewer lines than GitHub's total for the file. An image or other binary

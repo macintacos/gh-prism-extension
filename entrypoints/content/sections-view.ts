@@ -16,6 +16,7 @@ import {
   findDiffstat,
   observeTree,
   readChangedFiles,
+  revealDiff,
   revealDiffLine,
 } from "./files-page";
 import type {
@@ -301,12 +302,9 @@ export function showSections(
         ? placement.shares.find((candidate) => candidate.section === section)
         : undefined;
     const line = share?.hunks.find((span) => span !== undefined)?.first;
-    if (line === undefined) {
-      native.click();
-      return;
-    }
     jump = new AbortController();
-    void revealDiffLine(page.diffs, native, line, { signal: jump.signal });
+    if (line === undefined) revealDiff(page.diffs, native, { signal: jump.signal });
+    else void revealDiffLine(page.diffs, native, line, { signal: jump.signal });
   };
 
   const dropAllBut = (sections: readonly FileSection[]) => {

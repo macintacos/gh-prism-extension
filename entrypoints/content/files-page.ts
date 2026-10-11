@@ -14,6 +14,8 @@ const SETTLE_MS = 10_000;
 const REVEAL_TIMEOUT_MS = 5_000;
 const HIDDEN_PATCH = '[class*="HiddenDiffPatch-module"]';
 const LOAD_DIFF_LABEL = "Load Diff";
+// A longer trip jumps to this share of the viewport short of its end, then glides the rest.
+const GLIDE_VIEWPORTS = 0.5;
 
 /** The pull request a Files changed URL names, and whether a commit or range narrows it. */
 export interface FilesRoute {
@@ -175,7 +177,42 @@ export function findDiff(diffs: Element, link: HTMLAnchorElement): Element | nul
 }
 
 /**
- * Scrolls the file's diff to `line`, centred. Mounts, expands or loads the diff first when GitHub
+ * Clicks `link`, the native tree row's link, and glides the window to where GitHub scrolls the
+ * file's diff instead of letting it jump there. Once `signal` aborts, it no longer glides.
+ */
+export function revealDiff(
+  diffs: Element,
+  link: HTMLAnchorElement,
+  { signal }: { signal: AbortSignal },
+): void {
+  const win = diffs.ownerDocument.defaultView;
+  const from = win?.scrollY ?? 0;
+  const landed = new AbortController();
+  // GitHub focuses the diff right after scrolling to it.
+  diffs.addEventListener(
+    "focusin",
+    (event) => {
+      if (!win || event.target !== findDiff(diffs, link)) return;
+      landed.abort();
+      // Once focus() returns, as it may scroll too, and before the jump is painted.
+      queueMicrotask(() => glideFrom(win, from));
+    },
+    { signal: AbortSignal.any([signal, landed.signal]) },
+  );
+  link.click();
+}
+
+/** Turns the window's jump from `from` to where it is now into a glide over the last stretch. */
+function glideFrom(win: Window, from: number): void {
+  if (win.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const to = win.scrollY;
+  const reach = win.innerHeight * GLIDE_VIEWPORTS;
+  win.scrollTo({ top: Math.min(Math.max(from, to - reach), to + reach), behavior: "instant" });
+  win.scrollTo({ top: to, behavior: "smooth" });
+}
+
+/**
+ * Glides the file's diff to `line`, centred. Mounts, expands or loads the diff first when GitHub
  * has not rendered that far, and falls back to the file's header when no row carries the line.
  * `link` is the native tree row's link, whose click mounts the diff; `line` is a 1-based
  * head-file line. Never rejects; once `signal` aborts, it neither clicks nor scrolls again.
@@ -191,7 +228,7 @@ export async function revealDiffLine(
   const diff = () => findDiff(diffs, link);
   const row = () => lineRow(diff(), line);
   if (!diff()) {
-    link.click(); // GitHub mounts a virtualized diff and scrolls to its header
+    revealDiff(diffs, link, { signal }); // GitHub mounts a virtualized diff and scrolls to its header
     if (!(await untilFound(diffs, diff, signal))) return;
   }
   if (!row() && expandDiff(diff())) await untilFound(diffs, () => uncollapsed(diff()), signal);
@@ -199,8 +236,15 @@ export async function revealDiffLine(
   let target = row();
   if (!target && loadDiff(diff())) target = await untilFound(diffs, row, signal);
   if (signal.aborted) return;
-  if (target) target.scrollIntoView({ block: "center" });
-  else link.click(); // the file's header
+  if (target) centre(target);
+  else revealDiff(diffs, link, { signal }); // the file's header
+}
+
+function centre(row: Element): void {
+  const win = row.ownerDocument.defaultView;
+  const from = win?.scrollY ?? 0;
+  row.scrollIntoView({ block: "center", behavior: "instant" });
+  if (win) glideFrom(win, from);
 }
 
 /** The hunk header's row when it carries `line`'s anchor, else the line's own row. */
