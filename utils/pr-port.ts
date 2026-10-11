@@ -1,4 +1,13 @@
-import { isPrHeadSha, type PrHead, type PrRef, readPrPageHeadSha } from "./pr-ref";
+import {
+  type CommitHead,
+  type DiffHead,
+  type DiffRef,
+  isCommitSha,
+  isPrHeadSha,
+  type PrHead,
+  type PrRef,
+  readPrPageHeadSha,
+} from "./pr-ref";
 import type {
   PrDataSource,
   PrFailure,
@@ -11,8 +20,8 @@ export const PR_DATA_PORT = "gh-prism:pr-data";
 
 export type PrDataRequest =
   | { kind: "head"; pr: PrRef }
-  | { kind: "files"; pr: PrHead }
-  | { kind: "content"; pr: PrHead; path: string };
+  | { kind: "files"; pr: DiffHead }
+  | { kind: "content"; pr: DiffHead; path: string };
 
 type PrDataResultsByKind = {
   head: PrHeadResult;
@@ -30,7 +39,7 @@ export interface PrDataPort {
 }
 
 /**
- * One PR view's access to its diff and file contents.
+ * One PR or commit view's access to its diff and file contents.
  *
  * @remarks
  * Open one client per view and `close()` it when the view goes away: that cancels in-flight
@@ -76,6 +85,17 @@ function asPrHead(value: unknown): PrHead | undefined {
   return { ...pr, headSha: value.headSha };
 }
 
+function asCommitHead(value: unknown): CommitHead | undefined {
+  if (!isObject(value)) return undefined;
+  const { owner, repo, headSha } = value;
+  if (!isOwnerOrRepo(owner) || !isOwnerOrRepo(repo) || !isCommitSha(headSha)) return undefined;
+  return { owner, repo, headSha };
+}
+
+function asDiffHead(value: unknown): DiffHead | undefined {
+  return isObject(value) && "number" in value ? asPrHead(value) : asCommitHead(value);
+}
+
 // `.` and `..` segments would normalize the URL out of /raw/<sha>/ onto other github.com
 // paths, sent with the user's cookies.
 function isSafePath(path: unknown): path is string {
@@ -91,7 +111,7 @@ function asRequest(value: unknown): PrDataRequest | undefined {
     const pr = asPrRef(value.pr);
     return pr && { kind: "head", pr };
   }
-  const pr = asPrHead(value.pr);
+  const pr = asDiffHead(value.pr);
   if (!pr) return undefined;
   if (value.kind === "files") return { kind: "files", pr };
   if (value.kind === "content" && isSafePath(value.path))
@@ -165,12 +185,12 @@ function memoUntilFailure<T extends { ok: boolean }>(
 }
 
 /**
- * A {@link PrDataClient} over ports from `connect`; `pageHeadSha` skips the head lookup when the
- * page already names it.
+ * A {@link PrDataClient} over ports from `connect`; `pageHeadSha` skips a PR's head lookup when the
+ * page already names it. A commit is its own head.
  */
 export function openPrData(
   connect: () => PrDataPort,
-  pr: PrRef,
+  pr: DiffRef,
   pageHeadSha: string | undefined,
 ): PrDataClient {
   let port: PrDataPort | undefined;
@@ -214,12 +234,15 @@ export function openPrData(
   }
 
   const resolveHead = memoUntilFailure(
-    () => send({ kind: "head", pr }),
+    (): Promise<PrHeadResult> =>
+      "number" in pr
+        ? send({ kind: "head", pr })
+        : Promise.resolve({ ok: true, headSha: pr.headSha }),
     pageHeadSha ? Promise.resolve({ ok: true, headSha: pageHeadSha }) : undefined,
   );
 
   async function atHead<R extends PrFilesResult | PrFileContentResult>(
-    request: (head: PrHead) => Promise<R>,
+    request: (head: DiffHead) => Promise<R>,
   ): Promise<R | PrFailure> {
     const resolved = await resolveHead();
     return resolved.ok ? request({ ...pr, headSha: resolved.headSha }) : resolved;
@@ -240,10 +263,10 @@ export function openPrData(
 }
 
 /** The content side's {@link PrDataClient} for `pr`; see its remarks for the client's lifetime. */
-export function connectPrData(pr: PrRef): PrDataClient {
+export function connectPrData(pr: DiffRef): PrDataClient {
   return openPrData(
     () => browser.runtime.connect({ name: PR_DATA_PORT }),
     pr,
-    readPrPageHeadSha(document, pr),
+    "number" in pr ? readPrPageHeadSha(document, pr) : undefined,
   );
 }

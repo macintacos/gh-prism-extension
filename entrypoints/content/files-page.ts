@@ -1,70 +1,99 @@
 /**
- * Locates a pull request's Files changed markup, follows it across navigation, and reveals a
- * diff line in it. Selectors come from EXC-1662's survey of GitHub's PR UI; this module holds
- * no UI of its own and imports nothing from WXT, so other features can reuse it.
+ * Locates the Files changed markup of a pull request or a single commit, follows it across
+ * navigation, and reveals a diff line in it. GitHub renders the same tree and diff list on both
+ * pages under different ids, so everything built on `FilesPage` serves both. Selectors come from
+ * EXC-1662's survey of GitHub's PR UI; this module holds no UI of its own and imports nothing
+ * from WXT, so other features can reuse it.
  */
 
-import type { PrRef } from "@/utils/pr-ref";
+import type { DiffRef } from "@/utils/pr-ref";
 
+const PR_SIDEBAR = "#pr-file-tree";
+const COMMIT_SIDEBAR = "#diff_file_tree";
 const FILES_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)\/(?:changes|files)(?:\/([^/]*).*)?$/;
+const COMMIT_PATH = /^\/([^/]+)\/([^/]+)\/commit\/([0-9a-f]{7,40})\/?$/;
 const DEBOUNCE_MS = 50;
 // Long enough for popstate's ~200 ms early fire and a slow cold render.
 const SETTLE_MS = 10_000;
 // ponytail: one fixed 5 s wait per step; make it adaptive if slow networks miss it.
 const REVEAL_TIMEOUT_MS = 5_000;
 const HIDDEN_PATCH = '[class*="HiddenDiffPatch-module"]';
-const LOAD_DIFF_LABEL = "Load Diff";
+// A pull request's placeholder says "Load Diff"; a commit's says "Load diff".
+const LOAD_DIFF_LABEL = "load diff";
 // A longer trip jumps to this share of the viewport short of its end, then glides the rest.
 const GLIDE_VIEWPORTS = 0.5;
 
-/** The pull request a Files changed URL names, and whether a commit or range narrows it. */
+/** The diff a Files changed URL names, and whether a commit or range narrows a pull request's. */
 export interface FilesRoute {
-  readonly pr: PrRef;
-  /** The URL names one commit or a range: `/changes/<sha>` or `/changes/<base>..<head>`. */
+  readonly diff: DiffRef;
+  /**
+   * A pull request's URL narrows it to one commit or a range: `/changes/<sha>` or
+   * `/changes/<base>..<head>`.
+   */
   readonly commitFiltered: boolean;
 }
 
 /**
- * The pull request and commit filter a Files changed `pathname` names, or `undefined` off
- * that tab.
+ * The pull request and commit filter a Files changed `pathname` names, or the single commit a
+ * commit page names; `undefined` anywhere else.
  */
 export function readFilesRoute(pathname: string): FilesRoute | undefined {
   const [, owner, repo, prNumber, filter] = FILES_PATH.exec(pathname) ?? [];
-  if (owner === undefined || repo === undefined || prNumber === undefined) return undefined;
-  return { pr: { owner, repo, number: Number(prNumber) }, commitFiltered: Boolean(filter) };
+  if (owner !== undefined && repo !== undefined && prNumber !== undefined)
+    return { diff: { owner, repo, number: Number(prNumber) }, commitFiltered: Boolean(filter) };
+  const [, commitOwner, commitRepo, headSha] = COMMIT_PATH.exec(pathname) ?? [];
+  if (commitOwner === undefined || commitRepo === undefined || headSha === undefined)
+    return undefined;
+  return { diff: { owner: commitOwner, repo: commitRepo, headSha }, commitFiltered: false };
 }
 
-/** Whether `pathname` is a pull request's Files changed tab, any commit or range included. */
+/**
+ * Whether `pathname` is a pull request's Files changed tab, any commit or range included, or a
+ * commit page.
+ */
 export function isFilesPath(pathname: string): boolean {
   return readFilesRoute(pathname) !== undefined;
 }
 
-/** A pull request's Files changed markup, as `findFilesPage` finds it. */
+/** A pull request's or commit's Files changed markup, as `findFilesPage` finds it. */
 export interface FilesPage {
-  /** `#pr-file-tree`: the filter box, the native tree, and anything inserted beside it. */
+  /**
+   * `#pr-file-tree` or a commit's `#diff_file_tree`: the filter box, the native tree, and anything
+   * inserted beside it.
+   */
   readonly sidebar: Element;
   /**
    * The native `ul[role=tree]`, captured with the page: an insertion anchor only. Read rows
-   * through `readChangedFiles(sidebar)`, which sees the live tree.
+   * through `readChangedFiles(sidebar)`, which sees the live tree. GitHub replacing it makes a
+   * new page: React can re-render the sidebar's contents in place, dropping what sits beside it.
    */
   readonly tree: Element;
-  /** `[data-testid="diff-content"]`: parent of the progressive or virtualized diff list. */
+  /**
+   * `[data-testid="diff-content"]`, or a commit's `#diff-content-parent`: parent of the
+   * progressive or virtualized diff list.
+   */
   readonly diffs: Element;
 }
 
 /** The Files changed markup in `root`, or `undefined` when any part is missing (e.g. classic). */
 export function findFilesPage(root: ParentNode): FilesPage | undefined {
-  const sidebar = root.querySelector("#pr-file-tree");
+  const sidebar = root.querySelector(PR_SIDEBAR) ?? root.querySelector(COMMIT_SIDEBAR);
   const tree = sidebar?.querySelector('ul[role="tree"]');
-  const diffs = root.querySelector('[data-testid="diff-content"]');
+  const diffs =
+    root.querySelector('[data-testid="diff-content"]') ??
+    root.querySelector("#diff-content-parent");
   return sidebar && tree && diffs ? { sidebar, tree, diffs } : undefined;
 }
 
-/** The lines-changed counter in the pull request's header, or `undefined` when it's missing. */
+/**
+ * The lines-changed counter in the pull request's or commit's header, or `undefined` when it's
+ * missing.
+ */
 export function findDiffstat(root: ParentNode): Element | undefined {
   return (
-    root.querySelector('[class*="PullRequestHeader-module__rightContentWrapper"] > .d-flex') ??
-    undefined
+    root.querySelector(
+      ':is([class*="PullRequestHeader-module__rightContentWrapper"], [class*="CommitHeader-module__commitFilesChangedContainer"]) > .d-flex',
+    ) ?? undefined
   );
 }
 
@@ -73,7 +102,11 @@ export function findDiffstat(root: ParentNode): Element | undefined {
  * tree, or `undefined` when it's missing.
  */
 export function findTreeToggle(root: ParentNode): Element | undefined {
-  return root.querySelector('[class*="RegularTreeToggle"]')?.parentElement ?? undefined;
+  const toggle =
+    root.querySelector('[class*="RegularTreeToggle"]') ??
+    // A commit's sidebar carries a copy of the toolbar for the narrow layout.
+    root.querySelector('#diff-content-parent [aria-controls="diff_file_tree"]');
+  return toggle?.parentElement ?? undefined;
 }
 
 /**
@@ -83,7 +116,7 @@ export function findTreeToggle(root: ParentNode): Element | undefined {
 export interface ChangedFile {
   /** The full repository path. */
   readonly path: string;
-  /** The native row's link; `.click()` scrolls to the file's diff. */
+  /** The native row's link; `revealDiff` scrolls to the file's diff through it. */
   readonly link: HTMLAnchorElement;
   /** The row is `aria-current`: its diff is the one in view. */
   readonly active: boolean;
@@ -178,17 +211,28 @@ export function observeDiffs(
  * unmounted.
  */
 export function findDiff(diffs: Element, link: HTMLAnchorElement): Element | null {
-  const id = link.getAttribute("href")?.slice(1);
+  const id = anchorOf(link);
   if (!id) return null;
-  const diff = diffs.ownerDocument.getElementById(id);
+  // A commit's diff has no id; its header links to the file's anchor instead.
+  const diff =
+    diffs.ownerDocument.getElementById(id) ??
+    diffs.querySelector(`[role="region"] a[href="#${id}"]`)?.closest('[role="region"]');
   return diff && diffs.contains(diff) ? diff : null;
 }
 
+/** The `diff-…` anchor `link` points at: it names the file's diff and prefixes its line anchors. */
+const anchorOf = (link: HTMLAnchorElement) => link.getAttribute("href")?.slice(1);
+
 /**
  * Clicks `link`, the native tree row's link, and glides the window to where GitHub scrolls the
- * file's diff instead of letting it jump there. Once `signal` aborts, it no longer glides.
+ * file's diff instead of letting it jump there; on a commit page, follows the link's hash instead.
+ * Once `signal` aborts, it no longer glides.
  */
 export function revealDiff(link: HTMLAnchorElement, { signal }: { signal: AbortSignal }): void {
+  if (link.closest(COMMIT_SIDEBAR)) {
+    followHash(link, signal);
+    return;
+  }
   const win = link.ownerDocument.defaultView;
   const from = win?.scrollY ?? 0;
   link.click();
@@ -197,6 +241,33 @@ export function revealDiff(link: HTMLAnchorElement, { signal }: { signal: AbortS
   // it, before the jump is painted.
   const frame = win.requestAnimationFrame(() => glideFrom(win, from));
   signal.addEventListener("abort", () => win.cancelAnimationFrame(frame), { once: true });
+}
+
+/**
+ * Moves a commit page to `link`'s file the way GitHub's own code does: it replaces the URL's hash
+ * and announces it, and GitHub glides to the file and marks it current. A click would also
+ * navigate GitHub's router, whose scroll restoration can undo that scroll, since a commit's diffs
+ * have no ids. GitHub ignores an unchanged hash, so a current file is first announced as left.
+ */
+function followHash(link: HTMLAnchorElement, signal: AbortSignal): void {
+  const win = link.ownerDocument.defaultView;
+  const hash = link.getAttribute("href");
+  if (!win || !hash || signal.aborted) return;
+  if (win.location.hash !== hash) {
+    replaceHash(win, hash);
+    return;
+  }
+  replaceHash(win, "");
+  const timer = win.setTimeout(() => replaceHash(win, hash));
+  signal.addEventListener("abort", () => win.clearTimeout(timer), { once: true });
+}
+
+function replaceHash(win: Window, hash: string): void {
+  const oldURL = win.location.href;
+  const url = new URL(oldURL);
+  url.hash = hash;
+  win.history.replaceState(win.history.state, "", url);
+  win.dispatchEvent(new HashChangeEvent("hashchange", { oldURL, newURL: url.href }));
 }
 
 /** Turns the window's jump from `from` to where it is now into a glide over the last stretch. */
@@ -211,8 +282,9 @@ function glideFrom(win: Window, from: number): void {
 /**
  * Glides the file's diff to `line`, centred. Mounts, expands or loads the diff first when GitHub
  * has not rendered that far, and falls back to the file's header when no row carries the line.
- * `link` is the native tree row's link, whose click mounts the diff; `line` is a 1-based
- * head-file line. Never rejects; once `signal` aborts, it neither clicks nor scrolls again.
+ * `link` is the native tree row's link, through which `revealDiff` mounts the diff; `line` is a
+ * 1-based head-file line. Never rejects; once `signal` aborts, it neither clicks nor scrolls
+ * again.
  */
 export async function revealDiffLine(
   diffs: Element,
@@ -223,7 +295,7 @@ export async function revealDiffLine(
   if (signal.aborted) return;
   // Re-found each time: GitHub may replace a region when it expands or loads it.
   const diff = () => findDiff(diffs, link);
-  const row = () => lineRow(diff(), line);
+  const row = () => lineRow(diff(), anchorOf(link), line);
   if (!diff()) {
     revealDiff(link, { signal }); // GitHub mounts a virtualized diff and scrolls to its header
     if (!(await untilFound(diffs, diff, signal))) return;
@@ -245,9 +317,13 @@ function centre(row: Element): void {
 }
 
 /** The hunk header's row when it carries `line`'s anchor, else the line's own row. */
-function lineRow(diff: Element | null, line: number): HTMLTableRowElement | null {
-  if (!diff) return null;
-  return diff.querySelector(`[data-line-anchor="${diff.id}R${line}"]`)?.closest("tr") ?? null;
+function lineRow(
+  diff: Element | null,
+  anchor: string | undefined,
+  line: number,
+): HTMLTableRowElement | null {
+  if (!diff || !anchor) return null;
+  return diff.querySelector(`[data-line-anchor="${anchor}R${line}"]`)?.closest("tr") ?? null;
 }
 
 /**
@@ -270,7 +346,7 @@ function uncollapsed(diff: Element | null): Element | null {
 /** Clicks the Load Diff button of an unloaded diff's placeholder; returns whether it clicked. */
 function loadDiff(diff: Element | null): boolean {
   const buttons = diff?.querySelector(HIDDEN_PATCH)?.querySelectorAll("button") ?? [];
-  const button = [...buttons].find((b) => b.textContent?.trim() === LOAD_DIFF_LABEL);
+  const button = [...buttons].find((b) => b.textContent?.trim().toLowerCase() === LOAD_DIFF_LABEL);
   if (!button) return false;
   button.click();
   return true;
@@ -324,7 +400,8 @@ export interface FilesPageHandlers {
   onMissing(): void;
 }
 
-const isShowing = ({ sidebar, diffs }: FilesPage) => sidebar.isConnected && diffs.isConnected;
+const isShowing = ({ sidebar, tree, diffs }: FilesPage) =>
+  sidebar.isConnected && tree.isConnected && diffs.isConnected;
 
 /**
  * Calls `onVisit` for each visit to a Files changed tab in `win`, on first load and on GitHub's

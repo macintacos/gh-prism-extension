@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import type { PrHead, PrRef } from "../utils/pr-ref";
+import type { CommitHead, PrHead, PrRef } from "../utils/pr-ref";
 import { createPrDataSource } from "../utils/pr-source";
 
 const shaA = "a".repeat(40);
 const shaB = "b".repeat(40);
 const sandbox: PrHead = { owner: "macintacos", repo: "gh-prism-sandbox", number: 1, headSha: shaA };
 const pr7: PrRef = { owner: "o", repo: "r", number: 7 };
+const commit: CommitHead = { owner: "o", repo: "r", headSha: "dd95cdc" };
 
 const diff = `diff --git a/src/a.rs b/src/a.rs
 index 1111111..2222222 100644
@@ -44,6 +45,38 @@ describe("files", () => {
         { kind: "text", path: "src/a.rs", status: "modified", patch: "@@ -1 +1 @@\n-old\n+new" },
       ],
     });
+  });
+
+  it("fetches a commit's .diff", async () => {
+    const fetchFn = okFetch();
+    const s = signal();
+    const result = await createPrDataSource(fetchFn).files(commit, s);
+    expect(fetchFn).toHaveBeenCalledWith("https://github.com/o/r/commit/dd95cdc.diff", {
+      credentials: "include",
+      signal: s,
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it("caches a commit apart from a pull request at the same head", async () => {
+    const fetchFn = okFetch();
+    const source = createPrDataSource(fetchFn);
+    const atA: CommitHead = { owner: "o", repo: "r", headSha: shaA };
+    await source.files(atA, signal());
+    await source.files({ ...pr7, headSha: shaA }, signal());
+    await source.files(atA, signal());
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps one commit per repository, so another commit replaces it", async () => {
+    const fetchFn = okFetch();
+    const source = createPrDataSource(fetchFn);
+    const atA: CommitHead = { owner: "o", repo: "r", headSha: shaA };
+    await source.files(atA, signal());
+    await source.files(atA, signal());
+    await source.files({ ...atA, headSha: shaB }, signal());
+    await source.files(atA, signal());
+    expect(fetchFn).toHaveBeenCalledTimes(3);
   });
 
   it("serves a repeat request for the same head from cache", async () => {
@@ -158,6 +191,15 @@ describe("content", () => {
       signal: s,
     });
     expect(result).toEqual({ ok: true, text: "fn main() {}" });
+  });
+
+  it("fetches a commit's raw file at its SHA", async () => {
+    const fetchFn = okFetch("x");
+    await createPrDataSource(fetchFn).content(commit, "src/a.rs", signal());
+    expect(fetchFn).toHaveBeenCalledWith("https://github.com/o/r/raw/dd95cdc/src/a.rs", {
+      credentials: "include",
+      signal: expect.any(AbortSignal),
+    });
   });
 
   it("caches per path within a head and drops the cache when the head changes", async () => {

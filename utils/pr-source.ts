@@ -1,6 +1,7 @@
 import { type PrFileDiff, parsePrDiff } from "./pr-diff";
 import {
-  type PrHead,
+  type DiffHead,
+  type DiffRef,
   type PrRef,
   prEmbeddedDataFromHtml,
   prHeadShaFromEmbeddedData,
@@ -28,8 +29,8 @@ export type PrFileContentResult = { ok: true; text: string } | PrFailure;
  */
 export interface PrDataSource {
   head(pr: PrRef, signal: AbortSignal): Promise<PrHeadResult>;
-  files(pr: PrHead, signal: AbortSignal): Promise<PrFilesResult>;
-  content(pr: PrHead, path: string, signal: AbortSignal): Promise<PrFileContentResult>;
+  files(pr: DiffHead, signal: AbortSignal): Promise<PrFilesResult>;
+  content(pr: DiffHead, path: string, signal: AbortSignal): Promise<PrFileContentResult>;
 }
 
 interface PrCacheEntry {
@@ -52,16 +53,17 @@ function problemFor(response: Response): PrDataProblem {
 
 /**
  * A {@link PrDataSource} over `fetchFn` that caches successful `files` and `content` results in
- * memory, one head per PR: a request naming another head replaces that PR's entry, and problems
- * are never cached. Create one per service worker.
+ * memory, one head per PR and one commit per repository: a request naming another head replaces
+ * that entry, and problems are never cached. Create one per service worker.
  */
 export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
-  // ponytail: unbounded across PRs, bounded by the worker's idle shutdown — add LRU if memory
-  // shows up. Two clients on different heads of one PR evict each other's entry every request.
+  // ponytail: unbounded across PRs and repositories, bounded by the worker's idle shutdown — add
+  // LRU if memory shows up. Two clients on different heads of one PR, or on different commits of
+  // one repository, evict each other's entry every request.
   const cache = new Map<string, PrCacheEntry>();
 
-  function entryFor(pr: PrHead): PrCacheEntry {
-    const key = `${pr.owner}/${pr.repo}#${pr.number}`.toLowerCase();
+  function entryFor(pr: DiffHead): PrCacheEntry {
+    const key = ("number" in pr ? diffUrl(pr) : `${repoUrl(pr)}/commit`).toLowerCase();
     let entry = cache.get(key);
     if (entry?.headSha !== pr.headSha) {
       entry = { headSha: pr.headSha, contents: new Map() };
@@ -82,7 +84,9 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
     }
   }
 
-  const repoUrl = (pr: PrRef) => `https://github.com/${pr.owner}/${pr.repo}`;
+  const repoUrl = (pr: DiffRef) => `https://github.com/${pr.owner}/${pr.repo}`;
+  const diffUrl = (pr: DiffRef) =>
+    `${repoUrl(pr)}/${"number" in pr ? `pull/${pr.number}` : `commit/${pr.headSha}`}`;
 
   return {
     async head(pr, signal) {
@@ -96,7 +100,7 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
       const entry = entryFor(pr);
       const cached = entry.files;
       if (cached) return { ok: true, files: cached };
-      const diff = await fetchText(`${repoUrl(pr)}/pull/${pr.number}.diff`, signal);
+      const diff = await fetchText(`${diffUrl(pr)}.diff`, signal);
       if (!diff.ok) return diff;
       const files = parsePrDiff(diff.text);
       // A non-empty 200 that parses to no files is an interstitial page, not an empty PR.

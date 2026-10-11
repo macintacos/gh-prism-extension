@@ -111,3 +111,33 @@ it("replays a tree toggle click inside a glide, so GitHub collapses the tree mid
   await start.mock.results[0]?.value.finished;
   expect(gliding()).toBeUndefined();
 });
+
+// Trimmed from a commit page's diff toolbar; the first toggle is the narrow layout's.
+const COMMIT_TOOLBAR = `
+<div id="diff-content-parent">
+  <div class="position-sticky">
+    <div id="commit-tree-toggle">
+      <button aria-controls="diff_file_tree" class="d-md-none"></button>
+      <button aria-controls="diff_file_tree" class="d-none d-md-flex"></button>
+    </div>
+    <div class="width-full"></div>
+  </div>
+</div>`;
+
+it("docks a commit page's sidebar, with the switch just after its tree toggle", () => {
+  document.body.innerHTML = COMMIT_TOOLBAR;
+  dock("right");
+  expect(docked()).toBe("right");
+  expect(switcher()?.previousElementSibling?.id).toBe("commit-tree-toggle");
+});
+
+it("replays a commit page's tree toggle click inside a glide, but not its narrow toggle's", async () => {
+  document.body.innerHTML = COMMIT_TOOLBAR;
+  const start = stubViewTransitions();
+  dock("right");
+  const [narrow, regular] = document.querySelectorAll("button[aria-controls]");
+  regular?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  narrow?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  expect(start).toHaveBeenCalledOnce();
+  await start.mock.results[0]?.value.finished;
+});

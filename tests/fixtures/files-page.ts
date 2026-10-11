@@ -1,4 +1,5 @@
 // The `?raw` import is required: `readFileSync` throws under happy-dom.
+import commitFixture from "./commit-page.html?raw";
 import fixture from "./files-page.html?raw";
 
 /** Replaces `document.body` with the Files changed markup. */
@@ -11,4 +12,9 @@ export function byId(id: string): HTMLElement {
   const el = document.getElementById(id);
   if (!el) throw new Error(`fixture has no #${id}`);
   return el;
+}
+
+/** Replaces `document.body` with a single commit's markup. */
+export function loadCommitFixture(): void {
+  document.body.innerHTML = commitFixture;
 }

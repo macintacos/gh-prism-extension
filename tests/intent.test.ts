@@ -8,13 +8,13 @@ import {
   readIntent,
 } from "../entrypoints/content/intent";
 import type { PrFileDiff } from "../utils/pr-diff";
-import type { PrRef } from "../utils/pr-ref";
+import type { DiffRef, PrRef } from "../utils/pr-ref";
 import type { PrFileContentResult, PrFilesResult } from "../utils/pr-source";
 
 const lines = (...text: string[]) => text.join("\n");
 
 const pr: PrRef = { owner: "macintacos", repo: "gh-prism-sandbox", number: 1 };
-const route: FilesRoute = { pr, commitFiltered: false };
+const route: FilesRoute = { diff: pr, commitFiltered: false };
 
 const whole = (section: IntentSection): Placement => ({ kind: "whole", section });
 
@@ -871,10 +871,10 @@ describe("readIntent", () => {
 
 describe("intentFor", () => {
   it("resolves a commit-filtered route without connecting", async () => {
-    const connect = vi.fn((_pr: PrRef) => fakeClient({ ok: true, files: [] }, unreadable));
+    const connect = vi.fn((_diff: DiffRef) => fakeClient({ ok: true, files: [] }, unreadable));
 
     const result = await intentFor(
-      { pr, commitFiltered: true },
+      { diff: pr, commitFiltered: true },
       new AbortController().signal,
       connect,
     );
@@ -887,7 +887,7 @@ describe("intentFor", () => {
     const onProgress = vi.fn();
 
     await intentFor(
-      { pr, commitFiltered: true },
+      { diff: pr, commitFiltered: true },
       new AbortController().signal,
       () => fakeClient({ ok: true, files: [] }, unreadable),
       onProgress,
@@ -910,7 +910,7 @@ describe("intentFor", () => {
 
   it("connects to the route's PR, and closes the client when the signal aborts", async () => {
     const client = fakeClient({ ok: true, files: [] }, unreadable);
-    const connect = vi.fn((_pr: PrRef) => client);
+    const connect = vi.fn((_diff: DiffRef) => client);
     const controller = new AbortController();
 
     await intentFor(route, controller.signal, connect);

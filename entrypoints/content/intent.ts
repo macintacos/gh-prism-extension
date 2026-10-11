@@ -15,7 +15,7 @@ import {
   parsePrHunks,
 } from "@/utils/pr-diff";
 import type { PrDataClient } from "@/utils/pr-port";
-import type { PrRef } from "@/utils/pr-ref";
+import type { DiffRef } from "@/utils/pr-ref";
 import type { PrDataProblem } from "@/utils/pr-source";
 import { classify, SECTIONS, type SectionKey } from "@/utils/sections";
 import type { FilesRoute } from "./files-page";
@@ -183,11 +183,11 @@ export async function readIntent(
 export async function intentFor(
   route: FilesRoute,
   signal: AbortSignal,
-  connect: (pr: PrRef) => PrDataClient,
+  connect: (diff: DiffRef) => PrDataClient,
   onProgress?: (progress: IntentProgress) => void,
 ): Promise<IntentResult> {
   if (route.commitFiltered) return { ok: false, problem: "commit-filtered" };
-  const client = connect(route.pr);
+  const client = connect(route.diff);
   signal.addEventListener("abort", () => client.close(), { once: true });
   return readIntent(client, onProgress);
 }

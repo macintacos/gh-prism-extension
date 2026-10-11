@@ -13,8 +13,28 @@ export interface PrHead extends PrRef {
   headSha: string;
 }
 
+/**
+ * A single commit as its github.com URL names it, by a full or abbreviated SHA: github.com
+ * resolves either in the commit's `.diff` and `raw/` URLs.
+ */
+export interface CommitHead {
+  owner: string;
+  repo: string;
+  headSha: string;
+}
+
+/** Where a Files view's diff comes from: a pull request, or a single commit. */
+export type DiffRef = PrRef | CommitHead;
+
+/** A diff pinned at the commit it ends on. */
+export type DiffHead = PrHead | CommitHead;
+
 export function isPrHeadSha(value: unknown): value is string {
   return typeof value === "string" && /^[0-9a-f]{40}$/.test(value);
+}
+
+export function isCommitSha(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{7,40}$/.test(value);
 }
 
 const EMBEDDED_DATA_SELECTOR = 'script[data-target="react-app.embeddedData"]';

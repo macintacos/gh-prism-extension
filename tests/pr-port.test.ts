@@ -94,6 +94,36 @@ describe("openPrData", () => {
     expect(urls(fetchFn)).toEqual([`${base}/pull/7.diff`, `${base}/raw/${sha}/src/engine.rs`]);
   });
 
+  it("reads a commit at its own SHA without looking up a head", async () => {
+    const fetchFn = routedFetch({
+      [`${base}/commit/${sha}.diff`]: async () => new Response(diff),
+      [`${base}/raw/${sha}/src/engine.rs`]: async () => new Response("fn main() {}"),
+    });
+    const client = openPrData(
+      harness(fetchFn).connect,
+      { owner: "o", repo: "r", headSha: sha },
+      undefined,
+    );
+    expect((await client.files()).ok).toBe(true);
+    expect(await client.fileContent("src/engine.rs")).toEqual({ ok: true, text: "fn main() {}" });
+    expect(urls(fetchFn)).toEqual([
+      `${base}/commit/${sha}.diff`,
+      `${base}/raw/${sha}/src/engine.rs`,
+    ]);
+  });
+
+  it("reads a commit by an abbreviated SHA", async () => {
+    const fetchFn = routedFetch({
+      [`${base}/commit/abcdef1.diff`]: async () => new Response(diff),
+    });
+    const client = openPrData(
+      harness(fetchFn).connect,
+      { owner: "o", repo: "r", headSha: "abcdef1" },
+      undefined,
+    );
+    expect((await client.files()).ok).toBe(true);
+  });
+
   it("resolves the head once for concurrent calls when the page has none", async () => {
     const fetchFn = routedFetch(okRoutes());
     const client = openPrData(harness(fetchFn).connect, pr, undefined);
@@ -286,6 +316,18 @@ describe("servePrDataPort", () => {
     ["a . repo", { id: 1, request: { kind: "files", pr: { ...head, repo: "." } } }],
     ["a zero number", { id: 1, request: { kind: "files", pr: { ...head, number: 0 } } }],
     ["a short SHA", { id: 1, request: { kind: "files", pr: { ...head, headSha: "abc" } } }],
+    [
+      "a commit with a too-short SHA",
+      { id: 1, request: { kind: "files", pr: { owner: "o", repo: "r", headSha: "abcdef" } } },
+    ],
+    [
+      "a commit with a non-hex SHA",
+      { id: 1, request: { kind: "files", pr: { owner: "o", repo: "r", headSha: "main" } } },
+    ],
+    [
+      "a commit with a .. owner",
+      { id: 1, request: { kind: "files", pr: { owner: "..", repo: "r", headSha: sha } } },
+    ],
     ["a .. path segment", { id: 1, request: { kind: "content", pr: head, path: "../x" } }],
     ["an empty path segment", { id: 1, request: { kind: "content", pr: head, path: "a//b" } }],
   ])("answers %s failed without fetching", async (_, message) => {

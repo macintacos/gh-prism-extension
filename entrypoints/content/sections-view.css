@@ -1,5 +1,5 @@
 /* Hidden, not removed: the filter keeps editing these rows, and the view mirrors them. */
-#pr-file-tree:has(.gh-prism-sections) ul[role="tree"] {
+:is(#pr-file-tree, #diff_file_tree):has(.gh-prism-sections) ul[role="tree"] {
   display: none;
 }
 
@@ -22,7 +22,7 @@
 
 /* Keep in sync with the filter row's pr-lg-3, so the sections end where its button does. */
 @media (min-width: 1012px) {
-  .gh-prism-sections {
+  :where(#pr-file-tree) .gh-prism-sections {
     margin-inline-end: var(--base-size-16);
   }
 }

@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } fr
 import type { FilesPage, FilesRoute } from "../entrypoints/content/files-page";
 import {
   findDiff,
+  findDiffstat,
   findFilesPage,
+  findTreeToggle,
   isFilesPath,
   observeDiffs,
   observeTree,
@@ -13,7 +15,7 @@ import {
   revealDiffLine,
   watchFilesPages,
 } from "../entrypoints/content/files-page";
-import { byId, loadFixture } from "./fixtures/files-page";
+import { byId, loadCommitFixture, loadFixture } from "./fixtures/files-page";
 
 const PATHS = [
   "config/app.toml",
@@ -50,6 +52,9 @@ describe("isFilesPath", () => {
     "/o/r/pull/1/changes/04bb63f",
     "/o/r/pull/1/changes/aaa..bbb",
     "/o/r/pull/1/files",
+    "/o/r/commit/dd95cdc",
+    `/o/r/commit/${"a".repeat(40)}`,
+    "/o/r/commit/dd95cdc/",
   ])("accepts %s", (path) => expect(isFilesPath(path)).toBe(true));
 
   it.each([
@@ -60,6 +65,11 @@ describe("isFilesPath", () => {
     "/o/r/pull/x/changes",
     "/o/r/pull/1/changesets",
     "/o/r/tree/pull/1/changes/x",
+    "/o/r/commit/main",
+    "/o/r/commit/abc",
+    "/o/r/commit/dd95cdc.diff",
+    "/o/r/commits/dd95cdc",
+    `/o/r/commit/${"a".repeat(41)}`,
   ])("rejects %s", (path) => expect(isFilesPath(path)).toBe(false));
 });
 
@@ -68,17 +78,23 @@ describe("readFilesRoute", () => {
 
   it.each(["/o/r/pull/3/changes", "/o/r/pull/3/changes/", "/o/r/pull/3/files"])(
     "reads the whole pull request from %s",
-    (path) => expect(readFilesRoute(path)).toEqual({ pr, commitFiltered: false }),
+    (path) => expect(readFilesRoute(path)).toEqual({ diff: pr, commitFiltered: false }),
   );
 
   it.each(["/o/r/pull/3/changes/04bb63f", "/o/r/pull/3/changes/aaa..bbb"])(
     "reads a commit filter from %s",
-    (path) => expect(readFilesRoute(path)).toEqual({ pr, commitFiltered: true }),
+    (path) => expect(readFilesRoute(path)).toEqual({ diff: pr, commitFiltered: true }),
   );
 
   it.each(["/o/r/pull/3", "/o/r/issues/3"])("is undefined off the Files changed tab: %s", (path) =>
     expect(readFilesRoute(path)).toBeUndefined(),
   );
+
+  it("reads a single commit, whose diff is never filtered", () =>
+    expect(readFilesRoute("/o/r/commit/dd95cdc")).toEqual({
+      diff: { owner: "o", repo: "r", headSha: "dd95cdc" },
+      commitFiltered: false,
+    }));
 });
 
 describe("findFilesPage", () => {
@@ -271,6 +287,159 @@ describe("findDiff", () => {
   });
 });
 
+describe("a commit page", () => {
+  const LAUNCHER_DIFF = "diff-90df21c5f2396574b17d2f1696a2e63cee454ee37910c7b254a81d44449cdaa4";
+  const diffs = () => byId("diff-content-parent");
+  const linkTo = (path: string) => {
+    const found = readChangedFiles(document).find((f) => f.path === path);
+    if (!found) throw new Error(`no changed file ${path}`);
+    return found.link;
+  };
+
+  beforeEach(() => {
+    loadCommitFixture();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("finds the sidebar, tree, and diff list", () => {
+    expect(findFilesPage(document)).toEqual({
+      sidebar: byId("diff_file_tree"),
+      tree: document.querySelector('ul[role="tree"]'),
+      diffs: diffs(),
+    });
+  });
+
+  it("finds the header's lines-changed counter", () => {
+    expect(findDiffstat(document)?.textContent).toContain("+165");
+  });
+
+  it("finds the toolbar's tree toggle, not the copy inside the sidebar", () => {
+    expect(findTreeToggle(document)).toBe(
+      document.querySelector('#diff-content-parent [aria-controls="diff_file_tree"]')
+        ?.parentElement,
+    );
+  });
+
+  it("finds a file's diff, which has no id, by its header's link", () => {
+    expect(findDiff(diffs(), linkTo("bin/caret-launcher"))).toBe(
+      document.querySelector('[role="region"]'),
+    );
+  });
+
+  it("finds no diff for a file whose diff is unmounted", () => {
+    expect(findDiff(diffs(), linkTo("src/adapters/opencode/paths.ts"))).toBeNull();
+  });
+
+  describe("revealDiff", () => {
+    const hashes: string[] = [];
+    // happy-dom also fires hashchange, a tick late, whenever replaceState changes the hash.
+    const record = (event: Event) => {
+      const ours = vi.mocked(HashChangeEvent).mock.results.some(({ value }) => value === event);
+      if (ours) hashes.push(location.hash);
+    };
+    let controller: AbortController;
+    const reveal = () => revealDiff(linkTo("bin/caret-launcher"), { signal: controller.signal });
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.spyOn(globalThis, "HashChangeEvent");
+      controller = new AbortController();
+      hashes.length = 0;
+      window.addEventListener("hashchange", record);
+    });
+    afterEach(() => {
+      window.removeEventListener("hashchange", record);
+      vi.useRealTimers();
+    });
+
+    it("moves to the file through the URL hash, as GitHub's own code does, without clicking", () => {
+      history.replaceState(null, "", "/o/r/commit/dd95cdc");
+      const click = vi.spyOn(linkTo("bin/caret-launcher"), "click");
+      reveal();
+      expect(click).not.toHaveBeenCalled();
+      expect(hashes).toEqual([`#${LAUNCHER_DIFF}`]);
+    });
+
+    it("announces a file that is already current as left, then as current again", async () => {
+      history.replaceState(null, "", `/o/r/commit/dd95cdc#${LAUNCHER_DIFF}`);
+      reveal();
+      expect(hashes).toEqual([""]);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(hashes).toEqual(["", `#${LAUNCHER_DIFF}`]);
+    });
+
+    it("leaves a current file unannounced once aborted", async () => {
+      history.replaceState(null, "", `/o/r/commit/dd95cdc#${LAUNCHER_DIFF}`);
+      reveal();
+      controller.abort();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(hashes).toEqual([""]);
+    });
+  });
+
+  describe("revealDiffLine", () => {
+    const TEST_DIFF = "diff-82c5c25448a4281c960791601a713d5cb4cdd326f9ff5eab9f9d5bf29a093de4";
+    const PATHS_DIFF = "diff-0a35d3bd6fe9cd61f0a4676516db89e8d48cbf49c1b5a23558940a12dd076647";
+    const rows = (anchor: string, ...lines: number[]) =>
+      `<table>${lines.map((n) => `<tr><td data-line-anchor="${anchor}R${n}">${n}</td></tr>`).join("")}</table>`;
+    let scrollIntoView: MockInstance<Element["scrollIntoView"]>;
+    const reveal = (path: string, line: number) =>
+      revealDiffLine(diffs(), linkTo(path), line, { signal: new AbortController().signal });
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => {});
+      vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("scrolls to the row anchored on the file's link", async () => {
+      await reveal("bin/caret-launcher", 31);
+      expect(scrollIntoView.mock.contexts).toEqual([
+        document.querySelector(`[data-line-anchor="${LAUNCHER_DIFF}R31"]`)?.closest("tr"),
+      ]);
+    });
+
+    it("loads a hidden diff through its Load diff button, then scrolls", async () => {
+      const region = document.querySelector(`[role="region"]:has(a[href="#${TEST_DIFF}"])`);
+      const load = [...(region?.querySelectorAll("button") ?? [])].find(
+        (button) => button.textContent === "Load diff",
+      );
+      load?.addEventListener("click", () => {
+        setTimeout(() => region?.insertAdjacentHTML("beforeend", rows(TEST_DIFF, 5)), 100);
+      });
+      const done = reveal("test/core/commands/install/launcher.test.ts", 5);
+      await vi.advanceTimersByTimeAsync(1_000);
+      await done;
+      expect(scrollIntoView.mock.contexts).toEqual([region?.querySelector("tr")]);
+    });
+
+    it("mounts an unmounted diff through the URL hash, without clicking, then scrolls", async () => {
+      history.replaceState(null, "", "/o/r/commit/dd95cdc");
+      const click = vi.spyOn(linkTo("src/adapters/opencode/paths.ts"), "click");
+      // GitHub mounts a virtualized diff once the hash names it.
+      const mount = () =>
+        diffs().insertAdjacentHTML(
+          "beforeend",
+          `<div role="region"><div><h3><a href="#${PATHS_DIFF}">paths.ts</a></h3></div>${rows(PATHS_DIFF, 187)}</div>`,
+        );
+      window.addEventListener("hashchange", mount, { once: true });
+      const done = reveal("src/adapters/opencode/paths.ts", 187);
+      await vi.advanceTimersByTimeAsync(1_000);
+      await done;
+      expect(click).not.toHaveBeenCalled();
+      expect(location.hash).toBe(`#${PATHS_DIFF}`);
+      expect(scrollIntoView.mock.contexts).toEqual([
+        document.querySelector(`[data-line-anchor="${PATHS_DIFF}R187"]`)?.closest("tr"),
+      ]);
+    });
+  });
+});
+
 describe("watchFilesPages", () => {
   interface Visit {
     readonly route: FilesRoute;
@@ -385,17 +554,29 @@ describe("watchFilesPages", () => {
     expect(pages()[0]?.signal.aborted).toBe(true);
   });
 
+  it("shows a commit page with the commit's route", async () => {
+    loadCommitFixture();
+    history.replaceState(null, "", "/o/r/commit/dd95cdc");
+    watch();
+    expect(visits[0]?.route).toEqual({
+      diff: { owner: "o", repo: "r", headSha: "dd95cdc" },
+      commitFiltered: false,
+    });
+    expect(pages()[0]?.page.sidebar).toBe(byId("diff_file_tree"));
+    expect(pages()[0]?.page.diffs).toBe(byId("diff-content-parent"));
+  });
+
   it("hands each visit the route of the URL it began on", async () => {
     watch();
     expect(visits[0]?.route).toEqual({
-      pr: { owner: "o", repo: "r", number: 1 },
+      diff: { owner: "o", repo: "r", number: 1 },
       commitFiltered: false,
     });
     history.replaceState(null, "", "/o/r/pull/1/changes/04bb63f");
     document.dispatchEvent(new Event("soft-nav:end"));
     await vi.advanceTimersByTimeAsync(20_000);
     expect(visits[1]?.route).toEqual({
-      pr: { owner: "o", repo: "r", number: 1 },
+      diff: { owner: "o", repo: "r", number: 1 },
       commitFiltered: true,
     });
   });
@@ -436,6 +617,17 @@ describe("watchFilesPages", () => {
     expect(pages()).toHaveLength(2);
     expect(pages()[0]?.signal.aborted).toBe(true);
     expect(pages()[1]?.page.diffs).toBe(diffList());
+  });
+
+  // Hydrating a commit page, React re-renders the sidebar's contents in place, dropping the view.
+  it("shows the page again when only the tree is replaced", async () => {
+    watch();
+    const tree = document.querySelector('ul[role="tree"]');
+    tree?.replaceWith(tree.cloneNode(true));
+    await afterMutations();
+    expect(pages()).toHaveLength(2);
+    expect(pages()[0]?.signal.aborted).toBe(true);
+    expect(pages()[1]?.page.tree).toBe(document.querySelector('ul[role="tree"]'));
   });
 
   it("drops a page whose sidebar is removed with no replacement", async () => {

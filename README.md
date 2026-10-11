@@ -1,8 +1,9 @@
 # gh-prism
 
-On a pull request's Files changed tab, gh-prism replaces GitHub's file tree with a sidebar
-that groups changed files into sections. You can review implementation, tests, docs, and
-config separately. It is for anyone who reviews pull requests on GitHub in Chrome.
+On a pull request's Files changed tab and on a commit's page, gh-prism replaces GitHub's
+file tree with a sidebar that groups changed files into sections. You can review
+implementation, tests, docs, and config separately. It is for anyone who reviews pull
+requests or commits on GitHub in Chrome.
 
 ![The gh-prism sidebar with the sections Implementation, Tests, Documentation, Config, and Generated / lockfiles. src/render.rs is marked Partial under Implementation and Documentation.](docs/images/sidebar-grouped.png)
 
@@ -20,8 +21,9 @@ config separately. It is for anyone who reviews pull requests on GitHub in Chrom
   lines plus a few unchanged lines around them. Clicking a `Partial` entry scrolls to the
   first of its hunks in that entry's section.
 - Clicking a file scrolls its diff smoothly into view. A long trip skips ahead to half a
-  screen away first, so the scroll stays quick. If your system is set to reduce motion,
-  the click jumps straight to the diff instead.
+  screen away first, so the scroll stays quick. On a commit's page, the scroll doesn't
+  skip ahead, so a long trip takes longer. If your system is set to reduce motion, the
+  click jumps straight to the diff instead.
 - When gh-prism can read the diff, each row for a file that adds or removes lines shows
   how many, such as `+12 −3`. A `Partial` entry counts only its hunks in its own section,
   so it can show fewer lines than GitHub's total for the file. An image or other binary
@@ -41,25 +43,32 @@ config separately. It is for anyone who reviews pull requests on GitHub in Chrom
 - In a window too narrow for the sidebar beside the diffs, GitHub opens the file tree as
   an overlay instead. gh-prism leaves that layout as GitHub has it and hides the
   two-arrows button.
-- In the pull request's header, gh-prism splits GitHub's count of lines changed, such as
-  `+1,604 −177`, into rounded labels called pills, one for each section that changed any
-  lines. Each pill shows the section's icon and the lines that section adds and removes.
-  Together, the pills add up to GitHub's total. Point at a pill to see the section's name
-  and a short description of the changes gh-prism puts in it.
+- On a commit's page in a window narrower than about 1,000 pixels, the sidebar stays on
+  the left, where GitHub puts its file tree. gh-prism hides the two-arrows button there.
+- In the header of a pull request or commit, gh-prism splits GitHub's count of lines
+  changed, such as `+1,604 −177`, into rounded labels called pills, one for each section
+  that changed any lines. Each pill shows the section's icon and the lines that section
+  adds and removes. Together, the pills add up to GitHub's total. Point at a pill to see
+  the section's name and a short description of the changes gh-prism puts in it.
 - The pills show by default. Click any pill to switch to GitHub's total. Point at the
   total to see each section's count. Click the total to switch back. gh-prism keeps the
-  view you pick for every pull request you open in that tab, until you reload the page.
+  view you pick for every pull request or commit you open in that tab, until you reload
+  the page.
 - The header keeps GitHub's own count while gh-prism reads the diff. It also keeps that
-  count when you view one commit or a range of commits, and when gh-prism can't read the
-  diff.
+  count when you view one commit or a range of commits in a pull request's Files changed
+  tab, and when gh-prism can't read the diff.
 - A progress bar replaces the sections while gh-prism reads the diff. The sections appear
   once gh-prism has placed every file in its sections.
 - When you view one commit or a range of commits instead of all commits in the Files
   changed view, gh-prism keeps grouping files by path only. It shows no line counts,
   `Binary` markers, or `Partial` entries. It also shows this notice:
   `Grouped by path. Docstring-only and inline-test changes are detected when viewing all commits.`
-- gh-prism works only on GitHub's new Files changed page, at `/pull/<number>/changes`. It
-  leaves the classic page untouched.
+- gh-prism works on GitHub's new Files changed tab, at `/pull/<number>/changes`, and on a
+  commit's page, at `/commit/<sha>`, where `<sha>` is the commit's hash. It leaves the
+  classic Files changed tab untouched.
+- On a commit's page, gh-prism reads the commit's diff. The sidebar shows line counts,
+  `Binary` markers, and `Partial` entries, and finds docstring-only and inline-test
+  changes, as it does for a whole pull request.
 
 ## Install
 
@@ -117,10 +126,10 @@ sections saying why.
 
 gh-prism needs access to three hosts and to Chrome's extension storage, and nothing else.
 
-- `https://github.com/*` serves the pull request page, its diff, and file contents. A
-  content script, which is code that runs inside matching pages, also runs here, so
-  gh-prism catches GitHub's in-page navigation into a pull request. It acts only on Files
-  changed.
+- `https://github.com/*` serves the pull request or commit page, its diff, and file
+  contents. A content script, which is code that runs inside matching pages, also runs
+  here, so gh-prism catches GitHub's in-page navigation into a pull request or commit. It
+  acts only on Files changed and commit pages.
 - `https://patch-diff.githubusercontent.com/*` is where GitHub redirects diff downloads.
 - `https://raw.githubusercontent.com/*` is where GitHub redirects raw-file downloads.
 - Extension storage holds one setting: the side you put the sidebar on. Chrome syncs it to
@@ -130,7 +139,7 @@ gh-prism needs access to three hosts and to Chrome's extension storage, and noth
 
 - **No sections appear.** Reload the page. Tabs that were open before you loaded or
   reloaded gh-prism don't run it. Then check that the URL contains
-  `/pull/<number>/changes`.
+  `/pull/<number>/changes` or `/commit/<sha>`.
 - **A notice asks you to sign in while you are signed in.** Check that you are signed in
   to GitHub in the same Chrome profile where you loaded gh-prism, then reload the page.
   Chrome's "Block third-party cookies" setting is untested with gh-prism.

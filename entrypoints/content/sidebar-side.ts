@@ -73,7 +73,9 @@ function glideTreeToggle(doc: Document, toggle: Element, signal: AbortSignal): v
     (event) => {
       if (replaying || !glides(doc) || !(event.target instanceof Element)) return;
       // The narrow layout's toggle opens an overlay instead.
-      const button = event.target.closest<HTMLElement>('[class*="RegularTreeToggle"]');
+      const button = event.target.closest<HTMLElement>(
+        '[class*="RegularTreeToggle"], [aria-controls="diff_file_tree"]:not(.d-md-none)',
+      );
       if (!button) return;
       event.stopPropagation();
       glide(doc, "toggle", () => replay(button));

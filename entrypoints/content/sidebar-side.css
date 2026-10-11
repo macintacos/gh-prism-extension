@@ -61,7 +61,7 @@
   visibility: visible;
 }
 
-[data-gh-prism-glide] [class*="PageLayout-PaneWrapper"]:has(#pr-file-tree) {
+[data-gh-prism-glide] [class*="PageLayout-PaneWrapper"]:has(:is(#pr-file-tree, #diff_file_tree)) {
   view-transition-name: gh-prism-pane;
 }
 
@@ -138,6 +138,11 @@
   }
 }
 
+/* A commit page has no diff viewer container; naming its layout one gives it the rules below. */
+[class*="PageLayout-PageLayoutContent"]:has(#diff_file_tree) {
+  container: diffComparisonViewer / inline-size;
+}
+
 /* Narrower, GitHub opens the tree as an overlay, which has no side to switch. */
 @container diffComparisonViewer (width >= 1012px) {
   .gh-prism-side-switch {
@@ -145,7 +150,8 @@
   }
 
   /* Primer's own end-position styles: after the diffs, its divider on the inner edge. */
-  [data-gh-prism-side="right"] [class*="PageLayout-PaneWrapper"]:has(#pr-file-tree) {
+  [data-gh-prism-side="right"]
+  [class*="PageLayout-PaneWrapper"]:has(:is(#pr-file-tree, #diff_file_tree)) {
     order: var(--region-order-pane-end, 3);
     flex-direction: row-reverse;
   }
@@ -160,7 +166,7 @@
     padding-inline: var(--base-size-16) 0 !important;
   }
 
-  [data-gh-prism-side="right"] .gh-prism-sections {
+  [data-gh-prism-side="right"] :where(#pr-file-tree) .gh-prism-sections {
     margin-inline: var(--base-size-16) 0;
   }
 
@@ -194,6 +200,21 @@
 
     /* Point the toggle's icon at the tree. */
     & [class*="TreeToggle"] svg {
+      scale: -1 1;
+    }
+  }
+
+  /* A commit's toolbar: the toggle and switch end it, after its full-width search. */
+  [data-gh-prism-side="right"] #diff-content-parent {
+    & :has(> [aria-controls="diff_file_tree"]) {
+      order: 2;
+    }
+
+    & .gh-prism-side-switch {
+      order: 1;
+    }
+
+    & [aria-controls="diff_file_tree"] svg {
       scale: -1 1;
     }
   }
