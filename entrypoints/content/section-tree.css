@@ -15,8 +15,39 @@
 /* A directory shows a folder in its section's hue, open while expanded, in the chevron's
    place; the chevron's turn for collapsed rows would tip it over. */
 [data-icon-name="file-tree-icon-chevron"] {
+  grid-area: 1 / 1;
   color: var(--gh-prism-hue);
   transform: none;
+  transition: opacity 150ms ease-out;
+}
+
+/* The folder gives way to a chevron while its row is hovered or focused, as section headers do. */
+[data-item-type="folder"] > [data-item-section="icon"] {
+  display: grid;
+}
+
+/* Lucide chevron-down (ISC). */
+[data-item-type="folder"] > [data-item-section="icon"]::after {
+  content: "";
+  grid-area: 1 / 1;
+  width: 16px;
+  height: 16px;
+  background: var(--gh-prism-hue);
+  mask:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  transition:
+    rotate 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 150ms ease-out;
+}
+
+[aria-expanded="false"] > [data-item-section="icon"]::after {
+  rotate: -90deg;
+}
+
+[data-item-type="folder"]:not(:hover, :focus-visible) > [data-item-section="icon"]::after,
+[data-item-type="folder"]:is(:hover, :focus-visible) > [data-item-section="icon"] > svg {
+  opacity: 0;
 }
 
 [aria-expanded="true"] > [data-item-section="icon"] {
@@ -85,4 +116,11 @@
   width: 3px;
   border-radius: 2px;
   background: var(--gh-prism-hue);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-icon-name="file-tree-icon-chevron"],
+  [data-item-section="icon"]::after {
+    transition: none;
+  }
 }
