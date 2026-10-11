@@ -8,10 +8,12 @@
 
 import type { FileTreeRowDecoration, GitStatus } from "@pierre/trees";
 import { classify, SECTIONS, type SectionKey } from "@/utils/sections";
+import { type DiffstatChoice, showDiffstat } from "./diffstat-view";
 import { el, icon } from "./dom";
 import {
   type ChangedFile,
   type FilesPage,
+  findDiffstat,
   observeTree,
   readChangedFiles,
   revealDiffLine,
@@ -51,6 +53,12 @@ interface ShownSection {
 export type PendingIntent = (
   onProgress: (progress: IntentProgress) => void,
 ) => Promise<IntentResult>;
+
+export interface SectionsOptions {
+  readonly intent: PendingIntent;
+  /** The header counter's view, shared by every page in the tab. */
+  readonly diffstat: DiffstatChoice;
+}
 
 const NO_PLACEMENTS: ReadonlyMap<string, Placement> = new Map();
 const NO_LINES: ReadonlyMap<string, FileLines> = new Map();
@@ -232,10 +240,15 @@ function clickedFile(event: Event): { section: string; path: string } | undefine
  * Mirrors `page`'s native file tree as sections inside its sidebar until `signal` aborts. With an
  * `intent`, a progress bar stands in until it settles; then files it places whole sit in that
  * section, and a split file is listed in each section its hunks land in, with the lines each
- * share adds and removes. If it settles as a failure, the sections follow the paths alone under a
- * notice saying why. Without one, path sections show at once.
+ * share adds and removes, and the header's lines-changed counter breaks out by section. If it
+ * settles as a failure, the sections follow the paths alone under a notice saying why. Without
+ * one, path sections show at once.
  */
-export function showSections(page: FilesPage, signal: AbortSignal, intent?: PendingIntent): void {
+export function showSections(
+  page: FilesPage,
+  signal: AbortSignal,
+  options?: SectionsOptions,
+): void {
   const doc = page.sidebar.ownerDocument;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   const view = el(doc, "nav", "gh-prism-sections");
@@ -326,12 +339,13 @@ export function showSections(page: FilesPage, signal: AbortSignal, intent?: Pend
   for (const stale of page.sidebar.querySelectorAll(".gh-prism-sections")) stale.remove();
   page.tree.before(view);
   doc.head.append(style);
-  if (intent) {
+  if (options) {
     const pending = loadingView(doc);
     loading = pending;
     view.setAttribute("aria-busy", "true");
     view.append(pending.root);
-    void intent(pending.progress)
+    void options
+      .intent(pending.progress)
       .catch((error: unknown): IntentResult => {
         console.error("gh-prism: reading intent failed", error);
         return { ok: false, problem: "failed" };
@@ -343,7 +357,10 @@ export function showSections(page: FilesPage, signal: AbortSignal, intent?: Pend
         pending.root.remove();
         view.removeAttribute("aria-busy");
         view.toggleAttribute("data-reveal", true);
-        if (!result.ok) {
+        if (result.ok) {
+          const counter = findDiffstat(doc);
+          if (counter) showDiffstat(counter, result, { choice: options.diffstat, signal });
+        } else {
           view.prepend(el(doc, "p", "gh-prism-notice", PATH_ONLY_COPY[result.problem]));
         }
         render();

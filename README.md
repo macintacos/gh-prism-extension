@@ -26,6 +26,17 @@ config separately. It is for anyone who reviews pull requests on GitHub in Chrom
 - Each section's heading starts with the section's icon. When you point at a heading, the
   icon turns into an arrow. Click the heading to collapse or expand its files. A collapsed
   section still shows its file count.
+- In the pull request's header, gh-prism splits GitHub's count of lines changed, such as
+  `+1,604 −177`, into rounded labels called pills, one for each section that changed any
+  lines. Each pill shows the section's icon and the lines that section adds and removes.
+  Together, the pills add up to GitHub's total. Point at a pill to see the section's name
+  and a short description of the changes gh-prism puts in it.
+- The pills show by default. Click any pill to switch to GitHub's total. Point at the
+  total to see each section's count. Click the total to switch back. gh-prism keeps the
+  view you pick for every pull request you open in that tab, until you reload the page.
+- The header keeps GitHub's own count while gh-prism reads the diff. It also keeps that
+  count when you view one commit or a range of commits, and when gh-prism can't read the
+  diff.
 - A progress bar replaces the sections while gh-prism reads the diff. The sections appear
   once gh-prism has placed every file in its sections.
 - When you view one commit or a range of commits instead of all commits in the Files
@@ -97,8 +108,6 @@ gh-prism needs access to three hosts, and nothing else.
   changed.
 - `https://patch-diff.githubusercontent.com/*` is where GitHub redirects diff downloads.
 - `https://raw.githubusercontent.com/*` is where GitHub redirects raw-file downloads.
-
-It saves nothing to browser storage; the diffs and files it reads stay in memory.
 
 ## Troubleshooting
 

@@ -59,6 +59,14 @@ export function findFilesPage(root: ParentNode): FilesPage | undefined {
   return sidebar && tree && diffs ? { sidebar, tree, diffs } : undefined;
 }
 
+/** The lines-changed counter in the pull request's header, or `undefined` when it's missing. */
+export function findDiffstat(root: ParentNode): Element | undefined {
+  return (
+    root.querySelector('[class*="PullRequestHeader-module__rightContentWrapper"] > .d-flex') ??
+    undefined
+  );
+}
+
 function sameMarkup(a: FilesPage, b: FilesPage): boolean {
   return a.sidebar === b.sidebar && a.diffs === b.diffs;
 }

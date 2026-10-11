@@ -3,12 +3,16 @@
   display: none;
 }
 
-.gh-prism-sections {
+.gh-prism-sections,
+.gh-prism-diffstat {
   --gh-prism-hue-implementation: var(--fgColor-accent);
   --gh-prism-hue-tests: var(--fgColor-done);
   --gh-prism-hue-docs: var(--fgColor-attention);
   --gh-prism-hue-config: var(--fgColor-sponsors);
   --gh-prism-hue-generated: var(--fgColor-muted);
+}
+
+.gh-prism-sections {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -31,23 +35,23 @@
   color: var(--fgColor-muted);
 }
 
-.gh-prism-section[data-section="implementation"] {
+:is(.gh-prism-sections, .gh-prism-diffstat) [data-section="implementation"] {
   --gh-prism-hue: var(--gh-prism-hue-implementation);
 }
 
-.gh-prism-section[data-section="tests"] {
+:is(.gh-prism-sections, .gh-prism-diffstat) [data-section="tests"] {
   --gh-prism-hue: var(--gh-prism-hue-tests);
 }
 
-.gh-prism-section[data-section="docs"] {
+:is(.gh-prism-sections, .gh-prism-diffstat) [data-section="docs"] {
   --gh-prism-hue: var(--gh-prism-hue-docs);
 }
 
-.gh-prism-section[data-section="config"] {
+:is(.gh-prism-sections, .gh-prism-diffstat) [data-section="config"] {
   --gh-prism-hue: var(--gh-prism-hue-config);
 }
 
-.gh-prism-section[data-section="generated"] {
+:is(.gh-prism-sections, .gh-prism-diffstat) [data-section="generated"] {
   --gh-prism-hue: var(--gh-prism-hue-generated);
 }
 
@@ -282,12 +286,114 @@
   }
 }
 
+/* GitHub's counter, while the breakout stands in for it. Primer's .d-flex is !important too. */
+.gh-prism-diffstat + * {
+  display: none !important;
+}
+
+.gh-prism-diffstat {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--borderRadius-medium);
+  background: none;
+  color: var(--fgColor-default);
+  font: inherit;
+  font-size: var(--text-body-size-small);
+  font-weight: var(--base-text-weight-semibold);
+  cursor: pointer;
+}
+
+.gh-prism-diffstat:focus-visible {
+  outline: 2px solid var(--focus-outlineColor);
+  outline-offset: 2px;
+}
+
+.gh-prism-diffstat svg {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  color: var(--gh-prism-hue);
+}
+
+.gh-prism-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px 0 6px;
+  border-radius: var(--borderRadius-medium);
+  background: color-mix(in srgb, var(--gh-prism-hue) 14%, var(--bgColor-default));
+  line-height: 20px;
+}
+
+.gh-prism-tip {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 100;
+  display: grid;
+  gap: 4px;
+  width: max-content;
+  max-width: 260px;
+  padding: 6px 8px;
+  border: 1px solid var(--borderColor-default);
+  border-radius: var(--borderRadius-medium);
+  background: var(--overlay-bgColor, var(--bgColor-default));
+  box-shadow: var(--shadow-floating-small);
+  color: var(--fgColor-default);
+  font-weight: var(--base-text-weight-normal);
+  line-height: var(--text-body-lineHeight-small);
+  text-align: start;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 120ms ease-out,
+    visibility 120ms;
+}
+
+.gh-prism-pill:hover > .gh-prism-tip,
+.gh-prism-diffstat[data-view="total"]:is(:hover, :focus-visible) > .gh-prism-tip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.gh-prism-tip > strong {
+  font-weight: var(--base-text-weight-semibold);
+}
+
+.gh-prism-tip > span:not(.gh-prism-tip-row) {
+  color: var(--fgColor-muted);
+}
+
+.gh-prism-tip-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* The section's name, pushing its counts to the row's end. */
+.gh-prism-tip-row > span:first-of-type {
+  flex: 1;
+  margin-inline-end: 8px;
+}
+
+.gh-prism-tip-row > .gh-prism-pill-count {
+  font-weight: var(--base-text-weight-semibold);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .gh-prism-spectrum::before,
   .gh-prism-skeleton > span,
   .gh-prism-sections[data-reveal] .gh-prism-section,
   .gh-prism-section-icon,
   .gh-prism-chevron,
+  .gh-prism-tip,
   .gh-prism-files {
     transition: none;
     animation: none;
