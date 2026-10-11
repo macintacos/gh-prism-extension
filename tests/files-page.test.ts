@@ -499,13 +499,19 @@ describe("revealDiff", () => {
     if (!found) throw new Error("no changed file src/engine.rs");
     return found.link;
   };
-  /** Stands in for GitHub's handler: jumps the window to `top`, then focuses `focused`. */
-  const landOnClick = (top: number, focused = () => byId(ENGINE_DIFF)) =>
+  /**
+   * Stands in for GitHub's handler: it jumps the window to `top` in an animation frame it
+   * requests during the click. Its focus() on the diff's region does nothing: the region has no
+   * tabindex.
+   */
+  const landOnClick = (top: number) =>
     vi.spyOn(engineLink(), "click").mockImplementation(() => {
-      document.documentElement.scrollTop = top;
-      focused().focus();
+      requestAnimationFrame(() => {
+        document.documentElement.scrollTop = top;
+      });
     });
-  const reveal = () => revealDiff(diffList(), engineLink(), { signal: controller.signal });
+  const reveal = () => revealDiff(engineLink(), { signal: controller.signal });
+  const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
 
   beforeEach(() => {
     controller = new AbortController();
@@ -527,7 +533,7 @@ describe("revealDiff", () => {
       document.documentElement.scrollTop = from;
       landOnClick(5000);
       reveal();
-      await Promise.resolve();
+      await nextFrame();
       expect(scrollTo.mock.calls).toEqual([
         [{ top: rewind, behavior: "instant" }],
         [{ top: 5000, behavior: "smooth" }],
@@ -539,7 +545,7 @@ describe("revealDiff", () => {
     document.documentElement.scrollTop = 4800;
     landOnClick(5000);
     reveal();
-    await Promise.resolve();
+    await nextFrame();
     expect(scrollTo.mock.calls).toEqual([
       [{ top: 4800, behavior: "instant" }],
       [{ top: 5000, behavior: "smooth" }],
@@ -550,37 +556,16 @@ describe("revealDiff", () => {
     preferReducedMotion("reduce");
     landOnClick(5000);
     reveal();
-    await Promise.resolve();
+    await nextFrame();
     expect(scrollTo).not.toHaveBeenCalled();
     expect(window.scrollY).toBe(5000);
   });
 
-  it("ignores focus that lands on another file's diff", async () => {
-    const other = document.createElement("div");
-    diffList().append(other);
-    landOnClick(5000, () => other);
-    reveal();
-    await Promise.resolve();
-    expect(scrollTo).not.toHaveBeenCalled();
-  });
-
-  it("glides once, not again when the diff is refocused later", async () => {
+  it("does not glide once aborted before GitHub lands", async () => {
     landOnClick(5000);
     reveal();
-    await Promise.resolve();
-    byId(ENGINE_DIFF).blur();
-    byId(ENGINE_DIFF).focus();
-    await Promise.resolve();
-    expect(scrollTo).toHaveBeenCalledTimes(2);
-  });
-
-  it("does not glide once aborted before GitHub lands", async () => {
-    vi.spyOn(engineLink(), "click").mockImplementation(() => {});
-    reveal();
     controller.abort();
-    document.documentElement.scrollTop = 5000;
-    byId(ENGINE_DIFF).focus();
-    await Promise.resolve();
+    await nextFrame();
     expect(scrollTo).not.toHaveBeenCalled();
   });
 });
@@ -636,6 +621,7 @@ describe("revealDiffLine", () => {
     window.innerHeight = 800;
   });
   afterEach(async () => {
+    vi.advanceTimersToNextFrame(); // a click's glide waits one frame
     // A late mutation schedules a timer only if an observer outlived the case.
     diffList().append(document.createElement("div"));
     await vi.advanceTimersByTimeAsync(0);

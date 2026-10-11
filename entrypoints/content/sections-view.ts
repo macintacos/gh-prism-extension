@@ -303,7 +303,7 @@ export function showSections(
         : undefined;
     const line = share?.hunks.find((span) => span !== undefined)?.first;
     jump = new AbortController();
-    if (line === undefined) revealDiff(page.diffs, native, { signal: jump.signal });
+    if (line === undefined) revealDiff(native, { signal: jump.signal });
     else void revealDiffLine(page.diffs, native, line, { signal: jump.signal });
   };
 

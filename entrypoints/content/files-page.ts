@@ -180,26 +180,15 @@ export function findDiff(diffs: Element, link: HTMLAnchorElement): Element | nul
  * Clicks `link`, the native tree row's link, and glides the window to where GitHub scrolls the
  * file's diff instead of letting it jump there. Once `signal` aborts, it no longer glides.
  */
-export function revealDiff(
-  diffs: Element,
-  link: HTMLAnchorElement,
-  { signal }: { signal: AbortSignal },
-): void {
-  const win = diffs.ownerDocument.defaultView;
+export function revealDiff(link: HTMLAnchorElement, { signal }: { signal: AbortSignal }): void {
+  const win = link.ownerDocument.defaultView;
   const from = win?.scrollY ?? 0;
-  const landed = new AbortController();
-  // GitHub focuses the diff right after scrolling to it.
-  diffs.addEventListener(
-    "focusin",
-    (event) => {
-      if (!win || event.target !== findDiff(diffs, link)) return;
-      landed.abort();
-      // Once focus() returns, as it may scroll too, and before the jump is painted.
-      queueMicrotask(() => glideFrom(win, from));
-    },
-    { signal: AbortSignal.any([signal, landed.signal]) },
-  );
   link.click();
+  if (!win || signal.aborted) return;
+  // GitHub scrolls in an animation frame its click handler requests; this one runs right after
+  // it, before the jump is painted.
+  const frame = win.requestAnimationFrame(() => glideFrom(win, from));
+  signal.addEventListener("abort", () => win.cancelAnimationFrame(frame), { once: true });
 }
 
 /** Turns the window's jump from `from` to where it is now into a glide over the last stretch. */
@@ -228,7 +217,7 @@ export async function revealDiffLine(
   const diff = () => findDiff(diffs, link);
   const row = () => lineRow(diff(), line);
   if (!diff()) {
-    revealDiff(diffs, link, { signal }); // GitHub mounts a virtualized diff and scrolls to its header
+    revealDiff(link, { signal }); // GitHub mounts a virtualized diff and scrolls to its header
     if (!(await untilFound(diffs, diff, signal))) return;
   }
   if (!row() && expandDiff(diff())) await untilFound(diffs, () => uncollapsed(diff()), signal);
@@ -237,7 +226,7 @@ export async function revealDiffLine(
   if (!target && loadDiff(diff())) target = await untilFound(diffs, row, signal);
   if (signal.aborted) return;
   if (target) centre(target);
-  else revealDiff(diffs, link, { signal }); // the file's header
+  else revealDiff(link, { signal }); // the file's header
 }
 
 function centre(row: Element): void {
