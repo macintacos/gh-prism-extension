@@ -19,3 +19,5 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: mise run preflight
       - run: bun run build
+      - run: bunx --no-install playwright install-deps chromium
+      - run: mise run e2e
