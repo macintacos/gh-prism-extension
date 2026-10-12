@@ -7,40 +7,27 @@
  */
 
 import type { FileTreeRowDecoration, GitStatus } from "@pierre/trees";
-import type { IntentProgress, IntentResult, PathOnlyReason, PendingIntent } from "@/utils/intent";
-import { type LandedSection, landingOf, revealLineOf, sectionsOf, totalsOf } from "@/utils/landing";
+import type { IntentResult, PathOnlyReason } from "@/utils/intent";
+import { landingOf, revealLineOf, totalsOf } from "@/utils/landing";
 import type { LineCounts } from "@/utils/pr-diff";
 import { SECTIONS, type SectionKey } from "@/utils/sections";
-import { orderDiffs } from "./diff-order";
-import { type DiffstatChoice, lineTotals, showDiffstat } from "./diffstat-view";
+import { reorderable } from "./diff-order";
+import { lineTotals } from "./diffstat-view";
 import { el, icon } from "./dom";
-import {
-  type ChangedFile,
-  type FilesPage,
-  findDiffstat,
-  observeTree,
-  readChangedFiles,
-  revealDiff,
-  revealDiffLine,
-} from "./files-page";
+import { type FilesPage, readChangedFiles, revealDiff, revealDiffLine } from "./files-page";
+import { type LoadingView, loadingView } from "./loading-view";
 import { sectionIcon } from "./section-icons";
 import { SectionTree, type TreeFile } from "./section-tree";
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
 import css from "./sections-view.css?raw";
+import type { FileSection, LandingView } from "./visit";
 
-type FileSection = LandedSection<ChangedFile>;
 type FileEntry = FileSection["entries"][number];
 
 interface ShownSection {
   readonly root: HTMLElement;
   readonly counter: HTMLElement;
   readonly tree: SectionTree;
-}
-
-export interface SectionsOptions {
-  readonly intent: PendingIntent;
-  /** The header counter's view, shared by every page in the tab. */
-  readonly diffstat: DiffstatChoice;
 }
 
 const FIXED_ORDER_COPY = "Diffs keep GitHub's order: gh-prism can't reorder this many files.";
@@ -57,6 +44,17 @@ const PATH_ONLY_COPY: Record<PathOnlyReason, string> = {
   failed:
     "Grouped by path. The diff didn't load; reload to detect docstring-only and inline-test changes.",
 };
+
+/**
+ * The notices above the sections once intent lands as `result`: why they follow paths alone, then
+ * why the diffs keep GitHub's order.
+ */
+function noticesOf(result: IntentResult, canReorder: boolean): string[] {
+  return [
+    ...(result.ok ? [] : [PATH_ONLY_COPY[result.problem]]),
+    ...(canReorder ? [] : [FIXED_ORDER_COPY]),
+  ];
+}
 
 const STATUS_BY_OCTICON: ReadonlyMap<string, GitStatus> = new Map([
   ["octicon-file-added", "added"],
@@ -163,48 +161,6 @@ function sectionShell(
 const listSkeleton = (doc: Document) =>
   el(doc, "div", "gh-prism-skeleton", ...Array.from({ length: 5 }, () => el(doc, "span", "")));
 
-/** Placeholder diffs: a file header over a few lines of code each. */
-const diffSkeleton = (doc: Document) =>
-  el(
-    doc,
-    "div",
-    "gh-prism-diff-skeleton",
-    ...[4, 2, 3].map((lines) =>
-      el(
-        doc,
-        "div",
-        "gh-prism-diff-card",
-        el(doc, "span", "gh-prism-diff-card-header"),
-        ...Array.from({ length: lines }, () => el(doc, "span", "")),
-      ),
-    ),
-  );
-
-/** A progress bar that reads the diff, then counts the files checked, over `skeleton`. */
-function loadingView(doc: Document, skeleton: HTMLElement) {
-  const label = el(doc, "span", "", "Reading the diff");
-  const count = el(doc, "span", "gh-prism-loading-count");
-  const root = el(
-    doc,
-    "div",
-    "gh-prism-loading",
-    el(doc, "div", "gh-prism-loading-label", label, count),
-    el(doc, "div", "gh-prism-spectrum"),
-    skeleton,
-  );
-  root.setAttribute("role", "progressbar");
-  root.setAttribute("aria-label", "Reading the diff");
-  const progress = ({ checked, total }: IntentProgress) => {
-    label.textContent = "Sorting files into sections";
-    count.textContent = `${checked} of ${total}`;
-    root.setAttribute("aria-label", label.textContent);
-    root.setAttribute("aria-valuemax", String(total));
-    root.setAttribute("aria-valuenow", String(checked));
-    root.style.setProperty("--gh-prism-progress", String(total > 0 ? checked / total : 1));
-  };
-  return { root, progress };
-}
-
 function isPlainLeftClick(event: MouseEvent): boolean {
   return event.button === 0 && !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey);
 }
@@ -220,18 +176,15 @@ function clickedFile(event: Event): { section: SectionKey; path: string } | unde
 }
 
 /**
- * Mirrors `page`'s native file tree as sections inside its sidebar until `signal` aborts. With an
- * `intent`, a progress bar stands in until it settles, unless it already has; then files it places
- * whole sit in that section, and a split file is listed in each section its hunks land in, with
- * the lines each share adds and removes, and the header's lines-changed counter breaks out by
- * section. If it settles as a failure, the sections follow the paths alone under a notice saying
- * why. Without one, path sections show at once.
+ * Mounts the sidebar's sections view in `page` until `signal` aborts, and returns its hooks: a
+ * progress bar while intent is pending; on landing, notices for path-only sections or diffs kept
+ * in GitHub's order; then a tree per section, each split file listed in every section its hunks
+ * land in, with the lines each share adds and removes. `root` is the view's `<nav>`.
  */
 export function showSections(
   page: FilesPage,
   signal: AbortSignal,
-  options?: SectionsOptions,
-): void {
+): LandingView & { readonly root: Element } {
   const doc = page.sidebar.ownerDocument;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   const view = el(doc, "nav", "gh-prism-sections");
@@ -239,7 +192,7 @@ export function showSections(
   const shown = new Map<SectionKey, ShownSection>();
   // Outlives the sections themselves, so one that empties and comes back stays collapsed.
   const collapsed = new Set<SectionKey>(["generated"]);
-  let loading: ReturnType<typeof loadingView> | undefined;
+  let loading: LoadingView | undefined;
   let landing = landingOf(undefined);
   // The reveal in flight. A newer file click, or the view's abort, cancels it.
   let jump: AbortController | undefined;
@@ -296,24 +249,11 @@ export function showSections(
     return current.root;
   };
 
-  const render = () => {
-    if (loading) return;
-    const sections = sectionsOf(landing, readChangedFiles(page.sidebar));
+  const render = (sections: readonly FileSection[]) => {
     dropAllBut(sections);
     let previous = [...view.querySelectorAll(".gh-prism-notice")].at(-1) ?? null;
     for (const [order, section] of sections.entries())
       previous = showSection(section, order, previous);
-    diffOrder.arrange(
-      sections.map(({ entries }) => entries.map(({ file }) => file.link.hash.slice(1))),
-    );
-  };
-
-  /** Adds `text` under any notice already shown, above the sections. */
-  const notice = (text: string) => {
-    const shown = el(doc, "p", "gh-prism-notice", text);
-    const last = [...view.querySelectorAll(".gh-prism-notice")].at(-1);
-    if (last) last.after(shown);
-    else view.prepend(shown);
   };
 
   view.addEventListener(
@@ -325,60 +265,40 @@ export function showSections(
     { signal },
   );
 
-  const land = (result: IntentResult, diffstat: DiffstatChoice) => {
-    landing = landingOf(result);
-    if (result.ok) {
-      const counter = findDiffstat(doc);
-      if (counter) showDiffstat(counter, landing, { choice: diffstat, signal });
-    } else {
-      notice(PATH_ONLY_COPY[result.problem]);
-    }
-    if (!diffOrder.reorderable()) notice(FIXED_ORDER_COPY);
-  };
-
   // A DOM clone of the sidebar, such as a restored snapshot, can carry an earlier view.
   for (const stale of page.sidebar.querySelectorAll(".gh-prism-sections")) stale.remove();
   page.tree.before(view);
   doc.head.append(style);
-  const diffOrder = orderDiffs(page, signal);
-  if (options) {
-    const pending = loadingView(doc, listSkeleton(doc));
-    const diffsPending = loadingView(doc, diffSkeleton(doc));
-    diffsPending.root.classList.add("gh-prism-diff-loading");
-    const intent = options.intent((progress) => {
-      pending.progress(progress);
-      diffsPending.progress(progress);
-    });
-    if (intent instanceof Promise) {
-      loading = pending;
-      view.setAttribute("aria-busy", "true");
-      view.append(pending.root);
-      if (diffOrder.reorderable()) diffOrder.cover(diffsPending.root);
-      void intent
-        .catch((error: unknown): IntentResult => {
-          console.error("gh-prism: reading intent failed", error);
-          return { ok: false, problem: "failed" };
-        })
-        .then((result) => {
-          if (signal.aborted) return;
-          loading = undefined;
-          pending.root.remove();
-          view.removeAttribute("aria-busy");
-          view.toggleAttribute("data-reveal", true);
-          land(result, options.diffstat);
-          render();
-          diffOrder.reveal();
-        });
-    } else {
-      land(intent, options.diffstat);
-    }
-  }
-  render();
-  observeTree(page.sidebar, render, { signal, ignore: view });
   signal.addEventListener("abort", () => {
     for (const { tree } of shown.values()) tree.cleanUp();
     view.remove();
     style.remove();
     jump?.abort();
   });
+  return {
+    root: view,
+    pending() {
+      loading = loadingView(doc, listSkeleton(doc));
+      view.setAttribute("aria-busy", "true");
+      view.append(loading.root);
+    },
+    progress(progress) {
+      loading?.progress(progress);
+    },
+    landed(result) {
+      landing = landingOf(result);
+      if (loading) {
+        loading.root.remove();
+        loading = undefined;
+        view.removeAttribute("aria-busy");
+        view.toggleAttribute("data-reveal", true);
+      }
+      view.prepend(
+        ...noticesOf(result, reorderable(page)).map((text) =>
+          el(doc, "p", "gh-prism-notice", text),
+        ),
+      );
+    },
+    sections: render,
+  };
 }

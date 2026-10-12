@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import contentScript from "../entrypoints/content";
-import { showSections } from "../entrypoints/content/sections-view";
 import { dockSidebar, type Side } from "../entrypoints/content/sidebar-side";
+import { showVisit } from "../entrypoints/content/visit";
 import { readFilesRoute } from "../utils/files-route";
 import { intentFor } from "../utils/intent";
 import { byId, loadFixture } from "./fixtures/files-page";
@@ -14,9 +14,9 @@ vi.mock(import("../utils/intent"), async (importOriginal) => ({
   ...(await importOriginal()),
   intentFor: vi.fn(() => new Promise<never>(() => {})),
 }));
-vi.mock(import("../entrypoints/content/sections-view"), async (importOriginal) => ({
+vi.mock(import("../entrypoints/content/visit"), async (importOriginal) => ({
   ...(await importOriginal()),
-  showSections: vi.fn((_page, _signal, { intent }) => void intent(() => {})),
+  showVisit: vi.fn((_page, _signal, { intent }) => void intent(() => {})),
 }));
 vi.mock(import("../entrypoints/content/sidebar-side"), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -93,7 +93,7 @@ describe("content script", () => {
       expect.anything(),
       expect.any(Function),
     );
-    const shown = vi.mocked(showSections).mock.calls;
+    const shown = vi.mocked(showVisit).mock.calls;
     expect(shown).toHaveLength(2);
     expect(vi.mocked(dockSidebar).mock.calls.map(([doc]) => doc)).toEqual([document, document]);
     expect(docked()[1]?.choice).toBe(docked()[0]?.choice);
