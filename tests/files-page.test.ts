@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import type { FilesPage } from "../entrypoints/content/files-page";
 import {
+  appendToDiffs,
   commitPage,
   findDiff,
   findDiffstat,
@@ -11,6 +12,8 @@ import {
   observeTree,
   prPage,
   readChangedFiles,
+  reorderable,
+  treeToggleButtonOf,
 } from "../entrypoints/content/files-page";
 import { byId, diffList, foundPage, loadCommitFixture, loadFixture } from "./fixtures/files-page";
 
@@ -227,7 +230,51 @@ describe("findDiff", () => {
   });
 });
 
-describe("a commit page", () => {
+const virtualize = (page: FilesPage) => {
+  page.diffs.insertAdjacentHTML("beforeend", '<div data-index="0"><div role="region"></div></div>');
+};
+
+describe("the pull request kind", () => {
+  const statusOf = (path: string) =>
+    readChangedFiles(document).find((f) => f.path === path)?.status;
+  const toggleButton = () => {
+    const button = document.querySelector('[class*="RegularTreeToggle"]');
+    if (!button) throw new Error("fixture has no tree toggle");
+    return button;
+  };
+
+  it("finds the header's lines-changed counter", () => {
+    expect(findDiffstat(foundPage())?.textContent).toContain("+1,604");
+  });
+
+  it("finds the toolbar's tree toggle", () => {
+    expect(findTreeToggle(foundPage())).toBe(toggleButton().parentElement);
+  });
+
+  it("takes the regular tree toggle as collapsing the tree in place", () => {
+    expect(treeToggleButtonOf(foundPage(), toggleButton())).toBe(toggleButton());
+  });
+
+  it("selects the diff list entry holding a file's diff", () => {
+    expect(document.querySelector(prPage.diffEntry(ENGINE_DIFF))).toBe(
+      byId(ENGINE_DIFF).parentElement,
+    );
+  });
+
+  it("reads a row's status from its octicon", () => {
+    expect(statusOf("src/helpers.rs")).toBe("renamed");
+    expect(statusOf("src/engine.rs")).toBe("modified");
+  });
+
+  it("is reorderable until GitHub virtualizes its diffs", () => {
+    const page = foundPage();
+    expect(reorderable(page)).toBe(true);
+    virtualize(page);
+    expect(reorderable(page)).toBe(false);
+  });
+});
+
+describe("the commit kind", () => {
   const LAUNCHER_DIFF = "diff-90df21c5f2396574b17d2f1696a2e63cee454ee37910c7b254a81d44449cdaa4";
   const diffs = () => byId("diff-content-parent");
   const linkTo = (path: string) => {
@@ -261,6 +308,44 @@ describe("a commit page", () => {
       document.querySelector('#diff-content-parent [aria-controls="diff_file_tree"]')
         ?.parentElement,
     );
+  });
+
+  it("takes the in-place toggle, not the narrow layout's, as collapsing the tree", () => {
+    const [narrow, regular] = diffs().querySelectorAll('[aria-controls="diff_file_tree"]');
+    if (!narrow || !regular) throw new Error("fixture has no tree toggles");
+    expect(treeToggleButtonOf(foundPage(), regular)).toBe(regular);
+    expect(treeToggleButtonOf(foundPage(), narrow)).toBeNull();
+  });
+
+  it("selects the diff list entry holding a file's diff", () => {
+    expect(document.querySelector(commitPage.diffEntry(LAUNCHER_DIFF))).toBe(
+      document.querySelector('[role="region"]')?.parentElement,
+    );
+  });
+
+  it("spaces each entry holding a diff", () => {
+    expect([...document.querySelectorAll(commitPage.spacedEntries ?? "")]).toEqual(
+      [...diffs().querySelectorAll('[role="region"]')].map((region) => region.parentElement),
+    );
+  });
+
+  it("appends to its diff list ahead of the comments", () => {
+    const node = document.createElement("div");
+    appendToDiffs(foundPage(), node);
+    expect(node.nextElementSibling).toBe(byId("comments"));
+  });
+
+  it("reads a row's status from its octicon", () => {
+    expect(readChangedFiles(document).find((f) => f.path === "bin/caret-launcher")?.status).toBe(
+      "modified",
+    );
+  });
+
+  it("is reorderable until GitHub virtualizes its diffs", () => {
+    const page = foundPage();
+    expect(reorderable(page)).toBe(true);
+    virtualize(page);
+    expect(reorderable(page)).toBe(false);
   });
 
   it("finds a file's diff, which has no id, by its header's link", () => {
