@@ -1,4 +1,4 @@
-import type { ScannedHead } from "./doc-intent";
+import { extensionOf, type ScannedHead } from "./head-scan";
 import { type PrFileDiff, type PrHunk, parsePrHunks } from "./pr-diff";
 import { classify } from "./sections";
 
@@ -53,8 +53,6 @@ function candidateFinder(file: PrFileDiff): BlockFinder | undefined {
   if (classify(file.path) !== "implementation") return undefined;
   return FINDERS_BY_EXTENSION.get(extensionOf(file.path));
 }
-
-const extensionOf = (path: string) => /\.([^./]+)$/.exec(path)?.[1] ?? "";
 
 /** A test block in head-file lines: 1-based and inclusive, like {@link PrHunk.newStart}. */
 interface Block {

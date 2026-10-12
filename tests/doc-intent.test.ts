@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { DocVerdict } from "../utils/doc-intent";
-import { docHunkVerdict, docHunkVerdicts, scanHeadText } from "../utils/doc-intent";
+import { docHunkVerdict, docHunkVerdicts } from "../utils/doc-intent";
+import { scanHeadText } from "../utils/head-scan";
 import type { PrFileDiff, PrHunk } from "../utils/pr-diff";
 import { parsePrHunks } from "../utils/pr-diff";
 
@@ -1155,12 +1156,5 @@ describe("docHunkVerdicts", () => {
 
   it.each(headFileCases)("$name", ({ file, headText, verdicts }) => {
     expect(docHunkVerdicts(file, headOf(file.path, headText))).toEqual(verdicts);
-  });
-});
-
-describe("scanHeadText", () => {
-  it("Python: a line that starts inside a triple-quoted string reads as a string", () => {
-    const head = headOf("src/app.py", lines('x = """', "column zero", '"""', "y = 1"));
-    expect(head.kinds).toEqual(["code", "string", "string", "code"]);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { scanHeadText } from "../utils/doc-intent";
+import { scanHeadText } from "../utils/head-scan";
 import { inlineTestHunkVerdicts, inlineTestRuleApplies } from "../utils/inline-tests";
 import type { PrFileDiff } from "../utils/pr-diff";
 
