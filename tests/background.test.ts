@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import background from "../entrypoints/background";
-import { PR_DATA_PORT } from "../utils/pr-port";
+import { PR_DATA_PORT, type PrDataPort } from "../utils/pr-port";
 
-type Serve = Parameters<typeof fakeBrowser.runtime.onConnect.addListener>[0];
+type Serve = (port: PrDataPort & { readonly name: string }) => void;
 
 const fakePort = (name: string) => ({
   name,
@@ -20,7 +20,7 @@ describe("background", () => {
     fakeBrowser.reset();
     // fakeBrowser leaves runtime.onConnect unimplemented: its addListener throws.
     vi.spyOn(fakeBrowser.runtime.onConnect, "addListener").mockImplementation((listener) => {
-      serve = listener;
+      serve = listener as Serve;
     });
     background.main();
   });
@@ -30,6 +30,7 @@ describe("background", () => {
   it.each([{ reason: "install" }, { reason: "update", previousVersion: "0.0.0" }] as const)(
     "forgets cached sections on $reason",
     async (details) => {
+      // Raw keys on purpose, so the test outlives a move to typed storage items.
       await fakeBrowser.storage.local.set({ "intent.v1": ["k"], "intent.v1:k": {}, unrelated: 1 });
       await fakeBrowser.runtime.onInstalled.trigger(details);
       // The listener floats forgetIntents' promise, so trigger cannot await it.
@@ -41,13 +42,13 @@ describe("background", () => {
 
   it("serves the PR data port", () => {
     const port = fakePort(PR_DATA_PORT);
-    serve(port as never);
+    serve(port);
     expect(port.onMessage.addListener).toHaveBeenCalledOnce();
   });
 
   it("ignores any other port", () => {
     const port = fakePort("other");
-    serve(port as never);
+    serve(port);
     expect(port.onMessage.addListener).not.toHaveBeenCalled();
     expect(port.onDisconnect.addListener).not.toHaveBeenCalled();
   });

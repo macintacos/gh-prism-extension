@@ -9,12 +9,13 @@ import { showSections } from "../entrypoints/content/sections-view";
 import { dockSidebar, type Side } from "../entrypoints/content/sidebar-side";
 import { byId, loadFixture } from "./fixtures/files-page";
 
+// Only leaves are faked: intentFor needs a port fakeBrowser lacks; the views' DOM has own tests.
 vi.mock(import("../entrypoints/content/intent"), () => ({
   intentFor: vi.fn(() => new Promise<never>(() => {})),
 }));
 vi.mock(import("../entrypoints/content/sections-view"), async (importOriginal) => ({
   ...(await importOriginal()),
-  showSections: vi.fn(),
+  showSections: vi.fn((_page, _signal, { intent }) => void intent(() => {})),
 }));
 vi.mock(import("../entrypoints/content/sidebar-side"), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -23,15 +24,14 @@ vi.mock(import("../entrypoints/content/sidebar-side"), async (importOriginal) =>
 
 const PR = "/o/r/pull/1/changes";
 let controller: AbortController;
-const run = () =>
-  contentScript.main({ signal: controller.signal } as unknown as ContentScriptContext);
+const run = () => contentScript.main({ signal: controller.signal } as ContentScriptContext);
 const docked = () => vi.mocked(dockSidebar).mock.calls.map(([, , options]) => options);
 // Runs the MutationObserver's pending microtask, and no timer.
 const afterMutations = () => vi.advanceTimersByTimeAsync(0);
 
 beforeEach(() => {
   fakeBrowser.reset();
-  vi.clearAllMocks();
+  vi.resetAllMocks();
   vi.useFakeTimers();
   history.replaceState(null, "", PR);
   loadFixture();
@@ -44,12 +44,17 @@ afterEach(() => {
 });
 
 describe("content script", () => {
-  it.each<{ saved?: Side; opens: Side }>([{ saved: "left", opens: "left" }, { opens: "right" }])(
-    "opens the sidebar on the $opens from the first page",
+  it.each<{ saved?: unknown; opens: Side }>([
+    { saved: "left", opens: "left" },
+    { saved: "up", opens: "right" },
+    { opens: "right" },
+  ])(
+    "opens the sidebar on the $opens from the first page (saved: $saved)",
     async ({ saved, opens }) => {
-      if (saved) await fakeBrowser.storage.sync.set({ sidebarSide: saved });
+      // Raw key on purpose, so the test outlives a move to typed storage items.
+      if (saved !== undefined) await fakeBrowser.storage.sync.set({ sidebarSide: saved });
       const sides: Side[] = [];
-      // Recorded at call time: the shared choice may be mutated later.
+      // At call time: a saved side read after the first page docks would fix up the shared choice.
       vi.mocked(dockSidebar).mockImplementationOnce((_doc, _signal, { choice }) => {
         sides.push(choice.side);
       });
@@ -60,8 +65,10 @@ describe("content script", () => {
 
   it("saves the side the user picks", async () => {
     await run();
-    await docked()[0]?.save("left");
-    expect(await fakeBrowser.storage.sync.get("sidebarSide")).toEqual({ sidebarSide: "left" });
+    docked()[0]?.save("left");
+    await vi.waitFor(async () =>
+      expect(await fakeBrowser.storage.sync.get("sidebarSide")).toEqual({ sidebarSide: "left" }),
+    );
   });
 
   it("logs a failed save instead of throwing it", async () => {
@@ -69,11 +76,11 @@ describe("content script", () => {
     vi.spyOn(fakeBrowser.storage.sync, "set").mockRejectedValue(failure);
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     await run();
-    await expect(docked()[0]?.save("left")).resolves.toBeUndefined();
-    expect(error).toHaveBeenCalledWith(expect.any(String), failure);
+    docked()[0]?.save("left");
+    await vi.waitFor(() => expect(error).toHaveBeenCalledWith(expect.any(String), failure));
   });
 
-  it("shares one diff read across the pages of a visit", async () => {
+  it("mounts every page of a visit on one shared diff read", async () => {
     await run();
     const sidebar = byId("pr-file-tree");
     sidebar.replaceWith(sidebar.cloneNode(true));
@@ -87,8 +94,8 @@ describe("content script", () => {
     );
     const shown = vi.mocked(showSections).mock.calls;
     expect(shown).toHaveLength(2);
-    expect(shown[1]?.[2]?.intent).toBe(shown[0]?.[2]?.intent);
     expect(vi.mocked(dockSidebar).mock.calls.map(([doc]) => doc)).toEqual([document, document]);
+    expect(docked()[1]?.choice).toBe(docked()[0]?.choice);
   });
 
   it("reads the diff afresh on the next visit", async () => {
