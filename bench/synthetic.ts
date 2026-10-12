@@ -73,12 +73,16 @@ export const changedFiles = (
     return { path, link, active: false, status, comments: null };
   });
 
-const FUNCTIONS = 50;
+const FUNCTION_COUNT = 50;
 
 /** A Rust head of three-line functions, then a `mod tests` block. */
 const rustHead = (): string =>
   [
-    ...Array.from({ length: FUNCTIONS }, (_, k) => [`pub fn f${k}() -> u32 {`, `    ${k}`, "}"]),
+    ...Array.from({ length: FUNCTION_COUNT }, (_, k) => [
+      `pub fn f${k}() -> u32 {`,
+      `    ${k}`,
+      "}",
+    ]),
     [
       "#[cfg(test)]",
       "mod tests {",
@@ -96,7 +100,7 @@ const rustHead = (): string =>
 // One code hunk and one test-block hunk, so every src/ file reads its head and splits across
 // Implementation and Tests: f0's body, and the assertion inside `mod tests`.
 const CODE_LINE = 2;
-const TEST_LINE = FUNCTIONS * 3 + 6;
+const TEST_LINE = FUNCTION_COUNT * 3 + 6;
 
 const RUST_PATCH = [
   `@@ -${CODE_LINE},1 +${CODE_LINE},1 @@`,

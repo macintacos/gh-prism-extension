@@ -86,16 +86,16 @@ async function diffOrder(page: Page, files: number) {
   );
   const elements = await order.evaluate(({ elements }) => elements);
   const before = await styleMs(cdp);
-  const apply = await order.evaluate((o) => o.apply());
+  const applyMs = await order.evaluate((o) => o.apply());
   const applied = await styleMs(cdp);
-  const rewrite = await order.evaluate((o) => o.rewrite());
+  const rewriteMs = await order.evaluate((o) => o.rewrite());
   const rewritten = await styleMs(cdp);
   return {
     files,
     "elements/entry": elements,
-    "apply ms": apply,
+    "apply ms": applyMs,
     "apply style ms": round(applied - before),
-    "rewrite ms": rewrite,
+    "rewrite ms": rewriteMs,
     "rewrite style ms": round(rewritten - applied),
   };
 }

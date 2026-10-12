@@ -60,7 +60,7 @@ function diffOrder(count: number, entrySize: number) {
   const view = showDiffOrder(page, new AbortController().signal);
   const sections = sectionsOf(landingOf(NOTHING_PLACED), changedFiles(document, files, "modified"));
   settle();
-  const entry = page.diffs.querySelector('[role="region"]')?.parentElement;
+  const firstEntry = page.diffs.querySelector('[role="region"]')?.parentElement;
   /** Orders the diffs as `order` lists them; returns the ms, layout included, and throws if the order didn't follow. */
   const arrange = async (order: readonly FileSection[]) => {
     const ms = await timed(() => {
@@ -72,7 +72,7 @@ function diffOrder(count: number, entrySize: number) {
   };
   return {
     /** The first entry's element count. */
-    elements: entry ? entry.querySelectorAll("*").length + 1 : 0,
+    elements: firstEntry ? firstEntry.querySelectorAll("*").length + 1 : 0,
     apply: () => arrange(sections),
     /** Each section's files reversed, so the ranks change. */
     rewrite: () =>
