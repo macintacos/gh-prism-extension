@@ -26,10 +26,17 @@ export interface PageKind {
   readonly treeToggle: string;
   /** The toggle buttons that collapse the tree in place, not the narrow layout's overlay toggle. */
   readonly treeToggleButton: string;
+  /** The list in `diffs` that holds each file's entry. */
+  readonly diffList: string;
+  /** Every file's entry in `diffList`. */
+  readonly diffEntries: string;
   /** CSS selecting the diff list entry of the file whose anchor is `anchor`. */
   readonly diffEntry: (anchor: string) => string;
-  /** Every file's entry, where GitHub spaces entries by their place in its order: a commit's. */
-  readonly spacedEntries?: string;
+  /**
+   * How GitHub lays out `diffList`: a flex column, or a block that opens on a toolbar and spaces
+   * each entry by its place in GitHub's order.
+   */
+  readonly listLayout: "flex" | "block";
   /**
    * What follows the files inside the diff list, ahead of which a cover goes: a commit's
    * comments.
@@ -41,14 +48,21 @@ export interface PageKind {
   readonly reveal: "click" | "hash";
 }
 
-// Keep the list selectors in sync with diff-order.css.
+// A diff list's entry holds its file's diff; nothing else in the list does.
+const HOLDS_DIFF = ':has([role="region"])';
+
+const PR_DIFF_LIST = '[data-testid="progressive-diffs-list"]';
+
 export const prPage = {
   sidebar: "#pr-file-tree",
   diffs: '[data-testid="diff-content"]',
   diffstat: '[class*="PullRequestHeader-module__rightContentWrapper"] > .d-flex',
   treeToggle: '[class*="RegularTreeToggle"]',
   treeToggleButton: '[class*="RegularTreeToggle"]',
-  diffEntry: (anchor) => `[data-testid="progressive-diffs-list"] > :has(#${anchor})`,
+  diffList: PR_DIFF_LIST,
+  diffEntries: `${PR_DIFF_LIST} > ${HOLDS_DIFF}`,
+  diffEntry: (anchor) => `${PR_DIFF_LIST} > :has(#${anchor})`,
+  listLayout: "flex",
   diffOf: (diffs, anchor) => diffs.ownerDocument.getElementById(anchor),
   reveal: "click",
 } satisfies PageKind;
@@ -64,8 +78,10 @@ export const commitPage = {
   treeToggle: '#diff-content-parent [aria-controls="diff_file_tree"]',
   // `.d-md-none` marks the narrow layout's overlay toggle.
   treeToggleButton: '[aria-controls="diff_file_tree"]:not(.d-md-none)',
+  diffList: COMMIT_DIFF_LIST,
+  diffEntries: `${COMMIT_DIFF_LIST} > ${HOLDS_DIFF}`,
   diffEntry: (anchor) => `${COMMIT_DIFF_LIST} > :has(a[href="#${anchor}"])`,
-  spacedEntries: `${COMMIT_DIFF_LIST} > :has([role="region"])`,
+  listLayout: "block",
   afterDiffs: ":scope > #comments",
   // A commit's diff has no id; its header links to the file's anchor instead.
   diffOf: (diffs, anchor) =>
@@ -78,7 +94,10 @@ export const commitPage = {
 // Both of GitHub's virtualized lists index each row they place.
 const VIRTUALIZED = '[data-index] [role="region"]';
 
-const PAGE_KINDS: readonly PageKind[] = [prPage, commitPage];
+export const PAGE_KINDS: readonly PageKind[] = [prPage, commitPage];
+
+/** What follows the files in `kind`'s diff list, such as GitHub's loader for more of them. */
+export const afterEntries = (kind: PageKind): string => `${kind.diffEntries} ~ :not(${HOLDS_DIFF})`;
 
 /** A pull request's or commit's Files changed markup, as `findFilesPage` finds it. */
 export interface FilesPage {

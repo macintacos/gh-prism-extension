@@ -269,6 +269,18 @@ describe("the pull request kind", () => {
     );
   });
 
+  it("selects its diff list", () => {
+    expect(document.querySelector(prPage.diffList)).toBe(
+      byId(ENGINE_DIFF).parentElement?.parentElement,
+    );
+  });
+
+  it("selects each entry holding a diff", () => {
+    expect([...document.querySelectorAll(prPage.diffEntries)]).toEqual([
+      byId(ENGINE_DIFF).parentElement,
+    ]);
+  });
+
   it("reads a row's status from its octicon", () => {
     expect(statusOf("src/helpers.rs")).toBe("renamed");
     expect(statusOf("src/engine.rs")).toBe("modified");
@@ -322,8 +334,14 @@ describe("the commit kind", () => {
     );
   });
 
-  it("spaces each entry holding a diff", () => {
-    expect([...document.querySelectorAll(commitPage.spacedEntries)]).toEqual(
+  it("selects its diff list", () => {
+    expect(document.querySelector(commitPage.diffList)).toBe(
+      document.querySelector('[role="region"]')?.parentElement?.parentElement,
+    );
+  });
+
+  it("selects each entry holding a diff", () => {
+    expect([...document.querySelectorAll(commitPage.diffEntries)]).toEqual(
       [...diffs().querySelectorAll('[role="region"]')].map((region) => region.parentElement),
     );
   });
