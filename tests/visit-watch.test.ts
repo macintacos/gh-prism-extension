@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FilesPage } from "../entrypoints/content/files-page";
 import { watchFilesPages } from "../entrypoints/content/visit-watch";
 import type { FilesRoute } from "../utils/files-route";
-import { byId, diffList, foundPage, loadCommitFixture, loadFixture } from "./fixtures/files-page";
+import { byId, diffList, loadCommitFixture, loadFixture } from "./fixtures/files-page";
 
 beforeEach(() => {
   loadFixture();

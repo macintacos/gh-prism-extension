@@ -2,20 +2,22 @@
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import { readChangedFiles } from "../entrypoints/content/files-page";
 import { revealDiff, revealDiffLine } from "../entrypoints/content/reveal";
-import { byId, diffList, foundPage, loadCommitFixture, loadFixture } from "./fixtures/files-page";
+import {
+  byId,
+  diffList,
+  foundPage,
+  LAUNCHER_DIFF,
+  linkTo,
+  loadCommitFixture,
+  loadFixture,
+} from "./fixtures/files-page";
 
 beforeEach(() => {
   loadFixture();
 });
 
 describe("a commit page", () => {
-  const LAUNCHER_DIFF = "diff-90df21c5f2396574b17d2f1696a2e63cee454ee37910c7b254a81d44449cdaa4";
   const diffs = () => byId("diff-content-parent");
-  const linkTo = (path: string) => {
-    const found = readChangedFiles(document).find((f) => f.path === path);
-    if (!found) throw new Error(`no changed file ${path}`);
-    return found.link;
-  };
 
   beforeEach(() => {
     loadCommitFixture();

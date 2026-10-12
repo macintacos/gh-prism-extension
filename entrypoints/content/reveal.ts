@@ -20,18 +20,28 @@ const GLIDE_VIEWPORTS = 0.5;
 
 /**
  * Clicks `link`, the native tree row's link, and glides the window to where GitHub scrolls the
- * file's diff instead of letting it jump there; on a commit page, follows the link's hash instead.
- * Once `signal` aborts, it no longer glides.
+ * file's diff instead of letting it jump there; on a page kind that reveals by hash, follows the
+ * link's hash instead. Once `signal` aborts, it no longer glides.
  */
 export function revealDiff(
   page: FilesPage,
   link: HTMLAnchorElement,
   { signal }: { signal: AbortSignal },
 ): void {
-  if (page.kind.reveal === "hash") {
-    followHash(link, signal);
-    return;
+  switch (page.kind.reveal) {
+    case "hash":
+      followHash(link, signal);
+      break;
+    case "click":
+      clickAndGlide(link, signal);
+      break;
+    default:
+      page.kind.reveal satisfies never;
   }
+}
+
+/** Clicks `link` and glides the window to where GitHub scrolls instead of letting it jump. */
+function clickAndGlide(link: HTMLAnchorElement, signal: AbortSignal): void {
   const win = link.ownerDocument.defaultView;
   const from = win?.scrollY ?? 0;
   link.click();
@@ -43,7 +53,7 @@ export function revealDiff(
 }
 
 /**
- * Moves a commit page to `link`'s file the way GitHub's own code does: it replaces the URL's hash
+ * Moves the page to `link`'s file the way GitHub's own code does: it replaces the URL's hash
  * and announces it, and GitHub glides to the file and marks it current. GitHub ignores an
  * unchanged hash, so a current file is first announced as left.
  */
@@ -108,10 +118,11 @@ export async function revealDiffLine(
     revealDiff(page, link, { signal });
     if (!(await untilFound(diffs, diff, signal))) return;
   }
-  if (!row() && expandDiff(diff())) await untilFound(diffs, () => expandedDiff(diff()), signal);
+  if (!row() && clicked(expandButtonOf(diff())))
+    await untilFound(diffs, () => expandedDiff(diff()), signal);
   if (signal.aborted) return;
   let target = row();
-  if (!target && loadDiff(diff())) target = await untilFound(diffs, row, signal);
+  if (!target && clicked(loadDiffButtonOf(diff()))) target = await untilFound(diffs, row, signal);
   if (signal.aborted) return;
   if (target) centre(target);
   else revealDiff(page, link, { signal }); // the file's header
@@ -124,20 +135,10 @@ function centre(row: Element): void {
   if (win) glideFrom(win, from);
 }
 
-/** Clicks an expand button of a diff collapsed to its header; returns whether it clicked. */
-function expandDiff(diff: Element | null): boolean {
-  const button = expandButtonOf(diff);
-  if (!button) return false;
-  button.click();
-  return true;
-}
-
-/** Clicks the Load Diff button of an unloaded diff's placeholder; returns whether it clicked. */
-function loadDiff(diff: Element | null): boolean {
-  const button = loadDiffButtonOf(diff);
-  if (!button) return false;
-  button.click();
-  return true;
+/** Clicks `button` when there is one; returns whether it clicked. */
+function clicked(button: HTMLElement | null): boolean {
+  button?.click();
+  return button !== null;
 }
 
 /**

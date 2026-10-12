@@ -1,7 +1,7 @@
 import { type DiffRef, isCommitSha } from "./pr-ref";
 
 const FILES_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)\/(?:changes|files)(?:\/([^/]*).*)?$/;
-const COMMIT_PATH = /^\/([^/]+)\/([^/]+)\/commit\/([^/]+?)\/?$/;
+const COMMIT_PATH = /^\/([^/]+)\/([^/]+)\/commit\/([^/]+)\/?$/;
 
 /** The diff a Files changed URL names, and whether a commit or range narrows a pull request's. */
 export interface FilesRoute {

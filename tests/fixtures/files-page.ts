@@ -1,4 +1,4 @@
-import { findFilesPage } from "../../entrypoints/content/files-page";
+import { findFilesPage, readChangedFiles } from "../../entrypoints/content/files-page";
 // The `?raw` import is required: `readFileSync` throws under happy-dom.
 import commitFixture from "./commit-page.html?raw";
 import fixture from "./files-page.html?raw";
@@ -20,7 +20,7 @@ export function loadCommitFixture(): void {
   document.body.innerHTML = commitFixture;
 }
 
-/** The fixture's diff list; throws when the fixture lacks it. */
+/** The pull request fixture's diff list; throws when the fixture lacks it. */
 export const diffList = (): Element => {
   const diffs = document.querySelector('[data-testid="diff-content"]');
   if (!diffs) throw new Error("fixture has no diff list");
@@ -32,4 +32,15 @@ export const foundPage = () => {
   const page = findFilesPage(document);
   if (!page) throw new Error("fixture has no Files changed markup");
   return page;
+};
+
+/** The commit fixture's diff anchor for `bin/caret-launcher`. */
+export const LAUNCHER_DIFF =
+  "diff-90df21c5f2396574b17d2f1696a2e63cee454ee37910c7b254a81d44449cdaa4";
+
+/** The native row link for the changed file at `path`; throws when there is none. */
+export const linkTo = (path: string): HTMLAnchorElement => {
+  const found = readChangedFiles(document).find((f) => f.path === path);
+  if (!found) throw new Error(`no changed file ${path}`);
+  return found.link;
 };

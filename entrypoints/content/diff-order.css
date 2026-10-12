@@ -1,4 +1,5 @@
-/* GitHub hooks: #diff-content-parent, [data-testid="progressive-diffs-list"], [role="region"]. Keep the list selectors in sync with prPage and commitPage in files-page.ts. */
+/* GitHub hooks: #diff-content-parent, [data-testid="progressive-diffs-list"], [role="region"].
+   Keep the list selectors in sync with prPage and commitPage in files-page.ts. */
 
 /* A commit's list; a pull request's is already a flex column. */
 #diff-content-parent > :has(> * > [role="region"]) {

@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FilesPage } from "../entrypoints/content/files-page";
 import {
   appendToDiffs,
@@ -15,7 +15,15 @@ import {
   reorderable,
   treeToggleButtonOf,
 } from "../entrypoints/content/files-page";
-import { byId, diffList, foundPage, loadCommitFixture, loadFixture } from "./fixtures/files-page";
+import {
+  byId,
+  diffList,
+  foundPage,
+  LAUNCHER_DIFF,
+  linkTo,
+  loadCommitFixture,
+  loadFixture,
+} from "./fixtures/files-page";
 
 const PATHS = [
   "config/app.toml",
@@ -82,7 +90,7 @@ describe("readChangedFiles", () => {
     ).toEqual(["src/lib.rs"]);
   });
 
-  it("exposes the row's status icon", () => {
+  it("exposes the row's status", () => {
     expect(file("src/helpers.rs").status).toBe("renamed");
   });
 
@@ -208,12 +216,6 @@ describe("observeDiffs", () => {
 });
 
 describe("findDiff", () => {
-  const linkTo = (path: string) => {
-    const found = readChangedFiles(document).find((f) => f.path === path);
-    if (!found) throw new Error(`no changed file ${path}`);
-    return found.link;
-  };
-
   it("finds the mounted diff for a file's link", () => {
     expect(findDiff(foundPage(), linkTo("src/engine.rs"))).toBe(byId(ENGINE_DIFF));
   });
@@ -255,6 +257,12 @@ describe("the pull request kind", () => {
     expect(treeToggleButtonOf(foundPage(), toggleButton())).toBe(toggleButton());
   });
 
+  it("does not take the narrow layout's toggle as collapsing the tree", () => {
+    const narrow = document.querySelector('[class*="MobileTreeToggle"]');
+    if (!narrow) throw new Error("fixture has no narrow tree toggle");
+    expect(treeToggleButtonOf(foundPage(), narrow)).toBeNull();
+  });
+
   it("selects the diff list entry holding a file's diff", () => {
     expect(document.querySelector(prPage.diffEntry(ENGINE_DIFF))).toBe(
       byId(ENGINE_DIFF).parentElement,
@@ -275,19 +283,10 @@ describe("the pull request kind", () => {
 });
 
 describe("the commit kind", () => {
-  const LAUNCHER_DIFF = "diff-90df21c5f2396574b17d2f1696a2e63cee454ee37910c7b254a81d44449cdaa4";
   const diffs = () => byId("diff-content-parent");
-  const linkTo = (path: string) => {
-    const found = readChangedFiles(document).find((f) => f.path === path);
-    if (!found) throw new Error(`no changed file ${path}`);
-    return found.link;
-  };
 
   beforeEach(() => {
     loadCommitFixture();
-  });
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   it("finds the sidebar, tree, and diff list", () => {
@@ -324,7 +323,7 @@ describe("the commit kind", () => {
   });
 
   it("spaces each entry holding a diff", () => {
-    expect([...document.querySelectorAll(commitPage.spacedEntries ?? "")]).toEqual(
+    expect([...document.querySelectorAll(commitPage.spacedEntries)]).toEqual(
       [...diffs().querySelectorAll('[role="region"]')].map((region) => region.parentElement),
     );
   });

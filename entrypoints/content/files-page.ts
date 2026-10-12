@@ -1,8 +1,8 @@
 /**
- * The one module that knows GitHub's markup. It holds a `PageKind` for each kind of page whose
- * Files view gh-prism serves, a pull request's and a commit's, finds a Files view's page and reads
- * its rows, and holds no UI. Selectors come from EXC-1662's survey of GitHub's PR UI; it imports
- * nothing from WXT, so other features can reuse it.
+ * The one script module that holds selectors into GitHub's Files view markup; the stylesheets list
+ * theirs in a `GitHub hooks:` header. It holds a `PageKind` for a pull request's page and a
+ * commit's, finds a Files view's page, and reads its rows; it holds no UI and imports nothing from
+ * WXT. The pull request selectors come from EXC-1662's survey.
  */
 
 const DEBOUNCE_MS = 50;
@@ -10,11 +10,15 @@ const HIDDEN_PATCH = '[class*="HiddenDiffPatch-module"]';
 // A pull request's placeholder says "Load Diff"; a commit's says "Load diff".
 const LOAD_DIFF_LABEL = "load diff";
 
-/** Where one kind of page, a pull request's or a commit's, keeps its Files changed markup. */
+/**
+ * Where one kind of page, a pull request's or a commit's, keeps its Files changed markup. Callers
+ * ask the page module's helpers rather than branching on a kind: a new kind is a new adapter, not
+ * a new branch in each caller.
+ */
 export interface PageKind {
-  /** The native sidebar: the filter box, the native tree, and anything inserted beside it. */
+  /** Selects `FilesPage.sidebar`. */
   readonly sidebar: string;
-  /** Parent of the progressive or virtualized diff list. */
+  /** Selects `FilesPage.diffs`. */
   readonly diffs: string;
   /** The header's lines-changed counter. */
   readonly diffstat: string;
@@ -23,7 +27,7 @@ export interface PageKind {
   /** The toggle buttons that collapse the tree in place, not the narrow layout's overlay toggle. */
   readonly treeToggleButton: string;
   /** CSS selecting the diff list entry of the file whose anchor is `anchor`. */
-  diffEntry(anchor: string): string;
+  readonly diffEntry: (anchor: string) => string;
   /** Every file's entry, where GitHub spaces entries by their place in its order: a commit's. */
   readonly spacedEntries?: string;
   /**
@@ -31,14 +35,14 @@ export interface PageKind {
    * comments.
    */
   readonly afterDiffs?: string;
-  /** The mounted diff for `anchor` under `diffs`, or `null`. */
-  diffOf(diffs: Element, anchor: string): Element | null;
+  /** The diff for `anchor`, or `null`; it may lie outside `diffs`, which `findDiff` rules out. */
+  readonly diffOf: (diffs: Element, anchor: string) => Element | null;
   /** How a row's link reveals its diff: a click GitHub scrolls for, or a hash GitHub follows. */
   readonly reveal: "click" | "hash";
 }
 
 // Keep the list selectors in sync with diff-order.css.
-export const prPage: PageKind = {
+export const prPage = {
   sidebar: "#pr-file-tree",
   diffs: '[data-testid="diff-content"]',
   diffstat: '[class*="PullRequestHeader-module__rightContentWrapper"] > .d-flex',
@@ -47,20 +51,21 @@ export const prPage: PageKind = {
   diffEntry: (anchor) => `[data-testid="progressive-diffs-list"] > :has(#${anchor})`,
   diffOf: (diffs, anchor) => diffs.ownerDocument.getElementById(anchor),
   reveal: "click",
-};
+} satisfies PageKind;
 
-export const commitPage: PageKind = {
+// A commit's list while its diffs are in flow; a virtualized commit nests each diff a level deeper.
+const COMMIT_DIFF_LIST = '#diff-content-parent > :has(> * > [role="region"])';
+
+export const commitPage = {
   sidebar: "#diff_file_tree",
   diffs: "#diff-content-parent",
   diffstat: '[class*="CommitHeader-module__commitFilesChangedContainer"] > .d-flex',
   // A commit's sidebar carries a copy of the toolbar for the narrow layout.
   treeToggle: '#diff-content-parent [aria-controls="diff_file_tree"]',
-  // The narrow layout's toggle opens an overlay instead.
+  // `.d-md-none` marks the narrow layout's overlay toggle.
   treeToggleButton: '[aria-controls="diff_file_tree"]:not(.d-md-none)',
-  // While its diffs are in flow; a virtualized commit nests each diff a level deeper.
-  diffEntry: (anchor) =>
-    `#diff-content-parent > :has(> * > [role="region"]) > :has(a[href="#${anchor}"])`,
-  spacedEntries: '#diff-content-parent > :has(> * > [role="region"]) > :has([role="region"])',
+  diffEntry: (anchor) => `${COMMIT_DIFF_LIST} > :has(a[href="#${anchor}"])`,
+  spacedEntries: `${COMMIT_DIFF_LIST} > :has([role="region"])`,
   afterDiffs: ":scope > #comments",
   // A commit's diff has no id; its header links to the file's anchor instead.
   diffOf: (diffs, anchor) =>
@@ -68,15 +73,16 @@ export const commitPage: PageKind = {
   // A click would also navigate GitHub's router, whose scroll restoration can undo the scroll to
   // the file, since a commit's diffs have no ids.
   reveal: "hash",
-};
+} satisfies PageKind;
 
 // Both of GitHub's virtualized lists index each row they place.
 const VIRTUALIZED = '[data-index] [role="region"]';
 
-const PAGE_KINDS = [prPage, commitPage];
+const PAGE_KINDS: readonly PageKind[] = [prPage, commitPage];
 
 /** A pull request's or commit's Files changed markup, as `findFilesPage` finds it. */
 export interface FilesPage {
+  /** The adapter whose selectors found this page. */
   readonly kind: PageKind;
   /** The filter box, the native tree, and anything inserted beside it. */
   readonly sidebar: Element;
@@ -154,12 +160,19 @@ export interface ChangedFile {
   readonly link: HTMLAnchorElement;
   /** The row is `aria-current`: its diff is the one in view. */
   readonly active: boolean;
-  /** What the change did to the file, as the row's first octicon shows it. */
+  /**
+   * What the change did to the file, as the row's first octicon shows it; `undefined` for an
+   * octicon it doesn't map.
+   */
   readonly status: FileStatus | undefined;
   /** The comment icon and count, when the file has comments. */
   readonly comments: Element | null;
 }
 
+/**
+ * What a change did to a file: a subset of @pierre/trees' GitStatus, which the sections tree takes
+ * as is.
+ */
 export type FileStatus = "added" | "deleted" | "renamed" | "modified";
 
 const STATUS_BY_OCTICON: ReadonlyMap<string, FileStatus> = new Map([
