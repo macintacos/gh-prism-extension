@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { inlineTestHunkVerdicts, inlineTestRuleApplies } from "../utils/inline-tests";
+import { commentSyntaxOf } from "../utils/head-scan";
+import {
+  INLINE_TEST_EXTENSIONS,
+  inlineTestHunkVerdicts,
+  inlineTestRuleApplies,
+} from "../utils/inline-tests";
 import type { PrFileDiff } from "../utils/pr-diff";
 import { headOf, lines } from "./fixtures/head-scan";
 
@@ -886,5 +891,11 @@ describe("inlineTestHunkVerdicts", () => {
         headOf("src/app.js", itBlockHead),
       ),
     ).toEqual([]);
+  });
+});
+
+describe("INLINE_TEST_EXTENSIONS", () => {
+  it.each(INLINE_TEST_EXTENSIONS)("has a comment syntax for the head scan: %s", (ext) => {
+    expect(commentSyntaxOf(`src/file.${ext}`)).toBeDefined();
   });
 });

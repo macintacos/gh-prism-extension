@@ -313,3 +313,6 @@ const FINDERS_BY_EXTENSION = new Map<string, BlockFinder>([
   ["mts", tsTestBlocks],
   ["cts", tsTestBlocks],
 ]);
+
+/** Extensions with a test-block finder; each needs a comment syntax in the head scan. */
+export const INLINE_TEST_EXTENSIONS: readonly string[] = [...FINDERS_BY_EXTENSION.keys()];
