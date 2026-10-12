@@ -1,5 +1,6 @@
-import { type DocVerdict, docHunkVerdicts, type ScannedHead, scanHeadText } from "./doc-intent";
+import { type DocVerdict, docHunkVerdicts } from "./doc-intent";
 import type { FilesRoute } from "./files-route";
+import { type ScannedHead, scanHeadText } from "./head-scan";
 import { inlineTestHunkVerdicts, inlineTestRuleApplies } from "./inline-tests";
 import type { IntentCache } from "./intent-cache";
 import { sectionOf } from "./landing";
