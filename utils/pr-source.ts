@@ -124,9 +124,9 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
     const entry = entryFor(pr);
     const cached = entry.files;
     if (cached) return { ok: true, files: cached };
-    const read = await readDiff(pr, signal);
-    if (read.ok) entry.files = read.files;
-    return read;
+    const diff = await readDiff(pr, signal);
+    if (diff.ok) entry.files = diff.files;
+    return diff;
   }
 
   return {
@@ -138,12 +138,12 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
         const listed = await files({ ...pr, headSha: head.headSha }, signal);
         return listed.ok ? { ...listed, headSha: head.headSha } : listed;
       }
-      const [head, read] = await Promise.all([lookUpHead(pr, signal), readDiff(pr, signal)]);
+      const [head, diff] = await Promise.all([lookUpHead(pr, signal), readDiff(pr, signal)]);
       if (!head.ok) return head;
-      if (!read.ok) return read;
+      if (!diff.ok) return diff;
       const entry = entryFor({ ...pr, headSha: head.headSha });
       // As a `files` request at this head would answer: an entry filled meanwhile wins.
-      entry.files ??= read.files;
+      entry.files ??= diff.files;
       return { ok: true, headSha: head.headSha, files: entry.files };
     },
 
