@@ -10,7 +10,7 @@ import type { LineCounts } from "@/utils/pr-diff";
 import { SECTIONS, type SectionKey } from "@/utils/sections";
 import { el } from "./dom";
 import { type FilesPage, findDiffstat } from "./files-page";
-import { SECTION_CATALOG, sectionIcon } from "./section-catalog";
+import { markSection, SECTION_CATALOG, sectionIcon } from "./section-catalog";
 import type { LandingView } from "./visit";
 
 /** Which view the header counter shows. One per tab, so the choice carries to the next page. */
@@ -72,7 +72,7 @@ function pill(doc: Document, { section, lines }: SectionLines): HTMLElement {
       el(doc, "span", "", SECTION_CATALOG[section].description),
     ),
   );
-  node.dataset.section = section;
+  markSection(node, section);
   return node;
 }
 
@@ -85,7 +85,7 @@ function tipRow(doc: Document, { section, lines }: SectionLines): HTMLElement {
     el(doc, "span", "", labelOf(section)),
     ...counts(doc, lines),
   );
-  row.dataset.section = section;
+  markSection(row, section);
   return row;
 }
 

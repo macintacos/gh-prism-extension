@@ -1,7 +1,15 @@
 /** The progress bar that stands in while intent is read. sections-view.css styles its classes. */
 
 import type { IntentProgress } from "@/utils/intent";
+import { SECTIONS } from "@/utils/sections";
 import { el } from "./dom";
+import { SECTION_CATALOG } from "./section-catalog";
+
+// CSS can't lay down a band per section, so the gradient follows SECTIONS from here.
+const BAND = 100 / SECTIONS.length;
+const SPECTRUM = `linear-gradient(90deg, ${SECTIONS.map(
+  ({ key }, i) => `var(${SECTION_CATALOG[key].hue}) ${i * BAND}% ${(i + 1) * BAND}%`,
+).join(", ")})`;
 
 /** A progress bar over a skeleton, drawn while intent is read. */
 export interface LoadingView {
@@ -15,12 +23,14 @@ export interface LoadingView {
 export function loadingView(doc: Document, skeleton: HTMLElement): LoadingView {
   const label = el(doc, "span", "", "Reading the diff");
   const count = el(doc, "span", "gh-prism-loading-count");
+  const spectrum = el(doc, "div", "gh-prism-spectrum");
+  spectrum.style.setProperty("--gh-prism-spectrum", SPECTRUM);
   const root = el(
     doc,
     "div",
     "gh-prism-loading",
     el(doc, "div", "gh-prism-loading-label", label, count),
-    el(doc, "div", "gh-prism-spectrum"),
+    spectrum,
     skeleton,
   );
   root.setAttribute("role", "progressbar");
