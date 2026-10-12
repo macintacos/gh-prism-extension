@@ -19,9 +19,8 @@ import type { PrDataProblem } from "./pr-source";
 import { SECTIONS, type SectionKey } from "./sections";
 
 /**
- * The most files `readIntent` places at once, and so the most heads it reads at once. GitHub
- * serves these reads over HTTP/2, so the browser sets no limit; six is a polite burst for one
- * origin, where more only invites GitHub's rate limiting.
+ * The most files `readIntent` places at once, and so the most heads it reads at once. Over
+ * HTTP/2 the browser sets no limit of its own; more than six invites GitHub's rate limiting.
  */
 export const HEAD_READS_AT_ONCE = 6;
 
