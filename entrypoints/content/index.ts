@@ -3,6 +3,7 @@ import { storage } from "wxt/utils/storage";
 import { intentFor, shareIntent } from "@/utils/intent";
 import { storedIntents } from "@/utils/intent-cache";
 import { connectPrData } from "@/utils/pr-port";
+import { sidebarSide } from "@/utils/prefs";
 import type { DiffstatChoice } from "./diffstat-view";
 import { watchFilesPages } from "./files-page";
 import { showSections } from "./sections-view";
@@ -17,11 +18,14 @@ export default defineContentScript({
   async main(ctx) {
     const diffstat: DiffstatChoice = { view: "breakout" };
     const sources = { connect: connectPrData, cache: storedIntents(storage, CACHED_DIFFS) };
-    const savedSide = storage.defineItem<unknown>("sync:sidebarSide");
     // Read before watching, so a sidebar saved on the left never opens on the right first.
-    const side: SideChoice = { side: (await savedSide.getValue()) === "left" ? "left" : "right" };
+    // `fallback` covers only a missing side; a corrupt one reads back as stored.
+    const saved: unknown = await sidebarSide.getValue();
+    const side: SideChoice = {
+      side: saved === "left" || saved === "right" ? saved : sidebarSide.fallback,
+    };
     const save = (picked: Side) =>
-      savedSide
+      sidebarSide
         .setValue(picked)
         .catch((error: unknown) =>
           console.error("gh-prism: saving the sidebar side failed", error),
