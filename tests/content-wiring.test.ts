@@ -64,6 +64,20 @@ describe("content script", () => {
     },
   );
 
+  it("opens on the right and mounts when reading the saved side fails", async () => {
+    const failure = new Error("context invalidated");
+    vi.spyOn(fakeBrowser.storage.sync, "get").mockRejectedValue(failure);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const sides: Side[] = [];
+    vi.mocked(dockSidebar).mockImplementationOnce((_page, _signal, { choice }) => {
+      sides.push(choice.side);
+    });
+    await run();
+    expect(sides).toEqual(["right"]);
+    expect(showVisit).toHaveBeenCalledOnce();
+    expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
+  });
+
   it("saves the side the user picks", async () => {
     await run();
     docked()[0]?.save("left");

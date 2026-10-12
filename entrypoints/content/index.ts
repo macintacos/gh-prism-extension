@@ -20,7 +20,10 @@ export default defineContentScript({
     const sources = { connect: connectPrData, cache: storedIntents(storage, CACHED_DIFFS) };
     // Read before watching, so a sidebar saved on the left never opens on the right first.
     // `fallback` covers only a missing side; a corrupt one reads back as stored.
-    const saved: unknown = await sidebarSide.getValue();
+    const saved: unknown = await sidebarSide.getValue().catch((error: unknown) => {
+      console.error("gh-prism: reading the sidebar side failed", error);
+      return sidebarSide.fallback;
+    });
     const side: SideChoice = {
       side: saved === "left" || saved === "right" ? saved : sidebarSide.fallback,
     };
