@@ -1,8 +1,8 @@
 /** Keeps landed intent in extension storage, so a revisit to an unchanged diff skips reading it. */
 
-import type { HeadLineSpan } from "@/utils/pr-diff";
-import { SECTIONS } from "@/utils/sections";
 import type { FileLines, IntentResult, Placement, SectionShare } from "./intent";
+import type { HeadLineSpan } from "./pr-diff";
+import { SECTIONS } from "./sections";
 
 export type LandedIntent = Extract<IntentResult, { ok: true }>;
 

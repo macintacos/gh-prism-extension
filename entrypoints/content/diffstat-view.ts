@@ -3,10 +3,10 @@
  * the lines it adds and removes. A click switches between that breakout and GitHub's own total.
  */
 
+import type { FileLines, Placement } from "@/utils/intent";
 import type { LineCounts } from "@/utils/pr-diff";
 import { classify, SECTIONS, type SectionKey } from "@/utils/sections";
 import { el } from "./dom";
-import type { FileLines, Placement } from "./intent";
 import { sectionIcon } from "./section-icons";
 
 /** Which view the header counter shows. One per tab, so the choice carries to the next page. */

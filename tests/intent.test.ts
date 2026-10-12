@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { FilesRoute } from "../utils/files-route";
 import {
   type FileLines,
   type IntentResult,
@@ -6,9 +7,8 @@ import {
   intentFor,
   type Placement,
   readIntent,
-} from "../entrypoints/content/intent";
-import type { IntentCache } from "../entrypoints/content/intent-cache";
-import type { FilesRoute } from "../utils/files-route";
+} from "../utils/intent";
+import type { IntentCache } from "../utils/intent-cache";
 import type { PrFileDiff } from "../utils/pr-diff";
 import type { DiffRef, PrRef } from "../utils/pr-ref";
 import type { PrFileContentResult, PrFilesResult } from "../utils/pr-source";

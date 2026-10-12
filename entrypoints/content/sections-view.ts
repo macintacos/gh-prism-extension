@@ -7,6 +7,15 @@
  */
 
 import type { FileTreeRowDecoration, GitStatus } from "@pierre/trees";
+import type {
+  FileLines,
+  IntentProgress,
+  IntentResult,
+  PathOnlyReason,
+  PendingIntent,
+  Placement,
+  SectionShare,
+} from "@/utils/intent";
 import type { LineCounts } from "@/utils/pr-diff";
 import { classify, SECTIONS, type SectionKey } from "@/utils/sections";
 import { orderDiffs } from "./diff-order";
@@ -21,14 +30,6 @@ import {
   revealDiff,
   revealDiffLine,
 } from "./files-page";
-import type {
-  FileLines,
-  IntentProgress,
-  IntentResult,
-  PathOnlyReason,
-  Placement,
-  SectionShare,
-} from "./intent";
 import { sectionIcon } from "./section-icons";
 import { SectionTree, type TreeFile } from "./section-tree";
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
@@ -50,38 +51,6 @@ interface ShownSection {
   readonly root: HTMLElement;
   readonly counter: HTMLElement;
   readonly tree: SectionTree;
-}
-
-/**
- * Reads where the changed files land, reporting its progress through `onProgress`. Returns the
- * result itself, not a promise, when it has already landed.
- */
-export type PendingIntent = (
-  onProgress: (progress: IntentProgress) => void,
-) => IntentResult | Promise<IntentResult>;
-
-/**
- * Starts `read` now and lets each view that follows it share that one read: a view joining
- * mid-read starts at the latest progress, and one joining after it lands gets the result itself.
- */
-export function shareIntent(read: PendingIntent): PendingIntent {
-  let latest: IntentProgress | undefined;
-  let result: IntentResult | undefined;
-  // ponytail: a dropped view's follower stays until the visit ends, updating detached nodes;
-  // unfollow on the view's signal if remounts ever pile up.
-  const followers = new Set<(progress: IntentProgress) => void>();
-  const landing = Promise.resolve(
-    read((progress) => {
-      latest = progress;
-      for (const follow of followers) follow(progress);
-    }),
-  ).then((landed) => (result = landed));
-  return (onProgress) => {
-    if (result) return result;
-    if (latest) onProgress(latest);
-    followers.add(onProgress);
-    return landing;
-  };
 }
 
 export interface SectionsOptions {

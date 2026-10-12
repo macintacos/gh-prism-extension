@@ -3,14 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import contentScript from "../entrypoints/content";
-import { intentFor } from "../entrypoints/content/intent";
 import { showSections } from "../entrypoints/content/sections-view";
 import { dockSidebar, type Side } from "../entrypoints/content/sidebar-side";
 import { readFilesRoute } from "../utils/files-route";
+import { intentFor } from "../utils/intent";
 import { byId, loadFixture } from "./fixtures/files-page";
 
 // Only leaves are faked: intentFor needs a port fakeBrowser lacks; the views' DOM has own tests.
-vi.mock(import("../entrypoints/content/intent"), () => ({
+vi.mock(import("../utils/intent"), async (importOriginal) => ({
+  ...(await importOriginal()),
   intentFor: vi.fn(() => new Promise<never>(() => {})),
 }));
 vi.mock(import("../entrypoints/content/sections-view"), async (importOriginal) => ({
