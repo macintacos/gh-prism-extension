@@ -7,8 +7,7 @@ import {
   parsePrDiff,
   parsePrHunks,
 } from "../utils/pr-diff";
-
-const lines = (...text: string[]) => text.join("\n");
+import { lines } from "./fixtures/head-scan";
 
 const guidePatch = lines(
   "@@ -1,6 +1,7 @@",

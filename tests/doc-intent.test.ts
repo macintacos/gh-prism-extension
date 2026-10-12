@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { DocVerdict } from "../utils/doc-intent";
 import { docHunkVerdict, docHunkVerdicts } from "../utils/doc-intent";
-import { scanHeadText } from "../utils/head-scan";
 import type { PrFileDiff, PrHunk } from "../utils/pr-diff";
 import { parsePrHunks } from "../utils/pr-diff";
-
-const lines = (...text: string[]) => text.join("\n");
+import { headOf, lines } from "./fixtures/head-scan";
 
 const hunkOf = (patch: string): PrHunk => {
   const [hunk] = parsePrHunks(patch);
@@ -19,12 +17,6 @@ const modified = (path: string, patch: string): PrFileDiff => ({
   status: "modified",
   patch,
 });
-
-const headOf = (path: string, text: string) => {
-  const head = scanHeadText(path, text);
-  if (head === undefined) throw new Error(`no comment syntax for ${path}`);
-  return head;
-};
 
 // The new side of src/notes.rs, lines 1–23: the block opened on line 1 is still open before hunk 2.
 const notesProse = [
