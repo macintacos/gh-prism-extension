@@ -29,7 +29,10 @@ export type PrHeadAndFilesResult = { ok: true; headSha: string; files: PrFileDif
  * URLs are built from them with per-segment encoding only.
  */
 export interface PrDataSource {
-  /** `pr`'s head SHA from its page, with the diff cached under that head; a first read fetches both at once. */
+  /**
+   * `pr`'s head SHA from its page, with the diff cached under that head; a first read fetches both
+   * at once.
+   */
   headAndFiles(pr: PrRef, signal: AbortSignal): Promise<PrHeadAndFilesResult>;
   files(pr: DiffHead, signal: AbortSignal): Promise<PrFilesResult>;
   content(pr: DiffHead, path: string, signal: AbortSignal): Promise<PrFileContentResult>;
