@@ -1,12 +1,12 @@
 /**
  * Breaks the header's lines-changed counter, on a pull request or a commit, out by section once
  * intent lands: a pill per section with the lines it adds and removes. A click switches between
- * that breakout and GitHub's own total. sections-view.css styles the pills; showVisit mounts the
- * sidebar on every page.
+ * that breakout and GitHub's own total.
  */
 
 import { type Landing, landingOf, type SectionLines, totalsOf } from "@/utils/landing";
 import type { LineCounts } from "@/utils/pr-diff";
+import css from "./diffstat-view.css?raw";
 import { el } from "./dom";
 import { type FilesPage, findDiffstat } from "./files-page";
 import { markSection, SECTION_CATALOG, sectionIcon } from "./section-catalog";
@@ -113,8 +113,13 @@ function showCounter(
     render();
   });
   render();
+  const style = Object.assign(doc.createElement("style"), { textContent: css });
   native.before(button);
-  signal.addEventListener("abort", () => button.remove());
+  doc.head.append(style);
+  signal.addEventListener("abort", () => {
+    button.remove();
+    style.remove();
+  });
 }
 
 /**

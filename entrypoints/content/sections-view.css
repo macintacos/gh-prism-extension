@@ -1,7 +1,5 @@
-/* GitHub hooks: #pr-file-tree, #diff_file_tree, ul[role="tree"], the filter row's pr-lg-3, and
-   the header's lines-changed counter (the sibling after .gh-prism-diffstat). Every other rule,
-   the diff cover, skeleton, pill, and tooltip rules included, selects only gh-prism's own
-   classes. */
+/* GitHub hooks: #pr-file-tree, #diff_file_tree, ul[role="tree"], and the filter row's pr-lg-3.
+   Every other rule selects only gh-prism's own classes. */
 
 /* Hidden, not removed: the filter keeps editing these rows, and the view mirrors them. */
 :is(#pr-file-tree, #diff_file_tree):has(.gh-prism-sections) ul[role="tree"] {
@@ -166,48 +164,6 @@
   --gh-prism-comment-fg: var(--fgColor-muted);
 }
 
-/* Held back a moment, so an answer that comes at once, as a cached one does, never flashes it. */
-.gh-prism-loading {
-  padding: 8px 8px 4px;
-  animation: gh-prism-appear 150ms ease-out 150ms backwards;
-}
-
-.gh-prism-loading-label {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: var(--text-body-size-small);
-  line-height: var(--text-body-lineHeight-small);
-  color: var(--fgColor-muted);
-}
-
-.gh-prism-loading-count {
-  font-variant-numeric: tabular-nums;
-}
-
-/* Every section's hue, in section order, filling as intent checks files; loading-view.ts sets
-   the bands. */
-.gh-prism-spectrum {
-  height: 3px;
-  margin: 8px 0 6px;
-  overflow: hidden;
-  border-radius: 2px;
-  background: var(--bgColor-neutral-muted);
-}
-
-.gh-prism-spectrum::before {
-  content: "";
-  display: block;
-  height: 100%;
-  background: var(--gh-prism-spectrum);
-  clip-path: inset(0 calc(100% - var(--gh-prism-progress, 0) * 100%) 0 0);
-  transition: clip-path 240ms ease-out;
-}
-
-.gh-prism-loading:not([aria-valuenow]) .gh-prism-spectrum::before {
-  animation: gh-prism-sweep 1.4s ease-in-out infinite;
-}
-
 .gh-prism-skeleton > span {
   display: block;
   height: 10px;
@@ -241,108 +197,10 @@
   margin-left: 20px;
 }
 
-/* Where the diffs will be: the same bar and count, over placeholder diffs. */
-.gh-prism-diff-loading {
-  padding: 16px 0 0;
-}
-
-.gh-prism-diff-loading .gh-prism-spectrum {
-  margin-bottom: 16px;
-}
-
-.gh-prism-diff-skeleton {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.gh-prism-diff-card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-bottom: 14px;
-  overflow: hidden;
-  border: 1px solid var(--borderColor-default);
-  border-radius: var(--borderRadius-medium);
-}
-
-/* Lines of code, right of the line numbers' gutter. */
-.gh-prism-diff-card > span {
-  height: 10px;
-  margin-left: 64px;
-  border-radius: 5px;
-  background: var(--borderColor-muted);
-  animation: gh-prism-pulse 1.2s ease-in-out infinite alternate;
-}
-
-.gh-prism-diff-card > span:nth-child(2) {
-  width: 46%;
-}
-
-.gh-prism-diff-card > span:nth-child(3) {
-  width: 61%;
-}
-
-.gh-prism-diff-card > span:nth-child(4) {
-  width: 38%;
-}
-
-.gh-prism-diff-card > span:nth-child(5) {
-  width: 54%;
-}
-
-/* As tall as GitHub's file header. */
-.gh-prism-diff-card > .gh-prism-diff-card-header {
-  display: flex;
-  align-items: center;
-  height: 46px;
-  margin: 0 0 4px;
-  padding-inline: 16px;
-  border-bottom: 1px solid var(--borderColor-default);
-  border-radius: 0;
-  background: var(--bgColor-muted);
-  animation: none;
-}
-
-.gh-prism-diff-card-header::before {
-  content: "";
-  width: 28%;
-  height: 10px;
-  border-radius: 5px;
-  background: var(--borderColor-muted);
-  animation: gh-prism-pulse 1.2s ease-in-out infinite alternate;
-}
-
 /* The settled sections drop out of the spectrum one after another. */
 .gh-prism-sections[data-reveal] .gh-prism-section {
   animation: gh-prism-reveal 280ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
   animation-delay: calc(var(--gh-prism-order, 0) * 50ms);
-}
-
-@keyframes gh-prism-sweep {
-  from {
-    clip-path: inset(0 100% 0 0);
-  }
-
-  50% {
-    clip-path: inset(0);
-  }
-
-  to {
-    clip-path: inset(0 0 0 100%);
-  }
-}
-
-@keyframes gh-prism-appear {
-  from {
-    opacity: 0;
-  }
-}
-
-@keyframes gh-prism-pulse {
-  to {
-    opacity: 0.45;
-  }
 }
 
 @keyframes gh-prism-reveal {
@@ -352,125 +210,13 @@
   }
 }
 
-/* GitHub's counter, while the breakout stands in for it. Primer's .d-flex is !important too. */
-.gh-prism-diffstat + * {
-  display: none !important;
-}
-
-.gh-prism-diffstat {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--borderRadius-medium);
-  background: none;
-  color: var(--fgColor-default);
-  font: inherit;
-  font-size: var(--text-body-size-small);
-  font-weight: var(--base-text-weight-semibold);
-  cursor: pointer;
-}
-
-.gh-prism-diffstat:focus-visible {
-  outline: 2px solid var(--focus-outlineColor);
-  outline-offset: 2px;
-}
-
-.gh-prism-diffstat svg {
-  flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-  color: var(--gh-prism-hue);
-}
-
-.gh-prism-pill {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 8px 0 6px;
-  border-radius: var(--borderRadius-medium);
-  background: color-mix(in srgb, var(--gh-prism-hue) 14%, var(--bgColor-default));
-  line-height: 20px;
-}
-
-.gh-prism-tip {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 100;
-  display: grid;
-  gap: 4px;
-  width: max-content;
-  max-width: 260px;
-  padding: 6px 8px;
-  border: 1px solid var(--borderColor-default);
-  border-radius: var(--borderRadius-medium);
-  background: var(--overlay-bgColor, var(--bgColor-default));
-  box-shadow: var(--shadow-floating-small);
-  color: var(--fgColor-default);
-  font-weight: var(--base-text-weight-normal);
-  line-height: var(--text-body-lineHeight-small);
-  text-align: start;
-  white-space: normal;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition:
-    opacity 120ms ease-out,
-    visibility 120ms;
-}
-
-.gh-prism-pill:hover > .gh-prism-tip,
-.gh-prism-diffstat[data-view="total"]:is(:hover, :focus-visible) > .gh-prism-tip {
-  opacity: 1;
-  visibility: visible;
-}
-
-.gh-prism-tip > strong {
-  font-weight: var(--base-text-weight-semibold);
-}
-
-.gh-prism-tip > span:not(.gh-prism-tip-row) {
-  color: var(--fgColor-muted);
-}
-
-.gh-prism-tip-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-/* The section's name, pushing its counts to the row's end. */
-.gh-prism-tip-row > span:first-of-type {
-  flex: 1;
-  margin-inline-end: 8px;
-}
-
-.gh-prism-tip-row > .gh-prism-pill-count {
-  font-weight: var(--base-text-weight-semibold);
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .gh-prism-loading,
-  .gh-prism-spectrum::before,
   .gh-prism-skeleton > span,
-  .gh-prism-diff-card > span,
-  .gh-prism-diff-card-header::before,
   .gh-prism-sections[data-reveal] .gh-prism-section,
   .gh-prism-section-icon,
   .gh-prism-chevron,
-  .gh-prism-tip,
   .gh-prism-files {
     transition: none;
-    animation: none;
-  }
-
-  .gh-prism-loading:not([aria-valuenow]) .gh-prism-spectrum::before {
-    clip-path: none;
-    opacity: 0.4;
     animation: none;
   }
 }

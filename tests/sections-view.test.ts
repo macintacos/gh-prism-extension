@@ -14,6 +14,7 @@ import {
   progressBar,
   rowsIn,
   sectionKeys,
+  sheetsStyling,
   treeHost,
   view,
 } from "./fixtures/visit";
@@ -709,6 +710,13 @@ describe("showSections", () => {
       expect(view()?.getAttribute("aria-busy")).toBe("true");
       expect(progressBar()?.hasAttribute("aria-valuenow")).toBe(false);
       expect(sectionKeys()).toEqual([]);
+    });
+
+    it("carries the progress bar's stylesheet in the bar itself", () => {
+      remountWith(pendingIntent().intent);
+      expect(
+        sheetsStyling("gh-prism-loading-label").some((sheet) => progressBar()?.contains(sheet)),
+      ).toBe(true);
     });
 
     it("bands the spectrum with every section's hue, in section order", () => {

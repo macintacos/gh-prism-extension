@@ -1,8 +1,90 @@
-/* GitHub hooks: none. diff-order.ts writes the diff list's rules from each page kind's selectors. */
+/* GitHub hooks: none. diff-order.ts writes the diff list's rules from each page kind's selectors;
+   this sheet holds their reveal and the diff cover. */
 
 @keyframes gh-prism-diff-reveal {
   from {
     opacity: 0;
     transform: translateY(-6px);
+  }
+}
+
+/* Where the diffs will be: the same bar and count, over placeholder diffs. Compound, to outrank
+   loading-view.css, which the bar carries in after this sheet. */
+.gh-prism-loading.gh-prism-diff-loading {
+  padding: 16px 0 0;
+}
+
+.gh-prism-diff-loading .gh-prism-spectrum {
+  margin-bottom: 16px;
+}
+
+.gh-prism-diff-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.gh-prism-diff-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 14px;
+  overflow: hidden;
+  border: 1px solid var(--borderColor-default);
+  border-radius: var(--borderRadius-medium);
+}
+
+/* Lines of code, right of the line numbers' gutter. */
+.gh-prism-diff-card > span {
+  height: 10px;
+  margin-left: 64px;
+  border-radius: 5px;
+  background: var(--borderColor-muted);
+  animation: gh-prism-pulse 1.2s ease-in-out infinite alternate;
+}
+
+.gh-prism-diff-card > span:nth-child(2) {
+  width: 46%;
+}
+
+.gh-prism-diff-card > span:nth-child(3) {
+  width: 61%;
+}
+
+.gh-prism-diff-card > span:nth-child(4) {
+  width: 38%;
+}
+
+.gh-prism-diff-card > span:nth-child(5) {
+  width: 54%;
+}
+
+/* As tall as GitHub's file header. */
+.gh-prism-diff-card > .gh-prism-diff-card-header {
+  display: flex;
+  align-items: center;
+  height: 46px;
+  margin: 0 0 4px;
+  padding-inline: 16px;
+  border-bottom: 1px solid var(--borderColor-default);
+  border-radius: 0;
+  background: var(--bgColor-muted);
+  animation: none;
+}
+
+.gh-prism-diff-card-header::before {
+  content: "";
+  width: 28%;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--borderColor-muted);
+  animation: gh-prism-pulse 1.2s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-prism-diff-card > span,
+  .gh-prism-diff-card-header::before {
+    transition: none;
+    animation: none;
   }
 }
