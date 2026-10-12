@@ -14,9 +14,9 @@ import {
   isDiffAnchor,
   type PageKind,
   reorderable,
-  retakeHash,
 } from "./files-page";
 import { type LoadingView, loadingView } from "./loading-view";
+import { retakeHash } from "./reveal";
 import type { LandingView } from "./visit";
 
 // The longest stagger in diff-order.css, four sections of delay plus the reveal itself, and slack.

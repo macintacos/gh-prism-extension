@@ -13,14 +13,9 @@ import type { LineCounts } from "@/utils/pr-diff";
 import { SECTIONS, type SectionKey } from "@/utils/sections";
 import { lineTotals } from "./diffstat-view";
 import { el, icon } from "./dom";
-import {
-  type FilesPage,
-  readChangedFiles,
-  reorderable,
-  revealDiff,
-  revealDiffLine,
-} from "./files-page";
+import { type FilesPage, readChangedFiles, reorderable } from "./files-page";
 import { type LoadingView, loadingView } from "./loading-view";
+import { revealDiff, revealDiffLine } from "./reveal";
 import { sectionIcon } from "./section-icons";
 import { SectionTree, type TreeFile } from "./section-tree";
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).

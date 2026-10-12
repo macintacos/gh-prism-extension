@@ -5,9 +5,9 @@ import { storedIntents } from "@/utils/intent-cache";
 import { connectPrData } from "@/utils/pr-port";
 import { sidebarSide } from "@/utils/prefs";
 import type { DiffstatChoice } from "./diffstat-view";
-import { watchFilesPages } from "./files-page";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar-side";
 import { showVisit } from "./visit";
+import { watchFilesPages } from "./visit-watch";
 
 const CACHED_DIFFS = 50;
 
