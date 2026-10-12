@@ -1,10 +1,7 @@
-import {
-  type DocVerdict,
-  docHunkVerdicts,
-  type ScannedHead,
-  scanHeadText,
-} from "@/utils/doc-intent";
-import { inlineTestHunkVerdicts, inlineTestRuleApplies } from "@/utils/inline-tests";
+import { type DocVerdict, docHunkVerdicts, type ScannedHead, scanHeadText } from "./doc-intent";
+import type { FilesRoute } from "./files-route";
+import { inlineTestHunkVerdicts, inlineTestRuleApplies } from "./inline-tests";
+import type { IntentCache } from "./intent-cache";
 import {
   type HeadLineSpan,
   hunkHeadSpan,
@@ -13,13 +10,11 @@ import {
   type PrFileDiff,
   type PrHunk,
   parsePrHunks,
-} from "@/utils/pr-diff";
-import type { PrDataClient } from "@/utils/pr-port";
-import type { DiffRef } from "@/utils/pr-ref";
-import type { PrDataProblem } from "@/utils/pr-source";
-import { classify, SECTIONS, type SectionKey } from "@/utils/sections";
-import type { FilesRoute } from "./files-page";
-import type { IntentCache } from "./intent-cache";
+} from "./pr-diff";
+import type { PrDataClient } from "./pr-port";
+import type { DiffRef } from "./pr-ref";
+import type { PrDataProblem } from "./pr-source";
+import { classify, SECTIONS, type SectionKey } from "./sections";
 
 /** Why the view keeps path-only sections. */
 export type PathOnlyReason = PrDataProblem | "commit-filtered";
@@ -228,4 +223,36 @@ export async function intentFor(
   );
   if (result.ok && !cutShort) void cache.set(key, result);
   return result;
+}
+
+/**
+ * Reads where the changed files land, reporting its progress through `onProgress`. Returns the
+ * result itself, not a promise, when it has already landed.
+ */
+export type PendingIntent = (
+  onProgress: (progress: IntentProgress) => void,
+) => IntentResult | Promise<IntentResult>;
+
+/**
+ * Starts `read` now and lets each view that follows it share that one read: a view joining
+ * mid-read starts at the latest progress, and one joining after it lands gets the result itself.
+ */
+export function shareIntent(read: PendingIntent): PendingIntent {
+  let latest: IntentProgress | undefined;
+  let result: IntentResult | undefined;
+  // ponytail: a dropped view's follower stays until the visit ends, updating detached nodes;
+  // unfollow on the view's signal if remounts ever pile up.
+  const followers = new Set<(progress: IntentProgress) => void>();
+  const landing = Promise.resolve(
+    read((progress) => {
+      latest = progress;
+      for (const follow of followers) follow(progress);
+    }),
+  ).then((landed) => (result = landed));
+  return (onProgress) => {
+    if (result) return result;
+    if (latest) onProgress(latest);
+    followers.add(onProgress);
+    return landing;
+  };
 }

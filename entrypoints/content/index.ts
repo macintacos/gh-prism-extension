@@ -1,11 +1,11 @@
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { storage } from "wxt/utils/storage";
+import { intentFor, shareIntent } from "@/utils/intent";
+import { storedIntents } from "@/utils/intent-cache";
 import { connectPrData } from "@/utils/pr-port";
 import type { DiffstatChoice } from "./diffstat-view";
 import { watchFilesPages } from "./files-page";
-import { intentFor } from "./intent";
-import { storedIntents } from "./intent-cache";
-import { shareIntent, showSections } from "./sections-view";
+import { showSections } from "./sections-view";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar-side";
 
 const CACHED_DIFFS = 50;

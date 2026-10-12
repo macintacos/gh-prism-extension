@@ -2,19 +2,17 @@
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import type { DiffstatChoice } from "../entrypoints/content/diffstat-view";
 import { findFilesPage } from "../entrypoints/content/files-page";
-import type {
-  FileLines,
-  IntentProgress,
-  IntentResult,
-  IntentSection,
-  Placement,
-} from "../entrypoints/content/intent";
-import {
-  type PendingIntent,
-  shareIntent,
-  showSections,
-} from "../entrypoints/content/sections-view";
+import { showSections } from "../entrypoints/content/sections-view";
 import css from "../entrypoints/content/sections-view.css?raw";
+import {
+  type FileLines,
+  type IntentProgress,
+  type IntentResult,
+  type IntentSection,
+  type PendingIntent,
+  type Placement,
+  shareIntent,
+} from "../utils/intent";
 import { byId, loadCommitFixture, loadFixture } from "./fixtures/files-page";
 
 // Chrome content scripts run in an isolated world whose `customElements` is null, so every test

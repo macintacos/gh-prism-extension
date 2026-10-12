@@ -1,20 +1,19 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
-import type { FilesPage, FilesRoute } from "../entrypoints/content/files-page";
+import type { FilesPage } from "../entrypoints/content/files-page";
 import {
   findDiff,
   findDiffstat,
   findFilesPage,
   findTreeToggle,
-  isFilesPath,
   observeDiffs,
   observeTree,
   readChangedFiles,
-  readFilesRoute,
   revealDiff,
   revealDiffLine,
   watchFilesPages,
 } from "../entrypoints/content/files-page";
+import { type FilesRoute, isFilesPath, readFilesRoute } from "../utils/files-route";
 import { byId, loadCommitFixture, loadFixture } from "./fixtures/files-page";
 
 const PATHS = [

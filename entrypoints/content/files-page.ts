@@ -6,12 +6,10 @@
  * from WXT, so other features can reuse it.
  */
 
-import type { DiffRef } from "@/utils/pr-ref";
+import { type FilesRoute, isFilesPath, readFilesRoute } from "@/utils/files-route";
 
 const PR_SIDEBAR = "#pr-file-tree";
 const COMMIT_SIDEBAR = "#diff_file_tree";
-const FILES_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)\/(?:changes|files)(?:\/([^/]*).*)?$/;
-const COMMIT_PATH = /^\/([^/]+)\/([^/]+)\/commit\/([0-9a-f]{7,40})\/?$/;
 const DEBOUNCE_MS = 50;
 // Long enough for popstate's ~200 ms early fire and a slow cold render.
 const SETTLE_MS = 10_000;
@@ -22,38 +20,6 @@ const HIDDEN_PATCH = '[class*="HiddenDiffPatch-module"]';
 const LOAD_DIFF_LABEL = "load diff";
 // A longer trip jumps to this share of the viewport short of its end, then glides the rest.
 const GLIDE_VIEWPORTS = 0.5;
-
-/** The diff a Files changed URL names, and whether a commit or range narrows a pull request's. */
-export interface FilesRoute {
-  readonly diff: DiffRef;
-  /**
-   * A pull request's URL narrows it to one commit or a range: `/changes/<sha>` or
-   * `/changes/<base>..<head>`.
-   */
-  readonly commitFiltered: boolean;
-}
-
-/**
- * The pull request and commit filter a Files changed `pathname` names, or the single commit a
- * commit page names; `undefined` anywhere else.
- */
-export function readFilesRoute(pathname: string): FilesRoute | undefined {
-  const [, owner, repo, prNumber, filter] = FILES_PATH.exec(pathname) ?? [];
-  if (owner !== undefined && repo !== undefined && prNumber !== undefined)
-    return { diff: { owner, repo, number: Number(prNumber) }, commitFiltered: Boolean(filter) };
-  const [, commitOwner, commitRepo, headSha] = COMMIT_PATH.exec(pathname) ?? [];
-  if (commitOwner === undefined || commitRepo === undefined || headSha === undefined)
-    return undefined;
-  return { diff: { owner: commitOwner, repo: commitRepo, headSha }, commitFiltered: false };
-}
-
-/**
- * Whether `pathname` is a pull request's Files changed tab, any commit or range included, or a
- * commit page.
- */
-export function isFilesPath(pathname: string): boolean {
-  return readFilesRoute(pathname) !== undefined;
-}
 
 /** A pull request's or commit's Files changed markup, as `findFilesPage` finds it. */
 export interface FilesPage {
