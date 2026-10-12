@@ -81,3 +81,9 @@ export function mountsVisit() {
     abort: () => controller.abort(),
   };
 }
+
+/** The stylesheets in the document whose rules select `className`. */
+export const sheetsStyling = (className: string) =>
+  [...document.querySelectorAll("style")].filter((style) =>
+    style.textContent?.includes(`.${className}`),
+  );

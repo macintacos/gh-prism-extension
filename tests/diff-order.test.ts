@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { listRules } from "../entrypoints/content/diff-order";
-import { commitPage, prPage } from "../entrypoints/content/files-page";
+import { listRules, showDiffOrder } from "../entrypoints/content/diff-order";
+import { commitPage, findFilesPage, prPage } from "../entrypoints/content/files-page";
 import { byId, loadCommitFixture } from "./fixtures/files-page";
 import { landedWith, pendingIntent, whole } from "./fixtures/intent";
 import {
@@ -11,6 +11,7 @@ import {
   mountsVisit,
   progressBar,
   sectionKeys,
+  sheetsStyling,
   view,
 } from "./fixtures/visit";
 
@@ -228,6 +229,20 @@ describe("the diffs beside the sections", () => {
       remountWith(pendingIntent().intent);
       expect(diffsShown()).toBe(false);
       expect(diffsProgressBar()).not.toBeNull();
+    });
+
+    it("hide behind a cover styled by its own stylesheets, without the sidebar, until aborted", () => {
+      abort();
+      const page = findFilesPage(document);
+      if (!page) throw new Error("fixture lacks the Files changed markup");
+      const controller = new AbortController();
+      showDiffOrder(page, controller.signal).pending?.();
+      expect(diffsProgressBar()).not.toBeNull();
+      expect(sheetsStyling("gh-prism-diff-card")).toHaveLength(1);
+      expect(sheetsStyling("gh-prism-loading-label")).toHaveLength(1);
+      controller.abort();
+      expect(sheetsStyling("gh-prism-diff-card")).toHaveLength(0);
+      expect(sheetsStyling("gh-prism-loading-label")).toHaveLength(0);
     });
 
     it("show anyway once the read has taken 15 seconds", async () => {

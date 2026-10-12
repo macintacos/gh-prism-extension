@@ -1,9 +1,10 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
-import type { DiffstatChoice } from "../entrypoints/content/diffstat-view";
+import { type DiffstatChoice, showDiffstat } from "../entrypoints/content/diffstat-view";
+import { findFilesPage } from "../entrypoints/content/files-page";
 import type { FileLines, Placement } from "../utils/intent";
 import { landedWith, pendingIntent, whole } from "./fixtures/intent";
-import { afterDebounce, mountsVisit, sectionKeys } from "./fixtures/visit";
+import { afterDebounce, mountsVisit, sectionKeys, sheetsStyling } from "./fixtures/visit";
 
 // Chrome content scripts run in an isolated world whose `customElements` is null, so every test
 // here mounts the view that way. Hoisted above the imports, which load @pierre/trees.
@@ -69,10 +70,25 @@ describe("the header's lines-changed counter", () => {
     ]);
   });
 
-  // happy-dom can't parse the stylesheet, so this pins the adjacency its hiding rule keys on.
-  it("sits just before GitHub's counter, which the stylesheet hides", async () => {
+  it("styles its pills with its own stylesheet, without the sidebar, until aborted", () => {
+    abort();
+    const page = findFilesPage(document);
+    if (!page) throw new Error("fixture lacks the Files changed markup");
+    const controller = new AbortController();
+    showDiffstat(page, { choice: { view: "breakout" }, signal: controller.signal }).landed?.(
+      counted,
+    );
+    expect(pills()).not.toHaveLength(0);
+    expect(sheetsStyling("gh-prism-pill")).toHaveLength(1);
+    expect(sheetsStyling("gh-prism-tip")).toHaveLength(1);
+    controller.abort();
+    expect(sheetsStyling("gh-prism-pill")).toHaveLength(0);
+  });
+
+  it("hides GitHub's counter, just after it, while it stands in", async () => {
     await landed(counted);
     expect(counter()?.nextElementSibling).toBe(native());
+    expect(getComputedStyle(native()).display).toBe("none");
   });
 
   it("switches to GitHub's total when clicked, and back to the sections when clicked again", async () => {

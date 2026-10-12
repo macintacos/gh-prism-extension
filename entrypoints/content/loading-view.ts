@@ -1,8 +1,9 @@
-/** The progress bar that stands in while intent is read. sections-view.css styles its classes. */
+/** The progress bar that stands in while intent is read. */
 
 import type { IntentProgress } from "@/utils/intent";
 import { SECTIONS } from "@/utils/sections";
 import { el } from "./dom";
+import css from "./loading-view.css?raw";
 import { SECTION_CATALOG } from "./section-catalog";
 
 // CSS can't lay down a band per section, so the gradient follows SECTIONS from here.
@@ -13,7 +14,7 @@ const SPECTRUM = `linear-gradient(90deg, ${SECTIONS.map(
 
 /** A progress bar over a skeleton, drawn while intent is read. */
 export interface LoadingView {
-  /** The bar and its skeleton. */
+  /** The bar and its skeleton, carrying the bar's stylesheet, so it is styled wherever it mounts. */
   readonly root: HTMLElement;
   /** Counts the files checked so far. */
   progress(progress: IntentProgress): void;
@@ -32,6 +33,7 @@ export function loadingView(doc: Document, skeleton: HTMLElement): LoadingView {
     el(doc, "div", "gh-prism-loading-label", label, count),
     spectrum,
     skeleton,
+    Object.assign(doc.createElement("style"), { textContent: css }),
   );
   root.setAttribute("role", "progressbar");
   root.setAttribute("aria-label", "Reading the diff");

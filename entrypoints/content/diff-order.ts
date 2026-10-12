@@ -132,8 +132,6 @@ function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
   };
 }
 
-// sections-view.css styles the cover, as it does loadingView; showVisit mounts the sidebar on
-// every page.
 /** Placeholder diffs: a file header over a few lines of code each. */
 const diffSkeleton = (doc: Document) =>
   el(
