@@ -151,7 +151,7 @@ describe("openPrData", () => {
     const client = openPrData(harness(fetchFn).connect, pr, undefined);
     expect(await client.files()).toEqual({ ok: false, problem: "no-access" });
     await client.files();
-    expect(urls(fetchFn)).toEqual([`${base}/pull/7`, `${base}/pull/7`]);
+    expect(urls(fetchFn).filter((u) => u === `${base}/pull/7`)).toHaveLength(2);
   });
 
   it("connects lazily on the first call", async () => {
@@ -188,14 +188,14 @@ describe("openPrData", () => {
     };
     const fetchFn = routedFetch(routes);
     const { connect, servers } = harness(fetchFn);
-    const client = openPrData(connect, pr, undefined);
+    const client = openPrData(connect, pr, sha);
     const pending = client.files();
     await vi.waitFor(() => expect(urls(fetchFn)).toContain(`${base}/pull/7.diff`));
     servers[0]?.disconnect();
     expect(await pending).toEqual({ ok: false, problem: "failed" });
     expect((await client.fileContent("src/engine.rs")).ok).toBe(true);
     expect(connect).toHaveBeenCalledTimes(2);
-    expect(urls(fetchFn).filter((u) => u === `${base}/pull/7`)).toHaveLength(1);
+    expect(urls(fetchFn)).not.toContain(`${base}/pull/7`);
   });
 
   it("reports a throwing connect as failed", async () => {
@@ -247,7 +247,7 @@ describe("openPrData", () => {
 
   it("reports a source error as failed", async () => {
     const source = {
-      head: vi.fn(),
+      headAndFiles: vi.fn(),
       files: vi.fn(async () => {
         throw new Error("bug");
       }),
@@ -375,6 +375,20 @@ describe("servePrDataPort", () => {
     ],
     ["a .. path segment", { id: 1, request: { kind: "content", pr: head, path: "../x" } }],
     ["an empty path segment", { id: 1, request: { kind: "content", pr: head, path: "a//b" } }],
+    [
+      "a headAndFiles of a commit",
+      {
+        id: 1,
+        request: {
+          kind: "headAndFiles",
+          pr: { kind: "commit", owner: "o", repo: "r", headSha: sha },
+        },
+      },
+    ],
+    [
+      "a headAndFiles with a .. owner",
+      { id: 1, request: { kind: "headAndFiles", pr: { ...pr, owner: ".." } } },
+    ],
   ])("answers %s failed without fetching", async (_, message) => {
     expect(await repliesTo(message)).toEqual([{ id: 1, result: { ok: false, problem: "failed" } }]);
   });

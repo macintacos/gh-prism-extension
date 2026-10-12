@@ -14,18 +14,19 @@ import type {
   PrFailure,
   PrFileContentResult,
   PrFilesResult,
+  PrHeadAndFilesResult,
   PrHeadResult,
 } from "./pr-source";
 
 export const PR_DATA_PORT = "gh-prism:pr-data";
 
 export type PrDataRequest =
-  | { kind: "head"; pr: PrRef }
+  | { kind: "headAndFiles"; pr: PrRef }
   | { kind: "files"; pr: DiffHead }
   | { kind: "content"; pr: DiffHead; path: string };
 
 type PrDataResultsByKind = {
-  head: PrHeadResult;
+  headAndFiles: PrHeadAndFilesResult;
   files: PrFilesResult;
   content: PrFileContentResult;
 };
@@ -51,7 +52,10 @@ export interface PrDataPort {
  * picked up only after a reload.
  */
 export interface PrDataClient {
-  /** The commit the diff ends on, which `files` and `fileContent` read at. */
+  /**
+   * The commit the diff ends on, which `files` and `fileContent` read at. Without a page head, it
+   * arrives with `files`.
+   */
   head(): Promise<PrHeadResult>;
   files(): Promise<PrFilesResult>;
   /**
@@ -110,9 +114,9 @@ function isSafePath(path: unknown): path is string {
 
 function asRequest(value: unknown): PrDataRequest | undefined {
   if (!isObject(value)) return undefined;
-  if (value.kind === "head") {
+  if (value.kind === "headAndFiles") {
     const pr = asPrRef(value.pr);
-    return pr && { kind: "head", pr };
+    return pr && { kind: "headAndFiles", pr };
   }
   const pr = asDiffHead(value.pr);
   if (!pr) return undefined;
@@ -128,8 +132,8 @@ function answer(
   signal: AbortSignal,
 ): Promise<PrDataResult> {
   switch (request.kind) {
-    case "head":
-      return source.head(request.pr, signal);
+    case "headAndFiles":
+      return source.headAndFiles(request.pr, signal);
     case "files":
       return source.files(request.pr, signal);
     case "content":
@@ -189,7 +193,8 @@ function memoUntilFailure<T extends { ok: boolean }>(
 
 /**
  * A {@link PrDataClient} over ports from `connect`; `pageHeadSha` skips a PR's head lookup when the
- * page already names it. A commit is its own head.
+ * page already names it, and otherwise the worker looks the head up alongside the diff. A commit is
+ * its own head.
  */
 export function openPrData(
   connect: () => PrDataPort,
@@ -236,28 +241,41 @@ export function openPrData(
     });
   }
 
+  const knownHead = pr.kind === "commit" ? pr.headSha : pageHeadSha;
+
+  async function filesAt(head: DiffHead): Promise<PrHeadAndFilesResult> {
+    const listed = await send({ kind: "files", pr: head });
+    return listed.ok ? { ...listed, headSha: head.headSha } : listed;
+  }
+
+  // Without a known head, the worker looks it up alongside the diff, not before it.
+  const files = memoUntilFailure((): Promise<PrHeadAndFilesResult> => {
+    switch (pr.kind) {
+      case "pr":
+        return pageHeadSha
+          ? filesAt({ ...pr, headSha: pageHeadSha })
+          : send({ kind: "headAndFiles", pr });
+      case "commit":
+        return filesAt(pr);
+      default:
+        return pr satisfies never;
+    }
+  });
+
   const resolveHead = memoUntilFailure(
-    (): Promise<PrHeadResult> => {
-      switch (pr.kind) {
-        case "pr":
-          return send({ kind: "head", pr });
-        case "commit":
-          return Promise.resolve({ ok: true, headSha: pr.headSha });
-        default:
-          return pr satisfies never;
-      }
+    async (): Promise<PrHeadResult> => {
+      const listed = await files();
+      return listed.ok ? { ok: true, headSha: listed.headSha } : listed;
     },
-    pageHeadSha ? Promise.resolve({ ok: true, headSha: pageHeadSha }) : undefined,
+    knownHead ? Promise.resolve({ ok: true, headSha: knownHead }) : undefined,
   );
 
-  async function atHead<R extends PrFilesResult | PrFileContentResult>(
-    request: (head: DiffHead) => Promise<R>,
-  ): Promise<R | PrFailure> {
+  async function atHead(
+    request: (head: DiffHead) => Promise<PrFileContentResult>,
+  ): Promise<PrFileContentResult> {
     const resolved = await resolveHead();
     return resolved.ok ? request({ ...pr, headSha: resolved.headSha }) : resolved;
   }
-
-  const files = memoUntilFailure(() => atHead((head) => send({ kind: "files", pr: head })));
 
   return {
     head: resolveHead,

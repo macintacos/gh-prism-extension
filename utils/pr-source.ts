@@ -21,6 +21,7 @@ export type PrFailure = { ok: false; problem: PrDataProblem };
 export type PrHeadResult = { ok: true; headSha: string } | PrFailure;
 export type PrFilesResult = { ok: true; files: PrFileDiff[] } | PrFailure;
 export type PrFileContentResult = { ok: true; text: string } | PrFailure;
+export type PrHeadAndFilesResult = { ok: true; headSha: string; files: PrFileDiff[] } | PrFailure;
 
 /**
  * Reads a PR's data through github.com with the browser's session; aborting `signal` rejects
@@ -28,7 +29,8 @@ export type PrFileContentResult = { ok: true; text: string } | PrFailure;
  * URLs are built from them with per-segment encoding only.
  */
 export interface PrDataSource {
-  head(pr: PrRef, signal: AbortSignal): Promise<PrHeadResult>;
+  /** `pr`'s head SHA and diff, fetched together; the diff is cached under that head. */
+  headAndFiles(pr: PrRef, signal: AbortSignal): Promise<PrHeadAndFilesResult>;
   files(pr: DiffHead, signal: AbortSignal): Promise<PrFilesResult>;
   content(pr: DiffHead, path: string, signal: AbortSignal): Promise<PrFileContentResult>;
 }
@@ -62,12 +64,14 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
   // one repository, evict each other's entry every request.
   const cache = new Map<string, PrCacheEntry>();
 
+  const keyOf = (pr: DiffRef) =>
+    (pr.kind === "pr" ? diffUrl(pr) : `${repoUrl(pr)}/commit`).toLowerCase();
+
   function entryFor(pr: DiffHead): PrCacheEntry {
-    const key = (pr.kind === "pr" ? diffUrl(pr) : `${repoUrl(pr)}/commit`).toLowerCase();
-    let entry = cache.get(key);
+    let entry = cache.get(keyOf(pr));
     if (entry?.headSha !== pr.headSha) {
       entry = { headSha: pr.headSha, contents: new Map() };
-      cache.set(key, entry);
+      cache.set(keyOf(pr), entry);
     }
     return entry;
   }
@@ -96,26 +100,49 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
     }
   };
 
+  async function lookUpHead(pr: PrRef, signal: AbortSignal): Promise<PrHeadResult> {
+    const page = await fetchText(`${repoUrl(pr)}/pull/${pr.number}`, signal);
+    if (!page.ok) return page;
+    const headSha = prHeadShaFromEmbeddedData(prEmbeddedDataFromHtml(page.text), pr);
+    return headSha ? { ok: true, headSha } : { ok: false, problem: "failed" };
+  }
+
+  async function readDiff(pr: DiffRef, signal: AbortSignal): Promise<PrFilesResult> {
+    const diff = await fetchText(`${diffUrl(pr)}.diff`, signal);
+    if (!diff.ok) return diff;
+    const files = parsePrDiff(diff.text);
+    // A non-empty 200 that parses to no files is an interstitial page, not an empty PR.
+    if (files.length === 0 && diff.text.trim() !== "") return { ok: false, problem: "failed" };
+    return { ok: true, files };
+  }
+
+  async function files(pr: DiffHead, signal: AbortSignal): Promise<PrFilesResult> {
+    const entry = entryFor(pr);
+    const cached = entry.files;
+    if (cached) return { ok: true, files: cached };
+    const read = await readDiff(pr, signal);
+    if (read.ok) entry.files = read.files;
+    return read;
+  }
+
   return {
-    async head(pr, signal) {
-      const page = await fetchText(`${repoUrl(pr)}/pull/${pr.number}`, signal);
-      if (!page.ok) return page;
-      const headSha = prHeadShaFromEmbeddedData(prEmbeddedDataFromHtml(page.text), pr);
-      return headSha ? { ok: true, headSha } : { ok: false, problem: "failed" };
+    async headAndFiles(pr, signal) {
+      // A cached diff waits for the head, which says whether it still holds.
+      if (cache.get(keyOf(pr))?.files) {
+        const head = await lookUpHead(pr, signal);
+        if (!head.ok) return head;
+        const listed = await files({ ...pr, headSha: head.headSha }, signal);
+        return listed.ok ? { ...listed, headSha: head.headSha } : listed;
+      }
+      const [head, read] = await Promise.all([lookUpHead(pr, signal), readDiff(pr, signal)]);
+      if (!head.ok) return head;
+      if (!read.ok) return read;
+      const entry = entryFor({ ...pr, headSha: head.headSha });
+      entry.files ??= read.files;
+      return { ok: true, headSha: head.headSha, files: entry.files };
     },
 
-    async files(pr, signal) {
-      const entry = entryFor(pr);
-      const cached = entry.files;
-      if (cached) return { ok: true, files: cached };
-      const diff = await fetchText(`${diffUrl(pr)}.diff`, signal);
-      if (!diff.ok) return diff;
-      const files = parsePrDiff(diff.text);
-      // A non-empty 200 that parses to no files is an interstitial page, not an empty PR.
-      if (files.length === 0 && diff.text.trim() !== "") return { ok: false, problem: "failed" };
-      entry.files = files;
-      return { ok: true, files };
-    },
+    files,
 
     async content(pr, path, signal) {
       const entry = entryFor(pr);

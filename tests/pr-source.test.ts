@@ -26,11 +26,11 @@ index 1111111..2222222 100644
 const signal = () => new AbortController().signal;
 const okFetch = (body = diff) => vi.fn(async () => new Response(body));
 
-const pageFor = (number: number) =>
+const pageFor = (number: number, headSha = shaA) =>
   `<html><script type="application/json" data-target="react-app.embeddedData">${JSON.stringify({
     payload: {
       pullRequestsLayoutRoute: {
-        pullRequest: { number, headSha: shaA },
+        pullRequest: { number, headSha },
         repository: { ownerLogin: "o", name: "r" },
       },
     },
@@ -231,14 +231,43 @@ describe("content", () => {
   });
 });
 
-describe("head", () => {
-  it("reads the head SHA from the PR page", async () => {
-    const fetchFn = vi.fn(async () => new Response(pageFor(7)));
+const pageUrl = "https://github.com/o/r/pull/7";
+const diffUrl = "https://github.com/o/r/pull/7.diff";
+
+function routedFetch(routes: Record<string, () => Promise<Response>>) {
+  return vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {
+    const route = routes[String(input)];
+    return route ? route() : Promise.resolve(new Response("", { status: 500 }));
+  });
+}
+
+const prRoutes = (page = pageFor(7)) =>
+  routedFetch({
+    [pageUrl]: async () => new Response(page),
+    [diffUrl]: async () => new Response(diff),
+  });
+
+const diffCalls = (fetchFn: ReturnType<typeof routedFetch>) =>
+  fetchFn.mock.calls.filter(([u]) => String(u) === diffUrl).length;
+
+describe("headAndFiles", () => {
+  it("looks up the head on the PR page while fetching the diff", async () => {
+    const release: (() => void)[] = [];
+    const held = (body: string) => () =>
+      new Promise<Response>((resolve) => release.push(() => resolve(new Response(body))));
+    const fetchFn = routedFetch({ [pageUrl]: held(pageFor(7)), [diffUrl]: held(diff) });
     const s = signal();
-    expect(await createPrDataSource(fetchFn).head(pr7, s)).toEqual({ ok: true, headSha: shaA });
-    expect(fetchFn).toHaveBeenCalledWith("https://github.com/o/r/pull/7", {
-      credentials: "include",
-      signal: s,
+    const pending = createPrDataSource(fetchFn).headAndFiles(pr7, s);
+    await vi.waitFor(() => expect(release).toHaveLength(2));
+    expect(fetchFn).toHaveBeenCalledWith(pageUrl, { credentials: "include", signal: s });
+    expect(fetchFn).toHaveBeenCalledWith(diffUrl, { credentials: "include", signal: s });
+    for (const go of release) go();
+    expect(await pending).toEqual({
+      ok: true,
+      headSha: shaA,
+      files: [
+        { kind: "text", path: "src/a.rs", status: "modified", patch: "@@ -1 +1 @@\n-old\n+new" },
+      ],
     });
   });
 
@@ -246,18 +275,68 @@ describe("head", () => {
     ["names another PR", pageFor(8)],
     ["has no embedded data", "<html></html>"],
   ])("fails when the page %s", async (_, page) => {
-    const fetchFn = vi.fn(async () => new Response(page));
-    expect(await createPrDataSource(fetchFn).head(pr7, signal())).toEqual({
+    expect(await createPrDataSource(prRoutes(page)).headAndFiles(pr7, signal())).toEqual({
       ok: false,
       problem: "failed",
     });
   });
 
-  it("fetches the page on every request", async () => {
-    const fetchFn = vi.fn(async () => new Response(pageFor(7)));
+  it("caches nothing when the head lookup fails", async () => {
+    const fetchFn = prRoutes("<html></html>");
     const source = createPrDataSource(fetchFn);
-    await source.head(pr7, signal());
-    await source.head(pr7, signal());
-    expect(fetchFn).toHaveBeenCalledTimes(2);
+    await source.headAndFiles(pr7, signal());
+    await source.files({ ...pr7, headSha: shaA }, signal());
+    expect(diffCalls(fetchFn)).toBe(2);
+  });
+
+  it("reports the diff's problem when the head resolves", async () => {
+    const fetchFn = routedFetch({
+      [pageUrl]: async () => new Response(pageFor(7)),
+      [diffUrl]: async () => new Response("", { status: 404 }),
+    });
+    expect(await createPrDataSource(fetchFn).headAndFiles(pr7, signal())).toEqual({
+      ok: false,
+      problem: "no-access",
+    });
+  });
+
+  it("files the diff under the head it looked up", async () => {
+    const fetchFn = prRoutes();
+    const source = createPrDataSource(fetchFn);
+    await source.headAndFiles(pr7, signal());
+    await source.files({ ...pr7, headSha: shaA }, signal());
+    expect(diffCalls(fetchFn)).toBe(1);
+    await source.files({ ...pr7, headSha: shaB }, signal());
+    expect(diffCalls(fetchFn)).toBe(2);
+  });
+
+  it("reuses a cached diff once the page confirms its head", async () => {
+    const fetchFn = prRoutes();
+    const source = createPrDataSource(fetchFn);
+    const cached = await source.files({ ...pr7, headSha: shaA }, signal());
+    fetchFn.mockClear();
+    const result = await source.headAndFiles(pr7, signal());
+    expect(fetchFn.mock.calls.map(([u]) => String(u))).toEqual([pageUrl]);
+    expect(result).toEqual({ ...cached, headSha: shaA });
+  });
+
+  it("replaces another head's diff when the page names a new head", async () => {
+    const fetchFn = prRoutes(pageFor(7, shaB));
+    const source = createPrDataSource(fetchFn);
+    await source.files({ ...pr7, headSha: shaA }, signal());
+    const result = await source.headAndFiles(pr7, signal());
+    expect(result).toMatchObject({ ok: true, headSha: shaB });
+    expect(diffCalls(fetchFn)).toBe(2);
+    await source.files({ ...pr7, headSha: shaA }, signal());
+    expect(diffCalls(fetchFn)).toBe(3);
+  });
+
+  it("fetches the page on every request", async () => {
+    const fetchFn = prRoutes();
+    const source = createPrDataSource(fetchFn);
+    await source.headAndFiles(pr7, signal());
+    await source.headAndFiles(pr7, signal());
+    expect(fetchFn.mock.calls.filter(([u]) => String(u) === pageUrl)).toHaveLength(2);
+    expect(diffCalls(fetchFn)).toBe(1);
   });
 });
