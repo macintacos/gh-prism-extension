@@ -899,7 +899,7 @@ describe("readIntent", () => {
   });
 
   it("keeps the diff's file order when reads finish out of order", async () => {
-    const count = 4;
+    const count = HEAD_READS_AT_ONCE + 2;
     const paths = Array.from({ length: count }, (_, i) => `src/notes${i}.rs`);
     const files = paths.map((path) => modified(path, notesPatch));
     const client = {
