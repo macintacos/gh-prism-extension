@@ -64,7 +64,7 @@ export function sectionsOf<F extends { readonly path: string }>(
     entriesOf(landing, file.path).map((entry) => ({ ...entry, file })),
   );
   const bySection = Map.groupBy(entries, ({ section }) => section);
-  return SECTIONS.flatMap(({ key }) => {
+  return SECTIONS.flatMap((key) => {
     const landed = bySection.get(key);
     return landed ? [{ key, entries: landed }] : [];
   });
@@ -90,7 +90,7 @@ export function totalsOf(landing: Landing): SectionLines[] {
     ),
   );
   const bySection = Map.groupBy(counted, ({ section }) => section);
-  return SECTIONS.flatMap(({ key }) => {
+  return SECTIONS.flatMap((key) => {
     const total = sum((bySection.get(key) ?? []).map(({ lines }) => lines));
     return total.added + total.removed > 0 ? [{ section: key, lines: total }] : [];
   });

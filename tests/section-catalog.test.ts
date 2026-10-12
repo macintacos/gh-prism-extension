@@ -4,7 +4,7 @@ import { SECTIONS } from "../utils/sections";
 
 describe("SECTION_CATALOG", () => {
   it("gives every section a label, an icon, a description, a hue, and a collapse default", () => {
-    for (const { key } of SECTIONS) {
+    for (const key of SECTIONS) {
       expect(SECTION_CATALOG[key], key).toEqual({
         label: expect.stringMatching(/\S/),
         icon: expect.stringMatching(/\S/),

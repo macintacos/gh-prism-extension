@@ -160,7 +160,7 @@ function clickedFile(event: Event): { section: SectionKey; path: string } | unde
   const elements = event.composedPath().filter((node) => node instanceof HTMLElement);
   const row = elements.find((node) => node.dataset.type === "item");
   const raw = elements.find((node) => node.classList.contains("gh-prism-section"))?.dataset.section;
-  const section = SECTIONS.find(({ key }) => key === raw)?.key;
+  const section = SECTIONS.find((key) => key === raw);
   const path = row?.dataset.itemPath;
   return row?.dataset.itemType === "file" && section && path ? { section, path } : undefined;
 }
@@ -182,7 +182,7 @@ export function showSections(
   const shown = new Map<SectionKey, ShownSection>();
   // Outlives the sections themselves, so one that empties and comes back stays collapsed.
   const collapsed = new Set(
-    SECTIONS.flatMap(({ key }) => (SECTION_CATALOG[key].startsCollapsed ? [key] : [])),
+    SECTIONS.flatMap((key) => (SECTION_CATALOG[key].startsCollapsed ? [key] : [])),
   );
   let loading: LoadingView | undefined;
   let landing = landingOf(undefined);

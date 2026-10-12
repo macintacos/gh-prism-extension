@@ -99,12 +99,6 @@ describe("classify", () => {
 
 describe("SECTIONS", () => {
   it("lists sections in sidebar display order", () => {
-    expect(SECTIONS.map((s) => s.key)).toEqual([
-      "implementation",
-      "tests",
-      "docs",
-      "config",
-      "generated",
-    ]);
+    expect(SECTIONS).toEqual(["implementation", "tests", "docs", "config", "generated"]);
   });
 });

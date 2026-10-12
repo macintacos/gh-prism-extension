@@ -7,15 +7,9 @@
  */
 
 /** The sidebar's sections, in display order. */
-export const SECTIONS = [
-  { key: "implementation" },
-  { key: "tests" },
-  { key: "docs" },
-  { key: "config" },
-  { key: "generated" },
-] as const;
+export const SECTIONS = ["implementation", "tests", "docs", "config", "generated"] as const;
 
-export type SectionKey = (typeof SECTIONS)[number]["key"];
+export type SectionKey = (typeof SECTIONS)[number];
 
 const GENERATED_FILES = glob("{*.lock,*-lock.json,*-lock.yaml,go.sum}");
 const TEST_DIRS = new Set(["tests", "test", "spec", "__tests__", "testdata"]);
