@@ -119,8 +119,8 @@ export const reorderable = (page: FilesPage): boolean =>
 
 /** Adds `node` to the end of `page`'s diff list, ahead of anything that follows the files. */
 export function appendToDiffs(page: FilesPage, node: Element): void {
-  const after = page.kind.afterDiffs && page.diffs.querySelector(page.kind.afterDiffs);
-  if (after) after.before(node);
+  const afterFiles = page.kind.afterDiffs && page.diffs.querySelector(page.kind.afterDiffs);
+  if (afterFiles) afterFiles.before(node);
   else page.diffs.append(node);
 }
 
