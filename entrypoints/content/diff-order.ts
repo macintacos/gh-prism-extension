@@ -83,7 +83,10 @@ function arrangement(kind: PageKind, sections: readonly (readonly string[])[]): 
 interface DiffOrder {
   /** Hides the diffs behind `loader`, shown where they start, until `reveal` or 15 seconds pass. */
   cover(loader: Element): void;
-  /** Orders the diffs as `arrangement` does. Changes nothing when the order is unchanged. */
+  /**
+   * Orders the diffs as `arrangement` does, or not at all while `page` can't be reordered. Changes
+   * nothing when the order is unchanged.
+   */
   arrange(sections: readonly (readonly string[])[]): void;
   /**
    * Lifts the cover: the diffs drop in section by section, and GitHub takes the URL's hash again,
@@ -125,7 +128,7 @@ function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
       timer = setTimeout(reveal, COVER_LIMIT_MS);
     },
     arrange(sections) {
-      const text = arrangement(page.kind, sections);
+      const text = reorderable(page) ? arrangement(page.kind, sections) : "";
       if (rules.textContent !== text) rules.textContent = text;
     },
     reveal,
