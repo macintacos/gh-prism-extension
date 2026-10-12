@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Build the extension and run the browser smoke suite against it"
+
+set -euo pipefail
+
+bun run build
+bunx --no-install playwright install --no-shell chromium
+bunx --no-install playwright test
