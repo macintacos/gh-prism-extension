@@ -8,6 +8,7 @@ import { defineConfig } from "wxt";
 const chromeProfile = join(homedir(), ".local/share/gh-prism-extension/chrome-profile");
 
 export default defineConfig({
+  imports: false,
   hooks: {
     // web-ext fails with ENOENT unless the profile directory already exists.
     "server:created": () => {

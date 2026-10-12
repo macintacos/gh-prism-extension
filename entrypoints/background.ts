@@ -1,3 +1,5 @@
+import { browser } from "wxt/browser";
+import { defineBackground } from "wxt/utils/define-background";
 import { storage } from "wxt/utils/storage";
 import { forgetIntents } from "../utils/intent-cache";
 import { PR_DATA_PORT, servePrDataPort } from "../utils/pr-port";
