@@ -2,12 +2,14 @@
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import type { FilesPage } from "../entrypoints/content/files-page";
 import {
+  commitPage,
   findDiff,
   findDiffstat,
   findFilesPage,
   findTreeToggle,
   observeDiffs,
   observeTree,
+  prPage,
   readChangedFiles,
   revealDiff,
   revealDiffLine,
@@ -38,6 +40,12 @@ const diffList = () => {
   return diffs;
 };
 
+const foundPage = () => {
+  const page = findFilesPage(document);
+  if (!page) throw new Error("fixture has no Files changed markup");
+  return page;
+};
+
 const ENGINE_DIFF = "diff-ff278ec599adfd033d35a083ebe8948db8bf177c9817dee8ddc4f3a9e3f5728e";
 
 beforeEach(() => {
@@ -47,6 +55,7 @@ beforeEach(() => {
 describe("findFilesPage", () => {
   it("finds the sidebar, tree, and diff list", () => {
     expect(findFilesPage(document)).toEqual({
+      kind: prPage,
       sidebar: byId("pr-file-tree"),
       tree: document.querySelector('ul[role="tree"]'),
       diffs: document.querySelector('[data-testid="diff-content"]'),
@@ -87,7 +96,7 @@ describe("readChangedFiles", () => {
   });
 
   it("exposes the row's status icon", () => {
-    expect(file("src/helpers.rs").statusIcon?.classList.contains("octicon-file-moved")).toBe(true);
+    expect(file("src/helpers.rs").status).toBe("renamed");
   });
 
   it("exposes the comment visual only where there are comments", () => {
@@ -219,18 +228,18 @@ describe("findDiff", () => {
   };
 
   it("finds the mounted diff for a file's link", () => {
-    expect(findDiff(diffList(), linkTo("src/engine.rs"))).toBe(byId(ENGINE_DIFF));
+    expect(findDiff(foundPage(), linkTo("src/engine.rs"))).toBe(byId(ENGINE_DIFF));
   });
 
   it("is null while a file's diff is unmounted", () => {
-    expect(findDiff(diffList(), linkTo("docs/guide.md"))).toBeNull();
+    expect(findDiff(foundPage(), linkTo("docs/guide.md"))).toBeNull();
   });
 
   it("is null for a diff with the same id outside the diff list", () => {
     const stray = document.createElement("div");
     stray.id = "diff-c2a0fff5575ebf83634ea4da334a24d52775bcef6700ed6f9d0bc4e3db79e42a";
     document.body.append(stray);
-    expect(findDiff(diffList(), linkTo("src/helpers.rs"))).toBeNull();
+    expect(findDiff(foundPage(), linkTo("src/helpers.rs"))).toBeNull();
   });
 });
 
@@ -252,6 +261,7 @@ describe("a commit page", () => {
 
   it("finds the sidebar, tree, and diff list", () => {
     expect(findFilesPage(document)).toEqual({
+      kind: commitPage,
       sidebar: byId("diff_file_tree"),
       tree: document.querySelector('ul[role="tree"]'),
       diffs: diffs(),
@@ -259,7 +269,7 @@ describe("a commit page", () => {
   });
 
   it("finds the header's lines-changed counter", () => {
-    expect(findDiffstat(document)?.textContent).toContain("+165");
+    expect(findDiffstat(foundPage())?.textContent).toContain("+165");
   });
 
   it("finds the toolbar's tree toggle, not the copy inside the sidebar", () => {
@@ -270,13 +280,13 @@ describe("a commit page", () => {
   });
 
   it("finds a file's diff, which has no id, by its header's link", () => {
-    expect(findDiff(diffs(), linkTo("bin/caret-launcher"))).toBe(
+    expect(findDiff(foundPage(), linkTo("bin/caret-launcher"))).toBe(
       document.querySelector('[role="region"]'),
     );
   });
 
   it("finds no diff for a file whose diff is unmounted", () => {
-    expect(findDiff(diffs(), linkTo("src/adapters/opencode/paths.ts"))).toBeNull();
+    expect(findDiff(foundPage(), linkTo("src/adapters/opencode/paths.ts"))).toBeNull();
   });
 
   describe("revealDiff", () => {
@@ -287,7 +297,8 @@ describe("a commit page", () => {
       if (ours) hashes.push(location.hash);
     };
     let controller: AbortController;
-    const reveal = () => revealDiff(linkTo("bin/caret-launcher"), { signal: controller.signal });
+    const reveal = () =>
+      revealDiff(foundPage(), linkTo("bin/caret-launcher"), { signal: controller.signal });
 
     beforeEach(() => {
       vi.useFakeTimers();
@@ -333,7 +344,7 @@ describe("a commit page", () => {
       `<table>${lines.map((n) => `<tr><td data-line-anchor="${anchor}R${n}">${n}</td></tr>`).join("")}</table>`;
     let scrollIntoView: MockInstance<Element["scrollIntoView"]>;
     const reveal = (path: string, line: number) =>
-      revealDiffLine(diffs(), linkTo(path), line, { signal: new AbortController().signal });
+      revealDiffLine(foundPage(), linkTo(path), line, { signal: new AbortController().signal });
 
     beforeEach(() => {
       vi.useFakeTimers();
@@ -649,7 +660,7 @@ describe("revealDiff", () => {
         document.documentElement.scrollTop = top;
       });
     });
-  const reveal = () => revealDiff(engineLink(), { signal: controller.signal });
+  const reveal = () => revealDiff(foundPage(), engineLink(), { signal: controller.signal });
   const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
 
   beforeEach(() => {
@@ -743,7 +754,7 @@ describe("revealDiffLine", () => {
     return found;
   };
   const reveal = (line: number) =>
-    revealDiffLine(diffList(), guideLink(), line, { signal: controller.signal });
+    revealDiffLine(foundPage(), guideLink(), line, { signal: controller.signal });
   const expectScrolledTo = (row: Element | null | undefined) => {
     expect(scrollIntoView.mock.contexts).toHaveLength(1);
     expect(scrollIntoView.mock.contexts[0]).toBe(row);

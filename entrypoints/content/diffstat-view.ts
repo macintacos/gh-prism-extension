@@ -135,7 +135,7 @@ export function showDiffstat(
 ): LandingView {
   return {
     landed(result) {
-      const native = result.ok && findDiffstat(page.sidebar.ownerDocument);
+      const native = result.ok && findDiffstat(page);
       if (native) showCounter(native, landingOf(result), { choice, signal });
     },
   };

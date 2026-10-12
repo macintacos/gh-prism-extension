@@ -6,7 +6,7 @@
  * first of that section's hunks.
  */
 
-import type { FileTreeRowDecoration, GitStatus } from "@pierre/trees";
+import type { FileTreeRowDecoration } from "@pierre/trees";
 import type { IntentResult, PathOnlyReason } from "@/utils/intent";
 import { landingOf, revealLineOf, totalsOf } from "@/utils/landing";
 import type { LineCounts } from "@/utils/pr-diff";
@@ -56,22 +56,12 @@ function noticesOf(result: IntentResult, canReorder: boolean): string[] {
   ];
 }
 
-const STATUS_BY_OCTICON: ReadonlyMap<string, GitStatus> = new Map([
-  ["octicon-file-added", "added"],
-  ["octicon-file-removed", "deleted"],
-  ["octicon-file-moved", "renamed"],
-  ["octicon-file-diff", "modified"],
-]);
-
 const ADDED = "var(--fgColor-success)";
 const REMOVED = "var(--fgColor-danger)";
 const UNCHANGED = "var(--fgColor-muted)";
 // section-tree.css styles these parts by the custom property each color names.
 const MARKER = "var(--gh-prism-marker-fg)";
 const COMMENTS = "var(--gh-prism-comment-fg)";
-
-const statusOf = (icon: Element | null): GitStatus | undefined =>
-  [...STATUS_BY_OCTICON].find(([octicon]) => icon?.classList.contains(octicon))?.[1];
 
 /**
  * A row's comment count, Partial or Binary marker, and lines added and removed, as known. Its
@@ -107,7 +97,7 @@ function decorationOf({ file, share, lines }: FileEntry): FileTreeRowDecoration 
 const treeFilesOf = ({ entries }: FileSection): TreeFile[] =>
   entries.map((entry) => ({
     path: entry.file.path,
-    status: statusOf(entry.file.statusIcon),
+    status: entry.file.status,
     decoration: decorationOf(entry),
   }));
 
@@ -206,8 +196,8 @@ export function showSections(
     jump?.abort();
     const line = revealLineOf(landing, path, section);
     jump = new AbortController();
-    if (line === undefined) revealDiff(native, { signal: jump.signal });
-    else void revealDiffLine(page.diffs, native, line, { signal: jump.signal });
+    if (line === undefined) revealDiff(page, native, { signal: jump.signal });
+    else void revealDiffLine(page, native, line, { signal: jump.signal });
   };
 
   const dropAllBut = (sections: readonly FileSection[]) => {

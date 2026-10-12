@@ -1,3 +1,6 @@
+/* GitHub hooks: #pr-file-tree, #diff_file_tree, ul[role="tree"], the filter row's pr-lg-3, and
+   the header's lines-changed counter (the sibling after .gh-prism-diffstat). The diff cover,
+   skeleton, pill, and tooltip rules select only gh-prism's own classes. */
 /* Hidden, not removed: the filter keeps editing these rows, and the view mirrors them. */
 :is(#pr-file-tree, #diff_file_tree):has(.gh-prism-sections) ul[role="tree"] {
   display: none;

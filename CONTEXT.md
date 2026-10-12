@@ -17,7 +17,7 @@ _Avoid_: PR, when a commit is meant too
 commit's page. _Avoid_: files page, diff page
 
 **Page kind**: Which Files view shows the diff: a pull request's Files changed tab or a
-commit's page. Proposed term. _Avoid_: page type, view type
+commit's page. _Avoid_: page type, view type
 
 **Visit**: One stay on a Files view's address. Changing the address ends it; changing only
 the hash does not.
