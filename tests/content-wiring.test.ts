@@ -74,10 +74,10 @@ describe("content script", () => {
   it("logs a failed save instead of throwing it", async () => {
     const failure = new Error("quota");
     vi.spyOn(fakeBrowser.storage.sync, "set").mockRejectedValue(failure);
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     await run();
     docked()[0]?.save("left");
-    await vi.waitFor(() => expect(error).toHaveBeenCalledWith(expect.any(String), failure));
+    await vi.waitFor(() => expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure));
   });
 
   it("mounts every page of a visit on one shared diff read", async () => {
@@ -109,11 +109,11 @@ describe("content script", () => {
 
   it("warns once when the Files changed tree never shows", async () => {
     document.body.innerHTML = "";
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
     await run();
     await vi.advanceTimersByTimeAsync(20_000);
     document.dispatchEvent(new Event("soft-nav:end"));
     await vi.advanceTimersByTimeAsync(20_000);
-    expect(warn).toHaveBeenCalledOnce();
+    expect(consoleWarn).toHaveBeenCalledOnce();
   });
 });
