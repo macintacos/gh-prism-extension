@@ -1,7 +1,7 @@
 import { showDiffOrder } from "@/entrypoints/content/diff-order";
 import { type FilesPage, findFilesPage } from "@/entrypoints/content/files-page";
 import { showSections } from "@/entrypoints/content/sections-view";
-import type { FileSection, LandingView } from "@/entrypoints/content/visit";
+import type { FileSection } from "@/entrypoints/content/visit";
 import { type IntentResult, readIntent } from "@/utils/intent";
 import { landingOf, sectionsOf } from "@/utils/landing";
 import {
@@ -14,7 +14,7 @@ import {
   syntheticFiles,
 } from "./synthetic";
 
-const PATH_ONLY: IntentResult = { ok: true, placements: new Map(), lines: new Map() };
+const NOTHING_PLACED: IntentResult = { ok: true, placements: new Map(), lines: new Map() };
 
 const round = (ms: number) => Math.round(ms * 10) / 10;
 
@@ -30,7 +30,7 @@ async function timed(run: () => unknown): Promise<number> {
 const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
 const nextTask = () => new Promise((resolve) => setTimeout(resolve));
 
-function filesPage(files: readonly SyntheticFile[], entrySize: number): FilesPage {
+function mountPage(files: readonly SyntheticFile[], entrySize: number): FilesPage {
   mountShell(document);
   mountDiffs(document, files, entrySize);
   const page = findFilesPage(document);
@@ -44,55 +44,41 @@ const orderOf = (anchor: string) => {
   return Number(getComputedStyle(entry).order);
 };
 
-/** Throws unless the first file `sections` list sits ahead of the last. */
+/** Throws unless the diffs sit in the order `sections` list their files. */
 function checkOrder(sections: readonly FileSection[]): void {
-  const first = sections[0]?.entries[0]?.file.link.hash.slice(1);
-  const last = sections.at(-1)?.entries.at(-1)?.file.link.hash.slice(1);
-  if (!first || !last || !(orderOf(first) < orderOf(last)))
+  const orders = sections.flatMap(({ entries }) =>
+    entries.map(({ file }) => orderOf(file.link.hash.slice(1))),
+  );
+  if (orders.length === 0 || orders.some((order, i) => i > 0 && !((orders[i - 1] ?? 0) < order)))
     throw new Error("the diff order didn't follow the sections");
 }
 
-let ordering: { view: LandingView; sections: FileSection[] } | undefined;
-
-const diffOrder = {
-  /** Mounts `count` diffs of `entrySize` elements and returns each entry's measured element count. */
-  setUp(count: number, entrySize: number): number {
-    const files = syntheticFiles(count);
-    const page = filesPage(files, entrySize);
-    const view = showDiffOrder(page, new AbortController().signal);
-    const sections = sectionsOf(landingOf(PATH_ONLY), changedFiles(document, files, "modified"));
-    ordering = { view, sections };
-    settle();
-    const entry = page.diffs.querySelector('[role="region"]')?.parentElement;
-    return entry ? entry.querySelectorAll("*").length + 1 : 0;
-  },
-  /** Orders the diffs as the sections list them. */
-  async apply(): Promise<number> {
-    const { view, sections } = ordering ?? {};
-    if (!view || !sections) throw new Error("set up the diff order first");
+/** Mounts `count` diffs of `entrySize` elements under the real diff order, ready to time. */
+function diffOrder(count: number, entrySize: number) {
+  const files = syntheticFiles(count);
+  const page = mountPage(files, entrySize);
+  const view = showDiffOrder(page, new AbortController().signal);
+  const sections = sectionsOf(landingOf(NOTHING_PLACED), changedFiles(document, files, "modified"));
+  settle();
+  const entry = page.diffs.querySelector('[role="region"]')?.parentElement;
+  /** Orders the diffs as `order` lists them; returns the ms, layout included, and throws if the order didn't follow. */
+  const arrange = async (order: readonly FileSection[]) => {
     const ms = await timed(() => {
-      view.sections?.(sections);
+      view.sections?.(order);
       settle();
     });
-    checkOrder(sections);
+    checkOrder(order);
     return ms;
-  },
-  /** Reorders the diffs with each section's files reversed, so every rank changes. */
-  async rewrite(): Promise<number> {
-    const { view, sections } = ordering ?? {};
-    if (!view || !sections) throw new Error("set up the diff order first");
-    const reversed = sections.map((section) => ({
-      ...section,
-      entries: section.entries.toReversed(),
-    }));
-    const ms = await timed(() => {
-      view.sections?.(reversed);
-      settle();
-    });
-    checkOrder(reversed);
-    return ms;
-  },
-};
+  };
+  return {
+    /** The first entry's element count. */
+    elements: entry ? entry.querySelectorAll("*").length + 1 : 0,
+    apply: () => arrange(sections),
+    /** Each section's files reversed, so the ranks change. */
+    rewrite: () =>
+      arrange(sections.map((section) => ({ ...section, entries: section.entries.toReversed() }))),
+  };
+}
 
 const renderedRows = () =>
   [...document.querySelectorAll(".gh-prism-tree")].reduce(
@@ -100,23 +86,26 @@ const renderedRows = () =>
     0,
   );
 
+/** Mounts the real sections view on `count` files; times its mount, then a re-render where every status flips. */
 async function sectionTrees(count: number) {
   const files = syntheticFiles(count);
-  const page = filesPage(files, 2);
+  const page = mountPage(files, 2);
   const view = showSections(page, new AbortController().signal);
-  view.landed?.(PATH_ONLY);
+  view.landed?.(NOTHING_PLACED);
   settle();
   const sectionsWith = (status: "modified" | "added") =>
-    sectionsOf(landingOf(PATH_ONLY), changedFiles(document, files, status));
+    sectionsOf(landingOf(NOTHING_PLACED), changedFiles(document, files, status));
   const modified = sectionsWith("modified");
   const added = sectionsWith("added");
   const renderOf = (sections: FileSection[]) => async () => {
     view.sections?.(sections);
+    // @pierre/trees renders in a microtask; a task boundary lands it on the clock.
     await nextTask();
     settle();
   };
   const mount = await timed(renderOf(modified));
   const rerender = await timed(renderOf(added));
+  // Two frames: the trees' ResizeObserver-driven virtualization settles before rows are counted.
   await nextFrame();
   await nextFrame();
   const rows = renderedRows();
@@ -124,6 +113,7 @@ async function sectionTrees(count: number) {
   return { files: count, "mount ms": mount, "re-render ms": rerender, "rendered rows": rows };
 }
 
+/** Times `readIntent` over in-memory heads; throws unless every head was read once and some file split. */
 async function intent(count: number) {
   const files = syntheticFiles(count);
   const { diffs, heads } = intentDiff(files);
@@ -151,10 +141,6 @@ async function intent(count: number) {
 
 const bench = { diffOrder, sectionTrees, intent };
 
-declare global {
-  interface Window {
-    bench: typeof bench;
-  }
-}
+export type Bench = typeof bench;
 
-window.bench = bench;
+Object.assign(window, { bench });

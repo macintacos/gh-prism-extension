@@ -17,6 +17,7 @@ const pathOf = (i: number): string => {
 export const syntheticFiles = (count: number): SyntheticFile[] =>
   Array.from({ length: count }, (_, i) => ({
     path: pathOf(i),
+    // GitHub's anchors are 64 hex digits; the order rules' selectors scale with them.
     anchor: `diff-${i.toString(16).padStart(64, "0")}`,
   }));
 
@@ -25,6 +26,8 @@ export const needsHead = (path: string): boolean => path.includes("/src/") && pa
 
 /** Replaces `doc`'s body with the markup a pull request's Files changed view is found by. */
 export function mountShell(doc: Document): void {
+  // 900 px: the sidebar height EXC-1970's rendered-row criterion assumes. GitHub's CSS makes the
+  // diff list a flex column, which `order` needs; the shell has no GitHub CSS.
   doc.body.innerHTML = `
     <div id="pr-file-tree" style="height: 900px; overflow-y: auto"><ul role="tree"></ul></div>
     <div data-testid="diff-content">
@@ -90,7 +93,8 @@ const rustHead = (): string =>
     .flat()
     .join("\n");
 
-// Head lines: f0's body, and the assertion inside `mod tests`.
+// One code hunk and one test-block hunk, so every src/ file reads its head and splits across
+// Implementation and Tests: f0's body, and the assertion inside `mod tests`.
 const CODE_LINE = 2;
 const TEST_LINE = FUNCTIONS * 3 + 6;
 
