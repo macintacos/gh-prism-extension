@@ -7,7 +7,10 @@
 
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
 import css from "./diff-order.css?raw";
+import { el } from "./dom";
 import { type FilesPage, retakeHash } from "./files-page";
+import { loadingView } from "./loading-view";
+import type { LandingView } from "./visit";
 
 // Keep in sync with diff-order.css: a pull request's progressive list, and a commit's list while
 // its diffs are in flow. A virtualized commit nests each diff a level deeper.
@@ -52,7 +55,7 @@ function arrangement(sections: readonly (readonly string[])[]): string {
 }
 
 /** Lays out one page's diff list; see `orderDiffs`. */
-export interface DiffOrder {
+interface DiffOrder {
   /** Hides the diffs behind `loader`, shown where they start, until `reveal` or 15 seconds pass. */
   cover(loader: Element): void;
   /** Orders the diffs as `arrangement` does. Changes nothing when the order is unchanged. */
@@ -62,12 +65,14 @@ export interface DiffOrder {
    * since it can't scroll to a diff the cover hid.
    */
   reveal(): void;
-  /** Whether GitHub lays the diffs out in a way their order can follow; false while virtualized. */
-  reorderable(): boolean;
 }
 
+/** Whether GitHub lays `page`'s diffs out in a way their order can follow; false while virtualized. */
+export const reorderable = (page: FilesPage): boolean =>
+  page.diffs.querySelector(VIRTUALIZED) === null;
+
 /** Orders `page`'s diffs, and covers them while asked to, until `signal` aborts. */
-export function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
+function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
   const doc = page.diffs.ownerDocument;
   const root = doc.documentElement;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
@@ -106,6 +111,49 @@ export function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
       if (rules.textContent !== text) rules.textContent = text;
     },
     reveal,
-    reorderable: () => page.diffs.querySelector(VIRTUALIZED) === null,
+  };
+}
+
+/** Placeholder diffs: a file header over a few lines of code each. */
+const diffSkeleton = (doc: Document) =>
+  el(
+    doc,
+    "div",
+    "gh-prism-diff-skeleton",
+    ...[4, 2, 3].map((lines) =>
+      el(
+        doc,
+        "div",
+        "gh-prism-diff-card",
+        el(doc, "span", "gh-prism-diff-card-header"),
+        ...Array.from({ length: lines }, () => el(doc, "span", "")),
+      ),
+    ),
+  );
+
+/**
+ * Orders `page`'s diffs as the sections list their files until `signal` aborts, covering them
+ * with a progress bar while intent is pending, if their order can follow.
+ */
+export function showDiffOrder(page: FilesPage, signal: AbortSignal): LandingView {
+  const order = orderDiffs(page, signal);
+  let loading: ReturnType<typeof loadingView> | undefined;
+  return {
+    pending() {
+      if (!reorderable(page)) return;
+      const doc = page.diffs.ownerDocument;
+      loading = loadingView(doc, diffSkeleton(doc));
+      loading.root.classList.add("gh-prism-diff-loading");
+      order.cover(loading.root);
+    },
+    progress(progress) {
+      loading?.progress(progress);
+    },
+    sections(sections) {
+      order.arrange(
+        sections.map(({ entries }) => entries.map(({ file }) => file.link.hash.slice(1))),
+      );
+      order.reveal();
+    },
   };
 }

@@ -1,13 +1,17 @@
 /**
- * Breaks the pull request header's lines-changed counter out by section: a pill per section with
- * the lines it adds and removes. A click switches between that breakout and GitHub's own total.
+ * Breaks the pull request header's lines-changed counter out by section once intent lands: a pill
+ * per section with the lines it adds and removes. A click switches between that breakout and
+ * GitHub's own total.
  */
 
-import { type Landing, type SectionLines, totalsOf } from "@/utils/landing";
+import type { IntentResult } from "@/utils/intent";
+import { type Landing, landingOf, type SectionLines, totalsOf } from "@/utils/landing";
 import type { LineCounts } from "@/utils/pr-diff";
 import { SECTIONS, type SectionKey } from "@/utils/sections";
 import { el } from "./dom";
+import { type FilesPage, findDiffstat } from "./files-page";
 import { sectionIcon } from "./section-icons";
+import type { LandingView } from "./visit";
 
 /** Which view the header counter shows. One per tab, so the choice carries to the next page. */
 export interface DiffstatChoice {
@@ -95,7 +99,7 @@ function tipRow(doc: Document, { section, lines }: SectionLines): HTMLElement {
  * view and records it in `choice`. GitHub's counter stays in the page, hidden by the stylesheet
  * while this sits just before it.
  */
-export function showDiffstat(
+function showCounter(
   native: Element,
   landing: Landing,
   { choice, signal }: { choice: DiffstatChoice; signal: AbortSignal },
@@ -119,4 +123,20 @@ export function showDiffstat(
   render();
   native.before(button);
   signal.addEventListener("abort", () => button.remove());
+}
+
+/**
+ * Stands in for `page`'s lines-changed counter, as `choice` says, once intent lands with the lines
+ * each section holds, until `signal` aborts.
+ */
+export function showDiffstat(
+  page: FilesPage,
+  { choice, signal }: { choice: DiffstatChoice; signal: AbortSignal },
+): LandingView {
+  return {
+    landed(result: IntentResult) {
+      const native = result.ok && findDiffstat(page.sidebar.ownerDocument);
+      if (native) showCounter(native, landingOf(result), { choice, signal });
+    },
+  };
 }

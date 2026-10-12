@@ -2,8 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import type { DiffstatChoice } from "../entrypoints/content/diffstat-view";
 import { findFilesPage } from "../entrypoints/content/files-page";
-import { showSections } from "../entrypoints/content/sections-view";
 import css from "../entrypoints/content/sections-view.css?raw";
+import { showVisit } from "../entrypoints/content/visit";
 import {
   type FileLines,
   type IntentProgress,
@@ -149,14 +149,14 @@ const landedWith = (
  * counter last chose `diffstat`.
  */
 function remountWith(
-  intent?: PendingIntent,
+  intent: PendingIntent = () => landedWith(),
   diffstat: DiffstatChoice = { view: "breakout" },
 ): void {
   controller.abort();
   controller = new AbortController();
   const page = findFilesPage(document);
   if (!page) throw new Error("fixture lacks the Files changed markup");
-  showSections(page, controller.signal, intent && { intent, diffstat });
+  showVisit(page, controller.signal, { intent, diffstat });
 }
 
 /** Mounts the view with `result` already landed, and lets it render. */
@@ -188,7 +188,10 @@ beforeEach(() => {
   controller = new AbortController();
   const page = findFilesPage(document);
   if (!page) throw new Error("fixture lacks the Files changed markup");
-  showSections(page, controller.signal);
+  showVisit(page, controller.signal, {
+    intent: () => landedWith(),
+    diffstat: { view: "breakout" },
+  });
 });
 afterEach(() => {
   controller.abort();
@@ -261,7 +264,7 @@ describe("showSections", () => {
     const page = findFilesPage(document);
     if (!page) throw new Error("fixture lacks the Files changed markup");
     const fresh = new AbortController();
-    showSections(page, fresh.signal);
+    showVisit(page, fresh.signal, { intent: () => landedWith(), diffstat: { view: "breakout" } });
     expect(document.querySelectorAll(".gh-prism-sections")).toHaveLength(1);
     fresh.abort();
   });
@@ -1139,6 +1142,32 @@ const diffsShown = () => getComputedStyle(progressiveList() ?? document.body).di
 describe("the diffs beside the sections", () => {
   beforeEach(mountEveryDiff);
 
+  it("lift their cover in the same task the sections render", async () => {
+    const pending = pendingIntent();
+    remountWith(pending.intent);
+    expect(diffsShown()).toBe(false);
+    pending.resolve(landedWith());
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sectionKeys()).toHaveLength(5);
+    expect(diffsShown()).toBe(true);
+    expect(diffsProgressBar()).toBeNull();
+  });
+
+  it("say they keep GitHub's order below the path-only notice, both above the sections", async () => {
+    byTestId("diff-content").innerHTML =
+      '<div style="position: relative"><div data-index="0" style="position: absolute; top: 0px">' +
+      '<div role="region" id="diff-0a01"></div></div></div>';
+    await landed({ ok: false, problem: "no-access" });
+    const [first, second, third] = [...(view()?.children ?? [])];
+    expect(first?.textContent).toBe(
+      "Grouped by path. Sign in to GitHub to detect docstring-only and inline-test changes.",
+    );
+    expect(second?.textContent).toBe(
+      "Diffs keep GitHub's order: gh-prism can't reorder this many files.",
+    );
+    expect(third?.classList.contains("gh-prism-section")).toBe(true);
+  });
+
   it("lie in the sidebar's order", () => {
     expect(laidOut(progressiveList())).toEqual([
       "src/generated/schema.rs",
@@ -1332,7 +1361,10 @@ describe("a commit's diffs beside the sections", () => {
     controller = new AbortController();
     const page = findFilesPage(document);
     if (!page) throw new Error("fixture lacks the commit markup");
-    showSections(page, controller.signal);
+    showVisit(page, controller.signal, {
+      intent: () => landedWith(),
+      diffstat: { view: "breakout" },
+    });
     expect(laidOut(launcher.parentElement)).toEqual([
       "bin/caret-launcher",
       "test/core/commands/install/launcher.test.ts",

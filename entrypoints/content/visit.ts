@@ -6,7 +6,10 @@
 
 import type { IntentProgress, IntentResult, PendingIntent } from "@/utils/intent";
 import { type LandedSection, landingOf, sectionsOf } from "@/utils/landing";
+import { showDiffOrder } from "./diff-order";
+import { type DiffstatChoice, showDiffstat } from "./diffstat-view";
 import { type ChangedFile, type FilesPage, observeTree, readChangedFiles } from "./files-page";
+import { showSections } from "./sections-view";
 
 /** The native tree's files in the sections they land in: what the sidebar lists and the diffs follow. */
 export type FileSection = LandedSection<ChangedFile>;
@@ -67,4 +70,20 @@ export function land(
     settle(read);
   }
   observeTree(page.sidebar, relist, { signal, ignore });
+}
+
+/** Shows `intent` landing on `page` in the sidebar, the diff order, and the diffstat, until `signal` aborts. */
+export function showVisit(
+  page: FilesPage,
+  signal: AbortSignal,
+  { intent, diffstat }: { intent: PendingIntent; diffstat: DiffstatChoice },
+): void {
+  const sidebar = showSections(page, signal);
+  // The sidebar draws inside the tree's container, so its own changes must not re-list.
+  land(
+    page,
+    intent,
+    [sidebar, showDiffOrder(page, signal), showDiffstat(page, { choice: diffstat, signal })],
+    { signal, ignore: sidebar.root },
+  );
 }
