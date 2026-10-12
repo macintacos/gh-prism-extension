@@ -1,6 +1,8 @@
 /**
- * The user's preferences, each a typed item in extension storage. `fallback` stands in only for
- * a missing value: a stored value of the wrong shape reads back as is, so narrow it on read.
+ * The user's preferences, each a typed item in extension storage. Keys and values persist across
+ * updates: change one only through the item's `version` and `migrations`. `fallback` stands in
+ * only for a missing value: a stored value of the wrong shape reads back as is, so read it as
+ * `unknown` and narrow it.
  */
 
 import { storage } from "wxt/utils/storage";
@@ -8,5 +10,8 @@ import { storage } from "wxt/utils/storage";
 /** The edge the sidebar docks on. */
 export type Side = "left" | "right";
 
-/** The side the sidebar docks on, synced across the user's browsers. */
+/**
+ * The side the user last docked the sidebar on; Chrome sync carries it to their other computers
+ * when on.
+ */
 export const sidebarSide = storage.defineItem<Side>("sync:sidebarSide", { fallback: "right" });
