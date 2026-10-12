@@ -8,47 +8,43 @@
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
 import css from "./diff-order.css?raw";
 import { el } from "./dom";
-import { type FilesPage, retakeHash } from "./files-page";
+import {
+  appendToDiffs,
+  type FilesPage,
+  isDiffAnchor,
+  type PageKind,
+  reorderable,
+  retakeHash,
+} from "./files-page";
 import { type LoadingView, loadingView } from "./loading-view";
 import type { LandingView } from "./visit";
 
-// Keep in sync with diff-order.css: a pull request's progressive list, and a commit's list while
-// its diffs are in flow. A virtualized commit nests each diff a level deeper.
-const PR_LIST = '[data-testid="progressive-diffs-list"]';
-const COMMIT_LIST = '#diff-content-parent > :has(> * > [role="region"])';
-// Both of GitHub's virtualized lists index each row they place.
-const VIRTUALIZED = '[data-index] [role="region"]';
-const ANCHOR = /^diff-[0-9a-f]+$/;
 // The longest stagger in diff-order.css, four sections of delay plus the reveal itself, and slack.
 const REVEAL_MS = 600;
 // A read that stalls this long leaves the diffs to read in GitHub's order meanwhile.
 const COVER_LIMIT_MS = 15_000;
-
-/** A file's entry in either list: a pull request's region carries the anchor; a commit's header links to it. */
-const entryOf = (anchor: string) =>
-  `${PR_LIST} > :has(#${anchor}), ${COMMIT_LIST} > :has(a[href="#${anchor}"])`;
 
 /**
  * Rules that order the diff list's entries as `sections` list their files' anchors, sections
  * first: a file in several sections takes the first, and its entry carries that section's index
  * as `--gh-prism-section-order`.
  */
-function arrangement(sections: readonly (readonly string[])[]): string {
+function arrangement(kind: PageKind, sections: readonly (readonly string[])[]): string {
   const ranked = new Map<string, number>();
   for (const [section, anchors] of sections.entries())
     for (const anchor of anchors)
-      if (ANCHOR.test(anchor) && !ranked.has(anchor)) ranked.set(anchor, section);
+      if (isDiffAnchor(anchor) && !ranked.has(anchor)) ranked.set(anchor, section);
   const [first] = ranked.keys();
   return [
     ...[...ranked].map(
       ([anchor, section], rank) =>
-        `${entryOf(anchor)} { order: ${rank + 1}; --gh-prism-section-order: ${section}; }`,
+        `${kind.diffEntry(anchor)} { order: ${rank + 1}; --gh-prism-section-order: ${section}; }`,
     ),
     // GitHub spaces a commit's files by their place in its order; the new first sits flush.
-    ...(first
+    ...(first && kind.spacedEntries
       ? [
-          `${COMMIT_LIST} > :has([role="region"]) { padding-top: 16px !important; }`,
-          `${COMMIT_LIST} > :has(a[href="#${first}"]) { padding-top: 0 !important; }`,
+          `${kind.spacedEntries} { padding-top: 16px !important; }`,
+          `${kind.diffEntry(first)} { padding-top: 0 !important; }`,
         ]
       : []),
   ].join("\n");
@@ -66,13 +62,6 @@ interface DiffOrder {
    */
   reveal(): void;
 }
-
-/**
- * Whether GitHub lays `page`'s diffs out in a way their order can follow; false while
- * virtualized.
- */
-export const reorderable = (page: FilesPage): boolean =>
-  page.diffs.querySelector(VIRTUALIZED) === null;
 
 /** Orders `page`'s diffs, and covers them while asked to, until `signal` aborts. */
 function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
@@ -102,15 +91,12 @@ function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
   return {
     cover(next) {
       loader = next;
-      // A commit's comments follow its diffs.
-      const comments = page.diffs.querySelector(":scope > #comments");
-      if (comments) comments.before(next);
-      else page.diffs.append(next);
+      appendToDiffs(page, next);
       root.dataset.ghPrismDiffs = "covered";
       timer = setTimeout(reveal, COVER_LIMIT_MS);
     },
     arrange(sections) {
-      const text = arrangement(sections);
+      const text = arrangement(page.kind, sections);
       if (rules.textContent !== text) rules.textContent = text;
     },
     reveal,

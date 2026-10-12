@@ -11,10 +11,15 @@ import type { IntentResult, PathOnlyReason } from "@/utils/intent";
 import { landingOf, revealLineOf, totalsOf } from "@/utils/landing";
 import type { LineCounts } from "@/utils/pr-diff";
 import { SECTIONS, type SectionKey } from "@/utils/sections";
-import { reorderable } from "./diff-order";
 import { lineTotals } from "./diffstat-view";
 import { el, icon } from "./dom";
-import { type FilesPage, readChangedFiles, revealDiff, revealDiffLine } from "./files-page";
+import {
+  type FilesPage,
+  readChangedFiles,
+  reorderable,
+  revealDiff,
+  revealDiffLine,
+} from "./files-page";
 import { type LoadingView, loadingView } from "./loading-view";
 import { sectionIcon } from "./section-icons";
 import { SectionTree, type TreeFile } from "./section-tree";

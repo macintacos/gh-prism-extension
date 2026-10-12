@@ -27,16 +27,27 @@ export interface PageKind {
   readonly diffs: string;
   /** The header's lines-changed counter. */
   readonly diffstat: string;
+  /** CSS selecting the diff list entry of the file whose anchor is `anchor`. */
+  diffEntry(anchor: string): string;
+  /** Every file's entry, where GitHub spaces entries by their place in its order: a commit's. */
+  readonly spacedEntries?: string;
+  /**
+   * What follows the files inside the diff list, ahead of which a cover goes: a commit's
+   * comments.
+   */
+  readonly afterDiffs?: string;
   /** The mounted diff for `anchor` under `diffs`, or `null`. */
   diffOf(diffs: Element, anchor: string): Element | null;
   /** How a row's link reveals its diff: a click GitHub scrolls for, or a hash GitHub follows. */
   readonly reveal: "click" | "hash";
 }
 
+// Keep the list selectors in sync with diff-order.css.
 export const prPage: PageKind = {
   sidebar: "#pr-file-tree",
   diffs: '[data-testid="diff-content"]',
   diffstat: '[class*="PullRequestHeader-module__rightContentWrapper"] > .d-flex',
+  diffEntry: (anchor) => `[data-testid="progressive-diffs-list"] > :has(#${anchor})`,
   diffOf: (diffs, anchor) => diffs.ownerDocument.getElementById(anchor),
   reveal: "click",
 };
@@ -45,6 +56,11 @@ export const commitPage: PageKind = {
   sidebar: "#diff_file_tree",
   diffs: "#diff-content-parent",
   diffstat: '[class*="CommitHeader-module__commitFilesChangedContainer"] > .d-flex',
+  // While its diffs are in flow; a virtualized commit nests each diff a level deeper.
+  diffEntry: (anchor) =>
+    `#diff-content-parent > :has(> * > [role="region"]) > :has(a[href="#${anchor}"])`,
+  spacedEntries: '#diff-content-parent > :has(> * > [role="region"]) > :has([role="region"])',
+  afterDiffs: ":scope > #comments",
   // A commit's diff has no id; its header links to the file's anchor instead.
   diffOf: (diffs, anchor) =>
     diffs.querySelector(`[role="region"] a[href="#${anchor}"]`)?.closest('[role="region"]') ?? null,
@@ -52,6 +68,9 @@ export const commitPage: PageKind = {
   // the file, since a commit's diffs have no ids.
   reveal: "hash",
 };
+
+// Both of GitHub's virtualized lists index each row they place.
+const VIRTUALIZED = '[data-index] [role="region"]';
 
 const PAGE_KINDS = [prPage, commitPage];
 
@@ -79,6 +98,23 @@ export function findFilesPage(root: ParentNode): FilesPage | undefined {
     if (sidebar && tree && diffs) return { kind, sidebar, tree, diffs };
   }
   return undefined;
+}
+
+/** Whether `anchor` takes the form of GitHub's anchor for a file's diff. */
+export const isDiffAnchor = (anchor: string): boolean => /^diff-[0-9a-f]+$/.test(anchor);
+
+/**
+ * Whether GitHub lays `page`'s diffs out in a way their order can follow; false while
+ * virtualized.
+ */
+export const reorderable = (page: FilesPage): boolean =>
+  page.diffs.querySelector(VIRTUALIZED) === null;
+
+/** Adds `node` to the end of `page`'s diff list, ahead of anything that follows the files. */
+export function appendToDiffs(page: FilesPage, node: Element): void {
+  const after = page.kind.afterDiffs && page.diffs.querySelector(page.kind.afterDiffs);
+  if (after) after.before(node);
+  else page.diffs.append(node);
 }
 
 /** The lines-changed counter in the page's header, or `undefined` when it's missing. */
@@ -247,7 +283,8 @@ export function revealDiff(
 
 /**
  * Moves a commit page to `link`'s file the way GitHub's own code does: it replaces the URL's hash
- * and announces it, and GitHub glides to the file and marks it current. GitHub ignores an unchanged hash, so a current file is first announced as left.
+ * and announces it, and GitHub glides to the file and marks it current. GitHub ignores an
+ * unchanged hash, so a current file is first announced as left.
  */
 function followHash(link: HTMLAnchorElement, signal: AbortSignal): void {
   const win = link.ownerDocument.defaultView;
@@ -306,7 +343,8 @@ export async function revealDiffLine(
   const diff = () => findDiff(page, link);
   const row = () => lineRow(diff(), anchorOf(link), line);
   if (!diff()) {
-    revealDiff(page, link, { signal }); // GitHub mounts a virtualized diff and scrolls to its header
+    // GitHub mounts a virtualized diff and scrolls to its header
+    revealDiff(page, link, { signal });
     if (!(await untilFound(diffs, diff, signal))) return;
   }
   if (!row() && expandDiff(diff())) await untilFound(diffs, () => uncollapsed(diff()), signal);
