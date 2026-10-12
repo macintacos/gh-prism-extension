@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { commitPage, type PageKind, prPage } from "../entrypoints/content/files-page";
 import { dockSidebar, type SideChoice } from "../entrypoints/content/sidebar-side";
 
 // Trimmed from sandbox PR #3's Files changed toolbar.
@@ -32,10 +33,11 @@ function stubViewTransitions() {
   return start;
 }
 
-function dock(side: SideChoice["side"]) {
+function dock(side: SideChoice["side"], kind: PageKind = prPage) {
   const choice: SideChoice = { side };
   const save = vi.fn();
-  dockSidebar(document, controller.signal, { choice, save });
+  const page = { kind, sidebar: document.body, tree: document.body, diffs: document.body };
+  dockSidebar(page, controller.signal, { choice, save });
   return { choice, save };
 }
 
@@ -126,7 +128,7 @@ const COMMIT_TOOLBAR = `
 
 it("docks a commit page's sidebar, with the switch just after its tree toggle", () => {
   document.body.innerHTML = COMMIT_TOOLBAR;
-  dock("right");
+  dock("right", commitPage);
   expect(docked()).toBe("right");
   expect(switcher()?.previousElementSibling?.id).toBe("commit-tree-toggle");
 });
@@ -143,7 +145,7 @@ const PANE = `
 /** Drags the pane's handle 30px right, returning the pointer x Primer reads on the move. */
 function dragHandle(handleLeft: number) {
   document.body.innerHTML = COMMIT_TOOLBAR + PANE;
-  dock("right");
+  dock("right", commitPage);
   const wrapper = document.querySelector<HTMLElement>('[class*="PageLayout-PaneWrapper"]');
   const handle = document.querySelector<HTMLElement>('[data-component="PageLayout.DragHandle"]');
   if (!wrapper || !handle) throw new Error("no pane");
@@ -168,7 +170,7 @@ it("passes a drag through where the divider stays at the tree's right", () => {
 it("replays a commit page's tree toggle click inside a glide, but not its narrow toggle's", async () => {
   document.body.innerHTML = COMMIT_TOOLBAR;
   const start = stubViewTransitions();
-  dock("right");
+  dock("right", commitPage);
   const [narrow, regular] = document.querySelectorAll("button[aria-controls]");
   regular?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   narrow?.dispatchEvent(new MouseEvent("click", { bubbles: true }));

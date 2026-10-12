@@ -1,3 +1,11 @@
+/* GitHub hooks: [class*="PageLayout-PaneWrapper"], [class*="PageLayout-ContentWrapper"],
+   [class*="PageLayout-Content-"], [class*="PageLayout-PageLayoutContent"], [class*="WideExpanded"],
+   [class*="PullRequestFilesToolbar-module__toolbar"], [class*="RegularTreeToggle"],
+   [class*="TreeToggle"], [data-component="Stack"], [aria-controls="diff_file_tree"], #pr-file-tree,
+   #diff_file_tree, #diff-content-parent, the filter row's pr-lg-3, a pull request's
+   diffComparisonViewer container (this sheet names a commit's), and PageLayout's
+   --region-order-pane-end custom property. */
+
 /* Primer's small invisible IconButton, like GitHub's tree toggle beside it. */
 .gh-prism-side-switch {
   position: relative;

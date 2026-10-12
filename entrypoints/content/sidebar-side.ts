@@ -7,7 +7,13 @@
 
 import type { Side } from "@/utils/prefs";
 import { el, icon } from "./dom";
-import { findTreeToggle } from "./files-page";
+import {
+  dragHandleOf,
+  type FilesPage,
+  findTreeToggle,
+  startPaneOf,
+  treeToggleButtonOf,
+} from "./files-page";
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
 import css from "./sidebar-side.css?raw";
 
@@ -60,7 +66,8 @@ function glide(doc: Document, kind: Glide, change: () => void | Promise<void>): 
  * `signal` aborts. The click is held back and replayed inside the transition, so GitHub's handler
  * runs between its before and after snapshots.
  */
-function glideTreeToggle(doc: Document, toggle: Element, signal: AbortSignal): void {
+function glideTreeToggle(page: FilesPage, toggle: Element, signal: AbortSignal): void {
+  const doc = page.sidebar.ownerDocument;
   let replaying = false;
   const replay = async (button: HTMLElement) => {
     replaying = true;
@@ -73,10 +80,7 @@ function glideTreeToggle(doc: Document, toggle: Element, signal: AbortSignal): v
     "click",
     (event) => {
       if (replaying || !glides(doc) || !(event.target instanceof Element)) return;
-      // The narrow layout's toggle opens an overlay instead.
-      const button = event.target.closest<HTMLElement>(
-        '[class*="RegularTreeToggle"], [aria-controls="diff_file_tree"]:not(.d-md-none)',
-      );
+      const button = treeToggleButtonOf(page, event.target);
       if (!button) return;
       event.stopPropagation();
       glide(doc, "toggle", () => replay(button));
@@ -87,7 +91,7 @@ function glideTreeToggle(doc: Document, toggle: Element, signal: AbortSignal): v
 
 /** Whether a Primer start pane's divider sits at the pane's left, where only docking right puts it. */
 function dividerLeads(handle: Element): boolean {
-  const wrapper = handle.closest('[class*="PageLayout-PaneWrapper"][data-position="start"]');
+  const wrapper = startPaneOf(handle);
   if (!wrapper) return false;
   const { left, width } = wrapper.getBoundingClientRect();
   return handle.getBoundingClientRect().left < left + width / 2;
@@ -107,9 +111,7 @@ function mirrorPaneDrag(doc: Document, signal: AbortSignal): void {
   view.addEventListener(
     "pointerdown",
     (event) => {
-      const handle =
-        event.target instanceof Element &&
-        event.target.closest('[data-component="PageLayout.DragHandle"]');
+      const handle = event.target instanceof Element && dragHandleOf(event.target);
       origin = handle && dividerLeads(handle) ? event.clientX : undefined;
     },
     { capture: true, signal },
@@ -141,12 +143,13 @@ function mirrorPaneDrag(doc: Document, signal: AbortSignal): void {
  * Without the toggle, GitHub's layout is left alone, since there's nowhere to switch it back.
  */
 export function dockSidebar(
-  doc: Document,
+  page: FilesPage,
   signal: AbortSignal,
   { choice, save }: SideOptions,
 ): void {
-  const toggle = findTreeToggle(doc);
+  const toggle = findTreeToggle(page);
   if (!toggle) return;
+  const doc = page.sidebar.ownerDocument;
   const root = doc.documentElement;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   const button = el(doc, "button", "gh-prism-side-switch", icon(doc, ARROW_SWITCH, {}));
@@ -165,7 +168,7 @@ export function dockSidebar(
   for (const stale of doc.querySelectorAll(".gh-prism-side-switch")) stale.remove();
   dock(choice.side);
   toggle.after(button);
-  glideTreeToggle(doc, toggle, signal);
+  glideTreeToggle(page, toggle, signal);
   mirrorPaneDrag(doc, signal);
   doc.head.append(style);
   signal.addEventListener("abort", () => {

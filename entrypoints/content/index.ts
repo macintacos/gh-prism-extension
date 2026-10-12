@@ -5,9 +5,9 @@ import { storedIntents } from "@/utils/intent-cache";
 import { connectPrData } from "@/utils/pr-port";
 import { sidebarSide } from "@/utils/prefs";
 import type { DiffstatChoice } from "./diffstat-view";
-import { watchFilesPages } from "./files-page";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar-side";
 import { showVisit } from "./visit";
+import { watchFilesPages } from "./visit-watch";
 
 const CACHED_DIFFS = 50;
 
@@ -37,7 +37,7 @@ export default defineContentScript({
           const intent = shareIntent((onProgress) => intentFor(route, visit, sources, onProgress));
           return (page, signal) => {
             showVisit(page, signal, { intent, diffstat });
-            dockSidebar(page.sidebar.ownerDocument, signal, { choice: side, save });
+            dockSidebar(page, signal, { choice: side, save });
           };
         },
         onMissing: () =>

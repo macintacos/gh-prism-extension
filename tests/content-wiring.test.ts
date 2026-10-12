@@ -56,7 +56,7 @@ describe("content script", () => {
       if (saved !== undefined) await fakeBrowser.storage.sync.set({ sidebarSide: saved });
       const sides: Side[] = [];
       // At call time: a saved side read after the first page docks would fix up the shared choice.
-      vi.mocked(dockSidebar).mockImplementationOnce((_doc, _signal, { choice }) => {
+      vi.mocked(dockSidebar).mockImplementationOnce((_page, _signal, { choice }) => {
         sides.push(choice.side);
       });
       await run();
@@ -95,7 +95,10 @@ describe("content script", () => {
     );
     const shown = vi.mocked(showVisit).mock.calls;
     expect(shown).toHaveLength(2);
-    expect(vi.mocked(dockSidebar).mock.calls.map(([doc]) => doc)).toEqual([document, document]);
+    expect(vi.mocked(dockSidebar).mock.calls.map(([page]) => page.sidebar.ownerDocument)).toEqual([
+      document,
+      document,
+    ]);
     expect(docked()[1]?.choice).toBe(docked()[0]?.choice);
   });
 

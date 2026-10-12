@@ -1,7 +1,7 @@
-import type { DiffRef } from "./pr-ref";
+import { type DiffRef, isCommitSha } from "./pr-ref";
 
 const FILES_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)\/(?:changes|files)(?:\/([^/]*).*)?$/;
-const COMMIT_PATH = /^\/([^/]+)\/([^/]+)\/commit\/([0-9a-f]{7,40})\/?$/;
+const COMMIT_PATH = /^\/([^/]+)\/([^/]+)\/commit\/([^/]+)\/?$/;
 
 /** The diff a Files changed URL names, and whether a commit or range narrows a pull request's. */
 export interface FilesRoute {
@@ -22,7 +22,7 @@ export function readFilesRoute(pathname: string): FilesRoute | undefined {
   if (owner !== undefined && repo !== undefined && prNumber !== undefined)
     return { diff: { owner, repo, number: Number(prNumber) }, commitFiltered: Boolean(filter) };
   const [, commitOwner, commitRepo, headSha] = COMMIT_PATH.exec(pathname) ?? [];
-  if (commitOwner === undefined || commitRepo === undefined || headSha === undefined)
+  if (commitOwner === undefined || commitRepo === undefined || !isCommitSha(headSha))
     return undefined;
   return { diff: { owner: commitOwner, repo: commitRepo, headSha }, commitFiltered: false };
 }
