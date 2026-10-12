@@ -8,7 +8,7 @@ import { SECTION_CATALOG } from "./section-catalog";
 // CSS can't lay down a band per section, so the gradient follows SECTIONS from here.
 const BAND = 100 / SECTIONS.length;
 const SPECTRUM = `linear-gradient(90deg, ${SECTIONS.map(
-  ({ key }, i) => `var(${SECTION_CATALOG[key].hue}) ${i * BAND}% ${(i + 1) * BAND}%`,
+  (key, i) => `var(${SECTION_CATALOG[key].hue}) ${i * BAND}% ${(i + 1) * BAND}%`,
 ).join(", ")})`;
 
 /** A progress bar over a skeleton, drawn while intent is read. */

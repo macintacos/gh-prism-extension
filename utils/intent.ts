@@ -106,7 +106,7 @@ function placementOf(
     const hunks = hunksOf(file); // non-empty sections ⇒ a text file that wasn't renamed
     return {
       kind: "split",
-      shares: SECTIONS.flatMap(({ key }) => {
+      shares: SECTIONS.flatMap((key) => {
         const placed = hunks.filter((_, i) => resolved[i] === key);
         return placed.length > 0 ? [shareOf(key, placed)] : [];
       }),

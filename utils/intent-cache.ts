@@ -78,7 +78,7 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 const isEntry = (value: unknown): value is [string, unknown] =>
   Array.isArray(value) && value.length === 2 && typeof value[0] === "string";
 
-const isSection = (value: unknown) => SECTIONS.some(({ key }) => key === value);
+const isSection = (value: unknown) => SECTIONS.some((key) => key === value);
 
 const isCounts = (value: unknown) =>
   isObject(value) && typeof value.added === "number" && typeof value.removed === "number";
