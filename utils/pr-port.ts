@@ -1,3 +1,4 @@
+import { browser } from "wxt/browser";
 import {
   type CommitHead,
   type DiffHead,
