@@ -874,8 +874,10 @@ describe("readIntent", () => {
   });
 
   it("reads at most HEAD_READS_AT_ONCE heads at once, and reports progress once per file", async () => {
-    const n = HEAD_READS_AT_ONCE * 3;
-    const files = Array.from({ length: n }, (_, i) => modified(`src/r${i}.rs`, renderPatch));
+    const fileCount = HEAD_READS_AT_ONCE * 3;
+    const files = Array.from({ length: fileCount }, (_, i) =>
+      modified(`src/r${i}.rs`, renderPatch),
+    );
     let inFlight = 0;
     let peak = 0;
     const client = {
@@ -893,19 +895,19 @@ describe("readIntent", () => {
     await readIntent(client, onProgress);
 
     expect(peak).toBe(HEAD_READS_AT_ONCE);
-    expect(client.fileContent).toHaveBeenCalledTimes(n);
-    expect(onProgress).toHaveBeenCalledTimes(n + 1);
-    expect(onProgress).toHaveBeenLastCalledWith({ checked: n, total: n });
+    expect(client.fileContent).toHaveBeenCalledTimes(fileCount);
+    expect(onProgress).toHaveBeenCalledTimes(fileCount + 1);
+    expect(onProgress).toHaveBeenLastCalledWith({ checked: fileCount, total: fileCount });
   });
 
   it("keeps the diff's file order when reads finish out of order", async () => {
-    const count = HEAD_READS_AT_ONCE + 2;
-    const paths = Array.from({ length: count }, (_, i) => `src/notes${i}.rs`);
+    const fileCount = HEAD_READS_AT_ONCE + 2;
+    const paths = Array.from({ length: fileCount }, (_, i) => `src/notes${i}.rs`);
     const files = paths.map((path) => modified(path, notesPatch));
     const client = {
       files: async (): Promise<PrFilesResult> => ({ ok: true, files }),
       fileContent: async (path: string): Promise<PrFileContentResult> => {
-        await new Promise((resolve) => setTimeout(resolve, count - paths.indexOf(path)));
+        await new Promise((resolve) => setTimeout(resolve, fileCount - paths.indexOf(path)));
         return { ok: true, text: notesHead };
       },
     };

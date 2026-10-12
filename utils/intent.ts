@@ -154,10 +154,10 @@ async function mapAtMost<T, R>(
   const results: R[] = [];
   // Every worker pulls from this one iterator, so each item is taken exactly once.
   const queue = items.entries();
-  const work = async () => {
+  const worker = async () => {
     for (const [i, item] of queue) results[i] = await fn(item);
   };
-  await Promise.all(Array.from({ length: limit }, work));
+  await Promise.all(Array.from({ length: limit }, worker));
   return results;
 }
 
