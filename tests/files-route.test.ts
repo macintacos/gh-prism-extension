@@ -30,7 +30,7 @@ describe("isFilesPath", () => {
 });
 
 describe("readFilesRoute", () => {
-  const pr = { owner: "o", repo: "r", number: 3 };
+  const pr = { kind: "pr", owner: "o", repo: "r", number: 3 };
 
   it.each(["/o/r/pull/3/changes", "/o/r/pull/3/changes/", "/o/r/pull/3/files"])(
     "reads the whole pull request from %s",
@@ -48,7 +48,7 @@ describe("readFilesRoute", () => {
 
   it("reads a single commit, whose diff is never filtered", () =>
     expect(readFilesRoute("/o/r/commit/dd95cdc")).toEqual({
-      diff: { owner: "o", repo: "r", headSha: "dd95cdc" },
+      diff: { kind: "commit", owner: "o", repo: "r", headSha: "dd95cdc" },
       commitFiltered: false,
     }));
 

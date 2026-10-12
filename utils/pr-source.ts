@@ -63,7 +63,7 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
   const cache = new Map<string, PrCacheEntry>();
 
   function entryFor(pr: DiffHead): PrCacheEntry {
-    const key = ("number" in pr ? diffUrl(pr) : `${repoUrl(pr)}/commit`).toLowerCase();
+    const key = (pr.kind === "pr" ? diffUrl(pr) : `${repoUrl(pr)}/commit`).toLowerCase();
     let entry = cache.get(key);
     if (entry?.headSha !== pr.headSha) {
       entry = { headSha: pr.headSha, contents: new Map() };
@@ -85,8 +85,16 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
   }
 
   const repoUrl = (pr: DiffRef) => `https://github.com/${pr.owner}/${pr.repo}`;
-  const diffUrl = (pr: DiffRef) =>
-    `${repoUrl(pr)}/${"number" in pr ? `pull/${pr.number}` : `commit/${pr.headSha}`}`;
+  const diffUrl = (pr: DiffRef): string => {
+    switch (pr.kind) {
+      case "pr":
+        return `${repoUrl(pr)}/pull/${pr.number}`;
+      case "commit":
+        return `${repoUrl(pr)}/commit/${pr.headSha}`;
+      default:
+        return pr satisfies never;
+    }
+  };
 
   return {
     async head(pr, signal) {

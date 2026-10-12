@@ -1,5 +1,6 @@
 /** A pull request as its github.com URL names it; owner and repo compare case-insensitively. */
 export interface PrRef {
+  kind: "pr";
   owner: string;
   repo: string;
   number: number;
@@ -18,6 +19,7 @@ export interface PrHead extends PrRef {
  * resolves either in the commit's `.diff` and `raw/` URLs.
  */
 export interface CommitHead {
+  kind: "commit";
   owner: string;
   repo: string;
   headSha: string;

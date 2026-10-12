@@ -4,7 +4,7 @@ import type { PrRef } from "../utils/pr-ref";
 import { createPrDataSource } from "../utils/pr-source";
 
 const sha = "a".repeat(40);
-const pr: PrRef = { owner: "o", repo: "r", number: 7 };
+const pr: PrRef = { kind: "pr", owner: "o", repo: "r", number: 7 };
 const page = `<script data-target="react-app.embeddedData">${JSON.stringify({
   payload: {
     pullRequestsLayoutRoute: {
@@ -101,7 +101,7 @@ describe("openPrData", () => {
     });
     const client = openPrData(
       harness(fetchFn).connect,
-      { owner: "o", repo: "r", headSha: sha },
+      { kind: "commit", owner: "o", repo: "r", headSha: sha },
       undefined,
     );
     expect((await client.files()).ok).toBe(true);
@@ -118,7 +118,7 @@ describe("openPrData", () => {
     });
     const client = openPrData(
       harness(fetchFn).connect,
-      { owner: "o", repo: "r", headSha: "abcdef1" },
+      { kind: "commit", owner: "o", repo: "r", headSha: "abcdef1" },
       undefined,
     );
     expect((await client.files()).ok).toBe(true);
@@ -323,18 +323,34 @@ describe("servePrDataPort", () => {
     ["a .. owner", { id: 1, request: { kind: "files", pr: { ...head, owner: ".." } } }],
     ["a . repo", { id: 1, request: { kind: "files", pr: { ...head, repo: "." } } }],
     ["a zero number", { id: 1, request: { kind: "files", pr: { ...head, number: 0 } } }],
+    [
+      "a diff of no kind",
+      { id: 1, request: { kind: "files", pr: { owner: "o", repo: "r", headSha: sha } } },
+    ],
     ["a short SHA", { id: 1, request: { kind: "files", pr: { ...head, headSha: "abc" } } }],
     [
       "a commit with a too-short SHA",
-      { id: 1, request: { kind: "files", pr: { owner: "o", repo: "r", headSha: "abcdef" } } },
+      {
+        id: 1,
+        request: {
+          kind: "files",
+          pr: { kind: "commit", owner: "o", repo: "r", headSha: "abcdef" },
+        },
+      },
     ],
     [
       "a commit with a non-hex SHA",
-      { id: 1, request: { kind: "files", pr: { owner: "o", repo: "r", headSha: "main" } } },
+      {
+        id: 1,
+        request: { kind: "files", pr: { kind: "commit", owner: "o", repo: "r", headSha: "main" } },
+      },
     ],
     [
       "a commit with a .. owner",
-      { id: 1, request: { kind: "files", pr: { owner: "..", repo: "r", headSha: sha } } },
+      {
+        id: 1,
+        request: { kind: "files", pr: { kind: "commit", owner: "..", repo: "r", headSha: sha } },
+      },
     ],
     ["a .. path segment", { id: 1, request: { kind: "content", pr: head, path: "../x" } }],
     ["an empty path segment", { id: 1, request: { kind: "content", pr: head, path: "a//b" } }],

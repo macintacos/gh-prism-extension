@@ -4,9 +4,15 @@ import { createPrDataSource } from "../utils/pr-source";
 
 const shaA = "a".repeat(40);
 const shaB = "b".repeat(40);
-const sandbox: PrHead = { owner: "macintacos", repo: "gh-prism-sandbox", number: 1, headSha: shaA };
-const pr7: PrRef = { owner: "o", repo: "r", number: 7 };
-const commit: CommitHead = { owner: "o", repo: "r", headSha: "dd95cdc" };
+const sandbox: PrHead = {
+  kind: "pr",
+  owner: "macintacos",
+  repo: "gh-prism-sandbox",
+  number: 1,
+  headSha: shaA,
+};
+const pr7: PrRef = { kind: "pr", owner: "o", repo: "r", number: 7 };
+const commit: CommitHead = { kind: "commit", owner: "o", repo: "r", headSha: "dd95cdc" };
 
 const diff = `diff --git a/src/a.rs b/src/a.rs
 index 1111111..2222222 100644
@@ -61,7 +67,7 @@ describe("files", () => {
   it("caches a commit apart from a pull request at the same head", async () => {
     const fetchFn = okFetch();
     const source = createPrDataSource(fetchFn);
-    const atA: CommitHead = { owner: "o", repo: "r", headSha: shaA };
+    const atA: CommitHead = { kind: "commit", owner: "o", repo: "r", headSha: shaA };
     await source.files(atA, signal());
     await source.files({ ...pr7, headSha: shaA }, signal());
     await source.files(atA, signal());
@@ -71,7 +77,7 @@ describe("files", () => {
   it("keeps one commit per repository, so another commit replaces it", async () => {
     const fetchFn = okFetch();
     const source = createPrDataSource(fetchFn);
-    const atA: CommitHead = { owner: "o", repo: "r", headSha: shaA };
+    const atA: CommitHead = { kind: "commit", owner: "o", repo: "r", headSha: shaA };
     await source.files(atA, signal());
     await source.files(atA, signal());
     await source.files({ ...atA, headSha: shaB }, signal());
