@@ -3,10 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import contentScript from "../entrypoints/content";
-import { readFilesRoute } from "../entrypoints/content/files-page";
 import { intentFor } from "../entrypoints/content/intent";
 import { showSections } from "../entrypoints/content/sections-view";
 import { dockSidebar, type Side } from "../entrypoints/content/sidebar-side";
+import { readFilesRoute } from "../utils/files-route";
 import { byId, loadFixture } from "./fixtures/files-page";
 
 // Only leaves are faked: intentFor needs a port fakeBrowser lacks; the views' DOM has own tests.

@@ -4,6 +4,7 @@ import {
   type ScannedHead,
   scanHeadText,
 } from "@/utils/doc-intent";
+import type { FilesRoute } from "@/utils/files-route";
 import { inlineTestHunkVerdicts, inlineTestRuleApplies } from "@/utils/inline-tests";
 import {
   type HeadLineSpan,
@@ -18,7 +19,6 @@ import type { PrDataClient } from "@/utils/pr-port";
 import type { DiffRef } from "@/utils/pr-ref";
 import type { PrDataProblem } from "@/utils/pr-source";
 import { classify, SECTIONS, type SectionKey } from "@/utils/sections";
-import type { FilesRoute } from "./files-page";
 import type { IntentCache } from "./intent-cache";
 
 /** Why the view keeps path-only sections. */
