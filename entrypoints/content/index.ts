@@ -37,7 +37,7 @@ export default defineContentScript({
           const intent = shareIntent((onProgress) => intentFor(route, visit, sources, onProgress));
           return (page, signal) => {
             showVisit(page, signal, { intent, diffstat });
-            dockSidebar(page.sidebar.ownerDocument, signal, { choice: side, save });
+            dockSidebar(page, signal, { choice: side, save });
           };
         },
         onMissing: () =>

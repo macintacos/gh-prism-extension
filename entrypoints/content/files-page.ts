@@ -27,6 +27,10 @@ export interface PageKind {
   readonly diffs: string;
   /** The header's lines-changed counter. */
   readonly diffstat: string;
+  /** A toolbar tree-toggle button; its parent wraps the toggle's buttons. */
+  readonly treeToggle: string;
+  /** The toggle buttons that collapse the tree in place, not the narrow layout's overlay toggle. */
+  readonly treeToggleButton: string;
   /** CSS selecting the diff list entry of the file whose anchor is `anchor`. */
   diffEntry(anchor: string): string;
   /** Every file's entry, where GitHub spaces entries by their place in its order: a commit's. */
@@ -47,6 +51,8 @@ export const prPage: PageKind = {
   sidebar: "#pr-file-tree",
   diffs: '[data-testid="diff-content"]',
   diffstat: '[class*="PullRequestHeader-module__rightContentWrapper"] > .d-flex',
+  treeToggle: '[class*="RegularTreeToggle"]',
+  treeToggleButton: '[class*="RegularTreeToggle"]',
   diffEntry: (anchor) => `[data-testid="progressive-diffs-list"] > :has(#${anchor})`,
   diffOf: (diffs, anchor) => diffs.ownerDocument.getElementById(anchor),
   reveal: "click",
@@ -56,6 +62,10 @@ export const commitPage: PageKind = {
   sidebar: "#diff_file_tree",
   diffs: "#diff-content-parent",
   diffstat: '[class*="CommitHeader-module__commitFilesChangedContainer"] > .d-flex',
+  // A commit's sidebar carries a copy of the toolbar for the narrow layout.
+  treeToggle: '#diff-content-parent [aria-controls="diff_file_tree"]',
+  // The narrow layout's toggle opens an overlay instead.
+  treeToggleButton: '[aria-controls="diff_file_tree"]:not(.d-md-none)',
   // While its diffs are in flow; a virtualized commit nests each diff a level deeper.
   diffEntry: (anchor) =>
     `#diff-content-parent > :has(> * > [role="region"]) > :has(a[href="#${anchor}"])`,
@@ -126,13 +136,21 @@ export function findDiffstat(page: FilesPage): Element | undefined {
  * The toolbar's file-tree toggle: the wrapper around the buttons that collapse and expand the
  * tree, or `undefined` when it's missing.
  */
-export function findTreeToggle(root: ParentNode): Element | undefined {
-  const toggle =
-    root.querySelector('[class*="RegularTreeToggle"]') ??
-    // A commit's sidebar carries a copy of the toolbar for the narrow layout.
-    root.querySelector('#diff-content-parent [aria-controls="diff_file_tree"]');
-  return toggle?.parentElement ?? undefined;
+export function findTreeToggle(page: FilesPage): Element | undefined {
+  return page.sidebar.ownerDocument.querySelector(page.kind.treeToggle)?.parentElement ?? undefined;
 }
+
+/** The tree-toggle button `target` sits in, when it collapses the tree in place. */
+export const treeToggleButtonOf = (page: FilesPage, target: Element): HTMLElement | null =>
+  target.closest<HTMLElement>(page.kind.treeToggleButton);
+
+/** The Primer pane divider `target` sits in, or `null`. */
+export const dragHandleOf = (target: Element): Element | null =>
+  target.closest('[data-component="PageLayout.DragHandle"]');
+
+/** The Primer start pane wrapper `handle` sits in, or `null`. */
+export const startPaneOf = (handle: Element): Element | null =>
+  handle.closest('[class*="PageLayout-PaneWrapper"][data-position="start"]');
 
 /**
  * A file row in the native tree. Its nodes are GitHub's live, React-owned elements: clone

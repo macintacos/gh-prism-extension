@@ -273,7 +273,7 @@ describe("a commit page", () => {
   });
 
   it("finds the toolbar's tree toggle, not the copy inside the sidebar", () => {
-    expect(findTreeToggle(document)).toBe(
+    expect(findTreeToggle(foundPage())).toBe(
       document.querySelector('#diff-content-parent [aria-controls="diff_file_tree"]')
         ?.parentElement,
     );
