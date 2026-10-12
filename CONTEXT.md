@@ -73,7 +73,7 @@ add and remove. _Avoid_: slice, part
 anything a reviewer reads
 
 **Landing**: Every file's resolved place in the sections, whole or as shares, with each
-section's line totals, built from intent or from paths alone. Proposed term.
+section's line totals, built from intent or from paths alone.
 
 **Path-only**: The fallback when intent can't be read or the view is commit-filtered:
 every file keeps its path section. The sidebar says "Grouped by path". _Avoid_: degraded
