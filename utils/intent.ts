@@ -2,6 +2,7 @@ import { type DocVerdict, docHunkVerdicts, type ScannedHead, scanHeadText } from
 import type { FilesRoute } from "./files-route";
 import { inlineTestHunkVerdicts, inlineTestRuleApplies } from "./inline-tests";
 import type { IntentCache } from "./intent-cache";
+import { sectionOf } from "./landing";
 import {
   type HeadLineSpan,
   hunkHeadSpan,
@@ -14,7 +15,7 @@ import {
 import type { PrDataClient } from "./pr-port";
 import type { DiffRef } from "./pr-ref";
 import type { PrDataProblem } from "./pr-source";
-import { classify, SECTIONS, type SectionKey } from "./sections";
+import { SECTIONS, type SectionKey } from "./sections";
 
 /** Why the view keeps path-only sections. */
 export type PathOnlyReason = PrDataProblem | "commit-filtered";
@@ -99,7 +100,7 @@ function placementOf(
   file: PrFileDiff,
   sections: readonly (IntentSection | undefined)[],
 ): Placement | undefined {
-  const resolved = sections.map((section) => section ?? classify(file.path));
+  const resolved = sections.map((section) => sectionOf(file.path, section));
   if (new Set(resolved).size > 1) {
     const hunks = hunksOf(file); // non-empty sections ⇒ a text file that wasn't renamed
     return {
