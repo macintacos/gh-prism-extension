@@ -1,7 +1,8 @@
 /**
- * Comment-scans a head file line by line, for the hunk rules that read it. Block openers count
- * only at line start, so a mid-line `/*` is code. A Python triple quote opens a docstring only at
- * file start or after a line ending in `:`; otherwise it opens a string.
+ * Comment-scans source lines one at a time, for the hunk rules: the docstring rule steps
+ * `scanLine` over a hunk's two sides, and `scanHeadText` scans a whole head file once. Block
+ * openers count only at line start, so a mid-line `/*` is code. A Python triple quote opens a
+ * docstring only at file start or after a line ending in `:`; otherwise it opens a string.
  */
 
 interface Block {
@@ -16,6 +17,7 @@ interface Block {
   readonly delimitsStrings?: boolean;
 }
 
+/** How one language marks comments, as the line scan reads them. */
 export interface CommentSyntax {
   readonly lineMarker: string;
   readonly blocks: readonly Block[];
@@ -51,10 +53,11 @@ const SYNTAX_BY_EXTENSION = new Map<string, CommentSyntax>([
 ]);
 
 /** The text after the last dot in `path`'s file name; `""` when there is none. */
-export const extensionOf = (path: string) => /\.([^./]+)$/.exec(path)?.[1] ?? "";
+export const extensionOf = (path: string): string => /\.([^./]+)$/.exec(path)?.[1] ?? "";
 
 /** The comment syntax for `path`'s extension; `undefined` for an extension with none. */
-export const commentSyntaxOf = (path: string) => SYNTAX_BY_EXTENSION.get(extensionOf(path));
+export const commentSyntaxOf = (path: string): CommentSyntax | undefined =>
+  SYNTAX_BY_EXTENSION.get(extensionOf(path));
 
 /** A comment or string block the scan is inside, carried from one line to the next. */
 interface Inside {
@@ -72,8 +75,10 @@ export interface ScanState {
   readonly docstringMayOpen: boolean;
 }
 
+/** The state above a file's first line: in code, where a triple quote may open a docstring. */
 export const FILE_START: ScanState = { position: "code", docstringMayOpen: true };
 
+/** How the comment scan reads one line. */
 export type LineKind = "blank" | "code" | "comment";
 
 /** How one line reads, and where it leaves the scan before the docstring fact is updated. */
@@ -87,6 +92,10 @@ interface Scanned {
   readonly state: ScanState;
 }
 
+/**
+ * How `rawLine` reads from `state`, ignoring surrounding whitespace, and the state the next line
+ * starts in.
+ */
 export function scanLine(syntax: CommentSyntax, state: ScanState, rawLine: string): Scanned {
   const line = rawLine.trim();
   const step =
