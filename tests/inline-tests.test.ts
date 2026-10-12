@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { scanHeadText } from "../utils/head-scan";
-import { inlineTestHunkVerdicts, inlineTestRuleApplies } from "../utils/inline-tests";
+import { commentSyntaxOf } from "../utils/head-scan";
+import {
+  INLINE_TEST_EXTENSIONS,
+  inlineTestHunkVerdicts,
+  inlineTestRuleApplies,
+} from "../utils/inline-tests";
 import type { PrFileDiff } from "../utils/pr-diff";
-
-const lines = (...text: string[]) => text.join("\n");
+import { headOf, lines } from "./fixtures/head-scan";
 
 const modified = (path: string, patch: string): PrFileDiff => ({
   kind: "text",
@@ -11,12 +14,6 @@ const modified = (path: string, patch: string): PrFileDiff => ({
   status: "modified",
   patch,
 });
-
-const headOf = (path: string, text: string) => {
-  const head = scanHeadText(path, text);
-  if (head === undefined) throw new Error(`no comment syntax for ${path}`);
-  return head;
-};
 
 interface InlineCase {
   readonly name: string;
@@ -894,5 +891,11 @@ describe("inlineTestHunkVerdicts", () => {
         headOf("src/app.js", itBlockHead),
       ),
     ).toEqual([]);
+  });
+});
+
+describe("INLINE_TEST_EXTENSIONS", () => {
+  it.each(INLINE_TEST_EXTENSIONS)("has a comment syntax for the head scan: %s", (ext) => {
+    expect(commentSyntaxOf(`src/file.${ext}`)).toBeDefined();
   });
 });

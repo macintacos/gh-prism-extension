@@ -12,8 +12,7 @@ import type { IntentCache } from "../utils/intent-cache";
 import type { PrFileDiff } from "../utils/pr-diff";
 import type { DiffRef, PrRef } from "../utils/pr-ref";
 import type { PrFileContentResult, PrFilesResult } from "../utils/pr-source";
-
-const lines = (...text: string[]) => text.join("\n");
+import { lines } from "./fixtures/head-scan";
 
 const pr: PrRef = { owner: "macintacos", repo: "gh-prism-sandbox", number: 1 };
 const route: FilesRoute = { diff: pr, commitFiltered: false };

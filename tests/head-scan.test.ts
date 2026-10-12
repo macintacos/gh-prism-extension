@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { extensionOf, scanHeadText } from "../utils/head-scan";
-
-const lines = (...text: string[]) => text.join("\n");
+import { lines } from "./fixtures/head-scan";
 
 describe("extensionOf", () => {
   it.each([
