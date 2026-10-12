@@ -1,20 +1,22 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
-import type { DiffstatChoice } from "../entrypoints/content/diffstat-view";
 import { findFilesPage } from "../entrypoints/content/files-page";
 import css from "../entrypoints/content/sections-view.css?raw";
 import { showVisit } from "../entrypoints/content/visit";
-import {
-  type FileLines,
-  type IntentProgress,
-  type IntentResult,
-  type IntentSection,
-  type PendingIntent,
-  type Placement,
-  shareIntent,
-} from "../utils/intent";
-import { byId, loadFixture } from "./fixtures/files-page";
+import type { IntentResult } from "../utils/intent";
+import { byId } from "./fixtures/files-page";
 import { landedWith, pendingIntent, whole } from "./fixtures/intent";
+import {
+  addNativeFile,
+  afterDebounce,
+  filesIn,
+  mountsVisit,
+  progressBar,
+  rowsIn,
+  sectionKeys,
+  treeHost,
+  view,
+} from "./fixtures/visit";
 
 // Chrome content scripts run in an isolated world whose `customElements` is null, so every test
 // here mounts the view that way. Hoisted above the imports, which load @pierre/trees.
@@ -36,32 +38,7 @@ Object.defineProperty(ShadowRoot.prototype, "activeElement", {
   },
 });
 
-let controller: AbortController;
-
-const view = () => document.querySelector<HTMLElement>(".gh-prism-sections");
-const progressBar = () => view()?.querySelector<HTMLElement>('[role="progressbar"]') ?? null;
-
-const sectionKeys = () =>
-  [...document.querySelectorAll<HTMLElement>(".gh-prism-section")].map(
-    (section) => section.dataset.section,
-  );
-
-function treeHost(section: string): HTMLElement {
-  const host = document.querySelector<HTMLElement>(
-    `.gh-prism-section[data-section="${section}"] .gh-prism-tree`,
-  );
-  if (!host) throw new Error(`no tree in ${section}`);
-  return host;
-}
-
-const rowsIn = (section: string) => [
-  ...(treeHost(section).shadowRoot?.querySelectorAll<HTMLElement>('[data-type="item"]') ?? []),
-];
-
-const filesIn = (section: string) =>
-  rowsIn(section)
-    .filter((row) => row.dataset.itemType === "file")
-    .map((row) => row.dataset.itemPath);
+const { remountWith, landed, abort } = mountsVisit();
 
 function rowIn(section: string, path: string): HTMLElement {
   const found = rowsIn(section).find((row) => row.dataset.itemPath === path);
@@ -88,14 +65,6 @@ const nativeLink = (path: string) => {
   if (!(link instanceof HTMLAnchorElement)) throw new Error(`no native link for ${path}`);
   return link;
 };
-
-/** Adds a native row for `path` after `after`'s row, as GitHub does when a file joins the PR. */
-function addNativeFile(path: string, after: string): void {
-  const native = byId(after).cloneNode(true);
-  if (!(native instanceof HTMLElement)) throw new Error("clone is not an element");
-  native.id = path;
-  byId(after).after(native);
-}
 
 /** Clicks `target` as a user would: the event crosses out of the tree's shadow root. */
 const clickAt = (target: Element, init: MouseEventInit = {}) => {
@@ -134,46 +103,6 @@ function filesOf(section: string): HTMLElement {
   if (!files) throw new Error(`${section}'s header button controls nothing`);
   return files;
 }
-
-// Past the 50 ms debounce; the async advance runs the MutationObserver's pending microtask first.
-const afterDebounce = () => vi.advanceTimersByTimeAsync(100);
-
-/**
- * Replaces the view `beforeEach` mounted with one that waits on `intent`, in a tab whose header
- * counter last chose `diffstat`.
- */
-function remountWith(
-  intent: PendingIntent = () => landedWith(),
-  diffstat: DiffstatChoice = { view: "breakout" },
-): void {
-  controller.abort();
-  controller = new AbortController();
-  const page = findFilesPage(document);
-  if (!page) throw new Error("fixture lacks the Files changed markup");
-  showVisit(page, controller.signal, { intent, diffstat });
-}
-
-/** Mounts the view with `result` already landed, and lets it render. */
-async function landed(result: IntentResult): Promise<void> {
-  remountWith(() => Promise.resolve(result));
-  await afterDebounce();
-}
-
-beforeEach(() => {
-  vi.useFakeTimers();
-  loadFixture();
-  controller = new AbortController();
-  const page = findFilesPage(document);
-  if (!page) throw new Error("fixture lacks the Files changed markup");
-  showVisit(page, controller.signal, {
-    intent: () => landedWith(),
-    diffstat: { view: "breakout" },
-  });
-});
-afterEach(() => {
-  controller.abort();
-  vi.useRealTimers();
-});
 
 describe("showSections", () => {
   it("lists the files in a tree per non-empty section, in section and native-tree order", () => {
@@ -231,7 +160,7 @@ describe("showSections", () => {
   it("injects its stylesheet into the document head until aborted", () => {
     const stylesheet = () => document.head.querySelector("style");
     expect(stylesheet()?.textContent).toBe(css);
-    controller.abort();
+    abort();
     expect(stylesheet()).toBeNull();
   });
 
@@ -387,7 +316,7 @@ describe("showSections", () => {
 
   it("removes itself, clears its trees, and stops rendering once aborted", async () => {
     const implementation = treeHost("implementation");
-    controller.abort();
+    abort();
     expect(view()).toBeNull();
     expect(implementation.shadowRoot?.querySelector('[data-type="item"]')).toBeNull();
     byId("src/lib.rs").removeAttribute("aria-current");
@@ -748,7 +677,7 @@ describe("showSections", () => {
     it("cancels a jump still waiting for its diff to mount when the view is aborted", async () => {
       await landed(renderSplit([{ first: 2, last: 8 }]));
       clickAt(rowIn("docs", "src/render.rs"));
-      controller.abort();
+      abort();
       mountRenderDiff(22);
       await afterDebounce();
       expect(scrollIntoView).not.toHaveBeenCalled();
@@ -843,7 +772,7 @@ describe("showSections", () => {
       const render = vi.spyOn(FileTree.prototype, "render");
       const pending = pendingIntent();
       remountWith(pending.intent);
-      controller.abort();
+      abort();
       pending.resolve(landedWith(new Map([["src/parser.rs", whole("docs")]])));
       await afterDebounce();
       expect(view()).toBeNull();

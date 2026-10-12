@@ -15,7 +15,7 @@ import { reorderable } from "./diff-order";
 import { lineTotals } from "./diffstat-view";
 import { el, icon } from "./dom";
 import { type FilesPage, readChangedFiles, revealDiff, revealDiffLine } from "./files-page";
-import { loadingView } from "./loading-view";
+import { type LoadingView, loadingView } from "./loading-view";
 import { sectionIcon } from "./section-icons";
 import { SectionTree, type TreeFile } from "./section-tree";
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
@@ -45,11 +45,14 @@ const PATH_ONLY_COPY: Record<PathOnlyReason, string> = {
     "Grouped by path. The diff didn't load; reload to detect docstring-only and inline-test changes.",
 };
 
-/** The notices above the sections once intent lands as `result`: why they follow paths alone, then why the diffs keep GitHub's order. */
-function noticesOf(result: IntentResult, reorderable: boolean): string[] {
+/**
+ * The notices above the sections once intent lands as `result`: why they follow paths alone, then
+ * why the diffs keep GitHub's order.
+ */
+function noticesOf(result: IntentResult, canReorder: boolean): string[] {
   return [
     ...(result.ok ? [] : [PATH_ONLY_COPY[result.problem]]),
-    ...(reorderable ? [] : [FIXED_ORDER_COPY]),
+    ...(canReorder ? [] : [FIXED_ORDER_COPY]),
   ];
 }
 
@@ -189,7 +192,7 @@ export function showSections(
   const shown = new Map<SectionKey, ShownSection>();
   // Outlives the sections themselves, so one that empties and comes back stays collapsed.
   const collapsed = new Set<SectionKey>(["generated"]);
-  let loading: ReturnType<typeof loadingView> | undefined;
+  let loading: LoadingView | undefined;
   let landing = landingOf(undefined);
   // The reveal in flight. A newer file click, or the view's abort, cancels it.
   let jump: AbortController | undefined;

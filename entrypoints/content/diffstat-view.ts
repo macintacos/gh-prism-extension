@@ -1,10 +1,10 @@
 /**
- * Breaks the pull request header's lines-changed counter out by section once intent lands: a pill
- * per section with the lines it adds and removes. A click switches between that breakout and
- * GitHub's own total.
+ * Breaks the header's lines-changed counter, on a pull request or a commit, out by section once
+ * intent lands: a pill per section with the lines it adds and removes. A click switches between
+ * that breakout and GitHub's own total. sections-view.css styles the pills; showVisit mounts the
+ * sidebar on every page.
  */
 
-import type { IntentResult } from "@/utils/intent";
 import { type Landing, landingOf, type SectionLines, totalsOf } from "@/utils/landing";
 import type { LineCounts } from "@/utils/pr-diff";
 import { SECTIONS, type SectionKey } from "@/utils/sections";
@@ -126,15 +126,15 @@ function showCounter(
 }
 
 /**
- * Stands in for `page`'s lines-changed counter, as `choice` says, once intent lands with the lines
- * each section holds, until `signal` aborts.
+ * Once intent lands, stands in for the header's lines-changed counter as `choice` says, until
+ * `signal` aborts. A path-only landing leaves GitHub's counter as is.
  */
 export function showDiffstat(
   page: FilesPage,
   { choice, signal }: { choice: DiffstatChoice; signal: AbortSignal },
 ): LandingView {
   return {
-    landed(result: IntentResult) {
+    landed(result) {
       const native = result.ok && findDiffstat(page.sidebar.ownerDocument);
       if (native) showCounter(native, landingOf(result), { choice, signal });
     },

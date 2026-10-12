@@ -3,8 +3,16 @@
 import type { IntentProgress } from "@/utils/intent";
 import { el } from "./dom";
 
-export /** A progress bar that reads the diff, then counts the files checked, over `skeleton`. */
-function loadingView(doc: Document, skeleton: HTMLElement) {
+/** A progress bar over a skeleton, drawn while intent is read. */
+export interface LoadingView {
+  /** The bar and its skeleton. */
+  readonly root: HTMLElement;
+  /** Counts the files checked so far. */
+  progress(progress: IntentProgress): void;
+}
+
+/** A progress bar that reads the diff, then counts the files checked, over `skeleton`. */
+export function loadingView(doc: Document, skeleton: HTMLElement): LoadingView {
   const label = el(doc, "span", "", "Reading the diff");
   const count = el(doc, "span", "gh-prism-loading-count");
   const root = el(

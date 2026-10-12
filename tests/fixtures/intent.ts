@@ -14,8 +14,8 @@ export const landedWith = (
   lines: ReadonlyMap<string, FileLines> = new Map(),
 ): IntentResult => ({ ok: true, placements, lines });
 
-export /** An intent that settles when the test resolves it, and reports progress when told to. */
-function pendingIntent() {
+/** An intent that settles when the test resolves it, and reports progress when told to. */
+export function pendingIntent() {
   const deferred = Promise.withResolvers<IntentResult>();
   let report: (progress: IntentProgress) => void = () => {
     throw new Error("the view has not asked for the intent yet");

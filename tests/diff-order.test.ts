@@ -1,11 +1,16 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { DiffstatChoice } from "../entrypoints/content/diffstat-view";
-import { findFilesPage } from "../entrypoints/content/files-page";
-import { showVisit } from "../entrypoints/content/visit";
-import type { IntentResult, PendingIntent } from "../utils/intent";
-import { byId, loadCommitFixture, loadFixture } from "./fixtures/files-page";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { byId, loadCommitFixture } from "./fixtures/files-page";
 import { landedWith, pendingIntent, whole } from "./fixtures/intent";
+import {
+  addNativeFile,
+  afterDebounce,
+  filesIn,
+  mountsVisit,
+  progressBar,
+  sectionKeys,
+  view,
+} from "./fixtures/visit";
 
 // Chrome content scripts run in an isolated world whose `customElements` is null, so every test
 // here mounts the view that way. Hoisted above the imports, which load @pierre/trees.
@@ -13,80 +18,7 @@ vi.hoisted(() => {
   Object.defineProperty(window, "customElements", { configurable: true, value: null });
 });
 
-let controller: AbortController;
-
-const view = () => document.querySelector<HTMLElement>(".gh-prism-sections");
-const progressBar = () => view()?.querySelector<HTMLElement>('[role="progressbar"]') ?? null;
-
-const sectionKeys = () =>
-  [...document.querySelectorAll<HTMLElement>(".gh-prism-section")].map(
-    (section) => section.dataset.section,
-  );
-
-function treeHost(section: string): HTMLElement {
-  const host = document.querySelector<HTMLElement>(
-    `.gh-prism-section[data-section="${section}"] .gh-prism-tree`,
-  );
-  if (!host) throw new Error(`no tree in ${section}`);
-  return host;
-}
-
-const rowsIn = (section: string) => [
-  ...(treeHost(section).shadowRoot?.querySelectorAll<HTMLElement>('[data-type="item"]') ?? []),
-];
-
-const filesIn = (section: string) =>
-  rowsIn(section)
-    .filter((row) => row.dataset.itemType === "file")
-    .map((row) => row.dataset.itemPath);
-
-/** Adds a native row for `path` after `after`'s row, as GitHub does when a file joins the PR. */
-function addNativeFile(path: string, after: string): void {
-  const native = byId(after).cloneNode(true);
-  if (!(native instanceof HTMLElement)) throw new Error("clone is not an element");
-  native.id = path;
-  byId(after).after(native);
-}
-
-// Past the 50 ms debounce; the async advance runs the MutationObserver's pending microtask first.
-const afterDebounce = () => vi.advanceTimersByTimeAsync(100);
-
-/**
- * Replaces the view `beforeEach` mounted with one that waits on `intent`, in a tab whose header
- * counter last chose `diffstat`.
- */
-function remountWith(
-  intent: PendingIntent = () => landedWith(),
-  diffstat: DiffstatChoice = { view: "breakout" },
-): void {
-  controller.abort();
-  controller = new AbortController();
-  const page = findFilesPage(document);
-  if (!page) throw new Error("fixture lacks the Files changed markup");
-  showVisit(page, controller.signal, { intent, diffstat });
-}
-
-/** Mounts the view with `result` already landed, and lets it render. */
-async function landed(result: IntentResult): Promise<void> {
-  remountWith(() => Promise.resolve(result));
-  await afterDebounce();
-}
-
-beforeEach(() => {
-  vi.useFakeTimers();
-  loadFixture();
-  controller = new AbortController();
-  const page = findFilesPage(document);
-  if (!page) throw new Error("fixture lacks the Files changed markup");
-  showVisit(page, controller.signal, {
-    intent: () => landedWith(),
-    diffstat: { view: "breakout" },
-  });
-});
-afterEach(() => {
-  controller.abort();
-  vi.useRealTimers();
-});
+const { remountWith, landed, abort } = mountsVisit();
 
 /** Replaces the diff list with GitHub's progressive one, every native file's diff mounted. */
 function mountEveryDiff(): void {
@@ -255,7 +187,7 @@ describe("the diffs beside the sections", () => {
   });
 
   it("keep GitHub's order once the view is gone", () => {
-    controller.abort();
+    abort();
     expect(laidOut(progressiveList())).toEqual([
       "config/app.toml",
       "docs/guide.md",
@@ -348,7 +280,7 @@ describe("the diffs beside the sections", () => {
 
 describe("a commit's diffs beside the sections", () => {
   it("lie in the sidebar's order, the first flush under the toolbar", () => {
-    controller.abort();
+    abort();
     loadCommitFixture();
     const [launcher, test] = [...document.querySelectorAll('[role="region"]')].map(
       (region) => region.parentElement,
@@ -358,13 +290,7 @@ describe("a commit's diffs beside the sections", () => {
     launcher.before(test);
     test.style.paddingTop = "0px";
     launcher.style.paddingTop = "16px";
-    controller = new AbortController();
-    const page = findFilesPage(document);
-    if (!page) throw new Error("fixture lacks the commit markup");
-    showVisit(page, controller.signal, {
-      intent: () => landedWith(),
-      diffstat: { view: "breakout" },
-    });
+    remountWith();
     expect(laidOut(launcher.parentElement)).toEqual([
       "bin/caret-launcher",
       "test/core/commands/install/launcher.test.ts",

@@ -1,7 +1,8 @@
 /**
- * A visit to a Files changed page: reads where its files land once and hands each step of that
- * landing (pending, progress, landed, then the sections) to every view, in one order. It also owns
- * the only observer of the native tree, re-listing the sections after each change to it.
+ * Lands intent on each page of a Files view visit. Hands each step (pending, progress, landed, then
+ * the sections) to every view in one order, and owns the only observer of the native tree,
+ * re-listing the sections after each change to it. It reads intent once per page; the caller shares
+ * that read across a visit's pages (`shareIntent`).
  */
 
 import type { IntentProgress, IntentResult, PendingIntent } from "@/utils/intent";
@@ -11,10 +12,16 @@ import { type DiffstatChoice, showDiffstat } from "./diffstat-view";
 import { type ChangedFile, type FilesPage, observeTree, readChangedFiles } from "./files-page";
 import { showSections } from "./sections-view";
 
-/** The native tree's files in the sections they land in: what the sidebar lists and the diffs follow. */
+/**
+ * The native tree's files in the sections they land in: what the sidebar lists and the diffs
+ * follow.
+ */
 export type FileSection = LandedSection<ChangedFile>;
 
-/** What a view draws as a page's intent lands. `land` calls every view's hook for a step before any view's hook for the next. */
+/**
+ * What a view draws as a page's intent lands. `land` calls every view's hook for a step before any
+ * view's hook for the next.
+ */
 export interface LandingView {
   /** Intent is still being read: draw the pending state. */
   pending?(): void;
@@ -22,13 +29,17 @@ export interface LandingView {
   progress?(progress: IntentProgress): void;
   /** Intent landed as `result`. */
   landed?(result: IntentResult): void;
-  /** The native tree's files in their sections: right after landing, then after each change to the tree. */
+  /**
+   * The native tree's files in their sections: right after landing, then after each change to the
+   * tree.
+   */
   sections?(sections: readonly FileSection[]): void;
 }
 
 /**
  * Lands `intent` on `views`, then re-lists their sections after each change to `page`'s native
- * tree outside `ignore`, until `signal` aborts.
+ * tree outside `ignore`, until `signal` aborts. Reads `intent` once. A read that rejects is logged
+ * and lands path-only, as `failed`.
  */
 export function land(
   page: FilesPage,
@@ -72,7 +83,10 @@ export function land(
   observeTree(page.sidebar, relist, { signal, ignore });
 }
 
-/** Shows `intent` landing on `page` in the sidebar, the diff order, and the diffstat, until `signal` aborts. */
+/**
+ * Mounts the sidebar, the diff order, and the diffstat on one page of a visit, and lands `intent`
+ * on them in that order, until `signal` aborts.
+ */
 export function showVisit(
   page: FilesPage,
   signal: AbortSignal,

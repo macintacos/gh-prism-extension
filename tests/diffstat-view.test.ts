@@ -1,11 +1,9 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { DiffstatChoice } from "../entrypoints/content/diffstat-view";
-import { findFilesPage } from "../entrypoints/content/files-page";
-import { showVisit } from "../entrypoints/content/visit";
-import type { FileLines, IntentResult, PendingIntent, Placement } from "../utils/intent";
-import { loadFixture } from "./fixtures/files-page";
+import type { FileLines, Placement } from "../utils/intent";
 import { landedWith, pendingIntent, whole } from "./fixtures/intent";
+import { afterDebounce, mountsVisit, sectionKeys } from "./fixtures/visit";
 
 // Chrome content scripts run in an isolated world whose `customElements` is null, so every test
 // here mounts the view that way. Hoisted above the imports, which load @pierre/trees.
@@ -13,58 +11,13 @@ vi.hoisted(() => {
   Object.defineProperty(window, "customElements", { configurable: true, value: null });
 });
 
-let controller: AbortController;
-
-const sectionKeys = () =>
-  [...document.querySelectorAll<HTMLElement>(".gh-prism-section")].map(
-    (section) => section.dataset.section,
-  );
+const { remountWith, landed, abort } = mountsVisit();
 
 function sectionToggle(section: string): HTMLButtonElement {
   const toggle = document.querySelector(`.gh-prism-section[data-section="${section}"] h3 button`);
   if (!(toggle instanceof HTMLButtonElement)) throw new Error(`${section} has no header button`);
   return toggle;
 }
-
-// Past the 50 ms debounce; the async advance runs the MutationObserver's pending microtask first.
-const afterDebounce = () => vi.advanceTimersByTimeAsync(100);
-
-/**
- * Replaces the view `beforeEach` mounted with one that waits on `intent`, in a tab whose header
- * counter last chose `diffstat`.
- */
-function remountWith(
-  intent: PendingIntent = () => landedWith(),
-  diffstat: DiffstatChoice = { view: "breakout" },
-): void {
-  controller.abort();
-  controller = new AbortController();
-  const page = findFilesPage(document);
-  if (!page) throw new Error("fixture lacks the Files changed markup");
-  showVisit(page, controller.signal, { intent, diffstat });
-}
-
-/** Mounts the view with `result` already landed, and lets it render. */
-async function landed(result: IntentResult): Promise<void> {
-  remountWith(() => Promise.resolve(result));
-  await afterDebounce();
-}
-
-beforeEach(() => {
-  vi.useFakeTimers();
-  loadFixture();
-  controller = new AbortController();
-  const page = findFilesPage(document);
-  if (!page) throw new Error("fixture lacks the Files changed markup");
-  showVisit(page, controller.signal, {
-    intent: () => landedWith(),
-    diffstat: { view: "breakout" },
-  });
-});
-afterEach(() => {
-  controller.abort();
-  vi.useRealTimers();
-});
 
 describe("the header's lines-changed counter", () => {
   const native = () => {
@@ -216,7 +169,7 @@ describe("the header's lines-changed counter", () => {
 
   it("gives GitHub's counter back once aborted", async () => {
     await landed(counted);
-    controller.abort();
+    abort();
     expect(counter()).toBeNull();
   });
 

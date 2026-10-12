@@ -9,7 +9,7 @@
 import css from "./diff-order.css?raw";
 import { el } from "./dom";
 import { type FilesPage, retakeHash } from "./files-page";
-import { loadingView } from "./loading-view";
+import { type LoadingView, loadingView } from "./loading-view";
 import type { LandingView } from "./visit";
 
 // Keep in sync with diff-order.css: a pull request's progressive list, and a commit's list while
@@ -67,7 +67,10 @@ interface DiffOrder {
   reveal(): void;
 }
 
-/** Whether GitHub lays `page`'s diffs out in a way their order can follow; false while virtualized. */
+/**
+ * Whether GitHub lays `page`'s diffs out in a way their order can follow; false while
+ * virtualized.
+ */
 export const reorderable = (page: FilesPage): boolean =>
   page.diffs.querySelector(VIRTUALIZED) === null;
 
@@ -114,6 +117,8 @@ function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
   };
 }
 
+// sections-view.css styles the cover, as it does loadingView; showVisit mounts the sidebar on
+// every page.
 /** Placeholder diffs: a file header over a few lines of code each. */
 const diffSkeleton = (doc: Document) =>
   el(
@@ -137,7 +142,7 @@ const diffSkeleton = (doc: Document) =>
  */
 export function showDiffOrder(page: FilesPage, signal: AbortSignal): LandingView {
   const order = orderDiffs(page, signal);
-  let loading: ReturnType<typeof loadingView> | undefined;
+  let loading: LoadingView | undefined;
   return {
     pending() {
       if (!reorderable(page)) return;
