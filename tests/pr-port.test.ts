@@ -294,6 +294,27 @@ describe("openPrData", () => {
     });
     expect(await openPrData(connect, pr, sha).files()).toEqual({ ok: false, problem: "too-large" });
   });
+
+  it("requests the diff while the head lookup is still in flight when the page has none", async () => {
+    const release: (() => void)[] = [];
+    const held = (body: string) => () =>
+      new Promise<Response>((resolve) => release.push(() => resolve(new Response(body))));
+    const fetchFn = routedFetch({
+      [`${base}/pull/7`]: held(page),
+      [`${base}/pull/7.diff`]: held(diff),
+    });
+    const client = openPrData(harness(fetchFn).connect, pr, undefined);
+    const listed = client.files();
+    await vi.waitFor(() =>
+      expect(urls(fetchFn)).toEqual(
+        expect.arrayContaining([`${base}/pull/7`, `${base}/pull/7.diff`]),
+      ),
+    );
+    for (const go of release) go();
+    expect((await listed).ok).toBe(true);
+    expect(await client.head()).toEqual({ ok: true, headSha: sha });
+    expect(urls(fetchFn)).toHaveLength(2);
+  });
 });
 
 describe("servePrDataPort", () => {
