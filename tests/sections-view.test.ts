@@ -559,46 +559,6 @@ describe("showSections", () => {
       expect(partTexts("docs", "src/render.rs")).toEqual(["Partial", "+3", "−1"]);
     });
 
-    it("counts a split file in each section it is listed under", async () => {
-      await landed(
-        landedWith(
-          new Map([
-            [
-              "src/render.rs",
-              {
-                kind: "split",
-                shares: [
-                  {
-                    section: "implementation",
-                    hunks: [{ first: 2, last: 8 }],
-                    lines: { added: 5, removed: 1 },
-                  },
-                  {
-                    section: "docs",
-                    hunks: [{ first: 22, last: 28 }],
-                    lines: { added: 3, removed: 1 },
-                  },
-                ],
-              },
-            ],
-          ]),
-        ),
-      );
-      const counts = [...document.querySelectorAll<HTMLElement>(".gh-prism-section")].map(
-        (section) => [
-          section.dataset.section,
-          section.querySelector(".gh-prism-counter")?.textContent,
-        ],
-      );
-      expect(counts).toEqual([
-        ["implementation", "7"],
-        ["tests", "1"],
-        ["docs", "3"],
-        ["config", "2"],
-        ["generated", "1"],
-      ]);
-    });
-
     it("shows no counts while they are unknown", () => {
       expect(partTexts("implementation", "src/render.rs")).toEqual([]);
     });

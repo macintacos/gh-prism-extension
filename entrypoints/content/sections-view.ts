@@ -7,19 +7,12 @@
  */
 
 import type { FileTreeRowDecoration, GitStatus } from "@pierre/trees";
-import type {
-  FileLines,
-  IntentProgress,
-  IntentResult,
-  PathOnlyReason,
-  PendingIntent,
-  Placement,
-  SectionShare,
-} from "@/utils/intent";
+import type { IntentProgress, IntentResult, PathOnlyReason, PendingIntent } from "@/utils/intent";
+import { type LandedSection, landingOf, revealLineOf, sectionsOf, totalsOf } from "@/utils/landing";
 import type { LineCounts } from "@/utils/pr-diff";
-import { classify, SECTIONS, type SectionKey } from "@/utils/sections";
+import { SECTIONS, type SectionKey } from "@/utils/sections";
 import { orderDiffs } from "./diff-order";
-import { type DiffstatChoice, linesBySection, lineTotals, showDiffstat } from "./diffstat-view";
+import { type DiffstatChoice, lineTotals, showDiffstat } from "./diffstat-view";
 import { el, icon } from "./dom";
 import {
   type ChangedFile,
@@ -35,17 +28,8 @@ import { SectionTree, type TreeFile } from "./section-tree";
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
 import css from "./sections-view.css?raw";
 
-/** A file as one section lists it: whole, or with the share of a split that lands in this section. */
-interface FileEntry {
-  readonly file: ChangedFile;
-  readonly share?: SectionShare;
-}
-
-interface FileSection {
-  readonly key: SectionKey;
-  readonly label: string;
-  readonly entries: FileEntry[];
-}
+type FileSection = LandedSection<ChangedFile>;
+type FileEntry = FileSection["entries"][number];
 
 interface ShownSection {
   readonly root: HTMLElement;
@@ -58,9 +42,6 @@ export interface SectionsOptions {
   /** The header counter's view, shared by every page in the tab. */
   readonly diffstat: DiffstatChoice;
 }
-
-const NO_PLACEMENTS: ReadonlyMap<string, Placement> = new Map();
-const NO_LINES: ReadonlyMap<string, FileLines> = new Map();
 
 const FIXED_ORDER_COPY = "Diffs keep GitHub's order: gh-prism can't reorder this many files.";
 
@@ -91,28 +72,6 @@ const UNCHANGED = "var(--fgColor-muted)";
 const MARKER = "var(--gh-prism-marker-fg)";
 const COMMENTS = "var(--gh-prism-comment-fg)";
 
-/**
- * Non-empty sections in `SECTIONS` order, each with its entries in native-tree order. A file placed
- * whole goes to that section whatever its path says; a split file is listed in each section its
- * hunks land in.
- */
-function groupBySection(
-  files: readonly ChangedFile[],
-  placements: ReadonlyMap<string, Placement>,
-): FileSection[] {
-  const placed = files.flatMap((file) => {
-    const placement = placements.get(file.path);
-    return placement?.kind === "split"
-      ? placement.shares.map((share) => ({ section: share.section, entry: { file, share } }))
-      : [{ section: placement?.section ?? classify(file.path), entry: { file } }];
-  });
-  const bySection = Map.groupBy(placed, ({ section }) => section);
-  return SECTIONS.flatMap(({ key, label }) => {
-    const sectionPlaced = bySection.get(key);
-    return sectionPlaced ? [{ key, label, entries: sectionPlaced.map(({ entry }) => entry) }] : [];
-  });
-}
-
 const statusOf = (icon: Element | null): GitStatus | undefined =>
   [...STATUS_BY_OCTICON].find(([octicon]) => icon?.classList.contains(octicon))?.[1];
 
@@ -120,10 +79,7 @@ const statusOf = (icon: Element | null): GitStatus | undefined =>
  * A row's comment count, Partial or Binary marker, and lines added and removed, as known. Its
  * title, which the row's accessible name ends with, says each in words.
  */
-function decorationOf(
-  { file, share }: FileEntry,
-  lines: FileLines | undefined,
-): FileTreeRowDecoration | undefined {
+function decorationOf({ file, share, lines }: FileEntry): FileTreeRowDecoration | undefined {
   const parts: { text: string; color: string }[] = [];
   const phrases: string[] = [];
   const comments = file.comments?.textContent?.trim();
@@ -135,12 +91,11 @@ function decorationOf(
     parts.push({ text: "Partial", color: MARKER });
     phrases.push("Partial: other sections hold the rest");
   }
-  const counted = share?.lines ?? lines;
-  if (counted === "binary") {
+  if (lines === "binary") {
     parts.push({ text: "Binary", color: MARKER });
     phrases.push("Binary file: no line counts");
-  } else if (counted && counted.added + counted.removed > 0) {
-    const { added, removed } = counted;
+  } else if (lines && lines.added + lines.removed > 0) {
+    const { added, removed } = lines;
     parts.push(
       { text: `+${added}`, color: added > 0 ? ADDED : UNCHANGED },
       { text: `−${removed}`, color: removed > 0 ? REMOVED : UNCHANGED },
@@ -151,11 +106,11 @@ function decorationOf(
   return { text: parts.map(({ text }) => text).join(" "), title: phrases.join(". "), parts };
 }
 
-const treeFilesOf = ({ entries }: FileSection, lines: ReadonlyMap<string, FileLines>): TreeFile[] =>
+const treeFilesOf = ({ entries }: FileSection): TreeFile[] =>
   entries.map((entry) => ({
     path: entry.file.path,
     status: statusOf(entry.file.statusIcon),
-    decoration: decorationOf(entry, lines.get(entry.file.path)),
+    decoration: decorationOf(entry),
   }));
 
 /** Lucide chevron-down (ISC licence). */
@@ -255,11 +210,11 @@ function isPlainLeftClick(event: MouseEvent): boolean {
 }
 
 /** The file row and section a click inside a section tree landed on. */
-function clickedFile(event: Event): { section: string; path: string } | undefined {
+function clickedFile(event: Event): { section: SectionKey; path: string } | undefined {
   const elements = event.composedPath().filter((node) => node instanceof HTMLElement);
   const row = elements.find((node) => node.dataset.type === "item");
-  const section = elements.find((node) => node.classList.contains("gh-prism-section"))?.dataset
-    .section;
+  const raw = elements.find((node) => node.classList.contains("gh-prism-section"))?.dataset.section;
+  const section = SECTIONS.find(({ key }) => key === raw)?.key;
   const path = row?.dataset.itemPath;
   return row?.dataset.itemType === "file" && section && path ? { section, path } : undefined;
 }
@@ -285,27 +240,18 @@ export function showSections(
   // Outlives the sections themselves, so one that empties and comes back stays collapsed.
   const collapsed = new Set<SectionKey>(["generated"]);
   let loading: ReturnType<typeof loadingView> | undefined;
-  let landed: IntentResult | undefined;
+  let landing = landingOf(undefined);
   // The reveal in flight. A newer file click, or the view's abort, cancels it.
   let jump: AbortController | undefined;
 
-  const placements = () => (landed?.ok ? landed.placements : NO_PLACEMENTS);
-  const lines = () => (landed?.ok ? landed.lines : NO_LINES);
   const totalOf = (section: SectionKey) =>
-    linesBySection({ placements: placements(), lines: lines() }).find(
-      (total) => total.section === section,
-    )?.lines;
+    totalsOf(landing).find((total) => total.section === section)?.lines;
 
-  const open = (section: string, path: string) => {
+  const open = (section: SectionKey, path: string) => {
     const native = readChangedFiles(page.sidebar).find((file) => file.path === path)?.link;
     if (!native) return;
     jump?.abort();
-    const placement = placements().get(path);
-    const share =
-      placement?.kind === "split"
-        ? placement.shares.find((candidate) => candidate.section === section)
-        : undefined;
-    const line = share?.hunks.find((span) => span !== undefined)?.first;
+    const line = revealLineOf(landing, path, section);
     jump = new AbortController();
     if (line === undefined) revealDiff(native, { signal: jump.signal });
     else void revealDiffLine(page.diffs, native, line, { signal: jump.signal });
@@ -322,7 +268,7 @@ export function showSections(
 
   /** Updates `section`'s tree, or builds it as section `order` after `previous`. Returns its root. */
   const showSection = (section: FileSection, order: number, previous: Element | null) => {
-    const files = treeFilesOf(section, lines());
+    const files = treeFilesOf(section);
     const active = section.entries.find(({ file }) => file.active)?.file.path;
     let current = shown.get(section.key);
     if (current) {
@@ -352,7 +298,7 @@ export function showSections(
 
   const render = () => {
     if (loading) return;
-    const sections = groupBySection(readChangedFiles(page.sidebar), placements());
+    const sections = sectionsOf(landing, readChangedFiles(page.sidebar));
     dropAllBut(sections);
     let previous = [...view.querySelectorAll(".gh-prism-notice")].at(-1) ?? null;
     for (const [order, section] of sections.entries())
@@ -380,10 +326,10 @@ export function showSections(
   );
 
   const land = (result: IntentResult, diffstat: DiffstatChoice) => {
-    landed = result;
+    landing = landingOf(result);
     if (result.ok) {
       const counter = findDiffstat(doc);
-      if (counter) showDiffstat(counter, result, { choice: diffstat, signal });
+      if (counter) showDiffstat(counter, landing, { choice: diffstat, signal });
     } else {
       notice(PATH_ONLY_COPY[result.problem]);
     }
