@@ -21,7 +21,6 @@ export interface LandedEntry {
 /** A non-empty section, and each of the files that land in it. */
 export interface LandedSection<F> {
   readonly key: SectionKey;
-  readonly label: string;
   readonly entries: readonly (LandedEntry & { readonly file: F })[];
 }
 
@@ -65,9 +64,9 @@ export function sectionsOf<F extends { readonly path: string }>(
     entriesOf(landing, file.path).map((entry) => ({ ...entry, file })),
   );
   const bySection = Map.groupBy(entries, ({ section }) => section);
-  return SECTIONS.flatMap(({ key, label }) => {
+  return SECTIONS.flatMap(({ key }) => {
     const landed = bySection.get(key);
-    return landed ? [{ key, label, entries: landed }] : [];
+    return landed ? [{ key, entries: landed }] : [];
   });
 }
 

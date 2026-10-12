@@ -121,12 +121,12 @@ const chevron = (doc: Document): SVGSVGElement =>
  */
 function sectionShell(
   doc: Document,
-  { key, label }: FileSection,
+  key: SectionKey,
   { order, lines }: { order: number; lines: LineCounts | undefined },
 ) {
   const counter = el(doc, "span", "gh-prism-counter");
   const glyph = el(doc, "span", "gh-prism-glyph", sectionIcon(doc, key), chevron(doc));
-  const name = el(doc, "span", "gh-prism-section-label", label);
+  const name = el(doc, "span", "gh-prism-section-label", SECTION_CATALOG[key].label);
   const toggle = el(doc, "button", "gh-prism-section-toggle", glyph, name, counter);
   if (lines) toggle.append(lineTotals(doc, lines));
   toggle.type = "button";
@@ -220,7 +220,7 @@ export function showSections(
       current.tree.update(files, active);
     } else {
       // Set once: a section is only built after intent lands, and the landed lines never change.
-      const { root, counter, host, toggle, expand } = sectionShell(doc, section, {
+      const { root, counter, host, toggle, expand } = sectionShell(doc, section.key, {
         order,
         lines: totalOf(section.key),
       });

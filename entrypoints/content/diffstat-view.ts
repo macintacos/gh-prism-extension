@@ -7,7 +7,6 @@
 
 import { type Landing, landingOf, type SectionLines, totalsOf } from "@/utils/landing";
 import type { LineCounts } from "@/utils/pr-diff";
-import { SECTIONS, type SectionKey } from "@/utils/sections";
 import { el } from "./dom";
 import { type FilesPage, findDiffstat } from "./files-page";
 import { markSection, SECTION_CATALOG, sectionIcon } from "./section-catalog";
@@ -17,9 +16,6 @@ import type { LandingView } from "./visit";
 export interface DiffstatChoice {
   view: "breakout" | "total";
 }
-
-const labelOf = (section: SectionKey) =>
-  SECTIONS.find(({ key }) => key === section)?.label ?? section;
 
 const count = (lines: number) => lines.toLocaleString("en-US");
 
@@ -53,7 +49,7 @@ function tip(doc: Document, ...children: Node[]): HTMLElement {
 }
 
 function pill(doc: Document, { section, lines }: SectionLines): HTMLElement {
-  const label = labelOf(section);
+  const label = SECTION_CATALOG[section].label;
   const node = el(
     doc,
     "span",
@@ -82,7 +78,7 @@ function tipRow(doc: Document, { section, lines }: SectionLines): HTMLElement {
     "span",
     "gh-prism-tip-row",
     sectionIcon(doc, section),
-    el(doc, "span", "", labelOf(section)),
+    el(doc, "span", "", SECTION_CATALOG[section].label),
     ...counts(doc, lines),
   );
   markSection(row, section);

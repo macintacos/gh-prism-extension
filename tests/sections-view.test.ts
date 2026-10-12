@@ -167,6 +167,9 @@ describe("showSections", () => {
       expect(header).not.toBeNull();
       expect(document.getElementById(section.getAttribute("aria-labelledby") ?? "")).toBe(header);
     }
+    expect(
+      [...document.querySelectorAll(".gh-prism-section-label")].map((label) => label.textContent),
+    ).toEqual(["Implementation", "Tests", "Documentation", "Config", "Generated / lockfiles"]);
   });
 
   it("sits just before the native tree", () => {

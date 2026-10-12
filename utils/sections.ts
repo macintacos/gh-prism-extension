@@ -1,18 +1,18 @@
 /**
  * Path rules ported from changeset.nvim's `lua/changeset/sections.lua` at
  * macintacos/changeset.nvim@2b6115db3a5394a207836afdeaa8237225b8de93 — the glob strings are
- * copied verbatim, so diff that file against this one when syncing. Labels are this sidebar's
- * own; upstream's icons are not ported. Upstream's `test_rule` is ported in
- * `utils/inline-tests.ts`.
+ * copied verbatim, so diff that file against this one when syncing. Upstream's labels and icons
+ * are not ported; this sidebar's own live in `entrypoints/content/section-catalog.ts`.
+ * Upstream's `test_rule` is ported in `utils/inline-tests.ts`.
  */
 
 /** The sidebar's sections, in display order. */
 export const SECTIONS = [
-  { key: "implementation", label: "Implementation" },
-  { key: "tests", label: "Tests" },
-  { key: "docs", label: "Documentation" },
-  { key: "config", label: "Config" },
-  { key: "generated", label: "Generated / lockfiles" },
+  { key: "implementation" },
+  { key: "tests" },
+  { key: "docs" },
+  { key: "config" },
+  { key: "generated" },
 ] as const;
 
 export type SectionKey = (typeof SECTIONS)[number]["key"];
