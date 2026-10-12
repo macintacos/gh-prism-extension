@@ -84,7 +84,7 @@ interface DiffOrder {
   /** Hides the diffs behind `loader`, shown where they start, until `reveal` or 15 seconds pass. */
   cover(loader: Element): void;
   /**
-   * Orders the diffs as `arrangement` does, or not at all while `page` can't be reordered. Changes
+   * Orders the diffs as `arrangement` does, or not at all while they can't be reordered. Changes
    * nothing when the order is unchanged.
    */
   arrange(sections: readonly (readonly string[])[]): void;

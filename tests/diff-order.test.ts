@@ -240,6 +240,7 @@ describe("the diffs beside the sections", () => {
   });
 
   it("drop their placement once GitHub virtualizes them", async () => {
+    expect(fileOrderSheets()).toHaveLength(1);
     virtualize();
     byId("src/engine.rs").setAttribute("aria-current", "true");
     await afterDebounce();
