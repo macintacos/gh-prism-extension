@@ -7,7 +7,7 @@ import {
 } from "../utils/pr-ref";
 
 const sha = "a".repeat(40);
-const pr: PrRef = { owner: "macintacos", repo: "gh-prism-sandbox", number: 2 };
+const pr: PrRef = { kind: "pr", owner: "macintacos", repo: "gh-prism-sandbox", number: 2 };
 
 const payload = (number: number, ownerLogin: string, name: string, headSha = sha) =>
   JSON.stringify({

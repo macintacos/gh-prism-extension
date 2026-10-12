@@ -1,5 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { listRules } from "../entrypoints/content/diff-order";
+import { commitPage, prPage } from "../entrypoints/content/files-page";
 import { byId, loadCommitFixture } from "./fixtures/files-page";
 import { landedWith, pendingIntent, whole } from "./fixtures/intent";
 import {
@@ -307,5 +309,39 @@ describe("a commit's diffs beside the sections", () => {
     ]);
     expect(getComputedStyle(launcher).paddingTop).toBe("0px");
     expect(getComputedStyle(test).paddingTop).toBe("16px");
+  });
+});
+
+describe("a page kind's list rules", () => {
+  const reveal = (entries: string) =>
+    "@media (prefers-reduced-motion: no-preference) { " +
+    `html[data-gh-prism-diffs="revealed"] ${entries} { ` +
+    "animation: gh-prism-diff-reveal 280ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards; " +
+    "animation-delay: calc(var(--gh-prism-section-order, 0) * 50ms); } }";
+
+  it("put a pull request's unlisted files last, hide its whole list while covered, and drop its files in", () => {
+    const entries = '[data-testid="progressive-diffs-list"] > :has([role="region"])';
+    expect(listRules(prPage)).toBe(
+      [
+        `${entries} { order: 999999; }`,
+        `${entries} ~ :not(:has([role="region"])) { order: 1000000; }`,
+        'html[data-gh-prism-diffs="covered"] [data-testid="progressive-diffs-list"] { display: none !important; }',
+        reveal(entries),
+      ].join("\n"),
+    );
+  });
+
+  it("make a commit's list a flex column and keep its toolbar in view while covered", () => {
+    const list = '#diff-content-parent > :has(> * > [role="region"])';
+    const entries = `${list} > :has([role="region"])`;
+    expect(listRules(commitPage)).toBe(
+      [
+        `${list} { display: flex; flex-direction: column; }`,
+        `${entries} { order: 999999; }`,
+        `${entries} ~ :not(:has([role="region"])) { order: 1000000; }`,
+        `html[data-gh-prism-diffs="covered"] ${list} > :not(:first-child) { display: none !important; }`,
+        reveal(entries),
+      ].join("\n"),
+    );
   });
 });

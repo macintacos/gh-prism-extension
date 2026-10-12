@@ -128,7 +128,7 @@ describe("watchFilesPages", () => {
     history.replaceState(null, "", "/o/r/commit/dd95cdc");
     watch();
     expect(visits[0]?.route).toEqual({
-      diff: { owner: "o", repo: "r", headSha: "dd95cdc" },
+      diff: { kind: "commit", owner: "o", repo: "r", headSha: "dd95cdc" },
       commitFiltered: false,
     });
     expect(pages()[0]?.page.sidebar).toBe(byId("diff_file_tree"));
@@ -138,14 +138,14 @@ describe("watchFilesPages", () => {
   it("hands each visit the route of the URL it began on", async () => {
     watch();
     expect(visits[0]?.route).toEqual({
-      diff: { owner: "o", repo: "r", number: 1 },
+      diff: { kind: "pr", owner: "o", repo: "r", number: 1 },
       commitFiltered: false,
     });
     history.replaceState(null, "", "/o/r/pull/1/changes/04bb63f");
     document.dispatchEvent(new Event("soft-nav:end"));
     await vi.advanceTimersByTimeAsync(20_000);
     expect(visits[1]?.route).toEqual({
-      diff: { owner: "o", repo: "r", number: 1 },
+      diff: { kind: "pr", owner: "o", repo: "r", number: 1 },
       commitFiltered: true,
     });
   });

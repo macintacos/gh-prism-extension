@@ -14,7 +14,7 @@ import type { DiffRef, PrRef } from "../utils/pr-ref";
 import type { PrFileContentResult, PrFilesResult } from "../utils/pr-source";
 import { lines } from "./fixtures/head-scan";
 
-const pr: PrRef = { owner: "macintacos", repo: "gh-prism-sandbox", number: 1 };
+const pr: PrRef = { kind: "pr", owner: "macintacos", repo: "gh-prism-sandbox", number: 1 };
 const route: FilesRoute = { diff: pr, commitFiltered: false };
 
 const whole = (section: IntentSection): Placement => ({ kind: "whole", section });

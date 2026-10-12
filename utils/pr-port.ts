@@ -75,11 +75,11 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 function asPrRef(value: unknown): PrRef | undefined {
-  if (!isObject(value)) return undefined;
+  if (!isObject(value) || value.kind !== "pr") return undefined;
   const { owner, repo, number } = value;
   if (!isOwnerOrRepo(owner) || !isOwnerOrRepo(repo)) return undefined;
   if (typeof number !== "number" || !Number.isSafeInteger(number) || number < 1) return undefined;
-  return { owner, repo, number };
+  return { kind: "pr", owner, repo, number };
 }
 
 function asPrHead(value: unknown): PrHead | undefined {
@@ -89,14 +89,14 @@ function asPrHead(value: unknown): PrHead | undefined {
 }
 
 function asCommitHead(value: unknown): CommitHead | undefined {
-  if (!isObject(value)) return undefined;
+  if (!isObject(value) || value.kind !== "commit") return undefined;
   const { owner, repo, headSha } = value;
   if (!isOwnerOrRepo(owner) || !isOwnerOrRepo(repo) || !isCommitSha(headSha)) return undefined;
-  return { owner, repo, headSha };
+  return { kind: "commit", owner, repo, headSha };
 }
 
 function asDiffHead(value: unknown): DiffHead | undefined {
-  return isObject(value) && "number" in value ? asPrHead(value) : asCommitHead(value);
+  return asPrHead(value) ?? asCommitHead(value);
 }
 
 // `.` and `..` segments would normalize the URL out of /raw/<sha>/ onto other github.com
@@ -237,10 +237,16 @@ export function openPrData(
   }
 
   const resolveHead = memoUntilFailure(
-    (): Promise<PrHeadResult> =>
-      "number" in pr
-        ? send({ kind: "head", pr })
-        : Promise.resolve({ ok: true, headSha: pr.headSha }),
+    (): Promise<PrHeadResult> => {
+      switch (pr.kind) {
+        case "pr":
+          return send({ kind: "head", pr });
+        case "commit":
+          return Promise.resolve({ ok: true, headSha: pr.headSha });
+        default:
+          return pr satisfies never;
+      }
+    },
     pageHeadSha ? Promise.resolve({ ok: true, headSha: pageHeadSha }) : undefined,
   );
 
@@ -271,6 +277,6 @@ export function connectPrData(pr: DiffRef): PrDataClient {
   return openPrData(
     () => browser.runtime.connect({ name: PR_DATA_PORT }),
     pr,
-    "number" in pr ? readPrPageHeadSha(document, pr) : undefined,
+    pr.kind === "pr" ? readPrPageHeadSha(document, pr) : undefined,
   );
 }
