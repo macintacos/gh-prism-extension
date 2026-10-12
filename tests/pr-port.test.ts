@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { openPrData, type PrDataPort, servePrDataPort } from "../utils/pr-port";
 import type { PrRef } from "../utils/pr-ref";
 import { createPrDataSource } from "../utils/pr-source";
+import { heldResponses, routedFetch } from "./fixtures/fetch";
 
 const sha = "a".repeat(40);
 const pr: PrRef = { kind: "pr", owner: "o", repo: "r", number: 7 };
@@ -54,13 +55,6 @@ function portPair(): [Side, Side] {
     };
   }
   return [a, b];
-}
-
-function routedFetch(routes: Record<string, () => Promise<Response>>) {
-  return vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {
-    const route = routes[String(input)];
-    return route ? route() : Promise.resolve(new Response("", { status: 500 }));
-  });
 }
 
 const okRoutes = () => ({
@@ -181,7 +175,7 @@ describe("openPrData", () => {
     expect(post).not.toHaveBeenCalled();
   });
 
-  it("fails pending calls on a background disconnect and reconnects with the resolved head", async () => {
+  it("fails pending calls on a background disconnect and reconnects at the page head", async () => {
     const routes: Record<string, () => Promise<Response>> = {
       ...okRoutes(),
       [`${base}/pull/7.diff`]: () => new Promise(() => {}),
@@ -196,6 +190,22 @@ describe("openPrData", () => {
     expect((await client.fileContent("src/engine.rs")).ok).toBe(true);
     expect(connect).toHaveBeenCalledTimes(2);
     expect(urls(fetchFn)).not.toContain(`${base}/pull/7`);
+  });
+
+  it("recovers the head and contents after a failed listing when the page has none", async () => {
+    let diffFails = true;
+    const fetchFn = routedFetch({
+      ...okRoutes(),
+      [`${base}/pull/7.diff`]: async () => {
+        const status = diffFails ? 500 : 200;
+        diffFails = false;
+        return new Response(diff, { status });
+      },
+    });
+    const client = openPrData(harness(fetchFn).connect, pr, undefined);
+    expect(await client.files()).toEqual({ ok: false, problem: "failed" });
+    expect((await client.fileContent("src/engine.rs")).ok).toBe(true);
+    expect(await client.head()).toEqual({ ok: true, headSha: sha });
   });
 
   it("reports a throwing connect as failed", async () => {
@@ -296,9 +306,7 @@ describe("openPrData", () => {
   });
 
   it("requests the diff while the head lookup is still in flight when the page has none", async () => {
-    const release: (() => void)[] = [];
-    const held = (body: string) => () =>
-      new Promise<Response>((resolve) => release.push(() => resolve(new Response(body))));
+    const { release, held } = heldResponses();
     const fetchFn = routedFetch({
       [`${base}/pull/7`]: held(page),
       [`${base}/pull/7.diff`]: held(diff),

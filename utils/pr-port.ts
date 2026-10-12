@@ -53,8 +53,9 @@ export interface PrDataPort {
  */
 export interface PrDataClient {
   /**
-   * The commit the diff ends on, which `files` and `fileContent` read at. Without a page head, it
-   * arrives with `files`.
+   * The commit the diff ends on, which `files` and `fileContent` read at. A PR whose page names no
+   * head gets it from the same request as its diff, so the first `head`, `files` or `fileContent`
+   * call fetches both.
    */
   head(): Promise<PrHeadResult>;
   files(): Promise<PrFilesResult>;
@@ -248,7 +249,6 @@ export function openPrData(
     return listed.ok ? { ...listed, headSha: head.headSha } : listed;
   }
 
-  // Without a known head, the worker looks it up alongside the diff, not before it.
   const files = memoUntilFailure((): Promise<PrHeadAndFilesResult> => {
     switch (pr.kind) {
       case "pr":

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CommitHead, PrHead, PrRef } from "../utils/pr-ref";
 import { createPrDataSource } from "../utils/pr-source";
+import { heldResponses, routedFetch } from "./fixtures/fetch";
 
 const shaA = "a".repeat(40);
 const shaB = "b".repeat(40);
@@ -35,6 +36,18 @@ const pageFor = (number: number, headSha = shaA) =>
       },
     },
   })}</script></html>`;
+
+const pageUrl = "https://github.com/o/r/pull/7";
+const diffUrl = "https://github.com/o/r/pull/7.diff";
+
+const prRoutes = (page = pageFor(7)) =>
+  routedFetch({
+    [pageUrl]: async () => new Response(page),
+    [diffUrl]: async () => new Response(diff),
+  });
+
+const diffCalls = (fetchFn: ReturnType<typeof routedFetch>) =>
+  fetchFn.mock.calls.filter(([u]) => String(u) === diffUrl).length;
 
 describe("files", () => {
   it("fetches the PR's .diff with cookies and parses it", async () => {
@@ -231,30 +244,9 @@ describe("content", () => {
   });
 });
 
-const pageUrl = "https://github.com/o/r/pull/7";
-const diffUrl = "https://github.com/o/r/pull/7.diff";
-
-function routedFetch(routes: Record<string, () => Promise<Response>>) {
-  return vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {
-    const route = routes[String(input)];
-    return route ? route() : Promise.resolve(new Response("", { status: 500 }));
-  });
-}
-
-const prRoutes = (page = pageFor(7)) =>
-  routedFetch({
-    [pageUrl]: async () => new Response(page),
-    [diffUrl]: async () => new Response(diff),
-  });
-
-const diffCalls = (fetchFn: ReturnType<typeof routedFetch>) =>
-  fetchFn.mock.calls.filter(([u]) => String(u) === diffUrl).length;
-
 describe("headAndFiles", () => {
   it("looks up the head on the PR page while fetching the diff", async () => {
-    const release: (() => void)[] = [];
-    const held = (body: string) => () =>
-      new Promise<Response>((resolve) => release.push(() => resolve(new Response(body))));
+    const { release, held } = heldResponses();
     const fetchFn = routedFetch({ [pageUrl]: held(pageFor(7)), [diffUrl]: held(diff) });
     const s = signal();
     const pending = createPrDataSource(fetchFn).headAndFiles(pr7, s);

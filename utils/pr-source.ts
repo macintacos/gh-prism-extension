@@ -29,7 +29,7 @@ export type PrHeadAndFilesResult = { ok: true; headSha: string; files: PrFileDif
  * URLs are built from them with per-segment encoding only.
  */
 export interface PrDataSource {
-  /** `pr`'s head SHA and diff, fetched together; the diff is cached under that head. */
+  /** `pr`'s head SHA from its page, with the diff cached under that head; a first read fetches both at once. */
   headAndFiles(pr: PrRef, signal: AbortSignal): Promise<PrHeadAndFilesResult>;
   files(pr: DiffHead, signal: AbortSignal): Promise<PrFilesResult>;
   content(pr: DiffHead, path: string, signal: AbortSignal): Promise<PrFileContentResult>;
@@ -68,10 +68,11 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
     (pr.kind === "pr" ? diffUrl(pr) : `${repoUrl(pr)}/commit`).toLowerCase();
 
   function entryFor(pr: DiffHead): PrCacheEntry {
-    let entry = cache.get(keyOf(pr));
+    const key = keyOf(pr);
+    let entry = cache.get(key);
     if (entry?.headSha !== pr.headSha) {
       entry = { headSha: pr.headSha, contents: new Map() };
-      cache.set(keyOf(pr), entry);
+      cache.set(key, entry);
     }
     return entry;
   }
@@ -138,6 +139,7 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
       if (!head.ok) return head;
       if (!read.ok) return read;
       const entry = entryFor({ ...pr, headSha: head.headSha });
+      // As a `files` request at this head would answer: an entry filled meanwhile wins.
       entry.files ??= read.files;
       return { ok: true, headSha: head.headSha, files: entry.files };
     },
