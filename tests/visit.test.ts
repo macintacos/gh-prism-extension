@@ -1,10 +1,17 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { DiffstatChoice } from "../entrypoints/content/diffstat-view";
 import { type FilesPage, findFilesPage, readChangedFiles } from "../entrypoints/content/files-page";
-import { type FileSection, type LandingView, land } from "../entrypoints/content/visit";
-import type { IntentProgress, IntentResult, PendingIntent } from "../utils/intent";
+import { type FileSection, type LandingView, land, showVisit } from "../entrypoints/content/visit";
+import {
+  type IntentProgress,
+  type IntentResult,
+  type PendingIntent,
+  shareIntent,
+} from "../utils/intent";
 import { landingOf, sectionsOf } from "../utils/landing";
 import { byId, loadFixture } from "./fixtures/files-page";
+import { landedWith, whole } from "./fixtures/intent";
 
 // Chrome content scripts run in an isolated world whose `customElements` is null. Hoisted above
 // the imports, which load @pierre/trees.
@@ -33,6 +40,39 @@ function recording(name: string): LandingView {
       received.push(sections);
     },
   };
+}
+
+const view = () => document.querySelector<HTMLElement>(".gh-prism-sections");
+const progressBar = () => view()?.querySelector<HTMLElement>('[role="progressbar"]') ?? null;
+
+function treeHost(section: string): HTMLElement {
+  const host = document.querySelector<HTMLElement>(
+    `.gh-prism-section[data-section="${section}"] .gh-prism-tree`,
+  );
+  if (!host) throw new Error(`no tree in ${section}`);
+  return host;
+}
+
+const rowsIn = (section: string) => [
+  ...(treeHost(section).shadowRoot?.querySelectorAll<HTMLElement>('[data-type="item"]') ?? []),
+];
+
+const filesIn = (section: string) =>
+  rowsIn(section)
+    .filter((row) => row.dataset.itemType === "file")
+    .map((row) => row.dataset.itemPath);
+
+// Past the 50 ms debounce; the async advance runs the MutationObserver's pending microtask first.
+const afterDebounce = () => vi.advanceTimersByTimeAsync(100);
+
+/** Replaces any mounted visit with one that waits on `intent`. */
+function remountWith(
+  intent: PendingIntent = () => landedWith(),
+  diffstat: DiffstatChoice = { view: "breakout" },
+): void {
+  controller.abort();
+  controller = new AbortController();
+  showVisit(page, controller.signal, { intent, diffstat });
 }
 
 function pendingIntent() {
@@ -109,5 +149,39 @@ describe("land", () => {
     byId("src/lib.rs").removeAttribute("aria-current");
     await vi.advanceTimersByTimeAsync(100);
     expect(log).toEqual([]);
+  });
+});
+
+describe("intent shared by each view of one visit", () => {
+  it("is read once, however many views follow it", () => {
+    const read = vi.fn(pendingIntent().intent);
+    const shared = shareIntent(read);
+    remountWith(shared);
+    remountWith(shared);
+    expect(read).toHaveBeenCalledOnce();
+  });
+
+  it("resumes a view mounted mid-read at the latest progress", () => {
+    const pending = pendingIntent();
+    const shared = shareIntent(pending.intent);
+    remountWith(shared);
+    pending.progress({ checked: 2, total: 3 });
+    remountWith(shared);
+    expect(progressBar()?.getAttribute("aria-valuenow")).toBe("2");
+    pending.progress({ checked: 3, total: 3 });
+    expect(progressBar()?.getAttribute("aria-valuenow")).toBe("3");
+  });
+
+  it("shows a view mounted once it has settled at once, with no progress bar or reveal", async () => {
+    const shared = shareIntent(() =>
+      Promise.resolve(landedWith(new Map([["src/parser.rs", whole("docs")]]))),
+    );
+    remountWith(shared);
+    await afterDebounce();
+    remountWith(shared);
+    expect(progressBar()).toBeNull();
+    expect(view()?.hasAttribute("aria-busy")).toBe(false);
+    expect(view()?.hasAttribute("data-reveal")).toBe(false);
+    expect(filesIn("docs")).toContain("src/parser.rs");
   });
 });
