@@ -59,16 +59,16 @@ export function land(
     relist();
   };
 
-  let replayed: IntentProgress | undefined;
+  let earlyProgress: IntentProgress | undefined;
   let pending = false;
   const read = intent((progress) => {
-    if (!pending) replayed = progress;
+    if (!pending) earlyProgress = progress;
     else for (const view of views) view.progress?.(progress);
   });
   if (read instanceof Promise) {
     pending = true;
     for (const view of views) view.pending?.();
-    if (replayed) for (const view of views) view.progress?.(replayed);
+    if (earlyProgress) for (const view of views) view.progress?.(earlyProgress);
     void read
       .catch((error: unknown): IntentResult => {
         console.error("gh-prism: reading intent failed", error);
