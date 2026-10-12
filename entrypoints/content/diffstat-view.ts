@@ -7,27 +7,15 @@
 
 import { type Landing, landingOf, type SectionLines, totalsOf } from "@/utils/landing";
 import type { LineCounts } from "@/utils/pr-diff";
-import { SECTIONS, type SectionKey } from "@/utils/sections";
 import { el } from "./dom";
 import { type FilesPage, findDiffstat } from "./files-page";
-import { sectionIcon } from "./section-icons";
+import { markSection, SECTION_CATALOG, sectionIcon } from "./section-catalog";
 import type { LandingView } from "./visit";
 
 /** Which view the header counter shows. One per tab, so the choice carries to the next page. */
 export interface DiffstatChoice {
   view: "breakout" | "total";
 }
-
-const ABOUT: Record<SectionKey, string> = {
-  implementation: "Code that isn't a test, docs, config, or a lockfile",
-  tests: "Test files, and changes inside inline test blocks",
-  docs: "Docs files, and changes that only touch comments or docstrings",
-  config: "Config files such as TOML, YAML, and JSON, dotfiles, and CI settings",
-  generated: "Lockfiles such as Cargo.lock, package-lock.json, and go.sum",
-};
-
-const labelOf = (section: SectionKey) =>
-  SECTIONS.find(({ key }) => key === section)?.label ?? section;
 
 const count = (lines: number) => lines.toLocaleString("en-US");
 
@@ -61,7 +49,7 @@ function tip(doc: Document, ...children: Node[]): HTMLElement {
 }
 
 function pill(doc: Document, { section, lines }: SectionLines): HTMLElement {
-  const label = labelOf(section);
+  const label = SECTION_CATALOG[section].label;
   const node = el(
     doc,
     "span",
@@ -74,9 +62,13 @@ function pill(doc: Document, { section, lines }: SectionLines): HTMLElement {
       "sr-only",
       `${label}: ${count(lines.added)} added, ${count(lines.removed)} removed.`,
     ),
-    tip(doc, el(doc, "strong", "", label), el(doc, "span", "", ABOUT[section])),
+    tip(
+      doc,
+      el(doc, "strong", "", label),
+      el(doc, "span", "", SECTION_CATALOG[section].description),
+    ),
   );
-  node.dataset.section = section;
+  markSection(node, section);
   return node;
 }
 
@@ -86,10 +78,10 @@ function tipRow(doc: Document, { section, lines }: SectionLines): HTMLElement {
     "span",
     "gh-prism-tip-row",
     sectionIcon(doc, section),
-    el(doc, "span", "", labelOf(section)),
+    el(doc, "span", "", SECTION_CATALOG[section].label),
     ...counts(doc, lines),
   );
-  row.dataset.section = section;
+  markSection(row, section);
   return row;
 }
 

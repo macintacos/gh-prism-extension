@@ -108,14 +108,7 @@ describe("sectionsOf", () => {
     ]);
   });
 
-  it("carries each section's label and the caller's own file objects", () => {
-    expect(sections.map(({ label }) => label)).toEqual([
-      "Implementation",
-      "Tests",
-      "Documentation",
-      "Config",
-      "Generated / lockfiles",
-    ]);
+  it("carries the caller's own file objects", () => {
     expect(sections[4]?.entries[0]?.file).toBe(ALL[0]);
   });
 

@@ -126,6 +126,22 @@ describe("showSections", () => {
     ]);
   });
 
+  it("tints each section with its hue", () => {
+    const hues = Object.fromEntries(
+      [...document.querySelectorAll<HTMLElement>(".gh-prism-section")].map((section) => [
+        section.dataset.section,
+        section.style.getPropertyValue("--gh-prism-hue"),
+      ]),
+    );
+    expect(hues).toEqual({
+      implementation: "var(--fgColor-accent)",
+      tests: "var(--fgColor-done)",
+      docs: "var(--fgColor-attention)",
+      config: "var(--fgColor-sponsors)",
+      generated: "var(--fgColor-muted)",
+    });
+  });
+
   it("counts each section's files", () => {
     const counts = [...document.querySelectorAll(".gh-prism-section")].map(
       (section) => section.querySelector(".gh-prism-counter")?.textContent,
@@ -151,6 +167,9 @@ describe("showSections", () => {
       expect(header).not.toBeNull();
       expect(document.getElementById(section.getAttribute("aria-labelledby") ?? "")).toBe(header);
     }
+    expect(
+      [...document.querySelectorAll(".gh-prism-section-label")].map((label) => label.textContent),
+    ).toEqual(["Implementation", "Tests", "Documentation", "Config", "Generated / lockfiles"]);
   });
 
   it("sits just before the native tree", () => {
@@ -690,6 +709,14 @@ describe("showSections", () => {
       expect(view()?.getAttribute("aria-busy")).toBe("true");
       expect(progressBar()?.hasAttribute("aria-valuenow")).toBe(false);
       expect(sectionKeys()).toEqual([]);
+    });
+
+    it("bands the spectrum with every section's hue, in section order", () => {
+      remountWith(pendingIntent().intent);
+      const spectrum = view()?.querySelector<HTMLElement>(".gh-prism-spectrum");
+      expect(spectrum?.style.getPropertyValue("--gh-prism-spectrum")).toBe(
+        "linear-gradient(90deg, var(--fgColor-accent) 0% 20%, var(--fgColor-done) 20% 40%, var(--fgColor-attention) 40% 60%, var(--fgColor-sponsors) 60% 80%, var(--fgColor-muted) 80% 100%)",
+      );
     });
 
     it("reports how many of the diff's files intent has checked", () => {

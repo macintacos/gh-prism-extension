@@ -31,7 +31,8 @@ html[data-gh-prism-diffs="covered"]
   display: none !important;
 }
 
-/* The files drop in a section at a time, as the sidebar's sections do. */
+/* The files drop in a section at a time, as the sidebar's sections do. diff-order.ts times the
+   reveal from this rule's 280ms and 50ms. */
 @media (prefers-reduced-motion: no-preference) {
   html[data-gh-prism-diffs="revealed"] [data-testid="progressive-diffs-list"] > :has([role="region"]),
   html[data-gh-prism-diffs="revealed"]

@@ -8,16 +8,6 @@
   display: none;
 }
 
-.gh-prism-sections,
-.gh-prism-diffstat,
-.gh-prism-diff-loading {
-  --gh-prism-hue-implementation: var(--fgColor-accent);
-  --gh-prism-hue-tests: var(--fgColor-done);
-  --gh-prism-hue-docs: var(--fgColor-attention);
-  --gh-prism-hue-config: var(--fgColor-sponsors);
-  --gh-prism-hue-generated: var(--fgColor-muted);
-}
-
 .gh-prism-sections {
   display: flex;
   flex-direction: column;
@@ -39,26 +29,6 @@
   font-size: var(--text-body-size-small);
   line-height: var(--text-body-lineHeight-small);
   color: var(--fgColor-muted);
-}
-
-:is(.gh-prism-sections, .gh-prism-diffstat) [data-section="implementation"] {
-  --gh-prism-hue: var(--gh-prism-hue-implementation);
-}
-
-:is(.gh-prism-sections, .gh-prism-diffstat) [data-section="tests"] {
-  --gh-prism-hue: var(--gh-prism-hue-tests);
-}
-
-:is(.gh-prism-sections, .gh-prism-diffstat) [data-section="docs"] {
-  --gh-prism-hue: var(--gh-prism-hue-docs);
-}
-
-:is(.gh-prism-sections, .gh-prism-diffstat) [data-section="config"] {
-  --gh-prism-hue: var(--gh-prism-hue-config);
-}
-
-:is(.gh-prism-sections, .gh-prism-diffstat) [data-section="generated"] {
-  --gh-prism-hue: var(--gh-prism-hue-generated);
 }
 
 /* Opaque, so the tree's truncated names can fade into it. */
@@ -215,7 +185,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The five section hues, in section order, filling as intent checks files. */
+/* Every section's hue, in section order, filling as intent checks files; loading-view.ts sets
+   the bands. */
 .gh-prism-spectrum {
   height: 3px;
   margin: 8px 0 6px;
@@ -228,14 +199,7 @@
   content: "";
   display: block;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    var(--gh-prism-hue-implementation) 0 20%,
-    var(--gh-prism-hue-tests) 20% 40%,
-    var(--gh-prism-hue-docs) 40% 60%,
-    var(--gh-prism-hue-config) 60% 80%,
-    var(--gh-prism-hue-generated) 80%
-  );
+  background: var(--gh-prism-spectrum);
   clip-path: inset(0 calc(100% - var(--gh-prism-progress, 0) * 100%) 0 0);
   transition: clip-path 240ms ease-out;
 }

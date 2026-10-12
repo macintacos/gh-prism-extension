@@ -5,6 +5,7 @@
  * each diff absolutely, keep GitHub's order.
  */
 
+import { SECTIONS } from "@/utils/sections";
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
 import css from "./diff-order.css?raw";
 import { el } from "./dom";
@@ -19,8 +20,11 @@ import { type LoadingView, loadingView } from "./loading-view";
 import { retakeHash } from "./reveal";
 import type { LandingView } from "./visit";
 
-// The longest stagger in diff-order.css, four sections of delay plus the reveal itself, and slack.
-const REVEAL_MS = 600;
+// The reveal rule's stagger and duration in diff-order.css; keep them in step.
+const STAGGER_MS = 50;
+const ANIMATION_MS = 280;
+// Holds the reveal until the last section's files have dropped in, with slack.
+const REVEAL_MS = (SECTIONS.length - 1) * STAGGER_MS + ANIMATION_MS + 120;
 // A read that stalls this long leaves the diffs to read in GitHub's order meanwhile.
 const COVER_LIMIT_MS = 15_000;
 

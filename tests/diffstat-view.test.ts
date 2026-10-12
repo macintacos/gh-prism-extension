@@ -120,6 +120,22 @@ describe("the header's lines-changed counter", () => {
     ]);
   });
 
+  it("tints each pill, and each row of the total's tooltip, with its section's hue", async () => {
+    await landed(counted);
+    const huesOf = (nodes: Iterable<HTMLElement>) =>
+      [...nodes].map((node) => node.style.getPropertyValue("--gh-prism-hue"));
+    const hues = [
+      "var(--fgColor-accent)",
+      "var(--fgColor-done)",
+      "var(--fgColor-attention)",
+      "var(--fgColor-muted)",
+    ];
+    expect(huesOf(pills())).toEqual(hues);
+    counter()?.click();
+    const rows = tipOf(counter())?.querySelectorAll<HTMLElement>(":scope > *") ?? [];
+    expect(huesOf(rows)).toEqual(hues);
+  });
+
   it("says each section's lines in words, keeping its numbers and tooltip from being read", async () => {
     await landed(counted);
     expect(pills().map((pill) => pill.querySelector(".sr-only")?.textContent)).toEqual([
