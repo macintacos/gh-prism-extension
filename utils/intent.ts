@@ -18,6 +18,9 @@ import type { DiffRef } from "./pr-ref";
 import type { PrDataProblem } from "./pr-source";
 import { SECTIONS, type SectionKey } from "./sections";
 
+// Chrome's per-host connection limit; more at once only invites GitHub's rate limiting.
+export const HEAD_READS_AT_ONCE = 6;
+
 /** Why the view keeps path-only sections. */
 export type PathOnlyReason = PrDataProblem | "commit-filtered";
 /** The sections a rule can claim a file or hunk for, whatever its path says. */
