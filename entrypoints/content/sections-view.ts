@@ -10,7 +10,7 @@ import type { FileTreeRowDecoration, GitStatus } from "@pierre/trees";
 import type { IntentProgress, IntentResult, PathOnlyReason, PendingIntent } from "@/utils/intent";
 import { type LandedSection, landingOf, revealLineOf, sectionsOf, totalsOf } from "@/utils/landing";
 import type { LineCounts } from "@/utils/pr-diff";
-import type { SectionKey } from "@/utils/sections";
+import { SECTIONS, type SectionKey } from "@/utils/sections";
 import { orderDiffs } from "./diff-order";
 import { type DiffstatChoice, lineTotals, showDiffstat } from "./diffstat-view";
 import { el, icon } from "./dom";
@@ -210,11 +210,11 @@ function isPlainLeftClick(event: MouseEvent): boolean {
 }
 
 /** The file row and section a click inside a section tree landed on. */
-function clickedFile(event: Event): { section: string; path: string } | undefined {
+function clickedFile(event: Event): { section: SectionKey; path: string } | undefined {
   const elements = event.composedPath().filter((node) => node instanceof HTMLElement);
   const row = elements.find((node) => node.dataset.type === "item");
-  const section = elements.find((node) => node.classList.contains("gh-prism-section"))?.dataset
-    .section;
+  const raw = elements.find((node) => node.classList.contains("gh-prism-section"))?.dataset.section;
+  const section = SECTIONS.find(({ key }) => key === raw)?.key;
   const path = row?.dataset.itemPath;
   return row?.dataset.itemType === "file" && section && path ? { section, path } : undefined;
 }
@@ -247,7 +247,7 @@ export function showSections(
   const totalOf = (section: SectionKey) =>
     totalsOf(landing).find((total) => total.section === section)?.lines;
 
-  const open = (section: string, path: string) => {
+  const open = (section: SectionKey, path: string) => {
     const native = readChangedFiles(page.sidebar).find((file) => file.path === path)?.link;
     if (!native) return;
     jump?.abort();

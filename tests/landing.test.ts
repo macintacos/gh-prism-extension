@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { FileLines, Placement } from "../utils/intent";
-import { landingOf, revealLineOf, sectionOf, sectionsOf, totalsOf } from "../utils/landing";
+import {
+  type LandedSection,
+  landingOf,
+  revealLineOf,
+  sectionOf,
+  sectionsOf,
+  totalsOf,
+} from "../utils/landing";
 
-const split: Placement = {
+const split = {
   kind: "split",
   shares: [
     {
@@ -12,7 +19,7 @@ const split: Placement = {
     },
     { section: "docs", hunks: [{ first: 22, last: 28 }], lines: { added: 2, removed: 0 } },
   ],
-};
+} as const satisfies Placement;
 const landing = landingOf({
   ok: true,
   placements: new Map<string, Placement>([
@@ -39,8 +46,8 @@ const ALL = files(
   "src/notes.rs",
 );
 
-/** Each file's entries as `[section, path, share?, lines]`, flattened for plain comparison. */
-const placesOf = (sections: ReturnType<typeof sectionsOf<{ path: string }>>, path: string) =>
+/** Where `path` lands across `sections`, as `{ section, share, lines }`, for plain comparison. */
+const placesOf = (sections: LandedSection<{ path: string }>[], path: string) =>
   sections.flatMap(({ key, entries }) =>
     entries
       .filter(({ file }) => file.path === path)
@@ -71,7 +78,7 @@ describe("sectionsOf", () => {
   });
 
   it("lists a split file once per share, each with the share and its lines", () => {
-    const [implementation, docs] = split.kind === "split" ? split.shares : [];
+    const [implementation, docs] = split.shares;
     expect(placesOf(sections, "src/render.rs")).toEqual([
       { section: "implementation", share: implementation, lines: { added: 5, removed: 1 } },
       { section: "docs", share: docs, lines: { added: 2, removed: 0 } },
@@ -114,7 +121,7 @@ describe("sectionsOf", () => {
 
   it.each([
     ["pending", undefined],
-    ["failed", { ok: false, problem: "commit-filtered" } as const],
+    ["commit-filtered", { ok: false, problem: "commit-filtered" } as const],
   ])("puts every file in its path section from paths alone (%s)", (_, result) => {
     const pathOnly = sectionsOf(landingOf(result), ALL);
     expect(placesOf(pathOnly, "src/notes.rs")).toEqual([

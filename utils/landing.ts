@@ -1,18 +1,20 @@
-import type { FileLines, IntentResult, IntentSection, Placement, SectionShare } from "./intent";
+import type { FileLines, IntentResult, IntentSection, SectionShare } from "./intent";
 import type { LineCounts } from "./pr-diff";
 import { classify, SECTIONS, type SectionKey } from "./sections";
 
-/** Where a diff's files land: intent's placements, and every file's lines. Both are empty from paths alone. */
-export interface Landing {
-  readonly placements: ReadonlyMap<string, Placement>;
-  readonly lines: ReadonlyMap<string, FileLines>;
-}
+/**
+ * Where a diff's files land, read through this module's functions: `placements` is sparse, and a
+ * file absent from it keeps its path section. Both maps are empty when path-only.
+ */
+export type Landing = Readonly<Pick<Extract<IntentResult, { ok: true }>, "placements" | "lines">>;
 
 /** One place a file lands: whole, or as the share of a split that lands in `section`. */
 export interface LandedEntry {
   readonly section: SectionKey;
   readonly share?: SectionShare;
-  /** The lines this entry adds and removes: its share's, else the file's; unknown from paths alone. */
+  /**
+   * The lines this entry adds and removes: its share's, else the file's; `undefined` when unknown.
+   */
   readonly lines: FileLines | undefined;
 }
 
@@ -31,11 +33,15 @@ export interface SectionLines {
 
 const PATH_ONLY: Landing = { placements: new Map(), lines: new Map() };
 
-/** The landing `result` gives: its placements once it lands ok; paths alone while pending or after a failure. */
+/**
+ * `result`'s placements and lines once it lands ok; path-only while pending or when it isn't ok.
+ */
 export const landingOf = (result: IntentResult | undefined): Landing =>
   result?.ok ? result : PATH_ONLY;
 
-/** The section a file or hunk lands in: the rule section that `claimed` it, else its path section. */
+/**
+ * The section a file or hunk lands in: the rule section that `claimed` it, else its path section.
+ */
 export const sectionOf = (path: string, claimed?: IntentSection): SectionKey =>
   claimed ?? classify(path);
 
@@ -47,7 +53,10 @@ function entriesOf({ placements, lines }: Landing, path: string): LandedEntry[] 
   return [{ section: sectionOf(path, placement?.section), lines: lines.get(path) }];
 }
 
-/** Non-empty sections in `SECTIONS` order, each listing the `files` that land there in `files`' order. */
+/**
+ * Non-empty sections in `SECTIONS` order, each listing the `files` that land there in `files`'
+ * order.
+ */
 export function sectionsOf<F extends { readonly path: string }>(
   landing: Landing,
   files: readonly F[],
@@ -71,7 +80,10 @@ const sum = (counts: readonly LineCounts[]): LineCounts =>
     { added: 0, removed: 0 },
   );
 
-/** Each section's lines across the whole diff, in `SECTIONS` order, for sections that changed any. A binary file counts in none. */
+/**
+ * Each section's lines across the whole diff, in `SECTIONS` order, for sections that changed any. A
+ * binary file counts in none.
+ */
 export function totalsOf(landing: Landing): SectionLines[] {
   const counted = [...landing.lines.keys()].flatMap((path) =>
     entriesOf(landing, path).flatMap(({ section, lines }) =>
@@ -85,8 +97,15 @@ export function totalsOf(landing: Landing): SectionLines[] {
   });
 }
 
-/** The head-file line of the first hunk `path` places in `section`, if a share there has one. */
-export function revealLineOf(landing: Landing, path: string, section: string): number | undefined {
+/**
+ * The first head-file line among `path`'s hunks placed in `section`; `undefined` unless a share
+ * there has one.
+ */
+export function revealLineOf(
+  landing: Landing,
+  path: string,
+  section: SectionKey,
+): number | undefined {
   return entriesOf(landing, path)
     .find((entry) => entry.section === section)
     ?.share?.hunks.find((span) => span !== undefined)?.first;
