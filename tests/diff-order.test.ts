@@ -275,6 +275,16 @@ describe("the diffs beside the sections", () => {
       history.replaceState(null, "", location.pathname);
       expect(announced).toEqual(["", "#diff-0a08R2"]);
     });
+
+    it("stay revealed until the last section's files have dropped in", async () => {
+      const pending = pendingIntent();
+      remountWith(pending.intent);
+      pending.resolve(landedWith());
+      await vi.advanceTimersByTimeAsync(599);
+      expect(document.documentElement.dataset.ghPrismDiffs).toBe("revealed");
+      await vi.advanceTimersByTimeAsync(1);
+      expect(document.documentElement.dataset.ghPrismDiffs).toBeUndefined();
+    });
   });
 });
 
