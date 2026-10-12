@@ -16,7 +16,7 @@ import { el, icon } from "./dom";
 import { type FilesPage, readChangedFiles, reorderable } from "./files-page";
 import { type LoadingView, loadingView } from "./loading-view";
 import { revealDiff, revealDiffLine } from "./reveal";
-import { sectionIcon } from "./section-icons";
+import { SECTION_CATALOG, sectionIcon } from "./section-catalog";
 import { SectionTree, type TreeFile } from "./section-tree";
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
 import css from "./sections-view.css?raw";
@@ -181,7 +181,9 @@ export function showSections(
   view.setAttribute("aria-label", "Changed files by section");
   const shown = new Map<SectionKey, ShownSection>();
   // Outlives the sections themselves, so one that empties and comes back stays collapsed.
-  const collapsed = new Set<SectionKey>(["generated"]);
+  const collapsed = new Set(
+    SECTIONS.flatMap(({ key }) => (SECTION_CATALOG[key].startsCollapsed ? [key] : [])),
+  );
   let loading: LoadingView | undefined;
   let landing = landingOf(undefined);
   // The reveal in flight. A newer file click, or the view's abort, cancels it.

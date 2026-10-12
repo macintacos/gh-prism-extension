@@ -10,21 +10,13 @@ import type { LineCounts } from "@/utils/pr-diff";
 import { SECTIONS, type SectionKey } from "@/utils/sections";
 import { el } from "./dom";
 import { type FilesPage, findDiffstat } from "./files-page";
-import { sectionIcon } from "./section-icons";
+import { SECTION_CATALOG, sectionIcon } from "./section-catalog";
 import type { LandingView } from "./visit";
 
 /** Which view the header counter shows. One per tab, so the choice carries to the next page. */
 export interface DiffstatChoice {
   view: "breakout" | "total";
 }
-
-const ABOUT: Record<SectionKey, string> = {
-  implementation: "Code that isn't a test, docs, config, or a lockfile",
-  tests: "Test files, and changes inside inline test blocks",
-  docs: "Docs files, and changes that only touch comments or docstrings",
-  config: "Config files such as TOML, YAML, and JSON, dotfiles, and CI settings",
-  generated: "Lockfiles such as Cargo.lock, package-lock.json, and go.sum",
-};
 
 const labelOf = (section: SectionKey) =>
   SECTIONS.find(({ key }) => key === section)?.label ?? section;
@@ -74,7 +66,11 @@ function pill(doc: Document, { section, lines }: SectionLines): HTMLElement {
       "sr-only",
       `${label}: ${count(lines.added)} added, ${count(lines.removed)} removed.`,
     ),
-    tip(doc, el(doc, "strong", "", label), el(doc, "span", "", ABOUT[section])),
+    tip(
+      doc,
+      el(doc, "strong", "", label),
+      el(doc, "span", "", SECTION_CATALOG[section].description),
+    ),
   );
   node.dataset.section = section;
   return node;
