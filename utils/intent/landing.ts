@@ -1,6 +1,6 @@
 import type { LineCounts } from "../github/pr-diff";
 import { classify, SECTIONS, type SectionKey } from "../sections";
-import type { FileLines, IntentResult, IntentSection, SectionShare } from "./intent";
+import type { FileLines, IntentResult, IntentSection, SectionShare } from "./read";
 
 /**
  * Where a diff's files land, read through this module's functions: `placements` is sparse, and a

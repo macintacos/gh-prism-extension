@@ -3,7 +3,7 @@ import { defineBackground } from "wxt/utils/define-background";
 import { storage } from "wxt/utils/storage";
 import { PR_DATA_PORT, servePrDataPort } from "../utils/github/pr-port";
 import { createPrDataSource } from "../utils/github/pr-source";
-import { forgetIntents } from "../utils/intent/intent-cache";
+import { forgetIntents } from "../utils/intent/cache";
 
 /** Serves pull request data to content scripts and clears the intent cache on install. */
 export default defineBackground(() => {

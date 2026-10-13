@@ -2,7 +2,7 @@
 
 import type { HeadLineSpan } from "../github/pr-diff";
 import { SECTIONS } from "../sections";
-import type { FileLines, IntentResult, Placement, SectionShare } from "./intent";
+import type { FileLines, IntentResult, Placement, SectionShare } from "./read";
 
 /** An `ok` intent result: the kind the cache stores, as `intentFor` caches only those. */
 export type LandedIntent = Extract<IntentResult, { ok: true }>;

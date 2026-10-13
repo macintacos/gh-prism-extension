@@ -5,7 +5,7 @@ import {
   type DiffstatChoice,
   showDiffstat,
 } from "../../../entrypoints/content/header/diffstat-view";
-import type { FileLines, Placement } from "../../../utils/intent/intent";
+import type { FileLines, Placement } from "../../../utils/intent/read";
 import { landedWith, pendingIntent, whole } from "../../fixtures/intent";
 import { afterDebounce, mountsVisit, sectionKeys, sheetsStyling } from "../../fixtures/visit";
 

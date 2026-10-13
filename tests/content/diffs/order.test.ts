@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { listRules, showDiffOrder } from "../../../entrypoints/content/diffs/diff-order";
+import { listRules, showDiffOrder } from "../../../entrypoints/content/diffs/order";
 import { commitPage, findFilesPage, prPage } from "../../../entrypoints/content/files-page";
 import { byId, loadCommitFixture } from "../../fixtures/files-page";
 import { landedWith, pendingIntent, whole } from "../../fixtures/intent";

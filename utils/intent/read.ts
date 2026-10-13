@@ -15,7 +15,7 @@ import { type DocVerdict, docHunkVerdicts } from "../hunk-rules/doc-intent";
 import { type ScannedHead, scanHeadText } from "../hunk-rules/head-scan";
 import { inlineTestHunkVerdicts, inlineTestRuleApplies } from "../hunk-rules/inline-tests";
 import { SECTIONS, type SectionKey } from "../sections";
-import type { IntentCache, LandedIntent } from "./intent-cache";
+import type { IntentCache, LandedIntent } from "./cache";
 import { sectionOf } from "./landing";
 
 /**

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { commitPage, type PageKind, prPage } from "../../../entrypoints/content/files-page";
-import { dockSidebar, type SideChoice } from "../../../entrypoints/content/sidebar/sidebar-side";
+import { dockSidebar, type SideChoice } from "../../../entrypoints/content/sidebar/side";
 
 // Trimmed from sandbox PR #3's Files changed toolbar.
 const TOOLBAR = `

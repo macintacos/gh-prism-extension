@@ -9,7 +9,7 @@ import { type FilesPage, findDiffstat } from "../files-page";
 import { el } from "../ui/dom";
 import { count, counts } from "../ui/line-counts";
 import { markSection, SECTION_CATALOG, sectionIcon } from "../ui/section-catalog";
-import type { LandingView } from "../visit/visit";
+import type { LandingView } from "../visit/land";
 import css from "./diffstat-view.css?raw";
 
 /** Which view the header counter shows. One per tab, so the choice carries to the next page. */

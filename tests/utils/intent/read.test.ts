@@ -3,6 +3,7 @@ import type { FilesRoute } from "../../../utils/github/files-route";
 import type { PrFileDiff } from "../../../utils/github/pr-diff";
 import type { DiffPin, DiffRef, PrRef } from "../../../utils/github/pr-ref";
 import type { PrFileContentResult, PrFilesResult } from "../../../utils/github/pr-source";
+import type { IntentCache } from "../../../utils/intent/cache";
 import {
   type FileLines,
   HEAD_READS_AT_ONCE,
@@ -11,8 +12,7 @@ import {
   intentFor,
   type Placement,
   readIntent,
-} from "../../../utils/intent/intent";
-import type { IntentCache } from "../../../utils/intent/intent-cache";
+} from "../../../utils/intent/read";
 import { lines } from "../../fixtures/head-scan";
 
 const pr: PrRef = { kind: "pr", owner: "macintacos", repo: "gh-prism-sandbox", number: 1 };

@@ -2,8 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import { findFilesPage } from "../../../entrypoints/content/files-page";
 import css from "../../../entrypoints/content/sidebar/sections-view.css?raw";
-import { showVisit } from "../../../entrypoints/content/visit/visit";
-import type { IntentResult } from "../../../utils/intent/intent";
+import { showVisit } from "../../../entrypoints/content/visit/land";
+import type { IntentResult } from "../../../utils/intent/read";
 import { byId } from "../../fixtures/files-page";
 import { landedWith, pendingIntent, whole } from "../../fixtures/intent";
 import {

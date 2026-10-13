@@ -5,14 +5,14 @@ import {
   findFilesPage,
   readChangedFiles,
 } from "../../../entrypoints/content/files-page";
-import { type FileSection, type LandingView, land } from "../../../entrypoints/content/visit/visit";
+import { type FileSection, type LandingView, land } from "../../../entrypoints/content/visit/land";
+import { landingOf, sectionsOf } from "../../../utils/intent/landing";
 import {
   type IntentProgress,
   type IntentResult,
   type PendingIntent,
   shareIntent,
-} from "../../../utils/intent/intent";
-import { landingOf, sectionsOf } from "../../../utils/intent/landing";
+} from "../../../utils/intent/read";
 import { byId, loadFixture } from "../../fixtures/files-page";
 import { landedWith, pendingIntent, whole } from "../../fixtures/intent";
 import { afterDebounce, filesIn, mountsVisit, progressBar, view } from "../../fixtures/visit";

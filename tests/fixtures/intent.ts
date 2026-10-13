@@ -5,7 +5,7 @@ import type {
   IntentSection,
   PendingIntent,
   Placement,
-} from "../../utils/intent/intent";
+} from "../../utils/intent/read";
 
 /** A placement putting a whole file in `section`. */
 export const whole = (section: IntentSection): Placement => ({ kind: "whole", section });

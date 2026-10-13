@@ -8,8 +8,8 @@
 
 import type { FileTreeRowDecoration } from "@pierre/trees";
 import type { LineCounts } from "@/utils/github/pr-diff";
-import type { IntentResult, PathOnlyReason } from "@/utils/intent/intent";
 import { landingOf, revealLineOf, totalsOf } from "@/utils/intent/landing";
+import type { IntentResult, PathOnlyReason } from "@/utils/intent/read";
 import { SECTIONS, type SectionKey } from "@/utils/sections";
 import { revealDiff, revealDiffLine } from "../diffs/reveal";
 import { type FilesPage, readChangedFiles, reorderable } from "../files-page";
@@ -17,7 +17,7 @@ import { el, icon } from "../ui/dom";
 import { lineTotals } from "../ui/line-counts";
 import { type LoadingView, loadingView } from "../ui/loading-view";
 import { markSection, SECTION_CATALOG, sectionIcon } from "../ui/section-catalog";
-import type { FileSection, LandingView } from "../visit/visit";
+import type { FileSection, LandingView } from "../visit/land";
 import { SectionTree, type TreeFile } from "./section-tree";
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
 import css from "./sections-view.css?raw";

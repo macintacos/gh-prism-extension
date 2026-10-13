@@ -5,9 +5,9 @@
  * that read across a visit's pages (`shareIntent`).
  */
 
-import type { IntentProgress, IntentResult, PendingIntent } from "@/utils/intent/intent";
 import { type LandedSection, landingOf, sectionsOf } from "@/utils/intent/landing";
-import { showDiffOrder } from "../diffs/diff-order";
+import type { IntentProgress, IntentResult, PendingIntent } from "@/utils/intent/read";
+import { showDiffOrder } from "../diffs/order";
 import { type ChangedFile, type FilesPage, observeTree, readChangedFiles } from "../files-page";
 import { type DiffstatChoice, showDiffstat } from "../header/diffstat-view";
 import { showSections } from "../sidebar/sections-view";

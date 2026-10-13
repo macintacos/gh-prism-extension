@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { FileLines, IntentResult } from "../../../utils/intent/intent";
-import {
-  forgetIntents,
-  type IntentStorage,
-  storedIntents,
-} from "../../../utils/intent/intent-cache";
+import { forgetIntents, type IntentStorage, storedIntents } from "../../../utils/intent/cache";
+import type { FileLines, IntentResult } from "../../../utils/intent/read";
 
 /** Storage that, like chrome.storage, keeps a JSON copy of each value. */
 function jsonStorage(): IntentStorage & { values: Map<string, string> } {

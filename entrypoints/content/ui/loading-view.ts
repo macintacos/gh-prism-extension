@@ -1,6 +1,6 @@
 /** The progress bar that stands in while intent is read. */
 
-import type { IntentProgress } from "@/utils/intent/intent";
+import type { IntentProgress } from "@/utils/intent/read";
 import { SECTIONS } from "@/utils/sections";
 import { el } from "./dom";
 import css from "./loading-view.css?raw";

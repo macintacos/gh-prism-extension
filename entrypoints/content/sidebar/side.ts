@@ -15,7 +15,7 @@ import {
 } from "../files-page";
 import { el, icon } from "../ui/dom";
 // ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
-import css from "./sidebar-side.css?raw";
+import css from "./side.css?raw";
 
 export type { Side };
 

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { FileLines, Placement } from "../../../utils/intent/intent";
 import {
   type LandedSection,
   landingOf,
@@ -8,6 +7,7 @@ import {
   sectionsOf,
   totalsOf,
 } from "../../../utils/intent/landing";
+import type { FileLines, Placement } from "../../../utils/intent/read";
 
 const split = {
   kind: "split",

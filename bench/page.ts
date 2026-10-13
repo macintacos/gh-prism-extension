@@ -1,9 +1,9 @@
-import { showDiffOrder } from "@/entrypoints/content/diffs/diff-order";
+import { showDiffOrder } from "@/entrypoints/content/diffs/order";
 import { type FilesPage, findFilesPage } from "@/entrypoints/content/files-page";
 import { showSections } from "@/entrypoints/content/sidebar/sections-view";
-import type { FileSection } from "@/entrypoints/content/visit/visit";
-import { type IntentResult, readIntent } from "@/utils/intent/intent";
+import type { FileSection } from "@/entrypoints/content/visit/land";
 import { landingOf, sectionsOf } from "@/utils/intent/landing";
+import { type IntentResult, readIntent } from "@/utils/intent/read";
 import {
   changedFiles,
   intentDiff,
