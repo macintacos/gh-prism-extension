@@ -8,7 +8,7 @@ import { sidebarSide } from "@/utils/prefs";
 import type { DiffstatChoice } from "./header/diffstat-view";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar/sidebar-side";
 import { showVisit } from "./visit/visit";
-import { watchFilesPages } from "./visit/visit-watch";
+import { watchFilesPages } from "./visit/watch";
 
 const CACHED_DIFFS = 50;
 
