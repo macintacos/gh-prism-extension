@@ -69,6 +69,19 @@ function byTestId(id: string): HTMLElement {
   return found;
 }
 
+/** Replaces the diff list with GitHub's virtualized one. */
+function virtualize(): void {
+  byTestId("diff-content").innerHTML =
+    '<div style="position: relative"><div data-index="0" style="position: absolute; top: 0px">' +
+    '<div role="region" id="diff-0a01"></div></div></div>';
+}
+
+/** The stylesheets that place individual diffs. */
+const fileOrderSheets = () =>
+  [...document.querySelectorAll("style")].filter((sheet) =>
+    sheet.textContent?.includes("--gh-prism-section-order: "),
+  );
+
 const progressiveList = () => document.querySelector('[data-testid="progressive-diffs-list"]');
 const diffsProgressBar = () =>
   document.querySelector<HTMLElement>('[data-testid="diff-content"] [role="progressbar"]');
@@ -89,9 +102,7 @@ describe("the diffs beside the sections", () => {
   });
 
   it("say they keep GitHub's order below the path-only notice, both above the sections", async () => {
-    byTestId("diff-content").innerHTML =
-      '<div style="position: relative"><div data-index="0" style="position: absolute; top: 0px">' +
-      '<div role="region" id="diff-0a01"></div></div></div>';
+    virtualize();
     await landed({ ok: false, problem: "no-access" });
     const [first, second, third] = [...(view()?.children ?? [])];
     expect(first?.textContent).toBe(
@@ -215,13 +226,37 @@ describe("the diffs beside the sections", () => {
   });
 
   it("say they keep GitHub's order when GitHub virtualizes them", async () => {
-    byTestId("diff-content").innerHTML =
-      '<div style="position: relative"><div data-index="0" style="position: absolute; top: 0px">' +
-      '<div role="region" id="diff-0a01"></div></div></div>';
+    virtualize();
     await landed(landedWith());
     expect(view()?.firstElementChild?.textContent).toBe(
       "Diffs keep GitHub's order: gh-prism can't reorder this many files.",
     );
+  });
+
+  it("aren't placed while GitHub virtualizes them", async () => {
+    virtualize();
+    await landed(landedWith());
+    expect(fileOrderSheets()).toHaveLength(0);
+  });
+
+  it("drop their placement once GitHub virtualizes them", async () => {
+    expect(fileOrderSheets()).toHaveLength(1);
+    virtualize();
+    byId("src/engine.rs").setAttribute("aria-current", "true");
+    await afterDebounce();
+    expect(fileOrderSheets()).toHaveLength(0);
+  });
+
+  it("take the sidebar's order once GitHub stops virtualizing them", async () => {
+    virtualize();
+    await landed(landedWith());
+    mountEveryDiff();
+    byId("src/engine.rs").setAttribute("aria-current", "true");
+    await afterDebounce();
+    expect(laidOut(progressiveList()).slice(0, 2)).toEqual([
+      "src/generated/schema.rs",
+      "src/engine.rs",
+    ]);
   });
 
   describe("while intent is pending", () => {
