@@ -1134,23 +1134,23 @@ describe("intentFor", () => {
 
   it("doesn't pin a read at another head", async () => {
     const cache = memoryCache();
-    const elsewhere: DiffPin = { ...pin, headSha: "d".repeat(40) };
-    await visit({ connect: () => fakeClient(files, noAccess), cache, pinOf: () => elsewhere });
+    const pinAtOtherHead: DiffPin = { ...pin, headSha: "d".repeat(40) };
+    await visit({ connect: () => fakeClient(files, noAccess), cache, pinOf: () => pinAtOtherHead });
     const connect = spiedConnect();
 
-    await visit({ connect, cache, pinOf: () => elsewhere });
+    await visit({ connect, cache, pinOf: () => pinAtOtherHead });
 
     expect(connect).toHaveBeenCalled();
   });
 
   it("files a cached read only under the head it was read at", async () => {
     const cache = memoryCache();
-    const elsewhere: DiffPin = { ...pin, headSha: "d".repeat(40) };
+    const pinAtOtherHead: DiffPin = { ...pin, headSha: "d".repeat(40) };
     await visit({ connect: () => fakeClient(files, noAccess), cache });
-    await visit({ connect: () => fakeClient(files, noAccess), cache, pinOf: () => elsewhere });
+    await visit({ connect: () => fakeClient(files, noAccess), cache, pinOf: () => pinAtOtherHead });
     const connect = spiedConnect();
 
-    await visit({ connect, cache, pinOf: () => elsewhere });
+    await visit({ connect, cache, pinOf: () => pinAtOtherHead });
 
     expect(connect).toHaveBeenCalled();
   });
