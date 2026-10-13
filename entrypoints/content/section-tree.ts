@@ -123,11 +123,14 @@ export class SectionTree {
     const root = this.#host.shadowRoot?.querySelector("[data-file-tree-virtualized-root]");
     const scroll = root?.querySelector("[data-file-tree-virtualized-scroll]");
     if (!root || !scroll) return;
-    const host = this.#host.getBoundingClientRect();
-    const offset = root.getBoundingClientRect().top - host.top;
+    const hostBox = this.#host.getBoundingClientRect();
+    const offset = root.getBoundingClientRect().top - hostBox.top;
     // The page's height bounds the pane's.
-    const height = this.#host.ownerDocument.defaultView?.innerHeight ?? 0;
-    this.#host.toggleAttribute("data-gh-prism-far", host.bottom < -height || host.top > 2 * height);
+    const viewportHeight = this.#host.ownerDocument.defaultView?.innerHeight ?? 0;
+    this.#host.toggleAttribute(
+      "data-gh-prism-far",
+      hostBox.bottom < -viewportHeight || hostBox.top > 2 * viewportHeight,
+    );
     if (scroll.scrollTop !== offset) scroll.scrollTop = offset;
   }
 

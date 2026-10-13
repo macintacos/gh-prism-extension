@@ -131,23 +131,23 @@ async function sectionTrees(count: number, hosts: "sidebar" | "fixed" = "sidebar
   const [first, ...rest] = files;
   if (!first) throw new Error("no files to rename");
   const renamed = [{ ...first, path: "docs/guide-0/page-0-renamed.md" }, ...rest];
-  const path = await timed(renderOf(sectionsWith("added", renamed)));
+  const pathRerender = await timed(renderOf(sectionsWith("added", renamed)));
   await twoFrames();
   if (
     !rendered('[data-item-path="docs/guide-0/page-0-renamed.md"]') ||
     rendered('[data-item-path="docs/guide-0/page-0.md"]')
   )
     throw new Error("the path re-render didn't land");
-  const rows = countsOf('[data-type="item"]');
-  const total = rows.reduce((sum, count) => sum + count, 0);
+  const rowsPerTree = countsOf('[data-type="item"]');
+  const total = rowsPerTree.reduce((sum, count) => sum + count, 0);
   if (total === 0) throw new Error("the section trees rendered no rows");
   return {
     files: count,
     hosts,
     "mount ms": mount,
     "re-render ms": rerender,
-    "path ms": path,
-    "max rows/tree": Math.max(...rows),
+    "path ms": pathRerender,
+    "max rows/tree": Math.max(...rowsPerTree),
     "rendered rows": total,
   };
 }

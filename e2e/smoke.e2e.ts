@@ -112,7 +112,7 @@ test("a large pull request renders only the rows near the sidebar's viewport, an
   await page.goto(PR_URL);
   const bulk = page.locator('[data-item-path="bulk/"]');
   await expect(bulk).toBeVisible();
-  const counts = await page.evaluate(() =>
+  const trees = await page.evaluate(() =>
     [...document.querySelectorAll(".gh-prism-tree")].map((host) => ({
       rows: host.shadowRoot?.querySelectorAll('[data-type="item"]').length ?? 0,
       overflows: [
@@ -120,7 +120,7 @@ test("a large pull request renders only the rows near the sidebar's viewport, an
       ].map((scroll) => getComputedStyle(scroll).overflowY),
     })),
   );
-  for (const { rows, overflows } of counts) {
+  for (const { rows, overflows } of trees) {
     expect(rows).toBeLessThan(100);
     expect(overflows).toEqual(["hidden"]);
   }
