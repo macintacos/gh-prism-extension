@@ -120,4 +120,5 @@ removes.
 - "Glide" also names the sidebar's move. The sidebar slides; a reveal glides.
 - "Source" names both the background's fetcher of diffs and file contents, and where
   intent is read from and cached. Keep it for the fetcher.
+- "Pin" also names a diff head's one commit. Say diff pin only for the base and head pair.
 - The Documentation section's key is `docs`. They are the same section.

@@ -2,7 +2,7 @@ import { type DocVerdict, docHunkVerdicts } from "./doc-intent";
 import type { FilesRoute } from "./files-route";
 import { type ScannedHead, scanHeadText } from "./head-scan";
 import { inlineTestHunkVerdicts, inlineTestRuleApplies } from "./inline-tests";
-import type { IntentCache } from "./intent-cache";
+import type { IntentCache, LandedIntent } from "./intent-cache";
 import { sectionOf } from "./landing";
 import {
   type HeadLineSpan,
@@ -196,7 +196,10 @@ export async function readIntent(
 export interface IntentSources {
   readonly connect: (diff: DiffRef) => PrDataClient;
   readonly cache: IntentCache;
-  /** What the page says pins `diff`: a revisit with the same pin lands from `cache` without reading the diff. */
+  /**
+   * What the page says pins `diff`: a revisit with the same pin lands from `cache` without reading
+   * the diff.
+   */
   readonly pinOf?: (diff: DiffRef) => DiffPin | undefined;
 }
 
@@ -238,10 +241,12 @@ export async function intentFor(
   if (!listed.ok) return listed;
   const key = await diffKey(listed.headSha, listed.files);
   // Only a pin naming the head these files were read at may file them.
+  // ponytail: the worker keeps a PR's diff by head alone, so a retarget read while it is alive
+  // files the old base's diff under the new pin; key the worker's diff by base too if that bites.
   const pinnedHere = pin?.headSha === listed.headSha ? pinned : undefined;
   const cached = await cache.get(key);
   if (cached) {
-    if (pinnedHere) void cache.set(pinnedHere, cached);
+    void keepUnder(cache, cached, [pinnedHere]);
     return cached;
   }
   let cutShort = false;
@@ -256,16 +261,19 @@ export async function intentFor(
     },
     onProgress,
   );
-  if (result.ok && !cutShort) {
-    // ponytail: a pinned diff is kept under both keys, so CACHED_DIFFS holds half as many; key
-    // it by pin alone if the cache fills.
-    const keep = async (intent: typeof result) => {
-      await cache.set(key, intent);
-      if (pinnedHere) await cache.set(pinnedHere, intent);
-    };
-    void keep(result);
-  }
+  // ponytail: a pinned diff is stored under both keys, doubling its slots and bytes; file the pin
+  // as an alias of the diff key if the cache fills.
+  if (result.ok && !cutShort) void keepUnder(cache, result, [key, pinnedHere]);
   return result;
+}
+
+/** Files `intent` under each key in turn: concurrent sets race on the cache's index. */
+async function keepUnder(
+  cache: IntentCache,
+  intent: LandedIntent,
+  keys: readonly (string | undefined)[],
+): Promise<void> {
+  for (const key of keys) if (key) await cache.set(key, intent);
 }
 
 /**

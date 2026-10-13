@@ -1045,7 +1045,7 @@ describe("intentFor", () => {
 
   const pin: DiffPin = { baseSha: "b".repeat(40), headSha };
   const files: PrFilesResult = { ok: true, files: [modified("src/render.rs", renderPatch)] };
-  const neverConnect = () => vi.fn((_diff: DiffRef) => fakeClient(files, noAccess));
+  const spiedConnect = () => vi.fn((_diff: DiffRef) => fakeClient(files, noAccess));
   const visit = (sources: Parameters<typeof intentFor>[2]) =>
     intentFor(route, new AbortController().signal, sources);
 
@@ -1056,7 +1056,7 @@ describe("intentFor", () => {
       cache,
       pinOf: () => pin,
     });
-    const connect = neverConnect();
+    const connect = spiedConnect();
 
     const second = await visit({ connect, cache, pinOf: () => pin });
 
@@ -1079,7 +1079,7 @@ describe("intentFor", () => {
     await visit({ connect: () => fakeClient(files, noAccess), cache });
     const second = fakeClient(files, noAccess);
     await visit({ connect: () => second, cache, pinOf: () => pin });
-    const connect = neverConnect();
+    const connect = spiedConnect();
 
     await visit({ connect, cache, pinOf: () => pin });
 
@@ -1091,7 +1091,7 @@ describe("intentFor", () => {
   it("reads the diff when the pin's base differs", async () => {
     const cache = memoryCache();
     await visit({ connect: () => fakeClient(files, noAccess), cache, pinOf: () => pin });
-    const connect = neverConnect();
+    const connect = spiedConnect();
 
     await visit({ connect, cache, pinOf: () => ({ ...pin, baseSha: "e".repeat(40) }) });
 
@@ -1102,7 +1102,7 @@ describe("intentFor", () => {
     const cache = memoryCache();
     const get = vi.spyOn(cache, "get");
     const pinOf = vi.fn(() => pin);
-    const connect = neverConnect();
+    const connect = spiedConnect();
 
     await intentFor({ diff: pr, commitFiltered: true }, new AbortController().signal, {
       connect,
@@ -1136,11 +1136,45 @@ describe("intentFor", () => {
     const cache = memoryCache();
     const elsewhere: DiffPin = { ...pin, headSha: "d".repeat(40) };
     await visit({ connect: () => fakeClient(files, noAccess), cache, pinOf: () => elsewhere });
-    const connect = neverConnect();
+    const connect = spiedConnect();
 
     await visit({ connect, cache, pinOf: () => elsewhere });
 
     expect(connect).toHaveBeenCalled();
+  });
+
+  it("files a cached read only under the head it was read at", async () => {
+    const cache = memoryCache();
+    const elsewhere: DiffPin = { ...pin, headSha: "d".repeat(40) };
+    await visit({ connect: () => fakeClient(files, noAccess), cache });
+    await visit({ connect: () => fakeClient(files, noAccess), cache, pinOf: () => elsewhere });
+    const connect = spiedConnect();
+
+    await visit({ connect, cache, pinOf: () => elsewhere });
+
+    expect(connect).toHaveBeenCalled();
+  });
+
+  it("stores a read under its keys one at a time", async () => {
+    const stored: string[] = [];
+    let release = () => {};
+    const cache: IntentCache = {
+      get: async () => undefined,
+      set: (key) => {
+        stored.push(key);
+        return new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      },
+    };
+
+    await visit({ connect: () => fakeClient(files, noAccess), cache, pinOf: () => pin });
+    await vi.waitFor(() => expect(stored).toHaveLength(1));
+    await Promise.resolve();
+    expect(stored).toHaveLength(1);
+    release();
+
+    await vi.waitFor(() => expect(stored).toHaveLength(2));
   });
 
   it("stores nothing when the diff can't be read", async () => {

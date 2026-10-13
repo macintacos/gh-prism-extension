@@ -134,7 +134,7 @@ describe("openPrData", () => {
     const fetchFn = routedFetch(okRoutes());
     const client = openPrData(harness(fetchFn).connect, pr, undefined);
     expect(await client.files()).toMatchObject({ ok: true, headSha: sha });
-    await client.files();
+    await client.fileContent("src/engine.rs");
     expect(urls(fetchFn).filter((u) => u === `${base}/pull/7`)).toHaveLength(1);
   });
 

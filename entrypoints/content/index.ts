@@ -1,9 +1,9 @@
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { storage } from "wxt/utils/storage";
-import { intentFor, shareIntent } from "@/utils/intent";
+import { type IntentSources, intentFor, shareIntent } from "@/utils/intent";
 import { storedIntents } from "@/utils/intent-cache";
 import { connectPrData } from "@/utils/pr-port";
-import { type DiffRef, readDiffPin } from "@/utils/pr-ref";
+import { readDiffPin } from "@/utils/pr-ref";
 import { sidebarSide } from "@/utils/prefs";
 import type { DiffstatChoice } from "./diffstat-view";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar-side";
@@ -21,8 +21,8 @@ export default defineContentScript({
     const sources = {
       connect: connectPrData,
       cache: storedIntents(storage, CACHED_DIFFS),
-      pinOf: (diff: DiffRef) => readDiffPin(document, diff),
-    };
+      pinOf: (diff) => readDiffPin(document, diff),
+    } satisfies IntentSources;
     // Read before watching, so a sidebar saved on the left never opens on the right first.
     // `fallback` covers only a missing side; a corrupt one reads back as stored.
     const saved: unknown = await sidebarSide.getValue().catch((error: unknown) => {
