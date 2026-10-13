@@ -13,6 +13,9 @@ _Avoid_: PR, when a commit is meant too
 
 **Diff head**: A diff ref pinned to the commit its diff ends on. _Avoid_: head ref
 
+**Diff pin**: The two commits a pull request's page says its diff runs between, its base
+and its head. A revisit with the same pin lands its intent without reading the diff.
+
 **Files view**: A page where gh-prism runs: a pull request's Files changed tab, or a
 commit's page. _Avoid_: files page, diff page
 

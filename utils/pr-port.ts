@@ -53,7 +53,7 @@ export interface PrDataPort {
  */
 export interface PrDataClient {
   /**
-   * The diff, with the commit it ends on, which `files` and `fileContent` read at. A PR whose page
+   * The diff and the commit it ends on, which `fileContent` reads at. A PR whose page
    * names no head gets it from the same request as its diff, so the first `files` or `fileContent`
    * call fetches both.
    */

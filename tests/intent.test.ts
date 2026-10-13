@@ -11,7 +11,7 @@ import {
 } from "../utils/intent";
 import type { IntentCache } from "../utils/intent-cache";
 import type { PrFileDiff } from "../utils/pr-diff";
-import type { DiffRef, PrRef } from "../utils/pr-ref";
+import type { DiffPin, DiffRef, PrRef } from "../utils/pr-ref";
 import type { PrFileContentResult, PrFilesResult } from "../utils/pr-source";
 import { lines } from "./fixtures/head-scan";
 
@@ -1041,6 +1041,106 @@ describe("intentFor", () => {
     await visitTwice(memoryCache(), fakeClient(files, unreadable), second);
 
     expect(second.fileContent).toHaveBeenCalled();
+  });
+
+  const pin: DiffPin = { baseSha: "b".repeat(40), headSha };
+  const files: PrFilesResult = { ok: true, files: [modified("src/render.rs", renderPatch)] };
+  const neverConnect = () => vi.fn((_diff: DiffRef) => fakeClient(files, noAccess));
+  const visit = (sources: Parameters<typeof intentFor>[2]) =>
+    intentFor(route, new AbortController().signal, sources);
+
+  it("lands a pinned revisit from the cache without fetching the diff or any head", async () => {
+    const cache = memoryCache();
+    const first = await visit({
+      connect: () => fakeClient(files, noAccess),
+      cache,
+      pinOf: () => pin,
+    });
+    const connect = neverConnect();
+
+    const second = await visit({ connect, cache, pinOf: () => pin });
+
+    expect(second).toEqual(first);
+    expect(connect).not.toHaveBeenCalled();
+  });
+
+  it("finds a pinned read again on a visit without a pin", async () => {
+    const cache = memoryCache();
+    await visit({ connect: () => fakeClient(files, noAccess), cache, pinOf: () => pin });
+    const second = fakeClient(files, noAccess);
+
+    await visit({ connect: () => second, cache });
+
+    expect(second.fileContent).not.toHaveBeenCalled();
+  });
+
+  it("pins a cached diff on its first pinned visit", async () => {
+    const cache = memoryCache();
+    await visit({ connect: () => fakeClient(files, noAccess), cache });
+    const second = fakeClient(files, noAccess);
+    await visit({ connect: () => second, cache, pinOf: () => pin });
+    const connect = neverConnect();
+
+    await visit({ connect, cache, pinOf: () => pin });
+
+    expect(second.files).toHaveBeenCalled();
+    expect(second.fileContent).not.toHaveBeenCalled();
+    expect(connect).not.toHaveBeenCalled();
+  });
+
+  it("reads the diff when the pin's base differs", async () => {
+    const cache = memoryCache();
+    await visit({ connect: () => fakeClient(files, noAccess), cache, pinOf: () => pin });
+    const connect = neverConnect();
+
+    await visit({ connect, cache, pinOf: () => ({ ...pin, baseSha: "e".repeat(40) }) });
+
+    expect(connect).toHaveBeenCalled();
+  });
+
+  it("keeps a commit-filtered route path-only without looking up its pin", async () => {
+    const cache = memoryCache();
+    const get = vi.spyOn(cache, "get");
+    const pinOf = vi.fn(() => pin);
+    const connect = neverConnect();
+
+    await intentFor({ diff: pr, commitFiltered: true }, new AbortController().signal, {
+      connect,
+      cache,
+      pinOf,
+    });
+
+    expect(pinOf).not.toHaveBeenCalled();
+    expect(get).not.toHaveBeenCalled();
+    expect(connect).not.toHaveBeenCalled();
+  });
+
+  it("closes the client when the visit aborts during the pinned lookup", async () => {
+    const controller = new AbortController();
+    const cache: IntentCache = {
+      get: async (key) => {
+        if (key.includes("...")) controller.abort();
+        return undefined;
+      },
+      set: async () => {},
+    };
+    const client = fakeClient(files, noAccess);
+
+    void intentFor(route, controller.signal, { connect: () => client, cache, pinOf: () => pin });
+    await vi.waitFor(() => expect(client.close).toHaveBeenCalled());
+
+    expect(client.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("doesn't pin a read at another head", async () => {
+    const cache = memoryCache();
+    const elsewhere: DiffPin = { ...pin, headSha: "d".repeat(40) };
+    await visit({ connect: () => fakeClient(files, noAccess), cache, pinOf: () => elsewhere });
+    const connect = neverConnect();
+
+    await visit({ connect, cache, pinOf: () => elsewhere });
+
+    expect(connect).toHaveBeenCalled();
   });
 
   it("stores nothing when the diff can't be read", async () => {
