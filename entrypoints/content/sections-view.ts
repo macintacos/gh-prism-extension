@@ -257,11 +257,27 @@ export function showSections(
     { signal },
   );
 
+  const sync = () => {
+    for (const { tree } of shown.values()) tree.sync();
+  };
+  // Capture, for the sidebar's pane or the window: scroll events don't bubble.
+  doc.addEventListener(
+    "scroll",
+    (event) => {
+      if (event.target instanceof Node && event.target.contains(view)) sync();
+    },
+    { capture: true, signal },
+  );
+  // A section or directory above a tree changing height moves where the tree has stuck.
+  const resized = new ResizeObserver(sync);
+  resized.observe(view);
+
   // A DOM clone of the sidebar, such as a restored snapshot, can carry an earlier view.
   for (const stale of page.sidebar.querySelectorAll(".gh-prism-sections")) stale.remove();
   page.tree.before(view);
   doc.head.append(style);
   signal.addEventListener("abort", () => {
+    resized.disconnect();
     for (const { tree } of shown.values()) tree.cleanUp();
     view.remove();
     style.remove();

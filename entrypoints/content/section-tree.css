@@ -1,5 +1,41 @@
 /* Styles inside each section tree's shadow root; @pierre/trees layers them over its own. */
 
+/* Each host stays as tall as its rows, so the sidebar scrolls as one, and the library's viewport
+   sticks to the sidebar's: overflow: hidden would make a scroll container to stick to instead,
+   and the library sets position: relative inline. SectionTree.sync matches its offset. */
+:host {
+  position: relative;
+  overflow: clip;
+}
+
+[data-file-tree-virtualized-wrapper] {
+  overflow: clip;
+}
+
+[data-file-tree-virtualized-root] {
+  position: sticky !important;
+  top: 0;
+  height: min(100%, 100vh);
+}
+
+:host([data-gh-prism-far]) [data-file-tree-virtualized-root] {
+  height: 0;
+}
+
+/* Wheels and scrollbars belong to the sidebar; only SectionTree scrolls the viewport. */
+[data-file-tree-virtualized-scroll] {
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.gh-prism-probe {
+  position: absolute;
+  left: 0;
+  width: 1px;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* Status letters stay quiet: in this sidebar, color marks sections and lines added or removed. */
 [data-item-git-status] > [data-item-section="content"],
 [data-item-git-status] > [data-item-section="icon"] > * {

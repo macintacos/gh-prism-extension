@@ -11,6 +11,21 @@ const readFixture = (name: string) =>
 const PR_BODY = `<!doctype html>${readFixture("files-page.html")}`;
 // README.md's tree row in tests/fixtures/files-page.html links to this id.
 const README_DIFF = "diff-0a13";
+const TREE_OPEN = '<ul role="tree" aria-label="File Tree">';
+const bulkRow = (n: number) => {
+  const name = `file-${String(n).padStart(3, "0")}.rs`;
+  return `<li role="treeitem" id="bulk/${name}" aria-level="1" aria-label="${name}" aria-selected="false"><a href="#diff-bulk${n}">${name}</a></li>`;
+};
+// 300 more files under a new top-level bulk/, in a sidebar that scrolls within the 720 px viewport
+// as GitHub's pane does. No file is current, so the sidebar starts at its top rather than revealing one.
+const LARGE_PR_BODY = PR_BODY.replace(
+  "<!doctype html>",
+  "<!doctype html><style>#pr-file-tree { height: 600px; overflow-y: auto; }</style>",
+)
+  .replace(TREE_OPEN, `${TREE_OPEN}${Array.from({ length: 300 }, (_, n) => bulkRow(n)).join("")}`)
+  .replace(' aria-current="true"', "");
+// The fixture's last Implementation file in native order.
+const LAST_IMPLEMENTATION_FILE = "src/render.rs";
 // The wrapper supplies GitHub's layout container; the switch's container query needs ≥ 1012 px (default viewport: 1280).
 const COMMIT_BODY = `<!doctype html><div class="PageLayout-PageLayoutContent">${readFixture("commit-page.html")}</div>`;
 
@@ -87,4 +102,73 @@ test("clicking a file scrolls its diff into view", async ({ context, page }) => 
   await expect(diff).not.toBeInViewport();
   await page.locator('[data-item-path="README.md"]').click();
   await expect(diff).toBeInViewport();
+});
+
+test("a large pull request renders only the rows near the sidebar's viewport, and the sidebar scrolls as one", async ({
+  context,
+  page,
+}) => {
+  await serve(context, PR_URL, LARGE_PR_BODY);
+  await page.goto(PR_URL);
+  const bulk = page.locator('[data-item-path="bulk/"]');
+  await expect(bulk).toBeVisible();
+  const counts = await page.evaluate(() =>
+    [...document.querySelectorAll(".gh-prism-tree")].map((host) => ({
+      rows: host.shadowRoot?.querySelectorAll('[data-type="item"]').length ?? 0,
+      overflows: [
+        ...(host.shadowRoot?.querySelectorAll("[data-file-tree-virtualized-scroll]") ?? []),
+      ].map((scroll) => getComputedStyle(scroll).overflowY),
+    })),
+  );
+  for (const { rows, overflows } of counts) {
+    expect(rows).toBeLessThan(100);
+    expect(overflows).toEqual(["hidden"]);
+  }
+  await expect(page.locator('[data-item-path="bulk/file-299.rs"]')).toHaveCount(0);
+
+  const sidebar = page.locator("#pr-file-tree");
+  await bulk.hover();
+  await page.mouse.wheel(0, 600);
+  await expect.poll(() => sidebar.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+
+  await page.evaluate(() => {
+    const sidebar = document.getElementById("pr-file-tree");
+    const tree = document.querySelector(
+      '.gh-prism-section[data-section="implementation"] .gh-prism-tree',
+    );
+    if (!sidebar || !tree) throw new Error("no sidebar or Implementation tree");
+    const treeTop =
+      tree.getBoundingClientRect().top - sidebar.getBoundingClientRect().top + sidebar.scrollTop;
+    sidebar.scrollTop = treeTop + 151 * 28 - 100;
+  });
+  await expect(page.locator('[data-item-path="bulk/file-150.rs"]')).toBeInViewport();
+});
+
+test("the keyboard reaches a tree's off-screen rows", async ({ context, page }) => {
+  await serve(context, PR_URL, LARGE_PR_BODY);
+  await page.goto(PR_URL);
+  const bulk = page.locator('[data-item-path="bulk/"]');
+  await bulk.focus();
+  await page.keyboard.press("End");
+  const last = page.locator(`[data-item-path="${LAST_IMPLEMENTATION_FILE}"]`);
+  await expect(last).toBeFocused();
+  await expect(last).toBeInViewport();
+  await page.keyboard.press("Home");
+  await expect(bulk).toBeFocused();
+  await expect(bulk).toBeInViewport();
+});
+
+test("GitHub's current file off screen is selected and scrolled into view", async ({
+  context,
+  page,
+}) => {
+  await serve(context, PR_URL, LARGE_PR_BODY);
+  await page.goto(PR_URL);
+  await expect(page.locator('[data-item-path="bulk/"]')).toBeVisible();
+  await page.evaluate(() => {
+    document.getElementById("bulk/file-299.rs")?.setAttribute("aria-current", "true");
+  });
+  const row = page.locator('[data-item-path="bulk/file-299.rs"]');
+  await expect(row).toHaveAttribute("aria-selected", "true");
+  await expect(row).toBeInViewport();
 });

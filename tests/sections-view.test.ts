@@ -624,6 +624,12 @@ describe("showSections", () => {
       diffList().append(region);
     }
 
+    /** What the jump scrolled in the diff list; a focused row's reveal scrolls the sidebar. */
+    const diffScrolls = () =>
+      scrollIntoView.mock.contexts.filter(
+        (context) => context instanceof Node && diffList().contains(context),
+      );
+
     const lineRow = (line: number) => {
       const found = document
         .querySelector(`[data-line-anchor="${RENDER_DIFF}R${line}"]`)
@@ -674,7 +680,7 @@ describe("showSections", () => {
       clickAt(rowIn("docs", "src/render.rs"));
       await afterDebounce();
       expect(scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "instant" });
-      expect(scrollIntoView.mock.contexts[0]).toBe(lineRow(22));
+      expect(diffScrolls()).toEqual([lineRow(22)]);
     });
 
     it("follows the native link for a partial entry with no head lines", async () => {
@@ -690,8 +696,7 @@ describe("showSections", () => {
       clickAt(rowIn("docs", "src/render.rs"));
       mountRenderDiff(2, 22);
       await afterDebounce();
-      expect(scrollIntoView).toHaveBeenCalledOnce();
-      expect(scrollIntoView.mock.contexts[0]).toBe(lineRow(22));
+      expect(diffScrolls()).toEqual([lineRow(22)]);
     });
 
     it("cancels a jump still waiting for its diff to mount when the view is aborted", async () => {
@@ -700,7 +705,88 @@ describe("showSections", () => {
       abort();
       mountRenderDiff(22);
       await afterDebounce();
+      expect(diffScrolls()).toEqual([]);
+    });
+  });
+
+  describe("the sidebar's scroll", () => {
+    let scrollIntoView: MockInstance<Element["scrollIntoView"]>;
+    const revealedTops = () =>
+      scrollIntoView.mock.contexts
+        .filter((context) => context instanceof HTMLElement)
+        .filter((context) => context.getRootNode() === treeHost("implementation").shadowRoot)
+        .map((context) => context.style.top);
+    const moveCurrentTo = (path: string) => {
+      byId("src/lib.rs").removeAttribute("aria-current");
+      byId(path).setAttribute("aria-current", "true");
+    };
+
+    beforeEach(() => {
+      scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => {});
+    });
+    afterEach(() => {
+      scrollIntoView.mockRestore();
+    });
+
+    it("shows each tree the rows where the sidebar's scroll has brought it", () => {
+      const shadow = treeHost("implementation").shadowRoot;
+      const root = shadow?.querySelector("[data-file-tree-virtualized-root]");
+      const scroll = shadow?.querySelector("[data-file-tree-virtualized-scroll]");
+      if (!root || !scroll) throw new Error("the implementation tree has no viewport");
+      vi.spyOn(root, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 300, 200, 900));
+      vi.spyOn(treeHost("implementation"), "getBoundingClientRect").mockReturnValue(
+        new DOMRect(0, 100, 200, 2000),
+      );
+      byId("pr-file-tree").dispatchEvent(new Event("scroll"));
+      expect(scroll.scrollTop).toBe(200);
+    });
+
+    it("brings the row the keyboard focuses into the sidebar's view", async () => {
+      const rows = rowsIn("implementation");
+      rows[0]?.focus();
+      rows[0]?.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "End",
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+        }),
+      );
+      await afterDebounce();
+      expect(treeHost("implementation").shadowRoot?.activeElement).toBe(rows.at(-1));
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
+      expect(revealedTops()).toContain(`${(rows.length - 1) * 28}px`);
+    });
+
+    it("scrolls GitHub's current file into the sidebar's view when it changes", async () => {
+      moveCurrentTo("src/engine.rs");
+      await afterDebounce();
+      const index = rowsIn("implementation").findIndex(
+        (row) => row.dataset.itemPath === "src/engine.rs",
+      );
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
+      expect(revealedTops()).toEqual([`${index * 28}px`]);
+    });
+
+    it("leaves the sidebar's scroll alone while the current file stays", async () => {
+      moveCurrentTo("src/engine.rs");
+      await afterDebounce();
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      scrollIntoView.mockClear();
+      byId("src/engine.rs").setAttribute("aria-label", "engine.rs has 2 comments");
+      await afterDebounce();
       expect(scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    it("renders no window for a tree far outside the sidebar's viewport", () => {
+      const host = treeHost("implementation");
+      const rect = vi.spyOn(host, "getBoundingClientRect");
+      rect.mockReturnValue(new DOMRect(0, 3 * innerHeight, 200, 2000));
+      byId("pr-file-tree").dispatchEvent(new Event("scroll"));
+      expect(host.hasAttribute("data-gh-prism-far")).toBe(true);
+      rect.mockReturnValue(new DOMRect(0, 100, 200, 2000));
+      byId("pr-file-tree").dispatchEvent(new Event("scroll"));
+      expect(host.hasAttribute("data-gh-prism-far")).toBe(false);
     });
   });
 
