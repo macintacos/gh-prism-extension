@@ -1,5 +1,5 @@
-/* GitHub hooks: none. diff-order.ts places the diff list's entries from each page kind's
-   selectors; this sheet holds their reveal and the diff cover. */
+/* GitHub hooks: none. diff-order.ts writes the diff list's rules from each page kind's selectors
+   and places its entries inline; this sheet holds their reveal and the diff cover. */
 
 @keyframes gh-prism-diff-reveal {
   from {

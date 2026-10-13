@@ -76,12 +76,6 @@ function virtualize(): void {
     '<div role="region" id="diff-0a01"></div></div></div>';
 }
 
-/** The diff list entries that carry an inline `order`. */
-const placedEntries = () =>
-  [...document.querySelectorAll('[role="region"]')].filter(
-    (region) => region.parentElement instanceof HTMLElement && region.parentElement.style.order,
-  );
-
 /** The diff list entry holding the diff of the native tree's file at `path`. */
 function entryOf(path: string): HTMLElement {
   const anchor = byId(path).querySelector("a")?.getAttribute("href")?.slice(1) ?? "";
@@ -125,13 +119,15 @@ const GITHUB_ORDER = [
 const progressiveList = () => document.querySelector('[data-testid="progressive-diffs-list"]');
 const diffsProgressBar = () =>
   document.querySelector<HTMLElement>('[data-testid="diff-content"] [role="progressbar"]');
+/** The diff list's entries that carry an inline `order` or `animation-delay`. */
+const placedEntries = () =>
+  [...(progressiveList()?.children ?? [])].filter(
+    (entry) => entry instanceof HTMLElement && (entry.style.order || entry.style.animationDelay),
+  );
 const diffsShown = () => getComputedStyle(progressiveList() ?? document.body).display !== "none";
 
 describe("the diffs beside the sections", () => {
-  beforeEach(() => {
-    mountEveryDiff();
-    remountWith();
-  });
+  beforeEach(mountEveryDiff);
 
   it("lift their cover in the same task the sections render", async () => {
     const pending = pendingIntent();
@@ -171,7 +167,8 @@ describe("the diffs beside the sections", () => {
     const fresh = document.createElement("div");
     fresh.append(...old.children);
     old.replaceWith(fresh);
-    await afterDebounce();
+    await Promise.resolve();
+    expect(fresh.style.order).toBe("2");
     expect(laidOut(progressiveList())).toEqual(SIDEBAR_ORDER);
   });
 
@@ -182,7 +179,23 @@ describe("the diffs beside the sections", () => {
     const entry = document.createElement("div");
     entry.append(...old.children);
     progressiveList()?.append(entry);
-    await afterDebounce();
+    await Promise.resolve();
+    expect(entry.style.order).toBe("2");
+    expect(laidOut(progressiveList())).toEqual(SIDEBAR_ORDER);
+  });
+
+  it("take the sidebar's order when their list appears after the view lands", async () => {
+    byTestId("diff-content").replaceChildren();
+    remountWith();
+    mountEveryDiff();
+    await Promise.resolve();
+    expect(laidOut(progressiveList())).toEqual(SIDEBAR_ORDER);
+  });
+
+  it("take the sidebar's order when GitHub replaces their list after the view lands", async () => {
+    remountWith();
+    mountEveryDiff();
+    await Promise.resolve();
     expect(laidOut(progressiveList())).toEqual(SIDEBAR_ORDER);
   });
 
@@ -308,7 +321,10 @@ describe("the diffs beside the sections", () => {
 
   it("drop their placement once GitHub virtualizes them", async () => {
     expect(placedEntries()).toHaveLength(13);
-    virtualize();
+    byTestId("diff-content").insertAdjacentHTML(
+      "beforeend",
+      '<div data-index="0"><div role="region"></div></div>',
+    );
     byId("src/engine.rs").setAttribute("aria-current", "true");
     await afterDebounce();
     expect(placedEntries()).toHaveLength(0);
