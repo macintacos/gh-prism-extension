@@ -16,7 +16,7 @@ export default defineConfig({
     },
   },
   manifest: {
-    // Remembers which side the file sidebar docks on.
+    // Remembers which side the file sidebar docks on, and caches where each diff's files land.
     permissions: ["storage"],
     // github.com's .diff and raw/ URLs redirect to these two githubusercontent hosts.
     host_permissions: [
