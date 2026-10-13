@@ -188,6 +188,9 @@ export function showSections(
   let landing = landingOf(undefined);
   // The reveal in flight. A newer file click, or the view's abort, cancels it.
   let jump: AbortController | undefined;
+  let clicked: { section: SectionKey; path: string } | undefined;
+  // Only a new current file scrolls the sidebar; re-renders would pull it back mid-scroll.
+  let scrolledTo: string | undefined;
 
   const totalOf = (section: SectionKey) =>
     totalsOf(landing).find((total) => total.section === section)?.lines;
@@ -195,6 +198,7 @@ export function showSections(
   const open = (section: SectionKey, path: string) => {
     const native = readChangedFiles(page.sidebar).find((file) => file.path === path)?.link;
     if (!native) return;
+    clicked = { section, path };
     jump?.abort();
     const line = revealLineOf(landing, path, section);
     jump = new AbortController();
@@ -246,6 +250,22 @@ export function showSections(
     let previous = [...view.querySelectorAll(".gh-prism-notice")].at(-1) ?? null;
     for (const [order, section] of sections.entries())
       previous = showSection(section, order, previous);
+    scrollToCurrent(sections);
+  };
+
+  // A split file's sections each list it; only one of them scrolls the sidebar to it.
+  const scrollToCurrent = (sections: readonly FileSection[]) => {
+    const active = sections.flatMap(({ entries }) => entries).find(({ file }) => file.active)
+      ?.file.path;
+    if (active === undefined || active === scrolledTo) return;
+    const listing = sections.filter(
+      ({ key, entries }) => !collapsed.has(key) && entries.some(({ file }) => file.path === active),
+    );
+    const target =
+      listing.find(({ key }) => clicked?.path === active && clicked.section === key) ?? listing[0];
+    if (!target) return;
+    shown.get(target.key)?.tree.scrollToRow(active);
+    scrolledTo = active;
   };
 
   view.addEventListener(
@@ -257,11 +277,28 @@ export function showSections(
     { signal },
   );
 
+  const sync = () => {
+    for (const { tree } of shown.values()) tree.sync();
+  };
+  // Capture, for the sidebar's pane or the window: scroll events don't bubble.
+  doc.addEventListener(
+    "scroll",
+    (event) => {
+      if (event.target instanceof Node && event.target.contains(view)) sync();
+    },
+    { capture: true, signal },
+  );
+  // A section or directory above a tree changing height moves where the tree has stuck.
+  const resized = new ResizeObserver(sync);
+  resized.observe(view);
+  doc.defaultView?.addEventListener("resize", sync, { signal });
+
   // A DOM clone of the sidebar, such as a restored snapshot, can carry an earlier view.
   for (const stale of page.sidebar.querySelectorAll(".gh-prism-sections")) stale.remove();
   page.tree.before(view);
   doc.head.append(style);
   signal.addEventListener("abort", () => {
+    resized.disconnect();
     for (const { tree } of shown.values()) tree.cleanUp();
     view.remove();
     style.remove();

@@ -80,21 +80,32 @@ function diffOrder(count: number, entrySize: number) {
   };
 }
 
-const renderedRows = () =>
-  [...document.querySelectorAll(".gh-prism-tree")].reduce(
-    (sum, host) => sum + (host.shadowRoot?.querySelectorAll('[data-type="item"]').length ?? 0),
-    0,
+/** Each `.gh-prism-tree`'s count of `selector` in its shadow root. */
+const countsOf = (selector: string) =>
+  [...document.querySelectorAll(".gh-prism-tree")].map(
+    (host) => host.shadowRoot?.querySelectorAll(selector).length ?? 0,
   );
 
-/** Mounts the real sections view on `count` files; times its mount, then a re-render where every status flips. */
-async function sectionTrees(count: number) {
+const rendered = (selector: string) => countsOf(selector).some((count) => count > 0);
+
+/**
+ * Mounts the real sections view on `count` files, its hosts sized as in the sidebar or pinned
+ * at one viewport, ready to mount its trees through their post-paint renders. Then times a
+ * re-render where every status flips, and one where a path changes; throws unless each showed up.
+ */
+function sectionTrees(count: number, hosts: "sidebar" | "fixed" = "sidebar") {
   const files = syntheticFiles(count);
   const page = mountPage(files, 2);
+  if (hosts === "fixed")
+    document.head.insertAdjacentHTML(
+      "beforeend",
+      "<style>.gh-prism-tree { height: 100vh !important; }</style>",
+    );
   const view = showSections(page, new AbortController().signal);
   view.landed?.(NOTHING_PLACED);
   settle();
-  const sectionsWith = (status: "modified" | "added") =>
-    sectionsOf(landingOf(NOTHING_PLACED), changedFiles(document, files, status));
+  const sectionsWith = (status: "modified" | "added", of = files) =>
+    sectionsOf(landingOf(NOTHING_PLACED), changedFiles(document, of, status));
   const modified = sectionsWith("modified");
   const added = sectionsWith("added");
   const renderOf = (sections: FileSection[]) => async () => {
@@ -103,14 +114,46 @@ async function sectionTrees(count: number) {
     await nextTask();
     settle();
   };
-  const mount = await timed(renderOf(modified));
-  const rerender = await timed(renderOf(added));
-  // Two frames: the trees' ResizeObserver-driven virtualization settles before rows are counted.
-  await nextFrame();
-  await nextFrame();
-  const rows = renderedRows();
-  if (rows === 0) throw new Error("the section trees rendered no rows");
-  return { files: count, "mount ms": mount, "re-render ms": rerender, "rendered rows": rows };
+  /** The trees' ResizeObserver-driven virtualization renders over the next frames. */
+  const twoFrames = async () => {
+    await nextFrame();
+    await nextFrame();
+  };
+  const rerenders = async () => {
+    const rerender = await timed(renderOf(added));
+    await twoFrames();
+    if (
+      !rendered('[data-item-git-status="added"]') ||
+      rendered('[data-item-git-status="modified"]')
+    )
+      throw new Error("the status re-render didn't land");
+    const [first, ...rest] = files;
+    if (!first) throw new Error("no files to rename");
+    const renamed = [{ ...first, path: "docs/guide-0/page-0-renamed.md" }, ...rest];
+    const pathRerender = await timed(renderOf(sectionsWith("added", renamed)));
+    await twoFrames();
+    if (
+      !rendered('[data-item-path="docs/guide-0/page-0-renamed.md"]') ||
+      rendered('[data-item-path="docs/guide-0/page-0.md"]')
+    )
+      throw new Error("the path re-render didn't land");
+    const rowsPerTree = countsOf('[data-type="item"]');
+    const total = rowsPerTree.reduce((sum, count) => sum + count, 0);
+    if (total === 0) throw new Error("the section trees rendered no rows");
+    return {
+      "re-render ms": rerender,
+      "path ms": pathRerender,
+      "max rows/tree": Math.max(...rowsPerTree),
+      "rendered rows": total,
+    };
+  };
+  return {
+    mount: async () => {
+      await renderOf(modified)();
+      await twoFrames();
+    },
+    rerenders,
+  };
 }
 
 /** Times `readIntent` over in-memory heads; throws unless every head was read once and some file split. */

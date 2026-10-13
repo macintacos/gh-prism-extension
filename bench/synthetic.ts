@@ -17,7 +17,7 @@ const pathOf = (i: number): string => {
 export const syntheticFiles = (count: number): SyntheticFile[] =>
   Array.from({ length: count }, (_, i) => ({
     path: pathOf(i),
-    // GitHub's anchors are 64 hex digits; the order rules' selectors scale with them.
+    // GitHub's anchors are 64 hex digits.
     anchor: `diff-${i.toString(16).padStart(64, "0")}`,
   }));
 
