@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { FilesRoute } from "../utils/files-route";
 import {
   type FileLines,
+  HEAD_READS_AT_ONCE,
   type IntentResult,
   type IntentSection,
   intentFor,
@@ -870,6 +871,54 @@ describe("readIntent", () => {
       lines: new Map([["src/render.rs", { added: 2, removed: 2 }]]),
     });
     expect(client.fileContent).not.toHaveBeenCalled();
+  });
+
+  it("reads at most HEAD_READS_AT_ONCE heads at once, and reports progress once per file", async () => {
+    const fileCount = HEAD_READS_AT_ONCE * 3;
+    const files = Array.from({ length: fileCount }, (_, i) =>
+      modified(`src/r${i}.rs`, renderPatch),
+    );
+    let inFlight = 0;
+    let peak = 0;
+    const client = {
+      files: async (): Promise<PrFilesResult> => ({ ok: true, files }),
+      fileContent: vi.fn(async (_path: string): Promise<PrFileContentResult> => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        inFlight -= 1;
+        return { ok: true, text: renderHead };
+      }),
+    };
+    const onProgress = vi.fn();
+
+    await readIntent(client, onProgress);
+
+    expect(peak).toBe(HEAD_READS_AT_ONCE);
+    expect(client.fileContent).toHaveBeenCalledTimes(fileCount);
+    expect(onProgress).toHaveBeenCalledTimes(fileCount + 1);
+    expect(onProgress).toHaveBeenLastCalledWith({ checked: fileCount, total: fileCount });
+  });
+
+  it("keeps the diff's file order when reads finish out of order", async () => {
+    const fileCount = HEAD_READS_AT_ONCE + 2;
+    const paths = Array.from({ length: fileCount }, (_, i) => `src/notes${i}.rs`);
+    const files = paths.map((path) => modified(path, notesPatch));
+    const client = {
+      files: async (): Promise<PrFilesResult> => ({ ok: true, files }),
+      fileContent: async (path: string): Promise<PrFileContentResult> => {
+        await new Promise((resolve) => setTimeout(resolve, fileCount - paths.indexOf(path)));
+        return { ok: true, text: notesHead };
+      },
+    };
+
+    const result = await readIntent(client);
+
+    if (!result.ok) throw new Error(result.problem);
+    expect([...result.placements.keys()]).toEqual(paths);
+    expect(result).toEqual(
+      await readIntent(fakeClient({ ok: true, files }, { ok: true, text: notesHead })),
+    );
   });
 });
 

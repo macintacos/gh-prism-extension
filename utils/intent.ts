@@ -18,6 +18,12 @@ import type { DiffRef } from "./pr-ref";
 import type { PrDataProblem } from "./pr-source";
 import { SECTIONS, type SectionKey } from "./sections";
 
+/**
+ * The most files `readIntent` places at once, and so the most heads it reads at once. Over
+ * HTTP/2 the browser sets no limit of its own; more than six invites GitHub's rate limiting.
+ */
+export const HEAD_READS_AT_ONCE = 6;
+
 /** Why the view keeps path-only sections. */
 export type PathOnlyReason = PrDataProblem | "commit-filtered";
 /** The sections a rule can claim a file or hunk for, whatever its path says. */
@@ -139,11 +145,27 @@ const hunksOf = (file: PrFileDiff): PrHunk[] =>
 const linesOf = (file: PrFileDiff): FileLines =>
   file.kind === "binary" ? "binary" : sumHunkLines(hunksOf(file));
 
+/** Maps `items` through `fn` with at most `limit` calls pending at once, keeping input order. */
+async function mapAtMost<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = [];
+  // Every worker pulls from this one iterator, so each item is taken exactly once.
+  const queue = items.entries();
+  const worker = async () => {
+    for (const [i, item] of queue) results[i] = await fn(item);
+  };
+  await Promise.all(Array.from({ length: limit }, worker));
+  return results;
+}
+
 /**
  * Reads the PR's files and places each one's hunks. A file whose head can't be read keeps the hunks
  * its patch settles, and the rest stay in its path section; only a `files()` failure makes the
  * result not ok. `onProgress` reports once after `files()` succeeds, then once per file as it is
- * placed.
+ * placed. At most `HEAD_READS_AT_ONCE` files are placed at once.
  */
 export async function readIntent(
   client: Pick<PrDataClient, "files" | "fileContent">,
@@ -154,16 +176,12 @@ export async function readIntent(
   const total = listed.files.length;
   onProgress?.({ checked: 0, total });
   let checked = 0;
-  // ponytail: unbounded concurrency; every file a rule needs content for reads at once.
-  // Cap it with a worker pool if reads trip rate-limited.
-  const placed = await Promise.all(
-    listed.files.map(async (file) => {
-      const placement = placementOf(file, await hunkSections(client, file));
-      checked += 1;
-      onProgress?.({ checked, total });
-      return { path: file.path, placement };
-    }),
-  );
+  const placed = await mapAtMost(listed.files, HEAD_READS_AT_ONCE, async (file) => {
+    const placement = placementOf(file, await hunkSections(client, file));
+    checked += 1;
+    onProgress?.({ checked, total });
+    return { path: file.path, placement };
+  });
   const placements = new Map<string, Placement>();
   for (const { path, placement } of placed) {
     if (placement === undefined) continue;
