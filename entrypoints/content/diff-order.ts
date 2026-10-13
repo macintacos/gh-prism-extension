@@ -4,8 +4,8 @@
  * Each listed file's entry, the list child GitHub renders, deliberately gets an inline `order`
  * and `animation-delay`: that restyles the entry alone, where a `:has()` rule per file is matched
  * against every entry's subtree. React sets only the style keys it renders, so both survive its
- * re-renders; the view's removal strips them. GitHub's virtualized lists, which place each diff absolutely, keep GitHub's
- * order.
+ * re-renders; the view's removal strips them. GitHub's virtualized lists, which place each diff
+ * absolutely, keep GitHub's order.
  */
 
 import { SECTIONS } from "@/utils/sections";

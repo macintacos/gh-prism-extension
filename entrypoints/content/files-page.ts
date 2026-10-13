@@ -30,7 +30,10 @@ export interface PageKind {
   readonly diffList: string;
   /** Every file's entry in `diffList`. */
   readonly diffEntries: string;
-  /** CSS selecting the entry of the file whose anchor is `anchor`; only a block list's first file. */
+  /**
+   * CSS selecting the entry of the file whose anchor is `anchor`; used only for a block list's
+   * first file.
+   */
   readonly diffEntry: (anchor: string) => string;
   /**
    * How GitHub lays out `diffList`: a flex column, or a block that opens on a toolbar and spaces
