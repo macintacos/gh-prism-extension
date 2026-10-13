@@ -15,46 +15,11 @@ const modified = (path: string, patch: string): PrFileDiff => ({
   patch,
 });
 
-interface InlineCase {
-  readonly name: string;
-  readonly path: string;
-  readonly head: string;
-  readonly patch: string;
-  readonly expected: boolean;
-}
-
 interface GateCase {
   readonly name: string;
   readonly file: PrFileDiff;
   readonly expected: boolean;
 }
-
-// The new side of src/lib.rs on sandbox PR #3 (head 5fcad454), lines 1–23.
-const prThreeLib = lines(
-  "pub mod engine;",
-  "pub mod notes;",
-  "pub mod parser;",
-  "pub mod render;",
-  "",
-  "pub fn version() -> &'static str {",
-  '    "0.1.0"',
-  "}",
-  "",
-  "#[cfg(test)]",
-  "mod tests {",
-  "    use super::*;",
-  "",
-  "    #[test]",
-  "    fn version_is_semver() {",
-  '        assert_eq!(version().split(".").count(), 3);',
-  "    }",
-  "",
-  "    #[test]",
-  "    fn reports_version() {",
-  '        assert_eq!(version(), "0.1.0");',
-  "    }",
-  "}",
-);
 
 const gateCases: GateCase[] = [
   {
@@ -129,6 +94,41 @@ const gateCases: GateCase[] = [
     expected: false,
   },
 ];
+
+interface InlineCase {
+  readonly name: string;
+  readonly path: string;
+  readonly head: string;
+  readonly patch: string;
+  readonly expected: boolean;
+}
+
+// The new side of src/lib.rs on sandbox PR #3 (head 5fcad454), lines 1–23.
+const prThreeLib = lines(
+  "pub mod engine;",
+  "pub mod notes;",
+  "pub mod parser;",
+  "pub mod render;",
+  "",
+  "pub fn version() -> &'static str {",
+  '    "0.1.0"',
+  "}",
+  "",
+  "#[cfg(test)]",
+  "mod tests {",
+  "    use super::*;",
+  "",
+  "    #[test]",
+  "    fn version_is_semver() {",
+  '        assert_eq!(version().split(".").count(), 3);',
+  "    }",
+  "",
+  "    #[test]",
+  "    fn reports_version() {",
+  '        assert_eq!(version(), "0.1.0");',
+  "    }",
+  "}",
+);
 
 const rustCases: InlineCase[] = [
   {

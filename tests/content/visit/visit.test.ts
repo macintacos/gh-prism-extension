@@ -49,12 +49,14 @@ function recording(name: string): LandingView {
 /** A pending intent that reports its first progress as soon as it is read, before any view asks. */
 function replayingIntent() {
   const deferred = Promise.withResolvers<IntentResult>();
+
   let report: (progress: IntentProgress) => void = () => {};
   const intent: PendingIntent = (onProgress) => {
     report = onProgress;
     onProgress({ checked: 0, total: 2 });
     return deferred.promise;
   };
+
   return { intent, resolve: deferred.resolve, progress: (p: IntentProgress) => report(p) };
 }
 
@@ -65,12 +67,15 @@ beforeEach(() => {
   vi.useFakeTimers();
   loadFixture();
   controller = new AbortController();
+
   const found = findFilesPage(document);
   if (!found) throw new Error("fixture lacks the Files changed markup");
   page = found;
+
   log = [];
   received.length = 0;
 });
+
 afterEach(() => {
   controller.abort();
   vi.useRealTimers();
@@ -81,6 +86,7 @@ describe("land", () => {
     const { intent, progress } = replayingIntent();
     mount(intent);
     expect(log).toEqual(["a.pending", "b.pending", "a.progress", "b.progress"]);
+
     progress({ checked: 1, total: 2 });
     expect(log.slice(4)).toEqual(["a.progress", "b.progress"]);
   });
@@ -89,8 +95,10 @@ describe("land", () => {
     const { intent, resolve } = replayingIntent();
     mount(intent);
     log.length = 0;
+
     resolve(result);
     await vi.runAllTimersAsync();
+
     expect(log).toEqual(["a.landed", "b.landed", "a.sections", "b.sections"]);
     expect(received[1]).toBe(received[0]);
     expect(received[0]?.map(({ key }) => key)).toEqual(
@@ -107,9 +115,11 @@ describe("land", () => {
     const ignored = page.sidebar.appendChild(document.createElement("div"));
     mount(() => result, ignored);
     log.length = 0;
+
     ignored.append(document.createElement("span"));
     await vi.advanceTimersByTimeAsync(100);
     expect(log).toEqual([]);
+
     byId("src/lib.rs").removeAttribute("aria-current");
     await vi.advanceTimersByTimeAsync(100);
     expect(log).toEqual(["a.sections", "b.sections"]);
@@ -118,8 +128,10 @@ describe("land", () => {
   it("does not re-list a change to the native tree before landing", async () => {
     mount(replayingIntent().intent);
     log.length = 0;
+
     byId("src/lib.rs").removeAttribute("aria-current");
     await vi.advanceTimersByTimeAsync(100);
+
     expect(log).toEqual([]);
   });
 });
@@ -130,18 +142,22 @@ describe("intent shared by each view of one visit", () => {
   it("is read once, however many views follow it", () => {
     const read = vi.fn(pendingIntent().intent);
     const shared = shareIntent(read);
+
     remountWith(shared);
     remountWith(shared);
+
     expect(read).toHaveBeenCalledOnce();
   });
 
   it("resumes a view mounted mid-read at the latest progress", () => {
     const pending = pendingIntent();
     const shared = shareIntent(pending.intent);
+
     remountWith(shared);
     pending.progress({ checked: 2, total: 3 });
     remountWith(shared);
     expect(progressBar()?.getAttribute("aria-valuenow")).toBe("2");
+
     pending.progress({ checked: 3, total: 3 });
     expect(progressBar()?.getAttribute("aria-valuenow")).toBe("3");
   });
@@ -150,9 +166,11 @@ describe("intent shared by each view of one visit", () => {
     const shared = shareIntent(() =>
       Promise.resolve(landedWith(new Map([["src/parser.rs", whole("docs")]]))),
     );
+
     remountWith(shared);
     await afterDebounce();
     remountWith(shared);
+
     expect(progressBar()).toBeNull();
     expect(view()?.hasAttribute("aria-busy")).toBe(false);
     expect(view()?.hasAttribute("data-reveal")).toBe(false);

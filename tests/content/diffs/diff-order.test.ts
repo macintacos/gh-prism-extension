@@ -27,12 +27,14 @@ const { remountWith, landed, abort } = mountsVisit();
 function mountEveryDiff(): void {
   const list = document.createElement("div");
   list.dataset.testid = "progressive-diffs-list";
+
   for (const link of document.querySelectorAll('ul[role="tree"] a[href^="#diff-"]')) {
     const entry = document.createElement("div");
     entry.className = "PullRequestDiffsList-module__diffEntry__djnVa";
     entry.innerHTML = `<div role="region" id="${link.getAttribute("href")?.slice(1)}"></div>`;
     list.append(entry);
   }
+
   document.querySelector('[data-testid="diff-content"]')?.replaceChildren(list);
 }
 
@@ -46,6 +48,7 @@ function laidOut(list: Element | null): string[] {
     index,
     order: Number(getComputedStyle(entry).order) || 0,
   }));
+
   return placed
     .sort((a, b) => a.order - b.order || a.index - b.index)
     .flatMap(({ entry }) => {
@@ -56,6 +59,7 @@ function laidOut(list: Element | null): string[] {
         ""
       ).replace(/^#/, "");
       if (!anchor) return [];
+
       const row = document
         .querySelector(`ul[role="tree"] a[href="#${anchor}"]`)
         ?.closest('[role="treeitem"]');
@@ -133,8 +137,10 @@ describe("the diffs beside the sections", () => {
     const pending = pendingIntent();
     remountWith(pending.intent);
     expect(diffsShown()).toBe(false);
+
     pending.resolve(landedWith());
     await vi.advanceTimersByTimeAsync(0);
+
     expect(sectionKeys()).toHaveLength(5);
     expect(diffsShown()).toBe(true);
     expect(diffsProgressBar()).toBeNull();
@@ -144,6 +150,7 @@ describe("the diffs beside the sections", () => {
     virtualize();
     await landed({ ok: false, problem: "no-access" });
     const [first, second, third] = [...(view()?.children ?? [])];
+
     expect(first?.textContent).toBe(
       "Grouped by path. Sign in to GitHub to detect docstring-only and inline-test changes.",
     );
@@ -168,6 +175,7 @@ describe("the diffs beside the sections", () => {
     fresh.append(...old.children);
     old.replaceWith(fresh);
     await Promise.resolve();
+
     expect(fresh.style.order).toBe("2");
     expect(laidOut(progressiveList())).toEqual(SIDEBAR_ORDER);
   });
@@ -180,6 +188,7 @@ describe("the diffs beside the sections", () => {
     entry.append(...old.children);
     progressiveList()?.append(entry);
     await Promise.resolve();
+
     expect(entry.style.order).toBe("2");
     expect(laidOut(progressiveList())).toEqual(SIDEBAR_ORDER);
   });
@@ -189,6 +198,7 @@ describe("the diffs beside the sections", () => {
     remountWith();
     mountEveryDiff();
     await Promise.resolve();
+
     expect(laidOut(progressiveList())).toEqual(SIDEBAR_ORDER);
   });
 
@@ -205,7 +215,9 @@ describe("the diffs beside the sections", () => {
       region.replaceWith(wrapper);
       wrapper.append(region);
     }
+
     remountWith();
+
     expect(laidOut(progressiveList())).toEqual(GITHUB_ORDER);
     expect(placedEntries()).toEqual([]);
   });
@@ -220,6 +232,7 @@ describe("the diffs beside the sections", () => {
 
   it("put a file intent moves where the sidebar lists it", async () => {
     await landed(landedWith(new Map([["src/notes.rs", whole("docs")]])));
+
     expect(laidOut(progressiveList())).toEqual([
       "src/generated/schema.rs",
       "src/engine.rs",
@@ -243,11 +256,13 @@ describe("the diffs beside the sections", () => {
       hunks: [{ first: 1, last: 2 }],
       lines: { added: 1, removed: 1 },
     });
+
     await landed(
       landedWith(
         new Map([["src/render.rs", { kind: "split", shares: [share("tests"), share("docs")] }]]),
       ),
     );
+
     expect(laidOut(progressiveList())).toEqual([
       "src/generated/schema.rs",
       "src/engine.rs",
@@ -273,6 +288,7 @@ describe("the diffs beside the sections", () => {
     entry.innerHTML = '<div role="region" id="diff-0a14"></div>';
     progressiveList()?.append(entry);
     await afterDebounce();
+
     expect(laidOut(progressiveList()).slice(8, 11)).toEqual([
       "docs/guide.md",
       "docs/intro.md",
@@ -321,12 +337,14 @@ describe("the diffs beside the sections", () => {
 
   it("drop their placement once GitHub virtualizes them", async () => {
     expect(placedEntries()).toHaveLength(13);
+
     byTestId("diff-content").insertAdjacentHTML(
       "beforeend",
       '<div data-index="0"><div role="region"></div></div>',
     );
     byId("src/engine.rs").setAttribute("aria-current", "true");
     await afterDebounce();
+
     expect(placedEntries()).toHaveLength(0);
   });
 
@@ -336,6 +354,7 @@ describe("the diffs beside the sections", () => {
     mountEveryDiff();
     byId("src/engine.rs").setAttribute("aria-current", "true");
     await afterDebounce();
+
     expect(laidOut(progressiveList()).slice(0, 2)).toEqual([
       "src/generated/schema.rs",
       "src/engine.rs",
@@ -355,10 +374,13 @@ describe("the diffs beside the sections", () => {
       if (!page) throw new Error("fixture lacks the Files changed markup");
       const controller = new AbortController();
       showDiffOrder(page, controller.signal).pending?.();
+
       expect(diffsProgressBar()).not.toBeNull();
       expect(sheetsStyling("gh-prism-diff-card")).toHaveLength(1);
       expect(sheetsStyling("gh-prism-loading-label")).toHaveLength(1);
+
       controller.abort();
+
       expect(sheetsStyling("gh-prism-diff-card")).toHaveLength(0);
       expect(sheetsStyling("gh-prism-loading-label")).toHaveLength(0);
     });
@@ -366,6 +388,7 @@ describe("the diffs beside the sections", () => {
     it("show anyway once the read has taken 15 seconds", async () => {
       remountWith(pendingIntent().intent);
       await vi.advanceTimersByTimeAsync(15_000);
+
       expect(diffsShown()).toBe(true);
       expect(diffsProgressBar()).toBeNull();
       expect(progressBar()).not.toBeNull();
@@ -383,6 +406,7 @@ describe("the diffs beside the sections", () => {
       remountWith(pending.intent);
       pending.resolve(landedWith(new Map([["src/notes.rs", whole("docs")]])));
       await afterDebounce();
+
       expect(diffsShown()).toBe(true);
       expect(diffsProgressBar()).toBeNull();
       expect(laidOut(progressiveList()).slice(7, 10)).toEqual([
@@ -394,6 +418,7 @@ describe("the diffs beside the sections", () => {
 
     it("hand GitHub the URL's hash afresh once they show, since it can't land on hidden diffs", async () => {
       history.replaceState(null, "", "#diff-0a08R2");
+
       const announced: string[] = [];
       // happy-dom also fires hashchange, a tick late, whenever replaceState changes the hash.
       const ours = vi.spyOn(globalThis, "HashChangeEvent");
@@ -401,13 +426,16 @@ describe("the diffs beside the sections", () => {
         if (ours.mock.results.some(({ value }) => value === event)) announced.push(location.hash);
       };
       window.addEventListener("hashchange", listen);
+
       const pending = pendingIntent();
       remountWith(pending.intent);
       pending.resolve(landedWith());
       await afterDebounce();
+
       window.removeEventListener("hashchange", listen);
       ours.mockRestore();
       history.replaceState(null, "", location.pathname);
+
       expect(announced).toEqual(["", "#diff-0a08R2"]);
     });
 
@@ -417,7 +445,9 @@ describe("the diffs beside the sections", () => {
       pending.resolve(landedWith());
       await vi.advanceTimersByTimeAsync(599);
       expect(document.documentElement.dataset.ghPrismDiffs).toBe("revealed");
+
       await vi.advanceTimersByTimeAsync(1);
+
       expect(document.documentElement.dataset.ghPrismDiffs).toBeUndefined();
     });
   });
@@ -427,6 +457,7 @@ describe("a commit's diffs beside the sections", () => {
   it("lie in the sidebar's order, the first flush under the toolbar", () => {
     abort();
     loadCommitFixture();
+
     const [launcher, test] = [...document.querySelectorAll('[role="region"]')].map(
       (region) => region.parentElement,
     );
@@ -435,7 +466,9 @@ describe("a commit's diffs beside the sections", () => {
     launcher.before(test);
     test.style.paddingTop = "0px";
     launcher.style.paddingTop = "16px";
+
     remountWith();
+
     expect(laidOut(launcher.parentElement)).toEqual([
       "bin/caret-launcher",
       "test/core/commands/install/launcher.test.ts",

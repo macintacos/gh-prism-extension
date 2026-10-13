@@ -26,6 +26,7 @@ type Side = PrDataPort & {
 function side(): Side {
   const messageListeners: ((m: unknown) => void)[] = [];
   const disconnectListeners: (() => void)[] = [];
+
   return {
     messageListeners,
     disconnectListeners,
@@ -40,6 +41,7 @@ function side(): Side {
 function portPair(): [Side, Side] {
   const a = side();
   const b = side();
+
   for (const [from, to] of [
     [a, b],
     [b, a],
@@ -50,10 +52,12 @@ function portPair(): [Side, Side] {
         for (const listener of to.messageListeners) listener(copy);
       });
     };
+
     from.disconnect = () => {
       for (const listener of to.disconnectListeners) listener();
     };
   }
+
   return [a, b];
 }
 
@@ -98,6 +102,7 @@ describe("openPrData", () => {
       { kind: "commit", owner: "o", repo: "r", headSha: sha },
       undefined,
     );
+
     expect((await client.files()).ok).toBe(true);
     expect(await client.fileContent("src/engine.rs")).toEqual({ ok: true, text: "fn main() {}" });
     expect(urls(fetchFn)).toEqual([
@@ -115,16 +120,19 @@ describe("openPrData", () => {
       { kind: "commit", owner: "o", repo: "r", headSha: "abcdef1" },
       undefined,
     );
+
     expect((await client.files()).ok).toBe(true);
   });
 
   it("resolves the head once for concurrent calls when the page has none", async () => {
     const fetchFn = routedFetch(okRoutes());
     const client = openPrData(harness(fetchFn).connect, pr, undefined);
+
     const [files, content] = await Promise.all([
       client.files(),
       client.fileContent("src/engine.rs"),
     ]);
+
     expect(files.ok && content.ok).toBe(true);
     expect(urls(fetchFn).filter((u) => u === `${base}/pull/7`)).toHaveLength(1);
     expect(urls(fetchFn)).toContain(`${base}/raw/${sha}/src/engine.rs`);
@@ -166,11 +174,14 @@ describe("openPrData", () => {
     });
     const { connect, servers } = harness(fetchFn);
     const client = openPrData(connect, pr, sha);
+
     void client.files();
     await vi.waitFor(() => expect(seen).toBeDefined());
     const post = vi.spyOn(servers[0] as Side, "postMessage");
+
     client.close();
     await new Promise((r) => setTimeout(r, 0));
+
     expect(seen?.aborted).toBe(true);
     expect(post).not.toHaveBeenCalled();
   });
@@ -183,9 +194,12 @@ describe("openPrData", () => {
     const fetchFn = routedFetch(routes);
     const { connect, servers } = harness(fetchFn);
     const client = openPrData(connect, pr, sha);
+
     const pending = client.files();
     await vi.waitFor(() => expect(urls(fetchFn)).toContain(`${base}/pull/7.diff`));
+
     servers[0]?.disconnect();
+
     expect(await pending).toEqual({ ok: false, problem: "failed" });
     expect((await client.fileContent("src/engine.rs")).ok).toBe(true);
     expect(connect).toHaveBeenCalledTimes(2);
@@ -203,6 +217,7 @@ describe("openPrData", () => {
       },
     });
     const client = openPrData(harness(fetchFn).connect, pr, undefined);
+
     expect(await client.files()).toEqual({ ok: false, problem: "failed" });
     expect((await client.fileContent("src/engine.rs")).ok).toBe(true);
     expect(await client.files()).toMatchObject({ ok: true, headSha: sha });
@@ -216,12 +231,14 @@ describe("openPrData", () => {
       pr,
       sha,
     );
+
     expect(await client.files()).toEqual({ ok: false, problem: "failed" });
   });
 
   it("reports a throwing post as failed and reconnects on the next call", async () => {
     const fetchFn = routedFetch(okRoutes());
     const { connect: connectServed } = harness(fetchFn);
+
     let failFirstPort = true;
     const connect = vi.fn(() => {
       const port = connectServed();
@@ -233,7 +250,9 @@ describe("openPrData", () => {
       }
       return port;
     });
+
     const client = openPrData(connect, pr, sha);
+
     expect(await client.fileContent("src/engine.rs")).toEqual({ ok: false, problem: "failed" });
     expect((await client.fileContent("src/engine.rs")).ok).toBe(true);
     expect(connect).toHaveBeenCalledTimes(2);
@@ -263,11 +282,13 @@ describe("openPrData", () => {
       }),
       content: vi.fn(),
     };
+
     const connect = () => {
       const [client, server] = portPair();
       servePrDataPort(server, source);
       return client;
     };
+
     const onUnhandled = vi.fn();
     process.on("unhandledRejection", onUnhandled);
     try {
@@ -282,9 +303,11 @@ describe("openPrData", () => {
     const { connect } = harness(routedFetch(okRoutes()));
     const client = openPrData(connect, pr, sha);
     client.close();
+
     const settled = vi.fn();
     void client.files().then(settled);
     await new Promise((r) => setTimeout(r, 0));
+
     expect(settled).not.toHaveBeenCalled();
     expect(connect).not.toHaveBeenCalled();
   });
@@ -293,6 +316,7 @@ describe("openPrData", () => {
     const { connect } = harness(routedFetch(okRoutes()), (server) => {
       const post = server.postMessage;
       let failNextPost = true;
+
       server.postMessage = (m) => {
         if (failNextPost) {
           failNextPost = false;
@@ -300,8 +324,10 @@ describe("openPrData", () => {
         }
         post(m);
       };
+
       return server;
     });
+
     expect(await openPrData(connect, pr, sha).files()).toEqual({ ok: false, problem: "too-large" });
   });
 
@@ -312,6 +338,7 @@ describe("openPrData", () => {
       [`${base}/pull/7.diff`]: held(diff),
     });
     const client = openPrData(harness(fetchFn).connect, pr, undefined);
+
     const listed = client.files();
     await vi.waitFor(() =>
       expect(urls(fetchFn)).toEqual(
@@ -319,6 +346,7 @@ describe("openPrData", () => {
       ),
     );
     for (const go of release) go();
+
     expect((await listed).ok).toBe(true);
     expect(await client.files()).toMatchObject({ ok: true, headSha: sha });
     expect(urls(fetchFn)).toHaveLength(2);
@@ -333,8 +361,10 @@ describe("servePrDataPort", () => {
     const replies: unknown[] = [];
     client.messageListeners.push((m) => replies.push(m));
     servePrDataPort(server, createPrDataSource(fetchFn));
+
     client.postMessage(message);
     await new Promise((r) => setTimeout(r, 0));
+
     expect(fetchFn).not.toHaveBeenCalled();
     return replies;
   };

@@ -56,6 +56,7 @@ export function mountsVisit() {
   ): void => {
     controller.abort();
     controller = new AbortController();
+
     const page = findFilesPage(document);
     if (!page) throw new Error("fixture lacks the Files changed markup");
     showVisit(page, controller.signal, { intent, diffstat });
@@ -66,6 +67,7 @@ export function mountsVisit() {
     loadFixture();
     remountWith();
   });
+
   afterEach(() => {
     controller.abort();
     vi.useRealTimers();

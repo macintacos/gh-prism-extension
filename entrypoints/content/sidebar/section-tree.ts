@@ -52,40 +52,19 @@ export class SectionTree {
     this.#host = host;
     this.#files = files;
     this.#byPath = byPath(files);
-    this.#tree = new FileTree({
-      preparedInput: preparePresortedFileTreeInput(files.map(({ path }) => path)),
-      flattenEmptyDirectories: true,
-      icons: {
-        set: "standard",
-        spriteSheet: FOLDER_SPRITE,
-        remap: { "file-tree-icon-chevron": "gh-prism-folder" },
-      },
-      initialExpansion: "open",
-      gitStatus: gitStatusOf(files),
-      renderRowDecoration: ({ item }) => this.#byPath.get(item.path)?.decoration ?? null,
-      itemHeight: ROW_HEIGHT,
-      unsafeCSS: css,
-    });
+    this.#tree = fileTreeOf(files, (path) => this.#byPath.get(path)?.decoration ?? null);
     this.#fit();
     this.#tree.render({ fileTreeContainer: host });
+
     // Stands in for a row the viewport hasn't rendered, so scrollIntoView reaches every scroller.
     this.#probe = el(host.ownerDocument, "span", "gh-prism-probe");
     this.#probe.style.height = `${ROW_HEIGHT}px`;
     const shadow = host.shadowRoot;
-    shadow?.append(this.#probe);
-    // The library scrolls only its own viewport to a focused row, so the sidebar has to follow.
-    // It also re-focuses a row the viewport unmounted, which must not pull the sidebar back.
-    shadow?.addEventListener("focusin", () => {
-      const path = this.#tree.getFocusedPath();
-      if (path === this.#focused) return;
-      this.#focused = path;
-      this.#scrollTo(this.#tree.getFocusedIndex());
-    });
-    shadow?.addEventListener("focusout", (event) => {
-      // A null relatedTarget is a row unmounting or the window blurring, not focus leaving.
-      const next = event instanceof FocusEvent ? event.relatedTarget : null;
-      if (next instanceof Node && next.getRootNode() !== shadow) this.#focused = undefined;
-    });
+    if (shadow) {
+      shadow.append(this.#probe);
+      this.#followFocus(shadow);
+    }
+
     this.#select(selected);
     this.#tree.subscribe(() => {
       // The tree selects on clicks too, but only the native tree's current row may be selected.
@@ -103,6 +82,7 @@ export class SectionTree {
     const previous = this.#files;
     this.#files = files;
     this.#byPath = byPath(files);
+
     const pathsChanged = changed(previous, files, ({ path }) => path);
     if (pathsChanged) this.#resetPaths(previous);
     // A path or status change re-renders every row, decorations included.
@@ -111,6 +91,7 @@ export class SectionTree {
     } else if (changed(previous, files, ({ decoration }) => JSON.stringify(decoration))) {
       this.#tree.render({ fileTreeContainer: this.#host });
     }
+
     this.#select(selected);
   }
 
@@ -123,10 +104,12 @@ export class SectionTree {
     const root = this.#host.shadowRoot?.querySelector("[data-file-tree-virtualized-root]");
     const scroll = root?.querySelector("[data-file-tree-virtualized-scroll]");
     if (!root || !scroll) return;
+
     const hostBox = this.#host.getBoundingClientRect();
     const offset = root.getBoundingClientRect().top - hostBox.top;
     // The page's height bounds the pane's.
     const viewportHeight = this.#host.ownerDocument.defaultView?.innerHeight ?? 0;
+
     this.#host.toggleAttribute(
       "data-gh-prism-far",
       hostBox.bottom < -viewportHeight || hostBox.top > 2 * viewportHeight,
@@ -146,6 +129,24 @@ export class SectionTree {
   /** Removes the tree's rows and releases it. */
   cleanUp(): void {
     this.#tree.cleanUp();
+  }
+
+  /**
+   * The library scrolls only its own viewport to a focused row, so the sidebar has to follow.
+   * It also re-focuses a row the viewport unmounted, which must not pull the sidebar back.
+   */
+  #followFocus(shadow: ShadowRoot): void {
+    shadow.addEventListener("focusin", () => {
+      const path = this.#tree.getFocusedPath();
+      if (path === this.#focused) return;
+      this.#focused = path;
+      this.#scrollTo(this.#tree.getFocusedIndex());
+    });
+    shadow.addEventListener("focusout", (event) => {
+      // A null relatedTarget is a row unmounting or the window blurring, not focus leaving.
+      const next = event instanceof FocusEvent ? event.relatedTarget : null;
+      if (next instanceof Node && next.getRootNode() !== shadow) this.#focused = undefined;
+    });
   }
 
   #resetPaths(previous: readonly TreeFile[]): void {
@@ -185,6 +186,27 @@ export class SectionTree {
     const height = `${this.#tree.getVisibleCount() * ROW_HEIGHT}px`;
     if (this.#host.style.height !== height) this.#host.style.height = height;
   }
+}
+
+/** A tree of `files`, every directory open, that asks `decorationOf` for each row's decoration. */
+function fileTreeOf(
+  files: readonly TreeFile[],
+  decorationOf: (path: string) => FileTreeRowDecoration | null,
+): FileTree {
+  return new FileTree({
+    preparedInput: preparePresortedFileTreeInput(files.map(({ path }) => path)),
+    flattenEmptyDirectories: true,
+    icons: {
+      set: "standard",
+      spriteSheet: FOLDER_SPRITE,
+      remap: { "file-tree-icon-chevron": "gh-prism-folder" },
+    },
+    initialExpansion: "open",
+    gitStatus: gitStatusOf(files),
+    renderRowDecoration: ({ item }) => decorationOf(item.path),
+    itemHeight: ROW_HEIGHT,
+    unsafeCSS: css,
+  });
 }
 
 const byPath = (files: readonly TreeFile[]) => new Map(files.map((file) => [file.path, file]));

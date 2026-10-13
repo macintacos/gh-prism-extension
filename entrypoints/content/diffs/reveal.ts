@@ -113,17 +113,21 @@ export async function revealDiffLine(
   // Re-found each time: GitHub may replace a region when it expands or loads it.
   const diff = () => findDiff(page, link);
   const row = () => lineRowOf(diff(), link, line);
+
   if (!diff()) {
     // GitHub mounts a virtualized diff and scrolls to its header
     revealDiff(page, link, { signal });
     if (!(await untilFound(diffs, diff, signal))) return;
   }
+
   if (!row() && clicked(expandButtonOf(diff())))
     await untilFound(diffs, () => expandedDiff(diff()), signal);
   if (signal.aborted) return;
+
   let target = row();
   if (!target && clicked(loadDiffButtonOf(diff()))) target = await untilFound(diffs, row, signal);
   if (signal.aborted) return;
+
   if (target) centre(target);
   else revealDiff(page, link, { signal }); // the file's header
 }
@@ -153,6 +157,7 @@ function untilFound<T>(
 ): Promise<T | null> {
   return new Promise((resolve) => {
     if (signal.aborted) return resolve(null);
+
     const watching = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const finish = (found: T | null) => {
@@ -164,6 +169,7 @@ function untilFound<T>(
       const found = find();
       if (found !== null) finish(found);
     };
+
     signal.addEventListener("abort", () => finish(null), { signal: watching.signal });
     timer = setTimeout(() => finish(find()), REVEAL_TIMEOUT_MS);
     observeDiffs(diffs, check, { signal: watching.signal });

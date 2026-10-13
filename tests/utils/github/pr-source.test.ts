@@ -5,6 +5,7 @@ import { heldResponses, routedFetch } from "../../fixtures/fetch";
 
 const shaA = "a".repeat(40);
 const shaB = "b".repeat(40);
+
 const sandbox: PrHead = {
   kind: "pr",
   owner: "macintacos",
@@ -54,6 +55,7 @@ describe("files", () => {
     const fetchFn = okFetch();
     const s = signal();
     const result = await createPrDataSource(fetchFn).files(sandbox, s);
+
     expect(fetchFn).toHaveBeenCalledWith(
       "https://github.com/macintacos/gh-prism-sandbox/pull/1.diff",
       { credentials: "include", signal: s },
@@ -70,6 +72,7 @@ describe("files", () => {
     const fetchFn = okFetch();
     const s = signal();
     const result = await createPrDataSource(fetchFn).files(commit, s);
+
     expect(fetchFn).toHaveBeenCalledWith("https://github.com/o/r/commit/dd95cdc.diff", {
       credentials: "include",
       signal: s,
@@ -81,9 +84,11 @@ describe("files", () => {
     const fetchFn = okFetch();
     const source = createPrDataSource(fetchFn);
     const atA: CommitHead = { kind: "commit", owner: "o", repo: "r", headSha: shaA };
+
     await source.files(atA, signal());
     await source.files({ ...pr7, headSha: shaA }, signal());
     await source.files(atA, signal());
+
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
@@ -91,28 +96,36 @@ describe("files", () => {
     const fetchFn = okFetch();
     const source = createPrDataSource(fetchFn);
     const atA: CommitHead = { kind: "commit", owner: "o", repo: "r", headSha: shaA };
+
     await source.files(atA, signal());
     await source.files(atA, signal());
     await source.files({ ...atA, headSha: shaB }, signal());
     await source.files(atA, signal());
+
     expect(fetchFn).toHaveBeenCalledTimes(3);
   });
 
   it("serves a repeat request for the same head from cache", async () => {
     const fetchFn = okFetch();
     const source = createPrDataSource(fetchFn);
+
     await source.files(sandbox, signal());
     await source.files(sandbox, signal());
+
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
   it("replaces the cached entry when the head changes", async () => {
     const fetchFn = okFetch();
     const source = createPrDataSource(fetchFn);
+
     await source.files(sandbox, signal());
     await source.files({ ...sandbox, headSha: shaB }, signal());
+
     expect(fetchFn).toHaveBeenCalledTimes(2);
+
     await source.files(sandbox, signal());
+
     expect(fetchFn).toHaveBeenCalledTimes(3);
   });
 
@@ -122,6 +135,7 @@ describe("files", () => {
       .mockResolvedValueOnce(new Response("", { status: 500 }))
       .mockResolvedValueOnce(new Response(diff));
     const source = createPrDataSource(fetchFn);
+
     expect(await source.files(sandbox, signal())).toEqual({ ok: false, problem: "failed" });
     expect((await source.files(sandbox, signal())).ok).toBe(true);
     expect(fetchFn).toHaveBeenCalledTimes(2);
@@ -134,12 +148,15 @@ describe("files", () => {
       .mockReturnValueOnce(new Promise<Response>((r) => (finishA = r)))
       .mockResolvedValue(new Response(diff));
     const source = createPrDataSource(fetchFn);
+
     const headB = { ...sandbox, headSha: shaB };
+
     const lateA = source.files(sandbox, signal());
     await source.files(headB, signal());
     finishA(new Response(diff));
     await lateA;
     await source.files(headB, signal());
+
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
@@ -192,8 +209,10 @@ describe("files", () => {
         }),
     );
     const controller = new AbortController();
+
     const pending = createPrDataSource(fetchFn).files(sandbox, controller.signal);
     controller.abort();
+
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
   });
 });
@@ -205,6 +224,7 @@ describe("content", () => {
     const fetchFn = okFetch("fn main() {}");
     const s = signal();
     const result = await createPrDataSource(fetchFn).content(head, "src/my file.rs", s);
+
     expect(fetchFn).toHaveBeenCalledWith(`https://github.com/o/r/raw/${shaA}/src/my%20file.rs`, {
       credentials: "include",
       signal: s,
@@ -224,12 +244,16 @@ describe("content", () => {
   it("caches per path within a head and drops the cache when the head changes", async () => {
     const fetchFn = vi.fn(async () => new Response("x"));
     const source = createPrDataSource(fetchFn);
+
     await source.content(head, "a", signal());
     await source.content(head, "a", signal());
     await source.content(head, "b", signal());
+
     expect(fetchFn).toHaveBeenCalledTimes(2);
+
     await source.content({ ...head, headSha: shaB }, "a", signal());
     await source.content(head, "a", signal());
+
     expect(fetchFn).toHaveBeenCalledTimes(4);
   });
 
@@ -239,6 +263,7 @@ describe("content", () => {
       .mockResolvedValueOnce(new Response("", { status: 500 }))
       .mockResolvedValueOnce(new Response("x"));
     const source = createPrDataSource(fetchFn);
+
     expect(await source.content(head, "a", signal())).toEqual({ ok: false, problem: "failed" });
     expect(await source.content(head, "a", signal())).toEqual({ ok: true, text: "x" });
   });
@@ -249,11 +274,15 @@ describe("headAndFiles", () => {
     const { release, held } = heldResponses();
     const fetchFn = routedFetch({ [pageUrl]: held(pageFor(7)), [diffUrl]: held(diff) });
     const s = signal();
+
     const pending = createPrDataSource(fetchFn).headAndFiles(pr7, s);
     await vi.waitFor(() => expect(release).toHaveLength(2));
+
     expect(fetchFn).toHaveBeenCalledWith(pageUrl, { credentials: "include", signal: s });
     expect(fetchFn).toHaveBeenCalledWith(diffUrl, { credentials: "include", signal: s });
+
     for (const go of release) go();
+
     expect(await pending).toEqual({
       ok: true,
       headSha: shaA,
@@ -276,8 +305,10 @@ describe("headAndFiles", () => {
   it("caches nothing when the head lookup fails", async () => {
     const fetchFn = prRoutes("<html></html>");
     const source = createPrDataSource(fetchFn);
+
     await source.headAndFiles(pr7, signal());
     await source.files({ ...pr7, headSha: shaA }, signal());
+
     expect(diffCalls(fetchFn)).toBe(2);
   });
 
@@ -295,19 +326,25 @@ describe("headAndFiles", () => {
   it("files the diff under the head it looked up", async () => {
     const fetchFn = prRoutes();
     const source = createPrDataSource(fetchFn);
+
     await source.headAndFiles(pr7, signal());
     await source.files({ ...pr7, headSha: shaA }, signal());
+
     expect(diffCalls(fetchFn)).toBe(1);
+
     await source.files({ ...pr7, headSha: shaB }, signal());
+
     expect(diffCalls(fetchFn)).toBe(2);
   });
 
   it("reuses a cached diff once the page confirms its head", async () => {
     const fetchFn = prRoutes();
     const source = createPrDataSource(fetchFn);
+
     const cached = await source.files({ ...pr7, headSha: shaA }, signal());
     fetchFn.mockClear();
     const result = await source.headAndFiles(pr7, signal());
+
     expect(fetchFn.mock.calls.map(([u]) => String(u))).toEqual([pageUrl]);
     expect(result).toEqual({ ...cached, headSha: shaA });
   });
@@ -315,19 +352,25 @@ describe("headAndFiles", () => {
   it("replaces another head's diff when the page names a new head", async () => {
     const fetchFn = prRoutes(pageFor(7, shaB));
     const source = createPrDataSource(fetchFn);
+
     await source.files({ ...pr7, headSha: shaA }, signal());
     const result = await source.headAndFiles(pr7, signal());
+
     expect(result).toMatchObject({ ok: true, headSha: shaB });
     expect(diffCalls(fetchFn)).toBe(2);
+
     await source.files({ ...pr7, headSha: shaA }, signal());
+
     expect(diffCalls(fetchFn)).toBe(3);
   });
 
   it("fetches the page on every request", async () => {
     const fetchFn = prRoutes();
     const source = createPrDataSource(fetchFn);
+
     await source.headAndFiles(pr7, signal());
     await source.headAndFiles(pr7, signal());
+
     expect(fetchFn.mock.calls.filter(([u]) => String(u) === pageUrl)).toHaveLength(2);
     expect(diffCalls(fetchFn)).toBe(1);
   });

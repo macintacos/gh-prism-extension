@@ -24,20 +24,8 @@ export default defineContentScript({
       pinOf: (diff) => readDiffPin(document, diff),
     } satisfies IntentSources;
     // Read before watching, so a sidebar saved on the left never opens on the right first.
-    // `fallback` covers only a missing side; a corrupt one reads back as stored.
-    const saved: unknown = await sidebarSide.getValue().catch((error: unknown) => {
-      console.error("gh-prism: reading the sidebar side failed", error);
-      return sidebarSide.fallback;
-    });
-    const side: SideChoice = {
-      side: saved === "left" || saved === "right" ? saved : sidebarSide.fallback,
-    };
-    const save = (picked: Side) =>
-      sidebarSide
-        .setValue(picked)
-        .catch((error: unknown) =>
-          console.error("gh-prism: saving the sidebar side failed", error),
-        );
+    const side = sideChoiceOf(await readSavedSide());
+
     watchFilesPages(
       window,
       {
@@ -45,7 +33,7 @@ export default defineContentScript({
           const intent = shareIntent((onProgress) => intentFor(route, visit, sources, onProgress));
           return (page, signal) => {
             showVisit(page, signal, { intent, diffstat });
-            dockSidebar(page, signal, { choice: side, save });
+            dockSidebar(page, signal, { choice: side, save: saveSide });
           };
         },
         onMissing: () =>
@@ -55,3 +43,21 @@ export default defineContentScript({
     );
   },
 });
+
+/** The stored sidebar side, unchecked, or the default when storage won't read. */
+const readSavedSide = (): Promise<unknown> =>
+  sidebarSide.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading the sidebar side failed", error);
+    return sidebarSide.fallback;
+  });
+
+/** The side to dock on: `saved`, when it names one, else the default. */
+function sideChoiceOf(saved: unknown): SideChoice {
+  // `fallback` covers only a missing side; a corrupt one reads back as stored.
+  return { side: saved === "left" || saved === "right" ? saved : sidebarSide.fallback };
+}
+
+const saveSide = (picked: Side) =>
+  sidebarSide
+    .setValue(picked)
+    .catch((error: unknown) => console.error("gh-prism: saving the sidebar side failed", error));

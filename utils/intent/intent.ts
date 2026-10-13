@@ -86,10 +86,12 @@ async function hunkSections(
   const patchVerdicts = docHunkVerdicts(file);
   // also [] for binary or renamed
   if (patchVerdicts.every(isDocs)) return patchVerdicts.map(() => "docs");
+
   const needsHead = inlineTestRuleApplies(file) || patchVerdicts.includes("needs-content");
   const head = needsHead ? await readHead(client, file) : undefined;
   if (head === undefined)
     return patchVerdicts.map((verdict) => (isDocs(verdict) ? "docs" : undefined));
+
   const headVerdicts = docHunkVerdicts(file, head);
   if (headVerdicts.every(isDocs)) return headVerdicts.map(() => "docs");
   const inTests = inlineTestHunkVerdicts(file, head);
@@ -97,6 +99,27 @@ async function hunkSections(
     inTests[i] ? "tests" : isDocs(verdict) ? "docs" : undefined,
   );
 }
+
+const sumHunkLines = (hunks: readonly PrHunk[]): LineCounts =>
+  hunks.reduce(
+    (sum, hunk) => {
+      const counts = hunkLineCounts(hunk);
+      return { added: sum.added + counts.added, removed: sum.removed + counts.removed };
+    },
+    { added: 0, removed: 0 },
+  );
+
+const shareOf = (section: SectionKey, hunks: readonly PrHunk[]): SectionShare => ({
+  section,
+  hunks: hunks.map((hunk) => hunkHeadSpan(hunk)),
+  lines: sumHunkLines(hunks),
+});
+
+const hunksOf = (file: PrFileDiff): PrHunk[] =>
+  file.kind === "text" ? parsePrHunks(file.patch) : [];
+
+const linesOf = (file: PrFileDiff): FileLines =>
+  file.kind === "binary" ? "binary" : sumHunkLines(hunksOf(file));
 
 /**
  * Once each unclaimed hunk takes the path section, a split when the hunks span two or more
@@ -123,27 +146,6 @@ function placementOf(
     ? { kind: "whole", section: first }
     : undefined;
 }
-
-const sumHunkLines = (hunks: readonly PrHunk[]): LineCounts =>
-  hunks.reduce(
-    (sum, hunk) => {
-      const counts = hunkLineCounts(hunk);
-      return { added: sum.added + counts.added, removed: sum.removed + counts.removed };
-    },
-    { added: 0, removed: 0 },
-  );
-
-const shareOf = (section: SectionKey, hunks: readonly PrHunk[]): SectionShare => ({
-  section,
-  hunks: hunks.map((hunk) => hunkHeadSpan(hunk)),
-  lines: sumHunkLines(hunks),
-});
-
-const hunksOf = (file: PrFileDiff): PrHunk[] =>
-  file.kind === "text" ? parsePrHunks(file.patch) : [];
-
-const linesOf = (file: PrFileDiff): FileLines =>
-  file.kind === "binary" ? "binary" : sumHunkLines(hunksOf(file));
 
 /** Maps `items` through `fn` with at most `limit` calls pending at once, keeping input order. */
 async function mapAtMost<T, R>(
@@ -173,6 +175,7 @@ export async function readIntent(
 ): Promise<IntentResult> {
   const listed = await client.files();
   if (!listed.ok) return listed;
+
   const total = listed.files.length;
   onProgress?.({ checked: 0, total });
   let checked = 0;
@@ -182,11 +185,13 @@ export async function readIntent(
     onProgress?.({ checked, total });
     return { path: file.path, placement };
   });
+
   const placements = new Map<string, Placement>();
   for (const { path, placement } of placed) {
     if (placement === undefined) continue;
     placements.set(path, placement);
   }
+
   const lines = new Map<string, FileLines>();
   for (const file of listed.files) lines.set(file.path, linesOf(file));
   return { ok: true, placements, lines };
@@ -215,6 +220,15 @@ async function diffKey(headSha: string, files: readonly PrFileDiff[]): Promise<s
 
 const pinKey = ({ baseSha, headSha }: DiffPin) => `${baseSha}...${headSha}`;
 
+/** Files `intent` under each key in turn: concurrent sets race on the cache's index. */
+async function keepUnder(
+  cache: IntentCache,
+  intent: LandedIntent,
+  keys: readonly (string | undefined)[],
+): Promise<void> {
+  for (const key of keys) if (key) await cache.set(key, intent);
+}
+
 /**
  * Where one Files view's files land: from `cache` when it holds this very diff, else read and
  * cached. The cache is checked by the page's pin first, and a pinned hit connects nothing. A read
@@ -229,16 +243,20 @@ export async function intentFor(
   onProgress?: (progress: IntentProgress) => void,
 ): Promise<IntentResult> {
   if (route.commitFiltered) return { ok: false, problem: "commit-filtered" };
+
   const pin = pinOf?.(route.diff);
   const pinned = pin && pinKey(pin);
   const early = pinned ? await cache.get(pinned) : undefined;
   if (early) return early;
+
   const client = connect(route.diff);
   // An already-aborted signal never fires "abort": the pinned lookup outlasted the visit.
   if (signal.aborted) client.close();
   else signal.addEventListener("abort", () => client.close(), { once: true });
+
   const listed = await client.files();
   if (!listed.ok) return listed;
+
   const key = await diffKey(listed.headSha, listed.files);
   // Only a pin naming the head these files were read at may file them.
   // ponytail: the worker keeps a PR's diff by head alone, so a retarget read while it is alive
@@ -249,6 +267,7 @@ export async function intentFor(
     void keepUnder(cache, cached, [pinnedHere]);
     return cached;
   }
+
   let cutShort = false;
   const result = await readIntent(
     {
@@ -261,19 +280,11 @@ export async function intentFor(
     },
     onProgress,
   );
+
   // ponytail: a pinned diff is stored under both keys, doubling its slots and bytes; file the pin
   // as an alias of the diff key if the cache fills.
   if (result.ok && !cutShort) void keepUnder(cache, result, [key, pinnedHere]);
   return result;
-}
-
-/** Files `intent` under each key in turn: concurrent sets race on the cache's index. */
-async function keepUnder(
-  cache: IntentCache,
-  intent: LandedIntent,
-  keys: readonly (string | undefined)[],
-): Promise<void> {
-  for (const key of keys) if (key) await cache.set(key, intent);
 }
 
 /**
@@ -294,12 +305,14 @@ export function shareIntent(read: PendingIntent): PendingIntent {
   // ponytail: a dropped view's follower stays until the visit ends, updating detached nodes;
   // unfollow on the view's signal if remounts ever pile up.
   const followers = new Set<(progress: IntentProgress) => void>();
+
   const landing = Promise.resolve(
     read((progress) => {
       latest = progress;
       for (const follow of followers) follow(progress);
     }),
   ).then((landed) => (result = landed));
+
   return (onProgress) => {
     if (result) return result;
     if (latest) onProgress(latest);

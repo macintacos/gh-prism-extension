@@ -4,10 +4,10 @@
  * that breakout and GitHub's own total.
  */
 
-import type { LineCounts } from "@/utils/github/pr-diff";
 import { type Landing, landingOf, type SectionLines, totalsOf } from "@/utils/intent/landing";
 import { type FilesPage, findDiffstat } from "../files-page";
 import { el } from "../ui/dom";
+import { count, counts } from "../ui/line-counts";
 import { markSection, SECTION_CATALOG, sectionIcon } from "../ui/section-catalog";
 import type { LandingView } from "../visit/visit";
 import css from "./diffstat-view.css?raw";
@@ -17,31 +17,6 @@ export interface DiffstatChoice {
   view: "breakout" | "total";
 }
 
-const count = (lines: number) => lines.toLocaleString("en-US");
-
-/** `+added` and `−removed` in the diffstat colors, muting a side that changed nothing. */
-function counts(doc: Document, { added, removed }: LineCounts): HTMLElement[] {
-  const part = (text: string, color: string) => {
-    const span = el(doc, "span", `gh-prism-pill-count ${color}`, text);
-    span.setAttribute("aria-hidden", "true");
-    return span;
-  };
-  return [
-    part(`+${count(added)}`, added > 0 ? "fgColor-success" : "fgColor-muted"),
-    part(`−${count(removed)}`, removed > 0 ? "fgColor-danger" : "fgColor-muted"),
-  ];
-}
-
-/** `lines` as a pill counts them, said in words to screen readers. */
-export const lineTotals = (doc: Document, lines: LineCounts): HTMLElement =>
-  el(
-    doc,
-    "span",
-    "gh-prism-line-totals",
-    ...counts(doc, lines),
-    el(doc, "span", "sr-only", `${count(lines.added)} added, ${count(lines.removed)} removed`),
-  );
-
 function tip(doc: Document, ...children: Node[]): HTMLElement {
   const node = el(doc, "span", "gh-prism-tip", ...children);
   node.setAttribute("aria-hidden", "true");
@@ -49,24 +24,16 @@ function tip(doc: Document, ...children: Node[]): HTMLElement {
 }
 
 function pill(doc: Document, { section, lines }: SectionLines): HTMLElement {
-  const label = SECTION_CATALOG[section].label;
+  const { label, description } = SECTION_CATALOG[section];
+  const spoken = `${label}: ${count(lines.added)} added, ${count(lines.removed)} removed.`;
   const node = el(
     doc,
     "span",
     "gh-prism-pill",
     sectionIcon(doc, section),
     ...counts(doc, lines),
-    el(
-      doc,
-      "span",
-      "sr-only",
-      `${label}: ${count(lines.added)} added, ${count(lines.removed)} removed.`,
-    ),
-    tip(
-      doc,
-      el(doc, "strong", "", label),
-      el(doc, "span", "", SECTION_CATALOG[section].description),
-    ),
+    el(doc, "span", "sr-only", spoken),
+    tip(doc, el(doc, "strong", "", label), el(doc, "span", "", description)),
   );
   markSection(node, section);
   return node;
@@ -100,6 +67,7 @@ function showCounter(
   const sections = totalsOf(landing);
   const pills = sections.map((lines) => pill(doc, lines));
   const breakout = tip(doc, ...sections.map((lines) => tipRow(doc, lines)));
+
   const button = el(doc, "button", "gh-prism-diffstat");
   button.type = "button";
   const render = () => {
@@ -113,6 +81,7 @@ function showCounter(
     render();
   });
   render();
+
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   native.before(button);
   doc.head.append(style);

@@ -9,6 +9,7 @@ import {
 /** Storage that, like chrome.storage, keeps a JSON copy of each value. */
 function jsonStorage(): IntentStorage & { values: Map<string, string> } {
   const values = new Map<string, string>();
+
   return {
     values,
     getItem: async (key) => {
@@ -66,6 +67,7 @@ describe("storedIntents", () => {
   it("keeps only the most recently stored results, up to its limit", async () => {
     const cache = storedIntents(jsonStorage(), 2);
     for (const key of ["a", "b", "c", "b"]) await cache.set(key, landed);
+
     const kept = [];
     for (const key of ["a", "b", "c"]) if (await cache.get(key)) kept.push(key);
     expect(kept).toEqual(["b", "c"]);
@@ -77,6 +79,7 @@ describe("storedIntents", () => {
     await cache.set("a", landed);
     for (const [key, value] of storage.values)
       storage.values.set(key, value.replace('"whole"', '"sideways"'));
+
     expect(await cache.get("a")).toBeUndefined();
   });
 
@@ -86,6 +89,7 @@ describe("storedIntents", () => {
       { ...jsonStorage(), getItem: () => Promise.reject(new Error("quota")) },
       10,
     );
+
     expect(await cache.get("a")).toBeUndefined();
     expect(error).toHaveBeenCalled();
     error.mockRestore();
@@ -98,7 +102,9 @@ describe("forgetIntents", () => {
     const cache = storedIntents(storage, 10);
     await cache.set("a", landed);
     await cache.set("b", landed);
+
     await forgetIntents(storage);
+
     expect(await cache.get("a")).toBeUndefined();
     expect(storage.values.size).toBe(0);
   });

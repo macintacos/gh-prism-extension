@@ -67,6 +67,18 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
   // one repository, evict each other's entry every request.
   const cache = new Map<string, PrCacheEntry>();
 
+  const repoUrl = (pr: DiffRef) => `https://github.com/${pr.owner}/${pr.repo}`;
+  const diffUrl = (pr: DiffRef): string => {
+    switch (pr.kind) {
+      case "pr":
+        return `${repoUrl(pr)}/pull/${pr.number}`;
+      case "commit":
+        return `${repoUrl(pr)}/commit/${pr.headSha}`;
+      default:
+        return pr satisfies never;
+    }
+  };
+
   const keyOf = (pr: DiffRef) =>
     (pr.kind === "pr" ? diffUrl(pr) : `${repoUrl(pr)}/commit`).toLowerCase();
 
@@ -91,18 +103,6 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
       return { ok: false, problem: "failed" };
     }
   }
-
-  const repoUrl = (pr: DiffRef) => `https://github.com/${pr.owner}/${pr.repo}`;
-  const diffUrl = (pr: DiffRef): string => {
-    switch (pr.kind) {
-      case "pr":
-        return `${repoUrl(pr)}/pull/${pr.number}`;
-      case "commit":
-        return `${repoUrl(pr)}/commit/${pr.headSha}`;
-      default:
-        return pr satisfies never;
-    }
-  };
 
   async function lookUpHead(pr: PrRef, signal: AbortSignal): Promise<PrHeadResult> {
     const page = await fetchText(`${repoUrl(pr)}/pull/${pr.number}`, signal);
@@ -138,9 +138,11 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
         const listed = await files({ ...pr, headSha: head.headSha }, signal);
         return listed.ok ? { ...listed, headSha: head.headSha } : listed;
       }
+
       const [head, diff] = await Promise.all([lookUpHead(pr, signal), readDiff(pr, signal)]);
       if (!head.ok) return head;
       if (!diff.ok) return diff;
+
       const entry = entryFor({ ...pr, headSha: head.headSha });
       // As a `files` request at this head would answer: an entry filled meanwhile wins.
       entry.files ??= diff.files;
@@ -153,6 +155,7 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
       const entry = entryFor(pr);
       const cached = entry.contents.get(path);
       if (cached !== undefined) return { ok: true, text: cached };
+
       const encoded = path.split("/").map(encodeURIComponent).join("/");
       // Through github.com: raw.githubusercontent.com and ref paths both 404 on private repos.
       const result = await fetchText(`${repoUrl(pr)}/raw/${pr.headSha}/${encoded}`, signal);

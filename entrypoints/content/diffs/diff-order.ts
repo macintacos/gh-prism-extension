@@ -105,6 +105,21 @@ function placeEntries(page: FilesPage, list: Element, ranked: ReadonlyMap<string
 }
 
 /**
+ * Points `observer` at `list`, and at its parent to catch a swap, or at all of `page`'s diffs
+ * while it has no list, to catch one mounting. Diffs swapped inside kept entries are deliberately
+ * not watched.
+ */
+function watchList(observer: MutationObserver, page: FilesPage, list: Element | null): void {
+  observer.disconnect();
+  if (!list) {
+    observer.observe(page.diffs, { childList: true, subtree: true });
+    return;
+  }
+  observer.observe(list, { childList: true });
+  if (list.parentElement) observer.observe(list.parentElement, { childList: true });
+}
+
+/**
  * Keeps `page`'s listed entries where `ranked` places them, re-placing any GitHub adds or
  * replaces, and any list it mounts or swaps in, until `signal` aborts.
  */
@@ -115,26 +130,22 @@ function entryPlacer(
   let ranked: ReadonlyMap<string, number> = new Map();
   // `undefined` until bound, so a missing list is watched for too.
   let list: Element | null | undefined;
-  // Not debounced, so an entry is placed before it paints. The list is watched through its parent
-  // to catch a swap; diffs swapped inside kept entries are deliberately not watched.
+  // Not debounced, so an entry is placed before it paints.
   const observer = new MutationObserver(() => place());
   const place = () => {
     const found = findDiffList(page);
     if (found !== list) {
-      observer.disconnect();
       list = found;
-      if (!list) observer.observe(page.diffs, { childList: true, subtree: true });
-      else {
-        observer.observe(list, { childList: true });
-        if (list.parentElement) observer.observe(list.parentElement, { childList: true });
-      }
+      watchList(observer, page, list);
     }
     if (list) placeEntries(page, list, ranked);
   };
+
   signal.addEventListener("abort", () => {
     observer.disconnect();
     if (list) placeEntries(page, list, new Map());
   });
+
   return (next) => {
     ranked = next;
     place();
@@ -166,6 +177,7 @@ function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
   let loader: Element | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const place = entryPlacer(page, signal);
+
   doc.head.append(style, rules);
   signal.addEventListener("abort", () => {
     clearTimeout(timer);
@@ -174,6 +186,7 @@ function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
     loader?.remove();
     delete root.dataset.ghPrismDiffs;
   });
+
   const reveal = () => {
     if (!loader) return;
     clearTimeout(timer);
@@ -183,6 +196,7 @@ function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
     if (doc.defaultView) retakeHash(doc.defaultView, { signal });
     timer = setTimeout(() => delete root.dataset.ghPrismDiffs, REVEAL_MS);
   };
+
   return {
     cover(next) {
       loader = next;
@@ -193,6 +207,7 @@ function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
     arrange(sections) {
       const ranked = reorderable(page) ? ranking(sections) : new Map<string, number>();
       place(ranked);
+
       const [first] = ranked.keys();
       const text = flushFirst(page.kind, first);
       if (rules.textContent !== text) rules.textContent = text;
@@ -201,22 +216,19 @@ function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
   };
 }
 
-/** Placeholder diffs: a file header over a few lines of code each. */
-const diffSkeleton = (doc: Document) =>
+/** A placeholder diff: a file header over `lines` lines of code. */
+const diffCard = (doc: Document, lines: number) =>
   el(
     doc,
     "div",
-    "gh-prism-diff-skeleton",
-    ...[4, 2, 3].map((lines) =>
-      el(
-        doc,
-        "div",
-        "gh-prism-diff-card",
-        el(doc, "span", "gh-prism-diff-card-header"),
-        ...Array.from({ length: lines }, () => el(doc, "span", "")),
-      ),
-    ),
+    "gh-prism-diff-card",
+    el(doc, "span", "gh-prism-diff-card-header"),
+    ...Array.from({ length: lines }, () => el(doc, "span", "")),
   );
+
+/** Placeholder diffs: a file header over a few lines of code each. */
+const diffSkeleton = (doc: Document) =>
+  el(doc, "div", "gh-prism-diff-skeleton", ...[4, 2, 3].map((lines) => diffCard(doc, lines)));
 
 /**
  * Orders `page`'s diffs as the sections list their files until `signal` aborts, covering them

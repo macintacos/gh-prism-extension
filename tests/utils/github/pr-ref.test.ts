@@ -85,6 +85,7 @@ describe("readPrPageHeadSha", () => {
         return { textContent: payload(2, "macintacos", "gh-prism-sandbox") };
       },
     };
+
     expect(readPrPageHeadSha(doc, pr)).toBe(sha);
     expect(seen).toBe('script[data-target="react-app.embeddedData"]');
   });

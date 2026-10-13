@@ -26,6 +26,7 @@ export function loadingView(doc: Document, skeleton: HTMLElement): LoadingView {
   const count = el(doc, "span", "gh-prism-loading-count");
   const spectrum = el(doc, "div", "gh-prism-spectrum");
   spectrum.style.setProperty("--gh-prism-spectrum", SPECTRUM);
+
   const root = el(
     doc,
     "div",
@@ -37,6 +38,7 @@ export function loadingView(doc: Document, skeleton: HTMLElement): LoadingView {
   );
   root.setAttribute("role", "progressbar");
   root.setAttribute("aria-label", "Reading the diff");
+
   const progress = ({ checked, total }: IntentProgress) => {
     label.textContent = "Sorting files into sections";
     count.textContent = `${checked} of ${total}`;

@@ -35,11 +35,13 @@ export function docHunkVerdict(path: string, hunk: PrHunk, head: ScannedHead): "
 export function docHunkVerdict(path: string, hunk: PrHunk, head?: ScannedHead): DocVerdict {
   const syntax = commentSyntaxOf(path);
   if (syntax === undefined) return "path";
+
   if (head !== undefined) {
     // `linesAbove` is clamped into `starts`, so the `??` fallback never applies.
     const linesAbove = Math.min(Math.max(hunk.newStart - 1, 0), head.lines.length);
     return hunkVerdictFrom(syntax, hunk, head.starts[linesAbove] ?? FILE_START);
   }
+
   const verdicts = new Set(
     plausibleStarts(syntax, hunk).map((start) => hunkVerdictFrom(syntax, hunk, start)),
   );
@@ -82,6 +84,7 @@ function hunkVerdictFrom(syntax: CommentSyntax, hunk: PrHunk, start: ScanState):
   let before = start;
   let after = start;
   const changed: LineKind[] = [];
+
   for (const { marker, text } of bodyOf(hunk)) {
     if (marker === "-") {
       const scanned = scanLine(syntax, before, text);
@@ -99,6 +102,7 @@ function hunkVerdictFrom(syntax: CommentSyntax, hunk: PrHunk, start: ScanState):
       if (old.kind !== now.kind && (old.kind === "code" || now.kind === "code")) return "path";
     }
   }
+
   return changed.includes("code") || !changed.includes("comment") ? "path" : "docs";
 }
 
@@ -109,6 +113,7 @@ function hunkVerdictFrom(syntax: CommentSyntax, hunk: PrHunk, start: ScanState):
  */
 function plausibleStarts(syntax: CommentSyntax, hunk: PrHunk): ScanState[] {
   if (hunk.newStart <= 1) return [FILE_START];
+
   const body = bodyOf(hunk);
   const positions: ScanPosition[] = ["code"];
   for (const block of syntax.blocks) {
@@ -116,10 +121,12 @@ function plausibleStarts(syntax: CommentSyntax, hunk: PrHunk): ScanState[] {
     positions.push({ closer: block.closer, kind: "comment" });
     if (block.delimitsStrings) positions.push({ closer: block.closer, kind: "string" });
   }
+
   const gutterBlock = syntax.blocks.find(
     (block) => block.gutter !== undefined && isGutterRun(body, block.gutter),
   );
   if (gutterBlock !== undefined) positions.push({ closer: gutterBlock.closer, kind: "comment" });
+
   return positions.flatMap((position) => [
     { position, docstringMayOpen: true },
     { position, docstringMayOpen: false },

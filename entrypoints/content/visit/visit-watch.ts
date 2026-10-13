@@ -60,10 +60,12 @@ export function watchFilesPages(
     const { pathname } = win.location;
     if (visit && visit.pathname !== pathname) leave();
     if (shown && isShowing(shown.page)) return;
+
     const route = readFilesRoute(pathname);
     const page = route && findFilesPage(win.document);
     drop();
     if (!route || !page) return;
+
     if (!visit) {
       const controller = new AbortController();
       visit = { pathname, controller, onPage: handlers.onVisit(route, controller.signal) };
@@ -74,17 +76,19 @@ export function watchFilesPages(
 
   const observer = new MutationObserver(sync);
 
+  const endSettle = () => {
+    observer.disconnect();
+    if (!shown && !missingReported && isFilesPath(win.location.pathname)) {
+      missingReported = true;
+      handlers.onMissing();
+    }
+  };
+
   const settle = () => {
     win.clearTimeout(timer);
     sync();
     observer.observe(win.document, { childList: true, subtree: true });
-    timer = win.setTimeout(() => {
-      observer.disconnect();
-      if (!shown && !missingReported && isFilesPath(win.location.pathname)) {
-        missingReported = true;
-        handlers.onMissing();
-      }
-    }, SETTLE_MS);
+    timer = win.setTimeout(endSettle, SETTLE_MS);
   };
 
   win.document.addEventListener("soft-nav:end", settle, { signal });
@@ -94,5 +98,6 @@ export function watchFilesPages(
     observer.disconnect();
     leave();
   });
+
   settle();
 }

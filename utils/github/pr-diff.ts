@@ -80,6 +80,7 @@ export function parsePrDiff(diff: string): PrFileDiff[] {
 
 function parseBlock(block: string[]): PrFileDiff {
   while (block.length > 1 && block.at(-1) === "") block.pop();
+
   const hunkStart = block.findIndex((line) => line.startsWith("@@"));
   const header = hunkStart === -1 ? block : block.slice(0, hunkStart);
   const headerValue = (prefix: string) =>
@@ -101,9 +102,12 @@ function parseBlock(block: string[]): PrFileDiff {
     header.some((line) => line.startsWith("Binary files ") || line.startsWith("GIT binary patch"))
   )
     return { kind: "binary", path, ...previousPath, status };
+
   const patch = hunkStart === -1 ? "" : block.slice(hunkStart).join("\n");
   return { kind: "text", path, ...previousPath, status, patch };
 }
+
+const dropPrefix = (name: string) => name.replace(/^[ab]\//, "");
 
 function pathOf(header: string[], headerValue: (prefix: string) => string | undefined): string {
   const renameTo = headerValue("rename to ");
@@ -122,15 +126,15 @@ function pathOf(header: string[], headerValue: (prefix: string) => string | unde
   return names.slice(2, 2 + (names.length - 5) / 2);
 }
 
-const dropPrefix = (name: string) => name.replace(/^[ab]\//, "");
-
 /** Decodes git's C-quoted path; git appends a tab to a ---/+++ name containing a space. */
 function unquote(raw: string): string {
   const name = raw.endsWith("\t") ? raw.slice(0, -1) : raw;
   if (!name.startsWith('"')) return name;
+
   const bytes: number[] = [];
   const encoder = new TextEncoder();
   const body = name.slice(1, -1);
+
   for (let i = 0; i < body.length; i++) {
     const char = body[i] ?? "";
     if (char !== "\\") {
@@ -150,5 +154,6 @@ function unquote(raw: string): string {
       );
     }
   }
+
   return new TextDecoder().decode(new Uint8Array(bytes));
 }

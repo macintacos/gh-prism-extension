@@ -149,6 +149,7 @@ function answer(
 export function servePrDataPort(port: PrDataPort, source: PrDataSource): void {
   const controller = new AbortController();
   port.onDisconnect.addListener(() => controller.abort());
+
   port.onMessage.addListener(async (message) => {
     if (!isObject(message) || !Number.isSafeInteger(message.id)) return;
     const request = asRequest(message.request);
@@ -156,6 +157,7 @@ export function servePrDataPort(port: PrDataPort, source: PrDataSource): void {
       port.postMessage({ id: message.id, result: FAILED });
       return;
     }
+
     let result: PrDataResult;
     try {
       result = await answer(source, request, controller.signal);
@@ -165,6 +167,7 @@ export function servePrDataPort(port: PrDataPort, source: PrDataSource): void {
       throw error; // a PrDataSource bug: surface it in the worker console
     }
     if (controller.signal.aborted) return;
+
     try {
       port.postMessage({ id: message.id, result });
     } catch {
@@ -224,6 +227,7 @@ export function openPrData(
 
   function send<Q extends PrDataRequest>(request: Q): Promise<PrDataResultsByKind[Q["kind"]]> {
     if (closed) return new Promise(() => {});
+
     const id = nextId++;
     return new Promise((resolve) => {
       // Only this extension's background can answer a runtime port, with `request.kind`'s result.
@@ -240,8 +244,6 @@ export function openPrData(
       }
     });
   }
-
-  const knownHead = pr.kind === "commit" ? pr.headSha : pageHeadSha;
 
   async function filesAt(head: DiffHead): Promise<PrHeadAndFilesResult> {
     const listed = await send({ kind: "files", pr: head });
@@ -261,6 +263,7 @@ export function openPrData(
     }
   });
 
+  const knownHead = pr.kind === "commit" ? pr.headSha : pageHeadSha;
   const resolveHead = memoUntilFailure(
     async (): Promise<PrHeadResult> => {
       const listed = await files();

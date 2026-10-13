@@ -39,10 +39,6 @@ export function isCommitSha(value: unknown): value is string {
   return typeof value === "string" && /^[0-9a-f]{7,40}$/.test(value);
 }
 
-const EMBEDDED_DATA_SELECTOR = 'script[data-target="react-app.embeddedData"]';
-const EMBEDDED_DATA_SCRIPT =
-  /<script[^>]*data-target="react-app\.embeddedData"[^>]*>([\s\S]*?)<\/script>/;
-
 function at(value: unknown, ...keys: string[]): unknown {
   let current = value;
   for (const key of keys) {
@@ -95,6 +91,7 @@ function prPageData(json: string | null | undefined, pr: PrRef): unknown {
   } catch {
     return undefined;
   }
+
   const route = at(data, "payload", "pullRequestsLayoutRoute");
   const matches =
     at(route, "pullRequest", "number") === pr.number &&
@@ -128,6 +125,10 @@ export function diffPinFromEmbeddedData(
   const baseSha = at(data, ...DIFF_BASE_PATH);
   return isPrHeadSha(headSha) && isPrHeadSha(baseSha) ? { baseSha, headSha } : undefined;
 }
+
+const EMBEDDED_DATA_SELECTOR = 'script[data-target="react-app.embeddedData"]';
+const EMBEDDED_DATA_SCRIPT =
+  /<script[^>]*data-target="react-app\.embeddedData"[^>]*>([\s\S]*?)<\/script>/;
 
 /** The embedded page-data JSON from a PR page's HTML, for contexts without a `DOMParser`. */
 export function prEmbeddedDataFromHtml(html: string): string | undefined {

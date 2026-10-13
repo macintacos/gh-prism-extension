@@ -24,6 +24,7 @@ describe("background", () => {
     });
     background.main();
   });
+
   afterEach(() => vi.restoreAllMocks());
 
   // Chrome refires onInstalled with reason "update" on a dev reload.
@@ -33,6 +34,7 @@ describe("background", () => {
       // Raw keys on purpose, so the test outlives a move to typed storage items.
       await fakeBrowser.storage.local.set({ "intent.v1": ["k"], "intent.v1:k": {}, unrelated: 1 });
       await fakeBrowser.runtime.onInstalled.trigger(details);
+
       // The listener floats forgetIntents' promise, so trigger cannot await it.
       await vi.waitFor(async () =>
         expect(await fakeBrowser.storage.local.get()).toEqual({ unrelated: 1 }),

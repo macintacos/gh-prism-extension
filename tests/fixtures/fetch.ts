@@ -16,5 +16,6 @@ export function heldResponses(): {
   const release: (() => void)[] = [];
   const held = (body: string) => () =>
     new Promise<Response>((resolve) => release.push(() => resolve(new Response(body))));
+
   return { release, held };
 }

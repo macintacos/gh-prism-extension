@@ -107,6 +107,7 @@ function changeVerdicts(hunk: PrHunk, blocks: readonly Block[]): boolean[] {
   const runs = runsOf(hunk);
   const verdicts: boolean[] = [];
   let line = hunk.newStart;
+
   for (const [index, run] of runs.entries()) {
     const changed = run.texts.flatMap((text, offset) =>
       text.trim() === "" ? [] : [line + offset],
@@ -118,6 +119,7 @@ function changeVerdicts(hunk: PrHunk, blocks: readonly Block[]): boolean[] {
     }
     if (run.marker !== "-") line += run.texts.length;
   }
+
   return verdicts;
 }
 
@@ -172,6 +174,13 @@ function* rowsFrom(rows: readonly Row[], index: number, step: 1 | -1): Generator
   }
 }
 
+/** The bracket characters to count, and the literal and comment pattern to strip first. */
+interface Brackets {
+  readonly literals: RegExp;
+  readonly open: string;
+  readonly close: string;
+}
+
 /** The 0-based index of the line that returns the brackets opened at `index` to zero, if any. */
 function closingLine(rows: readonly Row[], index: number, brackets: Brackets): number | undefined {
   let depth = 0;
@@ -185,13 +194,6 @@ function closingLine(rows: readonly Row[], index: number, brackets: Brackets): n
 /** A line's code with its literals and comments removed; a line that is not code has none. */
 function codeOf(row: Row, literals: RegExp): string {
   return row.kind === "code" ? row.text.replace(literals, "") : "";
-}
-
-/** The bracket characters to count, and the literal and comment pattern to strip first. */
-interface Brackets {
-  readonly literals: RegExp;
-  readonly open: string;
-  readonly close: string;
 }
 
 /** Opening minus closing brackets in a line's code. */
@@ -278,6 +280,7 @@ function tsTestCall(row: Row, index: number, rows: readonly Row[]): number | und
   if (!TS_TEST_CALL.test(row.text)) return undefined;
   const end = closingLine(rows, index, TS_BRACKETS);
   if (end === undefined) return undefined;
+
   const codeLines = rows.slice(index, end + 1).map((line) => codeOf(line, TS_LITERALS));
   if (definesMethod(codeLines.join("\n"))) return undefined;
   return codeLines.some((line) => TS_CALLBACK.test(line)) ? end : undefined;

@@ -15,10 +15,12 @@ describe("watchFilesPages", () => {
     readonly signal: AbortSignal;
     readonly pages: { page: FilesPage; signal: AbortSignal }[];
   }
+
   let controller: AbortController;
   let visits: Visit[];
   const pages = () => visits.flatMap((visit) => visit.pages);
   const onMissing = vi.fn();
+
   const watch = () =>
     watchFilesPages(
       window,
@@ -32,6 +34,7 @@ describe("watchFilesPages", () => {
       },
       controller.signal,
     );
+
   const swapSidebar = () => {
     const sidebar = byId("pr-file-tree");
     sidebar.replaceWith(sidebar.cloneNode(true));
@@ -42,10 +45,12 @@ describe("watchFilesPages", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     history.replaceState(null, "", "/o/r/pull/1/changes");
+
     controller = new AbortController();
     visits = [];
     onMissing.mockReset();
   });
+
   afterEach(() => {
     controller.abort();
     vi.useRealTimers();
@@ -54,6 +59,7 @@ describe("watchFilesPages", () => {
   it("shows the page present on start once", async () => {
     watch();
     await vi.advanceTimersByTimeAsync(20_000);
+
     expect(visits).toHaveLength(1);
     expect(pages()).toHaveLength(1);
     expect(onMissing).not.toHaveBeenCalled();
@@ -64,7 +70,9 @@ describe("watchFilesPages", () => {
     watch();
     await vi.advanceTimersByTimeAsync(9_900);
     expect(onMissing).not.toHaveBeenCalled();
+
     await vi.advanceTimersByTimeAsync(20_000);
+
     expect(onMissing).toHaveBeenCalledOnce();
     expect(visits).toHaveLength(0);
   });
@@ -76,7 +84,9 @@ describe("watchFilesPages", () => {
     loadFixture();
     await afterMutations();
     expect(pages()).toHaveLength(1);
+
     await vi.advanceTimersByTimeAsync(20_000);
+
     expect(onMissing).not.toHaveBeenCalled();
   });
 
@@ -84,6 +94,7 @@ describe("watchFilesPages", () => {
     watch();
     swapSidebar();
     await afterMutations();
+
     expect(pages()).toHaveLength(2);
     expect(pages()[0]?.signal.aborted).toBe(true);
     expect(pages()[1]?.page.sidebar).toBe(byId("pr-file-tree"));
@@ -97,6 +108,7 @@ describe("watchFilesPages", () => {
     await afterMutations();
     loadFixture();
     await afterMutations();
+
     expect(visits).toHaveLength(1);
     expect(visits[0]?.signal.aborted).toBe(false);
     expect(visits[0]?.pages).toHaveLength(3);
@@ -107,6 +119,7 @@ describe("watchFilesPages", () => {
     swapSidebar();
     document.dispatchEvent(new Event("soft-nav:end"));
     await vi.advanceTimersByTimeAsync(20_000);
+
     expect(pages()).toHaveLength(2);
     expect(pages()[0]?.signal.aborted).toBe(true);
     expect(pages()[1]?.page.sidebar).toBe(byId("pr-file-tree"));
@@ -117,6 +130,7 @@ describe("watchFilesPages", () => {
     history.replaceState(null, "", "/o/r/pull/1/changes/04bb63f");
     document.dispatchEvent(new Event("soft-nav:end"));
     await vi.advanceTimersByTimeAsync(20_000);
+
     expect(visits).toHaveLength(2);
     expect(visits[0]?.signal.aborted).toBe(true);
     expect(pages()).toHaveLength(2);
@@ -127,6 +141,7 @@ describe("watchFilesPages", () => {
     loadCommitFixture();
     history.replaceState(null, "", "/o/r/commit/dd95cdc");
     watch();
+
     expect(visits[0]?.route).toEqual({
       diff: { kind: "commit", owner: "o", repo: "r", headSha: "dd95cdc" },
       commitFiltered: false,
@@ -141,9 +156,11 @@ describe("watchFilesPages", () => {
       diff: { kind: "pr", owner: "o", repo: "r", number: 1 },
       commitFiltered: false,
     });
+
     history.replaceState(null, "", "/o/r/pull/1/changes/04bb63f");
     document.dispatchEvent(new Event("soft-nav:end"));
     await vi.advanceTimersByTimeAsync(20_000);
+
     expect(visits[1]?.route).toEqual({
       diff: { kind: "pr", owner: "o", repo: "r", number: 1 },
       commitFiltered: true,
@@ -155,6 +172,7 @@ describe("watchFilesPages", () => {
     history.replaceState(null, "", "/o/r/pull/1/changes#diff-abc");
     document.dispatchEvent(new Event("soft-nav:end"));
     await vi.advanceTimersByTimeAsync(20_000);
+
     expect(visits).toHaveLength(1);
     expect(pages()).toHaveLength(1);
     expect(pages()[0]?.signal.aborted).toBe(false);
@@ -164,6 +182,7 @@ describe("watchFilesPages", () => {
     watch();
     window.dispatchEvent(new PopStateEvent("popstate"));
     await vi.advanceTimersByTimeAsync(20_000);
+
     expect(pages()).toHaveLength(1);
     expect(pages()[0]?.signal.aborted).toBe(false);
   });
@@ -174,6 +193,7 @@ describe("watchFilesPages", () => {
     await vi.advanceTimersByTimeAsync(200);
     swapSidebar();
     await vi.advanceTimersByTimeAsync(20_000);
+
     expect(pages()).toHaveLength(2);
     expect(pages()[0]?.signal.aborted).toBe(true);
   });
@@ -183,6 +203,7 @@ describe("watchFilesPages", () => {
     const diffs = diffList();
     diffs.replaceWith(diffs.cloneNode(true));
     await afterMutations();
+
     expect(pages()).toHaveLength(2);
     expect(pages()[0]?.signal.aborted).toBe(true);
     expect(pages()[1]?.page.diffs).toBe(diffList());
@@ -194,6 +215,7 @@ describe("watchFilesPages", () => {
     const tree = document.querySelector('ul[role="tree"]');
     tree?.replaceWith(tree.cloneNode(true));
     await afterMutations();
+
     expect(pages()).toHaveLength(2);
     expect(pages()[0]?.signal.aborted).toBe(true);
     expect(pages()[1]?.page.tree).toBe(document.querySelector('ul[role="tree"]'));
@@ -204,6 +226,7 @@ describe("watchFilesPages", () => {
     byId("pr-file-tree").remove();
     document.dispatchEvent(new Event("soft-nav:end"));
     await vi.advanceTimersByTimeAsync(20_000);
+
     expect(pages()[0]?.signal.aborted).toBe(true);
     expect(onMissing).toHaveBeenCalledOnce();
   });
@@ -214,6 +237,7 @@ describe("watchFilesPages", () => {
     await vi.advanceTimersByTimeAsync(20_000);
     window.dispatchEvent(new PopStateEvent("popstate"));
     await vi.advanceTimersByTimeAsync(20_000);
+
     expect(onMissing).toHaveBeenCalledOnce();
   });
 
@@ -222,6 +246,7 @@ describe("watchFilesPages", () => {
     history.replaceState(null, "", "/o/r/pull/1");
     window.dispatchEvent(new PopStateEvent("popstate"));
     await vi.advanceTimersByTimeAsync(20_000);
+
     expect(visits[0]?.signal.aborted).toBe(true);
     expect(pages()[0]?.signal.aborted).toBe(true);
     expect(onMissing).not.toHaveBeenCalled();
@@ -233,11 +258,14 @@ describe("watchFilesPages", () => {
     loadFixture();
     await vi.advanceTimersByTimeAsync(100);
     controller.abort();
+
     expect(visits[0]?.signal.aborted).toBe(true);
     expect(pages()[0]?.signal.aborted).toBe(true);
+
     swapSidebar();
     document.dispatchEvent(new Event("soft-nav:end"));
     await vi.advanceTimersByTimeAsync(20_000);
+
     expect(pages()).toHaveLength(1);
     expect(onMissing).not.toHaveBeenCalled();
   });

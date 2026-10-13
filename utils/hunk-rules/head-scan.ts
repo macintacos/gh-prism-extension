@@ -111,18 +111,23 @@ export function scanLine(syntax: CommentSyntax, state: ScanState, rawLine: strin
   };
 }
 
+const countOf = (line: string, delimiter: string) => line.split(delimiter).length - 1;
+
 function scanCode(syntax: CommentSyntax, docstringMayOpen: boolean, line: string): Step {
   if (line === "") return { kind: "blank", position: "code" };
+
   const opened = syntax.blocks.find(
     (block) => line.startsWith(block.opener) && (!block.delimitsStrings || docstringMayOpen),
   );
   if (opened !== undefined) {
     return scanInside({ closer: opened.closer, kind: "comment" }, line.slice(opened.opener.length));
   }
+
   const isDirective = (syntax.directives ?? []).some((prefix) => line.startsWith(prefix));
   if (line.startsWith(syntax.lineMarker) && !isDirective) {
     return { kind: "comment", position: "code" };
   }
+
   const openedString = syntax.blocks.find(
     (block) => block.delimitsStrings && countOf(line, block.closer) % 2 === 1,
   );
@@ -142,8 +147,6 @@ function scanInside(inside: Inside, line: string): Step {
   return { kind: comment ? "comment" : "code", position: "code" };
 }
 
-const countOf = (line: string, delimiter: string) => line.split(delimiter).length - 1;
-
 /** A head file split and comment-scanned once, shared by every hunk and rule that reads it. */
 export interface ScannedHead {
   readonly lines: readonly string[];
@@ -153,6 +156,9 @@ export interface ScannedHead {
   readonly kinds: readonly ("blank" | "code" | "comment" | "string")[];
 }
 
+const insideString = (state: ScanState) =>
+  state.position !== "code" && state.position.kind === "string";
+
 /**
  * Splits and comment-scans `text` once, with `path`'s comment syntax; `undefined` for an extension
  * with none.
@@ -160,19 +166,19 @@ export interface ScannedHead {
 export function scanHeadText(path: string, text: string): ScannedHead | undefined {
   const syntax = commentSyntaxOf(path);
   if (syntax === undefined) return undefined;
+
   const lines = text.split("\n");
   const starts: ScanState[] = [];
   const kinds: ScannedHead["kinds"][number][] = [];
   let state = FILE_START;
+
   for (const line of lines) {
     starts.push(state);
     const scanned = scanLine(syntax, state, line);
     kinds.push(insideString(state) ? "string" : scanned.kind);
     state = scanned.state;
   }
+
   starts.push(state);
   return { lines, starts, kinds };
 }
-
-const insideString = (state: ScanState) =>
-  state.position !== "code" && state.position.kind === "string";

@@ -119,6 +119,7 @@ describe("observeTree", () => {
     controller = new AbortController();
     onChange.mockReset();
   });
+
   afterEach(() => {
     controller.abort();
     vi.useRealTimers();
@@ -130,14 +131,18 @@ describe("observeTree", () => {
   it("debounces a burst into one call after the last mutation", async () => {
     const srcRow = byId("src");
     observeTree(byId("pr-file-tree"), onChange, { signal: controller.signal });
+
     srcRow.append(document.createElement("li"));
     await flush();
     await vi.advanceTimersByTimeAsync(10);
+
     srcRow.append(document.createElement("li"));
     await flush();
     await vi.advanceTimersByTimeAsync(49);
     expect(onChange).not.toHaveBeenCalled();
+
     await vi.advanceTimersByTimeAsync(1);
+
     expect(onChange).toHaveBeenCalledOnce();
   });
 
@@ -161,6 +166,7 @@ describe("observeTree", () => {
     observeTree(byId("pr-file-tree"), onChange, { signal: controller.signal, ignore: ignored });
     ignored.append(document.createElement("a"));
     await vi.advanceTimersByTimeAsync(100);
+
     expect(onChange).not.toHaveBeenCalled();
   });
 
@@ -169,6 +175,7 @@ describe("observeTree", () => {
     controller.abort();
     byId("src").append(document.createElement("li"));
     await vi.advanceTimersByTimeAsync(100);
+
     expect(onChange).not.toHaveBeenCalled();
   });
 });
@@ -182,6 +189,7 @@ describe("observeDiffs", () => {
     controller = new AbortController();
     onChange.mockReset();
   });
+
   afterEach(() => {
     controller.abort();
     vi.useRealTimers();
@@ -213,6 +221,7 @@ describe("observeDiffs", () => {
     controller.abort();
     diffList().append(document.createElement("div"));
     await vi.advanceTimersByTimeAsync(100);
+
     expect(onChange).not.toHaveBeenCalled();
   });
 });
@@ -257,6 +266,7 @@ describe("diffEntryOf", () => {
     const wrapper = document.createElement("div");
     diff.replaceWith(wrapper);
     wrapper.append(diff);
+
     expect(entryOf(ENGINE_DIFF)).toBeNull();
   });
 });
@@ -411,6 +421,7 @@ describe("the commit kind", () => {
     const page = foundPage();
     const list = findDiffList(page);
     if (!list) throw new Error("commit fixture lacks its diff list");
+
     expect(diffEntryOf(page, list, LAUNCHER_DIFF)).toBe(region?.parentElement);
   });
 

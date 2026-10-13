@@ -17,6 +17,7 @@ export const landedWith = (
 /** An intent that settles when the test resolves it, and reports progress when told to. */
 export function pendingIntent() {
   const deferred = Promise.withResolvers<IntentResult>();
+
   let report: (progress: IntentProgress) => void = () => {
     throw new Error("the view has not asked for the intent yet");
   };
@@ -24,6 +25,7 @@ export function pendingIntent() {
     report = onProgress;
     return deferred.promise;
   };
+
   return {
     intent,
     resolve: deferred.resolve,

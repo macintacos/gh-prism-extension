@@ -31,6 +31,7 @@ describe("the header's lines-changed counter", () => {
   };
   const counter = () => document.querySelector<HTMLButtonElement>(".gh-prism-diffstat");
   const pills = () => [...document.querySelectorAll<HTMLElement>(".gh-prism-pill")];
+
   const textsOf = (nodes: Iterable<Element>) => [...nodes].map((node) => node.textContent);
   const pillCounts = () =>
     pills().map((pill) => [
@@ -48,6 +49,7 @@ describe("the header's lines-changed counter", () => {
       { section: "docs", hunks: [], lines: { added: 2, removed: 0 } },
     ],
   };
+
   const counted = landedWith(
     new Map([
       ["src/notes.rs", whole("docs")],
@@ -78,12 +80,14 @@ describe("the header's lines-changed counter", () => {
     const page = findFilesPage(document);
     if (!page) throw new Error("fixture lacks the Files changed markup");
     const controller = new AbortController();
+
     showDiffstat(page, { choice: { view: "breakout" }, signal: controller.signal }).landed?.(
       counted,
     );
     expect(pills()).not.toHaveLength(0);
     expect(sheetsStyling("gh-prism-pill")).toHaveLength(1);
     expect(sheetsStyling("gh-prism-tip")).toHaveLength(1);
+
     controller.abort();
     expect(sheetsStyling("gh-prism-pill")).toHaveLength(0);
   });
@@ -96,9 +100,11 @@ describe("the header's lines-changed counter", () => {
 
   it("switches to GitHub's total when clicked, and back to the sections when clicked again", async () => {
     await landed(counted);
+
     counter()?.click();
     expect(pills()).toEqual([]);
     expect(totalShown()).toEqual(["+1,604", "-177"]);
+
     counter()?.click();
     expect(pills()).toHaveLength(4);
     expect(totalShown()).toEqual([]);
@@ -109,14 +115,17 @@ describe("the header's lines-changed counter", () => {
     remountWith(() => Promise.resolve(counted), choice);
     await afterDebounce();
     counter()?.click();
+
     remountWith(() => Promise.resolve(counted), choice);
     await afterDebounce();
+
     expect(pills()).toEqual([]);
     expect(totalShown()).toEqual(["+1,604", "-177"]);
   });
 
   it("titles each pill's tooltip with its section, over what lands there", async () => {
     await landed(counted);
+
     const tips = pills().map((pill) => [...(tipOf(pill)?.children ?? [])]);
     expect(tips.map(([title]) => title?.textContent)).toEqual([
       "Implementation",
@@ -130,6 +139,7 @@ describe("the header's lines-changed counter", () => {
   it("lists each section's lines in the total's tooltip", async () => {
     await landed(counted);
     counter()?.click();
+
     const rows = [...(tipOf(counter())?.children ?? [])];
     expect(rows.map((row) => textsOf(row.querySelectorAll("span")))).toEqual([
       ["Implementation", "+15", "−4"],
@@ -141,6 +151,7 @@ describe("the header's lines-changed counter", () => {
 
   it("tints each pill, and each row of the total's tooltip, with its section's hue", async () => {
     await landed(counted);
+
     const huesOf = (nodes: Iterable<HTMLElement>) =>
       [...nodes].map((node) => node.style.getPropertyValue("--gh-prism-hue"));
     const hues = [
@@ -150,6 +161,7 @@ describe("the header's lines-changed counter", () => {
       "var(--fgColor-muted)",
     ];
     expect(huesOf(pills())).toEqual(hues);
+
     counter()?.click();
     const rows = tipOf(counter())?.querySelectorAll<HTMLElement>(":scope > *") ?? [];
     expect(huesOf(rows)).toEqual(hues);
@@ -163,6 +175,7 @@ describe("the header's lines-changed counter", () => {
       "Documentation: 6 added, 4 removed.",
       "Generated / lockfiles: 1,210 added, 350 removed.",
     ]);
+
     for (const pill of pills()) {
       expect(textsOf(pill.querySelectorAll(":scope > :not(.sr-only):not([aria-hidden])"))).toEqual(
         [],
@@ -172,10 +185,12 @@ describe("the header's lines-changed counter", () => {
 
   it("ends each sidebar section's header with the lines its pill shows", async () => {
     await landed(counted);
+
     const headerCounts = sectionKeys().map((key) => [
       key,
       textsOf(document.querySelectorAll(`[data-section="${key}"] h3 .gh-prism-pill-count`)),
     ]);
+
     expect(headerCounts).toEqual([
       ["implementation", ["+15", "−4"]],
       ["tests", ["+20", "−0"]],
@@ -216,6 +231,7 @@ describe("the header's lines-changed counter", () => {
       iconOf(document.querySelector(`.gh-prism-section[data-section="${key}"] h3`)),
     );
     expect(new Set(headingIcons).size).toBe(5);
+
     for (const pill of pills()) {
       const heading = document.querySelector(
         `.gh-prism-section[data-section="${pill.dataset.section}"] h3`,

@@ -24,6 +24,7 @@ export function readFilesRoute(pathname: string): FilesRoute | undefined {
       diff: { kind: "pr", owner, repo, number: Number(prNumber) },
       commitFiltered: Boolean(filter),
     };
+
   const [, commitOwner, commitRepo, headSha] = COMMIT_PATH.exec(pathname) ?? [];
   if (commitOwner === undefined || commitRepo === undefined || !isCommitSha(headSha))
     return undefined;

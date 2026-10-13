@@ -65,23 +65,27 @@ export function land(
     if (!pending) earlyProgress = progress;
     else for (const view of views) view.progress?.(progress);
   });
+
   if (read instanceof Promise) {
     pending = true;
     for (const view of views) view.pending?.();
     if (earlyProgress) for (const view of views) view.progress?.(earlyProgress);
-    void read
-      .catch((error: unknown): IntentResult => {
-        console.error("gh-prism: reading intent failed", error);
-        return { ok: false, problem: "failed" };
-      })
-      .then((landed) => {
-        if (!signal.aborted) settle(landed);
-      });
+    void orFailed(read).then((landed) => {
+      if (!signal.aborted) settle(landed);
+    });
   } else {
     settle(read);
   }
+
   observeTree(page.sidebar, relist, { signal, ignore });
 }
+
+/** `read`'s result, or a path-only `failed` one, logged, when it rejects. */
+const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
+  read.catch((error: unknown): IntentResult => {
+    console.error("gh-prism: reading intent failed", error);
+    return { ok: false, problem: "failed" };
+  });
 
 /**
  * Mounts the sidebar, the diff order, and the diffstat on one page of a visit, and lands `intent`
@@ -93,11 +97,11 @@ export function showVisit(
   { intent, diffstat }: { intent: PendingIntent; diffstat: DiffstatChoice },
 ): void {
   const sidebar = showSections(page, signal);
+  const views = [
+    sidebar,
+    showDiffOrder(page, signal),
+    showDiffstat(page, { choice: diffstat, signal }),
+  ];
   // The sidebar draws inside the tree's container, so its own changes must not re-list.
-  land(
-    page,
-    intent,
-    [sidebar, showDiffOrder(page, signal), showDiffstat(page, { choice: diffstat, signal })],
-    { signal, ignore: sidebar.root },
-  );
+  land(page, intent, views, { signal, ignore: sidebar.root });
 }

@@ -69,6 +69,7 @@ function glide(doc: Document, kind: Glide, change: () => void | Promise<void>): 
 function glideTreeToggle(page: FilesPage, toggle: Element, signal: AbortSignal): void {
   const doc = page.sidebar.ownerDocument;
   let replaying = false;
+
   const replay = async (button: HTMLElement) => {
     replaying = true;
     button.click();
@@ -76,6 +77,7 @@ function glideTreeToggle(page: FilesPage, toggle: Element, signal: AbortSignal):
     // GitHub's React commits the collapse in a microtask after the click returns.
     await new Promise((resolve) => setTimeout(resolve));
   };
+
   toggle.addEventListener(
     "click",
     (event) => {
@@ -97,6 +99,17 @@ function dividerLeads(handle: Element): boolean {
   return handle.getBoundingClientRect().left < left + width / 2;
 }
 
+/** A copy of `event`, the pointer reflected about `origin` on the x axis. */
+const mirroredMove = (event: PointerEvent, origin: number): PointerEvent =>
+  new PointerEvent("pointermove", {
+    bubbles: true,
+    cancelable: true,
+    pointerId: event.pointerId,
+    buttons: event.buttons,
+    clientX: 2 * origin - event.clientX,
+    clientY: event.clientY,
+  });
+
 /**
  * Mirrors drags on a pane divider that docking right moved to the pane's left, until `signal`
  * aborts. Primer widens a start pane as the pointer moves right of where the drag began, and
@@ -108,6 +121,7 @@ function mirrorPaneDrag(doc: Document, signal: AbortSignal): void {
   if (!view) return;
   let origin: number | undefined;
   let replaying = false;
+
   view.addEventListener(
     "pointerdown",
     (event) => {
@@ -121,16 +135,8 @@ function mirrorPaneDrag(doc: Document, signal: AbortSignal): void {
     (event) => {
       if (replaying || origin === undefined || !event.buttons || !event.target) return;
       event.stopImmediatePropagation();
-      const mirrored = new PointerEvent("pointermove", {
-        bubbles: true,
-        cancelable: true,
-        pointerId: event.pointerId,
-        buttons: event.buttons,
-        clientX: 2 * origin - event.clientX,
-        clientY: event.clientY,
-      });
       replaying = true;
-      if (!event.target.dispatchEvent(mirrored)) event.preventDefault();
+      if (!event.target.dispatchEvent(mirroredMove(event, origin))) event.preventDefault();
       replaying = false;
     },
     { capture: true, signal },
@@ -152,6 +158,7 @@ export function dockSidebar(
   const doc = page.sidebar.ownerDocument;
   const root = doc.documentElement;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
+
   const button = el(doc, "button", "gh-prism-side-switch", icon(doc, ARROW_SWITCH, {}));
   button.type = "button";
   const dock = (side: Side) => {

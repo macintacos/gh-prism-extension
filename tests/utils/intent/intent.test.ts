@@ -877,8 +877,10 @@ describe("readIntent", () => {
     const files = Array.from({ length: fileCount }, (_, i) =>
       modified(`src/r${i}.rs`, renderPatch),
     );
+
     let inFlight = 0;
     let peak = 0;
+
     const client = {
       files: async (): Promise<PrFilesResult> => ({ ok: true, files }),
       fileContent: vi.fn(async (_path: string): Promise<PrFileContentResult> => {
@@ -903,6 +905,7 @@ describe("readIntent", () => {
     const fileCount = HEAD_READS_AT_ONCE + 2;
     const paths = Array.from({ length: fileCount }, (_, i) => `src/notes${i}.rs`);
     const files = paths.map((path) => modified(path, notesPatch));
+
     const client = {
       files: async (): Promise<PrFilesResult> => ({ ok: true, files }),
       fileContent: async (path: string): Promise<PrFileContentResult> => {
@@ -924,6 +927,7 @@ describe("readIntent", () => {
 /** An in-memory cache. */
 function memoryCache(): IntentCache {
   const stored = new Map<string, Extract<IntentResult, { ok: true }>>();
+
   return {
     get: async (key) => stored.get(key),
     set: async (key, intent) => {
@@ -1158,6 +1162,7 @@ describe("intentFor", () => {
   it("stores a read under its keys one at a time", async () => {
     const stored: string[] = [];
     let release = () => {};
+
     const cache: IntentCache = {
       get: async () => undefined,
       set: (key) => {

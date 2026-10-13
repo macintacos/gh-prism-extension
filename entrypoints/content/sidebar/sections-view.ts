@@ -13,8 +13,8 @@ import { landingOf, revealLineOf, totalsOf } from "@/utils/intent/landing";
 import { SECTIONS, type SectionKey } from "@/utils/sections";
 import { revealDiff, revealDiffLine } from "../diffs/reveal";
 import { type FilesPage, readChangedFiles, reorderable } from "../files-page";
-import { lineTotals } from "../header/diffstat-view";
 import { el, icon } from "../ui/dom";
+import { lineTotals } from "../ui/line-counts";
 import { type LoadingView, loadingView } from "../ui/loading-view";
 import { markSection, SECTION_CATALOG, sectionIcon } from "../ui/section-catalog";
 import type { FileSection, LandingView } from "../visit/visit";
@@ -28,6 +28,13 @@ interface ShownSection {
   readonly root: HTMLElement;
   readonly counter: HTMLElement;
   readonly tree: SectionTree;
+}
+
+interface BuildOptions {
+  readonly order: number;
+  readonly previous: Element | null;
+  readonly files: readonly TreeFile[];
+  readonly active: string | undefined;
 }
 
 const FIXED_ORDER_COPY = "Diffs keep GitHub's order: gh-prism can't reorder this many files.";
@@ -70,15 +77,18 @@ const COMMENTS = "var(--gh-prism-comment-fg)";
 function decorationOf({ file, share, lines }: FileEntry): FileTreeRowDecoration | undefined {
   const parts: { text: string; color: string }[] = [];
   const phrases: string[] = [];
+
   const comments = file.comments?.textContent?.trim();
   if (comments) {
     parts.push({ text: comments, color: COMMENTS });
     phrases.push(`${comments} comment${comments === "1" ? "" : "s"}`);
   }
+
   if (share) {
     parts.push({ text: "Partial", color: MARKER });
     phrases.push("Partial: other sections hold the rest");
   }
+
   if (lines === "binary") {
     parts.push({ text: "Binary", color: MARKER });
     phrases.push("Binary file: no line counts");
@@ -90,6 +100,7 @@ function decorationOf({ file, share, lines }: FileEntry): FileTreeRowDecoration 
     );
     phrases.push(`${added} added, ${removed} removed${share ? " in this section" : ""}`);
   }
+
   if (parts.length === 0) return undefined;
   return { text: parts.map(({ text }) => text).join(" "), title: phrases.join(". "), parts };
 }
@@ -130,16 +141,20 @@ function sectionShell(
   const toggle = el(doc, "button", "gh-prism-section-toggle", glyph, name, counter);
   if (lines) toggle.append(lineTotals(doc, lines));
   toggle.type = "button";
+
   const header = el(doc, "h3", "gh-prism-section-header", toggle);
   header.id = `gh-prism-heading-${key}`;
+
   const host = el(doc, "div", "gh-prism-tree");
   const files = el(doc, "div", "gh-prism-files", host);
   files.id = `gh-prism-files-${key}`;
   toggle.setAttribute("aria-controls", files.id);
+
   const root = el(doc, "section", "gh-prism-section", header, files);
   root.setAttribute("aria-labelledby", header.id);
   markSection(root, key);
   root.style.setProperty("--gh-prism-order", String(order));
+
   const expand = (expanded: boolean) => {
     toggle.setAttribute("aria-expanded", String(expanded));
     files.inert = !expanded;
@@ -166,6 +181,27 @@ function clickedFile(event: Event): { section: SectionKey; path: string } | unde
 }
 
 /**
+ * Calls `onMove` whenever `view` may have moved against the viewport, until `signal` aborts: on a
+ * scroll of anything holding it, a window resize, or a change in its own size.
+ */
+function followViewport(view: HTMLElement, onMove: () => void, signal: AbortSignal): void {
+  const doc = view.ownerDocument;
+  // Capture, for the sidebar's pane or the window: scroll events don't bubble.
+  doc.addEventListener(
+    "scroll",
+    (event) => {
+      if (event.target instanceof Node && event.target.contains(view)) onMove();
+    },
+    { capture: true, signal },
+  );
+  // A section or directory above a tree changing height moves where the tree has stuck.
+  const resized = new ResizeObserver(onMove);
+  resized.observe(view);
+  doc.defaultView?.addEventListener("resize", onMove, { signal });
+  signal.addEventListener("abort", () => resized.disconnect());
+}
+
+/**
  * Mounts the sidebar's sections view in `page` until `signal` aborts, and returns its hooks: a
  * progress bar while intent is pending; on landing, notices for path-only sections or diffs kept
  * in GitHub's order; then a tree per section, each split file listed in every section its hunks
@@ -179,6 +215,7 @@ export function showSections(
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   const view = el(doc, "nav", "gh-prism-sections");
   view.setAttribute("aria-label", "Changed files by section");
+
   const shown = new Map<SectionKey, ShownSection>();
   // Outlives the sections themselves, so one that empties and comes back stays collapsed.
   const collapsed = new Set(
@@ -192,18 +229,24 @@ export function showSections(
   // Only a new current file scrolls the sidebar; re-renders would pull it back mid-scroll.
   let scrolledTo: string | undefined;
 
-  const totalOf = (section: SectionKey) =>
-    totalsOf(landing).find((total) => total.section === section)?.lines;
-
   const open = (section: SectionKey, path: string) => {
     const native = readChangedFiles(page.sidebar).find((file) => file.path === path)?.link;
     if (!native) return;
     clicked = { section, path };
     jump?.abort();
+
     const line = revealLineOf(landing, path, section);
     jump = new AbortController();
     if (line === undefined) revealDiff(page, native, { signal: jump.signal });
     else void revealDiffLine(page, native, line, { signal: jump.signal });
+  };
+
+  const render = (sections: readonly FileSection[]) => {
+    dropAllBut(sections);
+    let previous = [...view.querySelectorAll(".gh-prism-notice")].at(-1) ?? null;
+    for (const [order, section] of sections.entries())
+      previous = showSection(section, order, previous);
+    scrollToCurrent(sections);
   };
 
   const dropAllBut = (sections: readonly FileSection[]) => {
@@ -223,34 +266,39 @@ export function showSections(
     if (current) {
       current.tree.update(files, active);
     } else {
-      // Set once: a section is only built after intent lands, and the landed lines never change.
-      const { root, counter, host, toggle, expand } = sectionShell(doc, section.key, {
-        order,
-        lines: totalOf(section.key),
-      });
-      expand(!collapsed.has(section.key));
-      toggle.addEventListener("click", () => {
-        const expanded = collapsed.has(section.key);
-        if (expanded) collapsed.delete(section.key);
-        else collapsed.add(section.key);
-        expand(expanded);
-      });
-      if (previous) previous.after(root);
-      else view.prepend(root);
-      current = { root, counter, tree: new SectionTree(host, files, active) };
+      current = buildSection(section.key, { order, previous, files, active });
       shown.set(section.key, current);
     }
+
     const count = String(section.entries.length);
     if (current.counter.textContent !== count) current.counter.textContent = count;
     return current.root;
   };
 
-  const render = (sections: readonly FileSection[]) => {
-    dropAllBut(sections);
-    let previous = [...view.querySelectorAll(".gh-prism-notice")].at(-1) ?? null;
-    for (const [order, section] of sections.entries())
-      previous = showSection(section, order, previous);
-    scrollToCurrent(sections);
+  const totalOf = (section: SectionKey) =>
+    totalsOf(landing).find((total) => total.section === section)?.lines;
+
+  /** Mounts section `key`'s shell after `previous`, then its tree of `files` inside it. */
+  const buildSection = (
+    key: SectionKey,
+    { order, previous, files, active }: BuildOptions,
+  ): ShownSection => {
+    // Set once: a section is only built after intent lands, and the landed lines never change.
+    const { root, counter, host, toggle, expand } = sectionShell(doc, key, {
+      order,
+      lines: totalOf(key),
+    });
+    expand(!collapsed.has(key));
+    toggle.addEventListener("click", () => {
+      const expanded = collapsed.has(key);
+      if (expanded) collapsed.delete(key);
+      else collapsed.add(key);
+      expand(expanded);
+    });
+
+    if (previous) previous.after(root);
+    else view.prepend(root);
+    return { root, counter, tree: new SectionTree(host, files, active) };
   };
 
   // A split file's sections each list it; only one of them scrolls the sidebar to it.
@@ -258,12 +306,14 @@ export function showSections(
     const active = sections.flatMap(({ entries }) => entries).find(({ file }) => file.active)
       ?.file.path;
     if (active === undefined || active === scrolledTo) return;
+
     const listing = sections.filter(
       ({ key, entries }) => !collapsed.has(key) && entries.some(({ file }) => file.path === active),
     );
     const target =
       listing.find(({ key }) => clicked?.path === active && clicked.section === key) ?? listing[0];
     if (!target) return;
+
     shown.get(target.key)?.tree.scrollToRow(active);
     scrolledTo = active;
   };
@@ -271,39 +321,30 @@ export function showSections(
   view.addEventListener(
     "click",
     (event) => {
-      const clicked = clickedFile(event);
-      if (clicked && isPlainLeftClick(event)) open(clicked.section, clicked.path);
+      const file = clickedFile(event);
+      if (file && isPlainLeftClick(event)) open(file.section, file.path);
     },
     { signal },
   );
-
-  const sync = () => {
-    for (const { tree } of shown.values()) tree.sync();
-  };
-  // Capture, for the sidebar's pane or the window: scroll events don't bubble.
-  doc.addEventListener(
-    "scroll",
-    (event) => {
-      if (event.target instanceof Node && event.target.contains(view)) sync();
+  followViewport(
+    view,
+    () => {
+      for (const { tree } of shown.values()) tree.sync();
     },
-    { capture: true, signal },
+    signal,
   );
-  // A section or directory above a tree changing height moves where the tree has stuck.
-  const resized = new ResizeObserver(sync);
-  resized.observe(view);
-  doc.defaultView?.addEventListener("resize", sync, { signal });
 
   // A DOM clone of the sidebar, such as a restored snapshot, can carry an earlier view.
   for (const stale of page.sidebar.querySelectorAll(".gh-prism-sections")) stale.remove();
   page.tree.before(view);
   doc.head.append(style);
   signal.addEventListener("abort", () => {
-    resized.disconnect();
     for (const { tree } of shown.values()) tree.cleanUp();
     view.remove();
     style.remove();
     jump?.abort();
   });
+
   return {
     root: view,
     pending() {
@@ -322,6 +363,7 @@ export function showSections(
         view.removeAttribute("aria-busy");
         view.toggleAttribute("data-reveal", true);
       }
+
       view.prepend(
         ...noticesOf(result, reorderable(page)).map((text) =>
           el(doc, "p", "gh-prism-notice", text),

@@ -5,11 +5,6 @@
  * WXT. The pull request selectors come from EXC-1662's survey.
  */
 
-const DEBOUNCE_MS = 50;
-const HIDDEN_PATCH = '[class*="HiddenDiffPatch-module"]';
-// A pull request's placeholder says "Load Diff"; a commit's says "Load diff".
-const LOAD_DIFF_LABEL = "load diff";
-
 /**
  * Where one kind of page, a pull request's or a commit's, keeps its Files changed markup. Callers
  * ask the page module's helpers rather than branching on a kind: a new kind is a new adapter, not
@@ -94,9 +89,6 @@ export const commitPage = {
   reveal: "hash",
 } satisfies PageKind;
 
-// Both of GitHub's virtualized lists index each row they place.
-const VIRTUALIZED = '[data-index] [role="region"]';
-
 export const PAGE_KINDS: readonly PageKind[] = [prPage, commitPage];
 
 /** What follows the files in `kind`'s diff list, such as GitHub's loader for more of them. */
@@ -129,8 +121,8 @@ export function findFilesPage(root: ParentNode): FilesPage | undefined {
   return undefined;
 }
 
-/** Whether `anchor` takes the form of GitHub's anchor for a file's diff. */
-export const isDiffAnchor = (anchor: string): boolean => /^diff-[0-9a-f]+$/.test(anchor);
+// Both of GitHub's virtualized lists index each row they place.
+const VIRTUALIZED = '[data-index] [role="region"]';
 
 /**
  * Whether GitHub lays `page`'s diffs out in a way their order can follow; false while
@@ -229,7 +221,7 @@ export function readChangedFiles(sidebar: ParentNode): ChangedFile[] {
   });
 }
 
-const TREE_ATTRIBUTES = ["aria-current", "aria-label"];
+const DEBOUNCE_MS = 50;
 
 interface ObserveOptions {
   readonly signal: AbortSignal;
@@ -250,12 +242,15 @@ function observeDebounced(
     clearTimeout(timer);
     timer = setTimeout(onChange, DEBOUNCE_MS);
   });
+
   observer.observe(target, init);
   signal.addEventListener("abort", () => {
     observer.disconnect();
     clearTimeout(timer);
   });
 }
+
+const TREE_ATTRIBUTES = ["aria-current", "aria-label"];
 
 /**
  * Calls `onChange` 50 ms after the last child-list change under `target`, or change to
@@ -287,16 +282,11 @@ export function observeDiffs(
   observeDebounced(diffs, { childList: true, subtree: true }, onChange, { signal });
 }
 
-/**
- * The mounted diff for `link`'s file under the page's diff list, or `null` while virtualization
- * has it unmounted.
- */
-export function findDiff(page: FilesPage, link: HTMLAnchorElement): Element | null {
-  const id = anchorOf(link);
-  if (!id) return null;
-  const diff = page.kind.diffOf(page.diffs, id);
-  return diff && page.diffs.contains(diff) ? diff : null;
-}
+/** Whether `anchor` takes the form of GitHub's anchor for a file's diff. */
+export const isDiffAnchor = (anchor: string): boolean => /^diff-[0-9a-f]+$/.test(anchor);
+
+/** The `diff-…` anchor `link` points at: it names the file's diff and prefixes its line anchors. */
+const anchorOf = (link: HTMLAnchorElement) => link.getAttribute("href")?.slice(1);
 
 /** `page`'s diff list, or `null` while it has none. */
 export const findDiffList = (page: FilesPage): Element | null =>
@@ -311,8 +301,16 @@ export function diffEntryOf(page: FilesPage, list: Element, anchor: string): HTM
   return entry instanceof HTMLElement && entry.parentElement === list ? entry : null;
 }
 
-/** The `diff-…` anchor `link` points at: it names the file's diff and prefixes its line anchors. */
-const anchorOf = (link: HTMLAnchorElement) => link.getAttribute("href")?.slice(1);
+/**
+ * The mounted diff for `link`'s file under the page's diff list, or `null` while virtualization
+ * has it unmounted.
+ */
+export function findDiff(page: FilesPage, link: HTMLAnchorElement): Element | null {
+  const id = anchorOf(link);
+  if (!id) return null;
+  const diff = page.kind.diffOf(page.diffs, id);
+  return diff && page.diffs.contains(diff) ? diff : null;
+}
 
 /** The hunk header's row when it carries `line`'s anchor, else the line's own row. */
 export function lineRowOf(
@@ -337,6 +335,10 @@ export function expandButtonOf(diff: Element | null): HTMLButtonElement | null {
 export function expandedDiff(diff: Element | null): Element | null {
   return diff && diff.children.length > 1 ? diff : null;
 }
+
+const HIDDEN_PATCH = '[class*="HiddenDiffPatch-module"]';
+// A pull request's placeholder says "Load Diff"; a commit's says "Load diff".
+const LOAD_DIFF_LABEL = "load diff";
 
 /** The Load Diff button of an unloaded diff's placeholder, else `null`. */
 export function loadDiffButtonOf(diff: Element | null): HTMLButtonElement | null {

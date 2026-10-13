@@ -134,6 +134,7 @@ describe("showSections", () => {
         section.style.getPropertyValue("--gh-prism-hue"),
       ]),
     );
+
     expect(hues).toEqual({
       implementation: "var(--fgColor-accent)",
       tests: "var(--fgColor-done)",
@@ -163,11 +164,13 @@ describe("showSections", () => {
   it("names each section by its header", () => {
     const sections = [...document.querySelectorAll(".gh-prism-section")];
     expect(sections).toHaveLength(5);
+
     for (const section of sections) {
       const header = section.querySelector("h3");
       expect(header).not.toBeNull();
       expect(document.getElementById(section.getAttribute("aria-labelledby") ?? "")).toBe(header);
     }
+
     expect(
       [...document.querySelectorAll(".gh-prism-section-label")].map((label) => label.textContent),
     ).toEqual(["Implementation", "Tests", "Documentation", "Config", "Generated / lockfiles"]);
@@ -192,12 +195,14 @@ describe("showSections", () => {
     const fresh = new AbortController();
     showVisit(page, fresh.signal, { intent: () => landedWith(), diffstat: { view: "breakout" } });
     expect(document.querySelectorAll(".gh-prism-sections")).toHaveLength(1);
+
     fresh.abort();
   });
 
   it("adds a file that joins the native tree, with its status, to its section's tree", async () => {
     addNativeFile("docs/intro.md", "docs/guide.md");
     await afterDebounce();
+
     expect(filesIn("docs")).toEqual(["docs/guide.md", "docs/intro.md", "README.md"]);
     expect(rowIn("docs", "docs/intro.md").dataset.itemGitStatus).toBe("modified");
     expect(document.querySelector('[data-section="docs"] .gh-prism-counter')?.textContent).toBe(
@@ -211,6 +216,7 @@ describe("showSections", () => {
     await afterDebounce();
     addNativeFile("docs/intro.md", "config/app.toml");
     await afterDebounce();
+
     expect(sectionKeys()).toEqual(["implementation", "tests", "docs", "config", "generated"]);
   });
 
@@ -218,6 +224,7 @@ describe("showSections", () => {
     const generated = treeHost("generated");
     byId("Cargo.lock").remove();
     await afterDebounce();
+
     expect(sectionKeys()).not.toContain("generated");
     expect(generated.shadowRoot?.querySelector('[data-type="item"]')).toBeNull();
   });
@@ -228,8 +235,10 @@ describe("showSections", () => {
       return `${rows.length * Number.parseFloat(rows[0]?.style.minHeight ?? "")}px`;
     };
     expect(treeHost("implementation").style.height).toBe(heightOfRows("implementation"));
+
     clickAt(rowIn("implementation", "src/"));
     await afterDebounce();
+
     expect(rowsIn("implementation")).toHaveLength(1);
     expect(treeHost("implementation").style.height).toBe(heightOfRows("implementation"));
   });
@@ -239,6 +248,7 @@ describe("showSections", () => {
     await afterDebounce();
     byId("src/notes.rs").remove();
     await afterDebounce();
+
     expect(rowIn("implementation", "src/generated/").getAttribute("aria-expanded")).toBe("false");
     expect(filesIn("implementation")).toEqual([
       "src/engine.rs",
@@ -263,10 +273,14 @@ describe("showSections", () => {
     it("hides and shows its section's tree when clicked", () => {
       expect(expanded("docs")).toBe("true");
       expect(filesOf("docs").contains(treeHost("docs"))).toBe(true);
+
       sectionToggle("docs").click();
+
       expect(expanded("docs")).toBe("false");
       expect(filesOf("docs").inert).toBe(true);
+
       sectionToggle("docs").click();
+
       expect(expanded("docs")).toBe("true");
       expect(filesOf("docs").inert).toBe(false);
     });
@@ -275,7 +289,9 @@ describe("showSections", () => {
       expect(expanded("generated")).toBe("false");
       expect(filesOf("generated").inert).toBe(true);
       expect(expanded("implementation")).toBe("true");
+
       sectionToggle("generated").click();
+
       expect(expanded("generated")).toBe("true");
     });
 
@@ -283,6 +299,7 @@ describe("showSections", () => {
       const toggle = sectionToggle("tests");
       toggle.focus();
       press(toggle, key);
+
       expect(expanded("tests")).toBe("false");
       expect(document.activeElement).toBe(toggle);
     });
@@ -291,6 +308,7 @@ describe("showSections", () => {
       sectionToggle("docs").click();
       addNativeFile("docs/intro.md", "docs/guide.md");
       await afterDebounce();
+
       expect(expanded("docs")).toBe("false");
       expect(filesOf("docs").inert).toBe(true);
       expect(filesIn("docs")).toContain("docs/intro.md");
@@ -303,6 +321,7 @@ describe("showSections", () => {
       await afterDebounce();
       addNativeFile("docs/intro.md", "config/app.toml");
       await afterDebounce();
+
       expect(expanded("docs")).toBe("false");
       expect(filesOf("docs").inert).toBe(true);
     });
@@ -316,10 +335,12 @@ describe("showSections", () => {
       sectionToggle("implementation").click();
       sectionToggle("implementation").click();
       await afterDebounce();
+
       expect(render).not.toHaveBeenCalled();
       expect(resetPaths).not.toHaveBeenCalled();
       expect(cleanUp).not.toHaveBeenCalled();
       expect(rowsIn("implementation")).toEqual(rows);
+
       render.mockRestore();
       resetPaths.mockRestore();
       cleanUp.mockRestore();
@@ -330,6 +351,7 @@ describe("showSections", () => {
     const path = "docs/<img src=x onerror=alert(1)>.md";
     addNativeFile(path, "docs/guide.md");
     await afterDebounce();
+
     expect(treeHost("docs").shadowRoot?.querySelector("img")).toBeNull();
     expect(rowIn("docs", path).getAttribute("aria-label")).toBe("<img src=x onerror=alert(1)>.md");
   });
@@ -337,10 +359,13 @@ describe("showSections", () => {
   it("removes itself, clears its trees, and stops rendering once aborted", async () => {
     const implementation = treeHost("implementation");
     abort();
+
     expect(view()).toBeNull();
     expect(implementation.shadowRoot?.querySelector('[data-type="item"]')).toBeNull();
+
     byId("src/lib.rs").removeAttribute("aria-current");
     await afterDebounce();
+
     expect(view()).toBeNull();
   });
 
@@ -352,6 +377,7 @@ describe("showSections", () => {
   ])("marks a file whose native icon is %s as %s", (octicon, status) => {
     byId("src/parser.rs").querySelector("svg.octicon")?.setAttribute("class", `octicon ${octicon}`);
     remountWith();
+
     expect(rowIn("implementation", "src/parser.rs").dataset.itemGitStatus).toBe(status);
   });
 
@@ -377,6 +403,7 @@ describe("showSections", () => {
       byId("src/lib.rs").removeAttribute("aria-current");
       byId("src/engine.rs").setAttribute("aria-current", "true");
       await afterDebounce();
+
       expect(selected("implementation")).toEqual(["src/engine.rs"]);
       expect(rowIn("implementation", "src/engine.rs")).toBe(engine);
     });
@@ -389,9 +416,11 @@ describe("showSections", () => {
       byId("src/lib.rs").removeAttribute("aria-current");
       byId("README.md").setAttribute("aria-current", "true");
       await afterDebounce();
+
       expect(selected("docs")).toEqual(["README.md"]);
       expect(resetPaths).not.toHaveBeenCalled();
       expect(setGitStatus).not.toHaveBeenCalled();
+
       resetPaths.mockRestore();
       setGitStatus.mockRestore();
     });
@@ -413,6 +442,7 @@ describe("showSections", () => {
     it("is selected in every section a split lists it under", async () => {
       byId("src/lib.rs").removeAttribute("aria-current");
       byId("src/render.rs").setAttribute("aria-current", "true");
+
       await landed(
         landedWith(
           new Map([
@@ -437,6 +467,7 @@ describe("showSections", () => {
           ]),
         ),
       );
+
       expect(selected("implementation")).toEqual(["src/render.rs"]);
       expect(selected("docs")).toEqual(["src/render.rs"]);
     });
@@ -446,7 +477,9 @@ describe("showSections", () => {
     it("shows a whole file's lines added and removed in the diffstat colors", async () => {
       await landed(landedWith(new Map(), new Map([["src/render.rs", { added: 12, removed: 3 }]])));
       expect(partTexts("implementation", "src/render.rs")).toEqual(["+12", "−3"]);
+
       const [added, removed] = partsOf("implementation", "src/render.rs");
+
       expect(added?.style.color).toContain("--fgColor-success");
       expect(removed?.style.color).toContain("--fgColor-danger");
     });
@@ -484,6 +517,7 @@ describe("showSections", () => {
           new Map([["src/render.rs", { added: 8, removed: 2 }]]),
         ),
       );
+
       expect(partTexts("implementation", "src/render.rs")).toEqual(["Partial", "+5", "−1"]);
       expect(partTexts("docs", "src/render.rs")).toEqual(["Partial", "+3", "−1"]);
     });
@@ -515,6 +549,7 @@ describe("showSections", () => {
       count.textContent = "2";
       byId("src/engine.rs").setAttribute("aria-label", "engine.rs has 2 comments");
       await afterDebounce();
+
       expect(partTexts("implementation", "src/engine.rs")).toEqual(["2"]);
     });
   });
@@ -557,6 +592,7 @@ describe("showSections", () => {
           ]),
         ),
       );
+
       expect(nameOf("docs", "src/render.rs")).toBe(
         "render.rs, Partial: other sections hold the rest. 3 added, 1 removed in this section",
       );
@@ -565,6 +601,7 @@ describe("showSections", () => {
     it("says a binary file has no line counts", async () => {
       addNativeFile("src/logo.png", "src/lib.rs");
       await landed(landedWith(new Map(), new Map([["src/logo.png", "binary"]])));
+
       expect(nameOf("implementation", "src/logo.png")).toBe(
         "logo.png, Binary file: no line counts",
       );
@@ -573,6 +610,7 @@ describe("showSections", () => {
 
   describe("a click on a row", () => {
     const RENDER_DIFF = "diff-0a09";
+
     const renderSplit = (
       implementationHunks: readonly ({ first: number; last: number } | undefined)[],
     ): IntentResult =>
@@ -604,6 +642,7 @@ describe("showSections", () => {
     beforeEach(() => {
       scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => {});
     });
+
     afterEach(() => {
       scrollIntoView.mockRestore();
     });
@@ -663,8 +702,10 @@ describe("showSections", () => {
       const clicks = vi.spyOn(HTMLAnchorElement.prototype, "click");
       clickAt(rowIn("implementation", "src/generated/"));
       await afterDebounce();
+
       expect(rowIn("implementation", "src/generated/").getAttribute("aria-expanded")).toBe("false");
       expect(clicks).not.toHaveBeenCalled();
+
       clicks.mockRestore();
     });
 
@@ -679,6 +720,7 @@ describe("showSections", () => {
       mountRenderDiff(2, 22);
       clickAt(rowIn("docs", "src/render.rs"));
       await afterDebounce();
+
       expect(scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "instant" });
       expect(diffScrolls()).toEqual([lineRow(22)]);
     });
@@ -696,6 +738,7 @@ describe("showSections", () => {
       clickAt(rowIn("docs", "src/render.rs"));
       mountRenderDiff(2, 22);
       await afterDebounce();
+
       expect(diffScrolls()).toEqual([lineRow(22)]);
     });
 
@@ -705,17 +748,20 @@ describe("showSections", () => {
       abort();
       mountRenderDiff(22);
       await afterDebounce();
+
       expect(diffScrolls()).toEqual([]);
     });
   });
 
   describe("the sidebar's scroll", () => {
     let scrollIntoView: MockInstance<Element["scrollIntoView"]>;
+
     const revealedTops = () =>
       scrollIntoView.mock.contexts
         .filter((context) => context instanceof HTMLElement)
         .filter((context) => context.getRootNode() === treeHost("implementation").shadowRoot)
         .map((context) => context.style.top);
+
     const moveCurrentTo = (path: string) => {
       byId("src/lib.rs").removeAttribute("aria-current");
       byId(path).setAttribute("aria-current", "true");
@@ -724,6 +770,7 @@ describe("showSections", () => {
     beforeEach(() => {
       scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => {});
     });
+
     afterEach(() => {
       scrollIntoView.mockRestore();
     });
@@ -733,16 +780,20 @@ describe("showSections", () => {
       const root = shadow?.querySelector("[data-file-tree-virtualized-root]");
       const scroll = shadow?.querySelector("[data-file-tree-virtualized-scroll]");
       if (!root || !scroll) throw new Error("the implementation tree has no viewport");
+
       vi.spyOn(root, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 300, 200, 900));
       vi.spyOn(treeHost("implementation"), "getBoundingClientRect").mockReturnValue(
         new DOMRect(0, 100, 200, 2000),
       );
+
       byId("pr-file-tree").dispatchEvent(new Event("scroll"));
+
       expect(scroll.scrollTop).toBe(200);
     });
 
     it("brings the row the keyboard focuses into the sidebar's view", async () => {
       const rows = rowsIn("implementation");
+
       rows[0]?.focus();
       rows[0]?.dispatchEvent(
         new KeyboardEvent("keydown", {
@@ -753,6 +804,7 @@ describe("showSections", () => {
         }),
       );
       await afterDebounce();
+
       expect(treeHost("implementation").shadowRoot?.activeElement).toBe(rows.at(-1));
       expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
       expect(revealedTops()).toContain(`${(rows.length - 1) * 28}px`);
@@ -764,6 +816,7 @@ describe("showSections", () => {
       const index = rowsIn("implementation").findIndex(
         (row) => row.dataset.itemPath === "src/engine.rs",
       );
+
       expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
       expect(revealedTops()).toEqual([`${index * 28}px`]);
     });
@@ -772,9 +825,11 @@ describe("showSections", () => {
       moveCurrentTo("src/engine.rs");
       await afterDebounce();
       expect(scrollIntoView).toHaveBeenCalledTimes(1);
+
       scrollIntoView.mockClear();
       byId("src/engine.rs").setAttribute("aria-label", "engine.rs has 2 comments");
       await afterDebounce();
+
       expect(scrollIntoView).not.toHaveBeenCalled();
     });
 
@@ -814,6 +869,7 @@ describe("showSections", () => {
             ]),
           ),
         );
+
         scrollIntoView.mockClear();
       });
 
@@ -852,8 +908,10 @@ describe("showSections", () => {
       rect.mockReturnValue(new DOMRect(0, 3 * innerHeight, 200, 2000));
       byId("pr-file-tree").dispatchEvent(new Event("scroll"));
       expect(host.hasAttribute("data-gh-prism-far")).toBe(true);
+
       rect.mockReturnValue(new DOMRect(0, 100, 200, 2000));
       byId("pr-file-tree").dispatchEvent(new Event("scroll"));
+
       expect(host.hasAttribute("data-gh-prism-far")).toBe(false);
     });
   });
@@ -885,6 +943,7 @@ describe("showSections", () => {
       const pending = pendingIntent();
       remountWith(pending.intent);
       pending.progress({ checked: 3, total: 13 });
+
       expect(progressBar()?.getAttribute("aria-valuenow")).toBe("3");
       expect(progressBar()?.getAttribute("aria-valuemax")).toBe("13");
     });
@@ -893,6 +952,7 @@ describe("showSections", () => {
       remountWith(pendingIntent().intent);
       byId("src/lib.rs").removeAttribute("aria-current");
       await afterDebounce();
+
       expect(progressBar()).not.toBeNull();
       expect(sectionKeys()).toEqual([]);
     });
@@ -909,6 +969,7 @@ describe("showSections", () => {
         ),
       );
       await afterDebounce();
+
       expect(view()?.hasAttribute("aria-busy")).toBe(false);
       expect(progressBar()).toBeNull();
       expect(view()?.hasAttribute("data-reveal")).toBe(true);
@@ -938,6 +999,7 @@ describe("showSections", () => {
         remountWith(pending.intent);
         pending.resolve({ ok: false, problem });
         await afterDebounce();
+
         expect(filesIn("implementation")).toContain("src/parser.rs");
         expect(view()?.firstElementChild?.className).toBe("gh-prism-notice");
         expect(view()?.firstElementChild?.textContent).toBe(copy);
@@ -949,10 +1011,12 @@ describe("showSections", () => {
       const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
       remountWith(() => Promise.reject(failure));
       await afterDebounce();
+
       expect(view()?.hasAttribute("aria-busy")).toBe(false);
       expect(filesIn("implementation")).toContain("src/parser.rs");
       expect(view()?.firstElementChild?.className).toBe("gh-prism-notice");
       expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
+
       consoleError.mockRestore();
     });
 
@@ -964,8 +1028,10 @@ describe("showSections", () => {
       abort();
       pending.resolve(landedWith(new Map([["src/parser.rs", whole("docs")]])));
       await afterDebounce();
+
       expect(view()).toBeNull();
       expect(render).not.toHaveBeenCalled();
+
       render.mockRestore();
     });
   });

@@ -38,6 +38,7 @@ beforeEach(() => {
   loadFixture();
   controller = new AbortController();
 });
+
 afterEach(() => {
   controller.abort();
   vi.useRealTimers();
@@ -54,12 +55,15 @@ describe("content script", () => {
     async ({ saved, opens }) => {
       // Raw key on purpose, so the test outlives a move to typed storage items.
       if (saved !== undefined) await fakeBrowser.storage.sync.set({ sidebarSide: saved });
+
       const sides: Side[] = [];
       // At call time: a saved side read after the first page docks would fix up the shared choice.
       vi.mocked(dockSidebar).mockImplementationOnce((_page, _signal, { choice }) => {
         sides.push(choice.side);
       });
+
       await run();
+
       expect(sides).toEqual([opens]);
     },
   );
@@ -72,7 +76,9 @@ describe("content script", () => {
     vi.mocked(dockSidebar).mockImplementationOnce((_page, _signal, { choice }) => {
       sides.push(choice.side);
     });
+
     await run();
+
     expect(sides).toEqual(["right"]);
     expect(showVisit).toHaveBeenCalledOnce();
     expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
@@ -90,8 +96,10 @@ describe("content script", () => {
     const failure = new Error("quota");
     vi.spyOn(fakeBrowser.storage.sync, "set").mockRejectedValue(failure);
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
     await run();
     docked()[0]?.save("left");
+
     await vi.waitFor(() => expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure));
   });
 
@@ -100,6 +108,7 @@ describe("content script", () => {
     const sidebar = byId("pr-file-tree");
     sidebar.replaceWith(sidebar.cloneNode(true));
     await afterMutations();
+
     expect(intentFor).toHaveBeenCalledOnce();
     expect(intentFor).toHaveBeenCalledWith(
       readFilesRoute(PR),
@@ -107,6 +116,7 @@ describe("content script", () => {
       expect.anything(),
       expect.any(Function),
     );
+
     const shown = vi.mocked(showVisit).mock.calls;
     expect(shown).toHaveLength(2);
     expect(vi.mocked(dockSidebar).mock.calls.map(([page]) => page.sidebar.ownerDocument)).toEqual([
@@ -121,6 +131,7 @@ describe("content script", () => {
     history.pushState(null, "", "/o/r/pull/2/changes");
     document.dispatchEvent(new Event("soft-nav:end"));
     await afterMutations();
+
     expect(intentFor).toHaveBeenCalledTimes(2);
     expect(vi.mocked(intentFor).mock.calls[1]?.[0]).toEqual(readFilesRoute("/o/r/pull/2/changes"));
   });
@@ -128,6 +139,7 @@ describe("content script", () => {
   it("reads each visit's pin from the page", async () => {
     const script = document.createElement("script");
     script.dataset.target = "react-app.embeddedData";
+
     const pin = { baseSha: "b".repeat(40), headSha: "a".repeat(40) };
     script.textContent = JSON.stringify({
       payload: {
@@ -139,7 +151,9 @@ describe("content script", () => {
       },
     });
     document.body.append(script);
+
     await run();
+
     const pr1 = readFilesRoute(PR)?.diff;
     if (!pr1) throw new Error("the fixture's path is a Files route");
     expect(vi.mocked(intentFor).mock.calls[0]?.[2].pinOf?.(pr1)).toEqual(pin);
@@ -148,10 +162,12 @@ describe("content script", () => {
   it("warns once when the Files changed tree never shows", async () => {
     document.body.innerHTML = "";
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
     await run();
     await vi.advanceTimersByTimeAsync(20_000);
     document.dispatchEvent(new Event("soft-nav:end"));
     await vi.advanceTimersByTimeAsync(20_000);
+
     expect(consoleWarn).toHaveBeenCalledOnce();
   });
 });

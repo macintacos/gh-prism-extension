@@ -145,6 +145,7 @@ describe("totalsOf", () => {
       placements: new Map(),
       lines: new Map([["src/a.rs", { added: 0, removed: 0 }]]),
     });
+
     expect(totalsOf(unchanged)).toEqual([]);
   });
 
@@ -189,6 +190,7 @@ describe("revealLineOf", () => {
       ]),
       lines: new Map([["src/a.rs", { added: 3, removed: 4 }]]),
     });
+
     expect(revealLineOf(deletion, "src/a.rs", "docs")).toEqual(undefined);
   });
 });

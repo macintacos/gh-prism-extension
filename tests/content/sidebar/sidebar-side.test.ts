@@ -60,11 +60,13 @@ it("docks on the chosen side, with a switch to the other just after GitHub's tre
 
 it("switches sides on click, keeping the tab's choice and saving it", () => {
   const { choice, save } = dock("right");
+
   switcher()?.click();
   expect(docked()).toBe("left");
   expect(choice.side).toBe("left");
   expect(save).toHaveBeenLastCalledWith("left");
   expect(switcher()?.getAttribute("aria-label")).toBe("Move file tree to the right");
+
   switcher()?.click();
   expect(docked()).toBe("right");
   expect(save).toHaveBeenLastCalledWith("right");
@@ -108,8 +110,10 @@ it("replays a tree toggle click inside a glide, so GitHub collapses the tree mid
   dock("right");
   const glideAtClick: (string | undefined)[] = [];
   treeToggle()?.addEventListener("click", () => glideAtClick.push(gliding()));
+
   treeToggle()?.click();
   expect(glideAtClick).toEqual(["toggle"]);
+
   await start.mock.results[0]?.value.finished;
   expect(gliding()).toBeUndefined();
 });
@@ -146,16 +150,20 @@ const PANE = `
 function dragHandle(handleLeft: number) {
   document.body.innerHTML = COMMIT_TOOLBAR + PANE;
   dock("right", commitPage);
+
   const wrapper = document.querySelector<HTMLElement>('[class*="PageLayout-PaneWrapper"]');
   const handle = document.querySelector<HTMLElement>('[data-component="PageLayout.DragHandle"]');
   if (!wrapper || !handle) throw new Error("no pane");
   vi.spyOn(wrapper, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 300, 600));
   vi.spyOn(handle, "getBoundingClientRect").mockReturnValue(new DOMRect(handleLeft, 0, 4, 600));
+
   const primer: number[] = [];
   document.body.addEventListener("pointermove", (event) => primer.push(event.clientX));
+
   const pointer = { bubbles: true, cancelable: true, buttons: 1 };
   handle.dispatchEvent(new PointerEvent("pointerdown", { ...pointer, clientX: 100 }));
   handle.dispatchEvent(new PointerEvent("pointermove", { ...pointer, clientX: 130 }));
+
   return primer;
 }
 
@@ -172,8 +180,10 @@ it("replays a commit page's tree toggle click inside a glide, but not its narrow
   const start = stubViewTransitions();
   dock("right", commitPage);
   const [narrow, regular] = document.querySelectorAll("button[aria-controls]");
+
   regular?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   narrow?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
   expect(start).toHaveBeenCalledOnce();
   await start.mock.results[0]?.value.finished;
 });
