@@ -4,7 +4,9 @@ import type { FilesPage } from "../entrypoints/content/files-page";
 import {
   appendToDiffs,
   commitPage,
+  diffEntryOf,
   findDiff,
+  findDiffList,
   findDiffstat,
   findFilesPage,
   findTreeToggle,
@@ -232,6 +234,33 @@ describe("findDiff", () => {
   });
 });
 
+describe("findDiffList", () => {
+  it("finds the list that holds each file's entry", () => {
+    expect(findDiffList(foundPage())).toBe(byId(ENGINE_DIFF).parentElement?.parentElement);
+  });
+});
+
+describe("diffEntryOf", () => {
+  const entryOf = (anchor: string) => {
+    const page = foundPage();
+    const list = findDiffList(page);
+    if (!list) throw new Error("fixture has no diff list");
+    return diffEntryOf(page, list, anchor);
+  };
+
+  it("finds the list's child that holds a file's diff", () => {
+    expect(entryOf(ENGINE_DIFF)).toBe(byId(ENGINE_DIFF).parentElement);
+  });
+
+  it("is null when the diff sits deeper than the list's child", () => {
+    const diff = byId(ENGINE_DIFF);
+    const wrapper = document.createElement("div");
+    diff.replaceWith(wrapper);
+    wrapper.append(diff);
+    expect(entryOf(ENGINE_DIFF)).toBeNull();
+  });
+});
+
 const virtualize = (page: FilesPage) => {
   page.diffs.insertAdjacentHTML("beforeend", '<div data-index="0"><div role="region"></div></div>');
 };
@@ -369,6 +398,20 @@ describe("the commit kind", () => {
     expect(findDiff(foundPage(), linkTo("bin/caret-launcher"))).toBe(
       document.querySelector('[role="region"]'),
     );
+  });
+
+  it("finds its diff list", () => {
+    expect(findDiffList(foundPage())).toBe(
+      document.querySelector('[role="region"]')?.parentElement?.parentElement,
+    );
+  });
+
+  it("finds the entry that holds a file's diff", () => {
+    const region = document.querySelector('[role="region"]');
+    const page = foundPage();
+    const list = findDiffList(page);
+    if (!list) throw new Error("commit fixture lacks its diff list");
+    expect(diffEntryOf(page, list, LAUNCHER_DIFF)).toBe(region?.parentElement);
   });
 
   it("finds no diff for a file whose diff is unmounted", () => {

@@ -30,7 +30,10 @@ export interface PageKind {
   readonly diffList: string;
   /** Every file's entry in `diffList`. */
   readonly diffEntries: string;
-  /** CSS selecting the diff list entry of the file whose anchor is `anchor`. */
+  /**
+   * CSS selecting the entry of the file whose anchor is `anchor`; used only for a block list's
+   * first file.
+   */
   readonly diffEntry: (anchor: string) => string;
   /**
    * How GitHub lays out `diffList`: a flex column, or a block that opens on a toolbar and spaces
@@ -293,6 +296,19 @@ export function findDiff(page: FilesPage, link: HTMLAnchorElement): Element | nu
   if (!id) return null;
   const diff = page.kind.diffOf(page.diffs, id);
   return diff && page.diffs.contains(diff) ? diff : null;
+}
+
+/** `page`'s diff list, or `null` while it has none. */
+export const findDiffList = (page: FilesPage): Element | null =>
+  page.diffs.querySelector(page.kind.diffList);
+
+/**
+ * The child of `list` that holds `anchor`'s diff: the diff's parent, when that is one of `list`'s
+ * children; `null` otherwise, so markup GitHub has reshaped keeps GitHub's order.
+ */
+export function diffEntryOf(page: FilesPage, list: Element, anchor: string): HTMLElement | null {
+  const entry = page.kind.diffOf(page.diffs, anchor)?.parentElement;
+  return entry instanceof HTMLElement && entry.parentElement === list ? entry : null;
 }
 
 /** The `diff-…` anchor `link` points at: it names the file's diff and prefixes its line anchors. */

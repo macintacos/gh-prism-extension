@@ -76,15 +76,54 @@ function virtualize(): void {
     '<div role="region" id="diff-0a01"></div></div></div>';
 }
 
-/** The stylesheets that place individual diffs. */
-const fileOrderSheets = () =>
-  [...document.querySelectorAll("style")].filter((sheet) =>
-    sheet.textContent?.includes("--gh-prism-section-order: "),
-  );
+/** The diff list entry holding the diff of the native tree's file at `path`. */
+function entryOf(path: string): HTMLElement {
+  const anchor = byId(path).querySelector("a")?.getAttribute("href")?.slice(1) ?? "";
+  const entry = document.getElementById(anchor)?.parentElement;
+  if (!entry) throw new Error(`no entry for ${path}`);
+  return entry;
+}
+
+const SIDEBAR_ORDER = [
+  "src/generated/schema.rs",
+  "src/engine.rs",
+  "src/helpers.rs",
+  "src/lib.rs",
+  "src/notes.rs",
+  "src/parser.rs",
+  "src/render.rs",
+  "tests/integration.rs",
+  "docs/guide.md",
+  "README.md",
+  "config/app.toml",
+  "Cargo.toml",
+  "Cargo.lock",
+];
+
+const GITHUB_ORDER = [
+  "config/app.toml",
+  "docs/guide.md",
+  "src/generated/schema.rs",
+  "src/engine.rs",
+  "src/helpers.rs",
+  "src/lib.rs",
+  "src/notes.rs",
+  "src/parser.rs",
+  "src/render.rs",
+  "tests/integration.rs",
+  "Cargo.lock",
+  "Cargo.toml",
+  "README.md",
+];
 
 const progressiveList = () => document.querySelector('[data-testid="progressive-diffs-list"]');
 const diffsProgressBar = () =>
   document.querySelector<HTMLElement>('[data-testid="diff-content"] [role="progressbar"]');
+/** The diff list's entries that carry an inline `order` or `animation-delay`. */
+const placedEntries = () =>
+  [...(progressiveList()?.children ?? [])].filter(
+    (entry) => entry instanceof HTMLElement && (entry.style.order || entry.style.animationDelay),
+  );
 const diffsShown = () => getComputedStyle(progressiveList() ?? document.body).display !== "none";
 
 describe("the diffs beside the sections", () => {
@@ -115,21 +154,68 @@ describe("the diffs beside the sections", () => {
   });
 
   it("lie in the sidebar's order", () => {
-    expect(laidOut(progressiveList())).toEqual([
-      "src/generated/schema.rs",
-      "src/engine.rs",
-      "src/helpers.rs",
-      "src/lib.rs",
-      "src/notes.rs",
-      "src/parser.rs",
-      "src/render.rs",
-      "tests/integration.rs",
-      "docs/guide.md",
-      "README.md",
-      "config/app.toml",
-      "Cargo.toml",
-      "Cargo.lock",
-    ]);
+    expect(laidOut(progressiveList())).toEqual(SIDEBAR_ORDER);
+  });
+
+  it("place no rule per file", () => {
+    const sheets = [...document.querySelectorAll("style")];
+    expect(sheets.filter((sheet) => /#diff-[0-9a-f]+\b/.test(sheet.textContent ?? ""))).toEqual([]);
+  });
+
+  it("keep their place when GitHub replaces an entry", async () => {
+    const old = entryOf("src/engine.rs");
+    const fresh = document.createElement("div");
+    fresh.append(...old.children);
+    old.replaceWith(fresh);
+    await Promise.resolve();
+    expect(fresh.style.order).toBe("2");
+    expect(laidOut(progressiveList())).toEqual(SIDEBAR_ORDER);
+  });
+
+  it("take their place when GitHub adds an entry the sidebar lists", async () => {
+    const old = entryOf("src/engine.rs");
+    old.remove();
+    remountWith();
+    const entry = document.createElement("div");
+    entry.append(...old.children);
+    progressiveList()?.append(entry);
+    await Promise.resolve();
+    expect(entry.style.order).toBe("2");
+    expect(laidOut(progressiveList())).toEqual(SIDEBAR_ORDER);
+  });
+
+  it("take the sidebar's order when their list appears after the view lands", async () => {
+    byTestId("diff-content").replaceChildren();
+    remountWith();
+    mountEveryDiff();
+    await Promise.resolve();
+    expect(laidOut(progressiveList())).toEqual(SIDEBAR_ORDER);
+  });
+
+  it("take the sidebar's order when GitHub replaces their list after the view lands", async () => {
+    remountWith();
+    mountEveryDiff();
+    await Promise.resolve();
+    expect(laidOut(progressiveList())).toEqual(SIDEBAR_ORDER);
+  });
+
+  it("keep GitHub's order where a diff isn't its entry's child", () => {
+    for (const region of document.querySelectorAll('[role="region"]')) {
+      const wrapper = document.createElement("div");
+      region.replaceWith(wrapper);
+      wrapper.append(region);
+    }
+    remountWith();
+    expect(laidOut(progressiveList())).toEqual(GITHUB_ORDER);
+    expect(placedEntries()).toEqual([]);
+  });
+
+  it("drop in a section at a time", () => {
+    const [first, second] = sectionKeys();
+    const delays = (section = "") =>
+      filesIn(section).map((path = "") => entryOf(path).style.animationDelay);
+    expect(new Set(delays(first))).toEqual(new Set(["0ms"]));
+    expect(new Set(delays(second))).toEqual(new Set(["50ms"]));
   });
 
   it("put a file intent moves where the sidebar lists it", async () => {
@@ -202,21 +288,15 @@ describe("the diffs beside the sections", () => {
 
   it("keep GitHub's order once the view is gone", () => {
     abort();
-    expect(laidOut(progressiveList())).toEqual([
-      "config/app.toml",
-      "docs/guide.md",
-      "src/generated/schema.rs",
-      "src/engine.rs",
-      "src/helpers.rs",
-      "src/lib.rs",
-      "src/notes.rs",
-      "src/parser.rs",
-      "src/render.rs",
-      "tests/integration.rs",
-      "Cargo.lock",
-      "Cargo.toml",
-      "README.md",
-    ]);
+    expect(laidOut(progressiveList())).toEqual(GITHUB_ORDER);
+  });
+
+  it("leave no inline order on GitHub's entries once the view is gone", () => {
+    abort();
+    const styled = [...(progressiveList()?.children ?? [])].filter(
+      (entry) => entry instanceof HTMLElement && (entry.style.order || entry.style.animationDelay),
+    );
+    expect(styled).toEqual([]);
   });
 
   it("show at once when intent has already landed", () => {
@@ -236,15 +316,18 @@ describe("the diffs beside the sections", () => {
   it("aren't placed while GitHub virtualizes them", async () => {
     virtualize();
     await landed(landedWith());
-    expect(fileOrderSheets()).toHaveLength(0);
+    expect(placedEntries()).toHaveLength(0);
   });
 
   it("drop their placement once GitHub virtualizes them", async () => {
-    expect(fileOrderSheets()).toHaveLength(1);
-    virtualize();
+    expect(placedEntries()).toHaveLength(13);
+    byTestId("diff-content").insertAdjacentHTML(
+      "beforeend",
+      '<div data-index="0"><div role="region"></div></div>',
+    );
     byId("src/engine.rs").setAttribute("aria-current", "true");
     await afterDebounce();
-    expect(fileOrderSheets()).toHaveLength(0);
+    expect(placedEntries()).toHaveLength(0);
   });
 
   it("take the sidebar's order once GitHub stops virtualizing them", async () => {
@@ -366,8 +449,7 @@ describe("a page kind's list rules", () => {
   const reveal = (entries: string) =>
     "@media (prefers-reduced-motion: no-preference) { " +
     `html[data-gh-prism-diffs="revealed"] ${entries} { ` +
-    "animation: gh-prism-diff-reveal 280ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards; " +
-    "animation-delay: calc(var(--gh-prism-section-order, 0) * 50ms); } }";
+    "animation: gh-prism-diff-reveal 280ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards; } }";
 
   it("put a pull request's unlisted files last, hide its whole list while covered, and drop its files in", () => {
     const entries = '[data-testid="progressive-diffs-list"] > :has([role="region"])';
