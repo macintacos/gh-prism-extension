@@ -90,10 +90,10 @@ const rendered = (selector: string) => countsOf(selector).some((count) => count 
 
 /**
  * Mounts the real sections view on `count` files, its hosts sized as in the sidebar or pinned
- * at one viewport. Times the mount through the trees' post-paint renders, a re-render where
- * every status flips, and one where a path changes; throws unless each re-render showed up.
+ * at one viewport, ready to mount its trees through their post-paint renders. Then times a
+ * re-render where every status flips, and one where a path changes; throws unless each showed up.
  */
-async function sectionTrees(count: number, hosts: "sidebar" | "fixed" = "sidebar") {
+function sectionTrees(count: number, hosts: "sidebar" | "fixed" = "sidebar") {
   const files = syntheticFiles(count);
   const page = mountPage(files, 2);
   if (hosts === "fixed")
@@ -119,36 +119,40 @@ async function sectionTrees(count: number, hosts: "sidebar" | "fixed" = "sidebar
     await nextFrame();
     await nextFrame();
   };
-  // Only the mount's clock runs through the frames: idle frame time would swamp a re-render.
-  const mount = await timed(async () => {
-    await renderOf(modified)();
+  const rerenders = async () => {
+    const rerender = await timed(renderOf(added));
     await twoFrames();
-  });
-  const rerender = await timed(renderOf(added));
-  await twoFrames();
-  if (!rendered('[data-item-git-status="added"]') || rendered('[data-item-git-status="modified"]'))
-    throw new Error("the status re-render didn't land");
-  const [first, ...rest] = files;
-  if (!first) throw new Error("no files to rename");
-  const renamed = [{ ...first, path: "docs/guide-0/page-0-renamed.md" }, ...rest];
-  const pathRerender = await timed(renderOf(sectionsWith("added", renamed)));
-  await twoFrames();
-  if (
-    !rendered('[data-item-path="docs/guide-0/page-0-renamed.md"]') ||
-    rendered('[data-item-path="docs/guide-0/page-0.md"]')
-  )
-    throw new Error("the path re-render didn't land");
-  const rowsPerTree = countsOf('[data-type="item"]');
-  const total = rowsPerTree.reduce((sum, count) => sum + count, 0);
-  if (total === 0) throw new Error("the section trees rendered no rows");
+    if (
+      !rendered('[data-item-git-status="added"]') ||
+      rendered('[data-item-git-status="modified"]')
+    )
+      throw new Error("the status re-render didn't land");
+    const [first, ...rest] = files;
+    if (!first) throw new Error("no files to rename");
+    const renamed = [{ ...first, path: "docs/guide-0/page-0-renamed.md" }, ...rest];
+    const pathRerender = await timed(renderOf(sectionsWith("added", renamed)));
+    await twoFrames();
+    if (
+      !rendered('[data-item-path="docs/guide-0/page-0-renamed.md"]') ||
+      rendered('[data-item-path="docs/guide-0/page-0.md"]')
+    )
+      throw new Error("the path re-render didn't land");
+    const rowsPerTree = countsOf('[data-type="item"]');
+    const total = rowsPerTree.reduce((sum, count) => sum + count, 0);
+    if (total === 0) throw new Error("the section trees rendered no rows");
+    return {
+      "re-render ms": rerender,
+      "path ms": pathRerender,
+      "max rows/tree": Math.max(...rowsPerTree),
+      "rendered rows": total,
+    };
+  };
   return {
-    files: count,
-    hosts,
-    "mount ms": mount,
-    "re-render ms": rerender,
-    "path ms": pathRerender,
-    "max rows/tree": Math.max(...rowsPerTree),
-    "rendered rows": total,
+    mount: async () => {
+      await renderOf(modified)();
+      await twoFrames();
+    },
+    rerenders,
   };
 }
 

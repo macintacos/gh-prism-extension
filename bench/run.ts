@@ -67,13 +67,15 @@ async function bundle(): Promise<string> {
   return output.text();
 }
 
-/** Chromium's style recalculation time so far, in ms: CDP reports a running total in seconds. */
-async function styleMs(cdp: CDPSession): Promise<number> {
+/** Chromium's running total of `metric`, in ms: CDP reports it in seconds. */
+async function metricMs(cdp: CDPSession, metric: string): Promise<number> {
   const { metrics } = await cdp.send("Performance.getMetrics");
-  const recalc = metrics.find(({ name }) => name === "RecalcStyleDuration");
-  if (!recalc) throw new Error("Chromium reported no RecalcStyleDuration");
-  return recalc.value * 1000;
+  const total = metrics.find(({ name }) => name === metric);
+  if (!total) throw new Error(`Chromium reported no ${metric}`);
+  return total.value * 1000;
 }
+
+const styleMs = (cdp: CDPSession) => metricMs(cdp, "RecalcStyleDuration");
 
 const round = (ms: number) => Math.round(ms * 10) / 10;
 
@@ -100,16 +102,24 @@ async function diffOrder(page: Page, files: number) {
   };
 }
 
+/** Mounts the section trees; times the mount as main-thread work, so waits for a frame don't count. */
+async function sectionTrees(page: Page, files: number, hosts: "sidebar" | "fixed") {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Performance.enable");
+  const trees = await page.evaluateHandle(
+    ([files, hosts]) => window.bench.sectionTrees(files, hosts),
+    [files, hosts] as const,
+  );
+  const before = await metricMs(cdp, "TaskDuration");
+  await trees.evaluate((t) => t.mount());
+  const mountMs = round((await metricMs(cdp, "TaskDuration")) - before);
+  return { files, hosts, "mount ms": mountMs, ...(await trees.evaluate((t) => t.rerenders())) };
+}
+
 const TABLES: [string, (page: Page, files: number) => Promise<object>][] = [
   ["Diff order", diffOrder],
-  [
-    "Section trees",
-    (page, files) => page.evaluate((files) => window.bench.sectionTrees(files), files),
-  ],
-  [
-    "Section trees, fixed-height hosts",
-    (page, files) => page.evaluate((files) => window.bench.sectionTrees(files, "fixed"), files),
-  ],
+  ["Section trees", (page, files) => sectionTrees(page, files, "sidebar")],
+  ["Section trees, fixed-height hosts", (page, files) => sectionTrees(page, files, "fixed")],
   ["Intent", (page, files) => page.evaluate((files) => window.bench.intent(files), files)],
 ];
 
