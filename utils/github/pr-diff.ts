@@ -1,3 +1,4 @@
+/** How a PR's diff changed a file, as its `diff --git` header lines say. */
 export type PrFileStatus = "added" | "deleted" | "modified" | "renamed";
 
 /**

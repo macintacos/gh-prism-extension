@@ -17,10 +17,15 @@ import {
  *   service worker stopping mid-request. Retrying may succeed.
  */
 export type PrDataProblem = "no-access" | "rate-limited" | "too-large" | "failed";
+/** A failed read, and which {@link PrDataProblem} the view reports. */
 export type PrFailure = { ok: false; problem: PrDataProblem };
+/** A PR's current head SHA, or why it couldn't be read. */
 export type PrHeadResult = { ok: true; headSha: string } | PrFailure;
+/** A diff's files, or why it couldn't be read. */
 export type PrFilesResult = { ok: true; files: PrFileDiff[] } | PrFailure;
+/** One head file's text, or why it couldn't be read. */
 export type PrFileContentResult = { ok: true; text: string } | PrFailure;
+/** A PR's head SHA and the files of its diff at that head, or why either couldn't be read. */
 export type PrHeadAndFilesResult = { ok: true; headSha: string; files: PrFileDiff[] } | PrFailure;
 
 /**

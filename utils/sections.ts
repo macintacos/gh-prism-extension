@@ -9,6 +9,7 @@
 /** The sidebar's sections, in display order. */
 export const SECTIONS = ["implementation", "tests", "docs", "config", "generated"] as const;
 
+/** Names one of the sidebar's sections, in the order {@link SECTIONS} lists them. */
 export type SectionKey = (typeof SECTIONS)[number];
 
 const GENERATED_FILES = glob("{*.lock,*-lock.json,*-lock.yaml,go.sum}");

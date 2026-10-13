@@ -31,10 +31,12 @@ export type DiffRef = PrRef | CommitHead;
 /** A diff pinned at the commit it ends on. */
 export type DiffHead = PrHead | CommitHead;
 
+/** Whether `value` is a full 40-hex SHA; validates PR head and base SHAs from page data and ports. */
 export function isPrHeadSha(value: unknown): value is string {
   return typeof value === "string" && /^[0-9a-f]{40}$/.test(value);
 }
 
+/** Whether `value` is a full or abbreviated SHA, as a commit page's URL may name it. */
 export function isCommitSha(value: unknown): value is string {
   return typeof value === "string" && /^[0-9a-f]{7,40}$/.test(value);
 }

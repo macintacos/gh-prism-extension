@@ -3,6 +3,7 @@
 import type { LineCounts } from "@/utils/github/pr-diff";
 import { el } from "./dom";
 
+/** `lines` with US thousands separators, as GitHub writes line counts. */
 export const count = (lines: number) => lines.toLocaleString("en-US");
 
 /** `+added` and `−removed` in the diffstat colors, muting a side that changed nothing. */

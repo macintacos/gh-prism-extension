@@ -5,6 +5,7 @@ import { PR_DATA_PORT, servePrDataPort } from "../utils/github/pr-port";
 import { createPrDataSource } from "../utils/github/pr-source";
 import { forgetIntents } from "../utils/intent/intent-cache";
 
+/** Serves pull request data to content scripts and clears the intent cache on install. */
 export default defineBackground(() => {
   // Installs, updates, and dev reloads alike: a new build may place files differently.
   browser.runtime.onInstalled.addListener(() => void forgetIntents(storage));

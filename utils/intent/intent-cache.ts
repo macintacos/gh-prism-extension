@@ -4,6 +4,7 @@ import type { HeadLineSpan } from "../github/pr-diff";
 import { SECTIONS } from "../sections";
 import type { FileLines, IntentResult, Placement, SectionShare } from "./intent";
 
+/** An `ok` intent result: the kind the cache stores, as `intentFor` caches only those. */
 export type LandedIntent = Extract<IntentResult, { ok: true }>;
 
 /** Landed intent by a key naming the diff it was read from. Never rejects: a storage failure is a miss. */

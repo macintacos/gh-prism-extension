@@ -7,8 +7,10 @@ import type {
   Placement,
 } from "../../utils/intent/intent";
 
+/** A placement putting a whole file in `section`. */
 export const whole = (section: IntentSection): Placement => ({ kind: "whole", section });
 
+/** A successful intent result with `placements` and per-file `lines`, both empty by default. */
 export const landedWith = (
   placements: ReadonlyMap<string, Placement> = new Map(),
   lines: ReadonlyMap<string, FileLines> = new Map(),

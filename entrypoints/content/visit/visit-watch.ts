@@ -9,6 +9,7 @@ const SETTLE_MS = 10_000;
 /** What to do with each Files changed markup GitHub renders during one visit. */
 export type OnPage = (page: FilesPage, signal: AbortSignal) => void;
 
+/** The callbacks through which `watchFilesPages` reports visits and missing markup. */
 export interface FilesPageHandlers {
   /**
    * The Files changed tab's markup first appeared at `route`; `signal` aborts once the pathname

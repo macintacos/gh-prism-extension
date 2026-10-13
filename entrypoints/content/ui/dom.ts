@@ -1,5 +1,6 @@
 const SVG_NS = "http://www.w3.org/2000/svg";
 
+/** A new `tag` element of `doc` with `className`, holding `children`. */
 export function el<K extends keyof HTMLElementTagNameMap>(
   doc: Document,
   tag: K,

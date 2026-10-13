@@ -48,6 +48,7 @@ export class SectionTree {
   #selected: string | undefined;
   #focused: string | null | undefined;
 
+  /** Renders `files` into `host`, with `selected` selected if listed. */
   constructor(host: HTMLElement, files: readonly TreeFile[], selected: string | undefined) {
     this.#host = host;
     this.#files = files;

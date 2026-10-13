@@ -18,8 +18,10 @@ import type {
   PrHeadResult,
 } from "./pr-source";
 
+/** The `runtime.connect` port name the content script opens and the service worker serves. */
 export const PR_DATA_PORT = "gh-prism:pr-data";
 
+/** A message the content side sends over {@link PR_DATA_PORT}, one per read it needs. */
 export type PrDataRequest =
   | { kind: "headAndFiles"; pr: PrRef }
   | { kind: "files"; pr: DiffHead }

@@ -51,6 +51,7 @@ const HOLDS_DIFF = ':has([role="region"])';
 
 const PR_DIFF_LIST = '[data-testid="progressive-diffs-list"]';
 
+/** Where a pull request's Files changed tab keeps its markup. */
 export const prPage = {
   sidebar: "#pr-file-tree",
   diffs: '[data-testid="diff-content"]',
@@ -68,6 +69,7 @@ export const prPage = {
 // A commit's list while its diffs are in flow; a virtualized commit nests each diff a level deeper.
 const COMMIT_DIFF_LIST = '#diff-content-parent > :has(> * > [role="region"])';
 
+/** Where a single commit's page keeps its changed files' markup. */
 export const commitPage = {
   sidebar: "#diff_file_tree",
   diffs: "#diff-content-parent",
@@ -89,6 +91,7 @@ export const commitPage = {
   reveal: "hash",
 } satisfies PageKind;
 
+/** Every page kind, in the order `findFilesPage` tries them. */
 export const PAGE_KINDS: readonly PageKind[] = [prPage, commitPage];
 
 /** What follows the files in `kind`'s diff list, such as GitHub's loader for more of them. */

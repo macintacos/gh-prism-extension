@@ -184,6 +184,7 @@ async function intent(count: number) {
 
 const bench = { diffOrder, sectionTrees, intent };
 
+/** The benchmarks this page puts on `window.bench`, for `run.ts` to call through Playwright. */
 export type Bench = typeof bench;
 
 Object.assign(window, { bench });

@@ -12,6 +12,10 @@ import { watchFilesPages } from "./visit/visit-watch";
 
 const CACHED_DIFFS = 50;
 
+/**
+ * On every Files view on github.com, shows the sidebar's sections, orders the diffs to match,
+ * stands in for the diffstat, and docks the sidebar on the saved side with a switch.
+ */
 export default defineContentScript({
   // Every GitHub page: soft navigation reaches a pull request without re-injecting the script.
   matches: ["https://github.com/*"],

@@ -24,6 +24,7 @@ export interface SideChoice {
   side: Side;
 }
 
+/** The tab's side choice for `dockSidebar` to apply, and how to persist a switch. */
 export interface SideOptions {
   readonly choice: SideChoice;
   /** Remembers a side the switch picked. */

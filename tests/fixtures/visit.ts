@@ -6,14 +6,18 @@ import type { IntentResult, PendingIntent } from "../../utils/intent/intent";
 import { byId, loadFixture } from "./files-page";
 import { landedWith } from "./intent";
 
+/** The sections view, or `null` while none is mounted. */
 export const view = () => document.querySelector<HTMLElement>(".gh-prism-sections");
+/** The sections view's progress bar, or `null` once intent has landed. */
 export const progressBar = () => view()?.querySelector<HTMLElement>('[role="progressbar"]') ?? null;
 
+/** The keys of the sections the sidebar lists, in its order. */
 export const sectionKeys = () =>
   [...document.querySelectorAll<HTMLElement>(".gh-prism-section")].map(
     (section) => section.dataset.section,
   );
 
+/** The tree host in `section`'s sidebar section; throws when there is none. */
 export function treeHost(section: string): HTMLElement {
   const host = document.querySelector<HTMLElement>(
     `.gh-prism-section[data-section="${section}"] .gh-prism-tree`,
@@ -22,10 +26,12 @@ export function treeHost(section: string): HTMLElement {
   return host;
 }
 
+/** The rendered rows, directories and files, of `section`'s tree. */
 export const rowsIn = (section: string) => [
   ...(treeHost(section).shadowRoot?.querySelectorAll<HTMLElement>('[data-type="item"]') ?? []),
 ];
 
+/** The paths of the file rows `section`'s tree renders, in order. */
 export const filesIn = (section: string) =>
   rowsIn(section)
     .filter((row) => row.dataset.itemType === "file")
@@ -39,7 +45,10 @@ export function addNativeFile(path: string, after: string): void {
   byId(after).after(native);
 }
 
-// Past the 50 ms debounce; the async advance runs the MutationObserver's pending microtask first.
+/**
+ * Advances fake timers past the observers' 50 ms debounce. The async advance runs the
+ * MutationObserver's pending microtask first.
+ */
 export const afterDebounce = () => vi.advanceTimersByTimeAsync(100);
 
 /** Mounts a landed visit on the loaded fixture before each test, and aborts it after. */
