@@ -624,7 +624,7 @@ describe("showSections", () => {
       diffList().append(region);
     }
 
-    /** What the jump scrolled in the diff list; a focused row's reveal scrolls the sidebar. */
+    /** What the jump scrolled in the diff list, leaving out the sidebar scrolls a click's focus brings. */
     const diffScrolls = () =>
       scrollIntoView.mock.contexts.filter(
         (context) => context instanceof Node && diffList().contains(context),
@@ -774,6 +774,74 @@ describe("showSections", () => {
       expect(scrollIntoView).toHaveBeenCalledTimes(1);
       scrollIntoView.mockClear();
       byId("src/engine.rs").setAttribute("aria-label", "engine.rs has 2 comments");
+      await afterDebounce();
+      expect(scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    describe("for a split current file", () => {
+      /** The sections whose trees scrolled the sidebar, in order. */
+      const scrolledSections = () =>
+        scrollIntoView.mock.contexts.flatMap((context) =>
+          sectionKeys().filter(
+            (section) =>
+              context instanceof Node &&
+              context.getRootNode() === treeHost(section ?? "").shadowRoot,
+          ),
+        );
+
+      beforeEach(async () => {
+        await landed(
+          landedWith(
+            new Map([
+              [
+                "src/render.rs",
+                {
+                  kind: "split",
+                  shares: [
+                    {
+                      section: "implementation",
+                      hunks: [{ first: 2, last: 8 }],
+                      lines: { added: 5, removed: 1 },
+                    },
+                    {
+                      section: "docs",
+                      hunks: [{ first: 22, last: 28 }],
+                      lines: { added: 3, removed: 1 },
+                    },
+                  ],
+                },
+              ],
+            ]),
+          ),
+        );
+        scrollIntoView.mockClear();
+      });
+
+      it("scrolls the first section that lists it", async () => {
+        moveCurrentTo("src/render.rs");
+        await afterDebounce();
+        expect(scrolledSections()).toEqual(["implementation"]);
+      });
+
+      it("scrolls the section it was clicked in", async () => {
+        clickAt(rowIn("docs", "src/render.rs"));
+        moveCurrentTo("src/render.rs");
+        await afterDebounce();
+        // The click's focus scrolls the docs tree too.
+        expect(new Set(scrolledSections())).toEqual(new Set(["docs"]));
+      });
+
+      it("skips a collapsed section that lists it", async () => {
+        sectionToggle("implementation").click();
+        moveCurrentTo("src/render.rs");
+        await afterDebounce();
+        expect(scrolledSections()).toEqual(["docs"]);
+      });
+    });
+
+    it("leaves the sidebar alone when the current file moves into a collapsed section", async () => {
+      sectionToggle("implementation").click();
+      moveCurrentTo("src/engine.rs");
       await afterDebounce();
       expect(scrollIntoView).not.toHaveBeenCalled();
     });

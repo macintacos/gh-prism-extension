@@ -36,8 +36,8 @@ const FOLDER_SPRITE = `<svg data-icon-sprite aria-hidden="true" width="0" height
 /**
  * One section's files as a @pierre/trees tree in `host`'s shadow root, with directories that
  * hold a single directory flattened into one row. `host` must be in the document. Its height
- * follows the visible rows, so the sidebar scrolls as one, and only the rows near the sidebar's
- * viewport render.
+ * follows the visible rows, so the sidebar scrolls as one, and, while its owner calls `sync`, only
+ * the rows near the sidebar's viewport render.
  */
 export class SectionTree {
   readonly #host: HTMLElement;
@@ -46,6 +46,7 @@ export class SectionTree {
   #files: readonly TreeFile[];
   #byPath: ReadonlyMap<string, TreeFile>;
   #selected: string | undefined;
+  #focused: string | null | undefined;
 
   constructor(host: HTMLElement, files: readonly TreeFile[], selected: string | undefined) {
     this.#host = host;
@@ -67,12 +68,23 @@ export class SectionTree {
     });
     this.#fit();
     this.#tree.render({ fileTreeContainer: host });
+    // Stands in for a row the viewport hasn't rendered, so scrollIntoView reaches every scroller.
     this.#probe = el(host.ownerDocument, "span", "gh-prism-probe");
     this.#probe.style.height = `${ROW_HEIGHT}px`;
-    host.shadowRoot?.append(this.#probe);
-    host.shadowRoot?.addEventListener("focusin", () => {
-      // Focus in a far tree is the library restoring its focused row, not a reader moving to it.
-      if (!host.hasAttribute("data-gh-prism-far")) this.#reveal(this.#tree.getFocusedIndex());
+    const shadow = host.shadowRoot;
+    shadow?.append(this.#probe);
+    // The library scrolls only its own viewport to a focused row, so the sidebar has to follow.
+    // It also re-focuses a row the viewport unmounted, which must not pull the sidebar back.
+    shadow?.addEventListener("focusin", () => {
+      const path = this.#tree.getFocusedPath();
+      if (path === this.#focused) return;
+      this.#focused = path;
+      this.#scrollTo(this.#tree.getFocusedIndex());
+    });
+    shadow?.addEventListener("focusout", (event) => {
+      // A null relatedTarget is a row unmounting or the window blurring, not focus leaving.
+      const next = event instanceof FocusEvent ? event.relatedTarget : null;
+      if (next instanceof Node && next.getRootNode() !== shadow) this.#focused = undefined;
     });
     this.#select(selected);
     this.#tree.subscribe(() => {
@@ -103,19 +115,29 @@ export class SectionTree {
   }
 
   /**
-   * Shows the rows where the sidebar has scrolled this tree: the library's viewport sticks to the
-   * sidebar's, so its offset into the tree is how far it has stuck.
+   * Shows the rows where the sidebar has scrolled this tree, and empties the viewport of a tree
+   * over a viewport out of view (`data-gh-prism-far`). The owner calls it whenever the host may
+   * have moved against the viewport: an ancestor's scroll, a resize, or a layout change above it.
    */
   sync(): void {
     const root = this.#host.shadowRoot?.querySelector("[data-file-tree-virtualized-root]");
     const scroll = root?.querySelector("[data-file-tree-virtualized-scroll]");
     if (!root || !scroll) return;
-    // A tree over a viewport away renders no rows; the window's height is a margin over the pane's.
-    const { top, bottom } = this.#host.getBoundingClientRect();
+    const host = this.#host.getBoundingClientRect();
+    const offset = root.getBoundingClientRect().top - host.top;
+    // The page's height bounds the pane's.
     const height = this.#host.ownerDocument.defaultView?.innerHeight ?? 0;
-    this.#host.toggleAttribute("data-gh-prism-far", bottom < -height || top > 2 * height);
-    const offset = root.getBoundingClientRect().top - this.#host.getBoundingClientRect().top;
+    this.#host.toggleAttribute("data-gh-prism-far", host.bottom < -height || host.top > 2 * height);
     if (scroll.scrollTop !== offset) scroll.scrollTop = offset;
+  }
+
+  /** Scrolls the sidebar just enough to show `path`'s row, unless its section is collapsed. */
+  scrollToRow(path: string): void {
+    this.#scrollTo(
+      this.#tree
+        .getVisibleRows(0, this.#tree.getVisibleCount() - 1)
+        .findIndex((row) => row.path === path),
+    );
   }
 
   /** Removes the tree's rows and releases it. */
@@ -138,25 +160,18 @@ export class SectionTree {
   }
 
   #select(path: string | undefined): void {
-    const moved = path !== this.#selected;
     this.#selected = path;
     for (const selected of this.#tree.getSelectedPaths()) {
       if (selected !== path) this.#tree.getItem(selected)?.deselect();
     }
     if (path !== undefined) this.#tree.getItem(path)?.select();
-    if (moved && path !== undefined) this.#reveal(this.#indexOf(path));
   }
 
-  #indexOf(path: string): number {
-    const count = this.#tree.getVisibleCount();
-    return count === 0
-      ? -1
-      : this.#tree.getVisibleRows(0, count - 1).findIndex((row) => row.path === path);
-  }
-
-  /** Scrolls the sidebar, and the window inside it, just enough to show the row at `index`. */
-  #reveal(index: number): void {
-    if (index < 0) return;
+  /** Scrolls the sidebar, and the library's viewport inside it, just enough to show row `index`. */
+  #scrollTo(index: number): void {
+    // A collapsed section clips its rows without scrolling them, so their place means nothing.
+    if (index < 0 || this.#host.closest("[inert]")) return;
+    // A path reset's #fit may not have run yet; the probe must sit within the host's height.
     this.#fit();
     this.#probe.style.top = `${index * ROW_HEIGHT}px`;
     this.#probe.scrollIntoView({ block: "nearest" });

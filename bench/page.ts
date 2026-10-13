@@ -114,16 +114,17 @@ async function sectionTrees(count: number, hosts: "sidebar" | "fixed" = "sidebar
     await nextTask();
     settle();
   };
+  /** The trees' ResizeObserver-driven virtualization renders over the next frames. */
   const twoFrames = async () => {
     await nextFrame();
     await nextFrame();
   };
+  // Only the mount's clock runs through the frames: idle frame time would swamp a re-render.
   const mount = await timed(async () => {
     await renderOf(modified)();
     await twoFrames();
   });
   const rerender = await timed(renderOf(added));
-  // Two frames: the trees' ResizeObserver-driven virtualization settles before rows are counted.
   await twoFrames();
   if (!rendered('[data-item-git-status="added"]') || rendered('[data-item-git-status="modified"]'))
     throw new Error("the status re-render didn't land");

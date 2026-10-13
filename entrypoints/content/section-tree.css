@@ -1,10 +1,8 @@
 /* Styles inside each section tree's shadow root; @pierre/trees layers them over its own. */
 
 /* Each host stays as tall as its rows, so the sidebar scrolls as one, and the library's viewport
-   sticks to the sidebar's: overflow: hidden would make a scroll container to stick to instead,
-   and the library sets position: relative inline. SectionTree.sync matches its offset. */
+   sticks inside it. clip, not hidden: a scroll container is what it would stick to. */
 :host {
-  position: relative;
   overflow: clip;
 }
 
@@ -12,6 +10,7 @@
   overflow: clip;
 }
 
+/* !important: the library sets position: relative inline. 100vh is at least the pane's height. */
 [data-file-tree-virtualized-root] {
   position: sticky !important;
   top: 0;
@@ -22,10 +21,14 @@
   height: 0;
 }
 
-/* Wheels and scrollbars belong to the sidebar; only SectionTree scrolls the viewport. */
+/* Wheels belong to the sidebar; only SectionTree scrolls the viewport. */
 [data-file-tree-virtualized-scroll] {
   overflow-y: hidden;
-  scrollbar-width: none;
+}
+
+/* The probe's containing block. */
+:host {
+  position: relative;
 }
 
 .gh-prism-probe {

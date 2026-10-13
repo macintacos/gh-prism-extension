@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { type BrowserContext, test as base, chromium, expect } from "@playwright/test";
+import { type BrowserContext, test as base, chromium, expect, type Page } from "@playwright/test";
 
 const EXTENSION = join(import.meta.dirname, "../.output/chrome-mv3");
 const PR_URL = "https://github.com/o/r/pull/1/changes";
@@ -139,6 +139,7 @@ test("a large pull request renders only the rows near the sidebar's viewport, an
     if (!sidebar || !tree) throw new Error("no sidebar or Implementation tree");
     const treeTop =
       tree.getBoundingClientRect().top - sidebar.getBoundingClientRect().top + sidebar.scrollTop;
+    // bulk/file-150.rs is row 151 (after bulk/), 28 px a row; 100 px of it shows below the top.
     sidebar.scrollTop = treeTop + 151 * 28 - 100;
   });
   await expect(page.locator('[data-item-path="bulk/file-150.rs"]')).toBeInViewport();
@@ -157,6 +158,29 @@ test("the keyboard reaches a tree's off-screen rows", async ({ context, page }) 
   await expect(bulk).toBeFocused();
   await expect(bulk).toBeInViewport();
 });
+
+for (const [how, focus] of [
+  [
+    "the keyboard",
+    async (page: Page) => {
+      await page.locator('[data-item-path="bulk/"]').focus();
+      await page.keyboard.press("ArrowDown");
+      await page.keyboard.press("ArrowDown");
+    },
+  ],
+  ["a click", (page: Page) => page.locator('[data-item-path="bulk/file-005.rs"]').click()],
+] as const) {
+  test(`the sidebar scrolls away from a row ${how} focused`, async ({ context, page }) => {
+    await serve(context, PR_URL, LARGE_PR_BODY);
+    await page.goto(PR_URL);
+    await expect(page.locator('[data-item-path="bulk/"]')).toBeVisible();
+    await focus(page);
+    const sidebar = page.locator("#pr-file-tree");
+    await sidebar.hover();
+    for (let step = 0; step < 10; step++) await page.mouse.wheel(0, 300);
+    await expect.poll(() => sidebar.evaluate((el) => el.scrollTop)).toBeGreaterThan(2000);
+  });
+}
 
 test("GitHub's current file off screen is selected and scrolled into view", async ({
   context,
