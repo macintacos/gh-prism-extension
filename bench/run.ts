@@ -106,6 +106,10 @@ const TABLES: [string, (page: Page, files: number) => Promise<object>][] = [
     "Section trees",
     (page, files) => page.evaluate((files) => window.bench.sectionTrees(files), files),
   ],
+  [
+    "Section trees, fixed-height hosts",
+    (page, files) => page.evaluate((files) => window.bench.sectionTrees(files, "fixed"), files),
+  ],
   ["Intent", (page, files) => page.evaluate((files) => window.bench.intent(files), files)],
 ];
 
