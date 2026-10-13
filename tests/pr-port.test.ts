@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { openPrData, type PrDataPort, servePrDataPort } from "../utils/pr-port";
 import type { PrRef } from "../utils/pr-ref";
 import { createPrDataSource } from "../utils/pr-source";
+import { heldResponses, routedFetch } from "./fixtures/fetch";
 
 const sha = "a".repeat(40);
 const pr: PrRef = { kind: "pr", owner: "o", repo: "r", number: 7 };
@@ -54,13 +55,6 @@ function portPair(): [Side, Side] {
     };
   }
   return [a, b];
-}
-
-function routedFetch(routes: Record<string, () => Promise<Response>>) {
-  return vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {
-    const route = routes[String(input)];
-    return route ? route() : Promise.resolve(new Response("", { status: 500 }));
-  });
 }
 
 const okRoutes = () => ({
@@ -151,7 +145,7 @@ describe("openPrData", () => {
     const client = openPrData(harness(fetchFn).connect, pr, undefined);
     expect(await client.files()).toEqual({ ok: false, problem: "no-access" });
     await client.files();
-    expect(urls(fetchFn)).toEqual([`${base}/pull/7`, `${base}/pull/7`]);
+    expect(urls(fetchFn).filter((u) => u === `${base}/pull/7`)).toHaveLength(2);
   });
 
   it("connects lazily on the first call", async () => {
@@ -181,21 +175,37 @@ describe("openPrData", () => {
     expect(post).not.toHaveBeenCalled();
   });
 
-  it("fails pending calls on a background disconnect and reconnects with the resolved head", async () => {
+  it("fails pending calls on a background disconnect and reconnects at the page head", async () => {
     const routes: Record<string, () => Promise<Response>> = {
       ...okRoutes(),
       [`${base}/pull/7.diff`]: () => new Promise(() => {}),
     };
     const fetchFn = routedFetch(routes);
     const { connect, servers } = harness(fetchFn);
-    const client = openPrData(connect, pr, undefined);
+    const client = openPrData(connect, pr, sha);
     const pending = client.files();
     await vi.waitFor(() => expect(urls(fetchFn)).toContain(`${base}/pull/7.diff`));
     servers[0]?.disconnect();
     expect(await pending).toEqual({ ok: false, problem: "failed" });
     expect((await client.fileContent("src/engine.rs")).ok).toBe(true);
     expect(connect).toHaveBeenCalledTimes(2);
-    expect(urls(fetchFn).filter((u) => u === `${base}/pull/7`)).toHaveLength(1);
+    expect(urls(fetchFn)).not.toContain(`${base}/pull/7`);
+  });
+
+  it("recovers the head and contents after a failed listing when the page has none", async () => {
+    let diffFails = true;
+    const fetchFn = routedFetch({
+      ...okRoutes(),
+      [`${base}/pull/7.diff`]: async () => {
+        const status = diffFails ? 500 : 200;
+        diffFails = false;
+        return new Response(diff, { status });
+      },
+    });
+    const client = openPrData(harness(fetchFn).connect, pr, undefined);
+    expect(await client.files()).toEqual({ ok: false, problem: "failed" });
+    expect((await client.fileContent("src/engine.rs")).ok).toBe(true);
+    expect(await client.head()).toEqual({ ok: true, headSha: sha });
   });
 
   it("reports a throwing connect as failed", async () => {
@@ -247,7 +257,7 @@ describe("openPrData", () => {
 
   it("reports a source error as failed", async () => {
     const source = {
-      head: vi.fn(),
+      headAndFiles: vi.fn(),
       files: vi.fn(async () => {
         throw new Error("bug");
       }),
@@ -293,6 +303,25 @@ describe("openPrData", () => {
       return server;
     });
     expect(await openPrData(connect, pr, sha).files()).toEqual({ ok: false, problem: "too-large" });
+  });
+
+  it("requests the diff while the head lookup is still in flight when the page has none", async () => {
+    const { release, held } = heldResponses();
+    const fetchFn = routedFetch({
+      [`${base}/pull/7`]: held(page),
+      [`${base}/pull/7.diff`]: held(diff),
+    });
+    const client = openPrData(harness(fetchFn).connect, pr, undefined);
+    const listed = client.files();
+    await vi.waitFor(() =>
+      expect(urls(fetchFn)).toEqual(
+        expect.arrayContaining([`${base}/pull/7`, `${base}/pull/7.diff`]),
+      ),
+    );
+    for (const go of release) go();
+    expect((await listed).ok).toBe(true);
+    expect(await client.head()).toEqual({ ok: true, headSha: sha });
+    expect(urls(fetchFn)).toHaveLength(2);
   });
 });
 
@@ -354,6 +383,20 @@ describe("servePrDataPort", () => {
     ],
     ["a .. path segment", { id: 1, request: { kind: "content", pr: head, path: "../x" } }],
     ["an empty path segment", { id: 1, request: { kind: "content", pr: head, path: "a//b" } }],
+    [
+      "a headAndFiles of a commit",
+      {
+        id: 1,
+        request: {
+          kind: "headAndFiles",
+          pr: { kind: "commit", owner: "o", repo: "r", headSha: sha },
+        },
+      },
+    ],
+    [
+      "a headAndFiles with a .. owner",
+      { id: 1, request: { kind: "headAndFiles", pr: { ...pr, owner: ".." } } },
+    ],
   ])("answers %s failed without fetching", async (_, message) => {
     expect(await repliesTo(message)).toEqual([{ id: 1, result: { ok: false, problem: "failed" } }]);
   });
