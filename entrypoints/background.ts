@@ -1,9 +1,9 @@
 import { browser } from "wxt/browser";
 import { defineBackground } from "wxt/utils/define-background";
 import { storage } from "wxt/utils/storage";
-import { forgetIntents } from "../utils/intent-cache";
-import { PR_DATA_PORT, servePrDataPort } from "../utils/pr-port";
-import { createPrDataSource } from "../utils/pr-source";
+import { PR_DATA_PORT, servePrDataPort } from "../utils/github/pr-port";
+import { createPrDataSource } from "../utils/github/pr-source";
+import { forgetIntents } from "../utils/intent/intent-cache";
 
 export default defineBackground(() => {
   // Installs, updates, and dev reloads alike: a new build may place files differently.

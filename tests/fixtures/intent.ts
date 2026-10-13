@@ -5,7 +5,7 @@ import type {
   IntentSection,
   PendingIntent,
   Placement,
-} from "../../utils/intent";
+} from "../../utils/intent/intent";
 
 export const whole = (section: IntentSection): Placement => ({ kind: "whole", section });
 

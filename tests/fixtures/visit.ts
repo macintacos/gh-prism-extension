@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, vi } from "vitest";
-import type { DiffstatChoice } from "../../entrypoints/content/diffstat-view";
 import { findFilesPage } from "../../entrypoints/content/files-page";
-import { showVisit } from "../../entrypoints/content/visit";
-import type { IntentResult, PendingIntent } from "../../utils/intent";
+import type { DiffstatChoice } from "../../entrypoints/content/header/diffstat-view";
+import { showVisit } from "../../entrypoints/content/visit/visit";
+import type { IntentResult, PendingIntent } from "../../utils/intent/intent";
 import { byId, loadFixture } from "./files-page";
 import { landedWith } from "./intent";
 

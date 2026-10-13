@@ -1,14 +1,14 @@
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { storage } from "wxt/utils/storage";
-import { type IntentSources, intentFor, shareIntent } from "@/utils/intent";
-import { storedIntents } from "@/utils/intent-cache";
-import { connectPrData } from "@/utils/pr-port";
-import { readDiffPin } from "@/utils/pr-ref";
+import { connectPrData } from "@/utils/github/pr-port";
+import { readDiffPin } from "@/utils/github/pr-ref";
+import { type IntentSources, intentFor, shareIntent } from "@/utils/intent/intent";
+import { storedIntents } from "@/utils/intent/intent-cache";
 import { sidebarSide } from "@/utils/prefs";
-import type { DiffstatChoice } from "./diffstat-view";
-import { dockSidebar, type Side, type SideChoice } from "./sidebar-side";
-import { showVisit } from "./visit";
-import { watchFilesPages } from "./visit-watch";
+import type { DiffstatChoice } from "./header/diffstat-view";
+import { dockSidebar, type Side, type SideChoice } from "./sidebar/sidebar-side";
+import { showVisit } from "./visit/visit";
+import { watchFilesPages } from "./visit/visit-watch";
 
 const CACHED_DIFFS = 50;
 

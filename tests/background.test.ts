@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import background from "../entrypoints/background";
-import { PR_DATA_PORT, type PrDataPort } from "../utils/pr-port";
+import { PR_DATA_PORT, type PrDataPort } from "../utils/github/pr-port";
 
 type Serve = (port: PrDataPort & { readonly name: string }) => void;
 

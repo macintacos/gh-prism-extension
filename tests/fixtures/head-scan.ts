@@ -1,4 +1,4 @@
-import { type ScannedHead, scanHeadText } from "../../utils/head-scan";
+import { type ScannedHead, scanHeadText } from "../../utils/hunk-rules/head-scan";
 
 /** Joins `text` into one newline-separated string, as a patch or file body. */
 export const lines = (...text: string[]): string => text.join("\n");

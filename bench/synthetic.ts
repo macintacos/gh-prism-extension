@@ -1,5 +1,5 @@
 import type { ChangedFile, FileStatus } from "@/entrypoints/content/files-page";
-import type { PrFileDiff } from "@/utils/pr-diff";
+import type { PrFileDiff } from "@/utils/github/pr-diff";
 
 /** One changed file of the synthetic PR: its path and its diff's anchor. */
 export interface SyntheticFile {
