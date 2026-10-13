@@ -53,12 +53,11 @@ export interface PrDataPort {
  */
 export interface PrDataClient {
   /**
-   * The commit the diff ends on, which `files` and `fileContent` read at. A PR whose page names no
-   * head gets it from the same request as its diff, so the first `head`, `files` or `fileContent`
+   * The diff and the commit it ends on, which `fileContent` reads at. A PR whose page
+   * names no head gets it from the same request as its diff, so the first `files` or `fileContent`
    * call fetches both.
    */
-  head(): Promise<PrHeadResult>;
-  files(): Promise<PrFilesResult>;
+  files(): Promise<PrHeadAndFilesResult>;
   /**
    * Only for a `kind: "text"` entry whose status isn't `deleted`; any other path reads as
    * `no-access`.
@@ -278,7 +277,6 @@ export function openPrData(
   }
 
   return {
-    head: resolveHead,
     files,
     fileContent: (path) => atHead((head) => send({ kind: "content", pr: head, path })),
     close() {

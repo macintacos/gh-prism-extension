@@ -58,17 +58,36 @@ function sameName(actual: unknown, expected: string): boolean {
 }
 
 /**
- * The PR's head SHA from GitHub's embedded page data, or `undefined` unless that data
- * names `pr`.
+ * A pull request's diff as its page names it: the commits it runs between, both full 40-hex
+ * SHAs. `baseSha` is the merge base the page's diff runs from, the same commit the `.diff`
+ * diffs against.
+ */
+export interface DiffPin {
+  readonly baseSha: string;
+  readonly headSha: string;
+}
+
+const HEAD_SHA_PATH = ["payload", "pullRequestsLayoutRoute", "pullRequest", "headSha"] as const;
+// Not `comparison.baseOid`: that is the base tip at the last head push, while the diff runs from
+// the merge base each `diffContents` entry's `oldCommitOid` names.
+const DIFF_BASE_PATH = [
+  "payload",
+  "pullRequestsChangesRoute",
+  "diffContents",
+  "0",
+  "oldCommitOid",
+] as const;
+
+type PageDocument = { querySelector(selectors: string): { textContent: string | null } | null };
+
+/**
+ * GitHub's embedded page data, or `undefined` unless it parses and names `pr`.
  *
  * @remarks
  * The embedded script reflects the last full page load, not the current URL: after a soft
  * navigation it still holds the previous page's payload, hence the match check.
  */
-export function prHeadShaFromEmbeddedData(
-  json: string | null | undefined,
-  pr: PrRef,
-): string | undefined {
+function prPageData(json: string | null | undefined, pr: PrRef): unknown {
   if (json == null) return undefined;
   let data: unknown;
   try {
@@ -77,12 +96,37 @@ export function prHeadShaFromEmbeddedData(
     return undefined;
   }
   const route = at(data, "payload", "pullRequestsLayoutRoute");
-  const headSha = at(route, "pullRequest", "headSha");
   const matches =
     at(route, "pullRequest", "number") === pr.number &&
     sameName(at(route, "repository", "ownerLogin"), pr.owner) &&
     sameName(at(route, "repository", "name"), pr.repo);
-  return matches && isPrHeadSha(headSha) ? headSha : undefined;
+  return matches ? data : undefined;
+}
+
+/** The PR's head SHA from GitHub's embedded page data, or `undefined` unless that data names `pr`. */
+export function prHeadShaFromEmbeddedData(
+  json: string | null | undefined,
+  pr: PrRef,
+): string | undefined {
+  const headSha = at(prPageData(json, pr), ...HEAD_SHA_PATH);
+  return isPrHeadSha(headSha) ? headSha : undefined;
+}
+
+/**
+ * The diff pin from GitHub's embedded page data, or `undefined` unless that data names `pr` with
+ * both SHAs full.
+ *
+ * @remarks
+ * Only a full load of the Files changed tab carries a pin.
+ */
+export function diffPinFromEmbeddedData(
+  json: string | null | undefined,
+  pr: PrRef,
+): DiffPin | undefined {
+  const data = prPageData(json, pr);
+  const headSha = at(data, ...HEAD_SHA_PATH);
+  const baseSha = at(data, ...DIFF_BASE_PATH);
+  return isPrHeadSha(headSha) && isPrHeadSha(baseSha) ? { baseSha, headSha } : undefined;
 }
 
 /** The embedded page-data JSON from a PR page's HTML, for contexts without a `DOMParser`. */
@@ -91,9 +135,13 @@ export function prEmbeddedDataFromHtml(html: string): string | undefined {
 }
 
 /** {@link prHeadShaFromEmbeddedData} for a live page's `document`. */
-export function readPrPageHeadSha(
-  doc: { querySelector(selectors: string): { textContent: string | null } | null },
-  pr: PrRef,
-): string | undefined {
+export function readPrPageHeadSha(doc: PageDocument, pr: PrRef): string | undefined {
   return prHeadShaFromEmbeddedData(doc.querySelector(EMBEDDED_DATA_SELECTOR)?.textContent, pr);
+}
+
+/** {@link diffPinFromEmbeddedData} for a live page's `document`; a commit's diff has no pin. */
+export function readDiffPin(doc: PageDocument, diff: DiffRef): DiffPin | undefined {
+  return diff.kind === "pr"
+    ? diffPinFromEmbeddedData(doc.querySelector(EMBEDDED_DATA_SELECTOR)?.textContent, diff)
+    : undefined;
 }

@@ -125,6 +125,26 @@ describe("content script", () => {
     expect(vi.mocked(intentFor).mock.calls[1]?.[0]).toEqual(readFilesRoute("/o/r/pull/2/changes"));
   });
 
+  it("reads each visit's pin from the page", async () => {
+    const script = document.createElement("script");
+    script.dataset.target = "react-app.embeddedData";
+    const pin = { baseSha: "b".repeat(40), headSha: "a".repeat(40) };
+    script.textContent = JSON.stringify({
+      payload: {
+        pullRequestsLayoutRoute: {
+          pullRequest: { number: 1, headSha: pin.headSha },
+          repository: { ownerLogin: "o", name: "r" },
+        },
+        pullRequestsChangesRoute: { diffContents: [{ oldCommitOid: pin.baseSha }] },
+      },
+    });
+    document.body.append(script);
+    await run();
+    const pr1 = readFilesRoute(PR)?.diff;
+    if (!pr1) throw new Error("the fixture's path is a Files route");
+    expect(vi.mocked(intentFor).mock.calls[0]?.[2].pinOf?.(pr1)).toEqual(pin);
+  });
+
   it("warns once when the Files changed tree never shows", async () => {
     document.body.innerHTML = "";
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});

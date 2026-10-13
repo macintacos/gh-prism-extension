@@ -2,7 +2,7 @@ import { type DocVerdict, docHunkVerdicts } from "./doc-intent";
 import type { FilesRoute } from "./files-route";
 import { type ScannedHead, scanHeadText } from "./head-scan";
 import { inlineTestHunkVerdicts, inlineTestRuleApplies } from "./inline-tests";
-import type { IntentCache } from "./intent-cache";
+import type { IntentCache, LandedIntent } from "./intent-cache";
 import { sectionOf } from "./landing";
 import {
   type HeadLineSpan,
@@ -14,8 +14,8 @@ import {
   parsePrHunks,
 } from "./pr-diff";
 import type { PrDataClient } from "./pr-port";
-import type { DiffRef } from "./pr-ref";
-import type { PrDataProblem } from "./pr-source";
+import type { DiffPin, DiffRef } from "./pr-ref";
+import type { PrDataProblem, PrFilesResult } from "./pr-source";
 import { SECTIONS, type SectionKey } from "./sections";
 
 /**
@@ -168,7 +168,7 @@ async function mapAtMost<T, R>(
  * placed. At most `HEAD_READS_AT_ONCE` files are placed at once.
  */
 export async function readIntent(
-  client: Pick<PrDataClient, "files" | "fileContent">,
+  client: Pick<PrDataClient, "fileContent"> & { files(): Promise<PrFilesResult> },
   onProgress?: (progress: IntentProgress) => void,
 ): Promise<IntentResult> {
   const listed = await client.files();
@@ -196,6 +196,11 @@ export async function readIntent(
 export interface IntentSources {
   readonly connect: (diff: DiffRef) => PrDataClient;
   readonly cache: IntentCache;
+  /**
+   * What the page says pins `diff`: a revisit with the same pin lands from `cache` without reading
+   * the diff.
+   */
+  readonly pinOf?: (diff: DiffRef) => DiffPin | undefined;
 }
 
 /** Problems a later read of a file may not hit. */
@@ -208,27 +213,42 @@ async function diffKey(headSha: string, files: readonly PrFileDiff[]): Promise<s
   return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+const pinKey = ({ baseSha, headSha }: DiffPin) => `${baseSha}...${headSha}`;
+
 /**
  * Where one Files view's files land: from `cache` when it holds this very diff, else read and
- * cached. A read that a file's passing problem cut short isn't cached. A commit-filtered route
- * connects nothing; otherwise the client is closed when `signal` aborts. Never rejects; once
- * `signal` aborts it may never settle.
+ * cached. The cache is checked by the page's pin first, and a pinned hit connects nothing. A read
+ * that a file's passing problem cut short isn't cached. A commit-filtered route connects nothing;
+ * otherwise the client is closed when `signal` aborts. Never rejects; once `signal` aborts it may
+ * never settle.
  */
 export async function intentFor(
   route: FilesRoute,
   signal: AbortSignal,
-  { connect, cache }: IntentSources,
+  { connect, cache, pinOf }: IntentSources,
   onProgress?: (progress: IntentProgress) => void,
 ): Promise<IntentResult> {
   if (route.commitFiltered) return { ok: false, problem: "commit-filtered" };
+  const pin = pinOf?.(route.diff);
+  const pinned = pin && pinKey(pin);
+  const early = pinned ? await cache.get(pinned) : undefined;
+  if (early) return early;
   const client = connect(route.diff);
-  signal.addEventListener("abort", () => client.close(), { once: true });
+  // An already-aborted signal never fires "abort": the pinned lookup outlasted the visit.
+  if (signal.aborted) client.close();
+  else signal.addEventListener("abort", () => client.close(), { once: true });
   const listed = await client.files();
   if (!listed.ok) return listed;
-  const head = await client.head();
-  const key = await diffKey(head.ok ? head.headSha : "", listed.files);
+  const key = await diffKey(listed.headSha, listed.files);
+  // Only a pin naming the head these files were read at may file them.
+  // ponytail: the worker keeps a PR's diff by head alone, so a retarget read while it is alive
+  // files the old base's diff under the new pin; key the worker's diff by base too if that bites.
+  const pinnedHere = pin?.headSha === listed.headSha ? pinned : undefined;
   const cached = await cache.get(key);
-  if (cached) return cached;
+  if (cached) {
+    void keepUnder(cache, cached, [pinnedHere]);
+    return cached;
+  }
   let cutShort = false;
   const result = await readIntent(
     {
@@ -241,8 +261,19 @@ export async function intentFor(
     },
     onProgress,
   );
-  if (result.ok && !cutShort) void cache.set(key, result);
+  // ponytail: a pinned diff is stored under both keys, doubling its slots and bytes; file the pin
+  // as an alias of the diff key if the cache fills.
+  if (result.ok && !cutShort) void keepUnder(cache, result, [key, pinnedHere]);
   return result;
+}
+
+/** Files `intent` under each key in turn: concurrent sets race on the cache's index. */
+async function keepUnder(
+  cache: IntentCache,
+  intent: LandedIntent,
+  keys: readonly (string | undefined)[],
+): Promise<void> {
+  for (const key of keys) if (key) await cache.set(key, intent);
 }
 
 /**

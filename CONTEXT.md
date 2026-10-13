@@ -13,6 +13,9 @@ _Avoid_: PR, when a commit is meant too
 
 **Diff head**: A diff ref pinned to the commit its diff ends on. _Avoid_: head ref
 
+**Diff pin**: The two commits a pull request's page says its diff runs between, its base
+and its head. A revisit with the same pin lands its intent without reading the diff.
+
 **Files view**: A page where gh-prism runs: a pull request's Files changed tab, or a
 commit's page. _Avoid_: files page, diff page
 
@@ -117,4 +120,5 @@ removes.
 - "Glide" also names the sidebar's move. The sidebar slides; a reveal glides.
 - "Source" names both the background's fetcher of diffs and file contents, and where
   intent is read from and cached. Keep it for the fetcher.
+- "Pin" also names a diff head's one commit. Say diff pin only for the base and head pair.
 - The Documentation section's key is `docs`. They are the same section.
