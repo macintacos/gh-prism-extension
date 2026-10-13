@@ -59,7 +59,7 @@ const PR_DIFF_LIST = '[data-testid="progressive-diffs-list"]';
 export const prPage = {
   sidebar: "#pr-file-tree",
   diffs: '[data-testid="diff-content"]',
-  diffstat: '[class*="PullRequestHeader-module__rightContentWrapper"] > .d-flex',
+  diffstat: '[class*="rightContentWrapper__"] > .d-flex',
   treeToggle: '[class*="RegularTreeToggle"]',
   treeToggleButton: '[class*="RegularTreeToggle"]',
   diffList: PR_DIFF_LIST,
@@ -76,7 +76,7 @@ const COMMIT_DIFF_LIST = '#diff-content-parent > :has(> * > [role="region"])';
 export const commitPage = {
   sidebar: "#diff_file_tree",
   diffs: "#diff-content-parent",
-  diffstat: '[class*="CommitHeader-module__commitFilesChangedContainer"] > .d-flex',
+  diffstat: '[class*="commitFilesChangedContainer__"] > .d-flex',
   // A commit's sidebar carries a copy of the toolbar for the narrow layout.
   treeToggle: '#diff-content-parent [aria-controls="diff_file_tree"]',
   // `.d-md-none` marks the narrow layout's overlay toggle.
