@@ -321,8 +321,7 @@ const headSha = "c".repeat(40);
 
 function fakeClient(files: PrFilesResult, content: PrFileContentResult) {
   return {
-    head: vi.fn(async () => ({ ok: true as const, headSha })),
-    files: vi.fn(async () => files),
+    files: vi.fn(async () => (files.ok ? { ...files, headSha } : files)),
     fileContent: vi.fn(async (_path: string) => content),
     close: vi.fn(),
   };

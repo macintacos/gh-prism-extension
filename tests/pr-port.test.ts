@@ -133,7 +133,7 @@ describe("openPrData", () => {
   it("names the head it reads at, looking it up once when the page has none", async () => {
     const fetchFn = routedFetch(okRoutes());
     const client = openPrData(harness(fetchFn).connect, pr, undefined);
-    expect(await client.head()).toEqual({ ok: true, headSha: sha });
+    expect(await client.files()).toMatchObject({ ok: true, headSha: sha });
     await client.files();
     expect(urls(fetchFn).filter((u) => u === `${base}/pull/7`)).toHaveLength(1);
   });
@@ -205,7 +205,7 @@ describe("openPrData", () => {
     const client = openPrData(harness(fetchFn).connect, pr, undefined);
     expect(await client.files()).toEqual({ ok: false, problem: "failed" });
     expect((await client.fileContent("src/engine.rs")).ok).toBe(true);
-    expect(await client.head()).toEqual({ ok: true, headSha: sha });
+    expect(await client.files()).toMatchObject({ ok: true, headSha: sha });
   });
 
   it("reports a throwing connect as failed", async () => {
@@ -320,7 +320,7 @@ describe("openPrData", () => {
     );
     for (const go of release) go();
     expect((await listed).ok).toBe(true);
-    expect(await client.head()).toEqual({ ok: true, headSha: sha });
+    expect(await client.files()).toMatchObject({ ok: true, headSha: sha });
     expect(urls(fetchFn)).toHaveLength(2);
   });
 });

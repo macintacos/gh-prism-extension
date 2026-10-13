@@ -15,7 +15,7 @@ import {
 } from "./pr-diff";
 import type { PrDataClient } from "./pr-port";
 import type { DiffRef } from "./pr-ref";
-import type { PrDataProblem } from "./pr-source";
+import type { PrDataProblem, PrFilesResult } from "./pr-source";
 import { SECTIONS, type SectionKey } from "./sections";
 
 /**
@@ -168,7 +168,7 @@ async function mapAtMost<T, R>(
  * placed. At most `HEAD_READS_AT_ONCE` files are placed at once.
  */
 export async function readIntent(
-  client: Pick<PrDataClient, "files" | "fileContent">,
+  client: Pick<PrDataClient, "fileContent"> & { files(): Promise<PrFilesResult> },
   onProgress?: (progress: IntentProgress) => void,
 ): Promise<IntentResult> {
   const listed = await client.files();
@@ -225,8 +225,7 @@ export async function intentFor(
   signal.addEventListener("abort", () => client.close(), { once: true });
   const listed = await client.files();
   if (!listed.ok) return listed;
-  const head = await client.head();
-  const key = await diffKey(head.ok ? head.headSha : "", listed.files);
+  const key = await diffKey(listed.headSha, listed.files);
   const cached = await cache.get(key);
   if (cached) return cached;
   let cutShort = false;
