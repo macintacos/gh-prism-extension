@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Time the diff order, section trees and intent read on synthetic diffs of 100, 300 and 1,000 files"
+#USAGE flag "--entry-size <n>" default="95" help="Elements in each synthetic diff entry, its wrapper included; at least 2"
+
+set -euo pipefail
+
+bunx --no-install playwright install --no-shell chromium
+bun bench/run.ts --entry-size "${usage_entry_size:?}"
