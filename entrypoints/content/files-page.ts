@@ -295,6 +295,19 @@ export function findDiff(page: FilesPage, link: HTMLAnchorElement): Element | nu
   return diff && page.diffs.contains(diff) ? diff : null;
 }
 
+/** `page`'s diff list, or `null` while it has none. */
+export const findDiffList = (page: FilesPage): Element | null =>
+  page.diffs.querySelector(page.kind.diffList);
+
+/**
+ * The child of `list` that holds `anchor`'s diff: the diff's parent, when that is one of `list`'s
+ * children; `null` otherwise, so markup GitHub has reshaped keeps GitHub's order.
+ */
+export function diffEntryOf(page: FilesPage, list: Element, anchor: string): HTMLElement | null {
+  const entry = page.kind.diffOf(page.diffs, anchor)?.parentElement;
+  return entry instanceof HTMLElement && entry.parentElement === list ? entry : null;
+}
+
 /** The `diff-…` anchor `link` points at: it names the file's diff and prefixes its line anchors. */
 const anchorOf = (link: HTMLAnchorElement) => link.getAttribute("href")?.slice(1);
 

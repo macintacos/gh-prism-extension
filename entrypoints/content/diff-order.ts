@@ -1,8 +1,11 @@
 /**
- * Lays GitHub's diffs out in the order the sidebar lists their files, with CSS `order` from a
- * stylesheet keyed on each file's anchor: no node React renders is moved or mutated, so comments,
- * Viewed, and GitHub's own scroll to a file keep working. GitHub's virtualized lists, which place
- * each diff absolutely, keep GitHub's order.
+ * Lays GitHub's diffs out in the order the sidebar lists their files, with CSS `order`; no node
+ * React renders is moved, so comments, Viewed, and GitHub's own scroll to a file keep working.
+ * Each listed file's entry, the list child GitHub renders, deliberately gets an inline `order`
+ * and `animation-delay`: that restyles the entry alone, where a rule per file costs a test
+ * against every diff. They're re-applied whenever GitHub adds or replaces an entry, and removed
+ * with the view. GitHub's virtualized lists, which place each diff absolutely, keep GitHub's
+ * order.
  */
 
 import { SECTIONS } from "@/utils/sections";
@@ -12,7 +15,9 @@ import { el } from "./dom";
 import {
   afterEntries,
   appendToDiffs,
+  diffEntryOf,
   type FilesPage,
+  findDiffList,
   isDiffAnchor,
   PAGE_KINDS,
   type PageKind,
@@ -30,7 +35,7 @@ const REVEAL_MS = (SECTIONS.length - 1) * STAGGER_MS + ANIMATION_MS + 120;
 const COVER_LIMIT_MS = 15_000;
 
 /**
- * Rules that put `kind`'s files after the ones `arrangement` ranks, hide its diff list while
+ * Rules that put `kind`'s files after the ones `arrange` places, hide its diff list while
  * covered, and drop its files in a section at a time, as the sidebar's sections do, once revealed.
  */
 export function listRules(kind: PageKind): string {
@@ -46,37 +51,39 @@ export function listRules(kind: PageKind): string {
     `html[data-gh-prism-diffs="covered"] ${block ? `${diffList} > :not(:first-child)` : diffList} { display: none !important; }`,
     "@media (prefers-reduced-motion: no-preference) { " +
       `html[data-gh-prism-diffs="revealed"] ${diffEntries} { ` +
-      `animation: gh-prism-diff-reveal ${ANIMATION_MS}ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards; ` +
-      `animation-delay: calc(var(--gh-prism-section-order, 0) * ${STAGGER_MS}ms); } }`,
+      `animation: gh-prism-diff-reveal ${ANIMATION_MS}ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards; } }`,
   ].join("\n");
 }
 
 const SHEET = [css, ...PAGE_KINDS.map(listRules)].join("\n");
 
 /**
- * Rules that order the diff list's entries as `sections` list their files' anchors, sections
- * first: a file in several sections takes the first, and its entry carries that section's index
- * as `--gh-prism-section-order`.
+ * Each diff anchor `sections` list, in rank order, with the first section listing it: a file in
+ * several sections takes the first.
  */
-function arrangement(kind: PageKind, sections: readonly (readonly string[])[]): string {
+function ranking(sections: readonly (readonly string[])[]): Map<string, number> {
   const ranked = new Map<string, number>();
   for (const [section, anchors] of sections.entries())
     for (const anchor of anchors)
       if (isDiffAnchor(anchor) && !ranked.has(anchor)) ranked.set(anchor, section);
-  const [first] = ranked.keys();
+  return ranked;
+}
+
+/** Rules that sit `first`, the top-ranked file, flush under a block list's toolbar. */
+function flushFirst(kind: PageKind, first: string | undefined): string {
+  // GitHub spaces a block list's files by their place in its order; the new first sits flush.
+  if (!first || kind.listLayout !== "block") return "";
   return [
-    ...[...ranked].map(
-      ([anchor, section], rank) =>
-        `${kind.diffEntry(anchor)} { order: ${rank + 1}; --gh-prism-section-order: ${section}; }`,
-    ),
-    // GitHub spaces a block list's files by their place in its order; the new first sits flush.
-    ...(first && kind.listLayout === "block"
-      ? [
-          `${kind.diffEntries} { padding-top: 16px !important; }`,
-          `${kind.diffEntry(first)} { padding-top: 0 !important; }`,
-        ]
-      : []),
+    `${kind.diffEntries} { padding-top: 16px !important; }`,
+    `${kind.diffEntry(first)} { padding-top: 0 !important; }`,
   ].join("\n");
+}
+
+/** Sets `entry`'s inline `property` to `value`, or removes it for `""`, unless it already holds. */
+function setStyle(entry: HTMLElement, property: string, value: string): void {
+  if (entry.style.getPropertyValue(property) === value) return;
+  if (value) entry.style.setProperty(property, value);
+  else entry.style.removeProperty(property);
 }
 
 /** Lays out one page's diff list; see `orderDiffs`. */
@@ -84,7 +91,7 @@ interface DiffOrder {
   /** Hides the diffs behind `loader`, shown where they start, until `reveal` or 15 seconds pass. */
   cover(loader: Element): void;
   /**
-   * Orders the diffs as `arrangement` does, or not at all while they can't be reordered. Changes
+   * Orders the diffs as `ranking` ranks them, or not at all while they can't be reordered. Changes
    * nothing when the order is unchanged.
    */
   arrange(sections: readonly (readonly string[])[]): void;
@@ -103,8 +110,38 @@ function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
   const rules = doc.createElement("style");
   let loader: Element | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let ranked = new Map<string, number>();
+  let list: Element | null = null;
+  // Not debounced, and run before paint: an entry GitHub adds or replaces never shows misplaced.
+  const observer = new MutationObserver(() => place());
+  /** Gives `list`'s ranked entries their inline place, and strips it from every other child. */
+  const paint = (list: Element) => {
+    const placed = new Map<Element, readonly [string, string]>();
+    for (const [rank, [anchor, section]] of [...ranked].entries()) {
+      const entry = diffEntryOf(page, list, anchor);
+      if (entry) placed.set(entry, [`${rank + 1}`, `${section * STAGGER_MS}ms`]);
+    }
+    for (const child of list.children) {
+      if (!(child instanceof HTMLElement)) continue;
+      const [order, delay] = placed.get(child) ?? ["", ""];
+      setStyle(child, "order", order);
+      setStyle(child, "animation-delay", delay);
+    }
+  };
+  const place = () => {
+    const found = findDiffList(page);
+    if (found !== list) {
+      observer.disconnect();
+      list = found;
+      if (list) observer.observe(list, { childList: true });
+    }
+    if (list) paint(list);
+  };
   doc.head.append(style, rules);
   signal.addEventListener("abort", () => {
+    observer.disconnect();
+    ranked = new Map();
+    if (list) paint(list);
     clearTimeout(timer);
     style.remove();
     rules.remove();
@@ -128,7 +165,10 @@ function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
       timer = setTimeout(reveal, COVER_LIMIT_MS);
     },
     arrange(sections) {
-      const text = reorderable(page) ? arrangement(page.kind, sections) : "";
+      ranked = reorderable(page) ? ranking(sections) : new Map();
+      place();
+      const [first] = ranked.keys();
+      const text = flushFirst(page.kind, first);
       if (rules.textContent !== text) rules.textContent = text;
     },
     reveal,
