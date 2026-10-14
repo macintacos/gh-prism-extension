@@ -1,6 +1,6 @@
 /* GitHub hooks: [class*="PageLayout-PaneWrapper"], [class*="PageLayout-ContentWrapper"],
    [class*="PageLayout-Content-"], [class*="PageLayout-PageLayoutContent"], [class*="WideExpanded"],
-   [class*="PullRequestFilesToolbar-module__toolbar"], [class*="RegularTreeToggle"],
+   [class*="toolbar__"], [class*="RegularTreeToggle"],
    [class*="TreeToggle"], [data-component="Stack"], [aria-controls="diff_file_tree"], #pr-file-tree,
    #diff_file_tree, #diff-content-parent, the filter row's pr-lg-3, a pull request's
    diffComparisonViewer container (this sheet names a commit's), and PageLayout's
@@ -156,7 +156,7 @@
   }
 
   /* The toolbar's left group dissolves into the row, so the toggle and switch can end it. */
-  [data-gh-prism-side="right"] section[class*="PullRequestFilesToolbar-module__toolbar"] {
+  [data-gh-prism-side="right"] section[class*="toolbar__"]:has([class*="RegularTreeToggle"]) {
     & > :has(> * > [class*="RegularTreeToggle"]) {
       display: contents;
     }

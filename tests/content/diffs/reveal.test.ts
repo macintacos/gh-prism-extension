@@ -381,7 +381,7 @@ describe("revealDiffLine", () => {
 
   it("gives up on a load that never adds rows: clicks the file link once and scrolls nothing", async () => {
     const region = mountGuideDiff(
-      `${FILE_HEADER}<div class="HiddenDiffPatch-module__x"><button type="button">Load Diff</button></div>`,
+      `${FILE_HEADER}<div class="gridColumnTemplate__x"><button type="button">Load Diff</button></div>`,
     );
 
     const load = vi.fn();
@@ -400,7 +400,7 @@ describe("revealDiffLine", () => {
 
   it("finds a row that arrives under constant churn when the timeout fires", async () => {
     const region = mountGuideDiff(
-      `${FILE_HEADER}<div class="HiddenDiffPatch-module__x"><button type="button">Load Diff</button></div>`,
+      `${FILE_HEADER}<div class="gridColumnTemplate__x"><button type="button">Load Diff</button></div>`,
     );
 
     let churn: ReturnType<typeof setInterval> | undefined;
@@ -464,7 +464,7 @@ describe("revealDiffLine", () => {
 
   it("loads an unloaded diff through its Load Diff button, not its other buttons, then scrolls", async () => {
     const region = mountGuideDiff(
-      `${FILE_HEADER}<div class="HiddenDiffPatch-module__x"><button type="button">Show more</button><button type="button">Load Diff</button></div>`,
+      `${FILE_HEADER}<div class="gridColumnTemplate__x"><button type="button">Show more</button><button type="button">Load Diff</button></div>`,
     );
 
     const load = vi.fn(() => {
@@ -496,7 +496,7 @@ describe("revealDiffLine", () => {
       setTimeout(() => {
         region.insertAdjacentHTML(
           "beforeend",
-          '<div class="HiddenDiffPatch-module__x"><button type="button">Load Diff</button></div>',
+          '<div class="gridColumnTemplate__x"><button type="button">Load Diff</button></div>',
         );
         buttonNamed(region, "Load Diff").addEventListener("click", () => {
           steps.push("load");
@@ -548,7 +548,7 @@ describe("revealDiffLine", () => {
       setTimeout(() => {
         region.insertAdjacentHTML(
           "beforeend",
-          '<div class="HiddenDiffPatch-module__x"><button type="button">Load Diff</button></div>',
+          '<div class="gridColumnTemplate__x"><button type="button">Load Diff</button></div>',
         );
         buttonNamed(region, "Load Diff").addEventListener("click", load);
       }, 100);
@@ -573,7 +573,7 @@ describe("revealDiffLine", () => {
     buttonNamed(region, "Expand").addEventListener("click", () => {
       region.insertAdjacentHTML(
         "beforeend",
-        '<div class="HiddenDiffPatch-module__x"><button type="button">Load Diff</button></div>',
+        '<div class="gridColumnTemplate__x"><button type="button">Load Diff</button></div>',
       );
       buttonNamed(region, "Load Diff").addEventListener("click", load);
     });
@@ -591,7 +591,7 @@ describe("revealDiffLine", () => {
 
   it("leaves no later click or scroll once aborted while waiting for a load", async () => {
     const region = mountGuideDiff(
-      `${FILE_HEADER}<div class="HiddenDiffPatch-module__x"><button type="button">Load Diff</button></div>`,
+      `${FILE_HEADER}<div class="gridColumnTemplate__x"><button type="button">Load Diff</button></div>`,
     );
 
     const load = vi.fn();

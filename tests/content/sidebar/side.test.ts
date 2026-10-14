@@ -5,7 +5,7 @@ import { dockSidebar, type SideChoice } from "../../../entrypoints/content/sideb
 
 // Trimmed from sandbox PR #3's Files changed toolbar.
 const TOOLBAR = `
-<section class="PullRequestFilesToolbar-module__toolbar__ztHN6">
+<section class="toolbar__ztHN6">
   <div data-component="Stack">
     <div id="tree-toggle">
       <button class="DiffComparisonViewer-module__MobileTreeToggle__wwbbS"></button>

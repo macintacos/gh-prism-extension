@@ -339,12 +339,11 @@ export function expandedDiff(diff: Element | null): Element | null {
   return diff && diff.children.length > 1 ? diff : null;
 }
 
-const HIDDEN_PATCH = '[class*="HiddenDiffPatch-module"]';
 // A pull request's placeholder says "Load Diff"; a commit's says "Load diff".
 const LOAD_DIFF_LABEL = "load diff";
 
 /** The Load Diff button of an unloaded diff's placeholder, else `null`. */
 export function loadDiffButtonOf(diff: Element | null): HTMLButtonElement | null {
-  const buttons = diff?.querySelector(HIDDEN_PATCH)?.querySelectorAll("button") ?? [];
+  const buttons = diff?.querySelectorAll("button") ?? [];
   return [...buttons].find((b) => b.textContent?.trim().toLowerCase() === LOAD_DIFF_LABEL) ?? null;
 }
