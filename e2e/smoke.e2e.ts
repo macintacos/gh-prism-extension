@@ -250,7 +250,8 @@ test("the sidebar highlights the files whose diffs are on screen", async ({ cont
       const inView = [...document.querySelectorAll('[role="region"][data-n]')]
         .filter((region) => {
           const { top, bottom } = region.getBoundingClientRect();
-          return bottom > 0 && top < innerHeight;
+          // Inclusive, as IntersectionObserver counts a region whose edge touches the viewport's.
+          return bottom >= 0 && top <= innerHeight;
         })
         .map((region) => `bulk/file-${(region as HTMLElement).dataset.n?.padStart(3, "0")}.rs`)
         // The sidebar renders only the rows near its viewport.
@@ -282,8 +283,23 @@ test("the sidebar highlights the files whose diffs are on screen", async ({ cont
   await scrollToDiff(20);
   await expectMarkedInView();
 
+  // A scroll Playwright makes before clicking moves the tree's own viewport, which
+  // SectionTree.sync snaps back between pointerdown and pointerup, so the click lands nowhere.
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
   await scrollSidebarToBulkRow(page, 250);
-  await page.locator('[data-item-path="bulk/file-250.rs"]').click();
+  const row250 = page.locator('[data-item-path="bulk/file-250.rs"]');
+  await expect(row250).toBeInViewport();
+  // Playwright retries, with a scroll, a click on a row the sections' landing reveal still moves,
+  // or one the tree ignores pointer events on just after a scroll.
+  await page
+    .locator(".gh-prism-section")
+    .evaluateAll((sections) =>
+      Promise.all(sections.flatMap((section) => section.getAnimations().map((a) => a.finished))),
+    );
+  await expect
+    .poll(() => row250.evaluate((el) => getComputedStyle(el).pointerEvents))
+    .not.toBe("none");
+  await row250.click();
   await expect
     .poll(() => markedAndInViewPaths().then(({ inView }) => inView))
     .toContain("bulk/file-250.rs");
