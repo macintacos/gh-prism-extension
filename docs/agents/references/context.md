@@ -16,5 +16,6 @@ When to edit it:
 Keep each term's *Avoid* list. It names the synonyms that caused confusion, so removing it
 lets them back in.
 
-Maintenance: this doc is a node on the documentation map. If you rename or restructure it,
-update [`documentation-rules.md`](../documentation-rules.md) per its maintenance rule.
+Maintenance: `CONTEXT.md` is a node on the documentation map. Adding, removing, or
+renaming it, or this pointer, follows the maintenance rule in
+[`documentation-rules.md`](../documentation-rules.md).

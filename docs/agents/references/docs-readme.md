@@ -13,5 +13,6 @@ When to edit it:
 Keep each entry one line on the reader's goal plus a link. The page itself holds the
 detail.
 
-Maintenance: this doc is a node on the documentation map. If you rename or restructure it,
-update [`documentation-rules.md`](../documentation-rules.md) per its maintenance rule.
+Maintenance: `docs/README.md` is a node on the documentation map. Adding, removing, or
+renaming it, or this pointer, follows the maintenance rule in
+[`documentation-rules.md`](../documentation-rules.md).

@@ -4,8 +4,9 @@
 
 [`AGENTS.md`](../../../AGENTS.md) is the code-change router. Its digraph has one edge per
 rule file, labeled with the paths and concepts that file governs, and it says how to
-verify a change. [`CLAUDE.md`](../../../CLAUDE.md) holds only an `@AGENTS.md` import, so
-Claude Code loads the router too. Never add content to `CLAUDE.md`.
+verify a change. [`CLAUDE.md`](../../../CLAUDE.md) holds only its H1, its audience line,
+and an `@AGENTS.md` import, so Claude Code loads the router too. Never add content to
+`CLAUDE.md`.
 
 When to edit it:
 
@@ -15,5 +16,6 @@ When to edit it:
 
 Keep it a checklist of edges. Rule bodies go in the rule files, never here.
 
-Maintenance: this doc is a node on the documentation map. If you rename or restructure it,
-update [`documentation-rules.md`](../documentation-rules.md) per its maintenance rule.
+Maintenance: `AGENTS.md` is a node on the documentation map. Adding, removing, or renaming
+it, or this pointer, follows the maintenance rule in
+[`documentation-rules.md`](../documentation-rules.md).

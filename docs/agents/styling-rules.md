@@ -15,8 +15,8 @@ markup a sheet targets are in [`github-rules.md`](github-rules.md).
 - **Write each class string whole and literal, beside the element's `gh-prism-*` name.**
   Tailwind finds classes by scanning source text, so a class built from pieces never gets
   generated.
-- **Take colours, radii, and type from the Primer tokens in `ui/tailwind.css`, and space
-  on the 4px scale.** The tokens follow GitHub's theme, so no element needs a `dark:`
+- **Take colors, radii, and type from the Primer tokens in `ui/tailwind.css`, and space on
+  the 4px scale.** The tokens follow GitHub's theme, so no element needs a `dark:`
   variant.
 - **Never put a shorthand utility beside one of its longhands on one element**
   (`tw:p-0 tw:px-2`). One sheet orders a shorthand before its longhands, but every sheet

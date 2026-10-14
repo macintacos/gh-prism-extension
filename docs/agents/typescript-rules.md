@@ -14,7 +14,7 @@ imports a sheet or writes `tw:` classes are in [`styling-rules.md`](styling-rule
 - **Group related module-level code, with each constant beside its only consumer.** A
   reader then finds a value where it is used.
 - **Keep side-effect order exactly when a refactor regroups code.** Paragraphing and
-  grouping change layout, never behaviour.
+  grouping change layout, never behavior.
 
 ## Persisted state
 

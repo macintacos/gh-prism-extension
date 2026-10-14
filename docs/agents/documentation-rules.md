@@ -25,7 +25,7 @@ digraph gh_prism_docs_router {
     "Which doc does the change affect?" -> "Edit docs/README.md" [label="the router for docs/: which page answers a reader's question"];
     "Which doc does the change affect?" -> "Edit docs/ARCHITECTURE.md" [label="how gh-prism works: page kinds, the visit lifecycle, intent and its cache, section rows, diff order, styling, source layout"];
     "Which doc does the change affect?" -> "Edit docs/DEVELOPMENT.md" [label="developing gh-prism: setup, the dev browser, the task catalog, tests, the benchmark, the sandbox repository, hooks, CI, patched dependencies"];
-    "Which doc does the change affect?" -> "Edit a docs/agents/*-rules.md rule file" [label="a rule for a code area: styling, GitHub's pages, testing, TypeScript, documentation"];
+    "Which doc does the change affect?" -> "Edit a docs/agents/*-rules.md rule file" [label="a rule for a code area that AGENTS.md routes to"];
 }
 ```
 
@@ -33,9 +33,9 @@ digraph gh_prism_docs_router {
 
 - **`README.md`**: the user-facing front door. It says what gh-prism does, how to install
   it, what it may access, and how to fix common problems. How to edit it:
-  [`references/readme.md`](references/readme.md). Its § Permissions changes with
-  [`typescript-rules.md`](typescript-rules.md) § Persisted state, because both describe
-  what gh-prism stores.
+  [`references/readme.md`](references/readme.md). Its § Permissions lists what gh-prism
+  stores, so a new kind of stored data adds a line there;
+  [`typescript-rules.md`](typescript-rules.md) § Persisted state says so.
 - **`CONTRIBUTING.md`**: the short front door for contributors. It gives setup and
   everyday tasks, then links onward. How to edit it:
   [`references/contributing.md`](references/contributing.md). It changes with
@@ -45,7 +45,8 @@ digraph gh_prism_docs_router {
 - **`AGENTS.md`**: the code-change router, with one edge per rule file and how to verify a
   change. `CLAUDE.md` only imports it. How to edit them:
   [`references/agents-md.md`](references/agents-md.md). It changes with every rule file
-  added, removed, or renamed.
+  added, removed, or renamed, and its § Verifying changes changes with `.mise/tasks/` when
+  the `preflight`, `test`, or `e2e` task changes.
 - **`docs/README.md`**: the router for `docs/`, mapping what a reader wants to the page
   that answers it. How to edit it:
   [`references/docs-readme.md`](references/docs-readme.md).
@@ -90,7 +91,8 @@ text. Don't convert one to the other.
 A doc missing from this map is a doc nobody finds. Adding, removing, or renaming a doc
 updates, in the same change:
 
-1. This map: the digraph and the doc's landscape entry.
+1. This map: the digraph and the doc's landscape entry. A rule file is already covered by
+   the shared rule-file node and entry.
 2. Its `AGENTS.md` edge, if it is a rule file.
 3. Its pointer under [`references/`](references/): add, rename, or remove it. Rule files
    share [`references/agent-rules.md`](references/agent-rules.md) instead of getting their

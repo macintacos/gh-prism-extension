@@ -70,8 +70,8 @@ benchmark lives in `bench/` and runs outside CI, Vitest, and Playwright.
 `scripts/create-sandbox.sh <owner>/<repo>` creates a private repository under an account
 you control, with three open pull requests: small, large, and complicated. Use it to
 survey GitHub's Files view on pull requests you own. It needs the `gh` CLI signed in. It
-skips the repository and each pull request that already exists, so you can rerun it after
-a failure.
+skips the repository and each pull request that already exists, so a rerun picks up where
+it left off. A pull request that failed midway is the exception: fix it by hand.
 
 ## Git hooks
 

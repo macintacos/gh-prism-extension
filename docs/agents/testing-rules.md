@@ -15,7 +15,9 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   `vitest.config.ts`.
 - **Give `:has()` compound arguments only** (`:has(a[href="#x"])`). happy-dom ignores
   combinators inside `:has()`, so `:has([role=region] a[href="#x"])` matches any element
-  that has a region at all. Relative chains such as `:has(> * > .x)` work.
+  that has a region at all. A one-step relative argument (`:has(> .x)`) is reliable too,
+  but a multi-step chain such as `:has(> * > .x)` matches any element with a child, so
+  prove that form in Chromium.
 - **Write a selector list instead of complex selectors inside `:is()`.** happy-dom
   mishandles them when it computes style.
 - **Test layout order with `getComputedStyle`, not DOM order.** happy-dom computes
@@ -23,8 +25,11 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   `:has()`.
 - **Don't depend on `hashchange` after `replaceState`.** happy-dom fires it a tick later,
   and browsers never fire it.
-- **Check media queries and reduced motion in Playwright Chromium, not happy-dom.**
-  happy-dom doesn't evaluate them.
+- **Toggle reduced motion through
+  `window.happyDOM.settings.device.prefersReducedMotion`.** happy-dom evaluates media
+  queries, so
+  [`tests/content/diffs/reveal.test.ts`](../../tests/content/diffs/reveal.test.ts) tests
+  the reduced-motion path without a browser.
 
 ## Test bodies
 
@@ -45,7 +50,7 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
 
 ## Verifying in a real browser
 
-To check behaviour live, build the extension and drive Playwright's bundled Chromium:
+To check behavior live, build the extension and drive Playwright's bundled Chromium:
 
 - **Launch with `launchPersistentContext` and `--load-extension=.output/chrome-mv3`, and
   pass `channel: "chromium"` for headless.** Headless extension loading needs that
@@ -63,9 +68,8 @@ To check behaviour live, build the extension and drive Playwright's bundled Chro
 - **Wrap the service worker's `fetch` to observe pull request data requests.** The
   background script calls the global `fetch` at request time, so wrapping `self.fetch`
   through `worker.evaluate` logs each request.
-- **Expect a page head only after a soft navigation from Conversation.** The page head is
-  the head SHA read from the page's embedded data (`pageHeadSha` in
-  [`utils/github/pr-port.ts`](../../utils/github/pr-port.ts)). The Conversation page's
-  embedded data names the pull request, so that navigation keeps it. Entering from
-  `/pulls` leaves none, so the service worker fetches the head itself. Take that path to
-  check the head lookup.
+- **Enter from `/pulls` to check the head lookup.** That entry leaves no page head, so the
+  service worker fetches the head itself. The page head is the head SHA read from the
+  page's embedded data (`pageHeadSha` in
+  [`utils/github/pr-port.ts`](../../utils/github/pr-port.ts)), which a full load of Files
+  changed or a soft navigation from Conversation provides.

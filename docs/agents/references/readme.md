@@ -11,12 +11,13 @@ When to edit it:
 
 - A feature a user sees is added, removed, or changes behavior.
 - The install steps change.
-- gh-prism gains or drops a host permission, or stores something new. Update § Permissions
-  and [`typescript-rules.md`](../typescript-rules.md) § Persisted state together.
+- gh-prism gains or drops a host permission. Update § Permissions.
+- gh-prism stores a new kind of data. Update § Permissions.
 - A common failure gains a known fix.
 
 Keep contributor detail out of it. Setup and tasks belong in `CONTRIBUTING.md` and
 `docs/DEVELOPMENT.md`.
 
-Maintenance: this doc is a node on the documentation map. If you rename or restructure it,
-update [`documentation-rules.md`](../documentation-rules.md) per its maintenance rule.
+Maintenance: `README.md` is a node on the documentation map. Adding, removing, or renaming
+it, or this pointer, follows the maintenance rule in
+[`documentation-rules.md`](../documentation-rules.md).

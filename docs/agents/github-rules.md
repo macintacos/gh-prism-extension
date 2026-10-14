@@ -23,8 +23,9 @@ them; [§ Re-checking GitHub](#re-checking-github) has the methods.
   modules emit `localName__hash` (`rightContentWrapper__DE7XPN`), and the hash changes
   with GitHub's builds. Some local names are shared by several modules (`toolbar__`), so
   pair such a match with a parent or role.
-- **Match Primer classes by their `prc-` prefixed name.** Primer keeps its prefix
-  (`prc-PageLayout-PaneWrapper-pHPop`).
+- **Match Primer classes by substring of their stable part:
+  `[class*="PageLayout-PaneWrapper"]`.** Primer emits `prc-<Component>-<local>-<hash>`
+  (`prc-PageLayout-PaneWrapper-pHPop`), and the hash changes with its builds.
 - **Don't take a passing test as proof that a selector matches.** Fixtures in
   `tests/fixtures/` can lag GitHub's live markup.
 - **Re-check:** load a public commit page in Playwright and collect the `githubassets.com`
@@ -40,13 +41,13 @@ them; [§ Re-checking GitHub](#re-checking-github) has the methods.
   `isConnected` for this reason.
 - **Find a commit's diff region by the link in its header.** Commit diff regions have no
   ids; each header links to `#diff-…`.
-- **Navigate to a file by hash, not by a synthetic `click()` on a tree row.** With no
-  element matching the hash, the router's scroll restoration races GitHub's scroll. A
-  trusted click wins that race, and a synthetic one often lands at the top. GitHub's own
-  helper sets the hash with `history.replaceState`, then dispatches `hashchange`. The
-  tree's current file ignores an unchanged hash.
-- **Match the placeholder text per page.** A commit's placeholder reads "Load diff", and a
-  pull request's reads "Load Diff".
+- **On a commit page, navigate to a file by hash, not by a synthetic `click()` on a tree
+  row.** With no element matching the hash, the router's scroll restoration races GitHub's
+  scroll. A trusted click wins that race, and a synthetic one often lands at the top.
+  GitHub's own helper sets the hash with `history.replaceState`, then dispatches
+  `hashchange`. The tree's current file ignores an unchanged hash.
+- **Match the placeholder text case-insensitively.** A commit's placeholder reads "Load
+  diff", and a pull request's reads "Load Diff".
 - **Expect smooth scrolling.** `html` has `scroll-behavior: smooth`, except under reduced
   motion.
 - **Re-check:** load a public commit page and a pull request. Read the placeholder text
@@ -98,7 +99,8 @@ them; [§ Re-checking GitHub](#re-checking-github) has the methods.
 - **Re-check:** get the merge base with
   `gh api repos/<o>/<r>/compare/<base>...<head> --jq .merge_base_commit.sha`, then compare
   the `.diff`'s `index <a>..` blob with
-  `gh api repos/<o>/<r>/contents/<path>?ref=<sha> --jq .sha` at that SHA. For the
+  `gh api "repos/<o>/<r>/contents/<path>?ref=<sha>" --jq .sha` at that SHA, and compare it
+  with REST `base.sha` from `gh api repos/<o>/<r>/pulls/<n> --jq .base.sha`. For the
   signed-out data, load the pull request signed out and search its embedded data for a
   base SHA.
 
@@ -112,7 +114,8 @@ which you can fetch without a session.
    names the asset URL and offset.
 2. Curl the asset into its own scratch directory.
 3. Grep the minified source around the call, for example
-   `grep -o '.{300}scrollTo(.{300}'`.
+   `rg -o '.{0,200}scrollTo\(.{0,200}' <asset>.js`. BSD or GNU `grep -oE` takes the same
+   pattern; ugrep rejects it.
 
 Read the results with care:
 

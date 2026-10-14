@@ -48,22 +48,24 @@ visit, so `watchFilesPages` reports each replacement as a new page.
 
 The watcher wakes on first load, on GitHub's `soft-nav:end` event, and on `popstate`. Each
 wake starts a 10-second settle window. During that window a mutation observer checks
-whether the page is still connected. Once the sidebar, native tree, or diff list is
-disconnected, the watcher aborts that page and hands over the replacement as a new page. A
-pathname change aborts the whole visit. A hash change, which every file click makes, is
-not a new visit. When the window ends on a Files view path with no markup found, the
-watcher warns once and leaves GitHub's tree alone.
+whether the page is still connected. Once the sidebar, native tree, or diffs container
+(the diff list's parent) is disconnected, the watcher aborts that page and hands over the
+replacement as a new page. A list swap inside the container is not a new page; `order.ts`
+follows it. A pathname change aborts the whole visit. A hash change, which every file
+click makes, is not a new visit. When the window ends on a Files view path with no markup
+found, the watcher warns once and leaves GitHub's tree alone; the next wake still starts a
+new settle window.
 
 ```mermaid
 stateDiagram-v2
     [*] --> Settling: load, soft-nav end, or popstate
     Settling --> Page: Files view markup found
-    Page --> Page: sidebar, tree, or diff list disconnected, so a new page
+    Page --> Page: within 10 s, sidebar, tree, or diffs container disconnected
     Page --> Settling: pathname changes, so the visit aborts
     Settling --> Missing: 10 s pass with no markup
     Page --> Idle: 10 s pass, observer stops
     Idle --> Settling: next soft-nav end or popstate
-    Missing --> [*]
+    Missing --> Idle: warn once
 ```
 
 [`entrypoints/content/visit/land.ts`](../entrypoints/content/visit/land.ts) runs on each
@@ -108,10 +110,11 @@ flowchart TD
 ```
 
 [`utils/intent/cache.ts`](../utils/intent/cache.ts) keeps intent in extension storage.
-`index.ts` sizes it to 50 diffs. Each store moves its key to the front of an index and
-drops the entries past the limit, so the cache keeps the 50 most recently stored diffs. A
-cache hit alone does not refresh its entry. The service worker clears the cache on
-install, update, and dev reload, because a new build may place files differently.
+`index.ts` sizes it to 50 entries; a pinned diff takes two, one under its diff key and one
+under its pin. Each store moves its key to the front of an index and drops the entries
+past the limit, so the cache keeps the 50 most recently stored keys. A cache hit alone
+does not refresh its entry. The service worker clears the cache on install, update, and
+dev reload, because a new build may place files differently.
 
 ## Section rows
 

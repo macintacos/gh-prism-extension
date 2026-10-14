@@ -14,5 +14,6 @@ When to edit it:
 - The test layout moves.
 - A doc it links to is added, renamed, or removed.
 
-Maintenance: this doc is a node on the documentation map. If you rename or restructure it,
-update [`documentation-rules.md`](../documentation-rules.md) per its maintenance rule.
+Maintenance: `CONTRIBUTING.md` is a node on the documentation map. Adding, removing, or
+renaming it, or this pointer, follows the maintenance rule in
+[`documentation-rules.md`](../documentation-rules.md).

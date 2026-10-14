@@ -15,5 +15,6 @@ When to edit it:
 
 Describe the current structure, not how it got there. History belongs in git.
 
-Maintenance: this doc is a node on the documentation map. If you rename or restructure it,
-update [`documentation-rules.md`](../documentation-rules.md) per its maintenance rule.
+Maintenance: `docs/ARCHITECTURE.md` is a node on the documentation map. Adding, removing,
+or renaming it, or this pointer, follows the maintenance rule in
+[`documentation-rules.md`](../documentation-rules.md).

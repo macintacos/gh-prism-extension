@@ -28,7 +28,7 @@ digraph gh_prism_rules_router {
     "What does the change touch?" -> "Load docs/agents/github-rules.md" [label="GitHub's pages: files-page.ts selectors, a stylesheet's GitHub hooks: header comment, entrypoints/content/diffs/, entrypoints/content/visit/, utils/github/"];
     "What does the change touch?" -> "Load docs/agents/testing-rules.md" [label="tests: tests/, e2e/, bench/, vitest.config.ts, playwright.config.ts, checking a change in a real browser"];
     "What does the change touch?" -> "Load docs/agents/typescript-rules.md" [label="TypeScript under entrypoints/ or utils/: function-body shape, persisted state"];
-    "What does the change touch?" -> "Load docs/agents/documentation-rules.md" [label="any doc change, or a change that makes a loaded rule wrong or teaches you something about this repo"];
+    "What does the change touch?" -> "Load docs/agents/documentation-rules.md" [label="any doc change; renaming or removing a module, function, or constant that docs/ARCHITECTURE.md names; changing .mise/tasks/, hk.pkl, .github/workflows/, patches/, package.json, or wxt.config.ts; or a change that makes a loaded rule wrong or teaches you something about this repo"];
     "What does the change touch?" -> "Read CONTEXT.md" [label="naming a domain concept: visit, intent, section, placement"];
 }
 ```
