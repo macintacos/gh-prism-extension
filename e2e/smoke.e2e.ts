@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { type BrowserContext, test as base, chromium, expect, type Page } from "@playwright/test";
+import { commitPage } from "../entrypoints/content/files-page";
 
 const EXTENSION = join(import.meta.dirname, "../.output/chrome-mv3");
 const PR_URL = "https://github.com/o/r/pull/1/changes";
@@ -71,6 +72,23 @@ test("a commit mounts its sections in path-only mode", async ({ context, page })
     await expect(nav.getByRole("heading", { name })).toBeVisible();
   }
   await expect(page.locator(".gh-prism-notice")).toHaveText(/^Grouped by path\./);
+});
+
+test("a commit's diff list skips a comment thread beside it", async ({ context, page }) => {
+  await serve(context, COMMIT_URL, COMMIT_BODY);
+  await page.goto(COMMIT_URL);
+
+  // happy-dom over-matches a multi-step :has(), so only a real browser proves this.
+  const lists = await page.evaluate((diffList) => {
+    document
+      .getElementById("comments")
+      ?.insertAdjacentHTML("beforeend", "<div><p>A comment</p></div>");
+    return [...document.querySelectorAll(diffList)].map(
+      (list) => list.querySelectorAll('[role="region"]').length,
+    );
+  }, commitPage.diffList);
+
+  expect(lists).toEqual([2]);
 });
 
 test("the side switch docks the sidebar on the other side and remembers it", async ({
