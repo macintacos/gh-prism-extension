@@ -3,12 +3,11 @@
 # complicated) for surveying GitHub's Files changed tab. All content is fake.
 # Resumable per PR: the repo, main, and each PR are skipped when they already exist.
 # A run that fails partway through a PR leaves that PR for you to fix by hand.
-# Keep the PRs open until EXC-1623 closes.
 #
-# Usage: scripts/create-sandbox.sh [owner/repo]
+# Usage: scripts/create-sandbox.sh <owner>/<repo>
 set -euo pipefail
 
-readonly repo="${1:-macintacos/gh-prism-sandbox}"
+readonly repo="${1:?usage: scripts/create-sandbox.sh <owner>/<repo>}"
 
 commit() {
 	git add -A
