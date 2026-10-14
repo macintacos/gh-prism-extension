@@ -76,7 +76,7 @@ function showCounter(
   const button = el(
     doc,
     "button",
-    "gh-prism-diffstat tw:relative tw:flex tw:items-center tw:gap-1 tw:p-0 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-default tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-[var(--focus-outlineColor)]",
+    "gh-prism-diffstat tw:relative tw:flex tw:items-center tw:gap-1 tw:p-0 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-default tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-focus-outline",
   );
   button.type = "button";
   const render = () => {

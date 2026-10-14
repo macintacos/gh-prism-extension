@@ -1001,7 +1001,7 @@ describe("showSections", () => {
         await afterDebounce();
 
         expect(filesIn("implementation")).toContain("src/parser.rs");
-        expect(view()?.firstElementChild?.className).toBe("gh-prism-notice");
+        expect(view()?.firstElementChild?.classList.contains("gh-prism-notice")).toBe(true);
         expect(view()?.firstElementChild?.textContent).toBe(copy);
       },
     );
@@ -1014,7 +1014,7 @@ describe("showSections", () => {
 
       expect(view()?.hasAttribute("aria-busy")).toBe(false);
       expect(filesIn("implementation")).toContain("src/parser.rs");
-      expect(view()?.firstElementChild?.className).toBe("gh-prism-notice");
+      expect(view()?.firstElementChild?.classList.contains("gh-prism-notice")).toBe(true);
       expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
 
       consoleError.mockRestore();

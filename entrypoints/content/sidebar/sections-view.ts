@@ -135,22 +135,50 @@ function sectionShell(
   key: SectionKey,
   { order, lines }: { order: number; lines: LineCounts | undefined },
 ) {
-  const counter = el(doc, "span", "gh-prism-counter");
-  const glyph = el(doc, "span", "gh-prism-glyph", sectionIcon(doc, key), chevron(doc));
-  const name = el(doc, "span", "gh-prism-section-label", SECTION_CATALOG[key].label);
-  const toggle = el(doc, "button", "gh-prism-section-toggle", glyph, name, counter);
+  const counter = el(
+    doc,
+    "span",
+    "gh-prism-counter tw:shrink-0 tw:min-w-5 tw:py-0 tw:px-1.5 tw:rounded-[2em] tw:bg-[var(--counter-bgColor-muted)] tw:text-fg-default tw:text-body-small tw:font-medium tw:leading-body-small tw:text-center",
+  );
+  const glyph = el(
+    doc,
+    "span",
+    "gh-prism-glyph tw:grid tw:shrink-0 tw:text-[color:var(--gh-prism-hue)]",
+    sectionIcon(doc, key),
+    chevron(doc),
+  );
+  const name = el(doc, "span", "gh-prism-section-label tw:truncate", SECTION_CATALOG[key].label);
+  const toggle = el(
+    doc,
+    "button",
+    "gh-prism-section-toggle tw:flex tw:items-center tw:gap-2 tw:w-full tw:h-9 tw:py-0 tw:px-3 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-default tw:[font:inherit] tw:text-start tw:cursor-pointer tw:hover:bg-[var(--control-transparent-bgColor-hover)] tw:focus-visible:outline-2 tw:focus-visible:-outline-offset-2 tw:focus-visible:outline-focus-outline",
+    glyph,
+    name,
+    counter,
+  );
   if (lines) toggle.append(lineTotals(doc, lines));
   toggle.type = "button";
 
-  const header = el(doc, "h3", "gh-prism-section-header", toggle);
+  const header = el(
+    doc,
+    "h3",
+    "gh-prism-section-header tw:m-0 tw:text-body-medium tw:font-semibold",
+    toggle,
+  );
   header.id = `gh-prism-heading-${key}`;
 
   const host = el(doc, "div", "gh-prism-tree");
-  const files = el(doc, "div", "gh-prism-files", host);
+  const files = el(doc, "div", "gh-prism-files tw:overflow-clip tw:pb-1", host);
   files.id = `gh-prism-files-${key}`;
   toggle.setAttribute("aria-controls", files.id);
 
-  const root = el(doc, "section", "gh-prism-section", header, files);
+  const root = el(
+    doc,
+    "section",
+    "gh-prism-section tw:rounded-medium tw:bg-[var(--gh-prism-tint)]",
+    header,
+    files,
+  );
   root.setAttribute("aria-labelledby", header.id);
   markSection(root, key);
   root.style.setProperty("--gh-prism-order", String(order));
@@ -213,7 +241,11 @@ export function showSections(
 ): LandingView & { readonly root: Element } {
   const doc = page.sidebar.ownerDocument;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
-  const view = el(doc, "nav", "gh-prism-sections");
+  const view = el(
+    doc,
+    "nav",
+    "gh-prism-sections tw:flex tw:flex-col tw:gap-1.5 tw:text-body-medium tw:[interpolate-size:allow-keywords]",
+  );
   view.setAttribute("aria-label", "Changed files by section");
 
   const shown = new Map<SectionKey, ShownSection>();
@@ -366,7 +398,12 @@ export function showSections(
 
       view.prepend(
         ...noticesOf(result, reorderable(page)).map((text) =>
-          el(doc, "p", "gh-prism-notice", text),
+          el(
+            doc,
+            "p",
+            "gh-prism-notice tw:m-0 tw:pt-1.5 tw:px-2 tw:pb-1 tw:text-body-small tw:leading-body-small tw:text-fg-muted",
+            text,
+          ),
         ),
       );
     },
