@@ -26,7 +26,20 @@ export default defineConfig({
       "https://raw.githubusercontent.com/*",
     ],
   },
-  vite: () => ({ plugins: [tailwindcss()] }),
+  vite: () => ({
+    plugins: [tailwindcss()],
+    build: {
+      rolldownOptions: {
+        // Dev builds emit sourcemaps, but @tailwindcss/vite returns none for the sheets it compiles. Every sheet is
+        // imported ?inline as a JS string, so its map is never read.
+        onLog(level, log, handler) {
+          if (log.code === "SOURCEMAP_BROKEN" && log.plugin === "@tailwindcss/vite:generate:build")
+            return;
+          handler(level, log);
+        },
+      },
+    },
+  }),
   webExt: {
     chromiumProfile: chromeProfile,
     keepProfileChanges: true,
