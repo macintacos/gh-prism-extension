@@ -25,6 +25,7 @@ digraph gh_prism_docs_router {
     "Which doc does the change affect?" -> "Edit docs/README.md" [label="the router for docs/: which page answers a reader's question"];
     "Which doc does the change affect?" -> "Edit docs/ARCHITECTURE.md" [label="how gh-prism works: page kinds, the visit lifecycle, intent and its cache, section rows, diff order, styling, source layout"];
     "Which doc does the change affect?" -> "Edit docs/DEVELOPMENT.md" [label="developing gh-prism: setup, the dev browser, the task catalog, tests, the benchmark, the sandbox repository, hooks, CI, patched dependencies"];
+    "Which doc does the change affect?" -> "Edit .claude/skills/release-gh-prism/SKILL.md" [label="the release skill: computing, confirming, and dispatching a release, the release notes"];
     "Which doc does the change affect?" -> "Edit a docs/agents/*-rules.md rule file" [label="a rule for a code area that AGENTS.md routes to"];
 }
 ```
@@ -56,6 +57,11 @@ digraph gh_prism_docs_router {
 - **`docs/DEVELOPMENT.md`**: developing gh-prism past the first run. How to edit it:
   [`references/development.md`](references/development.md). Its task catalog changes with
   `.mise/tasks/`, and its setup changes with `CONTRIBUTING.md`.
+- **`.claude/skills/release-gh-prism/SKILL.md`**: the `/release-gh-prism` skill, which
+  drives a release from the version to the published GitHub Release. How to edit it:
+  [`references/release-skill.md`](references/release-skill.md). It changes with the
+  `compute` and `release` commands in `scripts/tasks/cli.ts` and with
+  `.github/workflows/release.yml`.
 - **`docs/agents/*-rules.md`**: one rule file per code area, loaded through `AGENTS.md`.
   This file is one of them. How to add or edit one:
   [`references/agent-rules.md`](references/agent-rules.md).
