@@ -20,22 +20,6 @@
   margin-bottom: 16px;
 }
 
-.gh-prism-diff-skeleton {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.gh-prism-diff-card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-bottom: 14px;
-  overflow: hidden;
-  border: 1px solid var(--borderColor-default);
-  border-radius: var(--borderRadius-medium);
-}
-
 /* Lines of code, right of the line numbers' gutter. */
 .gh-prism-diff-card > span {
   height: 10px;

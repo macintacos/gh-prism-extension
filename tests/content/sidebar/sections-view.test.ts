@@ -927,7 +927,7 @@ describe("showSections", () => {
     it("carries the progress bar's stylesheet in the bar itself", () => {
       remountWith(pendingIntent().intent);
       expect(
-        sheetsStyling("gh-prism-loading-label").some((sheet) => progressBar()?.contains(sheet)),
+        sheetsStyling("gh-prism-spectrum").some((sheet) => progressBar()?.contains(sheet)),
       ).toBe(true);
     });
 

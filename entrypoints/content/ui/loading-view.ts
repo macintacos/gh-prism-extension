@@ -23,15 +23,25 @@ export interface LoadingView {
 /** A progress bar that reads the diff, then counts the files checked, over `skeleton`. */
 export function loadingView(doc: Document, skeleton: HTMLElement): LoadingView {
   const label = el(doc, "span", "", "Reading the diff");
-  const count = el(doc, "span", "gh-prism-loading-count");
-  const spectrum = el(doc, "div", "gh-prism-spectrum");
+  const count = el(doc, "span", "gh-prism-loading-count tw:tabular-nums");
+  const spectrum = el(
+    doc,
+    "div",
+    "gh-prism-spectrum tw:h-[3px] tw:mx-0 tw:mt-2 tw:mb-1.5 tw:overflow-hidden tw:rounded-[2px] tw:bg-bg-neutral-muted",
+  );
   spectrum.style.setProperty("--gh-prism-spectrum", SPECTRUM);
 
   const root = el(
     doc,
     "div",
-    "gh-prism-loading",
-    el(doc, "div", "gh-prism-loading-label", label, count),
+    "gh-prism-loading tw:px-2 tw:pt-2 tw:pb-1",
+    el(
+      doc,
+      "div",
+      "gh-prism-loading-label tw:flex tw:justify-between tw:gap-2 tw:text-body-small tw:leading-body-small tw:text-fg-muted",
+      label,
+      count,
+    ),
     spectrum,
     skeleton,
     Object.assign(doc.createElement("style"), { textContent: css }),

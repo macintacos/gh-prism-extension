@@ -2,6 +2,12 @@
 
 @theme inline {
   --spacing: 4px;
+  --color-fg-muted: var(--fgColor-muted);
+  --color-bg-neutral-muted: var(--bgColor-neutral-muted);
+  --color-border-default: var(--borderColor-default);
+  --radius-medium: var(--borderRadius-medium);
+  --text-body-small: var(--text-body-size-small);
+  --leading-body-small: var(--text-body-lineHeight-small);
   /* Primer tokens, added as utilities need them, named by one rule:
      --fgColor-muted → --color-fg-muted (tw:text-fg-muted)
      --bgColor-muted → --color-bg-muted (tw:bg-bg-muted)
