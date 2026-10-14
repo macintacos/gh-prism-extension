@@ -14,7 +14,7 @@
   /* Primer's --<x>Color-<name> becomes --color-<x>-<name>; radius, size and weight drop Primer's
      prefixes. Line heights are --leading-*: a --text-*--line-height key would make tw:text-* set
      line-height too. Base scales get tokens; component tokens (--button-*, --control-*) stay
-     tw:x-[var(--token)] values. */
+     tw:x-[var(--token)] values until they repeat. */
   --color-fg-default: var(--fgColor-default);
   --color-fg-muted: var(--fgColor-muted);
   --color-fg-success: var(--fgColor-success);
