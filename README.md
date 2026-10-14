@@ -101,8 +101,8 @@ gh-prism needs access to three hosts and to Chrome's extension storage, and noth
 
 ## Contributing
 
-Setup commands and styling rules for contributors are in
-[CONTRIBUTING.md](CONTRIBUTING.md).
+Setup commands for contributors are in [CONTRIBUTING.md](CONTRIBUTING.md), and how
+gh-prism works is in [docs/](docs/README.md).
 
 ## License
 
