@@ -26,6 +26,13 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
 - **Check media queries and reduced motion in Playwright Chromium, not happy-dom.**
   happy-dom doesn't evaluate them.
 
+## Test bodies
+
+- **Split a test body into arrange, act, and assert paragraphs, and a describe-level setup
+  block into one paragraph per setup step.** Tests follow the same
+  [paragraphing as source](typescript-rules.md#function-bodies), so a reader finds each
+  step at a glance.
+
 ## End-to-end and bench
 
 - **Name end-to-end tests `*.e2e.ts`.** Vitest's default include would collect a
@@ -56,5 +63,9 @@ To check behaviour live, build the extension and drive Playwright's bundled Chro
 - **Wrap the service worker's `fetch` to observe pull request data requests.** The
   background script calls the global `fetch` at request time, so wrapping `self.fetch`
   through `worker.evaluate` logs each request.
-- **Expect a page head only after a soft navigation from Conversation.** That navigation
-  keeps the page head; entering the pull request from `/pulls` leaves none.
+- **Expect a page head only after a soft navigation from Conversation.** The page head is
+  the head SHA read from the page's embedded data (`pageHeadSha` in
+  [`utils/github/pr-port.ts`](../../utils/github/pr-port.ts)). The Conversation page's
+  embedded data names the pull request, so that navigation keeps it. Entering from
+  `/pulls` leaves none, so the service worker fetches the head itself. Take that path to
+  check the head lookup.

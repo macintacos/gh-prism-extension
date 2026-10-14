@@ -61,9 +61,16 @@ them; [§ Re-checking GitHub](#re-checking-github) has the methods.
   child. GitHub loads files lazily in 4-file `diff_entries` batches, which replace the
   region inside a kept wrapper, never the wrapper or the list.
 - **Don't assume a file count virtualizes a pull request's list.** Virtualization follows
-  the route data's `virtualizeDiffEntries` flag, with no client-side threshold.
-- **On a commit, expect each region in a padding-top `div`,** and a virtualized list over
-  40 files.
+  the route data's `virtualizeDiffEntries` flag, with no client-side threshold. A
+  virtualized list renders only the rows near the viewport, as absolutely placed rows
+  carrying `data-index` and `data-path-digest`.
+- **Don't read list churn on a hard load as a new page.** A pull request's `diffEntry`
+  wrappers stream in, and hydration removes and re-adds a few of the list's children, so
+  an observer of the list (as in
+  [`diffs/order.ts`](../../entrypoints/content/diffs/order.ts)) must handle repeat
+  mutations idempotently.
+- **On a commit, expect each region in a padding-top `div`,** and over 40 files a
+  virtualized list of `data-index` rows placed by `translateY`.
 - **Never scroll the window before GitHub mounts.** On mount GitHub's router calls
   `scrollTo(0, 0)`, which undoes an early scroll. Instead, `retakeHash` in
   [`diffs/reveal.ts`](../../entrypoints/content/diffs/reveal.ts) re-announces the hash so
@@ -83,7 +90,9 @@ them; [§ Re-checking GitHub](#re-checking-github) has the methods.
   `DiffPin` (`readDiffPin`). The Files data's `comparison.baseOid` is the base tip at the
   last head push, so it can't stand in for the merge base.
 - **Don't expect a base SHA in signed-out page data.** It names `baseBranch` and
-  `headSha`, but no base SHA.
+  `headSha`, but no base SHA. That data is the Conversation page's
+  `react-app.embeddedData`, under `payload.pullRequestsLayoutRoute.pullRequest`, which
+  `pr-ref.ts` reads.
 - **Never pin a diff by branch name alone.** Merging into the base, or force-pushing it,
   moves the merge base without changing the head or the name.
 - **Re-check:** get the merge base with
