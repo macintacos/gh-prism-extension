@@ -1,4 +1,6 @@
-/* Styles inside each section tree's shadow root; @pierre/trees layers them over its own. */
+/* Styles inside each section tree's shadow root; @pierre/trees layers them over its own.
+   Chrome ignores @property in a shadow root, so no utility here may read a --tw-* variable:
+   border, outline, shadow, ring, transform, gradient, leading, font-weight and tabular-nums. */
 @import "../ui/tailwind.css" prefix(tw);
 @source "./section-tree.ts";
 

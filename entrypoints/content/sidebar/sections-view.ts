@@ -19,7 +19,7 @@ import { type LoadingView, loadingView } from "../ui/loading-view";
 import { markSection, SECTION_CATALOG, sectionIcon } from "../ui/section-catalog";
 import type { FileSection, LandingView } from "../visit/land";
 import { SectionTree, type TreeFile } from "./section-tree";
-// ?inline: a string this view mounts and removes; a plain import would sit in the manifest on every github.com page.
+// ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./sections-view.css?inline";
 
 type FileEntry = FileSection["entries"][number];

@@ -6,7 +6,7 @@ import {
   preparePresortedFileTreeInput,
 } from "@pierre/trees";
 import { el } from "../ui/dom";
-// ?inline: a string each tree mounts in its shadow root; a plain import would sit in the manifest on every github.com page.
+// ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./section-tree.css?inline";
 
 /** A file as a section's tree shows it. */

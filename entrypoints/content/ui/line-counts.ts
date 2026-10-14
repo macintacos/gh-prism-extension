@@ -1,4 +1,7 @@
-/** The lines a change adds and removes, as the header's pills and the sidebar's sections show them. */
+/**
+ * The lines a change adds and removes, as the header's pills and the sidebar's sections show them.
+ * No sheet of its own: every caller's sheet must `@source` this file for its utilities.
+ */
 
 import type { LineCounts } from "@/utils/github/pr-diff";
 import { el } from "./dom";

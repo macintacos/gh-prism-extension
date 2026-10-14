@@ -8,8 +8,8 @@
 @import "../ui/tailwind.css" prefix(tw);
 @source "./side.ts";
 
-/* Primer's small invisible IconButton, like GitHub's tree toggle beside it. Stays CSS: the
-   @container rule below shows it at equal specificity. */
+/* Hidden until the @container rule below shows it: CSS, not tw:hidden, which a later sheet's
+   copy would let outrank that rule. */
 .gh-prism-side-switch {
   display: none;
 }

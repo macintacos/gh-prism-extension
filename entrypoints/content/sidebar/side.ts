@@ -14,7 +14,7 @@ import {
   treeToggleButtonOf,
 } from "../files-page";
 import { el, icon } from "../ui/dom";
-// ?inline: a string this view mounts and removes; a plain import would sit in the manifest on every github.com page.
+// ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./side.css?inline";
 
 export type { Side };
@@ -160,6 +160,7 @@ export function dockSidebar(
   const root = doc.documentElement;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
 
+  // Primer's small invisible IconButton, like GitHub's tree toggle beside it.
   const button = el(
     doc,
     "button",

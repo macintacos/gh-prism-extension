@@ -44,12 +44,13 @@ if (!/^\d+$/.test(values["entry-size"]) || entrySize < 2) {
   process.exit(1);
 }
 
-// WXT imports CSS with Vite's `?raw` suffix, which Bun can't resolve; `loader` reads it as text.
-const raw: BunPlugin = {
-  name: "raw",
+// WXT imports CSS with Vite's `?inline` suffix, which Bun can't resolve; `loader` reads it as
+// text, so the sheets reach the page without Tailwind's utilities.
+const inline: BunPlugin = {
+  name: "inline",
   setup(build) {
-    build.onResolve({ filter: /\?raw$/ }, ({ path, resolveDir }) => ({
-      path: Bun.resolveSync(path.slice(0, -"?raw".length), resolveDir),
+    build.onResolve({ filter: /\?inline$/ }, ({ path, resolveDir }) => ({
+      path: Bun.resolveSync(path.slice(0, -"?inline".length), resolveDir),
     }));
   },
 };
@@ -60,7 +61,7 @@ async function bundle(): Promise<string> {
     target: "browser",
     format: "iife",
     loader: { ".css": "text" },
-    plugins: [raw],
+    plugins: [inline],
   });
   const [output] = built.outputs;
   if (!output) throw new Error("the bench built no output");
