@@ -236,7 +236,7 @@ test("the sidebar highlights the files whose diffs are on screen", async ({ cont
     },
     Array.from({ length: 300 }, (_, n) => bulkDiff(n)),
   );
-  const bulkPaths = () =>
+  const markedAndInViewPaths = () =>
     page.evaluate(() => {
       const rows = [...document.querySelectorAll(".gh-prism-tree")].flatMap((host) => [
         ...(host.shadowRoot?.querySelectorAll<HTMLElement>('[data-type="item"]') ?? []),
@@ -262,7 +262,7 @@ test("the sidebar highlights the files whose diffs are on screen", async ({ cont
     });
   const expectMarkedInView = () =>
     expect(async () => {
-      const { marked, inView } = await bulkPaths();
+      const { marked, inView } = await markedAndInViewPaths();
       expect(inView.length).toBeGreaterThan(0);
       expect(marked).toEqual(inView);
     }).toPass({ timeout: 10_000 });
@@ -284,7 +284,9 @@ test("the sidebar highlights the files whose diffs are on screen", async ({ cont
 
   await scrollSidebarToBulkRow(page, 250);
   await page.locator('[data-item-path="bulk/file-250.rs"]').click();
-  await expect.poll(() => bulkPaths().then(({ inView }) => inView)).toContain("bulk/file-250.rs");
+  await expect
+    .poll(() => markedAndInViewPaths().then(({ inView }) => inView))
+    .toContain("bulk/file-250.rs");
   await expectMarkedInView();
 
   await scrollToDiff(100);

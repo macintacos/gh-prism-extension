@@ -266,11 +266,11 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
   // Only a new current file scrolls the sidebar; re-renders would pull it back mid-scroll.
   let scrolledTo: string | undefined;
   let onScreen: ReadonlySet<string> = new Set();
-  let latest: readonly FileSection[] = [];
+  let latestSections: readonly FileSection[] = [];
 
   /** Marks each section that lists a file on screen; sections-view.css shows it on a collapsed header. */
   const markHeaders = () => {
-    for (const { key, entries } of latest) {
+    for (const { key, entries } of latestSections) {
       const listsOnScreen = entries.some(({ file }) => onScreen.has(file.path));
       shown.get(key)?.root.toggleAttribute("data-on-screen", listsOnScreen);
     }
@@ -294,7 +294,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     for (const [order, section] of sections.entries())
       previous = showSection(section, order, previous);
     scrollToCurrent(sections);
-    latest = sections;
+    latestSections = sections;
     markHeaders();
   };
 

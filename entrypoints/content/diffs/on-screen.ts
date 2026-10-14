@@ -52,14 +52,14 @@ export function followOnScreen(
   signal: AbortSignal,
 ): LandingView {
   let paths = new Map<string, string>();
-  let regions = new Map<Element, string>();
+  let anchorsByRegion = new Map<Element, string>();
   const onScreen = new Set<Element>();
   let shown: ReadonlySet<string> = new Set();
   let top = coveredTop(page);
   let observer: IntersectionObserver | undefined;
 
-  const emit = () => {
-    const next = pathsOf(onScreen, regions, paths);
+  const showIfChanged = () => {
+    const next = pathsOf(onScreen, anchorsByRegion, paths);
     if (sameSet(next, shown)) return;
     shown = next;
     show(next);
@@ -68,26 +68,27 @@ export function followOnScreen(
     for (const { target, isIntersecting } of entries)
       if (isIntersecting) onScreen.add(target);
       else onScreen.delete(target);
-    emit();
+    showIfChanged();
   };
   const build = () => {
     observer?.disconnect();
     observer = new IntersectionObserver(intersect, { rootMargin: `-${top}px 0px 0px 0px` });
-    for (const region of regions.keys()) observer.observe(region);
+    for (const region of anchorsByRegion.keys()) observer.observe(region);
   };
   // Unobserves regions that left, so the observer holds no detached node, and drops them from
   // onScreen now.
   const rescan = () => {
-    const next = new Map([...mountedDiffs(page)].map(([anchor, region]) => [region, anchor]));
-    for (const region of regions.keys())
-      if (!next.has(region)) {
+    const mounted = new Map([...mountedDiffs(page)].map(([anchor, region]) => [region, anchor]));
+    for (const region of anchorsByRegion.keys())
+      if (!mounted.has(region)) {
         observer?.unobserve(region);
         onScreen.delete(region);
       }
-    for (const region of next.keys()) if (!regions.has(region)) observer?.observe(region);
-    regions = next;
+    for (const region of mounted.keys())
+      if (!anchorsByRegion.has(region)) observer?.observe(region);
+    anchorsByRegion = mounted;
   };
-  const retop = () => {
+  const followCoveredTop = () => {
     const next = coveredTop(page);
     if (next === top) return;
     top = next;
@@ -101,18 +102,18 @@ export function followOnScreen(
     page.diffs,
     () => {
       rescan();
-      retop();
-      emit();
+      followCoveredTop();
+      showIfChanged();
     },
     { signal },
   );
-  observeCoveredTop(page.diffs.ownerDocument, retop, { signal });
+  observeCoveredTop(page.diffs.ownerDocument, followCoveredTop, { signal });
   signal.addEventListener("abort", () => observer?.disconnect());
 
   return {
     sections(sections) {
       paths = pathsByAnchor(sections);
-      emit();
+      showIfChanged();
     },
   };
 }
