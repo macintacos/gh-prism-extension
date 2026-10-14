@@ -233,12 +233,13 @@ function followViewport(view: HTMLElement, onMove: () => void, signal: AbortSign
  * Mounts the sidebar's sections view in `page` until `signal` aborts, and returns its hooks: a
  * progress bar while intent is pending; on landing, notices for path-only sections or diffs kept
  * in GitHub's order; then a tree per section, each split file listed in every section its hunks
- * land in, with the lines each share adds and removes. `root` is the view's `<nav>`.
+ * land in, with the lines each share adds and removes. `root` is the view's `<nav>`; `onScreen`
+ * marks the files whose diffs are on screen, on their rows or a collapsed section's header.
  */
 export function showSections(
   page: FilesPage,
   signal: AbortSignal,
-): LandingView & { readonly root: Element } {
+): LandingView & { readonly root: Element; onScreen(paths: ReadonlySet<string>): void } {
   const doc = page.sidebar.ownerDocument;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   const view = el(
@@ -260,6 +261,20 @@ export function showSections(
   let clicked: { section: SectionKey; path: string } | undefined;
   // Only a new current file scrolls the sidebar; re-renders would pull it back mid-scroll.
   let scrolledTo: string | undefined;
+  let onScreen: ReadonlySet<string> = new Set();
+  let latest: readonly FileSection[] = [];
+
+  /** Marks a collapsed section's header while it lists a file on screen, its rows being hidden. */
+  const markHeaders = () => {
+    for (const { key, entries } of latest) {
+      shown
+        .get(key)
+        ?.root.toggleAttribute(
+          "data-on-screen",
+          collapsed.has(key) && entries.some(({ file }) => onScreen.has(file.path)),
+        );
+    }
+  };
 
   const open = (section: SectionKey, path: string) => {
     const native = readChangedFiles(page.sidebar).find((file) => file.path === path)?.link;
@@ -279,6 +294,8 @@ export function showSections(
     for (const [order, section] of sections.entries())
       previous = showSection(section, order, previous);
     scrollToCurrent(sections);
+    latest = sections;
+    markHeaders();
   };
 
   const dropAllBut = (sections: readonly FileSection[]) => {
@@ -326,11 +343,14 @@ export function showSections(
       if (expanded) collapsed.delete(key);
       else collapsed.add(key);
       expand(expanded);
+      markHeaders();
     });
 
     if (previous) previous.after(root);
     else view.prepend(root);
-    return { root, counter, tree: new SectionTree(host, files, active) };
+    const tree = new SectionTree(host, files, active);
+    tree.showOnScreen(onScreen);
+    return { root, counter, tree };
   };
 
   // A split file's sections each list it; only one of them scrolls the sidebar to it.
@@ -408,5 +428,10 @@ export function showSections(
       );
     },
     sections: render,
+    onScreen(paths) {
+      onScreen = paths;
+      for (const { tree } of shown.values()) tree.showOnScreen(paths);
+      markHeaders();
+    },
   };
 }

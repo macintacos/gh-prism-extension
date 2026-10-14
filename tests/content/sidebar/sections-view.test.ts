@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import { findFilesPage } from "../../../entrypoints/content/files-page";
+import { showSections } from "../../../entrypoints/content/sidebar/sections-view";
 import css from "../../../entrypoints/content/sidebar/sections-view.css?raw";
 import { showVisit } from "../../../entrypoints/content/visit/land";
 import type { IntentResult } from "../../../utils/intent/read";
@@ -23,6 +24,12 @@ import {
 // here mounts the view that way. Hoisted above the imports, which load @pierre/trees.
 vi.hoisted(() => {
   Object.defineProperty(window, "customElements", { configurable: true, value: null });
+});
+
+// Spied so tests can reach the hooks of the sidebar showVisit mounted.
+vi.mock(import("../../../entrypoints/content/sidebar/sections-view"), async (importOriginal) => {
+  const original = await importOriginal();
+  return { ...original, showSections: vi.fn(original.showSections) };
 });
 
 // happy-dom's ShadowRoot.activeElement throws when focus sits in another shadow root, which is
@@ -104,6 +111,33 @@ function filesOf(section: string): HTMLElement {
   if (!files) throw new Error(`${section}'s header button controls nothing`);
   return files;
 }
+
+/** render.rs split between implementation, with `implementationHunks`, and docs. */
+const renderSplit = (
+  implementationHunks: readonly ({ first: number; last: number } | undefined)[],
+): IntentResult =>
+  landedWith(
+    new Map([
+      [
+        "src/render.rs",
+        {
+          kind: "split",
+          shares: [
+            {
+              section: "implementation",
+              hunks: implementationHunks,
+              lines: { added: 5, removed: 1 },
+            },
+            {
+              section: "docs",
+              hunks: [undefined, { first: 22, last: 28 }],
+              lines: { added: 3, removed: 1 },
+            },
+          ],
+        },
+      ],
+    ]),
+  );
 
 describe("showSections", () => {
   it("lists the files in a tree per non-empty section, in section and native-tree order", () => {
@@ -611,32 +645,6 @@ describe("showSections", () => {
   describe("a click on a row", () => {
     const RENDER_DIFF = "diff-0a09";
 
-    const renderSplit = (
-      implementationHunks: readonly ({ first: number; last: number } | undefined)[],
-    ): IntentResult =>
-      landedWith(
-        new Map([
-          [
-            "src/render.rs",
-            {
-              kind: "split",
-              shares: [
-                {
-                  section: "implementation",
-                  hunks: implementationHunks,
-                  lines: { added: 5, removed: 1 },
-                },
-                {
-                  section: "docs",
-                  hunks: [undefined, { first: 22, last: 28 }],
-                  lines: { added: 3, removed: 1 },
-                },
-              ],
-            },
-          ],
-        ]),
-      );
-
     let scrollIntoView: MockInstance<Element["scrollIntoView"]>;
 
     beforeEach(() => {
@@ -913,6 +921,92 @@ describe("showSections", () => {
       byId("pr-file-tree").dispatchEvent(new Event("scroll"));
 
       expect(host.hasAttribute("data-gh-prism-far")).toBe(false);
+    });
+  });
+
+  describe("the on-screen highlight", () => {
+    /** Tells the mounted sidebar which files are on screen. */
+    const onScreen = (...paths: string[]) => {
+      const sidebar = vi.mocked(showSections).mock.results.at(-1)?.value;
+      if (!sidebar) throw new Error("no sidebar mounted");
+      sidebar.onScreen(new Set(paths));
+    };
+
+    const marked = (section: string, path: string) =>
+      getComputedStyle(rowIn(section, path)).getPropertyValue("--gh-prism-on-screen").trim() ===
+      "1";
+
+    const sectionRoot = (section: string) => {
+      const root = document.querySelector(`.gh-prism-section[data-section="${section}"]`);
+      if (!root) throw new Error(`no ${section} section`);
+      return root;
+    };
+
+    it("marks the row of each file on screen", () => {
+      onScreen("src/engine.rs", "src/lib.rs");
+
+      expect(marked("implementation", "src/engine.rs")).toBe(true);
+      expect(marked("implementation", "src/lib.rs")).toBe(true);
+      expect(marked("implementation", "src/render.rs")).toBe(false);
+    });
+
+    it("marks a split file in every section listing it", async () => {
+      await landed(renderSplit([{ first: 2, last: 8 }]));
+      onScreen("src/render.rs");
+
+      expect(marked("implementation", "src/render.rs")).toBe(true);
+      expect(marked("docs", "src/render.rs")).toBe(true);
+    });
+
+    it("clears the marks when no file is on screen", () => {
+      onScreen("src/engine.rs");
+      onScreen();
+
+      expect(marked("implementation", "src/engine.rs")).toBe(false);
+    });
+
+    it("keeps a mark while a row's decoration changes", async () => {
+      onScreen("src/engine.rs");
+      const count = byId("src/engine.rs").querySelector(".octicon-comment + div");
+      if (!count) throw new Error("fixture has no comment count for engine.rs");
+      count.textContent = "2";
+      byId("src/engine.rs").setAttribute("aria-label", "engine.rs has 2 comments");
+      await afterDebounce();
+
+      expect(partTexts("implementation", "src/engine.rs")).toEqual(["2"]);
+      expect(marked("implementation", "src/engine.rs")).toBe(true);
+    });
+
+    it("marks a collapsed section's header until it is expanded", () => {
+      sectionToggle("docs").click();
+      onScreen("README.md");
+
+      expect(sectionRoot("docs").hasAttribute("data-on-screen")).toBe(true);
+      expect(sectionToggle("docs").getAttribute("aria-expanded")).toBe("false");
+      expect(sectionRoot("config").hasAttribute("data-on-screen")).toBe(false);
+
+      sectionToggle("docs").click();
+
+      expect(sectionRoot("docs").hasAttribute("data-on-screen")).toBe(false);
+    });
+
+    it("marks a section's header when it collapses over an on-screen file", () => {
+      onScreen("README.md");
+      expect(sectionRoot("docs").hasAttribute("data-on-screen")).toBe(false);
+
+      sectionToggle("docs").click();
+
+      expect(sectionRoot("docs").hasAttribute("data-on-screen")).toBe(true);
+    });
+
+    it("never scrolls the sidebar", () => {
+      const scrollIntoView = vi
+        .spyOn(Element.prototype, "scrollIntoView")
+        .mockImplementation(() => {});
+      onScreen("Cargo.lock", "src/render.rs");
+
+      expect(scrollIntoView).not.toHaveBeenCalled();
+      scrollIntoView.mockRestore();
     });
   });
 
