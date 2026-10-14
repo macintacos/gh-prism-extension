@@ -79,7 +79,7 @@ test("a commit's diff list skips a comment thread beside it", async ({ context, 
   await page.goto(COMMIT_URL);
 
   // happy-dom over-matches a multi-step :has(), so only a real browser proves this.
-  const lists = await page.evaluate((diffList) => {
+  const regionsPerList = await page.evaluate((diffList) => {
     document
       .getElementById("comments")
       ?.insertAdjacentHTML("beforeend", "<div><p>A comment</p></div>");
@@ -88,7 +88,7 @@ test("a commit's diff list skips a comment thread beside it", async ({ context, 
     );
   }, commitPage.diffList);
 
-  expect(lists).toEqual([2]);
+  expect(regionsPerList).toEqual([2]);
 });
 
 test("the side switch docks the sidebar on the other side and remembers it", async ({
