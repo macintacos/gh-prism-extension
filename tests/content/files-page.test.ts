@@ -4,12 +4,14 @@ import type { FilesPage } from "../../entrypoints/content/files-page";
 import {
   appendToDiffs,
   commitPage,
+  coveredTop,
   diffEntryOf,
   findDiff,
   findDiffList,
   findDiffstat,
   findFilesPage,
   findTreeToggle,
+  mountedDiffs,
   observeDiffs,
   observeTree,
   prPage,
@@ -427,5 +429,52 @@ describe("the commit kind", () => {
 
   it("finds no diff for a file whose diff is unmounted", () => {
     expect(findDiff(foundPage(), linkTo("src/adapters/opencode/paths.ts"))).toBeNull();
+  });
+});
+
+describe("mountedDiffs", () => {
+  const agreesWithFindDiff = () => {
+    const page = foundPage();
+    const mounted = mountedDiffs(page);
+    const expected = new Map(
+      readChangedFiles(page.sidebar).flatMap((file) => {
+        const diff = findDiff(page, file.link);
+        return diff ? [[file.link.hash.slice(1), diff] as const] : [];
+      }),
+    );
+
+    expect(mounted.size).toBeGreaterThan(0);
+    expect(mounted).toEqual(expected);
+  };
+
+  it("keys each mounted region of a pull request by its file's anchor", () => {
+    loadFixture();
+    agreesWithFindDiff();
+  });
+
+  it("keys each mounted region of a commit by its file's anchor", () => {
+    loadCommitFixture();
+    agreesWithFindDiff();
+  });
+});
+
+describe("coveredTop", () => {
+  it("is the sticky file header's top", () => {
+    loadFixture();
+    const region = byId(ENGINE_DIFF);
+    const header = document.createElement("div");
+    header.className = "diffHeaderWrapper__abc";
+    header.style.top = "66px";
+    region.prepend(header);
+
+    expect(coveredTop(foundPage())).toBe(66);
+  });
+
+  it("is 0 with no file header mounted", () => {
+    loadFixture();
+    for (const header of document.querySelectorAll('[class*="diffHeaderWrapper__"]'))
+      header.remove();
+
+    expect(coveredTop(foundPage())).toBe(0);
   });
 });

@@ -83,6 +83,19 @@ them; [§ Re-checking GitHub](#re-checking-github) has the methods.
   `virtualizeDiffEntries`, and watch the network panel for `diff_entries` requests while
   scrolling. Read the mount-time scrolls from GitHub's bundle.
 
+## Sticky headers
+
+- **Read the band GitHub's sticky chrome covers from a file header's computed `top`.**
+  Each file header (`[class*="diffHeaderWrapper__"]`, the region's first child) is sticky
+  at a `top` equal to that band, on both page kinds. The `__` suffix keeps
+  `diffHeaderWrapperWithMiniHeaderAndToolbar__` out.
+- **Expect a pull request's `top` to follow `--base-sticky-header-height`,** which GitHub
+  writes on `body`'s `style`, so watch that attribute and window resizes for changes.
+- **Don't measure the sticky bar itself.** The commit page's bar has no stable hook, and
+  the pull request's is `height: 0` until stuck.
+- **Re-check:** on a public commit page, read the file header's computed `top` and compare
+  it with the sticky bar's height, at both sides of the 1011px breakpoint.
+
 ## PR base data
 
 - **Treat a pull request's diff as running from the merge base, not the base tip.**
