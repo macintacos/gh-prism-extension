@@ -6,8 +6,8 @@ import {
   preparePresortedFileTreeInput,
 } from "@pierre/trees";
 import { el } from "../ui/dom";
-// ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
-import css from "./section-tree.css?raw";
+// ?inline: a plain import would ship in the manifest, styling every github.com page.
+import css from "./section-tree.css?inline";
 
 /** A file as a section's tree shows it. */
 export interface TreeFile {
@@ -58,7 +58,11 @@ export class SectionTree {
     this.#tree.render({ fileTreeContainer: host });
 
     // Stands in for a row the viewport hasn't rendered, so scrollIntoView reaches every scroller.
-    this.#probe = el(host.ownerDocument, "span", "gh-prism-probe");
+    this.#probe = el(
+      host.ownerDocument,
+      "span",
+      "gh-prism-probe tw:absolute tw:left-0 tw:w-px tw:invisible tw:pointer-events-none",
+    );
     this.#probe.style.height = `${ROW_HEIGHT}px`;
     const shadow = host.shadowRoot;
     if (shadow) {

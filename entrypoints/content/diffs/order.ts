@@ -23,8 +23,8 @@ import {
 import { el } from "../ui/dom";
 import { type LoadingView, loadingView } from "../ui/loading-view";
 import type { LandingView } from "../visit/land";
-// ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
-import css from "./order.css?raw";
+// ?inline: a plain import would ship in the manifest, styling every github.com page.
+import css from "./order.css?inline";
 import { retakeHash } from "./reveal";
 
 const STAGGER_MS = 50;
@@ -221,14 +221,19 @@ const diffCard = (doc: Document, lines: number) =>
   el(
     doc,
     "div",
-    "gh-prism-diff-card",
+    "gh-prism-diff-card tw:flex tw:flex-col tw:gap-2.5 tw:pb-3.5 tw:overflow-hidden tw:border tw:border-border-default tw:rounded-medium",
     el(doc, "span", "gh-prism-diff-card-header"),
     ...Array.from({ length: lines }, () => el(doc, "span", "")),
   );
 
 /** Placeholder diffs: a file header over a few lines of code each. */
 const diffSkeleton = (doc: Document) =>
-  el(doc, "div", "gh-prism-diff-skeleton", ...[4, 2, 3].map((lines) => diffCard(doc, lines)));
+  el(
+    doc,
+    "div",
+    "gh-prism-diff-skeleton tw:flex tw:flex-col tw:gap-4",
+    ...[4, 2, 3].map((lines) => diffCard(doc, lines)),
+  );
 
 /**
  * Orders `page`'s diffs as the sections list their files until `signal` aborts, covering them

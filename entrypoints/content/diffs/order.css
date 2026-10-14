@@ -1,5 +1,7 @@
 /* GitHub hooks: none. order.ts writes the diff list's rules from each page kind's selectors
    and places its entries inline; this sheet holds their reveal and the diff cover. */
+@import "../ui/tailwind.css" prefix(tw);
+@source "./order.ts";
 
 @keyframes gh-prism-diff-reveal {
   from {
@@ -16,22 +18,6 @@
 
 .gh-prism-diff-loading .gh-prism-spectrum {
   margin-bottom: 16px;
-}
-
-.gh-prism-diff-skeleton {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.gh-prism-diff-card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-bottom: 14px;
-  overflow: hidden;
-  border: 1px solid var(--borderColor-default);
-  border-radius: var(--borderRadius-medium);
 }
 
 /* Lines of code, right of the line numbers' gutter. */

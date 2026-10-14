@@ -377,12 +377,12 @@ describe("the diffs beside the sections", () => {
 
       expect(diffsProgressBar()).not.toBeNull();
       expect(sheetsStyling("gh-prism-diff-card")).toHaveLength(1);
-      expect(sheetsStyling("gh-prism-loading-label")).toHaveLength(1);
+      expect(sheetsStyling("gh-prism-spectrum::before")).toHaveLength(1);
 
       controller.abort();
 
       expect(sheetsStyling("gh-prism-diff-card")).toHaveLength(0);
-      expect(sheetsStyling("gh-prism-loading-label")).toHaveLength(0);
+      expect(sheetsStyling("gh-prism-spectrum::before")).toHaveLength(0);
     });
 
     it("show anyway once the read has taken 15 seconds", async () => {

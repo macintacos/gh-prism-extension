@@ -1,0 +1,33 @@
+/* Every feature sheet imports this. Utilities alone, not "tailwindcss": they stay unlayered, so
+   they meet GitHub's unlayered rules on specificity, and there is no preflight. source(none):
+   each sheet @sources the modules it styles. */
+@import "tailwindcss/utilities.css" source(none);
+
+/* v4's hover: applies only under (hover: hover); the sheets' :hover never did. */
+@custom-variant hover (&:hover);
+
+/* inline: each utility reads the Primer variable at the element, so --color-hue-tint follows
+   that element's --gh-prism-hue, and nothing lands on :root. */
+@theme inline {
+  /* px, not rem: GitHub's root font size must not scale it. */
+  --spacing: 4px;
+  /* Primer's --<x>Color-<name> becomes --color-<x>-<name>; radius, size and weight drop Primer's
+     prefixes. Line heights are --leading-*: a --text-*--line-height key would make tw:text-* set
+     line-height too. Base scales get tokens; component tokens (--button-*, --control-*) stay
+     tw:x-[var(--token)] values until they repeat. */
+  --color-fg-default: var(--fgColor-default);
+  --color-fg-muted: var(--fgColor-muted);
+  --color-fg-success: var(--fgColor-success);
+  --color-fg-danger: var(--fgColor-danger);
+  --color-hue-tint: color-mix(in srgb, var(--gh-prism-hue) 14%, var(--bgColor-default));
+  --color-bg-neutral-muted: var(--bgColor-neutral-muted);
+  --color-border-default: var(--borderColor-default);
+  --radius-medium: var(--borderRadius-medium);
+  --text-body-small: var(--text-body-size-small);
+  --text-body-medium: var(--text-body-size-medium);
+  --leading-body-small: var(--text-body-lineHeight-small);
+  --font-weight-normal: var(--base-text-weight-normal);
+  --font-weight-medium: var(--base-text-weight-medium);
+  --font-weight-semibold: var(--base-text-weight-semibold);
+  --color-focus-outline: var(--focus-outlineColor);
+}

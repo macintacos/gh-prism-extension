@@ -10,7 +10,7 @@ import { el } from "../ui/dom";
 import { count, counts } from "../ui/line-counts";
 import { markSection, SECTION_CATALOG, sectionIcon } from "../ui/section-catalog";
 import type { LandingView } from "../visit/land";
-import css from "./diffstat-view.css?raw";
+import css from "./diffstat-view.css?inline";
 
 /** Which view the header counter shows. One per tab, so the choice carries to the next page. */
 export interface DiffstatChoice {
@@ -18,7 +18,12 @@ export interface DiffstatChoice {
 }
 
 function tip(doc: Document, ...children: Node[]): HTMLElement {
-  const node = el(doc, "span", "gh-prism-tip", ...children);
+  const node = el(
+    doc,
+    "span",
+    "gh-prism-tip tw:absolute tw:top-[calc(100%+6px)] tw:right-0 tw:z-100 tw:grid tw:gap-1 tw:w-max tw:max-w-[260px] tw:py-1.5 tw:px-2 tw:border tw:border-border-default tw:rounded-medium tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:var(--shadow-floating-small)] tw:text-fg-default tw:font-normal tw:leading-body-small tw:text-start tw:whitespace-normal",
+    ...children,
+  );
   node.setAttribute("aria-hidden", "true");
   return node;
 }
@@ -29,7 +34,7 @@ function pill(doc: Document, { section, lines }: SectionLines): HTMLElement {
   const node = el(
     doc,
     "span",
-    "gh-prism-pill",
+    "gh-prism-pill tw:relative tw:inline-flex tw:items-center tw:gap-1 tw:pr-2 tw:pl-1.5 tw:rounded-medium tw:bg-hue-tint tw:leading-5",
     sectionIcon(doc, section),
     ...counts(doc, lines),
     el(doc, "span", "sr-only", spoken),
@@ -43,7 +48,7 @@ function tipRow(doc: Document, { section, lines }: SectionLines): HTMLElement {
   const row = el(
     doc,
     "span",
-    "gh-prism-tip-row",
+    "gh-prism-tip-row tw:flex tw:items-center tw:gap-1",
     sectionIcon(doc, section),
     el(doc, "span", "", SECTION_CATALOG[section].label),
     ...counts(doc, lines),
@@ -68,7 +73,11 @@ function showCounter(
   const pills = sections.map((lines) => pill(doc, lines));
   const breakout = tip(doc, ...sections.map((lines) => tipRow(doc, lines)));
 
-  const button = el(doc, "button", "gh-prism-diffstat");
+  const button = el(
+    doc,
+    "button",
+    "gh-prism-diffstat tw:relative tw:flex tw:items-center tw:gap-1 tw:p-0 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-default tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-focus-outline",
+  );
   button.type = "button";
   const render = () => {
     button.dataset.view = choice.view;

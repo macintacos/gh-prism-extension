@@ -1,4 +1,8 @@
-/* Styles inside each section tree's shadow root; @pierre/trees layers them over its own. */
+/* Styles inside each section tree's shadow root; @pierre/trees layers them over its own.
+   Chrome ignores @property in a shadow root, so no utility here may read a --tw-* variable:
+   border, outline, shadow, ring, transform, gradient, leading, font-weight and tabular-nums. */
+@import "../ui/tailwind.css" prefix(tw);
+@source "./section-tree.ts";
 
 /* Each host stays as tall as its rows, so the sidebar scrolls as one, and the library's viewport
    sticks inside it. clip, not hidden: a scroll container is what it would stick to. */
@@ -29,14 +33,6 @@
 /* The probe's containing block. */
 :host {
   position: relative;
-}
-
-.gh-prism-probe {
-  position: absolute;
-  left: 0;
-  width: 1px;
-  visibility: hidden;
-  pointer-events: none;
 }
 
 /* Status letters stay quiet: in this sidebar, color marks sections and lines added or removed. */

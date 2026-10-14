@@ -1,34 +1,14 @@
 /* No GitHub hooks: every rule selects only gh-prism's own classes. */
+@import "./tailwind.css" prefix(tw);
+@source "./loading-view.ts";
 
 /* Held back a moment, so an answer that comes at once, as a cached one does, never flashes it. */
 .gh-prism-loading {
-  padding: 8px 8px 4px;
   animation: gh-prism-appear 150ms ease-out 150ms backwards;
-}
-
-.gh-prism-loading-label {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: var(--text-body-size-small);
-  line-height: var(--text-body-lineHeight-small);
-  color: var(--fgColor-muted);
-}
-
-.gh-prism-loading-count {
-  font-variant-numeric: tabular-nums;
 }
 
 /* Every section's hue, in section order, filling as intent checks files; loading-view.ts sets
    the bands. */
-.gh-prism-spectrum {
-  height: 3px;
-  margin: 8px 0 6px;
-  overflow: hidden;
-  border-radius: 2px;
-  background: var(--bgColor-neutral-muted);
-}
-
 .gh-prism-spectrum::before {
   content: "";
   display: block;

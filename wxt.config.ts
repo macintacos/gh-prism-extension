@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "wxt";
 
 // Outside the repo so the GitHub login survives `wxt clean` and is shared by every worktree, so only one
@@ -25,6 +26,7 @@ export default defineConfig({
       "https://raw.githubusercontent.com/*",
     ],
   },
+  vite: () => ({ plugins: [tailwindcss()] }),
   webExt: {
     chromiumProfile: chromeProfile,
     keepProfileChanges: true,
