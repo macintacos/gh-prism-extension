@@ -141,8 +141,9 @@
     center / contain no-repeat;
 }
 
-/* The diff in view, marked as GitHub marks its current tree item, in the section's hue. */
-[data-type="item"][data-item-selected="true"]::after {
+/* A file whose diff is on screen gets a faint bar in the section's hue; SectionTree sets
+   --gh-prism-on-screen on those rows. */
+[data-type="item"]::after {
   content: "";
   position: absolute;
   top: 6px;
@@ -150,7 +151,14 @@
   left: 0;
   width: 3px;
   border-radius: 2px;
+  background: var(--gh-prism-on-screen-bar);
+  opacity: var(--gh-prism-on-screen, 0);
+}
+
+/* GitHub's current file, marked as GitHub marks its current tree item; outranks the on-screen bar by specificity. */
+[data-type="item"][data-item-selected="true"]::after {
   background: var(--gh-prism-hue);
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {

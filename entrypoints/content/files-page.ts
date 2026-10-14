@@ -42,6 +42,8 @@ export interface PageKind {
   readonly afterDiffs?: string;
   /** The diff for `anchor`, or `null`; it may lie outside `diffs`, which `findDiff` rules out. */
   readonly diffOf: (diffs: Element, anchor: string) => Element | null;
+  /** The anchor a diff region names its file by, or `undefined`. */
+  readonly anchorOfDiff: (diff: Element) => string | undefined;
   /** How a row's link reveals its diff: a click GitHub scrolls for, or a hash GitHub follows. */
   readonly reveal: "click" | "hash";
 }
@@ -63,6 +65,7 @@ export const prPage = {
   diffEntry: (anchor) => `${PR_DIFF_LIST} > :has(#${anchor})`,
   listLayout: "flex",
   diffOf: (diffs, anchor) => diffs.ownerDocument.getElementById(anchor),
+  anchorOfDiff: (diff) => diff.id || undefined,
   reveal: "click",
 } satisfies PageKind;
 
@@ -86,6 +89,7 @@ export const commitPage = {
   // A commit's diff has no id; its header links to the file's anchor instead.
   diffOf: (diffs, anchor) =>
     diffs.querySelector(`[role="region"] a[href="#${anchor}"]`)?.closest('[role="region"]') ?? null,
+  anchorOfDiff: (diff) => diff.querySelector('a[href^="#diff-"]')?.getAttribute("href")?.slice(1),
   // A click would also navigate GitHub's router, whose scroll restoration can undo the scroll to
   // the file, since a commit's diffs have no ids.
   reveal: "hash",
@@ -289,7 +293,50 @@ export function observeDiffs(
 export const isDiffAnchor = (anchor: string): boolean => /^diff-[0-9a-f]+$/.test(anchor);
 
 /** The `diff-…` anchor `link` points at: it names the file's diff and prefixes its line anchors. */
-const anchorOf = (link: HTMLAnchorElement) => link.getAttribute("href")?.slice(1);
+export const anchorOf = (link: HTMLAnchorElement): string | undefined =>
+  link.getAttribute("href")?.slice(1);
+
+/**
+ * `page`'s mounted diff regions, keyed by their files' anchors. Regions whose anchor is not a
+ * file's diff anchor, such as a line anchor, are left out.
+ */
+export function mountedDiffs(page: FilesPage): Map<string, Element> {
+  const regions = page.diffs.querySelectorAll('[role="region"]');
+  return new Map(
+    [...regions].flatMap((region) => {
+      const anchor = page.kind.anchorOfDiff(region);
+      return anchor && isDiffAnchor(anchor) ? [[anchor, region] as const] : [];
+    }),
+  );
+}
+
+// `__` keeps `diffHeaderWrapperWithMiniHeaderAndToolbar__` out.
+const STICKY_HEADER = '[role="region"] > [class*="diffHeaderWrapper__"]';
+
+/**
+ * The px band GitHub's sticky chrome covers at the top of the viewport: the `top` GitHub sticks
+ * each file header at, or 0 with no header mounted.
+ */
+export function coveredTop(page: FilesPage): number {
+  const header = page.diffs.querySelector(STICKY_HEADER);
+  if (!header) return 0;
+  return parseFloat(getComputedStyle(header).top) || 0;
+}
+
+/**
+ * Calls `onChange` on a window resize or a change to `doc.body`'s `style`, where GitHub writes
+ * `--base-sticky-header-height`, until `signal` aborts.
+ */
+export function observeCoveredTop(
+  doc: Document,
+  onChange: () => void,
+  { signal }: { signal: AbortSignal },
+): void {
+  doc.defaultView?.addEventListener("resize", onChange, { signal });
+  const observer = new MutationObserver(onChange);
+  observer.observe(doc.body, { attributes: true, attributeFilter: ["style"] });
+  signal.addEventListener("abort", () => observer.disconnect());
+}
 
 /** `page`'s diff list, or `null` while it has none. */
 export const findDiffList = (page: FilesPage): Element | null =>

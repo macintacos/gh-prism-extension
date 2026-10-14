@@ -24,6 +24,14 @@ import css from "./sections-view.css?inline";
 
 type FileEntry = FileSection["entries"][number];
 
+/** The sidebar's sections view, as `showSections` mounts it. */
+interface SectionsView extends LandingView {
+  /** The view's `<nav>`. */
+  readonly root: Element;
+  /** Marks the files whose diffs are on screen: their rows, or a collapsed section's header. */
+  onScreen(paths: ReadonlySet<string>): void;
+}
+
 interface ShownSection {
   readonly root: HTMLElement;
   readonly counter: HTMLElement;
@@ -233,12 +241,9 @@ function followViewport(view: HTMLElement, onMove: () => void, signal: AbortSign
  * Mounts the sidebar's sections view in `page` until `signal` aborts, and returns its hooks: a
  * progress bar while intent is pending; on landing, notices for path-only sections or diffs kept
  * in GitHub's order; then a tree per section, each split file listed in every section its hunks
- * land in, with the lines each share adds and removes. `root` is the view's `<nav>`.
+ * land in, with the lines each share adds and removes.
  */
-export function showSections(
-  page: FilesPage,
-  signal: AbortSignal,
-): LandingView & { readonly root: Element } {
+export function showSections(page: FilesPage, signal: AbortSignal): SectionsView {
   const doc = page.sidebar.ownerDocument;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   const view = el(
@@ -260,6 +265,16 @@ export function showSections(
   let clicked: { section: SectionKey; path: string } | undefined;
   // Only a new current file scrolls the sidebar; re-renders would pull it back mid-scroll.
   let scrolledTo: string | undefined;
+  let onScreen: ReadonlySet<string> = new Set();
+  let latestSections: readonly FileSection[] = [];
+
+  /** Marks each section that lists a file on screen; sections-view.css shows it on a collapsed header. */
+  const markHeaders = () => {
+    for (const { key, entries } of latestSections) {
+      const listsOnScreen = entries.some(({ file }) => onScreen.has(file.path));
+      shown.get(key)?.root.toggleAttribute("data-on-screen", listsOnScreen);
+    }
+  };
 
   const open = (section: SectionKey, path: string) => {
     const native = readChangedFiles(page.sidebar).find((file) => file.path === path)?.link;
@@ -279,6 +294,8 @@ export function showSections(
     for (const [order, section] of sections.entries())
       previous = showSection(section, order, previous);
     scrollToCurrent(sections);
+    latestSections = sections;
+    markHeaders();
   };
 
   const dropAllBut = (sections: readonly FileSection[]) => {
@@ -330,7 +347,9 @@ export function showSections(
 
     if (previous) previous.after(root);
     else view.prepend(root);
-    return { root, counter, tree: new SectionTree(host, files, active) };
+    const tree = new SectionTree(host, files, active);
+    tree.showOnScreen(onScreen);
+    return { root, counter, tree };
   };
 
   // A split file's sections each list it; only one of them scrolls the sidebar to it.
@@ -408,5 +427,10 @@ export function showSections(
       );
     },
     sections: render,
+    onScreen(paths) {
+      onScreen = paths;
+      for (const { tree } of shown.values()) tree.showOnScreen(paths);
+      markHeaders();
+    },
   };
 }

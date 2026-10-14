@@ -13,9 +13,11 @@ const PR_BODY = `<!doctype html>${readFixture("files-page.html")}`;
 // README.md's tree row in tests/fixtures/files-page.html links to this id.
 const README_DIFF = "diff-0a13";
 const TREE_OPEN = '<ul role="tree" aria-label="File Tree">';
+// Hex, as GitHub's diff anchors are.
+const bulkDiff = (n: number) => `diff-b${n.toString(16).padStart(3, "0")}`;
 const bulkRow = (n: number) => {
   const name = `file-${String(n).padStart(3, "0")}.rs`;
-  return `<li role="treeitem" id="bulk/${name}" aria-level="1" aria-label="${name}" aria-selected="false"><a href="#diff-bulk${n}">${name}</a></li>`;
+  return `<li role="treeitem" id="bulk/${name}" aria-level="1" aria-label="${name}" aria-selected="false"><a href="#${bulkDiff(n)}">${name}</a></li>`;
 };
 // 300 more files under a new top-level bulk/, in a sidebar that scrolls within the 720 px viewport
 // as GitHub's pane does. No file is current, so the sidebar starts at its top rather than revealing one.
@@ -27,6 +29,18 @@ const LARGE_PR_BODY = PR_BODY.replace(
   .replace(' aria-current="true"', "");
 // The fixture's last Implementation file in native order.
 const LAST_IMPLEMENTATION_FILE = "src/render.rs";
+const scrollSidebarToBulkRow = (page: Page, n: number): Promise<void> =>
+  page.evaluate((n) => {
+    const sidebar = document.getElementById("pr-file-tree");
+    const tree = document.querySelector(
+      '.gh-prism-section[data-section="implementation"] .gh-prism-tree',
+    );
+    if (!sidebar || !tree) throw new Error("no sidebar or Implementation tree");
+    const treeTop =
+      tree.getBoundingClientRect().top - sidebar.getBoundingClientRect().top + sidebar.scrollTop;
+    // A bulk file's row follows bulk/, 28 px a row; 100 px of it shows below the top.
+    sidebar.scrollTop = treeTop + (n + 1) * 28 - 100;
+  }, n);
 // The wrapper supplies GitHub's layout container; the switch's container query needs ≥ 1012 px (default viewport: 1280).
 const COMMIT_BODY = `<!doctype html><div class="PageLayout-PageLayoutContent">${readFixture("commit-page.html")}</div>`;
 
@@ -149,17 +163,7 @@ test("a large pull request renders only the rows near the sidebar's viewport, an
   await page.mouse.wheel(0, 600);
   await expect.poll(() => sidebar.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 
-  await page.evaluate(() => {
-    const sidebar = document.getElementById("pr-file-tree");
-    const tree = document.querySelector(
-      '.gh-prism-section[data-section="implementation"] .gh-prism-tree',
-    );
-    if (!sidebar || !tree) throw new Error("no sidebar or Implementation tree");
-    const treeTop =
-      tree.getBoundingClientRect().top - sidebar.getBoundingClientRect().top + sidebar.scrollTop;
-    // bulk/file-150.rs is row 151 (after bulk/), 28 px a row; 100 px of it shows below the top.
-    sidebar.scrollTop = treeTop + 151 * 28 - 100;
-  });
+  await scrollSidebarToBulkRow(page, 150);
   await expect(page.locator('[data-item-path="bulk/file-150.rs"]')).toBeInViewport();
 });
 
@@ -213,4 +217,101 @@ test("GitHub's current file off screen is selected and scrolled into view", asyn
   const row = page.locator('[data-item-path="bulk/file-299.rs"]');
   await expect(row).toHaveAttribute("aria-selected", "true");
   await expect(row).toBeInViewport();
+});
+
+test("the sidebar highlights the files whose diffs are on screen", async ({ context, page }) => {
+  await serve(context, PR_URL, LARGE_PR_BODY);
+  await page.goto(PR_URL);
+  await expect(page.locator('[data-item-path="bulk/"]')).toBeVisible();
+  // One stand-in diff per bulk row; every seventh is taller than the 720 px viewport.
+  await page.evaluate(
+    (ids) => {
+      const list = document.querySelector('[data-testid="progressive-diffs-list"]');
+      if (!list) throw new Error("no diff list");
+      for (let n = 0; n < 300; n++)
+        list.insertAdjacentHTML(
+          "beforeend",
+          `<div style="content-visibility: auto; contain-intrinsic-size: auto ${n % 7 ? 230 : 900}px"><div role="region" id="${ids[n]}" data-n="${n}" style="height: ${n % 7 ? 230 : 900}px"></div></div>`,
+        );
+    },
+    Array.from({ length: 300 }, (_, n) => bulkDiff(n)),
+  );
+  const markedAndInViewPaths = () =>
+    page.evaluate(() => {
+      const rows = [...document.querySelectorAll(".gh-prism-tree")].flatMap((host) => [
+        ...(host.shadowRoot?.querySelectorAll<HTMLElement>('[data-type="item"]') ?? []),
+      ]);
+      const rendered = new Set(rows.map((row) => row.dataset.itemPath));
+      const marked = rows
+        .filter(
+          (row) => getComputedStyle(row).getPropertyValue("--gh-prism-on-screen").trim() === "1",
+        )
+        .map((row) => row.dataset.itemPath ?? "");
+      const inView = [...document.querySelectorAll('[role="region"][data-n]')]
+        .filter((region) => {
+          const { top, bottom } = region.getBoundingClientRect();
+          // Inclusive, as IntersectionObserver counts a region whose edge touches the viewport's.
+          return bottom >= 0 && top <= innerHeight;
+        })
+        .map((region) => `bulk/file-${(region as HTMLElement).dataset.n?.padStart(3, "0")}.rs`)
+        // The sidebar renders only the rows near its viewport.
+        .filter((path) => rendered.has(path));
+      return {
+        marked: marked.filter((path) => path.startsWith("bulk/file-")).sort(),
+        inView: inView.sort(),
+      };
+    });
+  const expectMarkedInView = () =>
+    expect(async () => {
+      const { marked, inView } = await markedAndInViewPaths();
+      expect(inView.length).toBeGreaterThan(0);
+      expect(marked).toEqual(inView);
+    }).toPass({ timeout: 10_000 });
+  const scrollToDiff = (n: number) =>
+    page.evaluate((n) => {
+      const region = document.querySelector(`[data-n="${n}"]`);
+      if (!region) throw new Error(`no diff ${n}`);
+      // 37 px past the region's top keeps every region edge off the viewport's, where the
+      // rect check and the observer can round differently.
+      window.scrollTo({
+        top: region.getBoundingClientRect().top + scrollY + 37,
+        behavior: "instant",
+      });
+    }, n);
+
+  await scrollSidebarToBulkRow(page, 20);
+  await scrollToDiff(20);
+  await expectMarkedInView();
+
+  // A scroll Playwright makes before clicking moves the tree's own viewport, which
+  // SectionTree.sync snaps back between pointerdown and pointerup, so the click lands nowhere.
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  await scrollSidebarToBulkRow(page, 250);
+  const row250 = page.locator('[data-item-path="bulk/file-250.rs"]');
+  await expect(row250).toBeInViewport();
+  // Playwright retries, with a scroll, a click on a row the sections' landing reveal still moves,
+  // or one the tree ignores pointer events on just after a scroll.
+  await page
+    .locator(".gh-prism-section")
+    .evaluateAll((sections) =>
+      Promise.all(sections.flatMap((section) => section.getAnimations().map((a) => a.finished))),
+    );
+  await expect
+    .poll(() => row250.evaluate((el) => getComputedStyle(el).pointerEvents))
+    .not.toBe("none");
+  await row250.click();
+  await expect
+    .poll(() => markedAndInViewPaths().then(({ inView }) => inView))
+    .toContain("bulk/file-250.rs");
+  await expectMarkedInView();
+
+  await scrollToDiff(100);
+  await expect(page.locator('[data-item-path="bulk/file-100.rs"]')).toHaveCount(0);
+  await scrollSidebarToBulkRow(page, 100);
+  const row = page.locator('[data-item-path="bulk/file-100.rs"]');
+  await expect
+    .poll(() =>
+      row.evaluate((el) => getComputedStyle(el).getPropertyValue("--gh-prism-on-screen").trim()),
+    )
+    .toBe("1");
 });

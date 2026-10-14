@@ -43,6 +43,7 @@ export class SectionTree {
   readonly #host: HTMLElement;
   readonly #tree: FileTree;
   readonly #probe: HTMLElement;
+  readonly #onScreen: HTMLStyleElement;
   #files: readonly TreeFile[];
   #byPath: ReadonlyMap<string, TreeFile>;
   #selected: string | undefined;
@@ -64,9 +65,10 @@ export class SectionTree {
       "gh-prism-probe tw:absolute tw:left-0 tw:w-px tw:invisible tw:pointer-events-none",
     );
     this.#probe.style.height = `${ROW_HEIGHT}px`;
+    this.#onScreen = host.ownerDocument.createElement("style");
     const shadow = host.shadowRoot;
     if (shadow) {
-      shadow.append(this.#probe);
+      shadow.append(this.#probe, this.#onScreen);
       this.#followFocus(shadow);
     }
 
@@ -129,6 +131,17 @@ export class SectionTree {
         .getVisibleRows(0, this.#tree.getVisibleCount() - 1)
         .findIndex((row) => row.path === path),
     );
+  }
+
+  /**
+   * Marks the rows of `paths`, including rows the viewport mounts later, without selecting,
+   * focusing, or scrolling. A style rule rather than row attributes, which re-renders would drop.
+   */
+  showOnScreen(paths: ReadonlySet<string>): void {
+    const rows = [...paths].map(
+      (path) => `[data-type="item"][data-item-path="${CSS.escape(path)}"]`,
+    );
+    this.#onScreen.textContent = rows.length ? `${rows.join(",")}{--gh-prism-on-screen:1}` : "";
   }
 
   /** Removes the tree's rows and releases it. */

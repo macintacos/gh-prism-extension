@@ -69,13 +69,13 @@ stateDiagram-v2
 ```
 
 [`entrypoints/content/visit/land.ts`](../entrypoints/content/visit/land.ts) runs on each
-page. `showVisit` mounts three views (the sidebar sections, the diff order, and the
-diffstat). Then `land` passes the intent read's steps to the views: pending while the read
-runs, progress as files are placed, landed with the result, and then each file's section.
-Every view gets a step before any view gets the next. `land` owns the only observer of the
-native tree, and it re-lists the sections after each change to the tree. One visit reads
-intent once: `index.ts` wraps the read in `shareIntent`, so every page of the visit joins
-the same read.
+page. `showVisit` mounts four views (the sidebar sections, the diff order, the diffstat,
+and the on-screen tracker that feeds the sidebar). Then `land` passes the intent read's
+steps to the views: pending while the read runs, progress as files are placed, landed with
+the result, and then each file's section. Every view gets a step before any view gets the
+next. `land` owns the only observer of the native tree, and it re-lists the sections after
+each change to the tree. One visit reads intent once: `index.ts` wraps the read in
+`shareIntent`, so every page of the visit joins the same read.
 
 ## Intent and its cache
 
@@ -130,6 +130,13 @@ height follows its visible rows, so the whole sidebar scrolls as one. The sectio
 calls each tree's `sync()` when the sidebar scrolls or resizes, and `sync()` renders only
 the rows near the viewport. A tree far out of view renders none.
 
+[`entrypoints/content/diffs/on-screen.ts`](../entrypoints/content/diffs/on-screen.ts)
+tracks which files' diffs are on screen. It observes the mounted diff regions with one
+`IntersectionObserver`, its top inset by `coveredTop` (the band GitHub's sticky chrome
+covers), and feeds each changed set of paths to the sections view's `onScreen`. Each tree
+marks those rows faintly, and a collapsed section marks its header instead. The mark never
+scrolls the sidebar.
+
 ## Diff order and reveal
 
 [`entrypoints/content/diffs/order.ts`](../entrypoints/content/diffs/order.ts) lays
@@ -162,7 +169,7 @@ entrypoints/
     files-page.ts        every GitHub Files view selector; page kinds
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch
-    diffs/               diff order and reveal
+    diffs/               diff order, reveal, and on-screen tracking
     header/              diffstat breakout
     ui/                  shared DOM helpers, loading view, Tailwind tokens
 utils/
