@@ -44,6 +44,7 @@ worktree uses the same profile, only one dev session runs at a time.
 | `mise run format-check` | Checks formatting without writing. |
 | `mise run lint` | Runs the linters, read-only. |
 | `mise run preflight` | Runs `format-check`, `lint`, and `test`; run it before you push. |
+| `mise run release <patch\|minor\|major> [--notes-file <path>]` | Dispatches the release workflow on trunk; see [Releases](#releases). |
 
 ## Tests
 
@@ -87,6 +88,28 @@ hk, a git hook manager configured in [`hk.pkl`](../hk.pkl), runs two hooks:
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push and pull
 request. It installs the pinned tools and dependencies, runs `mise run preflight`, builds
 the extension, then runs `mise run e2e`.
+
+## Releases
+
+In Claude Code, run `/release-gh-prism [patch|minor|major]`. The skill computes the next
+version, writes the release notes, asks you once to confirm both, then runs the release
+below and reports the GitHub Release.
+
+`mise run release <bump> [--notes-file <path>]` runs `gh workflow run` on
+[`.github/workflows/release.yml`](../.github/workflows/release.yml). On trunk, the
+workflow runs `preflight`, bumps `package.json`'s version, zips the extension, pushes a
+`chore: bump version to X.Y.Z` commit and a `vX.Y.Z` tag, then submits the zip to the
+Chrome Web Store with `wxt submit`. Last, it creates the `vX.Y.Z` GitHub Release, with the
+notes file as its body, or with GitHub's generated notes when you pass none.
+
+Only the repository owner can run it. It uses the `chrome-web-store` environment, which
+allows only trunk and holds four secrets: `CHROME_EXTENSION_ID`, `CHROME_PUBLISHER_ID`,
+`CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL`, and `CHROME_SERVICE_ACCOUNT_PRIVATE_KEY`. The
+workflow uses the store's v2 API with a Google Cloud service account.
+
+To rotate the key, create a new JSON key for the service account in Google Cloud, set
+`CHROME_SERVICE_ACCOUNT_PRIVATE_KEY` in the environment to its `private_key`, then delete
+the old key.
 
 ## Patched dependencies
 

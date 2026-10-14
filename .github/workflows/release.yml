@@ -1,0 +1,78 @@
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Which semver part to bump
+        required: true
+        type: choice
+        options: [patch, minor, major]
+      notes:
+        description: GitHub Release notes (generated when empty)
+        required: false
+        type: string
+permissions: {}
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.ref == 'refs/heads/trunk' && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: chrome-web-store
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+        with:
+          cache: false
+        env:
+          MISE_GITHUB_TOKEN: ${{ github.token }}
+      - run: bun install --frozen-lockfile
+      - run: mise run preflight
+      - id: bump
+        run: |
+          version="$(bun scripts/tasks/cli.ts version "$BUMP")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+        env:
+          BUMP: ${{ inputs.bump }}
+      - run: bunx wxt zip
+      # Push before submit: an atomic push fails cleanly if trunk moved, before the store sees anything.
+      - name: Commit, tag, and push
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898579+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: bump version to $VERSION" package.json
+          git tag "v$VERSION"
+          git push --atomic "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:refs/heads/trunk "refs/tags/v$VERSION"
+      - name: Submit to the Chrome Web Store
+        run: bunx wxt submit --chrome-zip ".output/gh-prism-$VERSION-chrome.zip"
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
+          CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL: ${{ secrets.CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL }}
+          CHROME_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.CHROME_SERVICE_ACCOUNT_PRIVATE_KEY }}
+          CHROME_API_VERSION: v2
+          CHROME_SKIP_SUBMIT_REVIEW: "false"
+          CHROME_CANCEL_PENDING: "false"
+          CHROME_SKIP_REVIEW: "false"
+          CHROME_PUBLISH_TYPE: DEFAULT_PUBLISH
+          CHROME_DEPLOY_PERCENTAGE: "100"
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NOTES: ${{ inputs.notes }}
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          if [ -n "$NOTES" ]; then
+            gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --verify-tag --title "v$VERSION" --notes "$NOTES"
+          else
+            gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --verify-tag --title "v$VERSION" --generate-notes
+          fi
