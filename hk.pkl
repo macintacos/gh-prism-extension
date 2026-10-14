@@ -118,7 +118,8 @@ hooks {
     steps = new Mapping<String, Step> {
       ["Project(Test)     [[tasks.test]]"] = new Step {
         glob = List("**/*.{js,jsx,mjs,cjs,ts,tsx}", "package.json", "bun.lock")
-        check = "mise run test"
+        // --quiet drops mise's `[test] $ …` echo, which goes to stderr and hk prints.
+        check = "mise run --quiet test"
       }
     }
   }
