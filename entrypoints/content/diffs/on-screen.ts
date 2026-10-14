@@ -75,7 +75,8 @@ export function followOnScreen(
     observer = new IntersectionObserver(intersect, { rootMargin: `-${top}px 0px 0px 0px` });
     for (const region of regions.keys()) observer.observe(region);
   };
-  // An observer never reports a removed node, so a region that left is dropped here.
+  // Unobserves regions that left, so the observer holds no detached node, and drops them from
+  // onScreen now.
   const rescan = () => {
     const next = new Map([...mountedDiffs(page)].map(([anchor, region]) => [region, anchor]));
     for (const region of regions.keys())

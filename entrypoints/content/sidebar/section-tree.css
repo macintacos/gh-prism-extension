@@ -151,11 +151,11 @@
   left: 0;
   width: 3px;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--gh-prism-hue) 40%, transparent);
+  background: var(--gh-prism-on-screen-bar);
   opacity: var(--gh-prism-on-screen, 0);
 }
 
-/* The diff in view, marked as GitHub marks its current tree item, in the section's hue. */
+/* GitHub's current file, marked as GitHub marks its current tree item; outranks the on-screen bar by specificity. */
 [data-type="item"][data-item-selected="true"]::after {
   background: var(--gh-prism-hue);
   opacity: 1;

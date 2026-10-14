@@ -296,7 +296,10 @@ export const isDiffAnchor = (anchor: string): boolean => /^diff-[0-9a-f]+$/.test
 export const anchorOf = (link: HTMLAnchorElement): string | undefined =>
   link.getAttribute("href")?.slice(1);
 
-/** `page`'s mounted diff regions, keyed by their files' anchors. */
+/**
+ * `page`'s mounted diff regions, keyed by their files' anchors. Regions whose anchor is not a
+ * file's diff anchor, such as a line anchor, are left out.
+ */
 export function mountedDiffs(page: FilesPage): Map<string, Element> {
   const regions = page.diffs.querySelectorAll('[role="region"]');
   return new Map(

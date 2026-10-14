@@ -169,7 +169,7 @@ entrypoints/
     files-page.ts        every GitHub Files view selector; page kinds
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch
-    diffs/               diff order and reveal
+    diffs/               diff order, reveal, and on-screen tracking
     header/              diffstat breakout
     ui/                  shared DOM helpers, loading view, Tailwind tokens
 utils/

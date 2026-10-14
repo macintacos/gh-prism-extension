@@ -92,6 +92,12 @@ tree. _Avoid_: file tree, which is GitHub's
 **Slide**: The sidebar's animated move when it switches sides, collapses, or expands.
 _Avoid_: glide
 
+**Current file**: GitHub's `aria-current` file, shown as the sidebar's selected row. There
+is at most one.
+
+**On-screen file**: A file whose diff region shows below GitHub's sticky chrome. There can
+be many. _Avoid_: in view
+
 **Diff order**: The order gh-prism lays the diffs out in, matching the sidebar. Only the
 visual order changes. _Avoid_: sort
 

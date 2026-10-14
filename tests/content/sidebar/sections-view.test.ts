@@ -99,6 +99,16 @@ function press(target: Element, key: "Enter" | " "): void {
   if (activates && key === " ") clickAt(target, { detail: 0 });
 }
 
+/** Sets `path`'s native comment count to `count`, as GitHub does, and waits out the debounce. */
+async function setCommentCount(path: string, count: number): Promise<void> {
+  const native = byId(path);
+  const counter = native.querySelector(".octicon-comment + div");
+  if (!counter) throw new Error(`fixture has no comment count for ${path}`);
+  counter.textContent = String(count);
+  native.setAttribute("aria-label", `${path.split("/").at(-1)} has ${count} comments`);
+  await afterDebounce();
+}
+
 function sectionToggle(section: string): HTMLButtonElement {
   const toggle = document.querySelector(`.gh-prism-section[data-section="${section}"] h3 button`);
   if (!(toggle instanceof HTMLButtonElement)) throw new Error(`${section} has no header button`);
@@ -578,11 +588,7 @@ describe("showSections", () => {
     });
 
     it("follows a file's comment count", async () => {
-      const count = byId("src/engine.rs").querySelector(".octicon-comment + div");
-      if (!count) throw new Error("fixture has no comment count for engine.rs");
-      count.textContent = "2";
-      byId("src/engine.rs").setAttribute("aria-label", "engine.rs has 2 comments");
-      await afterDebounce();
+      await setCommentCount("src/engine.rs", 2);
 
       expect(partTexts("implementation", "src/engine.rs")).toEqual(["2"]);
     });
@@ -967,17 +973,13 @@ describe("showSections", () => {
 
     it("keeps a mark while a row's decoration changes", async () => {
       onScreen("src/engine.rs");
-      const count = byId("src/engine.rs").querySelector(".octicon-comment + div");
-      if (!count) throw new Error("fixture has no comment count for engine.rs");
-      count.textContent = "2";
-      byId("src/engine.rs").setAttribute("aria-label", "engine.rs has 2 comments");
-      await afterDebounce();
+      await setCommentCount("src/engine.rs", 2);
 
       expect(partTexts("implementation", "src/engine.rs")).toEqual(["2"]);
       expect(marked("implementation", "src/engine.rs")).toBe(true);
     });
 
-    it("marks a collapsed section's header until it is expanded", () => {
+    it("marks a section listing a file on screen, collapsed or not", () => {
       sectionToggle("docs").click();
       onScreen("README.md");
 
@@ -987,16 +989,32 @@ describe("showSections", () => {
 
       sectionToggle("docs").click();
 
-      expect(sectionRoot("docs").hasAttribute("data-on-screen")).toBe(false);
+      expect(sectionRoot("docs").hasAttribute("data-on-screen")).toBe(true);
+      expect(sectionToggle("docs").getAttribute("aria-expanded")).toBe("true");
     });
 
-    it("marks a section's header when it collapses over an on-screen file", () => {
-      onScreen("README.md");
-      expect(sectionRoot("docs").hasAttribute("data-on-screen")).toBe(false);
+    it("marks the row of an on-screen file whose section comes back", async () => {
+      byId("docs/guide.md").remove();
+      byId("README.md").remove();
+      await afterDebounce();
+      onScreen("docs/intro.md");
+      addNativeFile("docs/intro.md", "config/app.toml");
+      await afterDebounce();
 
+      expect(marked("docs", "docs/intro.md")).toBe(true);
+    });
+
+    it("marks a collapsed section that comes back listing an on-screen file", async () => {
       sectionToggle("docs").click();
+      byId("docs/guide.md").remove();
+      byId("README.md").remove();
+      await afterDebounce();
+      onScreen("docs/intro.md");
+      addNativeFile("docs/intro.md", "config/app.toml");
+      await afterDebounce();
 
       expect(sectionRoot("docs").hasAttribute("data-on-screen")).toBe(true);
+      expect(sectionToggle("docs").getAttribute("aria-expanded")).toBe("false");
     });
 
     it("never scrolls the sidebar", () => {

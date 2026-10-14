@@ -103,6 +103,17 @@ describe("followOnScreen", () => {
     expect(shown()).toEqual(new Set(["src/engine.rs"]));
   });
 
+  it("shows the regions on screen before the sections arrive once they do", () => {
+    const early = vi.fn<(paths: ReadonlySet<string>) => void>();
+    const view = followOnScreen(foundPage(), early, controller.signal);
+    FakeObserver.latest.fire([[regions[0] as Element, true]]);
+    expect(early).not.toHaveBeenCalled();
+
+    view.sections?.(treeSections());
+
+    expect(early).toHaveBeenLastCalledWith(new Set(["src/engine.rs"]));
+  });
+
   it("drops a region's path once it leaves the screen", () => {
     FakeObserver.latest.fire([[regions[0] as Element, true]]);
     FakeObserver.latest.fire([[regions[0] as Element, false]]);

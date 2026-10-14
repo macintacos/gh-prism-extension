@@ -29,6 +29,18 @@ const LARGE_PR_BODY = PR_BODY.replace(
   .replace(' aria-current="true"', "");
 // The fixture's last Implementation file in native order.
 const LAST_IMPLEMENTATION_FILE = "src/render.rs";
+const scrollSidebarToBulkRow = (page: Page, n: number): Promise<void> =>
+  page.evaluate((n) => {
+    const sidebar = document.getElementById("pr-file-tree");
+    const tree = document.querySelector(
+      '.gh-prism-section[data-section="implementation"] .gh-prism-tree',
+    );
+    if (!sidebar || !tree) throw new Error("no sidebar or Implementation tree");
+    const treeTop =
+      tree.getBoundingClientRect().top - sidebar.getBoundingClientRect().top + sidebar.scrollTop;
+    // A bulk file's row follows bulk/, 28 px a row; 100 px of it shows below the top.
+    sidebar.scrollTop = treeTop + (n + 1) * 28 - 100;
+  }, n);
 // The wrapper supplies GitHub's layout container; the switch's container query needs ≥ 1012 px (default viewport: 1280).
 const COMMIT_BODY = `<!doctype html><div class="PageLayout-PageLayoutContent">${readFixture("commit-page.html")}</div>`;
 
@@ -151,17 +163,7 @@ test("a large pull request renders only the rows near the sidebar's viewport, an
   await page.mouse.wheel(0, 600);
   await expect.poll(() => sidebar.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 
-  await page.evaluate(() => {
-    const sidebar = document.getElementById("pr-file-tree");
-    const tree = document.querySelector(
-      '.gh-prism-section[data-section="implementation"] .gh-prism-tree',
-    );
-    if (!sidebar || !tree) throw new Error("no sidebar or Implementation tree");
-    const treeTop =
-      tree.getBoundingClientRect().top - sidebar.getBoundingClientRect().top + sidebar.scrollTop;
-    // bulk/file-150.rs is row 151 (after bulk/), 28 px a row; 100 px of it shows below the top.
-    sidebar.scrollTop = treeTop + 151 * 28 - 100;
-  });
+  await scrollSidebarToBulkRow(page, 150);
   await expect(page.locator('[data-item-path="bulk/file-150.rs"]')).toBeInViewport();
 });
 
@@ -229,7 +231,7 @@ test("the sidebar highlights the files whose diffs are on screen", async ({ cont
       for (let n = 0; n < 300; n++)
         list.insertAdjacentHTML(
           "beforeend",
-          `<div><div role="region" id="${ids[n]}" data-n="${n}" style="height: ${n % 7 ? 230 : 900}px"></div></div>`,
+          `<div style="content-visibility: auto; contain-intrinsic-size: auto ${n % 7 ? 230 : 900}px"><div role="region" id="${ids[n]}" data-n="${n}" style="height: ${n % 7 ? 230 : 900}px"></div></div>`,
         );
     },
     Array.from({ length: 300 }, (_, n) => bulkDiff(n)),
@@ -268,36 +270,26 @@ test("the sidebar highlights the files whose diffs are on screen", async ({ cont
     page.evaluate((n) => {
       const region = document.querySelector(`[data-n="${n}"]`);
       if (!region) throw new Error(`no diff ${n}`);
+      // 37 px past the region's top keeps every region edge off the viewport's, where the
+      // rect check and the observer can round differently.
       window.scrollTo({
         top: region.getBoundingClientRect().top + scrollY + 37,
         behavior: "instant",
       });
     }, n);
-  const sidebarToRow = (n: number) =>
-    page.evaluate((n) => {
-      const sidebar = document.getElementById("pr-file-tree");
-      const tree = document.querySelector(
-        '.gh-prism-section[data-section="implementation"] .gh-prism-tree',
-      );
-      if (!sidebar || !tree) throw new Error("no sidebar or Implementation tree");
-      const treeTop =
-        tree.getBoundingClientRect().top - sidebar.getBoundingClientRect().top + sidebar.scrollTop;
-      // A bulk file's row follows bulk/, 28 px a row; 100 px of it shows below the top.
-      sidebar.scrollTop = treeTop + (n + 1) * 28 - 100;
-    }, n);
 
-  await sidebarToRow(20);
+  await scrollSidebarToBulkRow(page, 20);
   await scrollToDiff(20);
   await expectMarkedInView();
 
-  await sidebarToRow(250);
+  await scrollSidebarToBulkRow(page, 250);
   await page.locator('[data-item-path="bulk/file-250.rs"]').click();
   await expect.poll(() => bulkPaths().then(({ inView }) => inView)).toContain("bulk/file-250.rs");
   await expectMarkedInView();
 
   await scrollToDiff(100);
   await expect(page.locator('[data-item-path="bulk/file-100.rs"]')).toHaveCount(0);
-  await sidebarToRow(100);
+  await scrollSidebarToBulkRow(page, 100);
   const row = page.locator('[data-item-path="bulk/file-100.rs"]');
   await expect
     .poll(() =>

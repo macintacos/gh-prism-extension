@@ -19,6 +19,8 @@
 /* Opaque, so the tree's truncated names can fade into it. */
 .gh-prism-section {
   --gh-prism-tint: color-mix(in srgb, var(--gh-prism-hue) 8%, var(--bgColor-default));
+  /* The on-screen bar, on a tree's rows and on a collapsed section's header. */
+  --gh-prism-on-screen-bar: color-mix(in srgb, var(--gh-prism-hue) 40%, transparent);
 }
 
 /* The section's icon at rest, swapped for the chevron while the header is hovered or focused. */
@@ -42,13 +44,13 @@
     opacity 150ms ease-out;
 }
 
-/* A collapsed section holding a file on screen: the faint bar its rows would show. */
-.gh-prism-section[data-on-screen] .gh-prism-section-toggle {
-  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--gh-prism-hue) 40%, transparent);
-}
-
 .gh-prism-section-toggle[aria-expanded="false"] .gh-prism-chevron {
   rotate: -90deg;
+}
+
+/* A collapsed section listing a file on screen: its rows are hidden, so its header shows the bar. */
+.gh-prism-section[data-on-screen] .gh-prism-section-toggle[aria-expanded="false"] {
+  box-shadow: inset 3px 0 0 var(--gh-prism-on-screen-bar);
 }
 
 /* Collapsed as inert, not hidden: GitHub forces [hidden] to display: none, which can't animate. */

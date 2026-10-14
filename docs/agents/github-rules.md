@@ -94,7 +94,9 @@ them; [§ Re-checking GitHub](#re-checking-github) has the methods.
 - **Don't measure the sticky bar itself.** The commit page's bar has no stable hook, and
   the pull request's is `height: 0` until stuck.
 - **Re-check:** on a public commit page, read the file header's computed `top` and compare
-  it with the sticky bar's height, at both sides of the 1011px breakpoint.
+  it with the sticky bar's height, at both sides of the 1011px breakpoint. On a signed-in
+  pull request, watch `body`'s `style` for `--base-sticky-header-height` while crossing
+  1011px, and compare it with a file header's computed `top`.
 
 ## PR base data
 

@@ -24,6 +24,14 @@ import css from "./sections-view.css?inline";
 
 type FileEntry = FileSection["entries"][number];
 
+/** The sidebar's sections view, as `showSections` mounts it. */
+interface SectionsView extends LandingView {
+  /** The view's `<nav>`. */
+  readonly root: Element;
+  /** Marks the files whose diffs are on screen: their rows, or a collapsed section's header. */
+  onScreen(paths: ReadonlySet<string>): void;
+}
+
 interface ShownSection {
   readonly root: HTMLElement;
   readonly counter: HTMLElement;
@@ -233,13 +241,9 @@ function followViewport(view: HTMLElement, onMove: () => void, signal: AbortSign
  * Mounts the sidebar's sections view in `page` until `signal` aborts, and returns its hooks: a
  * progress bar while intent is pending; on landing, notices for path-only sections or diffs kept
  * in GitHub's order; then a tree per section, each split file listed in every section its hunks
- * land in, with the lines each share adds and removes. `root` is the view's `<nav>`; `onScreen`
- * marks the files whose diffs are on screen, on their rows or a collapsed section's header.
+ * land in, with the lines each share adds and removes.
  */
-export function showSections(
-  page: FilesPage,
-  signal: AbortSignal,
-): LandingView & { readonly root: Element; onScreen(paths: ReadonlySet<string>): void } {
+export function showSections(page: FilesPage, signal: AbortSignal): SectionsView {
   const doc = page.sidebar.ownerDocument;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   const view = el(
@@ -264,15 +268,11 @@ export function showSections(
   let onScreen: ReadonlySet<string> = new Set();
   let latest: readonly FileSection[] = [];
 
-  /** Marks a collapsed section's header while it lists a file on screen, its rows being hidden. */
+  /** Marks each section that lists a file on screen; sections-view.css shows it on a collapsed header. */
   const markHeaders = () => {
     for (const { key, entries } of latest) {
-      shown
-        .get(key)
-        ?.root.toggleAttribute(
-          "data-on-screen",
-          collapsed.has(key) && entries.some(({ file }) => onScreen.has(file.path)),
-        );
+      const listsOnScreen = entries.some(({ file }) => onScreen.has(file.path));
+      shown.get(key)?.root.toggleAttribute("data-on-screen", listsOnScreen);
     }
   };
 
@@ -343,7 +343,6 @@ export function showSections(
       if (expanded) collapsed.delete(key);
       else collapsed.add(key);
       expand(expanded);
-      markHeaders();
     });
 
     if (previous) previous.after(root);
