@@ -1,0 +1,13 @@
+diff --git a/dist/core/builders/vite/plugins/removeEntrypointMainFunction.mjs b/dist/core/builders/vite/plugins/removeEntrypointMainFunction.mjs
+index b53215ce764a162e3249aa8f3331e2329130738f..52086ac81712fa023d6c708c75a027a845f1fd11 100644
+--- a/dist/core/builders/vite/plugins/removeEntrypointMainFunction.mjs
++++ b/dist/core/builders/vite/plugins/removeEntrypointMainFunction.mjs
+@@ -13,7 +13,7 @@ function removeEntrypointMainFunction(config, path) {
+ 		name: "wxt:remove-entrypoint-main-function",
+ 		transform: {
+ 			order: "pre",
+-			filter: { id: new RegExp(`^${absPath}$`) },
++			filter: { id: new RegExp(`^${absPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`) },
+ 			handler(code) {
+ 				const newCode = removeMainFunctionCode(code);
+ 				config.logger.debug("transformed entrypoint", path);
