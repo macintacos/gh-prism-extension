@@ -2,6 +2,7 @@
    Every other rule selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @source "./sections-view.ts";
+@source "../ui/line-counts.ts";
 
 /* Hidden, not removed: the filter keeps editing these rows, and the view mirrors them. */
 :is(#pr-file-tree, #diff_file_tree):has(.gh-prism-sections) ul[role="tree"] {
@@ -131,15 +132,6 @@
 .gh-prism-section-label {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.gh-prism-line-totals {
-  display: flex;
-  flex-shrink: 0;
-  gap: 4px;
-  margin-inline-start: auto;
-  font-size: var(--text-body-size-small);
   white-space: nowrap;
 }
 

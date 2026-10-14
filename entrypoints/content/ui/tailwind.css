@@ -2,12 +2,17 @@
 
 @theme inline {
   --spacing: 4px;
+  --color-fg-default: var(--fgColor-default);
   --color-fg-muted: var(--fgColor-muted);
+  --color-fg-success: var(--fgColor-success);
+  --color-fg-danger: var(--fgColor-danger);
+  --color-hue-tint: color-mix(in srgb, var(--gh-prism-hue) 14%, var(--bgColor-default));
   --color-bg-neutral-muted: var(--bgColor-neutral-muted);
   --color-border-default: var(--borderColor-default);
   --radius-medium: var(--borderRadius-medium);
   --text-body-small: var(--text-body-size-small);
   --leading-body-small: var(--text-body-lineHeight-small);
+  --font-weight-normal: var(--base-text-weight-normal);
   /* Primer tokens, added as utilities need them, named by one rule:
      --fgColor-muted → --color-fg-muted (tw:text-fg-muted)
      --bgColor-muted → --color-bg-muted (tw:bg-bg-muted)
