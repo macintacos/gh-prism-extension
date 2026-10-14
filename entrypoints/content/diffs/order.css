@@ -1,5 +1,7 @@
 /* GitHub hooks: none. order.ts writes the diff list's rules from each page kind's selectors
    and places its entries inline; this sheet holds their reveal and the diff cover. */
+@import "../ui/tailwind.css" prefix(tw);
+@source "./order.ts";
 
 @keyframes gh-prism-diff-reveal {
   from {

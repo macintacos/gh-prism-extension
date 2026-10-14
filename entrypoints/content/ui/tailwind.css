@@ -1,0 +1,13 @@
+@import "tailwindcss/utilities.css" source(none);
+
+@theme inline {
+  --spacing: 4px;
+  /* Primer tokens, added as utilities need them, named by one rule:
+     --fgColor-muted → --color-fg-muted (tw:text-fg-muted)
+     --bgColor-muted → --color-bg-muted (tw:bg-bg-muted)
+     --borderColor-default → --color-border-default (tw:border-border-default)
+     --borderRadius-medium → --radius-medium (tw:rounded-medium)
+     --text-body-size-small → --text-body-small (tw:text-body-small)
+     --text-body-lineHeight-small → --leading-body-small (tw:leading-body-small)
+     --base-text-weight-semibold → --font-weight-semibold (tw:font-semibold) */
+}

@@ -1,5 +1,7 @@
 /* GitHub hooks: #pr-file-tree, #diff_file_tree, ul[role="tree"], and the filter row's pr-lg-3.
    Every other rule selects only gh-prism's own classes. */
+@import "../ui/tailwind.css" prefix(tw);
+@source "./sections-view.ts";
 
 /* Hidden, not removed: the filter keeps editing these rows, and the view mirrors them. */
 :is(#pr-file-tree, #diff_file_tree):has(.gh-prism-sections) ul[role="tree"] {

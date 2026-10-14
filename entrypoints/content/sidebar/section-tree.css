@@ -1,4 +1,6 @@
 /* Styles inside each section tree's shadow root; @pierre/trees layers them over its own. */
+@import "../ui/tailwind.css" prefix(tw);
+@source "./section-tree.ts";
 
 /* Each host stays as tall as its rows, so the sidebar scrolls as one, and the library's viewport
    sticks inside it. clip, not hidden: a scroll container is what it would stick to. */

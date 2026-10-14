@@ -5,6 +5,8 @@
    #diff_file_tree, #diff-content-parent, the filter row's pr-lg-3, a pull request's
    diffComparisonViewer container (this sheet names a commit's), and PageLayout's
    --region-order-pane-end custom property. */
+@import "../ui/tailwind.css" prefix(tw);
+@source "./side.ts";
 
 /* Primer's small invisible IconButton, like GitHub's tree toggle beside it. */
 .gh-prism-side-switch {

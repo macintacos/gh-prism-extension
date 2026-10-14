@@ -3,7 +3,7 @@
 import type { IntentProgress } from "@/utils/intent/read";
 import { SECTIONS } from "@/utils/sections";
 import { el } from "./dom";
-import css from "./loading-view.css?raw";
+import css from "./loading-view.css?inline";
 import { SECTION_CATALOG } from "./section-catalog";
 
 // CSS can't lay down a band per section, so the gradient follows SECTIONS from here.

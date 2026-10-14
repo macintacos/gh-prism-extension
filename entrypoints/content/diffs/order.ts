@@ -23,8 +23,8 @@ import {
 import { el } from "../ui/dom";
 import { type LoadingView, loadingView } from "../ui/loading-view";
 import type { LandingView } from "../visit/land";
-// ?raw, not a plain CSS import: on WXT 0.21.4 that crashes `wxt build` (Vite's CSS-modules cache).
-import css from "./order.css?raw";
+// ?inline: a string this view mounts and removes; a plain import would sit in the manifest on every github.com page.
+import css from "./order.css?inline";
 import { retakeHash } from "./reveal";
 
 const STAGGER_MS = 50;

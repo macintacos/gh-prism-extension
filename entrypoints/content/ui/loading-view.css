@@ -1,4 +1,6 @@
 /* No GitHub hooks: every rule selects only gh-prism's own classes. */
+@import "./tailwind.css" prefix(tw);
+@source "./loading-view.ts";
 
 /* Held back a moment, so an answer that comes at once, as a cached one does, never flashes it. */
 .gh-prism-loading {

@@ -10,7 +10,7 @@ import { el } from "../ui/dom";
 import { count, counts } from "../ui/line-counts";
 import { markSection, SECTION_CATALOG, sectionIcon } from "../ui/section-catalog";
 import type { LandingView } from "../visit/land";
-import css from "./diffstat-view.css?raw";
+import css from "./diffstat-view.css?inline";
 
 /** Which view the header counter shows. One per tab, so the choice carries to the next page. */
 export interface DiffstatChoice {

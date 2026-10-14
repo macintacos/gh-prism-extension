@@ -174,6 +174,20 @@ Contributors start with these commands:
 - `scripts/create-sandbox.sh <owner>/<repo>` uses the `gh` CLI to create a private
   repository under an account you control, with three test pull requests.
 
+### Styling
+
+New UI is styled with Tailwind CSS v4 utilities carrying the `tw:` prefix, written as
+whole literal class strings beside the element's `gh-prism-*` name. Colours, radii and
+type come from Primer through the tokens in `entrypoints/content/ui/tailwind.css`, so
+themes follow GitHub with no `dark:` variant; spacing is a 4px scale.
+
+Each feature's sheet sits beside its module and opens with the two-line header: an
+`@import` of `ui/tailwind.css` with `prefix(tw)` and an `@source` naming that module. It
+reaches the page by an `?inline` import mounted as a `<style>` that is removed on abort,
+never a plain import. Rules that target GitHub's markup, keyframes, pseudo-elements and
+parent-driven states stay plain CSS in that sheet, listed in its `GitHub hooks:` header.
+Utilities are unlayered and there is no preflight.
+
 ## License
 
 gh-prism is released under the [MIT License](LICENSE).

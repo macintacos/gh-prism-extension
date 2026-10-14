@@ -1,5 +1,7 @@
 /* GitHub hooks: the header's lines-changed counter, the sibling after .gh-prism-diffstat. Every
    other rule selects only gh-prism's own classes. */
+@import "../ui/tailwind.css" prefix(tw);
+@source "./diffstat-view.ts";
 
 /* GitHub's counter, while the breakout stands in for it. Primer's .d-flex is !important too. */
 .gh-prism-diffstat + * {
