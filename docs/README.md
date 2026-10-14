@@ -11,3 +11,8 @@ Pick the page that matches what you want to do:
   [`DEVELOPMENT.md`](DEVELOPMENT.md).
 - **Look up a term such as visit, intent, or section:** read
   [`CONTEXT.md`](../CONTEXT.md).
+- **Find the rules a code area follows:** read the rule files in [`agents/`](agents/). The
+  routing list in [`AGENTS.md`](../AGENTS.md) decides which ones a change needs.
+
+Adding a new rule? See
+[`agents/references/agent-rules.md`](agents/references/agent-rules.md).

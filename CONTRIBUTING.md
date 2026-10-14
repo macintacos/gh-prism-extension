@@ -34,3 +34,4 @@ writing them are in [`docs/agents/testing-rules.md`](docs/agents/testing-rules.m
 - [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md): tasks, tests, hooks, CI, and patches.
 - [`CONTEXT.md`](CONTEXT.md): the terms the code and issues share.
 - [`docs/agents/styling-rules.md`](docs/agents/styling-rules.md): how to write styles.
+- [`AGENTS.md`](AGENTS.md): which rule files under `docs/agents/` a change needs.
