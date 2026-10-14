@@ -160,7 +160,12 @@ export function dockSidebar(
   const root = doc.documentElement;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
 
-  const button = el(doc, "button", "gh-prism-side-switch", icon(doc, ARROW_SWITCH, {}));
+  const button = el(
+    doc,
+    "button",
+    "gh-prism-side-switch tw:relative tw:shrink-0 tw:place-content-center tw:size-[var(--control-small-size,28px)] tw:p-0 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-iconColor-rest)] tw:[font:inherit] tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:hover:text-[color:var(--button-invisible-iconColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
+    icon(doc, ARROW_SWITCH, {}),
+  );
   button.type = "button";
   const dock = (side: Side) => {
     root.dataset.ghPrismSide = side;

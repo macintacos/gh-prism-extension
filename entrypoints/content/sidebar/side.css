@@ -8,35 +8,10 @@
 @import "../ui/tailwind.css" prefix(tw);
 @source "./side.ts";
 
-/* Primer's small invisible IconButton, like GitHub's tree toggle beside it. */
+/* Primer's small invisible IconButton, like GitHub's tree toggle beside it. Stays CSS: the
+   @container rule below shows it at equal specificity. */
 .gh-prism-side-switch {
-  position: relative;
   display: none;
-  flex-shrink: 0;
-  place-content: center;
-  width: var(--control-small-size, 28px);
-  height: var(--control-small-size, 28px);
-  padding: 0;
-  border: 0;
-  border-radius: var(--borderRadius-medium);
-  background: none;
-  color: var(--button-invisible-iconColor-rest);
-  font: inherit;
-  cursor: pointer;
-}
-
-.gh-prism-side-switch:hover {
-  background: var(--button-invisible-bgColor-hover);
-  color: var(--button-invisible-iconColor-hover);
-}
-
-.gh-prism-side-switch:active {
-  background: var(--button-invisible-bgColor-active);
-}
-
-.gh-prism-side-switch:focus-visible {
-  outline: 2px solid var(--focus-outlineColor);
-  outline-offset: -2px;
 }
 
 /* Primer's tooltip, opening toward the page's middle. */

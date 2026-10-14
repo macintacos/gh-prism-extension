@@ -33,14 +33,6 @@
   position: relative;
 }
 
-.gh-prism-probe {
-  position: absolute;
-  left: 0;
-  width: 1px;
-  visibility: hidden;
-  pointer-events: none;
-}
-
 /* Status letters stay quiet: in this sidebar, color marks sections and lines added or removed. */
 [data-item-git-status] > [data-item-section="content"],
 [data-item-git-status] > [data-item-section="icon"] > * {
