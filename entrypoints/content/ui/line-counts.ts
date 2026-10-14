@@ -16,10 +16,10 @@ export function counts(doc: Document, { added, removed }: LineCounts): HTMLEleme
     span.setAttribute("aria-hidden", "true");
     return span;
   };
-  const muted = "gh-prism-pill-count tw:text-fg-muted";
+  const mutedClass = "gh-prism-pill-count tw:text-fg-muted";
   return [
-    part(`+${count(added)}`, added > 0 ? "gh-prism-pill-count tw:text-fg-success" : muted),
-    part(`−${count(removed)}`, removed > 0 ? "gh-prism-pill-count tw:text-fg-danger" : muted),
+    part(`+${count(added)}`, added > 0 ? "gh-prism-pill-count tw:text-fg-success" : mutedClass),
+    part(`−${count(removed)}`, removed > 0 ? "gh-prism-pill-count tw:text-fg-danger" : mutedClass),
   ];
 }
 
