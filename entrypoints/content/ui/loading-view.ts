@@ -3,6 +3,7 @@
 import type { IntentProgress } from "@/utils/intent/read";
 import { SECTIONS } from "@/utils/sections";
 import { el } from "./dom";
+// ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./loading-view.css?inline";
 import { SECTION_CATALOG } from "./section-catalog";
 
