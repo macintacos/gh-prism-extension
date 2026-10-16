@@ -27,6 +27,9 @@ const cases: Record<SectionKey, string[]> = {
     "test_auth.py",
     "conftest.py",
     "run.bats",
+    "e2e/smoke.e2e.ts",
+    "e2e/fixtures.ts",
+    "src/login.e2e.ts",
   ],
   docs: [
     "README.md",
