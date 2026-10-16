@@ -1,8 +1,9 @@
 /**
  * Path rules ported from changeset.nvim's `lua/changeset/sections.lua` at
  * macintacos/changeset.nvim@2b6115db3a5394a207836afdeaa8237225b8de93 — the glob strings are
- * copied verbatim, so diff that file against this one when syncing. Upstream's labels and icons
- * are not ported; this sidebar's own live in `entrypoints/content/ui/section-catalog.ts`.
+ * copied verbatim, plus the `e2e` test dir and `*.e2e.*` test files, so diff that file against
+ * this one when syncing. Upstream's labels and icons are not ported; this sidebar's own live in
+ * `entrypoints/content/ui/section-catalog.ts`.
  * Upstream's `test_rule` is ported in `utils/hunk-rules/inline-tests.ts`.
  */
 
@@ -13,8 +14,10 @@ export const SECTIONS = ["implementation", "tests", "docs", "config", "generated
 export type SectionKey = (typeof SECTIONS)[number];
 
 const GENERATED_FILES = glob("{*.lock,*-lock.json,*-lock.yaml,go.sum}");
-const TEST_DIRS = new Set(["tests", "test", "spec", "__tests__", "testdata"]);
-const TEST_FILES = glob("{*_spec.*,*_test.*,*.test.*,*.spec.*,test_*.py,conftest.py,*.bats}");
+const TEST_DIRS = new Set(["tests", "test", "spec", "__tests__", "testdata", "e2e"]);
+const TEST_FILES = glob(
+  "{*_spec.*,*_test.*,*.test.*,*.spec.*,*.e2e.*,test_*.py,conftest.py,*.bats}",
+);
 const DOC_FILES = glob("{*.md,*.mdx,*.rst,README*,CHANGELOG*}");
 const DOC_DIRS = new Set(["doc", "docs"]);
 const CONFIG_FILES = glob(
