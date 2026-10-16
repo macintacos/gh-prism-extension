@@ -324,8 +324,11 @@ describe("showSections", () => {
 
   it("draws a manifest with its ecosystem's icon", () => {
     const use = rowIn("config", "Cargo.toml").querySelector('[data-item-section="icon"] use');
+    const symbol = treeHost("config").shadowRoot?.querySelector(
+      `symbol${use?.getAttribute("href")}`,
+    );
 
-    expect(use?.getAttribute("href")).toBe("#file-tree-builtin-rust");
+    expect(symbol?.id).toBe("file-tree-builtin-rust");
   });
 
   describe("a section's header", () => {

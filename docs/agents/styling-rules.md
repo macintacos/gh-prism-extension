@@ -58,6 +58,10 @@ markup a sheet targets are in [`github-rules.md`](github-rules.md).
   Shadow roots ignore `@property`, so those variables have no initial value. That rules
   out border, outline, shadow, ring, transform, gradient, leading, font-weight, and
   tabular-nums utilities there.
+- **Keep `:host { color-scheme: inherit; }` in the section tree's sheet.** @pierre/trees
+  sets `color-scheme: light dark` on its host, so without the override the library's
+  `light-dark()` palette, which colors the file icons, follows the OS instead of GitHub's
+  theme. The file icons keep that palette rather than Primer tokens.
 
 ## Testing styles
 

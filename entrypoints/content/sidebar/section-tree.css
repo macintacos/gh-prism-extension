@@ -35,30 +35,33 @@
   position: relative;
 }
 
-/* Names stay out of the status colors: in this sidebar, color marks sections, file types, and lines added or removed. */
-[data-item-git-status] > [data-item-section="content"] {
-  color: inherit;
+/* Status colors stay off names and icons: in this sidebar, color marks sections, file types,
+   and lines added or removed. */
+[data-item-git-status] {
+  --trees-item-git-status-color: currentColor;
 }
 
-/* The icons' light-dark() colors follow GitHub's theme, not the OS's. */
+/* The library's :host sets color-scheme: light dark, tying its light-dark() colors to the OS;
+   follow GitHub's theme instead. */
 :host {
   color-scheme: inherit;
 }
 
-/* ECOSYSTEM_ICONS' glyphs (section-tree.ts) carry no data-icon-token, so they take their token's color here; keep the two in sync. */
-svg:has(> use[href="#file-tree-builtin-npm"]) {
+/* @pierre/trees colors icons by data-icon-token, which ECOSYSTEM_ICONS' remaps
+   (section-tree.ts) lack: each glyph it uses needs a rule here. */
+svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-npm"]) {
   color: var(--trees-file-icon-color-npm);
 }
-svg:has(> use[href="#file-tree-builtin-rust"]) {
+svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-rust"]) {
   color: var(--trees-file-icon-color-rust);
 }
-svg:has(> use[href="#file-tree-builtin-go"]) {
+svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-go"]) {
   color: var(--trees-file-icon-color-go);
 }
-svg:has(> use[href="#file-tree-builtin-ruby"]) {
+svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-ruby"]) {
   color: var(--trees-file-icon-color-ruby);
 }
-svg:has(> use[href="#file-tree-builtin-python"]) {
+svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
   color: var(--trees-file-icon-color-python);
 }
 
