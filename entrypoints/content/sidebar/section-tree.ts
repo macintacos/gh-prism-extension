@@ -206,6 +206,24 @@ export class SectionTree {
   }
 }
 
+/**
+ * Manifests and lockfiles the complete set draws as JSON or a plain file, drawn with their
+ * ecosystem's glyph. A glyph new to this map needs a color rule in section-tree.css. The set
+ * has no yarn, pnpm, or PHP glyph.
+ */
+const ECOSYSTEM_ICONS = {
+  "package.json": "file-tree-builtin-npm",
+  "package-lock.json": "file-tree-builtin-npm",
+  "npm-shrinkwrap.json": "file-tree-builtin-npm",
+  "Cargo.toml": "file-tree-builtin-rust",
+  "Cargo.lock": "file-tree-builtin-rust",
+  "go.mod": "file-tree-builtin-go",
+  "go.sum": "file-tree-builtin-go",
+  "Gemfile.lock": "file-tree-builtin-ruby",
+  "poetry.lock": "file-tree-builtin-python",
+  "uv.lock": "file-tree-builtin-python",
+};
+
 /** A tree of `files`, every directory open, that asks `decorationOf` for each row's decoration. */
 function fileTreeOf(
   files: readonly TreeFile[],
@@ -215,7 +233,9 @@ function fileTreeOf(
     preparedInput: preparePresortedFileTreeInput(files.map(({ path }) => path)),
     flattenEmptyDirectories: true,
     icons: {
-      set: "standard",
+      // Explicit: any custom icon field makes the set default to "none".
+      set: "complete",
+      byFileName: ECOSYSTEM_ICONS,
       spriteSheet: FOLDER_SPRITE,
       remap: { "file-tree-icon-chevron": "gh-prism-folder" },
     },

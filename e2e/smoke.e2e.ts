@@ -315,3 +315,58 @@ test("the sidebar highlights the files whose diffs are on screen", async ({ cont
     )
     .toBe("1");
 });
+
+test("each file's icon takes its type's color in the page's color scheme", async ({
+  context,
+  page,
+}) => {
+  // A type with no palette color: its icon stays the row's color, whatever the file's status.
+  const fontRowMarkup =
+    '<li role="treeitem" id="x.woff2" aria-level="1" aria-label="x.woff2" aria-selected="false"><div class="PRIVATE_TreeView-item-visual"><svg class="octicon octicon-file-added"></svg></div><a href="#diff-f047">x.woff2</a></li>';
+  await serve(context, PR_URL, PR_BODY.replace(TREE_OPEN, `${TREE_OPEN}${fontRowMarkup}`));
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto(PR_URL);
+  await expect(page.locator('[data-item-path="Cargo.toml"]')).toBeVisible();
+  // GitHub's light theme on a dark OS.
+  await page.evaluate(() => {
+    document.documentElement.style.colorScheme = "light";
+  });
+
+  const iconColors = () =>
+    page.evaluate(() => {
+      const colorOf = (path: string) => {
+        const icon = [...document.querySelectorAll(".gh-prism-tree")]
+          .map((host) =>
+            host.shadowRoot?.querySelector(
+              `[data-item-path="${path}"] [data-item-section="icon"] svg`,
+            ),
+          )
+          .find((found) => found);
+        return icon ? getComputedStyle(icon).color : null;
+      };
+      const fontRow = [...document.querySelectorAll(".gh-prism-tree")]
+        .map((host) => host.shadowRoot?.querySelector('[data-item-path="x.woff2"]'))
+        .find((found) => found);
+      const colorInFontRow = (selector: string) => {
+        const found = fontRow?.querySelector(selector);
+        return found ? getComputedStyle(found).color : null;
+      };
+      // Not src/lib.rs: the fixture selects it, and a selected row's icon color differs regardless.
+      return {
+        font: colorInFontRow('[data-item-section="icon"] svg'),
+        fontSpan: colorInFontRow('[data-item-section="icon"]'),
+        rust: colorOf("src/helpers.rs"),
+        manifest: colorOf("Cargo.toml"),
+        markdown: colorOf("README.md"),
+      };
+    });
+  const onDarkOs = await iconColors();
+  await page.emulateMedia({ colorScheme: "light" });
+  const onLightOs = await iconColors();
+
+  expect(onDarkOs.rust).not.toBe(onDarkOs.markdown);
+  expect(onDarkOs.manifest).toBe(onDarkOs.rust);
+  expect(onDarkOs).toEqual(onLightOs);
+  expect(onDarkOs.font).not.toBeNull();
+  expect(onDarkOs.font).toBe(onDarkOs.fontSpan);
+});

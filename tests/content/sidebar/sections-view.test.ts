@@ -311,6 +311,26 @@ describe("showSections", () => {
     expect(symbol?.id).toMatch(/folder/);
   });
 
+  it("draws each file with its type's icon", async () => {
+    addNativeFile("src/app.tsx", "src/lib.rs");
+    await afterDebounce();
+
+    const icon = rowIn("implementation", "src/app.tsx").querySelector(
+      '[data-item-section="icon"] svg',
+    );
+
+    expect(icon?.getAttribute("data-icon-token")).toBe("react");
+  });
+
+  it("draws a manifest with its ecosystem's icon", () => {
+    const use = rowIn("config", "Cargo.toml").querySelector('[data-item-section="icon"] use');
+    const symbol = treeHost("config").shadowRoot?.querySelector(
+      `symbol${use?.getAttribute("href")}`,
+    );
+
+    expect(symbol?.id).toBe("file-tree-builtin-rust");
+  });
+
   describe("a section's header", () => {
     const expanded = (section: string) => sectionToggle(section).getAttribute("aria-expanded");
 

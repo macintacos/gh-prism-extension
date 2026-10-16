@@ -79,6 +79,9 @@ export function mountsVisit() {
 
   afterEach(() => {
     controller.abort();
+    // Preact schedules its after-paint flush only onto an empty queue, so one flush the clock
+    // drops leaves every later tree queued, and alive, for the rest of the file.
+    vi.runAllTimers();
     vi.useRealTimers();
   });
 
