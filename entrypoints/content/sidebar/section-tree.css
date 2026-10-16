@@ -35,10 +35,31 @@
   position: relative;
 }
 
-/* Status letters stay quiet: in this sidebar, color marks sections and lines added or removed. */
-[data-item-git-status] > [data-item-section="content"],
-[data-item-git-status] > [data-item-section="icon"] > * {
+/* Names stay out of the status colors: in this sidebar, color marks sections, file types, and lines added or removed. */
+[data-item-git-status] > [data-item-section="content"] {
   color: inherit;
+}
+
+/* The icons' light-dark() colors follow GitHub's theme, not the OS's. */
+:host {
+  color-scheme: inherit;
+}
+
+/* ECOSYSTEM_ICONS' glyphs (section-tree.ts) carry no data-icon-token, so they take their token's color here; keep the two in sync. */
+svg:has(> use[href="#file-tree-builtin-npm"]) {
+  color: var(--trees-file-icon-color-npm);
+}
+svg:has(> use[href="#file-tree-builtin-rust"]) {
+  color: var(--trees-file-icon-color-rust);
+}
+svg:has(> use[href="#file-tree-builtin-go"]) {
+  color: var(--trees-file-icon-color-go);
+}
+svg:has(> use[href="#file-tree-builtin-ruby"]) {
+  color: var(--trees-file-icon-color-ruby);
+}
+svg:has(> use[href="#file-tree-builtin-python"]) {
+  color: var(--trees-file-icon-color-python);
 }
 
 /* Names are code, set in its font; counts, markers and status letters are not. */

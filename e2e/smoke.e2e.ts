@@ -315,3 +315,43 @@ test("the sidebar highlights the files whose diffs are on screen", async ({ cont
     )
     .toBe("1");
 });
+
+test("each file's icon takes its type's color in the page's color scheme", async ({
+  context,
+  page,
+}) => {
+  await serve(context, PR_URL, PR_BODY);
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto(PR_URL);
+  await expect(page.locator('[data-item-path="Cargo.toml"]')).toBeVisible();
+  // GitHub's light theme on a dark OS.
+  await page.evaluate(() => {
+    document.documentElement.style.colorScheme = "light";
+  });
+
+  const iconColors = () =>
+    page.evaluate(() => {
+      const colorOf = (path: string) => {
+        const icon = [...document.querySelectorAll(".gh-prism-tree")]
+          .map((host) =>
+            host.shadowRoot?.querySelector(
+              `[data-item-path="${path}"] [data-item-section="icon"] svg`,
+            ),
+          )
+          .find((found) => found);
+        return icon ? getComputedStyle(icon).color : null;
+      };
+      return {
+        rust: colorOf("src/helpers.rs"),
+        manifest: colorOf("Cargo.toml"),
+        markdown: colorOf("README.md"),
+      };
+    });
+  const onDarkOs = await iconColors();
+  await page.emulateMedia({ colorScheme: "light" });
+  const onLightOs = await iconColors();
+
+  expect(onDarkOs.rust).not.toBe(onDarkOs.markdown);
+  expect(onDarkOs.manifest).toBe(onDarkOs.rust);
+  expect(onDarkOs).toEqual(onLightOs);
+});
