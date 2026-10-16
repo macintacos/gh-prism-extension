@@ -63,6 +63,11 @@ const cases: Record<SectionKey, string[]> = {
     "Cargo.toml",
     "tsconfig.json",
     "lock.json",
+    "vite.config.ts",
+    "vite.config.mjs",
+    "vitest.config.mts",
+    "apps/web/vite.config.js",
+    "postcss.config.cjs",
   ],
   implementation: [
     "plugin/lsp.lua",
@@ -83,6 +88,7 @@ const cases: Record<SectionKey, string[]> = {
     "contest.py",
     "testing/a.lua",
     "mydocs/a.txt",
+    "src/config.ts",
   ],
 };
 

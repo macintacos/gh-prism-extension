@@ -1,9 +1,9 @@
 /**
  * Path rules ported from changeset.nvim's `lua/changeset/sections.lua` at
  * macintacos/changeset.nvim@2b6115db3a5394a207836afdeaa8237225b8de93 — the glob strings are
- * copied verbatim, plus the `e2e` test dir and `*.e2e.*` test files, so diff that file against
- * this one when syncing. Upstream's labels and icons are not ported; this sidebar's own live in
- * `entrypoints/content/ui/section-catalog.ts`.
+ * copied verbatim, plus the `e2e` test dir, `*.e2e.*` test files, and `*.config.*` tool configs
+ * such as `vite.config.ts`, so diff that file against this one when syncing. Upstream's labels
+ * and icons are not ported; this sidebar's own live in `entrypoints/content/ui/section-catalog.ts`.
  * Upstream's `test_rule` is ported in `utils/hunk-rules/inline-tests.ts`.
  */
 
@@ -21,7 +21,7 @@ const TEST_FILES = glob(
 const DOC_FILES = glob("{*.md,*.mdx,*.rst,README*,CHANGELOG*}");
 const DOC_DIRS = new Set(["doc", "docs"]);
 const CONFIG_FILES = glob(
-  "{*.toml,*.yaml,*.yml,*.pkl,*.json,*.ini,*.cfg,.*,Makefile,Dockerfile,go.mod}",
+  "{*.toml,*.yaml,*.yml,*.pkl,*.json,*.ini,*.cfg,*.config.*,.*,Makefile,Dockerfile,go.mod}",
 );
 const CONFIG_DIRS = new Set([".github"]);
 const SCRIPT_FILES = glob("{*.sh,*.bash,*.py,*.js,*.ts,*.rs,*.go,*.lua}");
