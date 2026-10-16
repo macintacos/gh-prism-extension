@@ -25,6 +25,12 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   `:has()`.
 - **Don't depend on `hashchange` after `replaceState`.** happy-dom fires it a tick later,
   and browsers never fire it.
+- **Run pending fake timers before `vi.useRealTimers()` in a test that renders a tree.**
+  Uninstalling the clock drops its pending callbacks. Preact, which @pierre/trees renders
+  with, schedules its after-paint flush only when its module-level queue is empty, so one
+  dropped flush keeps every later tree in the file alive until the worker runs out of
+  heap. `mountsVisit()` in [`tests/fixtures/visit.ts`](../../tests/fixtures/visit.ts) does
+  this for every test it mounts.
 - **Toggle reduced motion through
   `window.happyDOM.settings.device.prefersReducedMotion`.** happy-dom evaluates media
   queries, so
