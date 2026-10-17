@@ -32,9 +32,9 @@ interface SectionsView extends LandingView {
   /** Marks the files whose diffs are on screen: their rows, or a collapsed section's header. */
   onScreen(paths: ReadonlySet<string>): void;
   /**
-   * Called whenever the viewed set changes, from the moment the page offers Viewed: dims the rows of the files GitHub shows as Viewed, gives
-   * every file row a checkbox, and, once any file is viewed, counts each section's viewed files
-   * in its header.
+   * Called whenever the viewed set changes, from the moment the page offers Viewed: dims the rows
+   * of the files GitHub shows as Viewed, gives every file row a checkbox, and, once any file is
+   * viewed, counts each section's viewed files in its header.
    */
   viewed(paths: ReadonlySet<string>): void;
 }
