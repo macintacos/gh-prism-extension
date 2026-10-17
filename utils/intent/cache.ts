@@ -1,6 +1,6 @@
 /** Keeps landed intent in extension storage, so a revisit to an unchanged diff skips reading it. */
 
-import type { HeadLineSpan } from "../github/pr-diff";
+import type { HeadLineSpan, LineCounts } from "../github/pr-diff";
 import { SECTIONS } from "../sections";
 import type { FileLines, IntentResult, Placement, SectionShare } from "./read";
 
@@ -26,6 +26,7 @@ export interface IntentStorage {
 interface StoredIntent {
   readonly placements: readonly (readonly [string, StoredPlacement])[];
   readonly lines: readonly (readonly [string, FileLines])[];
+  readonly commentLines: readonly (readonly [string, LineCounts])[];
 }
 
 type StoredShare = Omit<SectionShare, "hunks"> & { readonly hunks: (HeadLineSpan | null)[] };
@@ -35,10 +36,12 @@ type StoredPlacement =
   | { readonly kind: "split"; readonly shares: readonly StoredShare[] };
 
 // The entries' shape is versioned in their keys; a new shape takes a new prefix.
-const INDEX: LocalKey = "local:intent.v1";
-const entryKey = (key: string): LocalKey => `local:intent.v1:${key}`;
+const INDEX: LocalKey = "local:intent.v2";
+const entryKey = (key: string): LocalKey => `local:intent.v2:${key}`;
+const RETIRED_INDEX: LocalKey = "local:intent.v1";
+const retiredEntryKey = (key: string): LocalKey => `local:intent.v1:${key}`;
 
-const toStored = ({ placements, lines }: LandedIntent): StoredIntent => ({
+const toStored = ({ placements, lines, commentLines }: LandedIntent): StoredIntent => ({
   placements: [...placements].map(([path, placement]) => [
     path,
     placement.kind === "split"
@@ -52,9 +55,10 @@ const toStored = ({ placements, lines }: LandedIntent): StoredIntent => ({
       : placement,
   ]),
   lines: [...lines],
+  commentLines: [...commentLines],
 });
 
-const fromStored = ({ placements, lines }: StoredIntent): LandedIntent => ({
+const fromStored = ({ placements, lines, commentLines }: StoredIntent): LandedIntent => ({
   ok: true,
   placements: new Map(
     placements.map(([path, placement]) => [
@@ -71,6 +75,7 @@ const fromStored = ({ placements, lines }: StoredIntent): LandedIntent => ({
     ]),
   ),
   lines: new Map(lines),
+  commentLines: new Map(commentLines),
 });
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -106,7 +111,9 @@ const isStored = (value: unknown): value is StoredIntent =>
   Array.isArray(value.placements) &&
   value.placements.every((entry) => isEntry(entry) && isPlacement(entry[1])) &&
   Array.isArray(value.lines) &&
-  value.lines.every((entry) => isEntry(entry) && (entry[1] === "binary" || isCounts(entry[1])));
+  value.lines.every((entry) => isEntry(entry) && (entry[1] === "binary" || isCounts(entry[1]))) &&
+  Array.isArray(value.commentLines) &&
+  value.commentLines.every((entry) => isEntry(entry) && isCounts(entry[1]));
 
 const isKeys = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((key) => typeof key === "string");
@@ -141,12 +148,19 @@ export function storedIntents(storage: IntentStorage, limit: number): IntentCach
 
 /**
  * Drops every result {@link storedIntents} keeps in `storage`, as another build may place files
- * differently. Never rejects: a storage failure is logged.
+ * differently, and the retired `intent.v1` entries no build reads. Never rejects: a storage
+ * failure is logged.
  */
 export async function forgetIntents(storage: IntentStorage): Promise<void> {
   try {
     const index = await storage.getItem(INDEX);
-    await storage.removeItems([INDEX, ...(isKeys(index) ? index.map(entryKey) : [])]);
+    const retired = await storage.getItem(RETIRED_INDEX);
+    await storage.removeItems([
+      INDEX,
+      ...(isKeys(index) ? index.map(entryKey) : []),
+      RETIRED_INDEX,
+      ...(isKeys(retired) ? retired.map(retiredEntryKey) : []),
+    ]);
   } catch (error) {
     console.error("gh-prism: clearing cached sections failed", error);
   }

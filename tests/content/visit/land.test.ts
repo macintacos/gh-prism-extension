@@ -32,6 +32,7 @@ const result: IntentResult = {
   ok: true,
   placements: new Map([["src/lib.rs", { kind: "whole", section: "docs" }]]),
   lines: new Map(),
+  commentLines: new Map(),
 };
 
 function recording(name: string): LandingView {

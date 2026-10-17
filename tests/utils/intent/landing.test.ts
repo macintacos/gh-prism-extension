@@ -34,6 +34,7 @@ const landing = landingOf({
     ["config/app.toml", "binary"],
     ["Cargo.lock", { added: 1210, removed: 350 }],
   ]),
+  commentLines: new Map(),
 });
 
 const files = (...paths: string[]) => paths.map((path) => ({ path }));
@@ -144,6 +145,7 @@ describe("totalsOf", () => {
       ok: true,
       placements: new Map(),
       lines: new Map([["src/a.rs", { added: 0, removed: 0 }]]),
+      commentLines: new Map(),
     });
 
     expect(totalsOf(unchanged)).toEqual([]);
@@ -189,6 +191,7 @@ describe("revealLineOf", () => {
         ],
       ]),
       lines: new Map([["src/a.rs", { added: 3, removed: 4 }]]),
+      commentLines: new Map(),
     });
 
     expect(revealLineOf(deletion, "src/a.rs", "docs")).toEqual(undefined);

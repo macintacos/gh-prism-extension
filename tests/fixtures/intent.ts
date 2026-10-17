@@ -1,3 +1,4 @@
+import type { LineCounts } from "../../utils/github/pr-diff";
 import type {
   FileLines,
   IntentProgress,
@@ -10,11 +11,12 @@ import type {
 /** A placement putting a whole file in `section`. */
 export const whole = (section: IntentSection): Placement => ({ kind: "whole", section });
 
-/** A successful intent result with `placements` and per-file `lines`, both empty by default. */
+/** A successful intent result with `placements`, per-file `lines` and `commentLines`, all empty by default. */
 export const landedWith = (
   placements: ReadonlyMap<string, Placement> = new Map(),
   lines: ReadonlyMap<string, FileLines> = new Map(),
-): IntentResult => ({ ok: true, placements, lines });
+  commentLines: ReadonlyMap<string, LineCounts> = new Map(),
+): IntentResult => ({ ok: true, placements, lines, commentLines });
 
 /** An intent that settles when the test resolves it, and reports progress when told to. */
 export function pendingIntent() {

@@ -32,7 +32,13 @@ describe("background", () => {
     "forgets cached sections on $reason",
     async (details) => {
       // Raw keys on purpose, so the test outlives a move to typed storage items.
-      await fakeBrowser.storage.local.set({ "intent.v1": ["k"], "intent.v1:k": {}, unrelated: 1 });
+      await fakeBrowser.storage.local.set({
+        "intent.v1": ["k"],
+        "intent.v1:k": {},
+        "intent.v2": ["k"],
+        "intent.v2:k": {},
+        unrelated: 1,
+      });
       await fakeBrowser.runtime.onInstalled.trigger(details);
 
       // The listener floats forgetIntents' promise, so trigger cannot await it.
