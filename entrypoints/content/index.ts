@@ -94,9 +94,9 @@ const readNoticeDismissed = (): Promise<boolean> =>
       return false;
     });
 
-const saveDismissed = (dismissed: boolean) =>
+const saveDismissed = () =>
   classicNoticeDismissed
-    .setValue(dismissed)
+    .setValue(true)
     .catch((error: unknown) =>
       console.error("gh-prism: saving the notice's dismissal failed", error),
     );

@@ -31,7 +31,7 @@ several times in one visit.
 **Classic page**: A pull request's Files changed tab in GitHub's older form, at
 `/pull/<n>/files`, or `/pull/<n>/commits/<sha>` for one commit, which GitHub shows to a
 signed-out viewer or with its New Files Changed Experience preview off. gh-prism doesn't
-run there; it shows a notice that says why. _Avoid_: old page, legacy page
+run there; it opens a dialog that says why. _Avoid_: old page, legacy page
 
 **Native tree**: GitHub's own file tree, kept mounted but hidden as the source of truth
 for which files the sidebar lists and in what order. _Avoid_: GitHub tree, original tree

@@ -132,30 +132,31 @@ const routeFileReview = async (context: BrowserContext, status: number) => {
 const viewedBox = (page: Page, name: string) =>
   page.getByRole("checkbox", { name: `Viewed: ${name}` });
 
-test("the classic Files changed page explains why gh-prism is off, and keeps a dismissal", async ({
+test("the classic Files changed page explains in a dialog why gh-prism is off, until it's closed", async ({
   context,
   page,
 }) => {
   await serve(context, CLASSIC_URL, CLASSIC_BODY);
-  const notice = page.getByRole("region", { name: /gh-prism/ });
-  const reopen = page.getByRole("button", { name: /why is gh-prism off/i });
+  const dialog = page.getByRole("dialog", { name: /gh-prism/ });
+  const opener = page.getByRole("button", { name: /why is gh-prism off/i });
 
   await page.goto(CLASSIC_URL);
-  await expect(notice).toBeVisible();
-  await expect(notice.getByRole("link", { name: "Sign in" })).toBeVisible();
-  await expect(reopen).toBeHidden();
+  await expect(dialog).toBeVisible();
+  expect(await dialog.evaluate((el) => el.matches(":modal"))).toBe(true);
+  await expect(dialog.getByRole("link", { name: "Sign in" })).toBeVisible();
 
-  await notice.getByRole("button", { name: /dismiss/i }).click();
-  await expect(notice).toBeHidden();
-  await expect(reopen).toBeFocused();
+  // The backdrop's corner, outside the centered dialog.
+  await page.mouse.click(4, 4);
+  await expect(dialog).toBeHidden();
+  await expect(opener).toBeFocused();
 
   await page.reload();
-  await expect(reopen).toBeVisible();
-  await expect(notice).toBeHidden();
+  // The button and the dialog come in together, so the dialog has had its chance to open.
+  await expect(opener).toBeVisible();
+  await expect(dialog).toBeHidden();
 
-  await reopen.click();
-  await expect(notice).toBeFocused();
-  await expect(reopen).toBeHidden();
+  await opener.click();
+  await expect(dialog).toBeVisible();
 });
 
 test("a pull request mounts its sections in path-only mode", async ({ context, page }) => {

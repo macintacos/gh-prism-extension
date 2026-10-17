@@ -9,11 +9,14 @@ const DOCS =
 
 let controller: AbortController;
 
-const notice = () => document.querySelector<HTMLElement>("section.gh-prism-notice");
-const reopen = () => document.querySelector<HTMLButtonElement>("button.gh-prism-notice-reopen");
-const dismiss = () => notice()?.querySelector<HTMLButtonElement>("button") ?? null;
-const links = () => [...(notice()?.querySelectorAll("a") ?? [])];
-const steps = () => [...(notice()?.querySelectorAll("ol > li") ?? [])].map((li) => li.textContent);
+const dialog = () => document.querySelector<HTMLDialogElement>("dialog.gh-prism-classic-notice");
+const opener = () =>
+  document.querySelector<HTMLButtonElement>("button.gh-prism-classic-notice-button");
+const closeButton = () => dialog()?.querySelector<HTMLButtonElement>('button[aria-label="Close"]');
+const buttonNamed = (name: string) =>
+  [...(dialog()?.querySelectorAll("button") ?? [])].find((button) => button.textContent === name);
+const links = () => [...(dialog()?.querySelectorAll("a") ?? [])];
+const steps = () => [...(dialog()?.querySelectorAll("ol > li") ?? [])].map((li) => li.textContent);
 
 function show(dismissed = false) {
   const page = findClassicPage(document);
@@ -44,14 +47,28 @@ function preferReducedMotion(preference: "reduce" | "no-preference"): void {
 }
 
 describe("showClassicNotice", () => {
-  it("shows the notice just above GitHub's toolbar, as a region its heading names", () => {
-    const { page } = show();
+  it("opens a dialog its heading names while the choice isn't dismissed", () => {
+    show();
 
-    expect(notice()?.nextElementSibling).toBe(page.toolbar);
-    expect(notice()?.hidden).toBe(false);
-    const title = notice()?.getAttribute("aria-labelledby") ?? "";
-    expect(document.getElementById(title)?.closest("section")).toBe(notice());
-    expect(reopen()?.hidden).toBe(true);
+    expect(dialog()?.open).toBe(true);
+    expect(dialog()?.parentElement).toBe(document.body);
+    const title = dialog()?.getAttribute("aria-labelledby") ?? "";
+    expect(document.getElementById(title)?.closest("dialog")).toBe(dialog());
+  });
+
+  it("stays closed while the choice is dismissed", () => {
+    const { save } = show(true);
+
+    expect(dialog()?.open).toBe(false);
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("puts its button before the review tools, dismissed: %s", (dismissed) => {
+    const { page } = show(dismissed);
+
+    expect(opener()?.nextElementSibling).toBe(page.reviewTools);
+    expect(opener()?.textContent).toMatch(/gh-prism/);
+    expect(opener()?.type).toBe("button");
   });
 
   it("asks a signed-out viewer to sign in, coming back to this page", () => {
@@ -78,57 +95,43 @@ describe("showClassicNotice", () => {
     expect(links().map((link) => link.href)).toEqual([DOCS]);
   });
 
-  it("dismisses into the re-open button beside the review tools, saving the dismissal", () => {
-    const { page, choice, save } = show();
+  it.each([
+    ["its close button", "", () => closeButton()?.click()],
+    ["Not now", "", () => buttonNamed("Not now")?.click()],
+    ["Got it", "octocat", () => buttonNamed("Got it")?.click()],
+    // happy-dom implements neither; both close the dialog as close() does.
+    ["Esc or a backdrop click", "", () => dialog()?.close()],
+  ])("saves the dismissal on closing by %s, moving focus to the button", (_, login, close) => {
+    loadClassicFixture(login);
+    const { choice, save } = show();
 
-    dismiss()?.click();
+    close();
 
-    expect(notice()?.hidden).toBe(true);
-    expect(reopen()?.hidden).toBe(false);
-    expect(reopen()?.nextElementSibling).toBe(page.reviewTools);
-    expect(document.activeElement).toBe(reopen());
+    expect(dialog()?.open).toBe(false);
     expect(choice.dismissed).toBe(true);
-    expect(save).toHaveBeenLastCalledWith(true);
+    expect(save).toHaveBeenCalledOnce();
+    expect(document.activeElement).toBe(opener());
   });
 
-  it("re-opens the notice and moves focus to it, saving the change", () => {
+  it("opens the dialog from its button without saving", () => {
     const { choice, save } = show(true);
 
-    reopen()?.click();
+    opener()?.click();
 
-    expect(notice()?.hidden).toBe(false);
-    expect(reopen()?.hidden).toBe(true);
-    expect(document.activeElement).toBe(notice());
-    expect(choice.dismissed).toBe(false);
-    expect(save).toHaveBeenLastCalledWith(false);
-  });
-
-  it("re-opens without motion when the viewer prefers reduced motion", () => {
-    preferReducedMotion("reduce");
-    show(true);
-
-    reopen()?.click();
-
-    expect(notice() && getComputedStyle(notice() as HTMLElement).animation).toBe("none");
-  });
-
-  it("starts dismissed, with only the re-open button showing, when the choice says so", () => {
-    const { save } = show(true);
-
-    expect(notice()?.hidden).toBe(true);
-    expect(reopen()?.hidden).toBe(false);
+    expect(dialog()?.open).toBe(true);
+    expect(choice.dismissed).toBe(true);
     expect(save).not.toHaveBeenCalled();
   });
 
-  it("names both buttons for what they do", () => {
+  it("opens without motion when the viewer prefers reduced motion", () => {
+    preferReducedMotion("reduce");
+
     show();
 
-    expect(dismiss()?.getAttribute("aria-label")).toMatch(/dismiss/i);
-    expect(reopen()?.textContent).toMatch(/gh-prism/);
-    expect([dismiss()?.type, reopen()?.type]).toEqual(["button", "button"]);
+    expect(dialog() && getComputedStyle(dialog() as HTMLDialogElement).animation).toBe("none");
   });
 
-  it("replaces a notice and button a restored snapshot carries", () => {
+  it("replaces a dialog and button a restored snapshot carries", () => {
     show();
     const snapshot = document.body.innerHTML;
     controller.abort();
@@ -137,16 +140,16 @@ describe("showClassicNotice", () => {
 
     show();
 
-    expect(document.querySelectorAll(".gh-prism-notice")).toHaveLength(1);
-    expect(document.querySelectorAll(".gh-prism-notice-reopen")).toHaveLength(1);
+    expect(document.querySelectorAll(".gh-prism-classic-notice")).toHaveLength(1);
+    expect(document.querySelectorAll(".gh-prism-classic-notice-button")).toHaveLength(1);
   });
 
-  it("removes the notice and button when aborted", () => {
+  it("removes the dialog and button when aborted", () => {
     show();
 
     controller.abort();
 
-    expect(notice()).toBeNull();
-    expect(reopen()).toBeNull();
+    expect(dialog()).toBeNull();
+    expect(opener()).toBeNull();
   });
 });

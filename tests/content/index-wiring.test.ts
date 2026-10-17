@@ -221,24 +221,25 @@ describe("content script", () => {
   });
 
   describe("on a classic Files changed page", () => {
-    const notice = () => document.querySelector<HTMLElement>(".gh-prism-notice");
-    const reopen = () => document.querySelector<HTMLButtonElement>(".gh-prism-notice-reopen");
+    const dialog = () =>
+      document.querySelector<HTMLDialogElement>("dialog.gh-prism-classic-notice");
+    const opener = () =>
+      document.querySelector<HTMLButtonElement>(".gh-prism-classic-notice-button");
 
     beforeEach(() => {
       history.replaceState(null, "", "/o/r/pull/1/files");
       loadClassicFixture("");
     });
 
-    it("shows the notice", async () => {
+    it("opens the notice", async () => {
       await run();
 
-      expect(notice()?.hidden).toBe(false);
-      expect(reopen()?.hidden).toBe(true);
+      expect(dialog()?.open).toBe(true);
     });
 
     it("keeps a dismissal for the next page", async () => {
       await run();
-      notice()?.querySelector("button")?.click();
+      dialog()?.close();
       await vi.waitFor(async () =>
         expect(await fakeBrowser.storage.local.get("classicNoticeDismissed")).toEqual({
           classicNoticeDismissed: true,
@@ -249,18 +250,18 @@ describe("content script", () => {
 
       await run();
 
-      expect(notice()?.hidden).toBe(true);
-      expect(reopen()?.hidden).toBe(false);
+      expect(dialog()?.open).toBe(false);
+      expect(opener()).not.toBeNull();
     });
 
-    it("shows the notice when reading the saved dismissal fails", async () => {
+    it("opens the notice when reading the saved dismissal fails", async () => {
       const failure = new Error("context invalidated");
       vi.spyOn(fakeBrowser.storage.local, "get").mockRejectedValue(failure);
       const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
 
       await run();
 
-      expect(notice()?.hidden).toBe(false);
+      expect(dialog()?.open).toBe(true);
       expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
     });
 
@@ -272,8 +273,8 @@ describe("content script", () => {
       window.dispatchEvent(new PopStateEvent("popstate"));
       await afterMutations();
 
-      expect(notice()).toBeNull();
-      expect(reopen()).toBeNull();
+      expect(dialog()).toBeNull();
+      expect(opener()).toBeNull();
     });
   });
 });

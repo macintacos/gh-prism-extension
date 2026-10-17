@@ -23,7 +23,7 @@ GitHub first renders the page. It cannot match only Files view URLs, because of 
 soft navigation: GitHub swaps in a new page without loading a new document, so a script
 matched to pull request URLs would never be injected when you click through to one.
 Instead, it watches every page for a Files view to appear, and for a pull request's
-classic page, where it shows a notice instead.
+classic page, where it opens a dialog instead.
 
 ## Page kinds
 
@@ -89,13 +89,13 @@ read.
 ## The classic page notice
 
 [`entrypoints/content/classic/notice.ts`](../entrypoints/content/classic/notice.ts) runs
-on each classic page. `showClassicNotice` puts a notice just above GitHub's toolbar that
-says why gh-prism isn't running there and how to get the new page: signed out, sign in;
-signed in, turn on GitHub's New Files Changed Experience preview. Dismissing it leaves a
-**Why is gh-prism off?** button beside the toolbar's review tools, which brings it back.
-`index.ts` reads the dismissal from `classicNoticeDismissed` in
-[`utils/prefs.ts`](../utils/prefs.ts) before watching, shares it across the tab's pages,
-and saves each change.
+on each classic page. `showClassicNotice` opens a native modal `<dialog>` that says why
+gh-prism isn't running there and how to get the new page: signed out, sign in; signed in,
+turn on GitHub's New Files Changed Experience preview. Closing it any way, by its buttons,
+Esc, or a click outside it, dismisses it. A **Why is gh-prism off?** button beside the
+toolbar's review tools opens it again. `index.ts` reads the dismissal from
+`classicNoticeDismissed` in [`utils/prefs.ts`](../utils/prefs.ts) before watching, shares
+it across the tab's pages, and saves it on each close.
 
 ## Intent and its cache
 
@@ -201,7 +201,7 @@ entrypoints/
   content/
     index.ts             content script entry: wires the watchers, intent, and views
     files-page.ts        every GitHub Files view selector; page kinds; the classic page
-    classic/             notice on a pull request's classic Files changed page
+    classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch
     diffs/               diff order, reveal, on-screen and Viewed tracking
