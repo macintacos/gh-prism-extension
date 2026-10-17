@@ -10,7 +10,7 @@ implementation. AI-assisted pull requests often look like this: the rest of the 
 docs, tests, and other updates. gh-prism lets you focus on the implementation first, then
 give each other part its own deliberate pass.
 
-![The gh-prism sidebar with the sections Implementation, Tests, Documentation, Config, and Generated / lockfiles. src/render.rs is marked Partial under Implementation and Documentation.](docs/images/sidebar-grouped.png)
+![The gh-prism sidebar with the sections Implementation, Tests, Docs & Comments, Config, and Generated / lockfiles. src/render.rs is marked Partial under Implementation and Docs & Comments.](docs/images/sidebar-grouped.png)
 
 ## What it does
 
@@ -20,9 +20,9 @@ or `/pull/<number>/commits/<sha>`, it opens a dialog that says why it isn't runn
 how to get the new tab. Once you close the dialog, it stays closed, and
 **Why is gh-prism off?** in the tab's toolbar opens it again.
 
-- It groups changed files into five sections: Implementation, Tests, Documentation,
+- It groups changed files into five sections: Implementation, Tests, Docs & Comments,
   Config, and Generated / lockfiles.
-- It moves a change that touches only comments or docstrings to Documentation, and a
+- It moves a change that touches only comments or docstrings to Docs & Comments, and a
   change that sits only inside inline test blocks, such as a Rust `mod tests` block, to
   Tests.
 - It lists a file whose changes belong in more than one section under each of those

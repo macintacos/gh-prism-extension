@@ -92,7 +92,7 @@ interface FileIntent {
 
 /**
  * The head is read only when the patch can't settle every hunk as docs and a rule or a comment
- * count needs it. A file whose every hunk is docs moves whole to Documentation; otherwise a hunk in
+ * count needs it. A file whose every hunk is docs moves whole to Docs & Comments; otherwise a hunk in
  * a test block counts as Tests even when it only edits a doc comment. A hunk whose comment lines
  * only the unread head could confirm counts none.
  */

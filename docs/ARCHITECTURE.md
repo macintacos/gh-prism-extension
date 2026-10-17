@@ -101,11 +101,11 @@ it across the tab's pages, and saves it on each close.
 
 gh-prism lists each changed file in one of five sections, such as Implementation or Tests.
 A file's path picks its section, unless a hunk rule claims some of its changed blocks for
-Documentation or Tests by what they change. Intent is where the hunk rules place a diff's
-files. It also counts, per file, the changed lines the comment scan confirms are comments
-or docstrings in hunks that stay in Implementation; a line only an unread head could
-confirm counts as code. `intentFor` in [`utils/intent/read.ts`](../utils/intent/read.ts)
-finds it in three steps, cheapest first:
+Docs & Comments or Tests by what they change. Intent is where the hunk rules place a
+diff's files. It also counts, per file, the changed lines the comment scan confirms are
+comments or docstrings in hunks that stay in Implementation; a line only an unread head
+could confirm counts as code. `intentFor` in
+[`utils/intent/read.ts`](../utils/intent/read.ts) finds it in three steps, cheapest first:
 
 1. **Pin hit.** The diff pin, the base and head commits that the page's embedded data
    names, keys a cache entry. A hit returns without connecting to the service worker.

@@ -797,7 +797,7 @@ describe("readIntent", () => {
     });
   });
 
-  it("keeps a Rust file whose every hunk is docs whole in Documentation, though one sits inside `mod tests`", async () => {
+  it("keeps a Rust file whose every hunk is docs whole in Docs & Comments, though one sits inside `mod tests`", async () => {
     const client = fakeClient(
       { ok: true, files: [modified("src/report.rs", allDocsPatch)] },
       { ok: true, text: allDocsHead },
@@ -930,7 +930,7 @@ describe("readIntent", () => {
     expect(client.fileContent).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps a test-directory file's unclaimed code hunk in Tests, beside its docs hunk in Documentation", async () => {
+  it("keeps a test-directory file's unclaimed code hunk in Tests, beside its docs hunk in Docs & Comments", async () => {
     const client = fakeClient(
       { ok: true, files: [modified("tests/engine.go", goSplitPatch)] },
       unreadable,

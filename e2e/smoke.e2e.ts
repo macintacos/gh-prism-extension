@@ -166,7 +166,7 @@ test("a pull request mounts its sections in path-only mode", async ({ context, p
   for (const name of [
     "Implementation",
     "Tests",
-    "Documentation",
+    "Docs & Comments",
     "Config",
     "Generated / lockfiles",
   ]) {

@@ -225,7 +225,7 @@ describe("showSections", () => {
 
     expect(
       [...document.querySelectorAll(".gh-prism-section-label")].map((label) => label.textContent),
-    ).toEqual(["Implementation", "Tests", "Documentation", "Config", "Generated / lockfiles"]);
+    ).toEqual(["Implementation", "Tests", "Docs & Comments", "Config", "Generated / lockfiles"]);
   });
 
   it("sits just before the native tree", () => {
