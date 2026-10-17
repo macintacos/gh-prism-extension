@@ -66,6 +66,12 @@ rule claims it for Documentation.
 **Inline-test change**: A hunk whose changes all sit inside a source file's test blocks.
 The inline-test rule claims it for Tests.
 
+**Comment lines**: The changed lines in a hunk left in Implementation that the comment
+scan confirms are comments or docstrings. They count toward Docs & Comments.
+
+**Comment-lines item**: Docs & Comments' one entry that isn't a file. It sums the comment
+lines and lists them per file. _Avoid_: phantom item, phantom row
+
 **Intent**: Where the hunk rules place a diff's files, once read. A file it doesn't
 mention keeps its path section. _Avoid_: classification
 

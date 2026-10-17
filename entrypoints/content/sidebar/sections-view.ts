@@ -8,7 +8,13 @@
 
 import type { FileTreeRowDecoration } from "@pierre/trees";
 import type { LineCounts } from "@/utils/github/pr-diff";
-import { landingOf, revealLineOf, totalsOf } from "@/utils/intent/landing";
+import {
+  type CommentLines,
+  commentLinesOf,
+  landingOf,
+  revealLineOf,
+  totalsOf,
+} from "@/utils/intent/landing";
 import type { IntentResult, PathOnlyReason } from "@/utils/intent/read";
 import { SECTIONS, type SectionKey } from "@/utils/sections";
 import { revealDiff, revealDiffLine, revealUntil } from "../diffs/reveal";
@@ -202,7 +208,56 @@ function sectionShell(
     toggle.setAttribute("aria-expanded", String(expanded));
     files.inert = !expanded;
   };
-  return { root, counter, host, toggle, expand };
+  return { root, counter, host, files, toggle, expand };
+}
+
+/**
+ * Docs & Comments' item for `comments`, the comment lines of Implementation's files: their sum, and
+ * a tooltip listing them per file while it is hovered or focused. It sits outside the tree, so the
+ * file rows' handlers never see it.
+ */
+function commentLinesItem(doc: Document, comments: CommentLines): HTMLElement {
+  const rows = comments.files.map(({ path, lines }) =>
+    el(
+      doc,
+      "li",
+      "gh-prism-comment-lines-row tw:flex tw:items-center tw:gap-2",
+      el(doc, "code", "tw:truncate tw:text-body-small", path),
+      lineTotals(doc, lines),
+    ),
+  );
+  const tip = el(
+    doc,
+    "ul",
+    "gh-prism-comment-lines-tip tw:gap-1 tw:w-max tw:max-w-[320px] tw:py-1.5 tw:px-2 tw:border tw:border-border-default tw:rounded-medium tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:var(--shadow-floating-small)] tw:text-fg-default tw:text-body-small tw:leading-body-small tw:list-none",
+    ...rows,
+  );
+  tip.id = "gh-prism-comment-lines-tip";
+  tip.popover = "manual";
+  tip.setAttribute("role", "tooltip");
+
+  const item = el(
+    doc,
+    "div",
+    "gh-prism-comment-lines tw:flex tw:items-center tw:gap-2 tw:h-7 tw:mx-1 tw:px-2 tw:rounded-medium tw:text-fg-muted tw:text-body-small tw:cursor-default tw:hover:bg-[var(--control-transparent-bgColor-hover)] tw:focus-visible:outline-2 tw:focus-visible:-outline-offset-2 tw:focus-visible:outline-focus-outline",
+    el(doc, "span", "tw:truncate", "Implementation comments / docstrings"),
+    lineTotals(doc, comments.lines),
+    tip,
+  );
+  item.tabIndex = 0;
+  item.setAttribute("aria-describedby", tip.id);
+
+  // Forced toggles: showPopover throws on an open popover, as when focus follows a hover.
+  const show = () => tip.togglePopover(true);
+  const hide = () => tip.togglePopover(false);
+  item.addEventListener("focus", show);
+  item.addEventListener("pointerenter", show);
+  item.addEventListener("blur", hide);
+  item.addEventListener("pointerleave", hide);
+  item.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") hide();
+  });
+  return item;
 }
 
 /**
@@ -452,10 +507,19 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     { order, previous, files, active }: BuildOptions,
   ): ShownSection => {
     // Set once: a section is only built after intent lands, and the landed lines never change.
-    const { root, counter, host, toggle, expand } = sectionShell(doc, key, {
+    const {
+      root,
+      counter,
+      host,
+      files: region,
+      toggle,
+      expand,
+    } = sectionShell(doc, key, {
       order,
       lines: totalOf(key),
     });
+    const comments = key === "docs" ? commentLinesOf(landing) : undefined;
+    if (comments) region.append(commentLinesItem(doc, comments));
     expand(!collapsed.has(key));
     toggle.addEventListener("click", () => {
       const expanded = collapsed.has(key);

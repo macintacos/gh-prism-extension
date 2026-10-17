@@ -154,6 +154,12 @@ height follows its visible rows, so the whole sidebar scrolls as one. The sectio
 calls each tree's `sync()` when the sidebar scrolls or resizes, and `sync()` renders only
 the rows near the viewport. A tree far out of view renders none.
 
+Docs & Comments ends with the comment-lines item when Implementation's files have comment
+lines. It sits after the tree, outside it, so the handlers that open, mark Viewed, count,
+and scroll to file rows never see it. Hovering or focusing it shows its per-file list as a
+`popover="manual"` tooltip in the top layer, placed by CSS anchor positioning, so the
+sidebar's overflow can't clip it.
+
 [`entrypoints/content/diffs/on-screen.ts`](../entrypoints/content/diffs/on-screen.ts)
 tracks which files' diffs are on screen. It observes the mounted diff regions with one
 `IntersectionObserver`, its top inset by `coveredTop` (the band GitHub's sticky chrome

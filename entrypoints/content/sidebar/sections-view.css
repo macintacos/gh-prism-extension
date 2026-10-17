@@ -95,6 +95,40 @@
   --gh-prism-box-hover-fill: color-mix(in srgb, var(--gh-prism-hue) 80%, var(--fgColor-default));
 }
 
+/* The tooltip sits in the top layer, so the sidebar's overflow can't clip it. */
+.gh-prism-comment-lines {
+  anchor-name: --gh-prism-comment-lines;
+}
+
+.gh-prism-comment-lines-tip {
+  position-anchor: --gh-prism-comment-lines;
+  position-area: block-end span-inline-end;
+  position-try-fallbacks: flip-block;
+  inset: auto;
+  margin: 6px 0;
+  opacity: 0;
+  transition:
+    opacity 120ms ease-out,
+    overlay 120ms allow-discrete,
+    display 120ms allow-discrete;
+}
+
+/* Display stays CSS: the UA hides a closed popover with display: none, which a utility would beat. */
+.gh-prism-comment-lines-tip:popover-open {
+  display: grid;
+  opacity: 1;
+}
+
+@starting-style {
+  .gh-prism-comment-lines-tip:popover-open {
+    opacity: 0;
+  }
+}
+
+.gh-prism-comment-lines-row > .gh-prism-line-totals .gh-prism-pill-count {
+  font-weight: var(--base-text-weight-semibold);
+}
+
 .gh-prism-skeleton > span {
   display: block;
   height: 10px;
@@ -146,7 +180,8 @@
   .gh-prism-sections[data-reveal] .gh-prism-section,
   .gh-prism-section-icon,
   .gh-prism-chevron,
-  .gh-prism-files {
+  .gh-prism-files,
+  .gh-prism-comment-lines-tip {
     transition: none;
     animation: none;
   }
