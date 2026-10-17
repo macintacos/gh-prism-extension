@@ -31,6 +31,7 @@ at `/pull/<number>/changes`. It leaves the classic Files changed tab untouched.
 - It dims the files you've marked Viewed on GitHub, in every section that lists them, and
   once any file is Viewed, each section's heading shows how many of its files are Viewed
   (`N/M`). It follows GitHub's Viewed toggle.
+- It marks a file Viewed on GitHub when you tick the checkbox on its row.
 
 ## Install
 
