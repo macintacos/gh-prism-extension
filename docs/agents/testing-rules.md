@@ -67,6 +67,11 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   alignment the click lands on depends on the machine's speed, so the sidebar can stay put
   locally and move on CI. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "ticking a box
   doesn't scroll the sidebar" awaits the animations' `finished` first.
+- **After a test scrolls the sidebar, wait for the tree to take pointer events before it
+  clicks a row.** @pierre/trees sets `pointer-events: none` on the tree while it scrolls,
+  so a click that comes too soon is intercepted and retried, with the same forced scroll.
+  "ticking a box doesn't scroll the sidebar" polls the box's computed `pointer-events`
+  first.
 - **Keep a test's page its window's active tab.** Each launch is an install, so the
   extension opens its welcome page as the active tab of the window the test's page shares.
   Chromium answers a tab behind it late: each mouse wheel took 2 s on 2-CPU Linux, and CI

@@ -622,6 +622,10 @@ test("ticking a box doesn't scroll the sidebar", async ({ context, page }) => {
   await scrollSidebarToBulkRow(page, 150);
   const box = page.locator('[data-item-checkbox="bulk/file-150.rs"]');
   await expect(box).toBeInViewport();
+  // A click the scrolling tree ignores is retried, with a scroll.
+  await expect
+    .poll(() => box.evaluate((el) => getComputedStyle(el).pointerEvents))
+    .not.toBe("none");
   const sidebar = page.locator("#pr-file-tree");
   const before = await sidebar.evaluate((el) => el.scrollTop);
 
