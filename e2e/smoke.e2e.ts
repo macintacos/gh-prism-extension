@@ -565,6 +565,10 @@ test("ticking a box doesn't scroll the sidebar", async ({ context, page }) => {
   await serve(context, PR_URL, LARGE_VIEWED_BODY);
   await page.goto(PR_URL);
   await expect(page.locator('[data-item-checkbox="bulk/file-000.rs"]')).toBeVisible();
+  // Playwright scrolls a box it finds moving into view itself, and the reveal moves every box.
+  await page.locator(".gh-prism-sections").evaluate(async (view) => {
+    await Promise.all(view.getAnimations({ subtree: true }).map(({ finished }) => finished));
+  });
   // The tree's focused row stays its top one, which the reader never focused.
   await scrollSidebarToBulkRow(page, 150);
   const box = page.locator('[data-item-checkbox="bulk/file-150.rs"]');
@@ -573,10 +577,10 @@ test("ticking a box doesn't scroll the sidebar", async ({ context, page }) => {
   const before = await sidebar.evaluate((el) => el.scrollTop);
 
   await box.click();
-  await page.waitForTimeout(1000);
+  await expect(box).toHaveAttribute("aria-busy", "true");
+  await expect(box).not.toHaveAttribute("aria-busy", "true", { timeout: 7000 });
 
   expect(await sidebar.evaluate((el) => el.scrollTop)).toBe(before);
-  await expect(box).not.toHaveAttribute("aria-busy", "true", { timeout: 7000 });
   await expect(box).not.toBeChecked();
 });
 
