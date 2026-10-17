@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  commentLinesOf,
   type LandedSection,
   landingOf,
   revealLineOf,
@@ -155,6 +156,81 @@ describe("totalsOf", () => {
     expect(totalsOf(landingOf(undefined))).toEqual([]);
   });
 });
+
+describe("comment lines", () => {
+  const commented = landingOf({
+    ok: true,
+    placements: new Map<string, Placement>([["src/render.rs", split]]),
+    lines: new Map<string, FileLines>([
+      ["src/parser.rs", { added: 10, removed: 3 }],
+      ["src/render.rs", { added: 7, removed: 1 }],
+      ["config/app.toml", "binary"],
+      ["tests/integration.rs", { added: 20, removed: 0 }],
+    ]),
+    commentLines: new Map([
+      ["src/render.rs", { added: 2, removed: 1 }],
+      ["src/parser.rs", { added: 3, removed: 0 }],
+    ]),
+  });
+  const sections = sectionsOf(commented, files("src/parser.rs", "src/render.rs"));
+
+  it("leaves them out of an Implementation file's entry, whole or as a split's share", () => {
+    expect(placesOf(sections, "src/parser.rs")).toEqual([
+      { section: "implementation", share: undefined, lines: { added: 7, removed: 3 } },
+    ]);
+    expect(placesOf(sections, "src/render.rs")[0]?.lines).toEqual({ added: 3, removed: 0 });
+  });
+
+  it("leaves a docs share's lines as they are", () => {
+    expect(placesOf(sections, "src/render.rs")[1]?.lines).toEqual({ added: 2, removed: 0 });
+  });
+
+  it("count them in the docs total, keeping the totals summing to every file's lines", () => {
+    const totals = totalsOf(commented);
+    expect(totals.find(({ section }) => section === "docs")?.lines).toEqual({
+      added: 7,
+      removed: 1,
+    });
+    const all = sum(totals.map(({ lines }) => lines));
+    expect(all).toEqual({ added: 37, removed: 4 });
+  });
+
+  it("make docs a section even when no file lands there", () => {
+    expect(sections.map(({ key }) => key)).toEqual(["implementation", "docs"]);
+    expect(sections[1]?.entries.map(({ file }) => file.path)).toEqual(["src/render.rs"]);
+    const onlyComments = landingOf({
+      ok: true,
+      placements: new Map(),
+      lines: new Map([["src/a.rs", { added: 3, removed: 0 }]]),
+      commentLines: new Map([["src/a.rs", { added: 1, removed: 0 }]]),
+    });
+    expect(sectionsOf(onlyComments, files("src/a.rs"))).toEqual([
+      { key: "implementation", entries: [expect.anything()] },
+      { key: "docs", entries: [] },
+    ]);
+  });
+
+  it("list them per file in diff order with their sum", () => {
+    expect(commentLinesOf(commented)).toEqual({
+      lines: { added: 5, removed: 1 },
+      files: [
+        { path: "src/parser.rs", lines: { added: 3, removed: 0 } },
+        { path: "src/render.rs", lines: { added: 2, removed: 1 } },
+      ],
+    });
+  });
+
+  it("give nothing to list without any", () => {
+    expect(commentLinesOf(landing)).toEqual(undefined);
+    expect(commentLinesOf(landingOf(undefined))).toEqual(undefined);
+  });
+});
+
+const sum = (counts: readonly { added: number; removed: number }[]) =>
+  counts.reduce((a, b) => ({ added: a.added + b.added, removed: a.removed + b.removed }), {
+    added: 0,
+    removed: 0,
+  });
 
 describe("revealLineOf", () => {
   it("gives the first head line of the share placed in the section", () => {

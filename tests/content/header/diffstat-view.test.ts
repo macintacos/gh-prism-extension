@@ -75,6 +75,23 @@ describe("the header's lines-changed counter", () => {
     ]);
   });
 
+  it("counts Implementation files' comment lines in the docs pill, not Implementation's", async () => {
+    await landed(
+      landedWith(
+        new Map(),
+        new Map<string, FileLines>([
+          ["src/parser.rs", { added: 10, removed: 3 }],
+          ["README.md", { added: 1, removed: 0 }],
+        ]),
+        new Map([["src/parser.rs", { added: 4, removed: 1 }]]),
+      ),
+    );
+    expect(pillCounts()).toEqual([
+      ["implementation", ["+6", "−2"]],
+      ["docs", ["+5", "−1"]],
+    ]);
+  });
+
   it("styles its pills with its own stylesheet, without the sidebar, until aborted", () => {
     abort();
     const page = findFilesPage(document);

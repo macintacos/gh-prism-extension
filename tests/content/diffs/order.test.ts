@@ -230,6 +230,25 @@ describe("the diffs beside the sections", () => {
     expect(new Set(delays(second))).toEqual(new Set(["50ms"]));
   });
 
+  it("keep their order and drop-in delays when Docs & Comments holds only comment lines", async () => {
+    const layout = () =>
+      placedEntries().map((entry) =>
+        entry instanceof HTMLElement ? [entry.style.order, entry.style.animationDelay] : [],
+      );
+    const noDocsFiles = new Map([
+      ["docs/guide.md", whole("tests")],
+      ["README.md", whole("tests")],
+    ]);
+    await landed(landedWith(noDocsFiles));
+    const without = layout();
+
+    await landed(
+      landedWith(noDocsFiles, new Map(), new Map([["src/parser.rs", { added: 2, removed: 1 }]])),
+    );
+
+    expect(layout()).toEqual(without);
+  });
+
   it("put a file intent moves where the sidebar lists it", async () => {
     await landed(landedWith(new Map([["src/notes.rs", whole("docs")]])));
 

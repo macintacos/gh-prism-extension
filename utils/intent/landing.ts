@@ -4,9 +4,11 @@ import type { FileLines, IntentResult, IntentSection, SectionShare } from "./rea
 
 /**
  * Where a diff's files land, read through this module's functions: `placements` is sparse, and a
- * file absent from it keeps its path section. Both maps are empty when path-only.
+ * file absent from it keeps its path section. Every map is empty when path-only.
  */
-export type Landing = Readonly<Pick<Extract<IntentResult, { ok: true }>, "placements" | "lines">>;
+export type Landing = Readonly<
+  Pick<Extract<IntentResult, { ok: true }>, "placements" | "lines" | "commentLines">
+>;
 
 /** One place a file lands: whole, or as the share of a split that lands in `section`. */
 export interface LandedEntry {
@@ -30,7 +32,11 @@ export interface SectionLines {
   readonly lines: LineCounts;
 }
 
-const PATH_ONLY: Landing = { placements: new Map(), lines: new Map() };
+const PATH_ONLY: Landing = {
+  placements: new Map(),
+  lines: new Map(),
+  commentLines: new Map(),
+};
 
 /**
  * `result`'s placements and lines once it lands ok; path-only while pending or when it isn't ok.
@@ -44,17 +50,35 @@ export const landingOf = (result: IntentResult | undefined): Landing =>
 export const sectionOf = (path: string, claimed?: IntentSection): SectionKey =>
   claimed ?? classify(path);
 
-/** Where `path` lands: once whole, or once per share of a split. */
-function entriesOf({ placements, lines }: Landing, path: string): LandedEntry[] {
+/**
+ * Where `path` lands: once whole, or once per share of a split. Its Implementation entry leaves
+ * out its comment lines, which count toward Docs & Comments.
+ */
+function entriesOf({ placements, lines, commentLines }: Landing, path: string): LandedEntry[] {
   const placement = placements.get(path);
-  if (placement?.kind === "split")
-    return placement.shares.map((share) => ({ section: share.section, share, lines: share.lines }));
-  return [{ section: sectionOf(path, placement?.section), lines: lines.get(path) }];
+  const entries: LandedEntry[] =
+    placement?.kind === "split"
+      ? placement.shares.map((share) => ({ section: share.section, share, lines: share.lines }))
+      : [{ section: sectionOf(path, placement?.section), lines: lines.get(path) }];
+  const comments = commentLines.get(path);
+  return entries.map((entry) =>
+    comments && entry.section === "implementation" && isCounted(entry.lines)
+      ? { ...entry, lines: minus(entry.lines, comments) }
+      : entry,
+  );
 }
+
+const isCounted = (lines: FileLines | undefined): lines is LineCounts =>
+  lines !== undefined && lines !== "binary";
+
+const minus = (lines: LineCounts, less: LineCounts): LineCounts => ({
+  added: lines.added - less.added,
+  removed: lines.removed - less.removed,
+});
 
 /**
  * Non-empty sections in `SECTIONS` order, each listing the `files` that land there in `files`'
- * order.
+ * order. Docs & Comments is non-empty with comment lines alone, even when no file lands there.
  */
 export function sectionsOf<F extends { readonly path: string }>(
   landing: Landing,
@@ -65,7 +89,8 @@ export function sectionsOf<F extends { readonly path: string }>(
   );
   const bySection = Map.groupBy(entries, ({ section }) => section);
   return SECTIONS.flatMap((key) => {
-    const landed = bySection.get(key);
+    const landed =
+      bySection.get(key) ?? (key === "docs" && landing.commentLines.size > 0 ? [] : undefined);
     return landed ? [{ key, entries: landed }] : [];
   });
 }
@@ -86,14 +111,34 @@ const sum = (counts: readonly LineCounts[]): LineCounts =>
 export function totalsOf(landing: Landing): SectionLines[] {
   const counted = [...landing.lines.keys()].flatMap((path) =>
     entriesOf(landing, path).flatMap(({ section, lines }) =>
-      lines === undefined || lines === "binary" ? [] : [{ section, lines }],
+      isCounted(lines) ? [{ section, lines }] : [],
     ),
   );
-  const bySection = Map.groupBy(counted, ({ section }) => section);
+  const comments = [...landing.commentLines.values()].map((lines) => ({
+    section: "docs" as const,
+    lines,
+  }));
+  const bySection = Map.groupBy([...counted, ...comments], ({ section }) => section);
   return SECTIONS.flatMap((key) => {
     const total = sum((bySection.get(key) ?? []).map(({ lines }) => lines));
     return total.added + total.removed > 0 ? [{ section: key, lines: total }] : [];
   });
+}
+
+/** The comment lines of the diff's Implementation files, and their sum. */
+export interface CommentLines {
+  readonly lines: LineCounts;
+  /** In diff order. */
+  readonly files: readonly { readonly path: string; readonly lines: LineCounts }[];
+}
+
+/** `landing`'s comment lines; `undefined` when it has none. */
+export function commentLinesOf(landing: Landing): CommentLines | undefined {
+  const files = [...landing.lines.keys()].flatMap((path) => {
+    const lines = landing.commentLines.get(path);
+    return lines ? [{ path, lines }] : [];
+  });
+  return files.length > 0 ? { lines: sum(files.map(({ lines }) => lines)), files } : undefined;
 }
 
 /**

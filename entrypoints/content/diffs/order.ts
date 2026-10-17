@@ -255,7 +255,10 @@ export function showDiffOrder(page: FilesPage, signal: AbortSignal): LandingView
     },
     sections(sections) {
       order.arrange(
-        sections.map(({ entries }) => entries.map(({ file }) => file.link.hash.slice(1))),
+        // A section of comment lines alone has no diffs, so it takes no drop-in turn.
+        sections.flatMap(({ entries }) =>
+          entries.length > 0 ? [entries.map(({ file }) => file.link.hash.slice(1))] : [],
+        ),
       );
       order.reveal();
     },
