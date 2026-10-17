@@ -99,7 +99,8 @@ is at most one.
 be many. _Avoid_: in view
 
 **Viewed file**: A file whose Viewed toggle on GitHub is pressed. The sidebar dims its
-rows and never hides them; gh-prism stores none of this state. Only a page that offers
+rows and never hides them, and once any file is Viewed, each section's header counts how
+many of its files are Viewed; gh-prism stores none of this state. Only a page that offers
 Viewed, a pull request's full Files changed view signed in, has Viewed files. _Avoid_:
 reviewed file, seen
 
