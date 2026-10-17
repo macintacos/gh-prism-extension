@@ -1,4 +1,4 @@
-import { type PrFileDiff, type PrHunk, parsePrHunks } from "../github/pr-diff";
+import { type LineCounts, type PrFileDiff, type PrHunk, parsePrHunks } from "../github/pr-diff";
 import {
   type CommentSyntax,
   commentSyntaxOf,
@@ -36,17 +36,40 @@ export function docHunkVerdict(path: string, hunk: PrHunk, head?: ScannedHead): 
   const syntax = commentSyntaxOf(path);
   if (syntax === undefined) return "path";
 
-  if (head !== undefined) {
-    // `linesAbove` is clamped into `starts`, so the `??` fallback never applies.
-    const linesAbove = Math.min(Math.max(hunk.newStart - 1, 0), head.lines.length);
-    return hunkVerdictFrom(syntax, hunk, head.starts[linesAbove] ?? FILE_START);
-  }
+  if (head !== undefined) return hunkVerdictFrom(syntax, hunk, headStart(hunk, head));
 
   const verdicts = new Set(
     plausibleStarts(syntax, hunk).map((start) => hunkVerdictFrom(syntax, hunk, start)),
   );
   if (verdicts.size > 1) return "needs-content";
   return verdicts.has("docs") ? "docs" : "path";
+}
+
+/**
+ * The changed lines of `hunk` the comment scan confirms are comments or docstrings, by side.
+ * Without a head scan, every plausible start must give the same counts; with one, the start is
+ * the scan's state just above the hunk. A hunk that reshapes a block, or an unsupported
+ * extension, counts zero.
+ */
+export function commentLineCounts(path: string, hunk: PrHunk): LineCounts | "needs-content";
+export function commentLineCounts(path: string, hunk: PrHunk, head: ScannedHead): LineCounts;
+export function commentLineCounts(
+  path: string,
+  hunk: PrHunk,
+  head?: ScannedHead,
+): LineCounts | "needs-content" {
+  const syntax = commentSyntaxOf(path);
+  if (syntax === undefined) return { added: 0, removed: 0 };
+
+  if (head !== undefined) return countsFrom(syntax, hunk, headStart(hunk, head));
+
+  const [first, ...rest] = plausibleStarts(syntax, hunk).map((start) =>
+    countsFrom(syntax, hunk, start),
+  );
+  const agree = rest.every(
+    (counts) => counts.added === first?.added && counts.removed === first.removed,
+  );
+  return agree && first !== undefined ? first : "needs-content";
 }
 
 /**
@@ -75,35 +98,69 @@ function bodyOf(hunk: PrHunk): HunkLine[] {
     .map((line) => ({ marker: line.charAt(0), text: line.slice(1) }));
 }
 
+/** The head's scan state just above `hunk`. */
+function headStart(hunk: PrHunk, head: ScannedHead): ScanState {
+  // `linesAbove` is clamped into `starts`, so the `??` fallback never applies.
+  const linesAbove = Math.min(Math.max(hunk.newStart - 1, 0), head.lines.length);
+  return head.starts[linesAbove] ?? FILE_START;
+}
+
+interface ChangedLine {
+  readonly marker: "-" | "+";
+  readonly kind: LineKind;
+}
+
 /**
- * Scans both sides of the hunk from `start`. A context line that reads differently on the two
- * sides, with code on either, means the change altered its block: "path".
+ * Scans both sides of the hunk from `start`, returning each changed line's kind. A context line
+ * that reads differently on the two sides, with code on either, means the change altered its
+ * block: "reshaped".
  */
-function hunkVerdictFrom(syntax: CommentSyntax, hunk: PrHunk, start: ScanState): "docs" | "path" {
+function scanChanges(
+  syntax: CommentSyntax,
+  hunk: PrHunk,
+  start: ScanState,
+): ChangedLine[] | "reshaped" {
   // The old side reuses the head's start state: only the head file can be read.
   let before = start;
   let after = start;
-  const changed: LineKind[] = [];
+  const changed: ChangedLine[] = [];
 
   for (const { marker, text } of bodyOf(hunk)) {
     if (marker === "-") {
       const scanned = scanLine(syntax, before, text);
       before = scanned.state;
-      changed.push(scanned.kind);
+      changed.push({ marker, kind: scanned.kind });
     } else if (marker === "+") {
       const scanned = scanLine(syntax, after, text);
       after = scanned.state;
-      changed.push(scanned.kind);
+      changed.push({ marker, kind: scanned.kind });
     } else {
       const old = scanLine(syntax, before, text);
       const now = scanLine(syntax, after, text);
       before = old.state;
       after = now.state;
-      if (old.kind !== now.kind && (old.kind === "code" || now.kind === "code")) return "path";
+      if (old.kind !== now.kind && (old.kind === "code" || now.kind === "code")) return "reshaped";
     }
   }
 
-  return changed.includes("code") || !changed.includes("comment") ? "path" : "docs";
+  return changed;
+}
+
+function hunkVerdictFrom(syntax: CommentSyntax, hunk: PrHunk, start: ScanState): "docs" | "path" {
+  const changed = scanChanges(syntax, hunk, start);
+  if (changed === "reshaped") return "path";
+  const kinds = changed.map(({ kind }) => kind);
+  return kinds.includes("code") || !kinds.includes("comment") ? "path" : "docs";
+}
+
+function countsFrom(syntax: CommentSyntax, hunk: PrHunk, start: ScanState): LineCounts {
+  const changed = scanChanges(syntax, hunk, start);
+  if (changed === "reshaped") return { added: 0, removed: 0 };
+  const comments = changed.filter(({ kind }) => kind === "comment");
+  return {
+    added: comments.filter(({ marker }) => marker === "+").length,
+    removed: comments.filter(({ marker }) => marker === "-").length,
+  };
 }
 
 /**

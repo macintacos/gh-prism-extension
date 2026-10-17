@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { PrFileDiff, PrHunk } from "../../../utils/github/pr-diff";
+import type { LineCounts, PrFileDiff, PrHunk } from "../../../utils/github/pr-diff";
 import { parsePrHunks } from "../../../utils/github/pr-diff";
 import type { DocVerdict } from "../../../utils/hunk-rules/doc-intent";
-import { docHunkVerdict, docHunkVerdicts } from "../../../utils/hunk-rules/doc-intent";
+import {
+  commentLineCounts,
+  docHunkVerdict,
+  docHunkVerdicts,
+} from "../../../utils/hunk-rules/doc-intent";
 import { headOf, lines } from "../../fixtures/head-scan";
 
 const hunkOf = (patch: string): PrHunk => {
@@ -1148,5 +1152,294 @@ describe("docHunkVerdicts", () => {
 
   it.each(headFileCases)("$name", ({ file, headText, verdicts }) => {
     expect(docHunkVerdicts(file, headOf(file.path, headText))).toEqual(verdicts);
+  });
+});
+
+interface CountCase {
+  readonly name: string;
+  readonly path: string;
+  readonly patch: string;
+  readonly counts: LineCounts | "needs-content";
+}
+
+interface HeadCountCase {
+  readonly name: string;
+  readonly path: string;
+  readonly patch: string;
+  readonly headText: string;
+  readonly counts: LineCounts;
+}
+
+const countCases: CountCase[] = [
+  {
+    name: "Python: a # line in a mixed hunk counts as a comment",
+    path: "app/main.py",
+    patch: lines("@@ -1,2 +1,2 @@", "-# old note", "+# new note", "-x = 1", "+x = 2"),
+    counts: { added: 1, removed: 1 },
+  },
+  {
+    name: "Python: a docstring line beside a code change counts as a comment",
+    path: "app/main.py",
+    patch: lines(
+      "@@ -1,3 +1,3 @@",
+      " def f():",
+      '-    """Old doc."""',
+      '+    """New doc."""',
+      "-    return 1",
+      "+    return 2",
+    ),
+    counts: { added: 1, removed: 1 },
+  },
+  {
+    name: "Python: a code line with a trailing # comment counts as code",
+    path: "app/main.py",
+    patch: lines("@@ -1,1 +1,1 @@", "-x = 1  # old", "+x = 1  # new"),
+    counts: { added: 0, removed: 0 },
+  },
+  {
+    name: "Python: a changed blank line counts as code",
+    path: "app/main.py",
+    patch: lines("@@ -1,2 +1,3 @@", " x = 1", "+", " y = 2"),
+    counts: { added: 0, removed: 0 },
+  },
+  {
+    name: "Python: a multi-line string that isn't a docstring counts as code",
+    path: "app/main.py",
+    patch: lines("@@ -1,3 +1,3 @@", ' query = """', "-select a", "+select b", ' """'),
+    counts: { added: 0, removed: 0 },
+  },
+  {
+    name: "Python: a hunk that opens a docstring above a context line counts zero",
+    path: "app/main.py",
+    patch: lines("@@ -1,2 +1,3 @@", '+"""', " x = 1", " y = 2"),
+    counts: { added: 0, removed: 0 },
+  },
+  {
+    name: 'Python: a docstring line before a closing """ needs content',
+    path: "app/main.py",
+    patch: lines("@@ -5,2 +5,2 @@", "-old prose", "+new prose", ' """'),
+    counts: "needs-content",
+  },
+  {
+    name: "TypeScript: a // line in a mixed hunk counts as a comment",
+    path: "src/app.ts",
+    patch: lines("@@ -1,2 +1,2 @@", "-// old", "+// new", "-const x = 1;", "+const x = 2;"),
+    counts: { added: 1, removed: 1 },
+  },
+  {
+    name: "TypeScript: /** */ lines beside a code change count as comments",
+    path: "src/app.ts",
+    patch: lines("@@ -1,1 +1,4 @@", "+/**", "+ * Doc.", "+ */", "-let x = 1;", "+const x = 1;"),
+    counts: { added: 3, removed: 0 },
+  },
+  {
+    name: "TypeScript: a code line with a trailing // comment counts as code",
+    path: "src/app.ts",
+    patch: lines("@@ -1,1 +1,1 @@", "-const x = 1; // a", "+const x = 1; // b"),
+    counts: { added: 0, removed: 0 },
+  },
+  {
+    name: "TypeScript: a changed blank line counts as code",
+    path: "src/app.ts",
+    patch: lines("@@ -1,2 +1,3 @@", " const x = 1;", "+", " const y = 2;"),
+    counts: { added: 0, removed: 0 },
+  },
+  {
+    name: "TypeScript: a hunk that opens /* above a context line counts zero",
+    path: "src/app.ts",
+    patch: lines("@@ -1,1 +1,2 @@", "+/*", " const x = 1;"),
+    counts: { added: 0, removed: 0 },
+  },
+  {
+    name: "TypeScript: a block line before a closing */ needs content",
+    path: "src/app.ts",
+    patch: lines("@@ -5,2 +5,2 @@", "-old prose", "+new prose", " */"),
+    counts: "needs-content",
+  },
+  {
+    name: "JavaScript: a // line in a mixed hunk counts as a comment",
+    path: "src/app.js",
+    patch: lines("@@ -1,2 +1,2 @@", "-// old", "+// new", "-const x = 1;", "+const x = 2;"),
+    counts: { added: 1, removed: 1 },
+  },
+  {
+    name: "JavaScript: a /** */ line beside a code change counts as a comment",
+    path: "src/app.js",
+    patch: lines("@@ -1,2 +1,2 @@", "-/** Old. */", "+/** New. */", "-let x = 1;", "+const x = 1;"),
+    counts: { added: 1, removed: 1 },
+  },
+  {
+    name: "JavaScript: a code line with a trailing // comment counts as code",
+    path: "src/app.js",
+    patch: lines("@@ -1,1 +1,1 @@", "-const x = 1; // a", "+const x = 1; // b"),
+    counts: { added: 0, removed: 0 },
+  },
+  {
+    name: "JavaScript: a changed blank line counts as code",
+    path: "src/app.js",
+    patch: lines("@@ -1,2 +1,3 @@", " const x = 1;", "+", " const y = 2;"),
+    counts: { added: 0, removed: 0 },
+  },
+  {
+    name: "JavaScript: a hunk that opens /* above a context line counts zero",
+    path: "src/app.js",
+    patch: lines("@@ -1,1 +1,2 @@", "+/*", " const x = 1;"),
+    counts: { added: 0, removed: 0 },
+  },
+  {
+    name: "JavaScript: a block line before a closing */ needs content",
+    path: "src/app.js",
+    patch: lines("@@ -5,2 +5,2 @@", "-old prose", "+new prose", " */"),
+    counts: "needs-content",
+  },
+  {
+    name: "Rust: a /// line in a mixed hunk counts as a comment",
+    path: "src/lib.rs",
+    patch: lines("@@ -1,2 +1,2 @@", "-/// Old.", "+/// New.", "-fn f() {}", "+pub fn f() {}"),
+    counts: { added: 1, removed: 1 },
+  },
+  {
+    name: "Rust: a /* */ line beside a code change counts as a comment",
+    path: "src/lib.rs",
+    patch: lines("@@ -1,2 +1,2 @@", "-/* Old. */", "+/* New. */", "-fn f() {}", "+pub fn f() {}"),
+    counts: { added: 1, removed: 1 },
+  },
+  {
+    name: "Rust: a code line with a trailing // comment counts as code",
+    path: "src/lib.rs",
+    patch: lines("@@ -1,1 +1,1 @@", "-let x = 1; // a", "+let x = 1; // b"),
+    counts: { added: 0, removed: 0 },
+  },
+  {
+    name: "Rust: a changed blank line counts as code",
+    path: "src/lib.rs",
+    patch: lines("@@ -1,2 +1,3 @@", " fn f() {}", "+", " fn g() {}"),
+    counts: { added: 0, removed: 0 },
+  },
+  {
+    name: "Rust: a hunk that opens /* above a context line counts zero",
+    path: "src/lib.rs",
+    patch: lines("@@ -1,1 +1,2 @@", "+/*", " fn f() {}"),
+    counts: { added: 0, removed: 0 },
+  },
+  {
+    name: "Rust: a block line before a closing */ needs content",
+    path: "src/lib.rs",
+    patch: lines("@@ -5,2 +5,2 @@", "-old prose", "+new prose", " */"),
+    counts: "needs-content",
+  },
+  {
+    name: "Go: a // line in a mixed hunk counts as a comment",
+    path: "main.go",
+    patch: lines("@@ -1,2 +1,2 @@", "-// Old.", "+// New.", "-var x = 1", "+var x = 2"),
+    counts: { added: 1, removed: 1 },
+  },
+  {
+    name: "Go: a /* */ line beside a code change counts as a comment",
+    path: "main.go",
+    patch: lines("@@ -1,2 +1,2 @@", "-/* Old. */", "+/* New. */", "-var x = 1", "+var x = 2"),
+    counts: { added: 1, removed: 1 },
+  },
+  {
+    name: "Go: a code line with a trailing // comment counts as code",
+    path: "main.go",
+    patch: lines("@@ -1,1 +1,1 @@", "-var x = 1 // a", "+var x = 1 // b"),
+    counts: { added: 0, removed: 0 },
+  },
+  {
+    name: "Go: a changed blank line counts as code",
+    path: "main.go",
+    patch: lines("@@ -1,2 +1,3 @@", " var x = 1", "+", " var y = 2"),
+    counts: { added: 0, removed: 0 },
+  },
+  {
+    name: "Go: a hunk that opens /* above a context line counts zero",
+    path: "main.go",
+    patch: lines("@@ -1,1 +1,2 @@", "+/*", " var x = 1"),
+    counts: { added: 0, removed: 0 },
+  },
+  {
+    name: "Go: a block line before a closing */ needs content",
+    path: "main.go",
+    patch: lines("@@ -5,2 +5,2 @@", "-old prose", "+new prose", " */"),
+    counts: "needs-content",
+  },
+  {
+    name: "Lua: a -- line in a mixed hunk counts as a comment",
+    path: "init.lua",
+    patch: lines("@@ -1,2 +1,2 @@", "--- old", "+-- new", "-local x = 1", "+local x = 2"),
+    counts: { added: 1, removed: 1 },
+  },
+  {
+    name: "Lua: a --[[ ]] line beside a code change counts as a comment",
+    path: "init.lua",
+    patch: lines(
+      "@@ -1,2 +1,2 @@",
+      "---[[ Old. ]]",
+      "+--[[ New. ]]",
+      "-local x = 1",
+      "+local x = 2",
+    ),
+    counts: { added: 1, removed: 1 },
+  },
+  {
+    name: "Lua: a code line with a trailing -- comment counts as code",
+    path: "init.lua",
+    patch: lines("@@ -1,1 +1,1 @@", "-local x = 1 -- a", "+local x = 1 -- b"),
+    counts: { added: 0, removed: 0 },
+  },
+  {
+    name: "Lua: a changed blank line counts as code",
+    path: "init.lua",
+    patch: lines("@@ -1,2 +1,3 @@", " local x = 1", "+", " local y = 2"),
+    counts: { added: 0, removed: 0 },
+  },
+  {
+    name: "Lua: a hunk that opens --[[ above a context line counts zero",
+    path: "init.lua",
+    patch: lines("@@ -1,1 +1,2 @@", "+--[[", " local x = 1"),
+    counts: { added: 0, removed: 0 },
+  },
+  {
+    name: "Lua: a block line before a closing ]] needs content",
+    path: "init.lua",
+    patch: lines("@@ -5,2 +5,2 @@", "-old prose", "+new prose", " ]]"),
+    counts: "needs-content",
+  },
+  {
+    name: "an unsupported extension counts zero",
+    path: "notes.txt",
+    patch: lines("@@ -1,1 +1,1 @@", "-# old", "+# new"),
+    counts: { added: 0, removed: 0 },
+  },
+];
+
+const openBlockHead = (opener: string, closer: string): string =>
+  lines(opener, "a", "b", "c", "new prose", closer);
+
+const headCountCases: HeadCountCase[] = (
+  [
+    ["Python", "app/main.py", '"""', '"""'],
+    ["TypeScript", "src/app.ts", "/*", "*/"],
+    ["JavaScript", "src/app.js", "/*", "*/"],
+    ["Rust", "src/lib.rs", "/*", "*/"],
+    ["Go", "main.go", "/*", "*/"],
+    ["Lua", "init.lua", "--[[", "]]"],
+  ] as const
+).map(([syntax, path, opener, closer]) => ({
+  name: `${syntax}: a block line whose opener is above the hunk counts as a comment from the head`,
+  path,
+  patch: lines("@@ -5,2 +5,2 @@", "-old prose", "+new prose", ` ${closer}`),
+  headText: openBlockHead(opener, closer),
+  counts: { added: 1, removed: 1 },
+}));
+
+describe("commentLineCounts", () => {
+  it.each(countCases)("$name", ({ path, patch, counts }) => {
+    expect(commentLineCounts(path, hunkOf(patch))).toEqual(counts);
+  });
+
+  it.each(headCountCases)("$name", ({ path, patch, headText, counts }) => {
+    expect(commentLineCounts(path, hunkOf(patch), headOf(path, headText))).toEqual(counts);
   });
 });
