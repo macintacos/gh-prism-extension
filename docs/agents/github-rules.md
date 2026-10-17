@@ -98,6 +98,57 @@ them; [§ Re-checking GitHub](#re-checking-github) has the methods.
   pull request, watch `body`'s `style` for `--base-sticky-header-height` while crossing
   1011px, and compare it with a file header's computed `top`.
 
+## Viewed state
+
+- **Read every file's initial Viewed state from route data, then follow the header's
+  button.** The Files view's `react-app.embeddedData` holds
+  `payload.pullRequestsChangesRoute.diffSummaries[]`, each with `path`, `pathDigest`, and
+  `markedAsViewed`, for every file before its diff mounts, virtualized or not. That script
+  is static: it doesn't follow a toggle, and a soft navigation from Conversation leaves
+  the Conversation route's script in place. There, re-request the page's path with
+  `accept: application/json`, which returns the same key path, fresh. The tree's rows
+  carry no Viewed mark, and the `diff_entries` batches carry no Viewed field. A header
+  exists only for a mounted diff, so it can't give coverage, but it tracks every toggle.
+- **Use the "N / M files viewed" counter only as a totals cross-check.** It
+  (`[class*="ProgressContainer__"]` in `[class*="file-controls__"]`) follows the header
+  buttons, not the server.
+- **Find the Viewed toggle as
+  `[class*="diff-file-header__"] button[aria-pressed][aria-label$="Viewed"]`.** It is a
+  Primer button, not a checkbox: `aria-pressed` holds the state, and `aria-label` reads
+  "Viewed" or "Not Viewed". Other header buttons carry `aria-pressed` too.
+- **Expect a page-script `click()` to be honored.** An untrusted click
+  (`isTrusted: false`) toggles the button, sends `POST <pull>/file_review` with
+  `{"path":…,"viewed":"viewed"}` (unview: `DELETE` with `"_method":"delete"`), gets 200,
+  and survives a reload. GitHub's `onClick` has no `isTrusted` check; its only guard is
+  the button's `inactive` prop.
+- **Treat `user.shouldShowViewedFilesCount` as the page-wide signal that Viewed is
+  offered.** In the DOM, the same signal is a header Viewed button or the counter. The
+  full view (`pullRequestsChangesRoute`) has it `true`. The commit-filtered view
+  (`/pull/<n>/changes/<sha>`, route `pullRequestsChangesWithRangeRoute`,
+  `comparison.viewing: "COMMIT"`) has it `false`, with no Viewed buttons and no counter,
+  though `markedAsViewed` is still present, all `false`. A commit page offers no Viewed,
+  signed in or signed out. A pull request signed out redirects `/changes` to the classic
+  `/files`, which offers no Viewed and which `findFilesPage` doesn't match.
+- **Expect unloaded diffs to keep their Viewed button.** A "Load Diff" placeholder, for a
+  large diff or a generated file, replaces only the body; the header keeps its button.
+  Generated files' headers aren't collapsed by default.
+- **Read state a task after a click, not synchronously.** React renders the toggle
+  asynchronously. Saving viewed collapses the diff: the header gains
+  `[class*="collapsed__"]`, the button gains `[class*="viewed__"]`, and the counter
+  increments. Unviewing expands it again.
+- **Don't expect GitHub to revert a failed save.** When `file_review` fails (a 500), the
+  button stays pressed, the diff stays collapsed, and the counter keeps the increment,
+  with no visible error, because the mutation's `onError` is a no-op. The page diverges
+  from the server until a reload.
+- **Re-check:** use the sandbox pull requests from `scripts/create-sandbox.sh`, in a
+  Playwright session that loads a signed-in `storageState`. Search the embedded data for
+  `pullRequestsChangesRoute.diffSummaries` and `markedAsViewed`, and soft-navigate from
+  Conversation to compare. Toggle a file with a page-script `click()` through `eval`,
+  never Playwright's trusted click, and watch the network for `file_review`. Fail the save
+  with a `route` that answers 500, click, and read the header and counter. Find the
+  handler by grepping GitHub's assets for `file_review`, as
+  [§ Re-checking GitHub](#re-checking-github) describes. Restore every toggled file.
+
 ## PR base data
 
 - **Treat a pull request's diff as running from the merge base, not the base tip.**
