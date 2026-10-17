@@ -492,9 +492,9 @@ test("every file row has a Viewed checkbox showing its file's state", async ({ c
   await page.goto(VIEWED_URL);
 
   await expect(viewedBox(page, "app.toml")).toBeChecked();
-  await expect(viewedBox(page, "app.toml")).toHaveAttribute("title", "Mark as not viewed");
+  await expect(viewedBox(page, "app.toml")).toHaveAttribute("title", /^Mark as not viewed /);
   await expect(viewedBox(page, "lib.rs")).not.toBeChecked();
-  await expect(viewedBox(page, "lib.rs")).toHaveAttribute("title", "Mark as viewed");
+  await expect(viewedBox(page, "lib.rs")).toHaveAttribute("title", /^Mark as viewed /);
   await expect(page.locator("[data-item-checkbox]")).toHaveCount(3);
 });
 
@@ -519,6 +519,73 @@ test("ticking a row's box saves its file's Viewed state once", async ({ context,
   await expect.poll(() => saves.count).toBe(2);
   await page.waitForTimeout(500);
   expect(saves.count).toBe(2);
+});
+
+test("Alt-clicking a file's row marks it Viewed and back, and does nothing else", async ({
+  context,
+  page,
+}) => {
+  const saves = await routeFileReview(context, 200);
+  await serve(context, VIEWED_URL, VIEWED_BODY);
+  await page.goto(VIEWED_URL);
+  await expect(viewedBox(page, "lib.rs")).toBeVisible();
+  await copyGitHubToggles(page, { revert: true });
+  // Playwright retries a click whose target is moving, and the reveal moves every row.
+  await page.locator(".gh-prism-sections").evaluate(async (view) => {
+    await Promise.all(view.getAnimations({ subtree: true }).map(({ finished }) => finished));
+  });
+  const row = page.locator('[data-item-path="src/lib.rs"]');
+  const toggle = page.locator(`#${VIEWED_LIB_RS} button[aria-label$="Viewed"]`);
+  const downloads: string[] = [];
+  page.on("download", (download) => downloads.push(download.url()));
+  // The tree re-asserts its selection in the same task, so only the attributes' old values show
+  // a selection that came and went.
+  const record = await row.evaluateHandle((el) => {
+    const seen = { selected: false, clicks: [] as MouseEvent[] };
+    const isLib = (node: EventTarget) =>
+      node instanceof Element && node.getAttribute("data-item-path") === "src/lib.rs";
+    const selected = (node: Element) =>
+      node.getAttribute("aria-selected") === "true" || node.hasAttribute("data-item-selected");
+    new MutationObserver((records) => {
+      for (const { type, target, oldValue, addedNodes } of records) {
+        if (type === "attributes" && isLib(target))
+          seen.selected ||= oldValue === "true" || selected(target as Element);
+        for (const node of addedNodes) if (isLib(node)) seen.selected ||= selected(node as Element);
+      }
+    }).observe(el.getRootNode(), {
+      subtree: true,
+      childList: true,
+      attributeFilter: ["aria-selected", "data-item-selected"],
+      attributeOldValue: true,
+    });
+    window.addEventListener(
+      "click",
+      (event) => {
+        if (event.composedPath().some(isLib)) seen.clicks.push(event);
+      },
+      { capture: true },
+    );
+    return seen;
+  });
+
+  await row.click({ modifiers: ["Alt"] });
+  await expect(viewedBox(page, "lib.rs")).toBeChecked();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+
+  await row.click({ modifiers: ["Alt"] });
+  await expect(viewedBox(page, "lib.rs")).not.toBeChecked();
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+
+  expect(saves.count).toBe(2);
+  expect(await page.evaluate(() => location.hash)).toBe("");
+  expect(
+    await record.evaluate(({ selected, clicks }) => ({
+      selected,
+      cancelled: clicks.map((click) => click.defaultPrevented),
+    })),
+  ).toEqual({ selected: false, cancelled: [true, true] });
+  expect(await row.evaluate((el) => (el.getRootNode() as ShadowRoot).activeElement)).toBeNull();
+  expect(downloads).toEqual([]);
 });
 
 test("a box follows the header when GitHub keeps a rejected save's state", async ({

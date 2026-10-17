@@ -34,7 +34,8 @@ how to get the new tab. Once you close the dialog, it stays closed, and
 - It dims the files you've marked Viewed on GitHub, in every section that lists them, and
   once any file is Viewed, each section's heading shows how many of its files are Viewed
   (`N/M`). It follows GitHub's Viewed toggle.
-- It marks a file Viewed on GitHub when you tick the checkbox on its row.
+- It marks a file Viewed on GitHub when you tick the checkbox on its row, or when you
+  Alt-click the row (Option-click on macOS). Doing either again marks it not viewed.
 
 ## Install
 

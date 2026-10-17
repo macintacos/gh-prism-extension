@@ -1121,6 +1121,17 @@ describe("showSections", () => {
       expect(boxesIn("implementation")).toEqual([]);
     });
 
+    it("leaves a file row's Alt-click to the tree until Viewed is offered", async () => {
+      const row = rowIn("implementation", "src/engine.rs");
+
+      clickAt(row, { altKey: true });
+      await afterDebounce();
+
+      expect(treeHost("implementation").shadowRoot?.activeElement).toBe(
+        rowIn("implementation", "src/engine.rs"),
+      );
+    });
+
     it("gives every file row, and no directory row, a checkbox once Viewed is offered", () => {
       viewed();
 
@@ -1144,8 +1155,24 @@ describe("showSections", () => {
       expect(boxOf("implementation", "src/render.rs").getAttribute("aria-label")).toBe(
         "Viewed: render.rs",
       );
-      expect(boxOf("implementation", "src/render.rs").title).toBe("Mark as not viewed");
-      expect(boxOf("implementation", "src/engine.rs").title).toBe("Mark as viewed");
+      expect(boxOf("implementation", "src/render.rs").title).toBe(
+        "Mark as not viewed (or Alt-click the row)",
+      );
+      expect(boxOf("implementation", "src/engine.rs").title).toBe(
+        "Mark as viewed (or Alt-click the row)",
+      );
+    });
+
+    it("calls the Alt key Option on macOS", async () => {
+      const platform = vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
+      await landed(landedWith());
+
+      viewed();
+
+      expect(boxOf("implementation", "src/engine.rs").title).toBe(
+        "Mark as viewed (or Option-click the row)",
+      );
+      platform.mockRestore();
     });
 
     it("puts only the focused row's box in the tab order", async () => {
@@ -1476,6 +1503,64 @@ describe("showSections", () => {
         await settle();
 
         expect(scrollIntoView).not.toHaveBeenCalled();
+      });
+
+      describe("made by Alt-clicking its file's row", () => {
+        const altClickRow = (path: string, init: MouseEventInit = {}) =>
+          clickAt(rowIn(sectionOf(path), path), { altKey: true, ...init });
+
+        it("marks the file through its toggle, opening nothing", async () => {
+          const toggle = stubToggle(LIB);
+          const links = vi.spyOn(HTMLAnchorElement.prototype, "click");
+
+          altClickRow(LIB);
+          await settle();
+
+          expect(toggle).toHaveBeenCalledOnce();
+          expect(links).not.toHaveBeenCalled();
+          expect(box(LIB).checked).toBe(true);
+          links.mockRestore();
+        });
+
+        it("unmarks a viewed file", async () => {
+          stubToggle(APP);
+
+          altClickRow(APP);
+          await settle();
+
+          expect(box(APP).checked).toBe(false);
+        });
+
+        it("leaves the row unselected and unfocused", async () => {
+          stubToggle(LIB);
+
+          altClickRow(LIB);
+          await settle();
+
+          expect(rowIn(sectionOf(LIB), LIB).getAttribute("aria-selected")).not.toBe("true");
+          expect(treeHost(sectionOf(LIB)).shadowRoot?.activeElement).toBeNull();
+        });
+
+        it("ignores the second click of a double-click", async () => {
+          const toggle = stubToggle(LIB);
+
+          altClickRow(LIB, { detail: 1 });
+          await settle();
+          altClickRow(LIB, { detail: 2 });
+          await settle();
+
+          expect(toggle).toHaveBeenCalledOnce();
+        });
+
+        it("leaves a directory's Alt-click to the tree", async () => {
+          const toggle = stubToggle(LIB);
+
+          clickAt(rowIn("implementation", "src/"), { altKey: true });
+          await settle();
+
+          expect(rowIn("implementation", "src/").getAttribute("aria-expanded")).toBe("false");
+          expect(toggle).not.toHaveBeenCalled();
+        });
       });
     });
   });

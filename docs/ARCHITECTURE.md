@@ -166,10 +166,11 @@ file's last-read state for the rest of the visit, so a file whose diff unmounts 
 read. It feeds the viewed paths to the sections view's `viewed`, which dims their rows
 and, once any file is Viewed, counts each section's viewed files in its header. The
 sections view also gives each file row a checkbox (`SectionTree.showViewed`), which the
-`@pierre/trees` patch renders beside the row. Ticking one has `sections-view.ts` reveal
-the file's diff through `revealUntil` when its header isn't mounted, then call
-`markViewed`, which clicks the header's toggle at most once and waits for the page to show
-the result. Nothing dims, counts, or shows a checkbox unless the page offers Viewed.
+`@pierre/trees` patch renders beside the row. Ticking one, or Alt-clicking its row, has
+`sections-view.ts` reveal the file's diff through `revealUntil` when its header isn't
+mounted, then call `markViewed`, which clicks the header's toggle at most once and waits
+for the page to show the result. Nothing dims, counts, or shows a checkbox unless the page
+offers Viewed.
 
 ## Diff order and reveal
 
