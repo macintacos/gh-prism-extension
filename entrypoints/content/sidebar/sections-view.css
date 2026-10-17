@@ -88,6 +88,11 @@
   --trees-scrollbar-gutter-override: 0px;
   --gh-prism-marker-fg: var(--fgColor-muted);
   --gh-prism-comment-fg: var(--fgColor-muted);
+  /* The Viewed box's colors. Its edge and fill keep 3:1 against every row background, pale
+     hues included. */
+  --gh-prism-box-edge: color-mix(in srgb, var(--gh-prism-hue) 35%, var(--fgColor-muted));
+  --gh-prism-box-hover-wash: color-mix(in srgb, var(--gh-prism-hue) 12%, transparent);
+  --gh-prism-box-hover-fill: color-mix(in srgb, var(--gh-prism-hue) 80%, var(--fgColor-default));
 }
 
 .gh-prism-skeleton > span {
