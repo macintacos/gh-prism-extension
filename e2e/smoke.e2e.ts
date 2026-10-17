@@ -90,8 +90,8 @@ const LARGE_VIEWED_BODY = LARGE_PR_BODY.replace(
 );
 
 /**
- * Stands in for GitHub's Viewed toggles: a click flips the toggle a task later, as GitHub's does,
- * then saves through `POST <pull>/file_review`, flipping back on a failed save when `revert`.
+ * Stands in for GitHub's Viewed toggles: a click flips the toggle in a microtask, before the click's
+ * dispatch ends, as GitHub's does, then saves through `POST <pull>/file_review`, flipping back on a failed save when `revert`.
  */
 const copyGitHubToggles = (page: Page, { revert }: { revert: boolean }) =>
   page.evaluate((revert) => {
@@ -104,7 +104,7 @@ const copyGitHubToggles = (page: Page, { revert }: { revert: boolean }) =>
       '[class*="diff-file-header__"] button[aria-pressed][aria-label$="Viewed"]',
     ))
       toggle.addEventListener("click", () =>
-        setTimeout(async () => {
+        queueMicrotask(async () => {
           flip(toggle);
           const response = await fetch(
             `${location.pathname.replace(/\/changes$/, "")}/file_review`,

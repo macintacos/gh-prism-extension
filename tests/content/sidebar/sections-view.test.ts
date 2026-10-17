@@ -1224,8 +1224,8 @@ describe("showSections", () => {
       };
 
       /**
-       * Has `path`'s header toggle flip a task after each click, as GitHub does, then, when
-       * `reverts`, flip back as a page that undoes a rejected save would.
+       * Has `path`'s header toggle flip 120 ms after each click, so the box's pending state is
+       * observable, then, when `reverts`, flip back as a page that undoes a rejected save would.
        */
       function stubToggle(path: string, { reverts = false } = {}) {
         const toggle = toggleIn(regionOf(path));
@@ -1295,6 +1295,21 @@ describe("showSections", () => {
 
         expect(box(LIB).getAttribute("aria-busy")).not.toBe("true");
         expect(box(LIB).checked).toBe(true);
+      });
+
+      it("shows the box pending in a section built while it settles", async () => {
+        vi.spyOn(toggleIn(regionOf(LIB)), "click").mockImplementation(() => {});
+        const link = byId(LIB);
+        const { parentElement } = link;
+        clickAt(box(LIB));
+        await vi.advanceTimersByTimeAsync(0);
+
+        link.remove();
+        await afterDebounce();
+        parentElement?.append(link);
+        await afterDebounce();
+
+        expect(box(LIB).getAttribute("aria-busy")).toBe("true");
       });
 
       it("clicks the toggle of a file whose diff hasn't loaded", async () => {
@@ -1457,6 +1472,7 @@ describe("showSections", () => {
           const flip = vi.spyOn(toggleIn(entry), "click");
 
           clickAt(box(LIB));
+          await vi.advanceTimersByTimeAsync(0);
           cancel();
           mount();
           await settle();

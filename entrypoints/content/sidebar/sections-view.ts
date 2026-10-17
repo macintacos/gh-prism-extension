@@ -354,7 +354,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
    */
   const mark = async (section: SectionKey, path: string) => {
     const native = readChangedFiles(page.sidebar).find((file) => file.path === path)?.link;
-    if (!native || !offered || marking.has(path)) return;
+    if (signal.aborted || !native || !offered || marking.has(path)) return;
     const want = !viewed.has(path);
     clicked = { section, path };
     jump?.abort();
@@ -439,6 +439,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     const tree = new SectionTree(host, files, active);
     tree.showOnScreen(onScreen);
     if (offered) tree.showViewed(viewed);
+    if (marking.size > 0) tree.showMarking(new Set(marking));
     return { root, counter, tree };
   };
 
@@ -466,7 +467,9 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
       if (box) {
         // The box shows only what GitHub's page shows, never the click.
         event.preventDefault();
-        if (event.detail <= 1) void mark(box.section, box.path);
+        // Cancelling the click restores the box's old checked state as its dispatch ends,
+        // undoing any render GitHub's flip causes before then.
+        if (event.detail <= 1) setTimeout(() => void mark(box.section, box.path));
         return;
       }
 

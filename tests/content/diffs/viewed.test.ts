@@ -164,7 +164,7 @@ describe("markViewed", () => {
   const libToggle = () => byId(VIEWED_LIB_RS).querySelector('button[aria-label$="Viewed"]');
   const mark = (viewed: boolean) =>
     markViewed(foundPage(), linkTo("src/lib.rs"), viewed, { signal: controller.signal });
-  /** Has the toggle's click do `then` a task later, as GitHub's React renders it. */
+  /** Has the toggle's click do `then` 120 ms later, so the wait for the flip is observable. */
   const onClick = (then: () => void) => {
     const toggle = libToggle();
     if (!(toggle instanceof HTMLButtonElement)) throw new Error("no Viewed toggle for src/lib.rs");

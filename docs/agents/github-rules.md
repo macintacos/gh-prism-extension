@@ -155,7 +155,10 @@ facts about GitHub that held when written, and ends with how to re-check them;
   increments. Unviewing expands it again. With route data's `isSingleFileMode`, a click
   navigates to the next file instead (read from the bundle, not observed). The survey ran
   with the "Viewed files" filter on; with it off (`showViewedFiles: false`), viewed files
-  drop from the list, which was not surveyed.
+  drop from the list, which was not surveyed. React flips the toggle in the microtask
+  after the click, so a click made from inside another element's click dispatch flips
+  before that dispatch ends: a caller that cancels its own click must click the toggle
+  after it.
 - **Don't expect GitHub to revert a failed save.** When `file_review` fails (a 500), the
   button stays pressed, the diff stays collapsed, and the counter keeps the increment,
   with no visible error, because the mutation's `onError` is a no-op. The page diverges
