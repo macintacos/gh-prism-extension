@@ -1,10 +1,11 @@
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { storage } from "wxt/utils/storage";
 import { connectPrData } from "@/utils/github/pr-port";
-import { readDiffPin } from "@/utils/github/pr-ref";
+import { readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
 import { storedIntents } from "@/utils/intent/cache";
 import { type IntentSources, intentFor, shareIntent } from "@/utils/intent/read";
 import { sidebarSide } from "@/utils/prefs";
+import { visitViewed } from "./diffs/viewed";
 import type { DiffstatChoice } from "./header/diffstat-view";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar/side";
 import { showVisit } from "./visit/land";
@@ -29,14 +30,18 @@ export default defineContentScript({
     } satisfies IntentSources;
     // Read before watching, so a sidebar saved on the left never opens on the right first.
     const side = sideChoiceOf(await readSavedSide());
+    let fullLoad = true;
 
     watchFilesPages(
       window,
       {
         onVisit: (route, visit) => {
           const intent = shareIntent((onProgress) => intentFor(route, visit, sources, onProgress));
+          // Route data reflects the full load only: only the visit it started may trust it.
+          const viewed = visitViewed(fullLoad ? readViewedSeed(document, route.diff) : undefined);
+          fullLoad = false;
           return (page, signal) => {
-            showVisit(page, signal, { intent, diffstat });
+            showVisit(page, signal, { intent, diffstat, viewed });
             dockSidebar(page, signal, { choice: side, save: saveSide });
           };
         },

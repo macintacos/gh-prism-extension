@@ -69,13 +69,14 @@ stateDiagram-v2
 ```
 
 [`entrypoints/content/visit/land.ts`](../entrypoints/content/visit/land.ts) runs on each
-page. `showVisit` mounts four views (the sidebar sections, the diff order, the diffstat,
-and the on-screen tracker that feeds the sidebar). Then `land` passes the intent read's
-steps to the views: pending while the read runs, progress as files are placed, landed with
-the result, and then each file's section. Every view gets a step before any view gets the
-next. `land` owns the only observer of the native tree, and it re-lists the sections after
-each change to the tree. One visit reads intent once: `index.ts` wraps the read in
-`shareIntent`, so every page of the visit joins the same read.
+page. `showVisit` mounts five views (the sidebar sections, the diff order, the diffstat,
+and the on-screen and Viewed trackers that feed the sidebar). Then `land` passes the
+intent read's steps to the views: pending while the read runs, progress as files are
+placed, landed with the result, and then each file's section. Every view gets a step
+before any view gets the next. `land` owns the only observer of the native tree, and it
+re-lists the sections after each change to the tree. One visit reads intent once:
+`index.ts` wraps the read in `shareIntent`, so every page of the visit joins the same
+read.
 
 ## Intent and its cache
 
@@ -137,6 +138,14 @@ covers), and feeds each changed set of paths to the sections view's `onScreen`. 
 marks those rows faintly, and a collapsed section marks its header instead. The mark never
 scrolls the sidebar.
 
+[`entrypoints/content/diffs/viewed.ts`](../entrypoints/content/diffs/viewed.ts) tracks
+which files the reviewer has marked Viewed. On the visit a full load started, it seeds
+from GitHub's route data (`readViewedSeed`, read in `index.ts`). It then reads each
+header's toggle as diffs mount and as GitHub flips them (`observeViewed`), and keeps each
+file's last-read state for the rest of the visit, so a file whose diff unmounts stays as
+read. It feeds the viewed paths to the sections view's `viewed`, which dims their rows.
+Nothing dims unless the page offers Viewed.
+
 ## Diff order and reveal
 
 [`entrypoints/content/diffs/order.ts`](../entrypoints/content/diffs/order.ts) lays
@@ -169,7 +178,7 @@ entrypoints/
     files-page.ts        every GitHub Files view selector; page kinds
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch
-    diffs/               diff order, reveal, and on-screen tracking
+    diffs/               diff order, reveal, on-screen and Viewed tracking
     header/              diffstat breakout
     ui/                  shared DOM helpers, loading view, Tailwind tokens
 utils/

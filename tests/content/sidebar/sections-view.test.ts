@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
+import { visitViewed } from "../../../entrypoints/content/diffs/viewed";
 import { findFilesPage } from "../../../entrypoints/content/files-page";
 import { showSections } from "../../../entrypoints/content/sidebar/sections-view";
 import css from "../../../entrypoints/content/sidebar/sections-view.css?raw";
@@ -237,7 +238,11 @@ describe("showSections", () => {
     const page = findFilesPage(document);
     if (!page) throw new Error("fixture lacks the Files changed markup");
     const fresh = new AbortController();
-    showVisit(page, fresh.signal, { intent: () => landedWith(), diffstat: { view: "breakout" } });
+    showVisit(page, fresh.signal, {
+      intent: () => landedWith(),
+      diffstat: { view: "breakout" },
+      viewed: visitViewed(undefined),
+    });
     expect(document.querySelectorAll(".gh-prism-sections")).toHaveLength(1);
 
     fresh.abort();

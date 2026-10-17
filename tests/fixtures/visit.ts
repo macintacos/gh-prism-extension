@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, vi } from "vitest";
+import { visitViewed } from "../../entrypoints/content/diffs/viewed";
 import { findFilesPage } from "../../entrypoints/content/files-page";
 import type { DiffstatChoice } from "../../entrypoints/content/header/diffstat-view";
 import { showVisit } from "../../entrypoints/content/visit/land";
@@ -68,7 +69,7 @@ export function mountsVisit() {
 
     const page = findFilesPage(document);
     if (!page) throw new Error("fixture lacks the Files changed markup");
-    showVisit(page, controller.signal, { intent, diffstat });
+    showVisit(page, controller.signal, { intent, diffstat, viewed: visitViewed(undefined) });
   };
 
   beforeEach(() => {

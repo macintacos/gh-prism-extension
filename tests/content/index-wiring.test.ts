@@ -7,7 +7,7 @@ import { dockSidebar, type Side } from "../../entrypoints/content/sidebar/side";
 import { showVisit } from "../../entrypoints/content/visit/land";
 import { readFilesRoute } from "../../utils/github/files-route";
 import { intentFor } from "../../utils/intent/read";
-import { byId, loadFixture } from "../fixtures/files-page";
+import { byId, loadFixture, loadViewedFixture, VIEWED_APP_TOML } from "../fixtures/files-page";
 
 // Only leaves are faked: intentFor needs a port fakeBrowser lacks; the views' DOM has own tests.
 vi.mock(import("../../utils/intent/read"), async (importOriginal) => ({
@@ -134,6 +134,31 @@ describe("content script", () => {
 
     expect(intentFor).toHaveBeenCalledTimes(2);
     expect(vi.mocked(intentFor).mock.calls[1]?.[0]).toEqual(readFilesRoute("/o/r/pull/2/changes"));
+  });
+
+  it("seeds Viewed state from embedded data on the first visit only", async () => {
+    history.replaceState(null, "", "/macintacos/gh-prism-sandbox/pull/3/changes");
+    loadViewedFixture();
+    const viewedOf = (call: number) => vi.mocked(showVisit).mock.calls.at(call)?.[2].viewed;
+
+    await run();
+    const sidebar = byId("pr-file-tree");
+    sidebar.replaceWith(sidebar.cloneNode(true));
+    await afterMutations();
+
+    expect(viewedOf(0)?.byAnchor.get(VIEWED_APP_TOML)).toBe(true);
+    expect(viewedOf(0)?.offered).toBe(true);
+    expect(viewedOf(1)).toBe(viewedOf(0));
+
+    history.pushState(null, "", "/o/r/pull/2/changes");
+    document.dispatchEvent(new Event("soft-nav:end"));
+    await afterMutations();
+    history.pushState(null, "", "/macintacos/gh-prism-sandbox/pull/3/changes");
+    document.dispatchEvent(new Event("soft-nav:end"));
+    await afterMutations();
+
+    expect(viewedOf(-1)?.byAnchor.size).toBe(0);
+    expect(viewedOf(-1)?.offered).toBe(false);
   });
 
   it("reads each visit's pin from the page", async () => {
