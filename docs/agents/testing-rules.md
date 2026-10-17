@@ -36,6 +36,11 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   queries, so
   [`tests/content/diffs/reveal.test.ts`](../../tests/content/diffs/reveal.test.ts) tests
   the reduced-motion path without a browser.
+- **Prove ordering inside one click dispatch in Chromium, not happy-dom.** happy-dom runs
+  no microtask checkpoint between a scripted click's listeners, so a stand-in that flips
+  in a microtask still lands after the dispatch ends.
+  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `copyGitHubToggles` covers the Viewed
+  toggle's flip.
 
 ## Test bodies
 
@@ -53,6 +58,13 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   commit URL.
 - **Never let a `bench/` file match a test glob** (`*.{test,spec}.*` or `*.e2e.ts`). The
   benchmark stays out of Vitest, Playwright, and CI.
+- **Let the sections' reveal finish before a test clicks in the sidebar and reads its
+  scroll.** The reveal animation moves every row for up to half a second after the
+  sections land. Playwright retries a click whose target is moving, and its retries scroll
+  the target into view with forced alignments, even when it is already in view. Which
+  alignment the click lands on depends on the machine's speed, so the sidebar can stay put
+  locally and move on CI. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "ticking a box
+  doesn't scroll the sidebar" awaits the animations' `finished` first.
 
 ## Verifying in a real browser
 

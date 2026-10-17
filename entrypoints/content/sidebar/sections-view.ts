@@ -11,8 +11,9 @@ import type { LineCounts } from "@/utils/github/pr-diff";
 import { landingOf, revealLineOf, totalsOf } from "@/utils/intent/landing";
 import type { IntentResult, PathOnlyReason } from "@/utils/intent/read";
 import { SECTIONS, type SectionKey } from "@/utils/sections";
-import { revealDiff, revealDiffLine } from "../diffs/reveal";
-import { type FilesPage, readChangedFiles, reorderable } from "../files-page";
+import { revealDiff, revealDiffLine, revealUntil } from "../diffs/reveal";
+import { markViewed } from "../diffs/viewed";
+import { type FilesPage, readChangedFiles, reorderable, viewedToggleOf } from "../files-page";
 import { el, icon } from "../ui/dom";
 import { lineTotals } from "../ui/line-counts";
 import { type LoadingView, loadingView } from "../ui/loading-view";
@@ -31,8 +32,9 @@ interface SectionsView extends LandingView {
   /** Marks the files whose diffs are on screen: their rows, or a collapsed section's header. */
   onScreen(paths: ReadonlySet<string>): void;
   /**
-   * Dims the rows of the files GitHub shows as Viewed and, once any is, counts each section's
-   * viewed files in its header.
+   * Called whenever the viewed set changes, from the moment the page offers Viewed: dims the rows
+   * of the files GitHub shows as Viewed, gives every file row a checkbox, and, once any file is
+   * viewed, counts each section's viewed files in its header.
    */
   viewed(paths: ReadonlySet<string>): void;
 }
@@ -206,8 +208,8 @@ function sectionShell(
 /**
  * Writes the file count of `entries` into a section header's `counter`, or, once `viewed` holds
  * any path, how many of them are viewed, as `N/M` with the words for screen readers. An empty
- * `viewed`, which a page without Viewed also sends, keeps the bare count. Leaves the DOM alone
- * when unchanged.
+ * `viewed` (nothing viewed yet, or a page that offers no Viewed) keeps the bare count. Leaves the
+ * DOM alone when unchanged.
  */
 function showCount(
   counter: HTMLElement,
@@ -246,6 +248,16 @@ function clickedFile(event: Event): { section: SectionKey; path: string } | unde
   const section = SECTIONS.find((key) => key === raw);
   const path = row?.dataset.itemPath;
   return row?.dataset.itemType === "file" && section && path ? { section, path } : undefined;
+}
+
+/** The file whose Viewed checkbox a click inside a section tree landed on, and its section. */
+function clickedCheckbox(event: Event): { section: SectionKey; path: string } | undefined {
+  const elements = event.composedPath().filter((node) => node instanceof HTMLElement);
+  const box = elements.find((node) => node.matches("input[data-item-checkbox]"));
+  const raw = elements.find((node) => node.classList.contains("gh-prism-section"))?.dataset.section;
+  const section = SECTIONS.find((key) => key === raw);
+  const path = box?.dataset.itemCheckbox;
+  return section && path ? { section, path } : undefined;
 }
 
 /**
@@ -299,6 +311,9 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
   let scrolledTo: string | undefined;
   let onScreen: ReadonlySet<string> = new Set();
   let viewed: ReadonlySet<string> = new Set();
+  let offered = false;
+  // The files whose box click is still settling; their boxes ignore clicks.
+  const marking = new Set<string>();
   let latestSections: readonly FileSection[] = [];
 
   /** Marks each section that lists a file on screen; sections-view.css shows it on a collapsed header. */
@@ -317,8 +332,11 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     }
   };
 
+  const nativeLinkOf = (path: string) =>
+    readChangedFiles(page.sidebar).find((file) => file.path === path)?.link;
+
   const open = (section: SectionKey, path: string) => {
-    const native = readChangedFiles(page.sidebar).find((file) => file.path === path)?.link;
+    const native = nativeLinkOf(path);
     if (!native) return;
     clicked = { section, path };
     jump?.abort();
@@ -327,6 +345,51 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     jump = new AbortController();
     if (line === undefined) revealDiff(page, native, { signal: jump.signal });
     else void revealDiffLine(page, native, line, { signal: jump.signal });
+  };
+
+  const showMarking = () => {
+    for (const { tree } of shown.values()) tree.showMarking(new Set(marking));
+  };
+
+  /**
+   * Has GitHub mark `path` Viewed, or not, by clicking its header's toggle, revealing its diff
+   * first when the header isn't in the page. Its boxes show pending until the page settles, and
+   * their checked state never comes from the click, only from what `viewed` reads back off the
+   * page.
+   */
+  const mark = async (section: SectionKey, path: string) => {
+    const native = nativeLinkOf(path);
+    if (signal.aborted || !native || !offered || marking.has(path)) return;
+    const want = !viewed.has(path);
+    clicked = { section, path };
+    jump?.abort();
+
+    marking.add(path);
+    showMarking();
+
+    const toggle = viewedToggleOf(page, native) ?? (await revealToggle(path, native));
+    if (toggle) await markViewed(page, native, want, { signal });
+
+    if (signal.aborted) return;
+    marking.delete(path);
+    showMarking();
+  };
+
+  /**
+   * Reveals `native`'s diff as a row click does and resolves with its Viewed toggle, or `null` once
+   * a newer click, the view's abort, or the timeout ends the wait.
+   */
+  const revealToggle = async (path: string, native: HTMLAnchorElement) => {
+    jump = new AbortController();
+    // The box's row is already in view, so the file turning current mustn't scroll the sidebar;
+    // if the reveal fails, a later turn to current still should.
+    const previous = scrolledTo;
+    scrolledTo = path;
+    const toggle = await revealUntil(page, native, () => viewedToggleOf(page, native), {
+      signal: jump.signal,
+    });
+    if (!toggle && !signal.aborted && scrolledTo === path) scrolledTo = previous;
+    return toggle;
   };
 
   const render = (sections: readonly FileSection[]) => {
@@ -388,7 +451,8 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     else view.prepend(root);
     const tree = new SectionTree(host, files, active);
     tree.showOnScreen(onScreen);
-    tree.showViewed(viewed);
+    if (offered) tree.showViewed(viewed);
+    if (marking.size > 0) tree.showMarking(new Set(marking));
     return { root, counter, tree };
   };
 
@@ -412,6 +476,17 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
   view.addEventListener(
     "click",
     (event) => {
+      const box = clickedCheckbox(event);
+      if (box) {
+        // The box shows only what GitHub's page shows, never the click.
+        event.preventDefault();
+        // Deferred past this dispatch: cancelling the click restores the box's checkedness as the
+        // dispatch ends, which would undo a render from GitHub's microtask flip. A double-click's
+        // second click is dropped, since GitHub honors a click during a pending save.
+        if (event.detail <= 1) setTimeout(() => void mark(box.section, box.path));
+        return;
+      }
+
       const file = clickedFile(event);
       if (file && isPlainLeftClick(event)) open(file.section, file.path);
     },
@@ -474,6 +549,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     },
     viewed(paths) {
       viewed = paths;
+      offered = true;
       for (const { tree } of shown.values()) tree.showViewed(paths);
       countHeaders();
     },

@@ -6,7 +6,7 @@ import { showSections } from "../../../entrypoints/content/sidebar/sections-view
 import css from "../../../entrypoints/content/sidebar/sections-view.css?raw";
 import { showVisit } from "../../../entrypoints/content/visit/land";
 import type { IntentResult } from "../../../utils/intent/read";
-import { byId } from "../../fixtures/files-page";
+import { byId, loadViewedFixture } from "../../fixtures/files-page";
 import { landedWith, pendingIntent, whole } from "../../fixtures/intent";
 import {
   addNativeFile,
@@ -91,7 +91,7 @@ const clickAt = (target: Element, init: MouseEventInit = {}) => {
  * Presses `key` on `target` as a browser does: a button whose keydown goes unhandled clicks,
  * on keydown for Enter and on keyup for Space.
  */
-function press(target: Element, key: "Enter" | " "): void {
+function press(target: Element, key: "Enter" | " " | "End"): void {
   const init = { key, bubbles: true, cancelable: true, composed: true };
   const activates =
     target.dispatchEvent(new KeyboardEvent("keydown", init)) && target instanceof HTMLButtonElement;
@@ -841,14 +841,7 @@ describe("showSections", () => {
       const rows = rowsIn("implementation");
 
       rows[0]?.focus();
-      rows[0]?.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          key: "End",
-          bubbles: true,
-          cancelable: true,
-          composed: true,
-        }),
-      );
+      if (rows[0]) press(rows[0], "End");
       await afterDebounce();
 
       expect(treeHost("implementation").shadowRoot?.activeElement).toBe(rows.at(-1));
@@ -1109,6 +1102,381 @@ describe("showSections", () => {
 
       expect(treeHost("implementation")).toBe(host);
       expect(rowIn("implementation", "src/engine.rs")).toBe(row);
+    });
+  });
+
+  describe("the Viewed checkbox", () => {
+    const boxesIn = (section: string) => [
+      ...(treeHost(section).shadowRoot?.querySelectorAll<HTMLInputElement>(
+        "input[data-item-checkbox]",
+      ) ?? []),
+    ];
+    const boxOf = (section: string, path: string) => {
+      const box = boxesIn(section).find((input) => input.dataset.itemCheckbox === path);
+      if (!box) throw new Error(`${section} has no checkbox for ${path}`);
+      return box;
+    };
+
+    it("shows no checkbox until Viewed is offered", () => {
+      expect(boxesIn("implementation")).toEqual([]);
+    });
+
+    it("gives every file row, and no directory row, a checkbox once Viewed is offered", () => {
+      viewed();
+
+      expect(boxesIn("implementation").map((box) => box.dataset.itemCheckbox)).toEqual(
+        filesIn("implementation"),
+      );
+    });
+
+    it("ticks a Partial file's boxes in every section", async () => {
+      await landed(renderSplit([{ first: 2, last: 8 }]));
+      viewed("src/render.rs");
+
+      expect(boxOf("implementation", "src/render.rs").checked).toBe(true);
+      expect(boxOf("docs", "src/render.rs").checked).toBe(true);
+      expect(boxOf("implementation", "src/engine.rs").checked).toBe(false);
+    });
+
+    it("names the box for its file and says what a click does", () => {
+      viewed("src/render.rs");
+
+      expect(boxOf("implementation", "src/render.rs").getAttribute("aria-label")).toBe(
+        "Viewed: render.rs",
+      );
+      expect(boxOf("implementation", "src/render.rs").title).toBe("Mark as not viewed");
+      expect(boxOf("implementation", "src/engine.rs").title).toBe("Mark as viewed");
+    });
+
+    it("puts only the focused row's box in the tab order", async () => {
+      viewed();
+      const rows = rowsIn("implementation");
+      rows[0]?.focus();
+      if (rows[0]) press(rows[0], "End");
+      await afterDebounce();
+
+      expect(boxesIn("implementation").filter((box) => box.tabIndex === 0)).toEqual([
+        boxOf("implementation", rows.at(-1)?.dataset.itemPath ?? ""),
+      ]);
+    });
+
+    it("keeps its state through a row's re-render", async () => {
+      viewed("src/engine.rs");
+      await setCommentCount("src/engine.rs", 2);
+
+      expect(partTexts("implementation", "src/engine.rs")).toEqual(["2"]);
+      expect(boxOf("implementation", "src/engine.rs").checked).toBe(true);
+    });
+
+    it("appears in a section built later", async () => {
+      byId("docs/guide.md").remove();
+      byId("README.md").remove();
+      await afterDebounce();
+      viewed("docs/intro.md");
+      addNativeFile("docs/intro.md", "config/app.toml");
+      await afterDebounce();
+
+      expect(boxOf("docs", "docs/intro.md").checked).toBe(true);
+    });
+
+    it("never scrolls the sidebar when focused", () => {
+      viewed();
+      const scrollIntoView = vi
+        .spyOn(Element.prototype, "scrollIntoView")
+        .mockImplementation(() => {});
+
+      boxOf("implementation", "src/engine.rs").focus();
+
+      expect(scrollIntoView).not.toHaveBeenCalled();
+      scrollIntoView.mockRestore();
+    });
+
+    describe("a click on it", () => {
+      const LIB = "src/lib.rs";
+      const APP = "config/app.toml";
+      const CARGO = "Cargo.lock";
+
+      const sectionOf = (path: string) => {
+        const section = sectionKeys().find((key) => key && filesIn(key).includes(path));
+        if (!section) throw new Error(`no section lists ${path}`);
+        return section;
+      };
+      const box = (path: string) => boxOf(sectionOf(path), path);
+      const regionOf = (path: string) => byId(nativeLink(path).hash.slice(1));
+      const toggleIn = (region: Element) => {
+        const toggle = region.querySelector<HTMLButtonElement>('button[aria-label$="Viewed"]');
+        if (!toggle) throw new Error(`#${region.id} has no Viewed toggle`);
+        return toggle;
+      };
+
+      /**
+       * Has `path`'s header toggle flip 120 ms after each click, so the box's pending state is
+       * observable, then, when `reverts`, flip back as a page that undoes a rejected save would.
+       * GitHub flips in a microtask, an ordering happy-dom can't reproduce (the e2e stand-in does),
+       * so a timer stands in.
+       */
+      function stubToggle(path: string, { reverts = false } = {}) {
+        const toggle = toggleIn(regionOf(path));
+        const show = (pressed: boolean) => {
+          toggle.setAttribute("aria-pressed", String(pressed));
+          toggle.setAttribute("aria-label", pressed ? "Viewed" : "Not Viewed");
+        };
+        return vi.spyOn(toggle, "click").mockImplementation(() => {
+          const was = toggle.getAttribute("aria-pressed") === "true";
+          setTimeout(() => {
+            show(!was);
+            if (reverts) setTimeout(() => show(was), 500);
+          }, 120);
+        });
+      }
+
+      const settle = () => vi.advanceTimersByTimeAsync(1_000);
+
+      let scrollIntoView: MockInstance<Element["scrollIntoView"]>;
+
+      beforeEach(async () => {
+        loadViewedFixture();
+        await landed(landedWith());
+        scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => {});
+      });
+
+      afterEach(() => {
+        scrollIntoView.mockRestore();
+      });
+
+      it("clicks a mounted file's toggle once, revealing nothing", async () => {
+        const toggle = stubToggle(LIB);
+        const links = vi.spyOn(HTMLAnchorElement.prototype, "click");
+
+        clickAt(box(LIB));
+        await settle();
+
+        expect(toggle).toHaveBeenCalledOnce();
+        expect(links).not.toHaveBeenCalled();
+        expect(scrollIntoView).not.toHaveBeenCalled();
+        links.mockRestore();
+      });
+
+      it("leaves the row unselected and unfocused", async () => {
+        stubToggle(LIB);
+
+        clickAt(box(LIB));
+        await settle();
+
+        expect(rowIn(sectionOf(LIB), LIB).getAttribute("aria-selected")).not.toBe("true");
+        expect(treeHost(sectionOf(LIB)).shadowRoot?.activeElement).not.toBe(
+          rowIn(sectionOf(LIB), LIB),
+        );
+      });
+
+      it("shows the box pending until the header flips, then the header's state", async () => {
+        stubToggle(LIB);
+
+        clickAt(box(LIB));
+        await vi.advanceTimersByTimeAsync(0);
+        const pending = box(LIB);
+
+        expect(pending.getAttribute("aria-busy")).toBe("true");
+        expect(pending.checked).toBe(false);
+
+        await settle();
+
+        expect(box(LIB).getAttribute("aria-busy")).not.toBe("true");
+        expect(box(LIB).checked).toBe(true);
+      });
+
+      it("shows the box pending in a section built while it settles", async () => {
+        vi.spyOn(toggleIn(regionOf(LIB)), "click").mockImplementation(() => {});
+        const link = byId(LIB);
+        const { parentElement } = link;
+        clickAt(box(LIB));
+        await vi.advanceTimersByTimeAsync(0);
+
+        link.remove();
+        await afterDebounce();
+        parentElement?.append(link);
+        await afterDebounce();
+
+        expect(box(LIB).getAttribute("aria-busy")).toBe("true");
+      });
+
+      it("clicks the toggle of a file whose diff hasn't loaded", async () => {
+        const toggle = stubToggle(CARGO);
+
+        clickAt(box(CARGO));
+        await settle();
+
+        expect(toggle).toHaveBeenCalledOnce();
+        expect(box(CARGO).checked).toBe(true);
+      });
+
+      it("unmarks a viewed file", async () => {
+        stubToggle(APP);
+
+        clickAt(box(APP));
+        await settle();
+
+        expect(box(APP).checked).toBe(false);
+      });
+
+      it("ignores a click while the box is pending", async () => {
+        const toggle = stubToggle(LIB);
+
+        clickAt(box(LIB));
+        await vi.advanceTimersByTimeAsync(0);
+        clickAt(box(LIB));
+        await settle();
+
+        expect(toggle).toHaveBeenCalledOnce();
+      });
+
+      it("ignores the second click of a double-click", async () => {
+        const toggle = stubToggle(LIB);
+
+        clickAt(box(LIB), { detail: 1 });
+        clickAt(box(LIB), { detail: 2 });
+        await settle();
+
+        expect(toggle).toHaveBeenCalledOnce();
+      });
+
+      it("mirrors a page that keeps a rejected save pressed", async () => {
+        stubToggle(LIB);
+
+        clickAt(box(LIB));
+        await settle();
+
+        expect(box(LIB).checked).toBe(true);
+      });
+
+      it("mirrors a page that reverts a rejected save", async () => {
+        stubToggle(LIB, { reverts: true });
+
+        clickAt(box(LIB));
+        await settle();
+
+        expect(box(LIB).checked).toBe(false);
+        expect(box(LIB).getAttribute("aria-busy")).not.toBe("true");
+      });
+
+      it("marks a Partial file once and ticks its box in every section", async () => {
+        await landed(
+          landedWith(
+            new Map([
+              [
+                LIB,
+                {
+                  kind: "split",
+                  shares: [
+                    { section: "implementation", hunks: [], lines: { added: 1, removed: 0 } },
+                    { section: "docs", hunks: [], lines: { added: 1, removed: 0 } },
+                  ],
+                },
+              ],
+            ]),
+          ),
+        );
+        const toggle = stubToggle(LIB);
+
+        clickAt(boxOf("docs", LIB));
+        await settle();
+
+        expect(toggle).toHaveBeenCalledOnce();
+        expect(boxOf("implementation", LIB).checked).toBe(true);
+        expect(boxOf("docs", LIB).checked).toBe(true);
+      });
+
+      describe("for a file whose diff isn't mounted", () => {
+        let entry: Element;
+
+        beforeEach(() => {
+          const region = regionOf(LIB);
+          entry = region.parentElement ?? region;
+          entry.remove();
+        });
+
+        const mount = () =>
+          document.querySelector('[data-testid="progressive-diffs-list"]')?.append(entry);
+
+        it("reveals it, then clicks its toggle once it mounts", async () => {
+          const toggle = toggleIn(entry);
+          const flip = vi.spyOn(toggle, "click");
+          const link = vi.spyOn(nativeLink(LIB), "click");
+
+          clickAt(box(LIB));
+          await settle();
+
+          expect(link).toHaveBeenCalledOnce();
+          expect(flip).not.toHaveBeenCalled();
+
+          mount();
+          await settle();
+
+          expect(flip).toHaveBeenCalledOnce();
+        });
+
+        it("leaves a header that already shows the target alone", async () => {
+          const toggle = toggleIn(entry);
+          toggle.setAttribute("aria-pressed", "true");
+          const flip = vi.spyOn(toggle, "click");
+
+          clickAt(box(LIB));
+          mount();
+          await settle();
+
+          expect(flip).not.toHaveBeenCalled();
+          expect(box(LIB).getAttribute("aria-busy")).not.toBe("true");
+        });
+
+        it("marks nothing when the diff never mounts", async () => {
+          const flip = vi.spyOn(toggleIn(entry), "click");
+
+          clickAt(box(LIB));
+          await vi.advanceTimersByTimeAsync(5_000);
+          mount();
+          await settle();
+
+          expect(flip).not.toHaveBeenCalled();
+          expect(box(LIB).checked).toBe(false);
+          expect(box(LIB).getAttribute("aria-busy")).not.toBe("true");
+        });
+
+        it("still scrolls the sidebar to it once it later becomes current", async () => {
+          clickAt(box(LIB));
+          await vi.advanceTimersByTimeAsync(5_000);
+          scrollIntoView.mockClear();
+
+          byId(LIB).setAttribute("aria-current", "true");
+          await afterDebounce();
+
+          expect(scrollIntoView).toHaveBeenCalled();
+        });
+
+        it.each([
+          ["a newer row click", () => clickAt(rowIn(sectionOf(APP), APP))],
+          ["a newer box click", () => clickAt(box(APP))],
+          ["the view's abort", () => abort()],
+        ])("marks nothing after %s", async (_, cancel) => {
+          const flip = vi.spyOn(toggleIn(entry), "click");
+
+          clickAt(box(LIB));
+          await vi.advanceTimersByTimeAsync(0);
+          cancel();
+          mount();
+          await settle();
+
+          expect(flip).not.toHaveBeenCalled();
+        });
+      });
+
+      it("never scrolls the sidebar", async () => {
+        stubToggle(LIB);
+
+        clickAt(box(LIB));
+        await settle();
+
+        expect(scrollIntoView).not.toHaveBeenCalled();
+      });
     });
   });
 

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { followViewed, visitViewed } from "../../../entrypoints/content/diffs/viewed";
+import { followViewed, markViewed, visitViewed } from "../../../entrypoints/content/diffs/viewed";
 import { readChangedFiles } from "../../../entrypoints/content/files-page";
 import type { ViewedSeed } from "../../../utils/github/pr-ref";
 import { landingOf, sectionsOf } from "../../../utils/intent/landing";
@@ -8,6 +8,7 @@ import {
   byId,
   diffList,
   foundPage,
+  linkTo,
   loadFixture,
   loadViewedCommitFilterFixture,
   loadViewedFixture,
@@ -145,6 +146,98 @@ describe("followViewed", () => {
     controller = new AbortController();
     follow(seedViewing(VIEWED_LIB_RS, false));
 
-    expect(show.mock.calls.flatMap(([paths]) => [...paths])).toEqual([]);
+    expect(show).not.toHaveBeenCalled();
+  });
+
+  it("reports nothing viewed once the page offers Viewed with no file viewed", () => {
+    pressToggle(byId(VIEWED_APP_TOML), false);
+
+    follow(undefined);
+
+    expect(show).toHaveBeenCalledWith(new Set());
+  });
+});
+
+describe("markViewed", () => {
+  let controller: AbortController;
+
+  const libToggle = () => byId(VIEWED_LIB_RS).querySelector('button[aria-label$="Viewed"]');
+  const mark = (viewed: boolean) =>
+    markViewed(foundPage(), linkTo("src/lib.rs"), viewed, { signal: controller.signal });
+  /** Has the toggle's click do `then` 120 ms later, so the wait for the flip is observable. */
+  const onClick = (then: () => void) => {
+    const toggle = libToggle();
+    if (!(toggle instanceof HTMLButtonElement)) throw new Error("no Viewed toggle for src/lib.rs");
+    return vi.spyOn(toggle, "click").mockImplementation(() => void setTimeout(then, 120));
+  };
+  const settled = (promise: Promise<void>) => {
+    let done = false;
+    void promise.then(() => (done = true));
+    return () => done;
+  };
+
+  beforeEach(() => {
+    loadViewedFixture();
+    vi.useFakeTimers();
+    controller = new AbortController();
+  });
+
+  afterEach(() => {
+    controller.abort();
+    vi.useRealTimers();
+  });
+
+  it("clicks the toggle once and resolves after the page flips it", async () => {
+    const click = onClick(() => pressToggle(byId(VIEWED_LIB_RS), true));
+
+    const done = settled(mark(true));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(done()).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(120);
+    expect(done()).toBe(true);
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it("doesn't click a toggle that already shows the target", async () => {
+    const click = onClick(() => {});
+
+    await mark(false);
+
+    expect(click).not.toHaveBeenCalled();
+  });
+
+  it("gives up after five seconds when the page never flips, without clicking again", async () => {
+    const click = onClick(() => {});
+
+    const done = settled(mark(true));
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(done()).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(done()).toBe(true);
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it("resolves once aborted", async () => {
+    onClick(() => {});
+
+    const marked = mark(true);
+    controller.abort();
+
+    await expect(marked).resolves.toBeUndefined();
+  });
+
+  it("resolves when GitHub replaces the header with one showing the target", async () => {
+    onClick(() => {
+      const fresh = byId(VIEWED_LIB_RS).cloneNode(true) as HTMLElement;
+      pressToggle(fresh, true);
+      byId(VIEWED_LIB_RS).replaceWith(fresh);
+    });
+
+    const done = settled(mark(true));
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(done()).toBe(true);
   });
 });

@@ -1,7 +1,8 @@
 /**
  * Reports which files the reviewer has marked Viewed. A visit starts from the full load's route
  * data when that is fresh, then reads each header's toggle as its diff mounts and as GitHub flips
- * it. A file keeps its last-read state after its diff unmounts, until the visit ends.
+ * it. A file keeps its last-read state after its diff unmounts, until the visit ends. Also marks a
+ * file Viewed or not, through GitHub's own toggle.
  */
 
 import type { ViewedSeed } from "@/utils/github/pr-ref";
@@ -11,10 +12,13 @@ import {
   observeDiffs,
   observeViewed,
   readViewed,
+  showsViewed,
   viewedOffered,
+  viewedToggleOf,
 } from "../files-page";
 import type { LandingView } from "../visit/land";
 import { pathsByAnchor, sameSet } from "./on-screen";
+import { untilFound } from "./reveal";
 
 /**
  * One visit's Viewed state: whether the page offers Viewed, and each file's state as last read, by
@@ -48,9 +52,9 @@ function viewedPaths(
 }
 
 /**
- * Calls `show` with the paths of the viewed files whenever that set changes, while the page offers
- * Viewed, until `signal` aborts. Paths come from the files the `sections` hook lists. Records each
- * read into `viewed`: Viewed stays offered once a read finds it, and each mounted header
+ * Calls `show` with the paths of the viewed files once the page offers Viewed, then whenever that
+ * set changes, until `signal` aborts. Paths come from the files the `sections` hook lists. Records
+ * each read into `viewed`: Viewed stays offered once a read finds it, and each mounted header
  * overwrites its file's state.
  */
 export function followViewed(
@@ -60,11 +64,12 @@ export function followViewed(
   signal: AbortSignal,
 ): LandingView {
   let paths = new Map<string, string>();
-  let shown: ReadonlySet<string> = new Set();
+  let shown: ReadonlySet<string> | undefined;
 
   const showIfChanged = () => {
-    const next = viewed.offered ? viewedPaths(viewed.byAnchor, paths) : new Set<string>();
-    if (sameSet(next, shown)) return;
+    if (!viewed.offered) return;
+    const next = viewedPaths(viewed.byAnchor, paths);
+    if (shown && sameSet(next, shown)) return;
     shown = next;
     show(next);
   };
@@ -85,4 +90,31 @@ export function followViewed(
       showIfChanged();
     },
   };
+}
+
+/**
+ * Has GitHub show `link`'s file as `viewed` by clicking its header's toggle, unless the toggle
+ * already shows that. Resolves once the toggle shows `viewed`, at `REVEAL_TIMEOUT_MS`, or once
+ * `signal` aborts. Never rejects, and clicks at most once: GitHub honors a second click during a
+ * pending save and toggles back.
+ */
+export async function markViewed(
+  page: FilesPage,
+  link: HTMLAnchorElement,
+  viewed: boolean,
+  { signal }: { signal: AbortSignal },
+): Promise<void> {
+  // Re-found each check: GitHub may replace the header rather than flip its toggle.
+  const shows = () => {
+    const toggle = viewedToggleOf(page, link);
+    return toggle && showsViewed(toggle) === viewed ? toggle : null;
+  };
+  const observe: typeof observeDiffs = (diffs, onChange, options) => {
+    observeDiffs(diffs, onChange, options);
+    observeViewed(diffs, onChange, options);
+  };
+
+  if (signal.aborted || shows()) return;
+  viewedToggleOf(page, link)?.click();
+  await untilFound(page.diffs, shows, { signal, observe });
 }

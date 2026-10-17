@@ -356,10 +356,24 @@ export function readViewed(page: FilesPage): Map<string, boolean> {
   return new Map(
     [...mountedDiffs(page)].flatMap(([anchor, region]) => {
       const toggle = region.querySelector(VIEWED_TOGGLE);
-      return toggle ? [[anchor, toggle.getAttribute("aria-pressed") === "true"] as const] : [];
+      return toggle ? [[anchor, showsViewed(toggle)] as const] : [];
     }),
   );
 }
+
+/** Whether a Viewed toggle shows its file viewed. */
+export const showsViewed = (toggle: Element): boolean =>
+  toggle.getAttribute("aria-pressed") === "true";
+
+/**
+ * The Viewed toggle in `link`'s file's mounted header, or `null` while the diff is unmounted or
+ * the page offers no Viewed. An unloaded diff's header keeps its toggle.
+ */
+export const viewedToggleOf = (
+  page: FilesPage,
+  link: HTMLAnchorElement,
+): HTMLButtonElement | null =>
+  findDiff(page, link)?.querySelector<HTMLButtonElement>(VIEWED_TOGGLE) ?? null;
 
 /**
  * Whether the page offers Viewed: GitHub's "N / M viewed" counter, or any header's toggle, is

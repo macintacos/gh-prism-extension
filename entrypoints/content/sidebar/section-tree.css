@@ -192,9 +192,54 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
   opacity: calc(1 - 0.45 * var(--gh-prism-viewed, 0));
 }
 
+/* The Viewed box the @pierre/trees patch renders after each file row, at that row's slot; the
+   inline style sets its top. Outside the row's sections, so a Viewed row's dim leaves it crisp. */
+[data-item-checkbox] {
+  position: absolute;
+  inset-inline-end: 8px;
+  width: 14px;
+  height: 14px;
+  /* Centred in the row: (ROW_HEIGHT 28px in section-tree.ts − 14px) / 2. */
+  margin: 7px 0 0;
+  accent-color: var(--bgColor-accent-emphasis);
+  cursor: pointer;
+}
+
+[data-item-checkbox]:focus-visible {
+  outline: 2px solid var(--focus-outlineColor);
+  outline-offset: 1px;
+}
+
+/* Pending, not disabled: full strength, with a breathing accent halo. A box-shadow, so the
+   focus-visible outline still shows over it. */
+[data-item-checkbox][aria-busy="true"] {
+  cursor: progress;
+  border-radius: var(--borderRadius-small);
+  animation: gh-prism-pending 1s ease-in-out infinite alternate;
+}
+
+@keyframes gh-prism-pending {
+  from {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  to {
+    box-shadow: 0 0 0 3px var(--bgColor-accent-muted);
+  }
+}
+
+:host([data-gh-prism-checkboxes]) [data-item-type="file"] {
+  /* Room for the box: its width plus its inset on both sides. */
+  padding-inline-end: 30px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-icon-name="file-tree-icon-chevron"],
   [data-item-section="icon"]::after {
     transition: none;
+  }
+
+  [data-item-checkbox][aria-busy="true"] {
+    animation: none;
+    box-shadow: 0 0 0 2px var(--bgColor-accent-muted);
   }
 }
