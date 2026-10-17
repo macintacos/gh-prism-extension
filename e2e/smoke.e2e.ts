@@ -12,8 +12,11 @@ const readFixture = (name: string) =>
 const PR_BODY = `<!doctype html>${readFixture("files-page.html")}`;
 // README.md's tree row in tests/fixtures/files-page.html links to this id.
 const README_DIFF = "diff-0a13";
-const LIB_DIFF = "diff-b1a35a68f14e696205874893c07fd24fdb88882b47c23cc0e0c80a30c7d53759";
-const CONFIG_DIFF = "diff-c9bd6e09f349b0f93c557afe2376f4a9345a21b5daed12c6af0a714773aba693";
+
+// src/lib.rs's and config/app.toml's diff regions in tests/fixtures/viewed-files-page.html;
+// keep in sync with tests/fixtures/files-page.ts, whose ?raw imports e2e can't load.
+const VIEWED_LIB_RS = "diff-b1a35a68f14e696205874893c07fd24fdb88882b47c23cc0e0c80a30c7d53759";
+const VIEWED_APP_TOML = "diff-c9bd6e09f349b0f93c557afe2376f4a9345a21b5daed12c6af0a714773aba693";
 const TREE_OPEN = '<ul role="tree" aria-label="File Tree">';
 // Hex, as GitHub's diff anchors are.
 const bulkDiff = (n: number) => `diff-b${n.toString(16).padStart(3, "0")}`;
@@ -64,7 +67,7 @@ const test = base.extend<{ context: BrowserContext }>({
 const serve = (context: BrowserContext, url: string, body: string) =>
   context.route(url, (route) => route.fulfill({ contentType: "text/html", body }));
 
-/** Flips the Viewed toggle in the diff region `anchor` the way GitHub's click does. */
+/** Sets the Viewed toggle in diff region `anchor` to `viewed`, as GitHub's click leaves its attributes. */
 const setViewed = (page: Page, anchor: string, viewed: boolean) =>
   page.evaluate(
     ({ anchor, viewed }) => {
@@ -352,7 +355,6 @@ test("the sidebar dims viewed files and follows GitHub's Viewed toggle", async (
           dimmed: Number(getComputedStyle(content).opacity) < 1,
         };
       });
-  const setLibViewed = (viewed: boolean) => setViewed(page, LIB_DIFF, viewed);
 
   await expect.poll(() => viewedOf("config/app.toml")).toEqual({ flag: "1", dimmed: true });
   expect(await viewedOf("src/lib.rs")).toEqual({ flag: "", dimmed: false });
@@ -361,7 +363,7 @@ test("the sidebar dims viewed files and follows GitHub's Viewed toggle", async (
     for (const host of document.querySelectorAll<HTMLElement>(".gh-prism-tree"))
       host.dataset.e2eMark = "";
   });
-  await setLibViewed(true);
+  await setViewed(page, VIEWED_LIB_RS, true);
   await expect.poll(() => viewedOf("src/lib.rs")).toEqual({ flag: "1", dimmed: true });
   expect(
     await page.evaluate(() =>
@@ -371,7 +373,7 @@ test("the sidebar dims viewed files and follows GitHub's Viewed toggle", async (
     ),
   ).toBe(true);
 
-  await setLibViewed(false);
+  await setViewed(page, VIEWED_LIB_RS, false);
   await expect.poll(() => viewedOf("src/lib.rs")).toEqual({ flag: "", dimmed: false });
 });
 
@@ -379,52 +381,31 @@ test("section headers count viewed files once any file is Viewed", async ({ cont
   const url = "https://github.com/macintacos/gh-prism-sandbox/pull/3/changes";
   await serve(context, url, `<!doctype html>${readFixture("viewed-files-page.html")}`);
   await page.goto(url);
-  const pills = () =>
+  const counters = () =>
     page.evaluate(() =>
-      [...document.querySelectorAll<HTMLElement>(".gh-prism-section")].map((section) => ({
-        key: section.dataset.section,
-        pill: section.querySelector('.gh-prism-counter > [aria-hidden="true"]')?.textContent,
-        listsLib: [...section.querySelectorAll(".gh-prism-tree")].some((host) =>
-          host.shadowRoot?.querySelector('[data-item-path="src/lib.rs"]'),
-        ),
-      })),
+      Object.fromEntries(
+        [...document.querySelectorAll<HTMLElement>(".gh-prism-section")].map((section) => {
+          const counter = section.querySelector(".gh-prism-counter");
+          return [
+            section.dataset.section,
+            (counter?.querySelector('[aria-hidden="true"]') ?? counter)?.textContent,
+          ];
+        }),
+      ),
     );
 
-  await expect
-    .poll(async () => {
-      const all = await pills();
-      return (
-        all.some(({ key }) => key === "config") &&
-        all.every(({ key, pill }) =>
-          key === "config" ? pill === "1/1" : /^0\/\d+$/.test(pill ?? ""),
-        )
-      );
-    })
-    .toBe(true);
+  await expect.poll(counters).toEqual({ implementation: "0/1", config: "1/1", generated: "0/1" });
   await expect(
     page.locator('.gh-prism-section[data-section="config"] h3 button'),
   ).toHaveAccessibleName(/1 of 1 viewed/);
 
-  await setViewed(page, LIB_DIFF, true);
-  await expect
-    .poll(async () => {
-      const lib = (await pills()).filter(({ listsLib }) => listsLib);
-      return lib.length > 0 && lib.every(({ pill }) => /^1\/\d+$/.test(pill ?? ""));
-    })
-    .toBe(true);
+  await setViewed(page, VIEWED_LIB_RS, true);
+  await expect.poll(counters).toEqual({ implementation: "1/1", config: "1/1", generated: "0/1" });
 
-  await setViewed(page, LIB_DIFF, false);
-  await setViewed(page, CONFIG_DIFF, false);
-  await expect
-    .poll(() =>
-      page.evaluate(() =>
-        [...document.querySelectorAll(".gh-prism-counter")].every(
-          (counter) =>
-            /^\d+$/.test(counter.textContent ?? "") && !counter.querySelector(".sr-only"),
-        ),
-      ),
-    )
-    .toBe(true);
+  await setViewed(page, VIEWED_LIB_RS, false);
+  await setViewed(page, VIEWED_APP_TOML, false);
+  await expect.poll(counters).toEqual({ implementation: "1", config: "1", generated: "1" });
+  await expect(page.locator(".gh-prism-counter .sr-only")).toHaveCount(0);
 });
 
 test("each file's icon takes its type's color in the page's color scheme", async ({

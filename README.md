@@ -29,7 +29,8 @@ at `/pull/<number>/changes`. It leaves the classic Files changed tab untouched.
   per section.
 - It collapses or expands a section's files when you click its heading.
 - It dims the files you've marked Viewed on GitHub, in every section that lists them, and
-  follows GitHub's Viewed toggle.
+  once any file is Viewed, each section's heading shows how many of its files are Viewed
+  (`N/M`). It follows GitHub's Viewed toggle.
 
 ## Install
 

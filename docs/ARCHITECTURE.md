@@ -146,7 +146,7 @@ header's toggle as diffs mount and as GitHub flips them (`observeViewed`), and k
 file's last-read state for the rest of the visit, so a file whose diff unmounts stays as
 read. It feeds the viewed paths to the sections view's `viewed`, which dims their rows
 and, once any file is Viewed, counts each section's viewed files in its header. Nothing
-dims unless the page offers Viewed.
+dims or counts unless the page offers Viewed.
 
 ## Diff order and reveal
 

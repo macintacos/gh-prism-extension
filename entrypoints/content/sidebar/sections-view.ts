@@ -31,8 +31,8 @@ interface SectionsView extends LandingView {
   /** Marks the files whose diffs are on screen: their rows, or a collapsed section's header. */
   onScreen(paths: ReadonlySet<string>): void;
   /**
-   * Dims the rows of the files GitHub shows as Viewed, and counts them in each section's header
-   * once any is.
+   * Dims the rows of the files GitHub shows as Viewed and, once any is, counts each section's
+   * viewed files in its header.
    */
   viewed(paths: ReadonlySet<string>): void;
 }
@@ -204,27 +204,30 @@ function sectionShell(
 }
 
 /**
- * Writes `entries`' file count into a section header's `counter`: once any file is Viewed, its
- * viewed files out of them, said in words to screen readers. Leaves the DOM alone when unchanged.
+ * Writes the file count of `entries` into a section header's `counter`, or, once `viewed` holds
+ * any path, how many of them are viewed, as `N/M` with the words for screen readers. An empty
+ * `viewed`, which a page without Viewed also sends, keeps the bare count. Leaves the DOM alone
+ * when unchanged.
  */
 function showCount(
   counter: HTMLElement,
   entries: readonly FileEntry[],
   viewed: ReadonlySet<string>,
 ): void {
-  const files = entries.length;
+  const total = entries.length;
   if (viewed.size === 0) {
-    if (counter.textContent !== String(files)) counter.textContent = String(files);
+    if (counter.textContent !== String(total)) counter.textContent = String(total);
     return;
   }
 
-  const done = entries.filter(({ file }) => viewed.has(file.path)).length;
-  const words = `${done} of ${files} viewed`;
+  const viewedHere = entries.filter(({ file }) => viewed.has(file.path)).length;
+  const words = `${viewedHere} of ${total} viewed`;
   if (counter.querySelector(".sr-only")?.textContent === words) return;
+
   const doc = counter.ownerDocument;
-  const shown = el(doc, "span", "", `${done}/${files}`);
-  shown.setAttribute("aria-hidden", "true");
-  counter.replaceChildren(shown, el(doc, "span", "sr-only", words));
+  const figure = el(doc, "span", "", `${viewedHere}/${total}`);
+  figure.setAttribute("aria-hidden", "true");
+  counter.replaceChildren(figure, el(doc, "span", "sr-only", words));
 }
 
 /** Placeholder rows for the sidebar's file list. */
@@ -306,7 +309,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     }
   };
 
-  /** Writes each shown section's count, as viewed files out of its files once any file is Viewed. */
+  /** Writes each shown section's count into its header. */
   const countHeaders = () => {
     for (const { key, entries } of latestSections) {
       const current = shown.get(key);

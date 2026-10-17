@@ -1113,71 +1113,82 @@ describe("showSections", () => {
   });
 
   describe("the viewed counts", () => {
-    const pill = (section: string) => {
-      const counter = sectionToggle(section).querySelector(".gh-prism-counter");
-      if (!(counter instanceof HTMLElement)) throw new Error(`${section} has no counter`);
-      return counter;
+    const counter = (section: string) => {
+      const found = sectionToggle(section).querySelector(".gh-prism-counter");
+      if (!(found instanceof HTMLElement)) throw new Error(`${section} has no counter`);
+      return found;
     };
-    const shownCount = (counter: Element) =>
-      (counter.querySelector('[aria-hidden="true"]') ?? counter).textContent;
-    const pills = () =>
-      [...document.querySelectorAll(".gh-prism-section .gh-prism-counter")].map(shownCount);
+    const countText = (found: Element) =>
+      (found.querySelector('[aria-hidden="true"]') ?? found).textContent;
+    const counters = () =>
+      [...document.querySelectorAll(".gh-prism-section .gh-prism-counter")].map(countText);
 
     it("counts each section's viewed files once any file is Viewed", () => {
       viewed("src/engine.rs");
 
-      expect(pills()).toEqual(["1/7", "0/1", "0/2", "0/2", "0/1"]);
+      expect(counters()).toEqual(["1/7", "0/1", "0/2", "0/2", "0/1"]);
     });
 
     it("counts a Partial file in each section that lists it", async () => {
       await landed(renderSplit([{ first: 2, last: 8 }]));
+
       viewed("src/render.rs");
 
-      for (const section of ["implementation", "docs"])
-        expect(shownCount(pill(section))).toBe(`1/${filesIn(section).length}`);
+      expect(counters()).toEqual(["1/7", "0/1", "1/3", "0/2", "0/1"]);
     });
 
     it("says the count in words in the header's accessible name", () => {
       viewed("src/engine.rs");
 
-      const counter = pill("implementation");
+      const implementation = counter("implementation");
       expect(
         sectionToggle("implementation").querySelector(".gh-prism-counter .sr-only")?.textContent,
       ).toBe("1 of 7 viewed");
-      expect(counter.querySelector("span:not(.sr-only)")?.getAttribute("aria-hidden")).toBe("true");
+      expect(implementation.querySelector("span:not(.sr-only)")?.getAttribute("aria-hidden")).toBe(
+        "true",
+      );
     });
 
     it("counts on a collapsed section", () => {
       sectionToggle("docs").click();
+
       viewed("docs/guide.md");
 
-      expect(shownCount(pill("docs"))).toBe("1/2");
+      expect(countText(counter("docs"))).toBe("1/2");
       expect(sectionToggle("docs").getAttribute("aria-expanded")).toBe("false");
     });
 
     it("follows marks and unmarks, and goes away once nothing is Viewed", () => {
-      const counter = pill("implementation");
       viewed("src/engine.rs");
       viewed("src/engine.rs", "src/render.rs");
 
-      expect(shownCount(counter)).toBe("2/7");
-      expect(pill("implementation")).toBe(counter);
+      expect(countText(counter("implementation"))).toBe("2/7");
 
       viewed();
 
-      expect(pills()).toEqual(["7", "1", "2", "2", "1"]);
+      expect(counters()).toEqual(["7", "1", "2", "2", "1"]);
       expect(document.querySelector(".gh-prism-counter .sr-only")).toBeNull();
+    });
+
+    it("leaves an unchanged count's DOM alone", () => {
+      viewed("src/engine.rs");
+      const figure = counter("implementation").querySelector('[aria-hidden="true"]');
+
+      viewed("src/engine.rs", "docs/guide.md");
+
+      expect(counter("implementation").querySelector('[aria-hidden="true"]')).toBe(figure);
     });
 
     it("counts a section built later", async () => {
       byId("docs/guide.md").remove();
       byId("README.md").remove();
       await afterDebounce();
+
       viewed("docs/intro.md");
       addNativeFile("docs/intro.md", "config/app.toml");
       await afterDebounce();
 
-      expect(shownCount(pill("docs"))).toBe("1/1");
+      expect(countText(counter("docs"))).toBe("1/1");
     });
   });
 
