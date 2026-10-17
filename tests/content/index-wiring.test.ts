@@ -162,6 +162,7 @@ describe("content script", () => {
   });
 
   it("ignores embedded Viewed data once GitHub has navigated", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
     history.replaceState(null, "", "/macintacos/gh-prism-sandbox/pull/3/changes");
     loadViewedFixture();
     byId("pr-file-tree").remove();
