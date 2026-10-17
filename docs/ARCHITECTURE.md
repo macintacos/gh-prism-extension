@@ -60,9 +60,9 @@ whether the page is still connected. Once the sidebar, native tree, or diffs con
 replacement as a new page. A list swap inside the container is not a new page; `order.ts`
 follows it. A pathname change aborts the whole visit. A hash change, which every file
 click makes, is not a new visit. When the window ends on a Files view path with no markup
-found, the watcher warns once and leaves GitHub's tree alone; the next wake still starts a
-new settle window. `watchClassicPages` follows the classic page the same way, through the
-same settle windows, and never warns.
+found, not even the classic page's, the watcher warns once and leaves GitHub's tree alone;
+the next wake still starts a new settle window. `watchClassicPages` follows the classic
+page the same way, through the same settle windows, and never warns.
 
 ```mermaid
 stateDiagram-v2
@@ -70,7 +70,7 @@ stateDiagram-v2
     Settling --> Page: Files view markup found
     Page --> Page: within 10 s, sidebar, tree, or diffs container disconnected
     Page --> Settling: pathname changes, so the visit aborts
-    Settling --> Missing: 10 s pass with no markup
+    Settling --> Missing: 10 s pass with no markup, new or classic
     Page --> Idle: 10 s pass, observer stops
     Idle --> Settling: next soft-nav end or popstate
     Missing --> Idle: warn once

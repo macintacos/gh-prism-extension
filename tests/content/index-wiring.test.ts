@@ -227,7 +227,6 @@ describe("content script", () => {
     beforeEach(() => {
       history.replaceState(null, "", "/o/r/pull/1/files");
       loadClassicFixture("");
-      vi.spyOn(console, "warn").mockImplementation(() => {});
     });
 
     it("shows the notice", async () => {

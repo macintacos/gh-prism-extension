@@ -71,15 +71,29 @@ describe("watchFilesPages", () => {
     expect(onMissing).not.toHaveBeenCalled();
   });
 
-  it("reports missing markup once the settle window ends", async () => {
-    document.body.innerHTML = "";
-    watch();
-    await vi.advanceTimersByTimeAsync(9_900);
-    expect(onMissing).not.toHaveBeenCalled();
+  it.each(["/o/r/pull/1/changes", "/o/r/pull/1/files"])(
+    "reports missing markup at %s once the settle window ends",
+    async (path) => {
+      history.replaceState(null, "", path);
+      document.body.innerHTML = "";
+      watch();
+      await vi.advanceTimersByTimeAsync(9_900);
+      expect(onMissing).not.toHaveBeenCalled();
 
+      await vi.advanceTimersByTimeAsync(20_000);
+
+      expect(onMissing).toHaveBeenCalledOnce();
+      expect(visits).toHaveLength(0);
+    },
+  );
+
+  it("reports no missing markup on a classic page, which GitHub shows in the new one's place", async () => {
+    history.replaceState(null, "", "/o/r/pull/1/files");
+    loadClassicFixture("");
+    watch();
     await vi.advanceTimersByTimeAsync(20_000);
 
-    expect(onMissing).toHaveBeenCalledOnce();
+    expect(onMissing).not.toHaveBeenCalled();
     expect(visits).toHaveLength(0);
   });
 

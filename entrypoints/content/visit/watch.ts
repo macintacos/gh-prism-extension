@@ -114,7 +114,9 @@ function watchPages<P>(
 
   const endSettle = () => {
     observer.disconnect();
-    if (!shown && !missingReported && isFilesPath(win.location.pathname)) {
+    const { pathname } = win.location;
+    // GitHub shows the classic page in the new one's place, so neither is missing.
+    if (!shown && !missingReported && isFilesPath(pathname) && !findClassicPage(win.document)) {
       missingReported = true;
       handlers.onMissing();
     }
