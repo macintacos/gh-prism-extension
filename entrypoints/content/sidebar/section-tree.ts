@@ -166,6 +166,12 @@ export class SectionTree {
     this.#tree.render({ fileTreeContainer: this.#host });
   }
 
+  /** Shows the checkboxes of `paths` as pending. */
+  showMarking(paths: ReadonlySet<string>): void {
+    this.#marking = paths;
+    this.#tree.render({ fileTreeContainer: this.#host });
+  }
+
   /** Removes the tree's rows and releases it. */
   cleanUp(): void {
     this.#tree.cleanUp();

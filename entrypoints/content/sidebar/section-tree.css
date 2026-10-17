@@ -209,9 +209,28 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
   outline-offset: 1px;
 }
 
+/* Saving, not disabled: full strength, with a breathing accent halo. A box-shadow, so the
+   focus-visible outline still shows over it. */
 [data-item-checkbox][aria-busy="true"] {
-  opacity: 0.6;
   cursor: progress;
+  border-radius: 3px;
+  animation: gh-prism-saving 1s ease-in-out infinite alternate;
+}
+
+@keyframes gh-prism-saving {
+  from {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  to {
+    box-shadow: 0 0 0 3px var(--bgColor-accent-muted, rgb(84 174 255 / 0.4));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-item-checkbox][aria-busy="true"] {
+    animation: none;
+    box-shadow: 0 0 0 2px var(--bgColor-accent-muted, rgb(84 174 255 / 0.4));
+  }
 }
 
 :host([data-gh-prism-checkboxes]) [data-item-type="file"] {
