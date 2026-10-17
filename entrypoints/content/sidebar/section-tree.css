@@ -193,16 +193,63 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
 }
 
 /* The Viewed box the @pierre/trees patch renders after each file row, at that row's slot; the
-   inline style sets its top. Outside the row's sections, so a Viewed row's dim leaves it crisp. */
+   inline style sets its top. Outside the row's sections, so a Viewed row's dim leaves it crisp.
+   Drawn, not native: an outline at rest, and once Viewed a fill in the section's hue with the
+   check cut out of it in the section's tint. */
 [data-item-checkbox] {
+  appearance: none;
   position: absolute;
   inset-inline-end: 8px;
+  display: grid;
+  place-content: center;
+  box-sizing: border-box;
   width: 14px;
   height: 14px;
   /* Centred in the row: (ROW_HEIGHT 28px in section-tree.ts − 14px) / 2. */
   margin: 7px 0 0;
-  accent-color: var(--bgColor-accent-emphasis);
+  border: 1.5px solid var(--gh-prism-box-edge);
+  border-radius: 4px;
+  background: transparent;
   cursor: pointer;
+  transition:
+    background-color 120ms ease-out,
+    border-color 120ms ease-out;
+}
+
+/* Lucide check (ISC). */
+[data-item-checkbox]::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  background: var(--gh-prism-tint);
+  mask:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  scale: 0.5;
+  opacity: 0;
+  transition:
+    scale 150ms cubic-bezier(0.2, 0.7, 0.2, 1.4),
+    opacity 100ms ease-out;
+}
+
+[data-item-checkbox]:hover {
+  border-color: var(--gh-prism-hue);
+  background-color: var(--gh-prism-box-hover-wash);
+}
+
+[data-item-checkbox]:checked {
+  border-color: var(--gh-prism-hue);
+  background-color: var(--gh-prism-hue);
+}
+
+[data-item-checkbox]:checked::before {
+  scale: 1;
+  opacity: 1;
+}
+
+[data-item-checkbox]:checked:hover {
+  border-color: var(--gh-prism-box-hover-fill);
+  background-color: var(--gh-prism-box-hover-fill);
 }
 
 [data-item-checkbox]:focus-visible {
@@ -210,20 +257,46 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
   outline-offset: 1px;
 }
 
-/* Pending, not disabled: full strength, with a breathing accent halo. A box-shadow, so the
-   focus-visible outline still shows over it. */
+/* Pending, not disabled: the box keeps the state GitHub last showed, and a spinning ring takes
+   the check's place. */
 [data-item-checkbox][aria-busy="true"] {
+  border-color: var(--gh-prism-hue);
   cursor: progress;
-  border-radius: var(--borderRadius-small);
-  animation: gh-prism-pending 1s ease-in-out infinite alternate;
 }
 
-@keyframes gh-prism-pending {
-  from {
-    box-shadow: 0 0 0 0 transparent;
-  }
+[data-item-checkbox][aria-busy="true"]::before {
+  box-sizing: border-box;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--gh-prism-hue);
+  border-right-color: transparent;
+  border-radius: 50%;
+  background: none;
+  mask: none;
+  scale: 1;
+  opacity: 1;
+  animation: gh-prism-spin 700ms linear infinite;
+}
+
+[data-item-checkbox][aria-busy="true"]:checked::before {
+  border-color: var(--gh-prism-tint);
+  border-right-color: transparent;
+}
+
+@keyframes gh-prism-spin {
   to {
-    box-shadow: 0 0 0 3px var(--bgColor-accent-muted);
+    rotate: 1turn;
+  }
+}
+
+/* Forced colors drop the drawn fill and check, so the box goes back to the system's own. */
+@media (forced-colors: active) {
+  [data-item-checkbox] {
+    appearance: auto;
+  }
+
+  [data-item-checkbox]::before {
+    display: none;
   }
 }
 
@@ -238,8 +311,13 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
     transition: none;
   }
 
-  [data-item-checkbox][aria-busy="true"] {
+  [data-item-checkbox],
+  [data-item-checkbox]::before {
+    transition: none;
+  }
+
+  /* Unspun, the open ring still reads as working. */
+  [data-item-checkbox][aria-busy="true"]::before {
     animation: none;
-    box-shadow: 0 0 0 2px var(--bgColor-accent-muted);
   }
 }

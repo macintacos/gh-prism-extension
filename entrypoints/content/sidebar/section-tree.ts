@@ -65,10 +65,12 @@ export class SectionTree {
   #focused: string | null | undefined;
   #viewedPaths: ReadonlySet<string> | undefined;
   #marking: ReadonlySet<string> = new Set();
+  readonly #altKey: string;
 
   /** Renders `files` into `host`, with `selected` selected if listed. */
   constructor(host: HTMLElement, files: readonly TreeFile[], selected: string | undefined) {
     this.#host = host;
+    this.#altKey = altKeyName(host.ownerDocument.defaultView?.navigator);
     this.#files = files;
     this.#byPath = byPath(files);
     this.#tree = fileTreeOf(files, (path) => this.#decorationOf(path));
@@ -215,7 +217,8 @@ export class SectionTree {
         checked,
         busy: this.#marking.has(path),
         label: `Viewed: ${path.slice(path.lastIndexOf("/") + 1)}`,
-        title: checked ? "Mark as not viewed" : "Mark as viewed",
+        // sections-view.ts makes an Alt-click on the row do what a click here does.
+        title: `${checked ? "Mark as not viewed" : "Mark as viewed"} (or ${this.#altKey}-click the row)`,
       },
     };
   }
@@ -305,6 +308,10 @@ function rowRule(paths: ReadonlySet<string>, declaration: string): string {
   const rows = [...paths].map((path) => `[data-type="item"][data-item-path="${CSS.escape(path)}"]`);
   return rows.length ? `${rows.join(",")}{${declaration}}` : "";
 }
+
+/** The Alt key's name on the platform `navigator` reports. */
+const altKeyName = (navigator: Navigator | undefined) =>
+  navigator?.platform.startsWith("Mac") ? "Option" : "Alt";
 
 const byPath = (files: readonly TreeFile[]) => new Map(files.map((file) => [file.path, file]));
 

@@ -240,6 +240,10 @@ function isPlainLeftClick(event: MouseEvent): boolean {
   return event.button === 0 && !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey);
 }
 
+function isAltClick(event: MouseEvent): boolean {
+  return event.button === 0 && event.altKey && !(event.metaKey || event.ctrlKey || event.shiftKey);
+}
+
 /** The file row and section a click inside a section tree landed on. */
 function clickedFile(event: Event): { section: SectionKey; path: string } | undefined {
   const elements = event.composedPath().filter((node) => node instanceof HTMLElement);
@@ -376,6 +380,19 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
   };
 
   /**
+   * Marks the file a click asks for, deferred past the click's dispatch: cancelling a box's click
+   * restores its checkedness as the dispatch ends, which would undo a render from GitHub's
+   * microtask flip. A double-click's second click is dropped, since GitHub honors a click during a
+   * pending save.
+   */
+  const markFrom = (
+    event: MouseEvent,
+    { section, path }: { section: SectionKey; path: string },
+  ) => {
+    if (event.detail <= 1) setTimeout(() => void mark(section, path));
+  };
+
+  /**
    * Reveals `native`'s diff as a row click does and resolves with its Viewed toggle, or `null` once
    * a newer click, the view's abort, or the timeout ends the wait.
    */
@@ -480,10 +497,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
       if (box) {
         // The box shows only what GitHub's page shows, never the click.
         event.preventDefault();
-        // Deferred past this dispatch: cancelling the click restores the box's checkedness as the
-        // dispatch ends, which would undo a render from GitHub's microtask flip. A double-click's
-        // second click is dropped, since GitHub honors a click during a pending save.
-        if (event.detail <= 1) setTimeout(() => void mark(box.section, box.path));
+        markFrom(event, box);
         return;
       }
 
@@ -491,6 +505,29 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
       if (file && isPlainLeftClick(event)) open(file.section, file.path);
     },
     { signal },
+  );
+  // Once rows have boxes, an Alt-click on a file row does what its box's click does, and nothing
+  // else. Captured ahead of the tree, which would select and focus the row; the press is
+  // cancelled too, or the row takes focus anyway.
+  const takesAltClick = (event: MouseEvent) => offered && isAltClick(event);
+  view.addEventListener(
+    "mousedown",
+    (event) => {
+      if (takesAltClick(event) && clickedFile(event)) event.preventDefault();
+    },
+    { capture: true, signal },
+  );
+  view.addEventListener(
+    "click",
+    (event) => {
+      const file = takesAltClick(event) ? clickedFile(event) : undefined;
+      if (!file) return;
+      // Prevented too: Chrome downloads a link that is Alt-clicked.
+      event.preventDefault();
+      event.stopPropagation();
+      markFrom(event, file);
+    },
+    { capture: true, signal },
   );
   followViewport(
     view,

@@ -95,6 +95,12 @@ To check behavior live, build the extension and drive Playwright's bundled Chrom
 - **Use routed fixtures for pull request pages when signed out.** Signed-out GitHub serves
   the classic Files view. Intent fails fast on a routed fixture, because its repository
   doesn't exist, so progress steps need a real pull request.
+- **Check colors and contrast on a live GitHub page, never on a routed fixture.** The
+  fixtures load no GitHub stylesheet, so every Primer token is unset there, and a rule
+  that reads one, such as the Viewed box's `var(--gh-prism-hue)`, computes as invalid. On
+  a signed-in page, switch theme by setting `<html>`'s `data-color-mode` and
+  `data-dark-theme`, after giving the theme's `link[data-color-theme]` its `data-href` as
+  `href`.
 - **Use a public commit page to run the whole extension signed out.** Signed-out GitHub
   serves commit pages in the new UI. Batch probes into few page loads, because many
   signed-out loads in a row hit the rate limit.
