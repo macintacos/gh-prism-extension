@@ -114,18 +114,15 @@ export async function revealDiffLine(
   const diff = () => findDiff(page, link);
   const row = () => lineRowOf(diff(), link, line);
 
-  if (!diff()) {
-    // GitHub mounts a virtualized diff and scrolls to its header
-    revealDiff(page, link, { signal });
-    if (!(await untilFound(diffs, diff, signal))) return;
-  }
+  if (!diff() && !(await revealUntil(page, link, diff, { signal }))) return;
 
   if (!row() && clicked(expandButtonOf(diff())))
-    await untilFound(diffs, () => expandedDiff(diff()), signal);
+    await untilFound(diffs, () => expandedDiff(diff()), { signal });
   if (signal.aborted) return;
 
   let target = row();
-  if (!target && clicked(loadDiffButtonOf(diff()))) target = await untilFound(diffs, row, signal);
+  if (!target && clicked(loadDiffButtonOf(diff())))
+    target = await untilFound(diffs, row, { signal });
   if (signal.aborted) return;
 
   if (target) centre(target);
@@ -146,14 +143,29 @@ function clicked(button: HTMLElement | null): boolean {
 }
 
 /**
- * Resolves with `find()` once it is non-null, checked now and after each debounced mutation
- * under `diffs`. Resolves with `find()`'s value at `REVEAL_TIMEOUT_MS`, or with `null` once
- * `signal` aborts.
+ * Reveals `link`'s file as `revealDiff` does, then resolves with `find()` once it is non-null,
+ * as `untilFound` does.
  */
-function untilFound<T>(
+export function revealUntil<T>(
+  page: FilesPage,
+  link: HTMLAnchorElement,
+  find: () => T | null,
+  { signal }: { signal: AbortSignal },
+): Promise<T | null> {
+  // GitHub mounts a virtualized diff and scrolls to its header
+  revealDiff(page, link, { signal });
+  return untilFound(page.diffs, find, { signal });
+}
+
+/**
+ * Resolves with `find()` once it is non-null, checked now and each time `observe` reports a
+ * change under `diffs` (by default, each debounced mutation). Resolves with `find()`'s value at
+ * `REVEAL_TIMEOUT_MS`, or with `null` once `signal` aborts.
+ */
+export function untilFound<T>(
   diffs: Element,
   find: () => T | null,
-  signal: AbortSignal,
+  { signal, observe = observeDiffs }: { signal: AbortSignal; observe?: typeof observeDiffs },
 ): Promise<T | null> {
   return new Promise((resolve) => {
     if (signal.aborted) return resolve(null);
@@ -172,7 +184,7 @@ function untilFound<T>(
 
     signal.addEventListener("abort", () => finish(null), { signal: watching.signal });
     timer = setTimeout(() => finish(find()), REVEAL_TIMEOUT_MS);
-    observeDiffs(diffs, check, { signal: watching.signal });
+    observe(diffs, check, { signal: watching.signal });
     check();
   });
 }

@@ -1,7 +1,17 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
-import { revealDiff, revealDiffLine } from "../../../entrypoints/content/diffs/reveal";
-import { readChangedFiles } from "../../../entrypoints/content/files-page";
+import {
+  revealDiff,
+  revealDiffLine,
+  revealUntil,
+  untilFound,
+} from "../../../entrypoints/content/diffs/reveal";
+import {
+  observeViewed,
+  readChangedFiles,
+  showsViewed,
+  viewedToggleOf,
+} from "../../../entrypoints/content/files-page";
 import {
   byId,
   diffList,
@@ -10,6 +20,7 @@ import {
   linkTo,
   loadCommitFixture,
   loadFixture,
+  loadViewedFixture,
 } from "../../fixtures/files-page";
 
 beforeEach(() => {
@@ -631,5 +642,87 @@ describe("revealDiffLine", () => {
     expect(vi.getTimerCount()).toBe(0);
 
     await done;
+  });
+});
+
+describe("revealUntil", () => {
+  const GUIDE_DIFF = "diff-0a02";
+
+  let controller: AbortController;
+  const guideRegion = () => document.getElementById(GUIDE_DIFF);
+  const revealGuide = () =>
+    revealUntil(foundPage(), linkTo("docs/guide.md"), guideRegion, { signal: controller.signal });
+  const mountGuideDiff = () => {
+    const region = document.createElement("div");
+    region.id = GUIDE_DIFF;
+    diffList().append(region);
+    return region;
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    controller = new AbortController();
+    vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  });
+
+  afterEach(async () => {
+    vi.advanceTimersToNextFrame(); // a click's glide waits one frame
+    // A late mutation schedules a timer only if an observer outlived the case.
+    diffList().append(document.createElement("div"));
+    await vi.advanceTimersByTimeAsync(0);
+    const pending = vi.getTimerCount();
+
+    controller.abort();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+
+    expect(pending).toBe(0);
+  });
+
+  it("clicks the file's link and resolves with what it finds once the diff mounts", async () => {
+    const click = vi.spyOn(linkTo("docs/guide.md"), "click").mockImplementation(() => {});
+
+    const found = revealGuide();
+    const region = mountGuideDiff();
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(click).toHaveBeenCalledOnce();
+    await expect(found).resolves.toBe(region);
+  });
+
+  it("resolves null after five seconds when nothing mounts", async () => {
+    vi.spyOn(linkTo("docs/guide.md"), "click").mockImplementation(() => {});
+
+    const found = revealGuide();
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    await expect(found).resolves.toBeNull();
+  });
+
+  it("resolves null once aborted", async () => {
+    vi.spyOn(linkTo("docs/guide.md"), "click").mockImplementation(() => {});
+
+    const found = revealGuide();
+    controller.abort();
+
+    await expect(found).resolves.toBeNull();
+  });
+});
+
+describe("untilFound", () => {
+  it("re-checks on what its observer reports, such as a Viewed toggle flipping", async () => {
+    loadViewedFixture();
+    const controller = new AbortController();
+    const toggle = viewedToggleOf(foundPage(), linkTo("src/lib.rs"));
+    if (!toggle) throw new Error("no Viewed toggle for src/lib.rs");
+
+    const found = untilFound(diffList(), () => (showsViewed(toggle) ? toggle : null), {
+      signal: controller.signal,
+      observe: observeViewed,
+    });
+    toggle.setAttribute("aria-pressed", "true");
+
+    await expect(found).resolves.toBe(toggle);
+    controller.abort();
   });
 });

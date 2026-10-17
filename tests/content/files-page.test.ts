@@ -19,8 +19,10 @@ import {
   readChangedFiles,
   readViewed,
   reorderable,
+  showsViewed,
   treeToggleButtonOf,
   viewedOffered,
+  viewedToggleOf,
 } from "../../entrypoints/content/files-page";
 import {
   byId,
@@ -487,7 +489,7 @@ describe("coveredTop", () => {
   });
 });
 
-const viewedToggleOf = (anchor: string): Element => {
+const toggleIn = (anchor: string): Element => {
   const toggle = byId(anchor).querySelector('button[aria-label$="Viewed"]');
   if (!toggle) throw new Error(`no Viewed toggle in #${anchor}`);
   return toggle;
@@ -527,7 +529,7 @@ describe("readViewed", () => {
 
   it("leaves out a region whose header has no toggle", () => {
     loadViewedFixture();
-    viewedToggleOf(VIEWED_LIB_RS).remove();
+    toggleIn(VIEWED_LIB_RS).remove();
 
     expect(readViewed(foundPage()).has(VIEWED_LIB_RS)).toBe(false);
   });
@@ -576,7 +578,7 @@ describe("observeViewed", () => {
   });
 
   it("reports a Viewed toggle flipping", async () => {
-    flip(viewedToggleOf(VIEWED_APP_TOML));
+    flip(toggleIn(VIEWED_APP_TOML));
     await Promise.resolve();
 
     expect(onChange).toHaveBeenCalled();
@@ -598,9 +600,38 @@ describe("observeViewed", () => {
     expect(onChange).not.toHaveBeenCalled();
 
     controller.abort();
-    flip(viewedToggleOf(VIEWED_APP_TOML));
+    flip(toggleIn(VIEWED_APP_TOML));
     await Promise.resolve();
 
     expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("viewedToggleOf", () => {
+  beforeEach(() => {
+    loadViewedFixture();
+  });
+
+  it("finds the Viewed toggle in a file's mounted header from its tree link", () => {
+    expect(viewedToggleOf(foundPage(), linkTo("src/lib.rs"))).toBe(toggleIn(VIEWED_LIB_RS));
+  });
+
+  it("finds an unloaded diff's header toggle, past its other pressable buttons", () => {
+    expect(viewedToggleOf(foundPage(), linkTo("Cargo.lock"))).toBe(toggleIn(VIEWED_CARGO_LOCK));
+  });
+
+  it("is null once the file's diff unmounts", () => {
+    byId(VIEWED_LIB_RS).remove();
+
+    expect(viewedToggleOf(foundPage(), linkTo("src/lib.rs"))).toBeNull();
+  });
+});
+
+describe("showsViewed", () => {
+  it("reads whether a toggle shows its file viewed", () => {
+    loadViewedFixture();
+
+    expect(showsViewed(toggleIn(VIEWED_APP_TOML))).toBe(true);
+    expect(showsViewed(toggleIn(VIEWED_LIB_RS))).toBe(false);
   });
 });
