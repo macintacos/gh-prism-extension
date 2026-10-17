@@ -14,10 +14,13 @@ import {
   mountedDiffs,
   observeDiffs,
   observeTree,
+  observeViewed,
   prPage,
   readChangedFiles,
+  readViewed,
   reorderable,
   treeToggleButtonOf,
+  viewedOffered,
 } from "../../entrypoints/content/files-page";
 import {
   byId,
@@ -27,6 +30,11 @@ import {
   linkTo,
   loadCommitFixture,
   loadFixture,
+  loadViewedCommitFilterFixture,
+  loadViewedFixture,
+  VIEWED_APP_TOML,
+  VIEWED_CARGO_LOCK,
+  VIEWED_LIB_RS,
 } from "../fixtures/files-page";
 
 const PATHS = [
@@ -476,5 +484,123 @@ describe("coveredTop", () => {
       header.remove();
 
     expect(coveredTop(foundPage())).toBe(0);
+  });
+});
+
+const viewedToggleOf = (anchor: string): Element => {
+  const toggle = byId(anchor).querySelector('button[aria-label$="Viewed"]');
+  if (!toggle) throw new Error(`no Viewed toggle in #${anchor}`);
+  return toggle;
+};
+
+describe("the signed-in Viewed fixtures", () => {
+  it("are Files pages with diff entries", () => {
+    for (const load of [loadViewedFixture, loadViewedCommitFilterFixture]) {
+      load();
+
+      expect(findFilesPage(document)?.kind).toBe(prPage);
+      expect(document.querySelectorAll(prPage.diffEntries).length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("readViewed", () => {
+  it("reads each mounted header's Viewed toggle", () => {
+    loadViewedFixture();
+
+    expect(readViewed(foundPage())).toEqual(
+      new Map([
+        [VIEWED_APP_TOML, true],
+        [VIEWED_LIB_RS, false],
+        [VIEWED_CARGO_LOCK, false],
+      ]),
+    );
+  });
+
+  it("is empty on pages without Viewed toggles", () => {
+    expect(readViewed(foundPage())).toEqual(new Map());
+
+    loadViewedCommitFilterFixture();
+
+    expect(readViewed(foundPage())).toEqual(new Map());
+  });
+
+  it("leaves out a region whose header has no toggle", () => {
+    loadViewedFixture();
+    viewedToggleOf(VIEWED_LIB_RS).remove();
+
+    expect(readViewed(foundPage()).has(VIEWED_LIB_RS)).toBe(false);
+  });
+});
+
+describe("viewedOffered", () => {
+  const counter = () => document.querySelector('[class*="ProgressContainer__"]');
+
+  it("decides Viewed page-wide", () => {
+    loadViewedFixture();
+    expect(viewedOffered(foundPage())).toBe(true);
+
+    counter()?.remove();
+    expect(viewedOffered(foundPage())).toBe(true);
+
+    loadViewedFixture();
+    for (const region of diffList().querySelectorAll('[role="region"]')) region.remove();
+    expect(viewedOffered(foundPage())).toBe(true);
+
+    loadViewedCommitFilterFixture();
+    expect(viewedOffered(foundPage())).toBe(false);
+
+    loadFixture();
+    expect(viewedOffered(foundPage())).toBe(false);
+
+    loadCommitFixture();
+    expect(viewedOffered(foundPage())).toBe(false);
+  });
+});
+
+describe("observeViewed", () => {
+  let controller: AbortController;
+  const onChange = vi.fn();
+  const flip = (el: Element) =>
+    el.setAttribute("aria-pressed", el.getAttribute("aria-pressed") === "true" ? "false" : "true");
+
+  beforeEach(() => {
+    loadViewedFixture();
+    controller = new AbortController();
+    onChange.mockReset();
+    observeViewed(diffList(), onChange, { signal: controller.signal });
+  });
+
+  afterEach(() => {
+    controller.abort();
+  });
+
+  it("reports a Viewed toggle flipping", async () => {
+    flip(viewedToggleOf(VIEWED_APP_TOML));
+    await Promise.resolve();
+
+    expect(onChange).toHaveBeenCalled();
+  });
+
+  it("ignores attribute changes other than a Viewed toggle", async () => {
+    const segmented = byId(VIEWED_CARGO_LOCK).querySelector(
+      "button[aria-pressed]:not([aria-label])",
+    );
+    if (!segmented) throw new Error("no segmented-control button");
+
+    flip(segmented);
+    byId(VIEWED_LIB_RS).setAttribute("data-collapsed", "true");
+    const region = document.createElement("div");
+    region.setAttribute("role", "region");
+    diffList().append(region);
+    await Promise.resolve();
+
+    expect(onChange).not.toHaveBeenCalled();
+
+    controller.abort();
+    flip(viewedToggleOf(VIEWED_APP_TOML));
+    await Promise.resolve();
+
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

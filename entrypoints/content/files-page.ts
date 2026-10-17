@@ -338,6 +338,51 @@ export function observeCoveredTop(
   signal.addEventListener("abort", () => observer.disconnect());
 }
 
+// aria-label reads "Viewed" or "Not Viewed"; other header buttons carry aria-pressed too.
+const VIEWED_TOGGLE = '[class*="diff-file-header__"] button[aria-pressed][aria-label$="Viewed"]';
+const VIEWED_COUNTER = '[class*="file-controls__"] [class*="ProgressContainer__"]';
+
+/**
+ * Each mounted diff's Viewed state as its header's toggle shows it, by file anchor; diffs without
+ * a toggle are left out.
+ */
+export function readViewed(page: FilesPage): Map<string, boolean> {
+  return new Map(
+    [...mountedDiffs(page)].flatMap(([anchor, region]) => {
+      const toggle = region.querySelector(VIEWED_TOGGLE);
+      return toggle ? [[anchor, toggle.getAttribute("aria-pressed") === "true"] as const] : [];
+    }),
+  );
+}
+
+/**
+ * Whether the page offers Viewed: GitHub's "N / M viewed" counter, or any header's toggle, is
+ * present.
+ */
+export const viewedOffered = (page: FilesPage): boolean =>
+  page.sidebar.ownerDocument.querySelector(VIEWED_COUNTER) !== null ||
+  page.diffs.querySelector(VIEWED_TOGGLE) !== null;
+
+/**
+ * Calls `onChange` when a header's Viewed toggle flips under `diffs`, until `signal` aborts; no
+ * other attribute change, and no mount, counts.
+ */
+export function observeViewed(
+  diffs: Node,
+  onChange: () => void,
+  { signal }: { signal: AbortSignal },
+): void {
+  const observer = new MutationObserver((records) => {
+    if (records.some(({ target }) => target instanceof Element && target.matches(VIEWED_TOGGLE)))
+      onChange();
+  });
+  observer.observe(diffs, { subtree: true, attributes: true, attributeFilter: ["aria-pressed"] });
+  signal.addEventListener("abort", () => observer.disconnect());
+}
+
+/** The anchor of the file route data names by `pathDigest`: its region id and tree link. */
+export const anchorOfDigest = (pathDigest: string): string => `diff-${pathDigest}`;
+
 /** `page`'s diff list, or `null` while it has none. */
 export const findDiffList = (page: FilesPage): Element | null =>
   page.diffs.querySelector(page.kind.diffList);
