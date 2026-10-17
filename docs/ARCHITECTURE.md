@@ -144,8 +144,9 @@ GitHub's first navigation), `index.ts` seeds it from GitHub's route data
 (`readViewedSeed`) when that data names the visit's pull request. It then reads each
 header's toggle as diffs mount and as GitHub flips them (`observeViewed`), and keeps each
 file's last-read state for the rest of the visit, so a file whose diff unmounts stays as
-read. It feeds the viewed paths to the sections view's `viewed`, which dims their rows.
-Nothing dims unless the page offers Viewed.
+read. It feeds the viewed paths to the sections view's `viewed`, which dims their rows
+and, once any file is Viewed, counts each section's viewed files in its header. Nothing
+dims unless the page offers Viewed.
 
 ## Diff order and reveal
 

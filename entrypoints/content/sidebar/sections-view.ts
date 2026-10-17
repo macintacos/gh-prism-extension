@@ -30,7 +30,10 @@ interface SectionsView extends LandingView {
   readonly root: Element;
   /** Marks the files whose diffs are on screen: their rows, or a collapsed section's header. */
   onScreen(paths: ReadonlySet<string>): void;
-  /** Dims the rows of the files GitHub shows as Viewed. */
+  /**
+   * Dims the rows of the files GitHub shows as Viewed, and counts them in each section's header
+   * once any is.
+   */
   viewed(paths: ReadonlySet<string>): void;
 }
 
@@ -200,6 +203,30 @@ function sectionShell(
   return { root, counter, host, toggle, expand };
 }
 
+/**
+ * Writes `entries`' file count into a section header's `counter`: once any file is Viewed, its
+ * viewed files out of them, said in words to screen readers. Leaves the DOM alone when unchanged.
+ */
+function showCount(
+  counter: HTMLElement,
+  entries: readonly FileEntry[],
+  viewed: ReadonlySet<string>,
+): void {
+  const files = entries.length;
+  if (viewed.size === 0) {
+    if (counter.textContent !== String(files)) counter.textContent = String(files);
+    return;
+  }
+
+  const done = entries.filter(({ file }) => viewed.has(file.path)).length;
+  const words = `${done} of ${files} viewed`;
+  if (counter.querySelector(".sr-only")?.textContent === words) return;
+  const doc = counter.ownerDocument;
+  const shown = el(doc, "span", "", `${done}/${files}`);
+  shown.setAttribute("aria-hidden", "true");
+  counter.replaceChildren(shown, el(doc, "span", "sr-only", words));
+}
+
 /** Placeholder rows for the sidebar's file list. */
 const listSkeleton = (doc: Document) =>
   el(doc, "div", "gh-prism-skeleton", ...Array.from({ length: 5 }, () => el(doc, "span", "")));
@@ -279,6 +306,14 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     }
   };
 
+  /** Writes each shown section's count, as viewed files out of its files once any file is Viewed. */
+  const countHeaders = () => {
+    for (const { key, entries } of latestSections) {
+      const current = shown.get(key);
+      if (current) showCount(current.counter, entries, viewed);
+    }
+  };
+
   const open = (section: SectionKey, path: string) => {
     const native = readChangedFiles(page.sidebar).find((file) => file.path === path)?.link;
     if (!native) return;
@@ -299,6 +334,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     scrollToCurrent(sections);
     latestSections = sections;
     markHeaders();
+    countHeaders();
   };
 
   const dropAllBut = (sections: readonly FileSection[]) => {
@@ -321,9 +357,6 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
       current = buildSection(section.key, { order, previous, files, active });
       shown.set(section.key, current);
     }
-
-    const count = String(section.entries.length);
-    if (current.counter.textContent !== count) current.counter.textContent = count;
     return current.root;
   };
 
@@ -439,6 +472,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     viewed(paths) {
       viewed = paths;
       for (const { tree } of shown.values()) tree.showViewed(paths);
+      countHeaders();
     },
   };
 }
