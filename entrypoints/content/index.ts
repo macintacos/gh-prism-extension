@@ -41,8 +41,7 @@ export default defineContentScript({
       {
         onVisit: (route, visit) => {
           const intent = shareIntent((onProgress) => intentFor(route, visit, sources, onProgress));
-          // Route data is fresh only until GitHub's first navigation: only a visit before it may
-          // trust it.
+          // Route data is fresh only until GitHub's first navigation.
           const viewed = visitViewed(fullLoad ? readViewedSeed(document, route.diff) : undefined);
           fullLoad = false;
           return (page, signal) => {
