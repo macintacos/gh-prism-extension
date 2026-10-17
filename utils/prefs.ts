@@ -15,3 +15,11 @@ export type Side = "left" | "right";
  * when on.
  */
 export const sidebarSide = storage.defineItem<Side>("sync:sidebarSide", { fallback: "right" });
+
+/**
+ * Whether the user dismissed the notice on GitHub's classic Files changed page; kept on this
+ * computer only.
+ */
+export const classicNoticeDismissed = storage.defineItem<boolean>("local:classicNoticeDismissed", {
+  fallback: false,
+});

@@ -1,5 +1,6 @@
 import { findFilesPage, readChangedFiles } from "../../entrypoints/content/files-page";
 // The `?raw` import is required: `readFileSync` throws under happy-dom.
+import classicFixture from "./classic-files-page.html?raw";
 import commitFixture from "./commit-page.html?raw";
 import fixture from "./files-page.html?raw";
 import viewedCommitFilterFixture from "./viewed-commit-filter-page.html?raw";
@@ -40,6 +41,15 @@ export function byId(id: string): HTMLElement {
   const el = document.getElementById(id);
   if (!el) throw new Error(`fixture has no #${id}`);
   return el;
+}
+
+/**
+ * Replaces the document with a pull request's classic Files changed page as `login` sees it;
+ * GitHub leaves the login empty for a signed-out viewer.
+ */
+export function loadClassicFixture(login: string): void {
+  document.head.innerHTML = `<meta name="user-login" content="${login}">`;
+  document.body.innerHTML = classicFixture;
 }
 
 /** Replaces `document.body` with a single commit's markup. */

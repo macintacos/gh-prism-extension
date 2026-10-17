@@ -1,0 +1,70 @@
+<!-- Trimmed from a public pull request's classic Files changed page (/pull/<n>/files), signed out; content invented, tokens and tracking attributes removed. Refresh when GitHub's classic toolbar changes. -->
+<div id="files_bucket" class="files-bucket files-next-bucket clearfix pull-request-tab-content is-visible js-multi-line-comments-enabled">
+  <diff-file-filter>
+    <div id="partial-discussion-header" class="sticky-header-wrapper gh-header tmp-mb-3 js-details-container Details js-updatable-content">
+      <div class="non-sticky-header-container">
+        <div class="gh-header-show">
+          <h1 class="gh-header-title mb-2 lh-condensed f1 mr-0 flex-auto wb-break-word">
+            <bdi class="js-issue-title markdown-title">Render the parser's output</bdi>
+            <span class="f1-light color-fg-muted">#1</span>
+          </h1>
+        </div>
+      </div>
+    </div>
+    <div class="tmp-px-3 tmp-px-md-0 tmp-ml-n3 tmp-mr-n3 mx-md-0 tabnav">
+      <nav class="tabnav-tabs d-flex overflow-auto" aria-label="Pull request tabs">
+        <a href="/o/r/pull/1" class="tabnav-tab flex-shrink-0">Conversation</a>
+        <a href="/o/r/pull/1/commits" class="tabnav-tab flex-shrink-0">Commits</a>
+        <a href="/o/r/pull/1/checks" class="tabnav-tab flex-shrink-0">Checks</a>
+        <a href="/o/r/pull/1/files" class="tabnav-tab flex-shrink-0 selected" aria-current="page">Files changed</a>
+      </nav>
+    </div>
+    <diff-layout sidebar-hidden>
+      <div class="pr-toolbar d-flex js-toggle-stuck js-observe-sticky-header-height" data-target="diff-layout.diffToolbar">
+        <div class="diffbar details-collapse js-details-container Details flex-1 d-flex flex-items-center width-full flex-wrap gap-2">
+          <div class="flex-auto min-width-0">
+            <div class="d-flex flex-items-center flex-wrap" style="gap: 4px 16px;">
+              <details class="details-reset details-overlay diffbar-item diffbar-range-menu select-menu ml-0">
+                <summary class="Link--muted select-menu-button btn-link">Changes from <strong>all commits</strong></summary>
+              </details>
+              <details class="diffbar-item details-reset details-overlay">
+                <summary class="Link--muted select-menu-button" aria-haspopup="true"><strong>File filter</strong></summary>
+              </details>
+              <details class="details-reset details-overlay diffbar-item toc-select select-menu ml-0">
+                <summary class="Link--muted select-menu-button btn-link"><strong>Jump to</strong></summary>
+              </details>
+            </div>
+          </div>
+          <div class="flex-grow-0 flex-shrink-0 pr-review-tools"></div>
+        </div>
+      </div>
+      <div id="files" class="diff-view js-diff-container">
+        <div class="js-diff-progressive-container">
+          <div id="diff-5d2c" class="file js-file js-details-container js-targetable-element Details Details--on open" data-file-type=".rs">
+            <div class="file-header d-flex flex-md-row flex-column flex-md-items-center file-header--expandable js-file-header sticky-file-header" data-path="src/render.rs" data-anchor="diff-5d2c">
+              <div class="file-info flex-auto min-width-0 mb-md-0 mb-2">
+                <span class="Truncate"><a title="src/render.rs" class="Link--primary Truncate-text" href="#diff-5d2c">src/render.rs</a></span>
+              </div>
+            </div>
+            <div class="js-file-content Details-content--hidden position-relative">
+              <div class="data highlight js-blob-wrapper">
+                <table class="diff-table js-diff-table tab-size" data-tab-size="4" data-diff-anchor="diff-5d2c">
+                  <tbody>
+                    <tr class="js-expandable-line"><td class="blob-num blob-num-expandable" colspan="2"></td><td class="blob-code blob-code-inner blob-code-hunk">@@ -1,4 +1,6 @@ pub fn render(tokens: &amp;[Token]) -&gt; String {</td></tr>
+                    <tr><td class="blob-num blob-num-context" data-line-number="1"></td><td class="blob-num blob-num-context" data-line-number="1"></td><td class="blob-code blob-code-context"><span class="blob-code-inner blob-code-marker" data-code-marker=" ">    let mut out = String::new();</span></td></tr>
+                    <tr><td class="blob-num blob-num-deletion" data-line-number="2"></td><td class="blob-num blob-num-deletion empty-cell"></td><td class="blob-code blob-code-deletion"><span class="blob-code-inner blob-code-marker" data-code-marker="-">    for token in tokens { out.push_str(&amp;token.text); }</span></td></tr>
+                    <tr><td class="blob-num blob-num-addition empty-cell"></td><td class="blob-num blob-num-addition" data-line-number="2"></td><td class="blob-code blob-code-addition"><span class="blob-code-inner blob-code-marker" data-code-marker="+">    for token in tokens {</span></td></tr>
+                    <tr><td class="blob-num blob-num-addition empty-cell"></td><td class="blob-num blob-num-addition" data-line-number="3"></td><td class="blob-code blob-code-addition"><span class="blob-code-inner blob-code-marker" data-code-marker="+">        out.push_str(&amp;escape(&amp;token.text));</span></td></tr>
+                    <tr><td class="blob-num blob-num-addition empty-cell"></td><td class="blob-num blob-num-addition" data-line-number="4"></td><td class="blob-code blob-code-addition"><span class="blob-code-inner blob-code-marker" data-code-marker="+">    }</span></td></tr>
+                    <tr><td class="blob-num blob-num-context" data-line-number="3"></td><td class="blob-num blob-num-context" data-line-number="5"></td><td class="blob-code blob-code-context"><span class="blob-code-inner blob-code-marker" data-code-marker=" ">    out</span></td></tr>
+                    <tr><td class="blob-num blob-num-context" data-line-number="4"></td><td class="blob-num blob-num-context" data-line-number="6"></td><td class="blob-code blob-code-context"><span class="blob-code-inner blob-code-marker" data-code-marker=" ">}</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </diff-layout>
+  </diff-file-filter>
+</div>

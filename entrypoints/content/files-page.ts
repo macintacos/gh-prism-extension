@@ -1,8 +1,8 @@
 /**
  * The one script module that holds selectors into GitHub's Files view markup; the stylesheets list
  * theirs in a `GitHub hooks:` header. It holds a `PageKind` for a pull request's page and a
- * commit's, finds a Files view's page, and reads its rows; it holds no UI and imports nothing from
- * WXT. The pull request selectors come from EXC-1662's survey.
+ * commit's, finds a Files view's page or a pull request's classic page, and reads its rows; it
+ * holds no UI and imports nothing from WXT. The pull request selectors come from EXC-1662's survey.
  */
 
 /**
@@ -127,6 +127,25 @@ export function findFilesPage(root: ParentNode): FilesPage | undefined {
   }
   return undefined;
 }
+
+/** A pull request's classic Files changed page, which gh-prism leaves alone. */
+export interface ClassicPage {
+  /** GitHub's toolbar above the diffs. */
+  readonly toolbar: Element;
+  /** The toolbar's trailing group, which holds the review controls when signed in. */
+  readonly reviewTools: Element;
+}
+
+/** The classic Files changed markup in `root`, or `undefined` when any part is missing. */
+export function findClassicPage(root: ParentNode): ClassicPage | undefined {
+  const toolbar = root.querySelector("#files_bucket .pr-toolbar");
+  const reviewTools = toolbar?.querySelector(".pr-review-tools");
+  return toolbar && reviewTools ? { toolbar, reviewTools } : undefined;
+}
+
+/** Whether GitHub served `doc` to a signed-in viewer: it names the viewer's login. */
+export const isSignedIn = (doc: Document): boolean =>
+  Boolean(doc.head.querySelector('meta[name="user-login"]')?.getAttribute("content"));
 
 // Both of GitHub's virtualized lists index each row they place.
 const VIRTUALIZED = '[data-index] [role="region"]';

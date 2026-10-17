@@ -15,7 +15,9 @@ give each other part its own deliberate pass.
 ## What it does
 
 gh-prism runs on a commit's page and on GitHub's new Files changed tab of a pull request,
-at `/pull/<number>/changes`. It leaves the classic Files changed tab untouched.
+at `/pull/<number>/changes`. On the classic Files changed tab, at `/pull/<number>/files`,
+it shows a notice above the files that says why it isn't running and how to get the new
+tab. Dismiss the notice, and **Why is gh-prism off?** in the tab's toolbar brings it back.
 
 - It groups changed files into five sections: Implementation, Tests, Documentation,
   Config, and Generated / lockfiles.
@@ -89,11 +91,12 @@ gh-prism needs access to three hosts and to Chrome's extension storage, and noth
   acts only on Files changed and commit pages.
 - `https://patch-diff.githubusercontent.com/*` is where GitHub redirects diff downloads.
 - `https://raw.githubusercontent.com/*` is where GitHub redirects raw-file downloads.
-- Extension storage holds the side you put the sidebar on, and where gh-prism placed each
-  file for the diffs it read most recently. It keeps up to 50 entries, and a pull
-  request's diff can take two: one for the diff and one for the base and head commits it
-  runs between. Chrome syncs the side to your other computers when Chrome sync is on. The
-  placements stay on this computer.
+- Extension storage holds the side you put the sidebar on, whether you dismissed the
+  notice on the classic Files changed tab, and where gh-prism placed each file for the
+  diffs it read most recently. It keeps up to 50 placement entries, and a pull request's
+  diff can take two: one for the diff and one for the base and head commits it runs
+  between. Chrome syncs the side to your other computers when Chrome sync is on. The
+  dismissal and the placements stay on this computer.
 
 ## Troubleshooting
 
@@ -101,11 +104,13 @@ gh-prism needs access to three hosts and to Chrome's extension storage, and noth
   reloaded gh-prism don't run it. Then check that the URL contains
   `/pull/<number>/changes` or `/commit/<sha>`.
 - **A pull request's Files changed URL ends in `/files`, and the page looks like plain
-  GitHub.** That is GitHub's classic page, which gh-prism leaves alone. GitHub shows it
-  when you are signed out, even on a public pull request, so sign in. Signed in, GitHub
-  shows it when its New Files Changed Experience preview is off. Click your profile
-  picture, click **Feature preview**, choose **New Files Changed Experience**, and click
-  **Enable**. GitHub Docs explains the dialog in
+  GitHub.** That is GitHub's classic page, where gh-prism shows only its notice. If you
+  dismissed it, click **Why is gh-prism off?** in the toolbar above the files. GitHub
+  shows the classic page when you are signed out, even on a public pull request, so sign
+  in. Signed in, GitHub shows it when its New Files Changed Experience preview is off.
+  Click your profile picture, click **Feature preview**, choose
+  **New Files Changed Experience**, and click **Enable**. GitHub Docs explains the dialog
+  in
   [Exploring early access releases with feature preview](https://docs.github.com/en/get-started/using-github/exploring-early-access-releases-with-feature-preview).
 - **A notice asks you to sign in while you are signed in.** Check that you are signed in
   to GitHub in the same Chrome profile where you loaded gh-prism, then reload the page.

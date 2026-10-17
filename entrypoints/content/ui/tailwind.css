@@ -26,6 +26,7 @@
   --text-body-small: var(--text-body-size-small);
   --text-body-medium: var(--text-body-size-medium);
   --leading-body-small: var(--text-body-lineHeight-small);
+  --leading-body-medium: var(--text-body-lineHeight-medium);
   --font-weight-normal: var(--base-text-weight-normal);
   --font-weight-medium: var(--base-text-weight-medium);
   --font-weight-semibold: var(--base-text-weight-semibold);

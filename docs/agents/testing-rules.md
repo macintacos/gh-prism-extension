@@ -36,6 +36,8 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   queries, so
   [`tests/content/diffs/reveal.test.ts`](../../tests/content/diffs/reveal.test.ts) tests
   the reduced-motion path without a browser.
+- **Read a computed animation through `animation`, not `animationName`.** happy-dom
+  computes the shorthand alone, so `animationName` reads `""` whatever the sheet says.
 - **Prove ordering inside one click dispatch in Chromium, not happy-dom.** happy-dom runs
   no microtask checkpoint between a scripted click's listeners, so a stand-in that flips
   in a microtask still lands after the dispatch ends.

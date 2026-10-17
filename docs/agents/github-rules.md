@@ -41,11 +41,27 @@ facts about GitHub that held when written, and ends with how to re-check them;
   signed-out viewer, even on a public pull request: `/changes` answers with a 302 to
   `/files`. Signed in, the Feature preview entry "New Files Changed Experience" decides.
   It is on by default, and a viewer who turns it off gets the classic page.
-- **Keep [`entrypoints/welcome.html`](../../entrypoints/welcome.html) in step with these
-  facts.** It tells a new install what gh-prism needs from GitHub.
+- **Find the classic page by its toolbar, `#files_bucket .pr-toolbar`, and the toolbar's
+  `.pr-review-tools`.** The review tools are the toolbar's trailing group: empty signed
+  out, the review controls signed in. A commit's classic page inside a pull request,
+  `/pull/<n>/commits/<sha>`, carries the same markup, but `readFilesRoute` doesn't match
+  its path.
+- **Read whether the viewer is signed in from `meta[name="user-login"]`'s `content`.**
+  GitHub leaves it empty for a signed-out viewer, and GitHub's own runtime counts an empty
+  login as anonymous.
+- **Expect a signed-out classic page to be reached by full loads.** Signed out, the pull
+  request's tabs and the toolbar's commit menu loaded a new document, not a soft
+  navigation, when checked on 2026-10-17. The watcher still follows soft navigation.
+- **Keep [`entrypoints/welcome.html`](../../entrypoints/welcome.html) and the copy in
+  [`classic/notice.ts`](../../entrypoints/content/classic/notice.ts) in step with these
+  facts.** The welcome page tells a new install what gh-prism needs from GitHub, and the
+  notice tells a viewer of the classic page.
 - **Re-check:** curl a public pull request's `/changes` with no cookies and read the 302's
-  `location`. Signed in, open the profile menu's Feature preview dialog and find the entry
-  by name.
+  `location`. Curl its `/files` and find `#files_bucket`, `.pr-toolbar`,
+  `.pr-review-tools`, and the empty `user-login` meta. Grep the page's `app-runtime` asset
+  for `meta[name="user-login"]`. Signed in, open the profile menu's Feature preview dialog
+  and find the entry by name. Load the classic page in Playwright, set a `window`
+  property, click a tab, and check whether the property survives.
 
 ## The commit page
 

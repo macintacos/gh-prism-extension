@@ -10,6 +10,9 @@ const COMMIT_URL = "https://github.com/o/r/commit/dd95cdc0d7a9a6817998ee6663563e
 const readFixture = (name: string) =>
   readFileSync(join(import.meta.dirname, "../tests/fixtures", name), "utf8");
 const PR_BODY = `<!doctype html>${readFixture("files-page.html")}`;
+const CLASSIC_URL = "https://github.com/o/r/pull/1/files";
+// GitHub names no login for a signed-out viewer.
+const CLASSIC_BODY = `<!doctype html><meta name="user-login" content="">${readFixture("classic-files-page.html")}`;
 // README.md's tree row in tests/fixtures/files-page.html links to this id.
 const README_DIFF = "diff-0a13";
 
@@ -136,6 +139,32 @@ test("installing opens the welcome page", async ({ context }) => {
 
   for (const page of welcome())
     await expect(page.getByRole("heading", { name: "gh-prism is installed" })).toBeVisible();
+});
+
+test("the classic Files changed page explains why gh-prism is off, and keeps a dismissal", async ({
+  context,
+  page,
+}) => {
+  await serve(context, CLASSIC_URL, CLASSIC_BODY);
+  const notice = page.getByRole("region", { name: /gh-prism/ });
+  const reopen = page.getByRole("button", { name: /why is gh-prism off/i });
+
+  await page.goto(CLASSIC_URL);
+  await expect(notice).toBeVisible();
+  await expect(notice.getByRole("link", { name: "Sign in" })).toBeVisible();
+  await expect(reopen).toBeHidden();
+
+  await notice.getByRole("button", { name: /dismiss/i }).click();
+  await expect(notice).toBeHidden();
+  await expect(reopen).toBeFocused();
+
+  await page.reload();
+  await expect(reopen).toBeVisible();
+  await expect(notice).toBeHidden();
+
+  await reopen.click();
+  await expect(notice).toBeFocused();
+  await expect(reopen).toBeHidden();
 });
 
 test("a pull request mounts its sections in path-only mode", async ({ context, page }) => {
