@@ -61,7 +61,8 @@ in a terminal.
 4. In Chrome, open `chrome://extensions` and turn on **Developer mode**.
 5. Click **Load unpacked** and choose the `.output/chrome-mv3` folder inside the clone.
    The picker hides folders whose names start with a dot. Press Cmd+Shift+. on macOS, or
-   Ctrl+H on Linux, to show them.
+   Ctrl+H on Linux, to show them. gh-prism opens a page that lists what it needs from
+   GitHub.
 6. Sign in to GitHub in the Chrome profile where you loaded gh-prism. Then open the Files
    changed tab of any pull request you can see, at a URL that contains
    `/pull/<number>/changes`. Reload any GitHub tab that was already open when you loaded
@@ -99,6 +100,13 @@ gh-prism needs access to three hosts and to Chrome's extension storage, and noth
 - **No sections appear.** Reload the page. Tabs that were open before you loaded or
   reloaded gh-prism don't run it. Then check that the URL contains
   `/pull/<number>/changes` or `/commit/<sha>`.
+- **A pull request's Files changed URL ends in `/files`, and the page looks like plain
+  GitHub.** That is GitHub's classic page, which gh-prism leaves alone. GitHub shows it
+  when you are signed out, even on a public pull request, so sign in. Signed in, GitHub
+  shows it when its New Files Changed Experience preview is off. Click your profile
+  picture, click **Feature preview**, choose **New Files Changed Experience**, and click
+  **Enable**. GitHub Docs explains the dialog in
+  [Exploring early access releases with feature preview](https://docs.github.com/en/get-started/using-github/exploring-early-access-releases-with-feature-preview).
 - **A notice asks you to sign in while you are signed in.** Check that you are signed in
   to GitHub in the same Chrome profile where you loaded gh-prism, then reload the page.
   Chrome's "Block third-party cookies" setting is untested with gh-prism.

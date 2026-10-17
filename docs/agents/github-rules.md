@@ -34,6 +34,19 @@ facts about GitHub that held when written, and ends with how to re-check them;
   so a commit page is enough. Curl the assets and grep the module's export map for
   `"localName__hash"`.
 
+## The classic Files changed page
+
+- **Expect some viewers to get a pull request's classic Files changed page,
+  `/pull/<n>/files`, which `findFilesPage` doesn't match.** GitHub serves it to every
+  signed-out viewer, even on a public pull request: `/changes` answers with a 302 to
+  `/files`. Signed in, the Feature preview entry "New Files Changed Experience" decides.
+  It is on by default, and a viewer who turns it off gets the classic page.
+- **Keep [`entrypoints/welcome.html`](../../entrypoints/welcome.html) in step with these
+  facts.** It tells a new install what gh-prism needs from GitHub.
+- **Re-check:** curl a public pull request's `/changes` with no cookies and read the 302's
+  `location`. Signed in, open the profile menu's Feature preview dialog and find the entry
+  by name.
+
 ## The commit page
 
 - **Treat a disconnected tree as a new page.** The commit page is server-rendered, and

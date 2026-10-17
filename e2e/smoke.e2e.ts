@@ -129,6 +129,15 @@ const routeFileReview = async (context: BrowserContext, status: number) => {
 const viewedBox = (page: Page, name: string) =>
   page.getByRole("checkbox", { name: `Viewed: ${name}` });
 
+test("installing opens the welcome page", async ({ context }) => {
+  const welcome = () => context.pages().filter((page) => page.url().endsWith("/welcome.html"));
+
+  await expect.poll(() => welcome().length).toBe(1);
+
+  for (const page of welcome())
+    await expect(page.getByRole("heading", { name: "gh-prism is installed" })).toBeVisible();
+});
+
 test("a pull request mounts its sections in path-only mode", async ({ context, page }) => {
   await serve(context, PR_URL, PR_BODY);
   await page.goto(PR_URL);

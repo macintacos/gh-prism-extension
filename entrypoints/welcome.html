@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>gh-prism is installed</title>
+    <link rel="icon" href="/icon/32.png" />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --fg: #1f2328;
+        --muted: #59636e;
+        --bg: #ffffff;
+        --card: #f6f8fa;
+        --border: #d1d9e0;
+        --link: #0969da;
+        font:
+          16px/1.5 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          "Noto Sans",
+          Helvetica,
+          Arial,
+          sans-serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --fg: #f0f6fc;
+          --muted: #9198a1;
+          --bg: #0d1117;
+          --card: #151b23;
+          --border: #3d444d;
+          --link: #4493f8;
+        }
+      }
+      body {
+        margin: 0;
+        padding: 48px 16px;
+        color: var(--fg);
+        background: var(--bg);
+      }
+      main {
+        max-width: 640px;
+        margin: 0 auto;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 24px;
+      }
+      h2 {
+        margin: 0 0 4px;
+        font-size: 16px;
+      }
+      a {
+        color: var(--link);
+      }
+      code {
+        font: 85% ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      ol {
+        padding: 0;
+        list-style: none;
+      }
+      li {
+        margin: 12px 0;
+        padding: 16px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--card);
+      }
+      li p {
+        margin: 4px 0 0;
+      }
+      .muted {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/icon/48.png" alt="" width="48" height="48" />
+        <h1>gh-prism is installed</h1>
+      </header>
+      <p>
+        gh-prism splits a pull request's changed files into sections. It runs on GitHub's new
+        Files changed page, whose URL ends in <code>/pull/&lt;number&gt;/changes</code>, and on
+        commit pages. GitHub's classic Files changed page, whose URL ends in <code>/files</code>,
+        looks the same with or without gh-prism.
+      </p>
+      <p>A pull request shows the new page only when both of these hold:</p>
+      <ol>
+        <li>
+          <h2>You're signed in to GitHub in this Chrome profile</h2>
+          <p>
+            Signed out, GitHub always shows the classic page, even for a public pull request,
+            so gh-prism has nothing to change.
+          </p>
+        </li>
+        <li>
+          <h2>GitHub's "New Files Changed Experience" is on</h2>
+          <p>
+            It's on by default. If you turned it off, GitHub shows you the classic page. To turn
+            it back on, click your profile picture in the upper-right corner of any GitHub page,
+            click <strong>Feature preview</strong>, choose
+            <strong>New Files Changed Experience</strong>, and click <strong>Enable</strong>.
+          </p>
+          <p class="muted">
+            GitHub Docs:
+            <a
+              href="https://docs.github.com/en/get-started/using-github/exploring-early-access-releases-with-feature-preview"
+              >Exploring early access releases with feature preview</a
+            >. GitHub changelog:
+            <a
+              href="https://github.blog/changelog/2026-01-22-improved-pull-request-files-changed-page-on-by-default/"
+              >Improved pull request "Files changed" page on by default</a
+            >.
+          </p>
+        </li>
+      </ol>
+      <p class="muted">
+        Reload any GitHub tab that was open before you installed gh-prism. Tabs opened before the
+        install don't run it.
+      </p>
+    </main>
+  </body>
+</html>
