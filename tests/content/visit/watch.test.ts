@@ -1,9 +1,15 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { FilesPage } from "../../../entrypoints/content/files-page";
-import { watchFilesPages } from "../../../entrypoints/content/visit/watch";
+import type { ClassicPage, FilesPage } from "../../../entrypoints/content/files-page";
+import { watchClassicPages, watchFilesPages } from "../../../entrypoints/content/visit/watch";
 import type { FilesRoute } from "../../../utils/github/files-route";
-import { byId, diffList, loadCommitFixture, loadFixture } from "../../fixtures/files-page";
+import {
+  byId,
+  diffList,
+  loadClassicFixture,
+  loadCommitFixture,
+  loadFixture,
+} from "../../fixtures/files-page";
 
 beforeEach(() => {
   loadFixture();
@@ -65,15 +71,29 @@ describe("watchFilesPages", () => {
     expect(onMissing).not.toHaveBeenCalled();
   });
 
-  it("reports missing markup once the settle window ends", async () => {
-    document.body.innerHTML = "";
-    watch();
-    await vi.advanceTimersByTimeAsync(9_900);
-    expect(onMissing).not.toHaveBeenCalled();
+  it.each(["/o/r/pull/1/changes", "/o/r/pull/1/files"])(
+    "reports missing markup at %s once the settle window ends",
+    async (path) => {
+      history.replaceState(null, "", path);
+      document.body.innerHTML = "";
+      watch();
+      await vi.advanceTimersByTimeAsync(9_900);
+      expect(onMissing).not.toHaveBeenCalled();
 
+      await vi.advanceTimersByTimeAsync(20_000);
+
+      expect(onMissing).toHaveBeenCalledOnce();
+      expect(visits).toHaveLength(0);
+    },
+  );
+
+  it("reports no missing markup on a classic page, which GitHub shows in the new one's place", async () => {
+    history.replaceState(null, "", "/o/r/pull/1/files");
+    loadClassicFixture("");
+    watch();
     await vi.advanceTimersByTimeAsync(20_000);
 
-    expect(onMissing).toHaveBeenCalledOnce();
+    expect(onMissing).not.toHaveBeenCalled();
     expect(visits).toHaveLength(0);
   });
 
@@ -268,5 +288,70 @@ describe("watchFilesPages", () => {
 
     expect(pages()).toHaveLength(1);
     expect(onMissing).not.toHaveBeenCalled();
+  });
+});
+
+describe("watchClassicPages", () => {
+  let controller: AbortController;
+  let pages: { page: ClassicPage; signal: AbortSignal }[];
+
+  const watch = () =>
+    watchClassicPages(window, (page, signal) => pages.push({ page, signal }), controller.signal);
+  const navigate = async (path: string, load: () => void) => {
+    history.pushState(null, "", path);
+    load();
+    document.dispatchEvent(new Event("soft-nav:end"));
+    await vi.advanceTimersByTimeAsync(0);
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    history.replaceState(null, "", "/o/r/pull/1/files");
+    loadClassicFixture("");
+
+    controller = new AbortController();
+    pages = [];
+  });
+
+  afterEach(() => {
+    controller.abort();
+    vi.useRealTimers();
+  });
+
+  it("shows the classic page present on start once", async () => {
+    watch();
+    await vi.advanceTimersByTimeAsync(20_000);
+
+    expect(pages).toHaveLength(1);
+    expect(pages[0]?.page.toolbar.isConnected).toBe(true);
+  });
+
+  it("shows the classic page of one of the pull request's commits", async () => {
+    history.replaceState(null, "", `/o/r/pull/1/commits/${"a".repeat(40)}`);
+    watch();
+
+    expect(pages).toHaveLength(1);
+  });
+
+  it("drops the classic page when GitHub navigates to the Conversation tab", async () => {
+    watch();
+
+    await navigate("/o/r/pull/1", () => {
+      document.body.innerHTML = "<main></main>";
+    });
+
+    expect(pages).toHaveLength(1);
+    expect(pages[0]?.signal.aborted).toBe(true);
+  });
+
+  it("shows a classic page GitHub navigates to", async () => {
+    history.replaceState(null, "", "/o/r/pull/1");
+    document.body.innerHTML = "<main></main>";
+    watch();
+
+    await navigate("/o/r/pull/1/files", () => loadClassicFixture(""));
+
+    expect(pages).toHaveLength(1);
+    expect(pages[0]?.signal.aborted).toBe(false);
   });
 });

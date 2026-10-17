@@ -1,4 +1,4 @@
-import type { SectionKey } from "@/utils/sections";
+import { SECTIONS, type SectionKey } from "@/utils/sections";
 import { icon } from "./dom";
 
 /** One section's identity. */
@@ -68,3 +68,11 @@ export const markSection = (node: HTMLElement, section: SectionKey): void => {
   node.dataset.section = section;
   node.style.setProperty("--gh-prism-hue", `var(${SECTION_CATALOG[section].hue})`);
 };
+
+// CSS can't lay down a band per section, so the gradient follows SECTIONS from here.
+const BAND = 100 / SECTIONS.length;
+
+/** A left-to-right band of every section's hue, in section order: gh-prism's spectrum. */
+export const SECTION_SPECTRUM = `linear-gradient(90deg, ${SECTIONS.map(
+  (key, i) => `var(${SECTION_CATALOG[key].hue}) ${i * BAND}% ${(i + 1) * BAND}%`,
+).join(", ")})`;

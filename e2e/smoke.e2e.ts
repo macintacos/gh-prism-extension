@@ -10,6 +10,9 @@ const COMMIT_URL = "https://github.com/o/r/commit/dd95cdc0d7a9a6817998ee6663563e
 const readFixture = (name: string) =>
   readFileSync(join(import.meta.dirname, "../tests/fixtures", name), "utf8");
 const PR_BODY = `<!doctype html>${readFixture("files-page.html")}`;
+const CLASSIC_URL = "https://github.com/o/r/pull/1/files";
+// GitHub names no login for a signed-out viewer.
+const CLASSIC_BODY = `<!doctype html><meta name="user-login" content="">${readFixture("classic-files-page.html")}`;
 // README.md's tree row in tests/fixtures/files-page.html links to this id.
 const README_DIFF = "diff-0a13";
 
@@ -128,6 +131,33 @@ const routeFileReview = async (context: BrowserContext, status: number) => {
 
 const viewedBox = (page: Page, name: string) =>
   page.getByRole("checkbox", { name: `Viewed: ${name}` });
+
+test("the classic Files changed page explains in a dialog why gh-prism is off, until it's closed", async ({
+  context,
+  page,
+}) => {
+  await serve(context, CLASSIC_URL, CLASSIC_BODY);
+  const dialog = page.getByRole("dialog", { name: /gh-prism/ });
+  const opener = page.getByRole("button", { name: /why is gh-prism off/i });
+
+  await page.goto(CLASSIC_URL);
+  await expect(dialog).toBeVisible();
+  expect(await dialog.evaluate((el) => el.matches(":modal"))).toBe(true);
+  await expect(dialog.getByRole("link", { name: "Sign in" })).toBeVisible();
+
+  // The backdrop's corner, outside the centered dialog.
+  await page.mouse.click(4, 4);
+  await expect(dialog).toBeHidden();
+  await expect(opener).toBeFocused();
+
+  await page.reload();
+  // The button and the dialog come in together, so the dialog has had its chance to open.
+  await expect(opener).toBeVisible();
+  await expect(dialog).toBeHidden();
+
+  await opener.click();
+  await expect(dialog).toBeVisible();
+});
 
 test("a pull request mounts its sections in path-only mode", async ({ context, page }) => {
   await serve(context, PR_URL, PR_BODY);
@@ -573,6 +603,10 @@ test("ticking a box doesn't scroll the sidebar", async ({ context, page }) => {
   await scrollSidebarToBulkRow(page, 150);
   const box = page.locator('[data-item-checkbox="bulk/file-150.rs"]');
   await expect(box).toBeInViewport();
+  // A click the scrolling tree ignores is retried, with a scroll.
+  await expect
+    .poll(() => box.evaluate((el) => getComputedStyle(el).pointerEvents))
+    .not.toBe("none");
   const sidebar = page.locator("#pr-file-tree");
   const before = await sidebar.evaluate((el) => el.scrollTop);
 

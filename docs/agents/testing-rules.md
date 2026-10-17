@@ -36,6 +36,13 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   queries, so
   [`tests/content/diffs/reveal.test.ts`](../../tests/content/diffs/reveal.test.ts) tests
   the reduced-motion path without a browser.
+- **Prove a `<dialog>`'s modality, Esc, and light dismiss in Chromium, not happy-dom.**
+  happy-dom's `showModal()` only sets `open`, with no top layer, no Esc, and no
+  `closedby`, and its `close()` fires `close` at once, where a browser queues it.
+  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s classic Files changed test checks
+  `:modal` and closes the dialog by its backdrop.
+- **Read a computed animation through `animation`, not `animationName`.** happy-dom
+  computes the shorthand alone, so `animationName` reads `""` whatever the sheet says.
 - **Prove ordering inside one click dispatch in Chromium, not happy-dom.** happy-dom runs
   no microtask checkpoint between a scripted click's listeners, so a stand-in that flips
   in a microtask still lands after the dispatch ends.
@@ -65,6 +72,16 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   alignment the click lands on depends on the machine's speed, so the sidebar can stay put
   locally and move on CI. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "ticking a box
   doesn't scroll the sidebar" awaits the animations' `finished` first.
+- **After a test scrolls the sidebar, wait for the tree to take pointer events before it
+  clicks a row.** @pierre/trees sets `pointer-events: none` on the tree while it scrolls,
+  so a click that comes too soon is intercepted and retried, with the same forced scroll.
+  "ticking a box doesn't scroll the sidebar" polls the box's computed `pointer-events`
+  first.
+- **Reproduce CI's e2e timing on Linux with 2 CPUs.** macOS runs too fast to show a
+  slowdown CI fails on. With the extension built on the host, run the suite in
+  `mcr.microsoft.com/playwright:v<version>-noble` with the repository mounted, through
+  `container run -c 2 -m 4G` or `docker run --cpus 2`, and
+  `node node_modules/@playwright/test/cli.js test --workers=1`.
 
 ## Verifying in a real browser
 

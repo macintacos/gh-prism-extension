@@ -6,11 +6,13 @@ import {
   commitPage,
   coveredTop,
   diffEntryOf,
+  findClassicPage,
   findDiff,
   findDiffList,
   findDiffstat,
   findFilesPage,
   findTreeToggle,
+  isSignedIn,
   mountedDiffs,
   observeDiffs,
   observeTree,
@@ -30,6 +32,7 @@ import {
   foundPage,
   LAUNCHER_DIFF,
   linkTo,
+  loadClassicFixture,
   loadCommitFixture,
   loadFixture,
   loadViewedCommitFilterFixture,
@@ -80,8 +83,37 @@ describe("findFilesPage", () => {
   });
 
   it("is undefined for classic markup", () => {
-    document.body.innerHTML = '<file-tree></file-tree><div data-testid="diff-content"></div>';
+    loadClassicFixture("");
     expect(findFilesPage(document)).toBeUndefined();
+  });
+});
+
+describe("findClassicPage", () => {
+  it("finds the classic page's toolbar and its review tools", () => {
+    loadClassicFixture("");
+
+    expect(findClassicPage(document)).toEqual({
+      toolbar: document.querySelector(".pr-toolbar"),
+      reviewTools: document.querySelector(".pr-review-tools"),
+    });
+  });
+
+  it.each([
+    ["the new Files changed page", loadFixture],
+    ["a commit page", loadCommitFixture],
+  ])("is undefined on %s", (_, load) => {
+    load();
+    expect(findClassicPage(document)).toBeUndefined();
+  });
+});
+
+describe("isSignedIn", () => {
+  it.each([
+    { login: "", signedIn: false },
+    { login: "octocat", signedIn: true },
+  ])("is $signedIn when GitHub names the viewer '$login'", ({ login, signedIn }) => {
+    loadClassicFixture(login);
+    expect(isSignedIn(document)).toBe(signedIn);
   });
 });
 

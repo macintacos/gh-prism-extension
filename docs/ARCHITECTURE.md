@@ -22,7 +22,8 @@ runs on every github.com page at `document_start`, so its watcher is in place be
 GitHub first renders the page. It cannot match only Files view URLs, because of GitHub's
 soft navigation: GitHub swaps in a new page without loading a new document, so a script
 matched to pull request URLs would never be injected when you click through to one.
-Instead, it watches every page for a Files view to appear.
+Instead, it watches every page for a Files view to appear, and for a pull request's
+classic page, where it opens a dialog instead.
 
 ## Page kinds
 
@@ -37,7 +38,13 @@ sidebar, native tree, and diffs are all present. Callers then ask `files-page.ts
 helpers rather than branching on the kind, so a new page kind is a new `PAGE_KINDS` entry.
 
 [`utils/github/files-route.ts`](../utils/github/files-route.ts) reads the URL side: which
-diff a pathname names, and whether a pull request's view is commit-filtered.
+diff a pathname names, and whether a pull request's view is commit-filtered. It reads the
+classic page's `/files` and `/commits/<sha>` too, which GitHub redirects to `/changes` and
+`/changes/<sha>` wherever it shows the new page.
+
+`findClassicPage` finds a pull request's classic page instead: GitHub's toolbar above the
+diffs and the toolbar's review tools. `isSignedIn` reads whether GitHub served the page to
+a signed-in viewer.
 
 ## The visit lifecycle
 
@@ -53,8 +60,9 @@ whether the page is still connected. Once the sidebar, native tree, or diffs con
 replacement as a new page. A list swap inside the container is not a new page; `order.ts`
 follows it. A pathname change aborts the whole visit. A hash change, which every file
 click makes, is not a new visit. When the window ends on a Files view path with no markup
-found, the watcher warns once and leaves GitHub's tree alone; the next wake still starts a
-new settle window.
+found, not even the classic page's, the watcher warns once and leaves GitHub's tree alone;
+the next wake still starts a new settle window. `watchClassicPages` follows the classic
+page the same way, through the same settle windows, and never warns.
 
 ```mermaid
 stateDiagram-v2
@@ -62,7 +70,7 @@ stateDiagram-v2
     Settling --> Page: Files view markup found
     Page --> Page: within 10 s, sidebar, tree, or diffs container disconnected
     Page --> Settling: pathname changes, so the visit aborts
-    Settling --> Missing: 10 s pass with no markup
+    Settling --> Missing: 10 s pass with no markup, new or classic
     Page --> Idle: 10 s pass, observer stops
     Idle --> Settling: next soft-nav end or popstate
     Missing --> Idle: warn once
@@ -77,6 +85,17 @@ before any view gets the next. `land` owns the only observer of the native tree,
 re-lists the sections after each change to the tree. One visit reads intent once:
 `index.ts` wraps the read in `shareIntent`, so every page of the visit joins the same
 read.
+
+## The classic page notice
+
+[`entrypoints/content/classic/notice.ts`](../entrypoints/content/classic/notice.ts) runs
+on each classic page. `showClassicNotice` opens a native modal `<dialog>` that says why
+gh-prism isn't running there and how to get the new page: signed out, sign in; signed in,
+turn on GitHub's New Files Changed Experience preview. Closing it any way, by its buttons,
+Esc, or a click outside it, dismisses it. A **Why is gh-prism off?** button beside the
+toolbar's review tools opens it again. `index.ts` reads the dismissal from
+`classicNoticeDismissed` in [`utils/prefs.ts`](../utils/prefs.ts) before watching, shares
+it across the tab's pages, and saves it on each close.
 
 ## Intent and its cache
 
@@ -180,8 +199,9 @@ then mounted only on the pages that need it. The rules for writing styles are in
 entrypoints/
   background.ts          service worker: PR data port, cache clearing on install
   content/
-    index.ts             content script entry: wires the watcher, intent, and views
-    files-page.ts        every GitHub Files view selector; page kinds
+    index.ts             content script entry: wires the watchers, intent, and views
+    files-page.ts        every GitHub Files view selector; page kinds; the classic page
+    classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch
     diffs/               diff order, reveal, on-screen and Viewed tracking

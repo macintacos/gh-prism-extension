@@ -7,7 +7,13 @@ import { dockSidebar, type Side } from "../../entrypoints/content/sidebar/side";
 import { showVisit } from "../../entrypoints/content/visit/land";
 import { readFilesRoute } from "../../utils/github/files-route";
 import { intentFor } from "../../utils/intent/read";
-import { byId, loadFixture, loadViewedFixture, VIEWED_APP_TOML } from "../fixtures/files-page";
+import {
+  byId,
+  loadClassicFixture,
+  loadFixture,
+  loadViewedFixture,
+  VIEWED_APP_TOML,
+} from "../fixtures/files-page";
 
 // Only leaves are faked: intentFor needs a port fakeBrowser lacks; the views' DOM has own tests.
 vi.mock(import("../../utils/intent/read"), async (importOriginal) => ({
@@ -212,5 +218,63 @@ describe("content script", () => {
     await vi.advanceTimersByTimeAsync(20_000);
 
     expect(consoleWarn).toHaveBeenCalledOnce();
+  });
+
+  describe("on a classic Files changed page", () => {
+    const dialog = () =>
+      document.querySelector<HTMLDialogElement>("dialog.gh-prism-classic-notice");
+    const opener = () =>
+      document.querySelector<HTMLButtonElement>(".gh-prism-classic-notice-button");
+
+    beforeEach(() => {
+      history.replaceState(null, "", "/o/r/pull/1/files");
+      loadClassicFixture("");
+    });
+
+    it("opens the notice", async () => {
+      await run();
+
+      expect(dialog()?.open).toBe(true);
+    });
+
+    it("keeps a dismissal for the next page", async () => {
+      await run();
+      dialog()?.close();
+      await vi.waitFor(async () =>
+        expect(await fakeBrowser.storage.local.get("classicNoticeDismissed")).toEqual({
+          classicNoticeDismissed: true,
+        }),
+      );
+      controller.abort();
+      controller = new AbortController();
+
+      await run();
+
+      expect(dialog()?.open).toBe(false);
+      expect(opener()).not.toBeNull();
+    });
+
+    it("opens the notice when reading the saved dismissal fails", async () => {
+      const failure = new Error("context invalidated");
+      vi.spyOn(fakeBrowser.storage.local, "get").mockRejectedValue(failure);
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      await run();
+
+      expect(dialog()?.open).toBe(true);
+      expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
+    });
+
+    it("takes the notice away when GitHub navigates to the Conversation tab", async () => {
+      await run();
+
+      // The classic markup stays behind, as when popstate fires before GitHub swaps the page.
+      history.pushState(null, "", "/o/r/pull/1");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+      await afterMutations();
+
+      expect(dialog()).toBeNull();
+      expect(opener()).toBeNull();
+    });
   });
 });
