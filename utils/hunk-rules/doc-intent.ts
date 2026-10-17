@@ -67,10 +67,10 @@ export function commentLineCounts(
   const [first, ...rest] = plausibleStarts(syntax, hunk).map((start) =>
     countsFrom(syntax, hunk, start),
   );
-  const agree = rest.every(
+  const startsAgree = rest.every(
     (counts) => counts.added === first?.added && counts.removed === first.removed,
   );
-  return agree && first !== undefined ? first : "needs-content";
+  return startsAgree && first !== undefined ? first : "needs-content";
 }
 
 /**

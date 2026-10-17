@@ -102,15 +102,15 @@ async function fileIntent(
   client: Pick<PrDataClient, "fileContent">,
   file: PrFileDiff,
 ): Promise<FileIntent> {
-  const none = { added: 0, removed: 0 };
+  const noLines = { added: 0, removed: 0 };
   const patchVerdicts = docHunkVerdicts(file);
   // also [] for binary or renamed
   if (patchVerdicts.every(isDocs))
-    return { sections: patchVerdicts.map(() => "docs"), commentLines: none };
+    return { sections: patchVerdicts.map(() => "docs"), commentLines: noLines };
 
   const hunks = hunksOf(file);
-  const counted = classify(file.path) === "implementation";
-  const patchCounts = counted ? hunks.map((hunk) => commentLineCounts(file.path, hunk)) : [];
+  const countsComments = classify(file.path) === "implementation";
+  const patchCounts = countsComments ? hunks.map((hunk) => commentLineCounts(file.path, hunk)) : [];
   const needsHead =
     inlineTestRuleApplies(file) ||
     patchVerdicts.includes("needs-content") ||
@@ -118,12 +118,12 @@ async function fileIntent(
   const head = needsHead ? await readHead(client, file) : undefined;
 
   const sections = head === undefined ? patchSections(patchVerdicts) : headSections(file, head);
-  if (!counted) return { sections, commentLines: none };
+  if (!countsComments) return { sections, commentLines: noLines };
   const counts = hunks.map((hunk, i) => {
-    if (sections[i] !== undefined) return none;
+    if (sections[i] !== undefined) return noLines;
     if (head !== undefined) return commentLineCounts(file.path, hunk, head);
     const count = patchCounts[i];
-    return count === undefined || count === "needs-content" ? none : count;
+    return count === undefined || count === "needs-content" ? noLines : count;
   });
   return { sections, commentLines: sum(counts) };
 }

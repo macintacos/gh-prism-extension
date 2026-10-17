@@ -240,13 +240,13 @@ describe("the diffs beside the sections", () => {
       ["README.md", whole("tests")],
     ]);
     await landed(landedWith(noDocsFiles));
-    const without = layout();
+    const withoutCommentLines = layout();
 
     await landed(
       landedWith(noDocsFiles, new Map(), new Map([["src/parser.rs", { added: 2, removed: 1 }]])),
     );
 
-    expect(layout()).toEqual(without);
+    expect(layout()).toEqual(withoutCommentLines);
   });
 
   it("put a file intent moves where the sidebar lists it", async () => {
