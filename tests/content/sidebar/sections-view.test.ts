@@ -1112,6 +1112,100 @@ describe("showSections", () => {
     });
   });
 
+  describe("the Viewed checkbox", () => {
+    const boxesIn = (section: string) => [
+      ...(treeHost(section).shadowRoot?.querySelectorAll<HTMLInputElement>(
+        "input[data-item-checkbox]",
+      ) ?? []),
+    ];
+    const boxOf = (section: string, path: string) => {
+      const box = boxesIn(section).find((input) => input.dataset.itemCheckbox === path);
+      if (!box) throw new Error(`${section} has no checkbox for ${path}`);
+      return box;
+    };
+
+    it("shows no checkbox until Viewed is offered", () => {
+      expect(boxesIn("implementation")).toEqual([]);
+    });
+
+    it("gives every file row, and no directory row, a checkbox once Viewed is offered", () => {
+      viewed();
+
+      expect(boxesIn("implementation").map((box) => box.dataset.itemCheckbox)).toEqual(
+        filesIn("implementation"),
+      );
+    });
+
+    it("ticks a Partial file's boxes in every section", async () => {
+      await landed(renderSplit([{ first: 2, last: 8 }]));
+      viewed("src/render.rs");
+
+      expect(boxOf("implementation", "src/render.rs").checked).toBe(true);
+      expect(boxOf("docs", "src/render.rs").checked).toBe(true);
+      expect(boxOf("implementation", "src/engine.rs").checked).toBe(false);
+    });
+
+    it("names the box for its file and says what a click does", () => {
+      viewed("src/render.rs");
+
+      expect(boxOf("implementation", "src/render.rs").getAttribute("aria-label")).toBe(
+        "Viewed: render.rs",
+      );
+      expect(boxOf("implementation", "src/render.rs").title).toBe("Mark as not viewed");
+      expect(boxOf("implementation", "src/engine.rs").title).toBe("Mark as viewed");
+    });
+
+    it("puts only the focused row's box in the tab order", async () => {
+      viewed();
+      const rows = rowsIn("implementation");
+      rows[0]?.focus();
+      rows[0]?.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "End",
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+        }),
+      );
+      await afterDebounce();
+
+      expect(boxesIn("implementation").filter((box) => box.tabIndex === 0)).toEqual([
+        boxOf("implementation", rows.at(-1)?.dataset.itemPath ?? ""),
+      ]);
+    });
+
+    it("keeps its state through a row's re-render", async () => {
+      viewed("src/engine.rs");
+      await setCommentCount("src/engine.rs", 2);
+
+      expect(partTexts("implementation", "src/engine.rs")).toEqual(["2"]);
+      expect(boxOf("implementation", "src/engine.rs").checked).toBe(true);
+    });
+
+    it("appears in a section built later", async () => {
+      byId("docs/guide.md").remove();
+      byId("README.md").remove();
+      await afterDebounce();
+      viewed("docs/intro.md");
+      addNativeFile("docs/intro.md", "config/app.toml");
+      await afterDebounce();
+
+      expect(boxOf("docs", "docs/intro.md").checked).toBe(true);
+    });
+
+    it("never scrolls the sidebar when focused", () => {
+      viewed();
+      const scrollIntoView = vi
+        .spyOn(Element.prototype, "scrollIntoView")
+        .mockImplementation(() => {});
+
+      boxOf("implementation", "src/engine.rs").focus();
+
+      expect(scrollIntoView).not.toHaveBeenCalled();
+      scrollIntoView.mockRestore();
+    });
+  });
+
   describe("the viewed counts", () => {
     const counter = (section: string) => {
       const found = sectionToggle(section).querySelector(".gh-prism-counter");

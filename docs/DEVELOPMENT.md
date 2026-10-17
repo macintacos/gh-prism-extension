@@ -116,7 +116,8 @@ the old key.
 Two dependencies carry local patches in [`patches/`](../patches/), which Bun applies on
 install through `patchedDependencies` in [`package.json`](../package.json):
 
-- `@pierre/trees` adds a row decoration's title to the row's accessible label.
+- `@pierre/trees` adds a row decoration's title to the row's accessible label, and renders
+  a checkbox beside a row whose decoration asks for one.
 - `wxt` escapes the entrypoint path in a regular expression, so a checkout whose path
   holds a character such as `+` still builds.
 

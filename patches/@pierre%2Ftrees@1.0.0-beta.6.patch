@@ -1,5 +1,5 @@
 diff --git a/dist/render/FileTreeView.js b/dist/render/FileTreeView.js
-index 7d3b818c43a7621ab9170da32b180232ed3c9472..9b847e0ef697770d50b8bf759cbed5be84c80c68 100644
+index 7d3b818c43a7621ab9170da32b180232ed3c9472..c60b6da041d9a2ee64560aa66cdb12a9e1b9bf64 100644
 --- a/dist/render/FileTreeView.js
 +++ b/dist/render/FileTreeView.js
 @@ -438,7 +438,7 @@ function renderStyledRow(frame, row, key, options = {}) {
@@ -11,3 +11,31 @@ index 7d3b818c43a7621ab9170da32b180232ed3c9472..9b847e0ef697770d50b8bf759cbed5be
  			domId: row.isFocused ? getFileTreeFocusedRowDomId(instanceId, targetPath, isParked) : void 0,
  			extraStyle: style,
  			features: {
+@@ -515,7 +515,26 @@ function renderStyledRow(frame, row, key, options = {}) {
+ }
+ function renderRangeChildren(frame, range, hiddenRowPaths) {
+ 	if (range.end < range.start) return [];
+-	return frame.controller.getVisibleRows(range.start, range.end).filter((row) => !hiddenRowPaths.has(getFileTreeRowPath(row))).map((row, slotIndex) => renderStyledRow(frame, row, range.start + slotIndex));
++	return frame.controller.getVisibleRows(range.start, range.end).filter((row) => !hiddenRowPaths.has(getFileTreeRowPath(row))).flatMap((row, slotIndex) => {
++		const key = range.start + slotIndex;
++		const rowNode = renderStyledRow(frame, row, key);
++		const checkbox = frame.renderDecorationForRow(row, getFileTreeRowPath(row))?.checkbox;
++		return checkbox ? [rowNode, renderRowCheckbox(frame, row, checkbox, key, slotIndex)] : [rowNode];
++	});
++}
++// ponytail: parked (scrolled-out focused) rows get no box, so focus on a box whose row
++// virtualizes out drops to the body; render one for the parked row if that matters.
++function renderRowCheckbox(frame, row, checkbox, key, slotIndex) {
++	return jsx("input", {
++		type: "checkbox",
++		"data-item-checkbox": getFileTreeRowPath(row),
++		checked: checkbox.checked,
++		"aria-label": checkbox.label,
++		title: checkbox.title,
++		"aria-busy": checkbox.busy ? "true" : void 0,
++		tabIndex: row.isFocused ? 0 : -1,
++		style: { top: `${slotIndex * frame.itemHeight}px` }
++	}, `checkbox:${key}`);
+ }
+ function FileTreeView({ composition, controller, gitStatusByPath, ignoredGitDirectories, directoriesWithGitChanges, icons, instanceId, itemHeight = FILE_TREE_DEFAULT_ITEM_HEIGHT, overscan = 10, renamingEnabled = false, renderRowDecoration, searchBlurBehavior = "close", searchEnabled = false, searchFakeFocus = false, slotHost, stickyFolders = false, initialViewportHeight = 420 }) {
+ 	"use no memo";

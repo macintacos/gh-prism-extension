@@ -17,6 +17,16 @@ export interface TreeFile {
   readonly decoration: FileTreeRowDecoration | undefined;
 }
 
+interface RowCheckbox {
+  readonly checked: boolean;
+  readonly busy: boolean;
+  readonly label: string;
+  readonly title: string;
+}
+
+// gh-prism's @pierre/trees patch is the only reader of `checkbox`.
+type RowDecoration = FileTreeRowDecoration & { readonly checkbox?: RowCheckbox };
+
 const ROW_HEIGHT = 28;
 
 // Two-tone like the library's file glyphs. section-tree.css shows the open shape on expanded rows.
@@ -49,13 +59,15 @@ export class SectionTree {
   #byPath: ReadonlyMap<string, TreeFile>;
   #selected: string | undefined;
   #focused: string | null | undefined;
+  #viewedPaths: ReadonlySet<string> | undefined;
+  #marking: ReadonlySet<string> = new Set();
 
   /** Renders `files` into `host`, with `selected` selected if listed. */
   constructor(host: HTMLElement, files: readonly TreeFile[], selected: string | undefined) {
     this.#host = host;
     this.#files = files;
     this.#byPath = byPath(files);
-    this.#tree = fileTreeOf(files, (path) => this.#byPath.get(path)?.decoration ?? null);
+    this.#tree = fileTreeOf(files, (path) => this.#decorationOf(path));
     this.#fit();
     this.#tree.render({ fileTreeContainer: host });
 
@@ -143,9 +155,15 @@ export class SectionTree {
     this.#onScreen.textContent = rowRule(paths, "--gh-prism-on-screen:1");
   }
 
-  /** Marks the rows of `paths` as Viewed, the way `showOnScreen` marks rows on screen. */
+  /**
+   * Marks the rows of `paths` as Viewed, the way `showOnScreen` marks rows on screen, and gives
+   * every file row a Viewed checkbox.
+   */
   showViewed(paths: ReadonlySet<string>): void {
     this.#viewed.textContent = rowRule(paths, "--gh-prism-viewed:1");
+    this.#viewedPaths = paths;
+    this.#host.setAttribute("data-gh-prism-checkboxes", "");
+    this.#tree.render({ fileTreeContainer: this.#host });
   }
 
   /** Removes the tree's rows and releases it. */
@@ -158,7 +176,9 @@ export class SectionTree {
    * It also re-focuses a row the viewport unmounted, which must not pull the sidebar back.
    */
   #followFocus(shadow: ShadowRoot): void {
-    shadow.addEventListener("focusin", () => {
+    shadow.addEventListener("focusin", (event) => {
+      // A checkbox taking focus must not scroll the sidebar to the tree's last focused row.
+      if (!(event.target instanceof Element && event.target.matches('[data-type="item"]'))) return;
       const path = this.#tree.getFocusedPath();
       if (path === this.#focused) return;
       this.#focused = path;
@@ -169,6 +189,23 @@ export class SectionTree {
       const next = event instanceof FocusEvent ? event.relatedTarget : null;
       if (next instanceof Node && next.getRootNode() !== shadow) this.#focused = undefined;
     });
+  }
+
+  #decorationOf(path: string): RowDecoration | null {
+    const file = this.#byPath.get(path);
+    const decoration = file?.decoration ?? null;
+    if (!this.#viewedPaths || !file) return decoration;
+    const checked = this.#viewedPaths.has(path);
+    return {
+      text: "",
+      ...decoration,
+      checkbox: {
+        checked,
+        busy: this.#marking.has(path),
+        label: `Viewed: ${path.slice(path.lastIndexOf("/") + 1)}`,
+        title: checked ? "Mark as not viewed" : "Mark as viewed",
+      },
+    };
   }
 
   #resetPaths(previous: readonly TreeFile[]): void {
@@ -231,7 +268,7 @@ const ECOSYSTEM_ICONS = {
 /** A tree of `files`, every directory open, that asks `decorationOf` for each row's decoration. */
 function fileTreeOf(
   files: readonly TreeFile[],
-  decorationOf: (path: string) => FileTreeRowDecoration | null,
+  decorationOf: (path: string) => RowDecoration | null,
 ): FileTree {
   return new FileTree({
     preparedInput: preparePresortedFileTreeInput(files.map(({ path }) => path)),

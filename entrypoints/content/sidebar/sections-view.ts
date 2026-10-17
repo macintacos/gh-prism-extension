@@ -31,8 +31,9 @@ interface SectionsView extends LandingView {
   /** Marks the files whose diffs are on screen: their rows, or a collapsed section's header. */
   onScreen(paths: ReadonlySet<string>): void;
   /**
-   * Dims the rows of the files GitHub shows as Viewed and, once any is, counts each section's
-   * viewed files in its header.
+   * Called once the page offers Viewed: dims the rows of the files GitHub shows as Viewed, gives
+   * every file row a checkbox, and, once any file is viewed, counts each section's viewed files
+   * in its header.
    */
   viewed(paths: ReadonlySet<string>): void;
 }
@@ -206,7 +207,7 @@ function sectionShell(
 /**
  * Writes the file count of `entries` into a section header's `counter`, or, once `viewed` holds
  * any path, how many of them are viewed, as `N/M` with the words for screen readers. An empty
- * `viewed`, which a page without Viewed also sends, keeps the bare count. Leaves the DOM alone
+ * `viewed` (nothing viewed yet, or a page that offers no Viewed) keeps the bare count. Leaves the DOM alone
  * when unchanged.
  */
 function showCount(
@@ -299,6 +300,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
   let scrolledTo: string | undefined;
   let onScreen: ReadonlySet<string> = new Set();
   let viewed: ReadonlySet<string> = new Set();
+  let offered = false;
   let latestSections: readonly FileSection[] = [];
 
   /** Marks each section that lists a file on screen; sections-view.css shows it on a collapsed header. */
@@ -388,7 +390,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     else view.prepend(root);
     const tree = new SectionTree(host, files, active);
     tree.showOnScreen(onScreen);
-    tree.showViewed(viewed);
+    if (offered) tree.showViewed(viewed);
     return { root, counter, tree };
   };
 
@@ -474,6 +476,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     },
     viewed(paths) {
       viewed = paths;
+      offered = true;
       for (const { tree } of shown.values()) tree.showViewed(paths);
       countHeaders();
     },
