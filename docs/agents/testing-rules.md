@@ -71,6 +71,12 @@ To check behavior live, build the extension and drive Playwright's bundled Chrom
   signed-out loads in a row hit the rate limit.
 - **For a signed-in pull request, sign in through Playwright and save its
   `storageState`.** Never extract cookies from a browser profile.
+- **Scrub a signed-in capture before it becomes a fixture.** Signed-in markup and route
+  data carry the session's identity and tokens, which must never reach the repository.
+  Remove the login (except inside repository paths), avatar URLs, `authenticity_token` and
+  CSRF inputs, `csrf_tokens`, `nonce` values, `aliveChannel`, `data-hydro-*` and
+  `octolytics` attributes, user ids, and JSON fields that identify the viewer. Keep
+  per-file state such as `diffSummaries[].markedAsViewed`.
 - **Wrap the service worker's `fetch` to observe pull request data requests.** The
   background script calls the global `fetch` at request time, so wrapping `self.fetch`
   through `worker.evaluate` logs each request.
