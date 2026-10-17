@@ -81,6 +81,53 @@ const setViewed = (page: Page, anchor: string, viewed: boolean) =>
     { anchor, viewed },
   );
 
+const VIEWED_URL = "https://github.com/macintacos/gh-prism-sandbox/pull/3/changes";
+const VIEWED_BODY = `<!doctype html>${readFixture("viewed-files-page.html")}`;
+// GitHub's "N / M viewed" counter, which tells the extension the page offers Viewed.
+const LARGE_VIEWED_BODY = LARGE_PR_BODY.replace(
+  "<!doctype html>",
+  '<!doctype html><div class="file-controls__x"><span class="ProgressContainer__x">0 / 309 viewed</span></div>',
+);
+
+/**
+ * Stands in for GitHub's Viewed toggles: a click flips the toggle a task later, as GitHub's does,
+ * then saves through `POST <pull>/file_review`, flipping back on a failed save when `revert`.
+ */
+const copyGitHubToggles = (page: Page, { revert }: { revert: boolean }) =>
+  page.evaluate((revert) => {
+    const flip = (toggle: Element) => {
+      const viewed = toggle.getAttribute("aria-pressed") !== "true";
+      toggle.setAttribute("aria-pressed", String(viewed));
+      toggle.setAttribute("aria-label", viewed ? "Viewed" : "Not Viewed");
+    };
+    for (const toggle of document.querySelectorAll(
+      '[class*="diff-file-header__"] button[aria-pressed][aria-label$="Viewed"]',
+    ))
+      toggle.addEventListener("click", () =>
+        setTimeout(async () => {
+          flip(toggle);
+          const response = await fetch(
+            `${location.pathname.replace(/\/changes$/, "")}/file_review`,
+            { method: "POST" },
+          );
+          if (!response.ok && revert) flip(toggle);
+        }),
+      );
+  }, revert);
+
+/** Answers every `file_review` save with `status`; registered after the catch-all 404, so it wins. */
+const routeFileReview = async (context: BrowserContext, status: number) => {
+  const saves = { count: 0 };
+  await context.route("**/file_review", (route) => {
+    saves.count++;
+    return route.fulfill({ status, contentType: "application/json", body: "{}" });
+  });
+  return saves;
+};
+
+const viewedBox = (page: Page, name: string) =>
+  page.getByRole("checkbox", { name: `Viewed: ${name}` });
+
 test("a pull request mounts its sections in path-only mode", async ({ context, page }) => {
   await serve(context, PR_URL, PR_BODY);
   await page.goto(PR_URL);
@@ -105,6 +152,7 @@ test("a commit mounts its sections in path-only mode", async ({ context, page })
     await expect(nav.getByRole("heading", { name })).toBeVisible();
   }
   await expect(page.locator(".gh-prism-notice")).toHaveText(/^Grouped by path\./);
+  await expect(page.locator("[data-item-checkbox]")).toHaveCount(0);
 });
 
 test("a commit's diff list skips a comment thread beside it", async ({ context, page }) => {
@@ -406,6 +454,129 @@ test("section headers count viewed files once any file is Viewed", async ({ cont
   await setViewed(page, VIEWED_APP_TOML, false);
   await expect.poll(counters).toEqual({ implementation: "1", config: "1", generated: "1" });
   await expect(page.locator(".gh-prism-counter .sr-only")).toHaveCount(0);
+});
+
+test("every file row has a Viewed checkbox showing its file's state", async ({ context, page }) => {
+  await serve(context, VIEWED_URL, VIEWED_BODY);
+  await page.goto(VIEWED_URL);
+
+  await expect(viewedBox(page, "app.toml")).toBeChecked();
+  await expect(viewedBox(page, "app.toml")).toHaveAttribute("title", "Mark as not viewed");
+  await expect(viewedBox(page, "lib.rs")).not.toBeChecked();
+  await expect(viewedBox(page, "lib.rs")).toHaveAttribute("title", "Mark as viewed");
+  await expect(page.locator("[data-item-checkbox]")).toHaveCount(3);
+});
+
+test("ticking a row's box saves its file's Viewed state once", async ({ context, page }) => {
+  const saves = await routeFileReview(context, 200);
+  await serve(context, VIEWED_URL, VIEWED_BODY);
+  await page.goto(VIEWED_URL);
+  await expect(viewedBox(page, "lib.rs")).toBeVisible();
+  await copyGitHubToggles(page, { revert: true });
+
+  await viewedBox(page, "lib.rs").click();
+  await expect(viewedBox(page, "lib.rs")).toBeChecked();
+  await expect(page.locator(`#${VIEWED_LIB_RS} button[aria-label$="Viewed"]`)).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect.poll(() => saves.count).toBe(1);
+
+  await viewedBox(page, "app.toml").dblclick();
+  await expect(viewedBox(page, "app.toml")).not.toBeChecked();
+  await expect(viewedBox(page, "app.toml")).not.toHaveAttribute("aria-busy", "true");
+  await expect.poll(() => saves.count).toBe(2);
+  await page.waitForTimeout(500);
+  expect(saves.count).toBe(2);
+});
+
+test("a box follows the header when GitHub keeps a rejected save's state", async ({
+  context,
+  page,
+}) => {
+  await routeFileReview(context, 500);
+  await serve(context, VIEWED_URL, VIEWED_BODY);
+  await page.goto(VIEWED_URL);
+  await expect(viewedBox(page, "lib.rs")).toBeVisible();
+  await copyGitHubToggles(page, { revert: false });
+
+  await viewedBox(page, "lib.rs").click();
+
+  await expect(page.locator(`#${VIEWED_LIB_RS} button[aria-label$="Viewed"]`)).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(viewedBox(page, "lib.rs")).toBeChecked();
+  await expect(viewedBox(page, "lib.rs")).not.toHaveAttribute("aria-busy", "true");
+});
+
+test("the keyboard reaches and ticks a row's Viewed box", async ({ context, page }) => {
+  await routeFileReview(context, 200);
+  await serve(context, VIEWED_URL, VIEWED_BODY);
+  await page.goto(VIEWED_URL);
+  await expect(viewedBox(page, "lib.rs")).toBeVisible();
+  await copyGitHubToggles(page, { revert: true });
+  const row = page.locator('[data-item-path="src/lib.rs"]');
+
+  await row.focus();
+  await page.keyboard.press("Tab");
+  await expect(viewedBox(page, "lib.rs")).toBeFocused();
+
+  await page.keyboard.press("Space");
+  await expect(viewedBox(page, "lib.rs")).toBeChecked();
+
+  await page.keyboard.press("Shift+Tab");
+  await expect(row).toBeFocused();
+});
+
+test("every rendered file row of a large pull request keeps its Viewed box", async ({
+  context,
+  page,
+}) => {
+  await serve(context, PR_URL, LARGE_VIEWED_BODY);
+  await page.goto(PR_URL);
+  await expect(page.locator('[data-item-checkbox="bulk/file-000.rs"]')).toBeVisible();
+  const rendered = () =>
+    page.evaluate(() => {
+      const shadows = [...document.querySelectorAll(".gh-prism-tree")].map(
+        (host) => host.shadowRoot,
+      );
+      const count = (selector: string) =>
+        shadows.reduce((sum, shadow) => sum + (shadow?.querySelectorAll(selector).length ?? 0), 0);
+      return {
+        rows: count('[data-type="item"][data-item-type="file"]'),
+        boxes: count("[data-item-checkbox]"),
+      };
+    });
+
+  for (const n of [0, 150, 280]) {
+    await scrollSidebarToBulkRow(page, n);
+    await expect(
+      page.locator(`[data-item-checkbox="bulk/file-${String(n).padStart(3, "0")}.rs"]`),
+    ).toBeAttached();
+    const { rows, boxes } = await rendered();
+    expect(rows).toBeGreaterThan(0);
+    expect(boxes).toBe(rows);
+  }
+});
+
+test("ticking a box doesn't scroll the sidebar", async ({ context, page }) => {
+  await serve(context, PR_URL, LARGE_VIEWED_BODY);
+  await page.goto(PR_URL);
+  await expect(page.locator('[data-item-checkbox="bulk/file-000.rs"]')).toBeVisible();
+  // The tree's focused row stays its top one, which the reader never focused.
+  await scrollSidebarToBulkRow(page, 150);
+  const box = page.locator('[data-item-checkbox="bulk/file-150.rs"]');
+  await expect(box).toBeInViewport();
+  const sidebar = page.locator("#pr-file-tree");
+  const before = await sidebar.evaluate((el) => el.scrollTop);
+
+  await box.click();
+  await page.waitForTimeout(1000);
+
+  expect(await sidebar.evaluate((el) => el.scrollTop)).toBe(before);
+  await expect(box).not.toHaveAttribute("aria-busy", "true", { timeout: 7000 });
+  await expect(box).not.toBeChecked();
 });
 
 test("each file's icon takes its type's color in the page's color scheme", async ({
