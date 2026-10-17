@@ -41,11 +41,18 @@ facts about GitHub that held when written, and ends with how to re-check them;
   signed-out viewer, even on a public pull request: `/changes` answers with a 302 to
   `/files`. Signed in, the Feature preview entry "New Files Changed Experience" decides.
   It is on by default, and a viewer who turns it off gets the classic page.
+- **Expect the classic page for one of a pull request's commits at
+  `/pull/<n>/commits/<sha>`, under the same two conditions.** The toolbar's commit menu
+  leads there. An abbreviated SHA answers with a 302 to the full one.
+- **Read both classic paths as the Files changed tab, because GitHub redirects them to the
+  new page's.** Signed in with the preview on, `/files` redirected to `/changes`, and
+  `/commits/<sha>` to `/changes/<sha>`, when checked on 2026-10-17. So `readFilesRoute`
+  reads `/commits/<sha>` as a commit filter, as it reads `/changes/<sha>`, and the classic
+  watcher shares its routes with the new page's.
 - **Find the classic page by its toolbar, `#files_bucket .pr-toolbar`, and the toolbar's
   `.pr-review-tools`.** The review tools are the toolbar's trailing group: empty signed
-  out, the review controls signed in. A commit's classic page inside a pull request,
-  `/pull/<n>/commits/<sha>`, carries the same markup, but `readFilesRoute` doesn't match
-  its path.
+  out, the review controls signed in. The per-commit page carries the same toolbar, with
+  the commit's header below it.
 - **Read whether the viewer is signed in from `meta[name="user-login"]`'s `content`.**
   GitHub leaves it empty for a signed-out viewer, and GitHub's own runtime counts an empty
   login as anonymous.
@@ -57,11 +64,13 @@ facts about GitHub that held when written, and ends with how to re-check them;
   facts.** The welcome page tells a new install what gh-prism needs from GitHub, and the
   notice tells a viewer of the classic page.
 - **Re-check:** curl a public pull request's `/changes` with no cookies and read the 302's
-  `location`. Curl its `/files` and find `#files_bucket`, `.pr-toolbar`,
-  `.pr-review-tools`, and the empty `user-login` meta. Grep the page's `app-runtime` asset
-  for `meta[name="user-login"]`. Signed in, open the profile menu's Feature preview dialog
-  and find the entry by name. Load the classic page in Playwright, set a `window`
-  property, click a tab, and check whether the property survives.
+  `location`. Curl its `/files` and a `/commits/<sha>`, and find `#files_bucket`,
+  `.pr-toolbar`, `.pr-review-tools`, and the empty `user-login` meta. Signed in with the
+  preview on, load `/files` and `/commits/<sha>` and read where each lands. Grep the
+  page's `app-runtime` asset for `meta[name="user-login"]`. Signed in, open the profile
+  menu's Feature preview dialog and find the entry by name. Load the classic page in
+  Playwright, set a `window` property, click a tab, and check whether the property
+  survives.
 
 ## The commit page
 

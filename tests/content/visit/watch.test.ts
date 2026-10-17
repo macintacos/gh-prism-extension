@@ -326,6 +326,13 @@ describe("watchClassicPages", () => {
     expect(pages[0]?.page.toolbar.isConnected).toBe(true);
   });
 
+  it("shows the classic page of one of the pull request's commits", async () => {
+    history.replaceState(null, "", `/o/r/pull/1/commits/${"a".repeat(40)}`);
+    watch();
+
+    expect(pages).toHaveLength(1);
+  });
+
   it("drops the classic page when GitHub navigates to the Conversation tab", async () => {
     watch();
 

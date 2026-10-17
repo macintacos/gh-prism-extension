@@ -40,7 +40,9 @@ sidebar, native tree, and diffs are all present. Callers then ask `files-page.ts
 helpers rather than branching on the kind, so a new page kind is a new `PAGE_KINDS` entry.
 
 [`utils/github/files-route.ts`](../utils/github/files-route.ts) reads the URL side: which
-diff a pathname names, and whether a pull request's view is commit-filtered.
+diff a pathname names, and whether a pull request's view is commit-filtered. It reads the
+classic page's `/files` and `/commits/<sha>` too, which GitHub redirects to `/changes` and
+`/changes/<sha>` wherever it shows the new page.
 
 `findClassicPage` finds a pull request's classic page instead: GitHub's toolbar above the
 diffs and the toolbar's review tools. `isSignedIn` reads whether GitHub served the page to

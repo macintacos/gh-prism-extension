@@ -15,9 +15,10 @@ give each other part its own deliberate pass.
 ## What it does
 
 gh-prism runs on a commit's page and on GitHub's new Files changed tab of a pull request,
-at `/pull/<number>/changes`. On the classic Files changed tab, at `/pull/<number>/files`,
-it shows a notice above the files that says why it isn't running and how to get the new
-tab. Dismiss the notice, and **Why is gh-prism off?** in the tab's toolbar brings it back.
+at `/pull/<number>/changes`. On the classic Files changed tab, at `/pull/<number>/files`
+or `/pull/<number>/commits/<sha>`, it shows a notice above the files that says why it
+isn't running and how to get the new tab. Dismiss the notice, and **Why is gh-prism off?**
+in the tab's toolbar brings it back.
 
 - It groups changed files into five sections: Implementation, Tests, Documentation,
   Config, and Generated / lockfiles.
@@ -103,12 +104,12 @@ gh-prism needs access to three hosts and to Chrome's extension storage, and noth
 - **No sections appear.** Reload the page. Tabs that were open before you loaded or
   reloaded gh-prism don't run it. Then check that the URL contains
   `/pull/<number>/changes` or `/commit/<sha>`.
-- **A pull request's Files changed URL ends in `/files`, and the page looks like plain
-  GitHub.** That is GitHub's classic page, where gh-prism shows only its notice. If you
-  dismissed it, click **Why is gh-prism off?** in the toolbar above the files. GitHub
-  shows the classic page when you are signed out, even on a public pull request, so sign
-  in. Signed in, GitHub shows it when its New Files Changed Experience preview is off.
-  Click your profile picture, click **Feature preview**, choose
+- **A pull request's Files changed URL ends in `/files` or `/commits/<sha>`, and the page
+  looks like plain GitHub.** That is GitHub's classic page, where gh-prism shows only its
+  notice. If you dismissed it, click **Why is gh-prism off?** in the toolbar above the
+  files. GitHub shows the classic page when you are signed out, even on a public pull
+  request, so sign in. Signed in, GitHub shows it when its New Files Changed Experience
+  preview is off. Click your profile picture, click **Feature preview**, choose
   **New Files Changed Experience**, and click **Enable**. GitHub Docs explains the dialog
   in
   [Exploring early access releases with feature preview](https://docs.github.com/en/get-started/using-github/exploring-early-access-releases-with-feature-preview).

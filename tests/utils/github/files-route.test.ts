@@ -8,6 +8,8 @@ describe("isFilesPath", () => {
     "/o/r/pull/1/changes/04bb63f",
     "/o/r/pull/1/changes/aaa..bbb",
     "/o/r/pull/1/files",
+    "/o/r/pull/1/commits/04bb63f",
+    `/o/r/pull/1/commits/${"a".repeat(40)}`,
     "/o/r/commit/dd95cdc",
     `/o/r/commit/${"a".repeat(40)}`,
     "/o/r/commit/dd95cdc/",
@@ -16,6 +18,7 @@ describe("isFilesPath", () => {
   it.each([
     "/o/r/pull/1",
     "/o/r/pull/1/commits",
+    "/o/r/pull/1/commits/main",
     "/o/r/pulls",
     "/o/r/blob/main/pull/1/changes",
     "/o/r/pull/x/changes",
@@ -37,9 +40,12 @@ describe("readFilesRoute", () => {
     (path) => expect(readFilesRoute(path)).toEqual({ diff: pr, commitFiltered: false }),
   );
 
-  it.each(["/o/r/pull/3/changes/04bb63f", "/o/r/pull/3/changes/aaa..bbb"])(
-    "reads a commit filter from %s",
-    (path) => expect(readFilesRoute(path)).toEqual({ diff: pr, commitFiltered: true }),
+  it.each([
+    "/o/r/pull/3/changes/04bb63f",
+    "/o/r/pull/3/changes/aaa..bbb",
+    `/o/r/pull/3/commits/${"a".repeat(40)}`,
+  ])("reads a commit filter from %s", (path) =>
+    expect(readFilesRoute(path)).toEqual({ diff: pr, commitFiltered: true }),
   );
 
   it.each(["/o/r/pull/3", "/o/r/issues/3"])("is undefined off the Files changed tab: %s", (path) =>
