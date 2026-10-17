@@ -31,7 +31,9 @@ export interface VisitViewed {
 export function visitViewed(seed: ViewedSeed | undefined): VisitViewed {
   return {
     offered: seed?.offered ?? false,
-    byAnchor: new Map([...(seed?.viewed ?? [])].map(([digest, v]) => [anchorOfDigest(digest), v])),
+    byAnchor: new Map(
+      [...(seed?.viewed ?? [])].map(([digest, marked]) => [anchorOfDigest(digest), marked]),
+    ),
   };
 }
 

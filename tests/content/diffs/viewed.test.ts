@@ -92,17 +92,17 @@ describe("followViewed", () => {
   });
 
   it("falls back to header reads without a seed", async () => {
-    const lib = unmount(VIEWED_LIB_RS);
+    const libEntry = unmount(VIEWED_LIB_RS);
 
     follow(undefined);
     expect(shown()).toEqual(new Set(["config/app.toml"]));
 
-    pressToggle(lib, true);
-    diffList().append(lib);
+    pressToggle(libEntry, true);
+    diffList().append(libEntry);
     await afterDebounce();
     expect(shown()).toEqual(new Set(["config/app.toml", "src/lib.rs"]));
 
-    lib.remove();
+    libEntry.remove();
     await afterDebounce();
     expect(shown()).toEqual(new Set(["config/app.toml", "src/lib.rs"]));
   });

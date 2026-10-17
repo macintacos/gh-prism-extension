@@ -329,11 +329,11 @@ test("the sidebar dims viewed files and follows GitHub's Viewed toggle", async (
       .locator(`[data-item-path="${path}"]`)
       .first()
       .evaluate((row) => {
-        const part = row.querySelector('[data-item-section="content"]');
-        if (!part) throw new Error(`no content section in ${path}'s row`);
+        const content = row.querySelector('[data-item-section="content"]');
+        if (!content) throw new Error(`no content section in ${path}'s row`);
         return {
           flag: getComputedStyle(row).getPropertyValue("--gh-prism-viewed").trim(),
-          dimmed: Number(getComputedStyle(part).opacity) < 1,
+          dimmed: Number(getComputedStyle(content).opacity) < 1,
         };
       });
   const setLibViewed = (viewed: boolean) =>
