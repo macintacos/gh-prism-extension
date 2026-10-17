@@ -158,6 +158,7 @@ export function viewedFromEmbeddedData(
   for (const entry of summaries) {
     const digest = at(entry, "pathDigest");
     const marked = at(entry, "markedAsViewed");
+    // The digest form of files-page.ts's isDiffAnchor: a seeded anchor must match a mounted one.
     if (typeof digest !== "string" || !/^[0-9a-f]+$/.test(digest) || typeof marked !== "boolean")
       return undefined;
     viewed.set(digest, marked);

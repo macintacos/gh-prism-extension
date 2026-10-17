@@ -2,8 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { followViewed, visitViewed } from "../../../entrypoints/content/diffs/viewed";
 import { readChangedFiles } from "../../../entrypoints/content/files-page";
-import type { FileSection } from "../../../entrypoints/content/visit/land";
 import type { ViewedSeed } from "../../../utils/github/pr-ref";
+import { landingOf, sectionsOf } from "../../../utils/intent/landing";
 import {
   byId,
   diffList,
@@ -14,6 +14,7 @@ import {
   VIEWED_APP_TOML,
   VIEWED_LIB_RS,
 } from "../../fixtures/files-page";
+import { afterDebounce } from "../../fixtures/visit";
 
 const digestOf = (anchor: string) => anchor.replace(/^diff-/, "");
 
@@ -22,16 +23,7 @@ const seedViewing = (anchor: string, offered = true): ViewedSeed => ({
   viewed: new Map([[digestOf(anchor), true]]),
 });
 
-const treeSections = (): FileSection[] => [
-  {
-    key: "core",
-    entries: readChangedFiles(document).map((file) => ({
-      file,
-      section: "core",
-      lines: undefined,
-    })),
-  } as unknown as FileSection,
-];
+const treeSections = () => sectionsOf(landingOf(undefined), readChangedFiles(document));
 
 /** Takes `anchor`'s diff entry out of the diff list, as GitHub does when it unmounts a diff. */
 function unmount(anchor: string): Element {
@@ -93,6 +85,12 @@ describe("followViewed", () => {
     expect(shown()).toEqual(new Set(["config/app.toml"]));
   });
 
+  it("lets a mounted header's state override the seed", () => {
+    follow(seedViewing(VIEWED_LIB_RS));
+
+    expect(shown()).toEqual(new Set(["config/app.toml"]));
+  });
+
   it("falls back to header reads without a seed", async () => {
     const lib = unmount(VIEWED_LIB_RS);
 
@@ -101,11 +99,11 @@ describe("followViewed", () => {
 
     pressToggle(lib, true);
     diffList().append(lib);
-    await vi.advanceTimersByTimeAsync(100);
+    await afterDebounce();
     expect(shown()).toEqual(new Set(["config/app.toml", "src/lib.rs"]));
 
     lib.remove();
-    await vi.advanceTimersByTimeAsync(100);
+    await afterDebounce();
     expect(shown()).toEqual(new Set(["config/app.toml", "src/lib.rs"]));
   });
 
@@ -136,7 +134,7 @@ describe("followViewed", () => {
 
   it("dims nothing where the page offers no Viewed", () => {
     loadFixture();
-    follow(seedViewing(VIEWED_APP_TOML, false));
+    follow(seedViewing(VIEWED_LIB_RS, false));
     controller.abort();
 
     loadViewedCommitFilterFixture();
@@ -147,6 +145,6 @@ describe("followViewed", () => {
     controller = new AbortController();
     follow(seedViewing(VIEWED_LIB_RS, false));
 
-    for (const [paths] of show.mock.calls) expect(paths.size).toBe(0);
+    expect(show.mock.calls.flatMap(([paths]) => [...paths])).toEqual([]);
   });
 });

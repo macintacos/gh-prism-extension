@@ -21,7 +21,9 @@ import { pathsByAnchor, sameSet } from "./on-screen";
  * diff anchor. Shared by the visit's pages; dropped with the visit.
  */
 export interface VisitViewed {
+  /** Once true, true for the rest of the visit. */
   offered: boolean;
+  /** Reads overwrite a file's state; a diff unmounting never clears it. */
   readonly byAnchor: Map<string, boolean>;
 }
 
@@ -45,7 +47,9 @@ function viewedPaths(
 
 /**
  * Calls `show` with the paths of the viewed files whenever that set changes, while the page offers
- * Viewed, until `signal` aborts. Paths come from the files the `sections` hook lists.
+ * Viewed, until `signal` aborts. Paths come from the files the `sections` hook lists. Records each
+ * read into `viewed`: Viewed stays offered once a read finds it, and each mounted header
+ * overwrites its file's state.
  */
 export function followViewed(
   page: FilesPage,
@@ -64,6 +68,7 @@ export function followViewed(
   };
   const read = () => {
     viewed.offered ||= viewedOffered(page);
+    if (!viewed.offered) return;
     for (const [anchor, pressed] of readViewed(page)) viewed.byAnchor.set(anchor, pressed);
     showIfChanged();
   };

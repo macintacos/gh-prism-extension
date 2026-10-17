@@ -139,8 +139,9 @@ marks those rows faintly, and a collapsed section marks its header instead. The 
 scrolls the sidebar.
 
 [`entrypoints/content/diffs/viewed.ts`](../entrypoints/content/diffs/viewed.ts) tracks
-which files the reviewer has marked Viewed. On the visit a full load started, it seeds
-from GitHub's route data (`readViewedSeed`, read in `index.ts`). It then reads each
+which files the reviewer has marked Viewed. On the visit a full load started (before
+GitHub's first navigation), `index.ts` seeds it from GitHub's route data
+(`readViewedSeed`) when that data names the visit's pull request. It then reads each
 header's toggle as diffs mount and as GitHub flips them (`observeViewed`), and keeps each
 file's last-read state for the rest of the visit, so a file whose diff unmounts stays as
 read. It feeds the viewed paths to the sections view's `viewed`, which dims their rows.

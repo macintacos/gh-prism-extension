@@ -161,6 +161,23 @@ describe("content script", () => {
     expect(viewedOf(-1)?.offered).toBe(false);
   });
 
+  it("ignores embedded Viewed data once GitHub has navigated", async () => {
+    history.replaceState(null, "", "/macintacos/gh-prism-sandbox/pull/3/changes");
+    loadViewedFixture();
+    byId("pr-file-tree").remove();
+
+    await run();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(showVisit).not.toHaveBeenCalled();
+    loadViewedFixture();
+    document.dispatchEvent(new Event("soft-nav:end"));
+    await afterMutations();
+
+    const viewed = vi.mocked(showVisit).mock.calls.at(0)?.[2].viewed;
+    expect(viewed?.byAnchor.size).toBe(0);
+    expect(viewed?.offered).toBe(false);
+  });
+
   it("reads each visit's pin from the page", async () => {
     const script = document.createElement("script");
     script.dataset.target = "react-app.embeddedData";

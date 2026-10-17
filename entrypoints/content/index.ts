@@ -31,13 +31,18 @@ export default defineContentScript({
     // Read before watching, so a sidebar saved on the left never opens on the right first.
     const side = sideChoiceOf(await readSavedSide());
     let fullLoad = true;
+    // Registered before watchFilesPages, so the flag clears before a navigation's visit runs.
+    const navigated = () => (fullLoad = false);
+    document.addEventListener("soft-nav:end", navigated, { once: true, signal: ctx.signal });
+    window.addEventListener("popstate", navigated, { once: true, signal: ctx.signal });
 
     watchFilesPages(
       window,
       {
         onVisit: (route, visit) => {
           const intent = shareIntent((onProgress) => intentFor(route, visit, sources, onProgress));
-          // Route data reflects the full load only: only the visit it started may trust it.
+          // Route data is fresh only until GitHub's first navigation: only a visit before it may
+          // trust it.
           const viewed = visitViewed(fullLoad ? readViewedSeed(document, route.diff) : undefined);
           fullLoad = false;
           return (page, signal) => {

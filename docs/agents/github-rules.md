@@ -110,11 +110,12 @@ facts about GitHub that held when written, and ends with how to re-check them;
 - **Trust route data only on the visit a full load started.** The embedded script reflects
   the last full load only, and only until the first toggle; a soft navigation never
   replaces it. gh-prism makes no network requests of its own, so it seeds from route data
-  only on the first visit, and only when that data names the visit's pull request; any
-  later visit reads headers alone. A re-request of the page's path with
-  `accept: application/json` would return the same key path, fresh (verified from the
-  page's main world only). Read `user.shouldShowViewedFilesCount` from the same route data
-  as the seed.
+  only on the visit the full load started, before GitHub's first navigation
+  (`soft-nav:end` or `popstate`), and only when that data names the visit's pull request;
+  any visit after a navigation reads headers alone, even the content script's first. A
+  re-request of the page's path with `accept: application/json` would return the same key
+  path, fresh (verified from the page's main world only). Read
+  `user.shouldShowViewedFilesCount` from the same route data as the seed.
 - **Follow toggles through the header's button, not the tree or `diff_entries`.** Tree
   rows carry no Viewed mark, and `diff_entries` batches carry no Viewed field. A header
   exists only for a mounted diff, so it gives no coverage, but it tracks every toggle.

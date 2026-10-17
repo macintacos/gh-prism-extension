@@ -98,8 +98,10 @@ is at most one.
 **On-screen file**: A file whose diff region shows below GitHub's sticky chrome. There can
 be many. _Avoid_: in view
 
-**Viewed file**: A file GitHub's Viewed toggle marks as reviewed. The sidebar dims its
-rows and never hides them; gh-prism stores none of this state.
+**Viewed file**: A file whose Viewed toggle on GitHub is pressed. The sidebar dims its
+rows and never hides them; gh-prism stores none of this state. Only a page that offers
+Viewed, a pull request's full Files changed view signed in, has Viewed files. _Avoid_:
+reviewed file, seen
 
 **Diff order**: The order gh-prism lays the diffs out in, matching the sidebar. Only the
 visual order changes. _Avoid_: sort

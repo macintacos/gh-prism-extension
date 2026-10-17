@@ -325,17 +325,17 @@ test("the sidebar dims viewed files and follows GitHub's Viewed toggle", async (
   await page.goto(url);
   await expect(page.locator('[data-item-path="src/lib.rs"]')).toBeVisible();
   const viewedOf = (path: string) =>
-    page.evaluate((path) => {
-      const row = [...document.querySelectorAll(".gh-prism-tree")]
-        .map((host) => host.shadowRoot?.querySelector(`[data-item-path="${path}"]`))
-        .find((found) => found);
-      const part = row?.querySelector("[data-item-section]");
-      if (!row || !part) throw new Error(`no row for ${path}`);
-      return {
-        flag: getComputedStyle(row).getPropertyValue("--gh-prism-viewed").trim(),
-        dimmed: Number(getComputedStyle(part).opacity) < 1,
-      };
-    }, path);
+    page
+      .locator(`[data-item-path="${path}"]`)
+      .first()
+      .evaluate((row) => {
+        const part = row.querySelector('[data-item-section="content"]');
+        if (!part) throw new Error(`no content section in ${path}'s row`);
+        return {
+          flag: getComputedStyle(row).getPropertyValue("--gh-prism-viewed").trim(),
+          dimmed: Number(getComputedStyle(part).opacity) < 1,
+        };
+      });
   const setLibViewed = (viewed: boolean) =>
     page.evaluate((viewed) => {
       const toggle = document.querySelector(

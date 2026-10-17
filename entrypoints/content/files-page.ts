@@ -297,6 +297,12 @@ export const anchorOf = (link: HTMLAnchorElement): string | undefined =>
   link.getAttribute("href")?.slice(1);
 
 /**
+ * The diff anchor of the file whose route-data `pathDigest` is `pathDigest`: its region's id and
+ * its tree link's hash.
+ */
+export const anchorOfDigest = (pathDigest: string): string => `diff-${pathDigest}`;
+
+/**
  * `page`'s mounted diff regions, keyed by their files' anchors. Regions whose anchor is not a
  * file's diff anchor, such as a line anchor, are left out.
  */
@@ -379,9 +385,6 @@ export function observeViewed(
   observer.observe(diffs, { subtree: true, attributes: true, attributeFilter: ["aria-pressed"] });
   signal.addEventListener("abort", () => observer.disconnect());
 }
-
-/** The anchor of the file route data names by `pathDigest`: its region id and tree link. */
-export const anchorOfDigest = (pathDigest: string): string => `diff-${pathDigest}`;
 
 /** `page`'s diff list, or `null` while it has none. */
 export const findDiffList = (page: FilesPage): Element | null =>
