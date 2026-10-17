@@ -1,6 +1,6 @@
 /**
  * Brings a file's diff, or a line in it, into view, and glides the window there instead of
- * letting it jump.
+ * letting it jump, and waits on the diff list for what a click brings.
  */
 
 import {

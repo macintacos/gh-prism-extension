@@ -199,6 +199,7 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
   inset-inline-end: 8px;
   width: 14px;
   height: 14px;
+  /* Centred in the row: (ROW_HEIGHT 28px in section-tree.ts − 14px) / 2. */
   margin: 7px 0 0;
   accent-color: var(--bgColor-accent-emphasis);
   cursor: pointer;
@@ -209,31 +210,25 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
   outline-offset: 1px;
 }
 
-/* Saving, not disabled: full strength, with a breathing accent halo. A box-shadow, so the
+/* Pending, not disabled: full strength, with a breathing accent halo. A box-shadow, so the
    focus-visible outline still shows over it. */
 [data-item-checkbox][aria-busy="true"] {
   cursor: progress;
-  border-radius: 3px;
-  animation: gh-prism-saving 1s ease-in-out infinite alternate;
+  border-radius: var(--borderRadius-small);
+  animation: gh-prism-pending 1s ease-in-out infinite alternate;
 }
 
-@keyframes gh-prism-saving {
+@keyframes gh-prism-pending {
   from {
     box-shadow: 0 0 0 0 transparent;
   }
   to {
-    box-shadow: 0 0 0 3px var(--bgColor-accent-muted, rgb(84 174 255 / 0.4));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  [data-item-checkbox][aria-busy="true"] {
-    animation: none;
-    box-shadow: 0 0 0 2px var(--bgColor-accent-muted, rgb(84 174 255 / 0.4));
+    box-shadow: 0 0 0 3px var(--bgColor-accent-muted);
   }
 }
 
 :host([data-gh-prism-checkboxes]) [data-item-type="file"] {
+  /* Room for the box: its width plus its inset on both sides. */
   padding-inline-end: 30px;
 }
 
@@ -241,5 +236,10 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
   [data-icon-name="file-tree-icon-chevron"],
   [data-item-section="icon"]::after {
     transition: none;
+  }
+
+  [data-item-checkbox][aria-busy="true"] {
+    animation: none;
+    box-shadow: 0 0 0 2px var(--bgColor-accent-muted);
   }
 }

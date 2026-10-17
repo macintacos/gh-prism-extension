@@ -90,8 +90,9 @@ const LARGE_VIEWED_BODY = LARGE_PR_BODY.replace(
 );
 
 /**
- * Stands in for GitHub's Viewed toggles: a click flips the toggle in a microtask, before the click's
- * dispatch ends, as GitHub's does, then saves through `POST <pull>/file_review`, flipping back on a failed save when `revert`.
+ * Stands in for GitHub's Viewed toggles: a click flips the toggle in a microtask, before the
+ * click's dispatch ends, as GitHub's does, then saves through `POST <pull>/file_review`,
+ * flipping back on a failed save when `revert`.
  */
 const copyGitHubToggles = (page: Page, { revert }: { revert: boolean }) =>
   page.evaluate((revert) => {
@@ -577,6 +578,40 @@ test("ticking a box doesn't scroll the sidebar", async ({ context, page }) => {
   expect(await sidebar.evaluate((el) => el.scrollTop)).toBe(before);
   await expect(box).not.toHaveAttribute("aria-busy", "true", { timeout: 7000 });
   await expect(box).not.toBeChecked();
+});
+
+test("a focused Viewed box keeps focus while the tree re-renders", async ({ context, page }) => {
+  await serve(context, PR_URL, LARGE_VIEWED_BODY);
+  await page.goto(PR_URL);
+  await expect(page.locator('[data-item-checkbox="bulk/file-000.rs"]')).toBeVisible();
+  await scrollSidebarToBulkRow(page, 150);
+  const sidebar = page.locator("#pr-file-tree");
+  const box = page.locator('[data-item-checkbox="bulk/file-151.rs"]');
+  await page.locator('[data-item-path="bulk/file-151.rs"]').focus();
+  await page.keyboard.press("Tab");
+  await expect(box).toBeFocused();
+
+  await sidebar.evaluate((el) => {
+    el.scrollTop += 20;
+  });
+  await page.evaluate(() =>
+    document.getElementById("bulk/file-160.rs")?.setAttribute("aria-current", "true"),
+  );
+  await page.waitForTimeout(500);
+  await expect(box).toBeFocused();
+
+  await page.locator('[data-item-path="bulk/file-150.rs"]').click();
+  await page.locator("body").focus();
+  await page.locator('[data-item-checkbox="bulk/file-153.rs"]').click();
+  await page.waitForTimeout(500);
+  const before = await sidebar.evaluate((el) => el.scrollTop);
+  await sidebar.evaluate((el) => {
+    el.scrollTop += 150;
+  });
+  await page.waitForTimeout(500);
+
+  await expect(page.locator('[data-item-checkbox="bulk/file-153.rs"]')).toBeFocused();
+  expect(await sidebar.evaluate((el) => el.scrollTop)).toBe(before + 150);
 });
 
 test("each file's icon takes its type's color in the page's color scheme", async ({

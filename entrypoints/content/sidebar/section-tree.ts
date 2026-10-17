@@ -17,6 +17,10 @@ export interface TreeFile {
   readonly decoration: FileTreeRowDecoration | undefined;
 }
 
+/**
+ * A row's Viewed box, as the @pierre/trees patch renders it: `label` is its accessible name,
+ * `title` its hover text, `busy` its pending state.
+ */
 interface RowCheckbox {
   readonly checked: boolean;
   readonly busy: boolean;
@@ -203,6 +207,8 @@ export class SectionTree {
     if (!this.#viewedPaths || !file) return decoration;
     const checked = this.#viewedPaths.has(path);
     return {
+      // text: "" satisfies the decoration type for a row with nothing else to show; the library
+      // then renders an empty decoration lane.
       text: "",
       ...decoration,
       checkbox: {

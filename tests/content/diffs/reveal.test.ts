@@ -168,6 +168,20 @@ function preferReducedMotion(preference: "reduce" | "no-preference"): void {
   happyDOM.settings.device.prefersReducedMotion = preference;
 }
 
+async function expectNoLeakedTimers(controller: AbortController): Promise<void> {
+  vi.advanceTimersToNextFrame(); // a click's glide waits one frame
+  // A late mutation schedules a timer only if an observer outlived the case.
+  diffList().append(document.createElement("div"));
+  await vi.advanceTimersByTimeAsync(0);
+  const pending = vi.getTimerCount();
+
+  controller.abort();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+
+  expect(pending).toBe(0);
+}
+
 describe("revealDiff", () => {
   let controller: AbortController;
   let scrollTo: MockInstance<(options: ScrollToOptions) => void>;
@@ -311,19 +325,7 @@ describe("revealDiffLine", () => {
     window.innerHeight = 800;
   });
 
-  afterEach(async () => {
-    vi.advanceTimersToNextFrame(); // a click's glide waits one frame
-    // A late mutation schedules a timer only if an observer outlived the case.
-    diffList().append(document.createElement("div"));
-    await vi.advanceTimersByTimeAsync(0);
-    const pending = vi.getTimerCount();
-
-    controller.abort();
-    vi.useRealTimers();
-    vi.restoreAllMocks();
-
-    expect(pending).toBe(0);
-  });
+  afterEach(() => expectNoLeakedTimers(controller));
 
   it("scrolls a mounted diff's line row to the centre without clicking the file link", async () => {
     const region = mountGuideDiff(FILE_HEADER + diffRows(2, 3));
@@ -665,19 +667,7 @@ describe("revealUntil", () => {
     vi.spyOn(window, "scrollTo").mockImplementation(() => {});
   });
 
-  afterEach(async () => {
-    vi.advanceTimersToNextFrame(); // a click's glide waits one frame
-    // A late mutation schedules a timer only if an observer outlived the case.
-    diffList().append(document.createElement("div"));
-    await vi.advanceTimersByTimeAsync(0);
-    const pending = vi.getTimerCount();
-
-    controller.abort();
-    vi.useRealTimers();
-    vi.restoreAllMocks();
-
-    expect(pending).toBe(0);
-  });
+  afterEach(() => expectNoLeakedTimers(controller));
 
   it("clicks the file's link and resolves with what it finds once the diff mounts", async () => {
     const click = vi.spyOn(linkTo("docs/guide.md"), "click").mockImplementation(() => {});

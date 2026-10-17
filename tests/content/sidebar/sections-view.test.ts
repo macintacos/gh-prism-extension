@@ -91,7 +91,7 @@ const clickAt = (target: Element, init: MouseEventInit = {}) => {
  * Presses `key` on `target` as a browser does: a button whose keydown goes unhandled clicks,
  * on keydown for Enter and on keyup for Space.
  */
-function press(target: Element, key: "Enter" | " "): void {
+function press(target: Element, key: "Enter" | " " | "End"): void {
   const init = { key, bubbles: true, cancelable: true, composed: true };
   const activates =
     target.dispatchEvent(new KeyboardEvent("keydown", init)) && target instanceof HTMLButtonElement;
@@ -841,14 +841,7 @@ describe("showSections", () => {
       const rows = rowsIn("implementation");
 
       rows[0]?.focus();
-      rows[0]?.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          key: "End",
-          bubbles: true,
-          cancelable: true,
-          composed: true,
-        }),
-      );
+      if (rows[0]) press(rows[0], "End");
       await afterDebounce();
 
       expect(treeHost("implementation").shadowRoot?.activeElement).toBe(rows.at(-1));
@@ -1159,14 +1152,7 @@ describe("showSections", () => {
       viewed();
       const rows = rowsIn("implementation");
       rows[0]?.focus();
-      rows[0]?.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          key: "End",
-          bubbles: true,
-          cancelable: true,
-          composed: true,
-        }),
-      );
+      if (rows[0]) press(rows[0], "End");
       await afterDebounce();
 
       expect(boxesIn("implementation").filter((box) => box.tabIndex === 0)).toEqual([
@@ -1226,6 +1212,8 @@ describe("showSections", () => {
       /**
        * Has `path`'s header toggle flip 120 ms after each click, so the box's pending state is
        * observable, then, when `reverts`, flip back as a page that undoes a rejected save would.
+       * GitHub flips in a microtask, an ordering happy-dom can't reproduce (the e2e stand-in does),
+       * so a timer stands in.
        */
       function stubToggle(path: string, { reverts = false } = {}) {
         const toggle = toggleIn(regionOf(path));

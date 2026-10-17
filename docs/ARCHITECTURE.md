@@ -145,11 +145,12 @@ GitHub's first navigation), `index.ts` seeds it from GitHub's route data
 header's toggle as diffs mount and as GitHub flips them (`observeViewed`), and keeps each
 file's last-read state for the rest of the visit, so a file whose diff unmounts stays as
 read. It feeds the viewed paths to the sections view's `viewed`, which dims their rows
-and, once any file is Viewed, counts each section's viewed files in its header. It also
-gives each file row a checkbox, which the `@pierre/trees` patch renders beside the row.
-Ticking one calls `markViewed`, which clicks the file's header toggle, revealing the diff
-first through `revealUntil` when that toggle isn't mounted. Nothing dims, counts, or shows
-a checkbox unless the page offers Viewed.
+and, once any file is Viewed, counts each section's viewed files in its header. The
+sections view also gives each file row a checkbox (`SectionTree.showViewed`), which the
+`@pierre/trees` patch renders beside the row. Ticking one has `sections-view.ts` reveal
+the file's diff through `revealUntil` when its header isn't mounted, then call
+`markViewed`, which clicks the header's toggle at most once and waits for the page to show
+the result. Nothing dims, counts, or shows a checkbox unless the page offers Viewed.
 
 ## Diff order and reveal
 

@@ -2,7 +2,7 @@
  * Reports which files the reviewer has marked Viewed. A visit starts from the full load's route
  * data when that is fresh, then reads each header's toggle as its diff mounts and as GitHub flips
  * it. A file keeps its last-read state after its diff unmounts, until the visit ends. Also marks a
- * file Viewed, through GitHub's own toggle.
+ * file Viewed or not, through GitHub's own toggle.
  */
 
 import type { ViewedSeed } from "@/utils/github/pr-ref";
@@ -53,8 +53,8 @@ function viewedPaths(
 
 /**
  * Calls `show` with the paths of the viewed files once the page offers Viewed, then whenever that
- * set changes, until `signal` aborts; never while the page offers no Viewed. Paths come from the files the `sections` hook lists. Records each
- * read into `viewed`: Viewed stays offered once a read finds it, and each mounted header
+ * set changes, until `signal` aborts. Paths come from the files the `sections` hook lists. Records
+ * each read into `viewed`: Viewed stays offered once a read finds it, and each mounted header
  * overwrites its file's state.
  */
 export function followViewed(

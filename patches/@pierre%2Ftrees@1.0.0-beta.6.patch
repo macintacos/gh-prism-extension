@@ -1,5 +1,5 @@
 diff --git a/dist/render/FileTreeView.js b/dist/render/FileTreeView.js
-index 7d3b818c43a7621ab9170da32b180232ed3c9472..c60b6da041d9a2ee64560aa66cdb12a9e1b9bf64 100644
+index 7d3b818c43a7621ab9170da32b180232ed3c9472..ce5f23150b7c3dfdf638726bb68f3e8718336eb1 100644
 --- a/dist/render/FileTreeView.js
 +++ b/dist/render/FileTreeView.js
 @@ -438,7 +438,7 @@ function renderStyledRow(frame, row, key, options = {}) {
@@ -11,21 +11,22 @@ index 7d3b818c43a7621ab9170da32b180232ed3c9472..c60b6da041d9a2ee64560aa66cdb12a9
  			domId: row.isFocused ? getFileTreeFocusedRowDomId(instanceId, targetPath, isParked) : void 0,
  			extraStyle: style,
  			features: {
-@@ -515,7 +515,26 @@ function renderStyledRow(frame, row, key, options = {}) {
+@@ -515,7 +515,27 @@ function renderStyledRow(frame, row, key, options = {}) {
  }
  function renderRangeChildren(frame, range, hiddenRowPaths) {
  	if (range.end < range.start) return [];
 -	return frame.controller.getVisibleRows(range.start, range.end).filter((row) => !hiddenRowPaths.has(getFileTreeRowPath(row))).map((row, slotIndex) => renderStyledRow(frame, row, range.start + slotIndex));
-+	return frame.controller.getVisibleRows(range.start, range.end).filter((row) => !hiddenRowPaths.has(getFileTreeRowPath(row))).flatMap((row, slotIndex) => {
-+		const key = range.start + slotIndex;
-+		const rowNode = renderStyledRow(frame, row, key);
++	const rows = frame.controller.getVisibleRows(range.start, range.end).filter((row) => !hiddenRowPaths.has(getFileTreeRowPath(row)));
++	// The boxes get their own list: interleaved with the rows, React reorders them as the rows'
++	// keys shift, and moving a focused box's node blurs it.
++	return [rows.map((row, slotIndex) => renderStyledRow(frame, row, range.start + slotIndex)), rows.flatMap((row, slotIndex) => {
 +		const checkbox = frame.renderDecorationForRow(row, getFileTreeRowPath(row))?.checkbox;
-+		return checkbox ? [rowNode, renderRowCheckbox(frame, row, checkbox, key, slotIndex)] : [rowNode];
-+	});
++		return checkbox ? [renderRowCheckbox(frame, row, checkbox, slotIndex)] : [];
++	})];
 +}
 +// ponytail: parked (scrolled-out focused) rows get no box, so focus on a box whose row
 +// virtualizes out drops to the body; render one for the parked row if that matters.
-+function renderRowCheckbox(frame, row, checkbox, key, slotIndex) {
++function renderRowCheckbox(frame, row, checkbox, slotIndex) {
 +	return jsx("input", {
 +		type: "checkbox",
 +		"data-item-checkbox": getFileTreeRowPath(row),
@@ -35,7 +36,18 @@ index 7d3b818c43a7621ab9170da32b180232ed3c9472..c60b6da041d9a2ee64560aa66cdb12a9
 +		"aria-busy": checkbox.busy ? "true" : void 0,
 +		tabIndex: row.isFocused ? 0 : -1,
 +		style: { top: `${slotIndex * frame.itemHeight}px` }
-+	}, `checkbox:${key}`);
++	}, `checkbox:${getFileTreeRowPath(row)}`);
  }
  function FileTreeView({ composition, controller, gitStatusByPath, ignoredGitDirectories, directoriesWithGitChanges, icons, instanceId, itemHeight = FILE_TREE_DEFAULT_ITEM_HEIGHT, overscan = 10, renamingEnabled = false, renderRowDecoration, searchBlurBehavior = "close", searchEnabled = false, searchFakeFocus = false, slotHost, stickyFolders = false, initialViewportHeight = 420 }) {
  	"use no memo";
+@@ -1525,6 +1545,10 @@ function FileTreeView({ composition, controller, gitStatusByPath, ignoredGitDire
+ 			previousFocusedPathRef.current = focusedPath;
+ 			return;
+ 		}
++		if (activeTreeElement?.hasAttribute("data-item-checkbox") === true && !focusedPathChanged) {
++			previousFocusedPathRef.current = focusedPath;
++			return;
++		}
+ 		if (searchInputOwnsFocus && !shouldRestoreTreeFocusAfterSearchClose) {
+ 			previousFocusedPathRef.current = focusedPath;
+ 			return;

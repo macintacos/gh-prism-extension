@@ -149,16 +149,17 @@ facts about GitHub that held when written, and ends with how to re-check them;
 - **Expect unloaded diffs to keep their Viewed button.** A "Load Diff" placeholder, for a
   large diff or a generated file, replaces only the body; the header keeps its button.
   Generated files' headers aren't collapsed by default.
-- **Read state a task after a click, not synchronously.** React renders the toggle
-  asynchronously. A click collapses the diff at once, before the save returns: the header
-  gains `[class*="collapsed__"]`, the button gains `[class*="viewed__"]`, and the counter
-  increments. Unviewing expands it again. With route data's `isSingleFileMode`, a click
-  navigates to the next file instead (read from the bundle, not observed). The survey ran
-  with the "Viewed files" filter on; with it off (`showViewedFiles: false`), viewed files
-  drop from the list, which was not surveyed. React flips the toggle in the microtask
-  after the click, so a click made from inside another element's click dispatch flips
-  before that dispatch ends: a caller that cancels its own click must click the toggle
-  after it.
+- **Read state after a click, not synchronously.** React flips the toggle asynchronously,
+  in the microtask after the click. A click collapses the diff at once, before the save
+  returns: the header gains `[class*="collapsed__"]`, the button gains
+  `[class*="viewed__"]`, and the counter increments. Unviewing expands it again. With
+  route data's `isSingleFileMode`, a click navigates to the next file instead (read from
+  the bundle, not observed). The survey ran with the "Viewed files" filter on; with it off
+  (`showViewedFiles: false`), viewed files drop from the list, which was not surveyed.
+- **Click the toggle outside another element's click dispatch.** React flips it in the
+  microtask after the click, so a toggle clicked from inside another click's dispatch
+  flips before that dispatch ends, and a caller that cancels its own click undoes the
+  render that the flip caused. Defer the click past the dispatch (`setTimeout`).
 - **Don't expect GitHub to revert a failed save.** When `file_review` fails (a 500), the
   button stays pressed, the diff stays collapsed, and the counter keeps the increment,
   with no visible error, because the mutation's `onError` is a no-op. The page diverges
@@ -171,12 +172,16 @@ facts about GitHub that held when written, and ends with how to re-check them;
   and signed out, and a pull request signed out, and confirm none offers Viewed. Scroll #2
   to its +3000-line file, and read #3's generated files' headers. Toggle a file with a
   page-script `click()` from the page's main world (`page.evaluate`), never Playwright's
-  trusted click, and watch the network for `file_review`. After a soft navigation,
-  re-request the path with `accept: application/json` and compare its `markedAsViewed`
-  with a header's `aria-pressed`. Fail the save with a `route` that answers 500, click,
-  and read the header and counter. Find the handler by grepping GitHub's assets for
-  `file_review`, as [§ Re-checking GitHub](#re-checking-github) describes. Restore every
-  toggled file.
+  trusted click, and watch the network for `file_review`. For the pending save, route
+  `file_review` with a delayed fulfil, click twice from the main world 300 ms apart, and
+  sample the toggle's `aria-*`, `disabled`, `data-loading`, `data-inactive`, and
+  `className` every 25 ms. For the microtask flip, click the toggle from inside another
+  element's `click` listener and read `aria-pressed` before the listener returns. After a
+  soft navigation, re-request the path with `accept: application/json` and compare its
+  `markedAsViewed` with a header's `aria-pressed`. Fail the save with a `route` that
+  answers 500, click, and read the header and counter. Find the handler by grepping
+  GitHub's assets for `file_review`, as [§ Re-checking GitHub](#re-checking-github)
+  describes. Restore every toggled file.
 
 ## PR base data
 
