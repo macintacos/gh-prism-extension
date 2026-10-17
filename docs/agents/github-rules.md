@@ -11,11 +11,12 @@ sheet's `GitHub hooks:` header, `entrypoints/content/diffs/`,
 GitHub changes its markup without notice, so keeping its selectors in one seam keeps a
 breakage to one place to fix. The one exception is
 [`utils/github/pr-ref.ts`](../../utils/github/pr-ref.ts), which keeps its own selector for
-the page's embedded data. **A new page kind (pull request, commit) is a new entry in
-`PAGE_KINDS` in `files-page.ts`, not a branch on kind** elsewhere in the code. Features
-read each kind's selectors from that table, so a new kind touches one place. Each section
-below states facts about GitHub that held when written, and ends with how to re-check
-them; [§ Re-checking GitHub](#re-checking-github) has the methods.
+the page's embedded data, from which it reads the diff pin, the head SHA, and each file's
+Viewed state. **A new page kind (pull request, commit) is a new entry in `PAGE_KINDS` in
+`files-page.ts`, not a branch on kind** elsewhere in the code. Features read each kind's
+selectors from that table, so a new kind touches one place. Each section below states
+facts about GitHub that held when written, and ends with how to re-check them;
+[§ Re-checking GitHub](#re-checking-github) has the methods.
 
 ## Class names
 
@@ -58,9 +59,10 @@ them; [§ Re-checking GitHub](#re-checking-github) has the methods.
 ## Diff lists
 
 - **On a pull request's progressive list, expect one `diffEntry__<hash>` wrapper per
-  file**, styled `content-visibility: auto`, with the region `#diff-…` as its direct
-  child. GitHub loads files lazily in 4-file `diff_entries` batches, which replace the
-  region inside a kept wrapper, never the wrapper or the list.
+  file**, with the region `#diff-…` as its direct child. Both the wrapper and the region
+  are styled `content-visibility: auto`. GitHub loads files lazily in 4-file
+  `diff_entries` batches, which replace the region inside a kept wrapper, never the
+  wrapper or the list.
 - **Don't assume a file count virtualizes a pull request's list.** Virtualization follows
   the route data's `virtualizeDiffEntries` flag, with no client-side threshold. A
   virtualized list renders only the rows near the viewport, as absolutely placed rows
@@ -105,12 +107,14 @@ them; [§ Re-checking GitHub](#re-checking-github) has the methods.
   with `path`, `pathDigest`, and `markedAsViewed`, for every file before its diff mounts,
   virtualized or not. `pathDigest` joins an entry to the DOM: the file's region id and
   tree link are both `diff-<pathDigest>`.
-- **After any soft navigation, re-request the route data.** The embedded script reflects
+- **Trust route data only on the visit a full load started.** The embedded script reflects
   the last full load only, and only until the first toggle; a soft navigation never
-  replaces it. Re-request the page's path with `accept: application/json`, which returns
-  the same key path, fresh (verified from the page's main world; not yet from a content
-  script). Check its route key against the URL, as `prPageData` does, and read
-  `user.shouldShowViewedFilesCount` from the same fresh source.
+  replaces it. gh-prism makes no network requests of its own, so it seeds from route data
+  only on the first visit, and only when that data names the visit's pull request; any
+  later visit reads headers alone. A re-request of the page's path with
+  `accept: application/json` would return the same key path, fresh (verified from the
+  page's main world only). Read `user.shouldShowViewedFilesCount` from the same route data
+  as the seed.
 - **Follow toggles through the header's button, not the tree or `diff_entries`.** Tree
   rows carry no Viewed mark, and `diff_entries` batches carry no Viewed field. A header
   exists only for a mounted diff, so it gives no coverage, but it tracks every toggle.
