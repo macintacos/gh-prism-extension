@@ -16,7 +16,7 @@ import { type ScannedHead, scanHeadText } from "../hunk-rules/head-scan";
 import { inlineTestHunkVerdicts, inlineTestRuleApplies } from "../hunk-rules/inline-tests";
 import { classify, SECTIONS, type SectionKey } from "../sections";
 import type { IntentCache, LandedIntent } from "./cache";
-import { sectionOf } from "./landing";
+import { sectionOf, sum } from "./landing";
 
 /**
  * The most files `readIntent` places at once, and so the most heads it reads at once. Over
@@ -60,7 +60,10 @@ export type IntentResult =
       placements: ReadonlyMap<string, Placement>;
       /** Every file in the PR's diff, keyed by path. */
       lines: ReadonlyMap<string, FileLines>;
-      /** Changed comment and docstring lines in hunks that stay in Implementation, keyed by path; only non-zero counts. */
+      /**
+       * Keyed by path: the changed comment and docstring lines in the file's hunks that stay in
+       * Implementation. A file with none is absent.
+       */
       commentLines: ReadonlyMap<string, LineCounts>;
     }
   | { ok: false; problem: PathOnlyReason };
@@ -75,26 +78,25 @@ async function readHead(
   return content.ok ? scanHeadText(file.path, content.text) : undefined;
 }
 
-const sumCounts = (counts: readonly LineCounts[]): LineCounts =>
-  counts.reduce(
-    (sum, { added, removed }) => ({ added: sum.added + added, removed: sum.removed + removed }),
-    { added: 0, removed: 0 },
-  );
-
-const sumHunkLines = (hunks: readonly PrHunk[]): LineCounts => sumCounts(hunks.map(hunkLineCounts));
+const sumHunkLines = (hunks: readonly PrHunk[]): LineCounts => sum(hunks.map(hunkLineCounts));
 
 /** One file's hunk sections, and the comment lines in its hunks that stay in Implementation. */
 interface FileIntent {
-  /** Each hunk's rule section, or `undefined` to keep it in the path section; aligned with `parsePrHunks`. */
+  /**
+   * Each hunk's rule section, or `undefined` to keep it in the path section; aligned with
+   * `parsePrHunks`.
+   */
   readonly sections: (IntentSection | undefined)[];
   readonly commentLines: LineCounts;
 }
 
 /**
- * The head is read only when the patch can't settle every hunk as docs and a rule or a comment
- * count needs it. A file whose every hunk is docs moves whole to Docs & Comments; otherwise a hunk in
- * a test block counts as Tests even when it only edits a doc comment. A hunk whose comment lines
- * only the unread head could confirm counts none.
+ * `file`'s hunk sections and Implementation comment lines. The head is read only when the patch
+ * can't settle every hunk as docs and a rule or a comment count needs it. A file whose every hunk
+ * is docs moves whole to Docs & Comments; otherwise a hunk in a test block counts as Tests even
+ * when it only edits a doc comment. A head read for any reason settles every unclaimed hunk's
+ * count, as it is the more accurate scan; a hunk whose comment lines only the unread head could
+ * confirm counts none.
  */
 async function fileIntent(
   client: Pick<PrDataClient, "fileContent">,
@@ -123,7 +125,7 @@ async function fileIntent(
     const count = patchCounts[i];
     return count === undefined || count === "needs-content" ? none : count;
   });
-  return { sections, commentLines: sumCounts(counts) };
+  return { sections, commentLines: sum(counts) };
 }
 
 const patchSections = (verdicts: readonly DocVerdict[]) =>

@@ -15,12 +15,18 @@ export interface LandedEntry {
   readonly section: SectionKey;
   readonly share?: SectionShare;
   /**
-   * The lines this entry adds and removes: its share's, else the file's; `undefined` when unknown.
+   * The lines this entry adds and removes: its share's, else the file's, less its comment lines in
+   * Implementation; `undefined` when unknown.
    */
   readonly lines: FileLines | undefined;
+  /** Comment lines taken out of `lines`; they count toward Docs & Comments instead. */
+  readonly moved?: LineCounts;
 }
 
-/** A non-empty section, and each of the files that land in it. */
+/**
+ * A listed section, and each of the files that land in it; Docs & Comments may list none when only
+ * comment lines land there.
+ */
 export interface LandedSection<F> {
   readonly key: SectionKey;
   readonly entries: readonly (LandedEntry & { readonly file: F })[];
@@ -39,7 +45,7 @@ const PATH_ONLY: Landing = {
 };
 
 /**
- * `result`'s placements and lines once it lands ok; path-only while pending or when it isn't ok.
+ * `result`'s landing once it lands ok; path-only while pending or when it isn't ok.
  */
 export const landingOf = (result: IntentResult | undefined): Landing =>
   result?.ok ? result : PATH_ONLY;
@@ -63,7 +69,7 @@ function entriesOf({ placements, lines, commentLines }: Landing, path: string): 
   const comments = commentLines.get(path);
   return entries.map((entry) =>
     comments && entry.section === "implementation" && isCounted(entry.lines)
-      ? { ...entry, lines: minus(entry.lines, comments) }
+      ? { ...entry, lines: minus(entry.lines, comments), moved: comments }
       : entry,
   );
 }
@@ -88,14 +94,16 @@ export function sectionsOf<F extends { readonly path: string }>(
     entriesOf(landing, file.path).map((entry) => ({ ...entry, file })),
   );
   const bySection = Map.groupBy(entries, ({ section }) => section);
+  // Moved comment lines count toward Docs & Comments, so it lists even with no file of its own.
+  if (commentLinesOf(landing) && !bySection.has("docs")) bySection.set("docs", []);
   return SECTIONS.flatMap((key) => {
-    const landed =
-      bySection.get(key) ?? (key === "docs" && landing.commentLines.size > 0 ? [] : undefined);
+    const landed = bySection.get(key);
     return landed ? [{ key, entries: landed }] : [];
   });
 }
 
-const sum = (counts: readonly LineCounts[]): LineCounts =>
+/** `counts` added up. */
+export const sum = (counts: readonly LineCounts[]): LineCounts =>
   counts.reduce(
     (total, { added, removed }) => ({
       added: total.added + added,
@@ -110,15 +118,12 @@ const sum = (counts: readonly LineCounts[]): LineCounts =>
  */
 export function totalsOf(landing: Landing): SectionLines[] {
   const counted = [...landing.lines.keys()].flatMap((path) =>
-    entriesOf(landing, path).flatMap(({ section, lines }) =>
-      isCounted(lines) ? [{ section, lines }] : [],
-    ),
+    entriesOf(landing, path).flatMap(({ section, lines, moved }) => [
+      ...(isCounted(lines) ? [{ section, lines }] : []),
+      ...(moved ? [{ section: "docs" as const, lines: moved }] : []),
+    ]),
   );
-  const comments = [...landing.commentLines.values()].map((lines) => ({
-    section: "docs" as const,
-    lines,
-  }));
-  const bySection = Map.groupBy([...counted, ...comments], ({ section }) => section);
+  const bySection = Map.groupBy(counted, ({ section }) => section);
   return SECTIONS.flatMap((key) => {
     const total = sum((bySection.get(key) ?? []).map(({ lines }) => lines));
     return total.added + total.removed > 0 ? [{ section: key, lines: total }] : [];
@@ -134,10 +139,9 @@ export interface CommentLines {
 
 /** `landing`'s comment lines; `undefined` when it has none. */
 export function commentLinesOf(landing: Landing): CommentLines | undefined {
-  const files = [...landing.lines.keys()].flatMap((path) => {
-    const lines = landing.commentLines.get(path);
-    return lines ? [{ path, lines }] : [];
-  });
+  const files = [...landing.lines.keys()].flatMap((path) =>
+    entriesOf(landing, path).flatMap(({ moved }) => (moved ? [{ path, lines: moved }] : [])),
+  );
   return files.length > 0 ? { lines: sum(files.map(({ lines }) => lines)), files } : undefined;
 }
 

@@ -12,10 +12,11 @@ import {
 
 /**
  * Judges whether a diff changes only comments and docstrings, by scanning lines rather than
- * tokens. A patch hides the state a hunk starts in, so each hunk is judged from every start its
- * lines make plausible, and consults the head file's scan only when those starts disagree. Prose
- * with no delimiter or gutter in view has only the code start, so it stays "path" without a scan,
- * by design. A renamed file is never "docs": moving a module can break its imports.
+ * tokens, and counts the changed lines that are comments or docstrings, by the same scan. A patch
+ * hides the state a hunk starts in, so each hunk is judged from every start its lines make
+ * plausible, and consults the head file's scan only when those starts disagree. Prose with no
+ * delimiter or gutter in view has only the code start, so it stays "path" without a scan, by
+ * design. A renamed file is never "docs": moving a module can break its imports.
  */
 
 /**
@@ -111,9 +112,9 @@ interface ChangedLine {
 }
 
 /**
- * Scans both sides of the hunk from `start`, returning each changed line's kind. A context line
- * that reads differently on the two sides, with code on either, means the change altered its
- * block: "reshaped".
+ * Scans both sides of the hunk from `start`, returning each changed line's marker and kind. A
+ * context line that reads differently on the two sides, with code on either, means the change
+ * altered its block: "reshaped".
  */
 function scanChanges(
   syntax: CommentSyntax,

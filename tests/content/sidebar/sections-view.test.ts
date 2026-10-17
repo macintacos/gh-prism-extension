@@ -1728,15 +1728,23 @@ describe("showSections", () => {
       expect(counter()?.querySelector('[aria-hidden="true"]')?.textContent).toBe("1/2");
     });
 
+    // The pointer may cross from the button onto its list, so hover is the wrapper's.
+    const hovered = () => {
+      const found = item().parentElement;
+      if (!found?.classList.contains("gh-prism-comment-lines-item"))
+        throw new Error("the comment-lines button has no wrapper");
+      return found;
+    };
+
     it.each([
-      ["focus", "blur"],
-      ["pointerenter", "pointerleave"],
-    ])("shows its list on %s and hides it on %s", (show, hide) => {
-      item().dispatchEvent(new Event(show));
+      ["focus", "blur", item],
+      ["pointerenter", "pointerleave", hovered],
+    ])("shows its list on %s and hides it on %s", (show, hide, target) => {
+      target().dispatchEvent(new Event(show));
 
       expect(toggles()).toEqual([[tip(), true]]);
 
-      item().dispatchEvent(new Event(hide));
+      target().dispatchEvent(new Event(hide));
 
       expect(toggles()).toEqual([
         [tip(), true],
@@ -1751,8 +1759,14 @@ describe("showSections", () => {
       expect(toggles().at(-1)).toEqual([tip(), false]);
     });
 
-    it("is focusable", () => {
-      expect(item().tabIndex).toBe(0);
+    it("is a focusable button that submits nothing", () => {
+      expect(item()).toBeInstanceOf(HTMLButtonElement);
+      expect(item().getAttribute("type")).toBe("button");
+    });
+
+    it("keeps its list out of the button's accessible name", () => {
+      expect(item().contains(tip())).toBe(false);
+      expect(hovered().contains(tip())).toBe(true);
     });
 
     it.each([{}, { altKey: true }])(

@@ -208,16 +208,16 @@ function sectionShell(
     toggle.setAttribute("aria-expanded", String(expanded));
     files.inert = !expanded;
   };
-  return { root, counter, host, files, toggle, expand };
+  return { root, counter, host, toggle, expand };
 }
 
 /**
- * Docs & Comments' item for `comments`, the comment lines of Implementation's files: their sum, and
- * a tooltip listing them per file while it is hovered or focused. It sits outside the tree, so the
+ * Docs & Comments' item for `commentLines`, those of Implementation's files: their sum, and a
+ * tooltip listing them per file while it is hovered or focused. It sits outside the tree, so the
  * file rows' handlers never see it.
  */
-function commentLinesItem(doc: Document, comments: CommentLines): HTMLElement {
-  const rows = comments.files.map(({ path, lines }) =>
+function commentLinesItem(doc: Document, commentLines: CommentLines): HTMLElement {
+  const rows = commentLines.files.map(({ path, lines }) =>
     el(
       doc,
       "li",
@@ -229,7 +229,7 @@ function commentLinesItem(doc: Document, comments: CommentLines): HTMLElement {
   const tip = el(
     doc,
     "ul",
-    "gh-prism-comment-lines-tip tw:gap-1 tw:w-max tw:max-w-[320px] tw:py-1.5 tw:px-2 tw:border tw:border-border-default tw:rounded-medium tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:var(--shadow-floating-small)] tw:text-fg-default tw:text-body-small tw:leading-body-small tw:list-none",
+    "gh-prism-comment-lines-tip tw:inset-auto tw:mx-0 tw:my-1.5 tw:gap-1 tw:w-max tw:max-w-[320px] tw:py-1.5 tw:px-2 tw:border tw:border-border-default tw:rounded-medium tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:var(--shadow-floating-small)] tw:text-fg-default tw:text-body-small tw:leading-body-small tw:list-none",
     ...rows,
   );
   tip.id = "gh-prism-comment-lines-tip";
@@ -238,26 +238,28 @@ function commentLinesItem(doc: Document, comments: CommentLines): HTMLElement {
 
   const item = el(
     doc,
-    "div",
-    "gh-prism-comment-lines tw:flex tw:items-center tw:gap-2 tw:h-7 tw:mx-1 tw:px-2 tw:rounded-medium tw:text-fg-muted tw:text-body-small tw:cursor-default tw:hover:bg-[var(--control-transparent-bgColor-hover)] tw:focus-visible:outline-2 tw:focus-visible:-outline-offset-2 tw:focus-visible:outline-focus-outline",
+    "button",
+    "gh-prism-comment-lines tw:flex tw:items-center tw:gap-2 tw:w-full tw:h-7 tw:px-2 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-muted tw:[font:inherit] tw:text-start tw:text-body-small tw:cursor-default tw:hover:bg-[var(--control-transparent-bgColor-hover)] tw:focus-visible:outline-2 tw:focus-visible:-outline-offset-2 tw:focus-visible:outline-focus-outline",
     el(doc, "span", "tw:truncate", "Implementation comments / docstrings"),
-    lineTotals(doc, comments.lines),
-    tip,
+    lineTotals(doc, commentLines.lines),
   );
-  item.tabIndex = 0;
+  item.type = "button";
   item.setAttribute("aria-describedby", tip.id);
+  // The tip is the button's sibling: inside it, the rows would join the button's accessible name.
+  const wrapper = el(doc, "div", "gh-prism-comment-lines-item tw:mx-1", item, tip);
 
   // Forced toggles: showPopover throws on an open popover, as when focus follows a hover.
   const show = () => tip.togglePopover(true);
   const hide = () => tip.togglePopover(false);
   item.addEventListener("focus", show);
-  item.addEventListener("pointerenter", show);
   item.addEventListener("blur", hide);
-  item.addEventListener("pointerleave", hide);
   item.addEventListener("keydown", (event) => {
     if (event.key === "Escape") hide();
   });
-  return item;
+  // Hover is the wrapper's, so the pointer can move onto the tip without closing it.
+  wrapper.addEventListener("pointerenter", show);
+  wrapper.addEventListener("pointerleave", hide);
+  return wrapper;
 }
 
 /**
@@ -507,19 +509,12 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     { order, previous, files, active }: BuildOptions,
   ): ShownSection => {
     // Set once: a section is only built after intent lands, and the landed lines never change.
-    const {
-      root,
-      counter,
-      host,
-      files: region,
-      toggle,
-      expand,
-    } = sectionShell(doc, key, {
+    const { root, counter, host, toggle, expand } = sectionShell(doc, key, {
       order,
       lines: totalOf(key),
     });
-    const comments = key === "docs" ? commentLinesOf(landing) : undefined;
-    if (comments) region.append(commentLinesItem(doc, comments));
+    const commentLines = key === "docs" ? commentLinesOf(landing) : undefined;
+    if (commentLines) host.after(commentLinesItem(doc, commentLines));
     expand(!collapsed.has(key));
     toggle.addEventListener("click", () => {
       const expanded = collapsed.has(key);

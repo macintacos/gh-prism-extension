@@ -41,6 +41,8 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   `closedby`, and its `close()` fires `close` at once, where a browser queues it.
   [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s classic Files changed test checks
   `:modal` and closes the dialog by its backdrop.
+- **Stub `togglePopover` in happy-dom, and prove a popover's top layer and anchoring in
+  Chromium.** happy-dom has no Popover API.
 - **Read a computed animation through `animation`, not `animationName`.** happy-dom
   computes the shorthand alone, so `animationName` reads `""` whatever the sheet says.
 - **Prove ordering inside one click dispatch in Chromium, not happy-dom.** happy-dom runs

@@ -13,7 +13,7 @@ const pathOf = (i: number): string => {
   return `crates/pkg-${i % 8}/src/mod-${Math.floor(i / 8) % 6}/file-${i}.rs`;
 };
 
-/** `count` files spanning Implementation, Tests and Documentation, with nested directories. */
+/** `count` files spanning Implementation, Tests and Docs & Comments, with nested directories. */
 export const syntheticFiles = (count: number): SyntheticFile[] =>
   Array.from({ length: count }, (_, i) => ({
     path: pathOf(i),

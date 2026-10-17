@@ -35,7 +35,8 @@ type StoredPlacement =
   | Exclude<Placement, { kind: "split" }>
   | { readonly kind: "split"; readonly shares: readonly StoredShare[] };
 
-// The entries' shape is versioned in their keys; a new shape takes a new prefix.
+// The entries' shape is versioned in their keys; a new shape takes a new prefix, and
+// forgetIntents drops the old one.
 const INDEX: LocalKey = "local:intent.v2";
 const entryKey = (key: string): LocalKey => `local:intent.v2:${key}`;
 const RETIRED_INDEX: LocalKey = "local:intent.v1";
@@ -147,9 +148,9 @@ export function storedIntents(storage: IntentStorage, limit: number): IntentCach
 }
 
 /**
- * Drops every result {@link storedIntents} keeps in `storage`, as another build may place files
- * differently, and the retired `intent.v1` entries no build reads. Never rejects: a storage
- * failure is logged.
+ * Drops every result {@link storedIntents} keeps in `storage`, and the retired `intent.v1` entries
+ * no build reads, as another build may place files differently. Never rejects: a storage failure
+ * is logged.
  */
 export async function forgetIntents(storage: IntentStorage): Promise<void> {
   try {

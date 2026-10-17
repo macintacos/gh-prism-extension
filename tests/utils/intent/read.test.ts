@@ -363,6 +363,29 @@ const openerAboveHead = lines(
   "func Run() int { return 2 }",
 );
 
+// The first hunk is prose with no delimiter in view, which the patch alone reads as code.
+const proseAndOpenerAbovePatch = lines(
+  "@@ -2 +2 @@",
+  "-Design notes.",
+  "+Design notes kept.",
+  "@@ -6,3 +6,3 @@",
+  "-Run keeps lines.",
+  "+Run keeps the first lines.",
+  " */",
+  "-func Run() int { return 1 }",
+  "+func Run() int { return 2 }",
+);
+const proseAndOpenerAboveHead = lines(
+  "/*",
+  "Design notes kept.",
+  "*/",
+  "func a() {}",
+  "/*",
+  "Run keeps the first lines.",
+  "*/",
+  "func Run() int { return 2 }",
+);
+
 const mixedTestBlockPatch = lines(
   "@@ -7,2 +7,2 @@",
   "-    // checks the pinned value",
@@ -998,6 +1021,7 @@ describe("readIntent", () => {
       lines: new Map([["engine/run.go", { added: 2, removed: 2 }]]),
       commentLines: new Map([["engine/run.go", { added: 1, removed: 1 }]]),
     });
+    expect(client.fileContent).not.toHaveBeenCalled();
   });
 
   it("splits out a comment-only hunk whole, and counts comment lines from the mixed hunk only", async () => {
@@ -1024,7 +1048,7 @@ describe("readIntent", () => {
     );
   });
 
-  it.each(["tests/run.go", "go.mod"])(
+  it.each(["tests/run.go", "vite.config.ts"])(
     "counts no comment lines in %s, whose hunks stay out of Implementation",
     async (path) => {
       const client = fakeClient(
@@ -1062,6 +1086,19 @@ describe("readIntent", () => {
       new Map([["engine/run.go", { added: 1, removed: 1 }]]),
     );
     expect(client.fileContent).toHaveBeenCalledTimes(1);
+  });
+
+  it("counts every hunk against the head once another hunk needs it read", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("engine/run.go", proseAndOpenerAbovePatch)] },
+      { ok: true, text: proseAndOpenerAboveHead },
+    );
+
+    const result = await readIntent(client);
+
+    expect(result.ok && result.commentLines).toEqual(
+      new Map([["engine/run.go", { added: 2, removed: 2 }]]),
+    );
   });
 
   it("counts no comment lines in a hunk only the head could settle, when the head can't be read", async () => {

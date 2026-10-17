@@ -187,23 +187,48 @@ describe("comment lines", () => {
 
   it("count them in the docs total, keeping the totals summing to every file's lines", () => {
     const totals = totalsOf(commented);
+
     expect(totals.find(({ section }) => section === "docs")?.lines).toEqual({
       added: 7,
       removed: 1,
     });
-    const all = sum(totals.map(({ lines }) => lines));
-    expect(all).toEqual({ added: 37, removed: 4 });
+    expect(sum(totals.map(({ lines }) => lines))).toEqual({ added: 37, removed: 4 });
+  });
+
+  it("move nothing out of a file that doesn't land in Implementation", () => {
+    const outside = landingOf({
+      ok: true,
+      placements: new Map<string, Placement>([["src/a.rs", { kind: "whole", section: "docs" }]]),
+      lines: new Map([
+        ["src/a.rs", { added: 2, removed: 0 }],
+        ["tests/b.rs", { added: 5, removed: 1 }],
+      ]),
+      commentLines: new Map([
+        ["src/a.rs", { added: 1, removed: 0 }],
+        ["tests/b.rs", { added: 2, removed: 1 }],
+      ]),
+    });
+
+    expect(totalsOf(outside)).toEqual([
+      { section: "tests", lines: { added: 5, removed: 1 } },
+      { section: "docs", lines: { added: 2, removed: 0 } },
+    ]);
+    expect(commentLinesOf(outside)).toEqual(undefined);
+  });
+
+  it("list docs after the files that land there", () => {
+    expect(sections.map(({ key }) => key)).toEqual(["implementation", "docs"]);
+    expect(sections[1]?.entries.map(({ file }) => file.path)).toEqual(["src/render.rs"]);
   });
 
   it("make docs a section even when no file lands there", () => {
-    expect(sections.map(({ key }) => key)).toEqual(["implementation", "docs"]);
-    expect(sections[1]?.entries.map(({ file }) => file.path)).toEqual(["src/render.rs"]);
     const onlyComments = landingOf({
       ok: true,
       placements: new Map(),
       lines: new Map([["src/a.rs", { added: 3, removed: 0 }]]),
       commentLines: new Map([["src/a.rs", { added: 1, removed: 0 }]]),
     });
+
     expect(sectionsOf(onlyComments, files("src/a.rs"))).toEqual([
       { key: "implementation", entries: [expect.anything()] },
       { key: "docs", entries: [] },

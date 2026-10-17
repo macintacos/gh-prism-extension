@@ -95,7 +95,8 @@
   --gh-prism-box-hover-fill: color-mix(in srgb, var(--gh-prism-hue) 80%, var(--fgColor-default));
 }
 
-/* The tooltip sits in the top layer, so the sidebar's overflow can't clip it. */
+/* The tooltip sits in the top layer, clear of the sidebar's overflow, so it is placed against its
+   item by anchor. */
 .gh-prism-comment-lines {
   anchor-name: --gh-prism-comment-lines;
 }
@@ -104,8 +105,6 @@
   position-anchor: --gh-prism-comment-lines;
   position-area: block-end span-inline-end;
   position-try-fallbacks: flip-block;
-  inset: auto;
-  margin: 6px 0;
   opacity: 0;
   transition:
     opacity 120ms ease-out,
