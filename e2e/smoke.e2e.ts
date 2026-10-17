@@ -52,7 +52,9 @@ const scrollSidebarToBulkRow = (page: Page, n: number): Promise<void> =>
 // The wrapper supplies GitHub's layout container; the switch's container query needs ≥ 1012 px (default viewport: 1280).
 const COMMIT_BODY = `<!doctype html><div class="PageLayout-PageLayoutContent">${readFixture("commit-page.html")}</div>`;
 
-const test = base.extend<{ context: BrowserContext }>({
+const isWelcome = (page: Page) => page.url().endsWith("/welcome.html");
+
+const test = base.extend<{ context: BrowserContext; welcome: Page }>({
   // biome-ignore lint/correctness/noEmptyPattern: Playwright reads fixture dependencies from this pattern.
   context: async ({}, use) => {
     const context = await chromium.launchPersistentContext("", {
@@ -64,6 +66,19 @@ const test = base.extend<{ context: BrowserContext }>({
     await context.route("https://github.com/**", (route) => route.fulfill({ status: 404 }));
     await use(context);
     await context.close();
+  },
+  // Each launch is an install, which opens this tab.
+  welcome: async ({ context }, use) => {
+    await use(
+      context.pages().find(isWelcome) ??
+        (await context.waitForEvent("page", { predicate: isWelcome })),
+    );
+  },
+  // The welcome tab opens as its window's active tab, and Chromium answers a tab behind it late:
+  // each mouse wheel takes 2 s on 2-CPU Linux.
+  page: async ({ context, welcome }, use) => {
+    await welcome.close();
+    await use(await context.newPage());
   },
 });
 
@@ -132,13 +147,9 @@ const routeFileReview = async (context: BrowserContext, status: number) => {
 const viewedBox = (page: Page, name: string) =>
   page.getByRole("checkbox", { name: `Viewed: ${name}` });
 
-test("installing opens the welcome page", async ({ context }) => {
-  const welcome = () => context.pages().filter((page) => page.url().endsWith("/welcome.html"));
-
-  await expect.poll(() => welcome().length).toBe(1);
-
-  for (const page of welcome())
-    await expect(page.getByRole("heading", { name: "gh-prism is installed" })).toBeVisible();
+test("installing opens the welcome page", async ({ context, welcome }) => {
+  await expect(welcome.getByRole("heading", { name: "gh-prism is installed" })).toBeVisible();
+  expect(context.pages().filter(isWelcome)).toHaveLength(1);
 });
 
 test("the classic Files changed page explains why gh-prism is off, and keeps a dismissal", async ({
