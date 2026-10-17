@@ -76,7 +76,7 @@ To check behavior live, build the extension and drive Playwright's bundled Chrom
   Remove the login (except inside repository paths), avatar URLs, `authenticity_token` and
   CSRF inputs, `csrf_tokens`, `nonce` values, `aliveChannel`, `data-hydro-*` and
   `octolytics` attributes, user ids, and JSON fields that identify the viewer. Keep
-  per-file state fields, even ones named `viewer…`.
+  per-file state such as `diffSummaries[].markedAsViewed`.
 - **Wrap the service worker's `fetch` to observe pull request data requests.** The
   background script calls the global `fetch` at request time, so wrapping `self.fetch`
   through `worker.evaluate` logs each request.

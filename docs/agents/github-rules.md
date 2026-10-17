@@ -100,54 +100,69 @@ them; [§ Re-checking GitHub](#re-checking-github) has the methods.
 
 ## Viewed state
 
-- **Read every file's initial Viewed state from route data, then follow the header's
-  button.** The Files view's `react-app.embeddedData` holds
-  `payload.pullRequestsChangesRoute.diffSummaries[]`, each with `path`, `pathDigest`, and
-  `markedAsViewed`, for every file before its diff mounts, virtualized or not. That script
-  is static: it doesn't follow a toggle, and a soft navigation from Conversation leaves
-  the Conversation route's script in place. There, re-request the page's path with
-  `accept: application/json`, which returns the same key path, fresh. The tree's rows
-  carry no Viewed mark, and the `diff_entries` batches carry no Viewed field. A header
-  exists only for a mounted diff, so it can't give coverage, but it tracks every toggle.
-- **Use the "N / M files viewed" counter only as a totals cross-check.** It
-  (`[class*="ProgressContainer__"]` in `[class*="file-controls__"]`) follows the header
-  buttons, not the server.
+- **Read every file's initial Viewed state from route data.** The Files view's
+  `react-app.embeddedData` holds `payload.pullRequestsChangesRoute.diffSummaries[]`, each
+  with `path`, `pathDigest`, and `markedAsViewed`, for every file before its diff mounts,
+  virtualized or not. `pathDigest` joins an entry to the DOM: the file's region id and
+  tree link are both `diff-<pathDigest>`.
+- **After any soft navigation, re-request the route data.** The embedded script reflects
+  the last full load only, and only until the first toggle; a soft navigation never
+  replaces it. Re-request the page's path with `accept: application/json`, which returns
+  the same key path, fresh (verified from the page's main world; not yet from a content
+  script). Check its route key against the URL, as `prPageData` does, and read
+  `user.shouldShowViewedFilesCount` from the same fresh source.
+- **Follow toggles through the header's button, not the tree or `diff_entries`.** Tree
+  rows carry no Viewed mark, and `diff_entries` batches carry no Viewed field. A header
+  exists only for a mounted diff, so it gives no coverage, but it tracks every toggle.
+- **Use the "N / M viewed" counter only as a totals cross-check.** Its screen-reader text
+  reads "N of M files viewed". The counter, `[class*="ProgressContainer__"]` inside
+  `[class*="file-controls__"]`, follows the header buttons, not the server.
 - **Find the Viewed toggle as
   `[class*="diff-file-header__"] button[aria-pressed][aria-label$="Viewed"]`.** It is a
   Primer button, not a checkbox: `aria-pressed` holds the state, and `aria-label` reads
   "Viewed" or "Not Viewed". Other header buttons carry `aria-pressed` too.
-- **Expect a page-script `click()` to be honored.** An untrusted click
-  (`isTrusted: false`) toggles the button, sends `POST <pull>/file_review` with
-  `{"path":…,"viewed":"viewed"}` (unview: `DELETE` with `"_method":"delete"`), gets 200,
-  and survives a reload. GitHub's `onClick` has no `isTrusted` check; its only guard is
-  the button's `inactive` prop.
+- **Expect a scripted `click()` to be honored.** An untrusted click (`isTrusted: false`)
+  toggles the button, sends `POST <pull>/file_review` with `{"path":…,"viewed":"viewed"}`
+  (unview: `DELETE` with `"_method":"delete"`), gets 200, and survives a reload. GitHub's
+  `onClick` has no `isTrusted` check; its only guard is the button's `inactive` prop.
 - **Treat `user.shouldShowViewedFilesCount` as the page-wide signal that Viewed is
   offered.** In the DOM, the same signal is a header Viewed button or the counter. The
   full view (`pullRequestsChangesRoute`) has it `true`. The commit-filtered view
   (`/pull/<n>/changes/<sha>`, route `pullRequestsChangesWithRangeRoute`,
   `comparison.viewing: "COMMIT"`) has it `false`, with no Viewed buttons and no counter,
-  though `markedAsViewed` is still present, all `false`. A commit page offers no Viewed,
-  signed in or signed out. A pull request signed out redirects `/changes` to the classic
-  `/files`, which offers no Viewed and which `findFilesPage` doesn't match.
+  though `markedAsViewed` is still present (all `false` in the survey, with none of the
+  commit's files viewed; whether it reflects server state is untested). A commit page
+  offers no Viewed, signed in or signed out. A pull request signed out redirects
+  `/changes` to the classic `/files`, which offers no Viewed and which `findFilesPage`
+  doesn't match.
 - **Expect unloaded diffs to keep their Viewed button.** A "Load Diff" placeholder, for a
   large diff or a generated file, replaces only the body; the header keeps its button.
   Generated files' headers aren't collapsed by default.
 - **Read state a task after a click, not synchronously.** React renders the toggle
-  asynchronously. Saving viewed collapses the diff: the header gains
-  `[class*="collapsed__"]`, the button gains `[class*="viewed__"]`, and the counter
-  increments. Unviewing expands it again.
+  asynchronously. A click collapses the diff at once, before the save returns: the header
+  gains `[class*="collapsed__"]`, the button gains `[class*="viewed__"]`, and the counter
+  increments. Unviewing expands it again. With route data's `isSingleFileMode`, a click
+  navigates to the next file instead (read from the bundle, not observed). The survey ran
+  with the "Viewed files" filter on; with it off (`showViewedFiles: false`), viewed files
+  drop from the list, which was not surveyed.
 - **Don't expect GitHub to revert a failed save.** When `file_review` fails (a 500), the
   button stays pressed, the diff stays collapsed, and the counter keeps the increment,
   with no visible error, because the mutation's `onError` is a no-op. The page diverges
   from the server until a reload.
 - **Re-check:** use the sandbox pull requests from `scripts/create-sandbox.sh`, in a
   Playwright session that loads a signed-in `storageState`. Search the embedded data for
-  `pullRequestsChangesRoute.diffSummaries` and `markedAsViewed`, and soft-navigate from
-  Conversation to compare. Toggle a file with a page-script `click()` through `eval`,
-  never Playwright's trusted click, and watch the network for `file_review`. Fail the save
-  with a `route` that answers 500, click, and read the header and counter. Find the
-  handler by grepping GitHub's assets for `file_review`, as
-  [§ Re-checking GitHub](#re-checking-github) describes. Restore every toggled file.
+  `pullRequestsChangesRoute.diffSummaries` and `markedAsViewed`. Read
+  `user.shouldShowViewedFilesCount` and the route key on `/pull/<n>/changes` and on
+  `/pull/<n>/changes/<sha>`, and count header Viewed buttons. Load a commit page signed in
+  and signed out, and a pull request signed out, and confirm none offers Viewed. Scroll #2
+  to its +3000-line file, and read #3's generated files' headers. Toggle a file with a
+  page-script `click()` from the page's main world (`page.evaluate`), never Playwright's
+  trusted click, and watch the network for `file_review`. After a soft navigation,
+  re-request the path with `accept: application/json` and compare its `markedAsViewed`
+  with a header's `aria-pressed`. Fail the save with a `route` that answers 500, click,
+  and read the header and counter. Find the handler by grepping GitHub's assets for
+  `file_review`, as [§ Re-checking GitHub](#re-checking-github) describes. Restore every
+  toggled file.
 
 ## PR base data
 

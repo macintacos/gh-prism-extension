@@ -1,25 +1,35 @@
-<!-- Trimmed from sandbox PR #3's Files changed tab, signed in (scripts/create-sandbox.sh), with config/app.toml marked viewed; content invented. Refresh when GitHub's Viewed markup changes. -->
+<!-- Trimmed from sandbox PR #3's Files changed tab, signed in (scripts/create-sandbox.sh), with config/app.toml marked viewed; counter cut to the 3 files kept; content invented. Refresh when GitHub's Viewed markup changes. -->
 <script type="application/json" data-target="react-app.embeddedData">{"payload":{"pullRequestsChangesRoute":{"comparison":{"viewing":"FULL"},"diffSummaries":[{"path":"config/app.toml","pathDigest":"c9bd6e09f349b0f93c557afe2376f4a9345a21b5daed12c6af0a714773aba693","markedAsViewed":true},{"path":"src/lib.rs","pathDigest":"b1a35a68f14e696205874893c07fd24fdb88882b47c23cc0e0c80a30c7d53759","markedAsViewed":false},{"path":"Cargo.lock","pathDigest":"13ee4b2252c9e516a0547f2891aa2105c3ca71c6d7a1e682c69be97998dfc87e","markedAsViewed":false}],"user":{"shouldShowViewedFilesCount":true,"viewedFilesCount":1}}}}</script>
 <div class="d-flex file-controls__C6Wwfn">
   <div class="d-flex flex-row flex-items-center hide-viewed-progress-on-small__u9jCpF">
-    <span aria-hidden="true" class="ml-1 ProgressContainer__b1ofBm"><span class="FilesCountText__QkVEDj">1</span> / <span class="FilesCountText__QkVEDj">13</span> <span class="ViewedText__2SeNUb">viewed</span></span>
-    <span class="sr-only">1 of 13 files viewed</span>
+    <span aria-hidden="true" class="ml-1 ProgressContainer__b1ofBm"><span class="FilesCountText__QkVEDj">1</span> / <span class="FilesCountText__QkVEDj">3</span> <span class="ViewedText__2SeNUb">viewed</span></span>
+    <span class="sr-only">1 of 3 files viewed</span>
   </div>
 </div>
 <div id="pr-file-tree">
   <div>
     <ul role="tree" aria-label="File Tree">
-      <li role="treeitem" id="config/app.toml" aria-level="1" aria-label="app.toml" aria-selected="false">
-        <div class="PRIVATE_TreeView-item-container" style="--level:1"><div class="PRIVATE_TreeView-item-content">
-          <div class="PRIVATE_TreeView-item-visual" aria-hidden="true"><svg class="octicon octicon-file-diff fgColor-muted" viewBox="0 0 16 16" width="16" height="16"></svg></div>
-          <span class="PRIVATE_TreeView-item-content-text"><a class="fgColor-default" href="#diff-c9bd6e09f349b0f93c557afe2376f4a9345a21b5daed12c6af0a714773aba693" role="presentation" tabindex="-1">app.toml</a></span>
-        </div></div>
+      <li role="treeitem" id="config" aria-level="1" aria-expanded="true" aria-label="config">
+        <div class="PRIVATE_TreeView-item-container" style="--level:1"><span>config</span></div>
+        <ul role="group">
+          <li role="treeitem" id="config/app.toml" aria-level="2" aria-label="app.toml" aria-selected="false">
+            <div class="PRIVATE_TreeView-item-container" style="--level:2"><div class="PRIVATE_TreeView-item-content">
+              <div class="PRIVATE_TreeView-item-visual" aria-hidden="true"><svg class="octicon octicon-file-diff fgColor-muted" viewBox="0 0 16 16" width="16" height="16"></svg></div>
+              <span class="PRIVATE_TreeView-item-content-text"><a class="fgColor-default" href="#diff-c9bd6e09f349b0f93c557afe2376f4a9345a21b5daed12c6af0a714773aba693" role="presentation" tabindex="-1">app.toml</a></span>
+            </div></div>
+          </li>
+        </ul>
       </li>
-      <li role="treeitem" id="src/lib.rs" aria-level="1" aria-label="lib.rs" aria-selected="false">
-        <div class="PRIVATE_TreeView-item-container" style="--level:1"><div class="PRIVATE_TreeView-item-content">
-          <div class="PRIVATE_TreeView-item-visual" aria-hidden="true"><svg class="octicon octicon-file-diff fgColor-muted" viewBox="0 0 16 16" width="16" height="16"></svg></div>
-          <span class="PRIVATE_TreeView-item-content-text"><a class="fgColor-default" href="#diff-b1a35a68f14e696205874893c07fd24fdb88882b47c23cc0e0c80a30c7d53759" role="presentation" tabindex="-1">lib.rs</a></span>
-        </div></div>
+      <li role="treeitem" id="src" aria-level="1" aria-expanded="true" aria-label="src">
+        <div class="PRIVATE_TreeView-item-container" style="--level:1"><span>src</span></div>
+        <ul role="group">
+          <li role="treeitem" id="src/lib.rs" aria-level="2" aria-label="lib.rs" aria-selected="false">
+            <div class="PRIVATE_TreeView-item-container" style="--level:2"><div class="PRIVATE_TreeView-item-content">
+              <div class="PRIVATE_TreeView-item-visual" aria-hidden="true"><svg class="octicon octicon-file-diff fgColor-muted" viewBox="0 0 16 16" width="16" height="16"></svg></div>
+              <span class="PRIVATE_TreeView-item-content-text"><a class="fgColor-default" href="#diff-b1a35a68f14e696205874893c07fd24fdb88882b47c23cc0e0c80a30c7d53759" role="presentation" tabindex="-1">lib.rs</a></span>
+            </div></div>
+          </li>
+        </ul>
       </li>
       <li role="treeitem" id="Cargo.lock" aria-level="1" aria-label="Cargo.lock" aria-selected="false">
         <div class="PRIVATE_TreeView-item-container" style="--level:1"><div class="PRIVATE_TreeView-item-content">
@@ -32,36 +42,43 @@
 </div>
 <div data-testid="diff-content">
   <div data-testid="progressive-diffs-list">
-    <div role="region" id="diff-c9bd6e09f349b0f93c557afe2376f4a9345a21b5daed12c6af0a714773aba693" class="diffTargetable__jbrCub diff__GZFl4M">
-      <div class="diffHeaderWrapper__INiK1j" data-diff-header-wrapper="true">
-        <div class="diff-file-header__CV6GPS collapsed__6txiiR">
-          <button type="button" class="prc-Button-ButtonBase-9n-Xk prc-Button-IconButton-fyge7"><svg class="octicon octicon-chevron-right" viewBox="0 0 16 16" width="16" height="16"></svg></button>
-          <h3 class="file-name__8GKEHg"><a href="#diff-c9bd6e09f349b0f93c557afe2376f4a9345a21b5daed12c6af0a714773aba693"><code>config/app.toml</code></a></h3>
-          <button type="button" aria-pressed="true" aria-label="Viewed" class="prc-Button-ButtonBase-9n-Xk viewed__ObsxMH iconOnly__kjZ2po" data-loading="false"><svg class="octicon octicon-checkbox-fill color-fg-accent" viewBox="0 0 16 16" width="16" height="16"></svg><span class="hide-on-mobile__6ak-TF">Viewed</span></button>
+    <div class="diffEntry__YLOXdm">
+      <div role="region" id="diff-c9bd6e09f349b0f93c557afe2376f4a9345a21b5daed12c6af0a714773aba693" class="diffTargetable__jbrCub diff__GZFl4M">
+        <div class="diffHeaderWrapper__INiK1j" data-diff-header-wrapper="true">
+          <div class="diff-file-header__CV6GPS collapsed__6txiiR">
+            <button type="button" class="prc-Button-ButtonBase-9n-Xk prc-Button-IconButton-fyge7"><svg class="octicon octicon-chevron-right" viewBox="0 0 16 16" width="16" height="16"></svg></button>
+            <h3 class="file-name__8GKEHg"><a href="#diff-c9bd6e09f349b0f93c557afe2376f4a9345a21b5daed12c6af0a714773aba693"><code>config/app.toml</code></a></h3>
+            <button type="button" aria-pressed="true" aria-label="Viewed" class="prc-Button-ButtonBase-9n-Xk viewed__ObsxMH iconOnly__kjZ2po" data-loading="false"><svg class="octicon octicon-checkbox-fill color-fg-accent" viewBox="0 0 16 16" width="16" height="16"></svg><span class="hide-on-mobile__6ak-TF">Viewed</span></button>
+          </div>
         </div>
       </div>
     </div>
-    <div role="region" id="diff-b1a35a68f14e696205874893c07fd24fdb88882b47c23cc0e0c80a30c7d53759" class="diffTargetable__jbrCub diff__GZFl4M">
-      <div class="diffHeaderWrapper__INiK1j" data-diff-header-wrapper="true">
-        <div class="diff-file-header__CV6GPS">
-          <button type="button" class="prc-Button-ButtonBase-9n-Xk prc-Button-IconButton-fyge7"><svg class="octicon octicon-chevron-down" viewBox="0 0 16 16" width="16" height="16"></svg></button>
-          <h3 class="file-name__8GKEHg"><a href="#diff-b1a35a68f14e696205874893c07fd24fdb88882b47c23cc0e0c80a30c7d53759"><code>src/lib.rs</code></a></h3>
-          <button type="button" aria-pressed="false" aria-label="Not Viewed" class="prc-Button-ButtonBase-9n-Xk iconOnly__kjZ2po" data-loading="false"><svg viewBox="0 0 16 16" width="16" height="16"></svg><span class="hide-on-mobile__6ak-TF">Viewed</span></button>
+    <div class="diffEntry__YLOXdm">
+      <div role="region" id="diff-b1a35a68f14e696205874893c07fd24fdb88882b47c23cc0e0c80a30c7d53759" class="diffTargetable__jbrCub diff__GZFl4M">
+        <div class="diffHeaderWrapper__INiK1j" data-diff-header-wrapper="true">
+          <div class="diff-file-header__CV6GPS">
+            <button type="button" class="prc-Button-ButtonBase-9n-Xk prc-Button-IconButton-fyge7"><svg class="octicon octicon-chevron-down" viewBox="0 0 16 16" width="16" height="16"></svg></button>
+            <h3 class="file-name__8GKEHg"><a href="#diff-b1a35a68f14e696205874893c07fd24fdb88882b47c23cc0e0c80a30c7d53759"><code>src/lib.rs</code></a></h3>
+            <button type="button" aria-pressed="false" aria-label="Not Viewed" class="prc-Button-ButtonBase-9n-Xk iconOnly__kjZ2po" data-loading="false"><svg viewBox="0 0 16 16" width="16" height="16"></svg><span class="hide-on-mobile__6ak-TF">Viewed</span></button>
+          </div>
         </div>
+        <table aria-label="Diff for: src/lib.rs"></table>
       </div>
-      <table aria-label="Diff for: src/lib.rs"></table>
     </div>
-    <div role="region" id="diff-13ee4b2252c9e516a0547f2891aa2105c3ca71c6d7a1e682c69be97998dfc87e" class="diffTargetable__jbrCub diff__GZFl4M">
-      <div class="diffHeaderWrapper__INiK1j" data-diff-header-wrapper="true">
-        <div class="diff-file-header__CV6GPS">
-          <button type="button" class="prc-Button-ButtonBase-9n-Xk prc-Button-IconButton-fyge7"><svg class="octicon octicon-chevron-down" viewBox="0 0 16 16" width="16" height="16"></svg></button>
-          <h3 class="file-name__8GKEHg"><a href="#diff-13ee4b2252c9e516a0547f2891aa2105c3ca71c6d7a1e682c69be97998dfc87e"><code>Cargo.lock</code></a></h3>
-          <button type="button" aria-pressed="false" aria-label="Not Viewed" class="prc-Button-ButtonBase-9n-Xk iconOnly__kjZ2po" data-loading="false"><svg viewBox="0 0 16 16" width="16" height="16"></svg><span class="hide-on-mobile__6ak-TF">Viewed</span></button>
+    <div class="diffEntry__YLOXdm">
+      <div role="region" id="diff-13ee4b2252c9e516a0547f2891aa2105c3ca71c6d7a1e682c69be97998dfc87e" class="diffTargetable__jbrCub diff__GZFl4M">
+        <div class="diffHeaderWrapper__INiK1j" data-diff-header-wrapper="true">
+          <div class="diff-file-header__CV6GPS">
+            <button type="button" class="prc-Button-ButtonBase-9n-Xk prc-Button-IconButton-fyge7"><svg class="octicon octicon-chevron-down" viewBox="0 0 16 16" width="16" height="16"></svg></button>
+            <h3 class="file-name__8GKEHg"><a href="#diff-13ee4b2252c9e516a0547f2891aa2105c3ca71c6d7a1e682c69be97998dfc87e"><code>Cargo.lock</code></a></h3>
+            <button type="button" aria-pressed="true" class="prc-SegmentedControl-Button-E48xz prc-SegmentedControl-IconButton-tlzDE"></button>
+            <button type="button" aria-pressed="false" aria-label="Not Viewed" class="prc-Button-ButtonBase-9n-Xk iconOnly__kjZ2po" data-loading="false"><svg viewBox="0 0 16 16" width="16" height="16"></svg><span class="hide-on-mobile__6ak-TF">Viewed</span></button>
+          </div>
         </div>
-      </div>
-      <div class="tmp-px-3 tmp-py-4 fgColor-muted" data-diff-anchor="diff-13ee4b2252c9e516a0547f2891aa2105c3ca71c6d7a1e682c69be97998dfc87e">
-        <button type="button" class="prc-Button-ButtonBase-9n-Xk h4 mx-auto fgColor-accent"><span class="prc-Button-Label-FWkx3">Load Diff</span></button>
-        <span class="fgColor-muted mt-1">Some generated files are not rendered by default.</span>
+        <div class="tmp-px-3 tmp-py-4 fgColor-muted" data-diff-anchor="diff-13ee4b2252c9e516a0547f2891aa2105c3ca71c6d7a1e682c69be97998dfc87e">
+          <button type="button" class="prc-Button-ButtonBase-9n-Xk h4 mx-auto fgColor-accent"><span class="prc-Button-Label-FWkx3">Load Diff</span></button>
+          <span class="fgColor-muted mt-1">Some generated files are not rendered by default.</span>
+        </div>
       </div>
     </div>
   </div>
