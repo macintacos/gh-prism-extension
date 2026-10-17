@@ -15,9 +15,7 @@ The service worker in [`entrypoints/background.ts`](../entrypoints/background.ts
 diffs and file contents from github.com. It serves them to content scripts over a
 long-lived message port, defined in
 [`utils/github/pr-port.ts`](../utils/github/pr-port.ts). It also clears the intent cache
-whenever the extension is installed, updated, or reloaded in development. On a first
-install it opens [`entrypoints/welcome.html`](../entrypoints/welcome.html), which says
-what gh-prism needs from GitHub: a signed-in session and GitHub's new Files changed page.
+whenever the extension is installed, updated, or reloaded in development.
 
 The content script in [`entrypoints/content/index.ts`](../entrypoints/content/index.ts)
 runs on every github.com page at `document_start`, so its watcher is in place before
@@ -199,8 +197,7 @@ then mounted only on the pages that need it. The rules for writing styles are in
 
 ```text
 entrypoints/
-  background.ts          service worker: PR data port, cache clearing, welcome on install
-  welcome.html           page opened on first install: what gh-prism needs from GitHub
+  background.ts          service worker: PR data port, cache clearing on install
   content/
     index.ts             content script entry: wires the watchers, intent, and views
     files-page.ts        every GitHub Files view selector; page kinds; the classic page

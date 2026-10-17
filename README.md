@@ -64,8 +64,7 @@ in a terminal.
 4. In Chrome, open `chrome://extensions` and turn on **Developer mode**.
 5. Click **Load unpacked** and choose the `.output/chrome-mv3` folder inside the clone.
    The picker hides folders whose names start with a dot. Press Cmd+Shift+. on macOS, or
-   Ctrl+H on Linux, to show them. gh-prism opens a page that lists what it needs from
-   GitHub.
+   Ctrl+H on Linux, to show them.
 6. Sign in to GitHub in the Chrome profile where you loaded gh-prism. Then open the Files
    changed tab of any pull request you can see, at a URL that contains
    `/pull/<number>/changes`. Reload any GitHub tab that was already open when you loaded

@@ -42,24 +42,6 @@ describe("background", () => {
     },
   );
 
-  it("opens the welcome page on install", async () => {
-    const create = vi.spyOn(fakeBrowser.tabs, "create");
-
-    await fakeBrowser.runtime.onInstalled.trigger({ reason: "install" });
-
-    expect(create).toHaveBeenCalledExactlyOnceWith({
-      url: fakeBrowser.runtime.getURL("/welcome.html"),
-    });
-  });
-
-  it("opens no page on update", async () => {
-    const create = vi.spyOn(fakeBrowser.tabs, "create");
-
-    await fakeBrowser.runtime.onInstalled.trigger({ reason: "update", previousVersion: "0.0.0" });
-
-    expect(create).not.toHaveBeenCalled();
-  });
-
   it("serves the PR data port", () => {
     const port = fakePort(PR_DATA_PORT);
     serve(port);

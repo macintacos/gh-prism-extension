@@ -59,10 +59,9 @@ facts about GitHub that held when written, and ends with how to re-check them;
 - **Expect a signed-out classic page to be reached by full loads.** Signed out, the pull
   request's tabs and the toolbar's commit menu loaded a new document, not a soft
   navigation, when checked on 2026-10-17. The watcher still follows soft navigation.
-- **Keep [`entrypoints/welcome.html`](../../entrypoints/welcome.html) and the copy in
-  [`classic/notice.ts`](../../entrypoints/content/classic/notice.ts) in step with these
-  facts.** The welcome page tells a new install what gh-prism needs from GitHub, and the
-  notice tells a viewer of the classic page.
+- **Keep the copy in [`classic/notice.ts`](../../entrypoints/content/classic/notice.ts) in
+  step with these facts.** It tells a viewer of the classic page why gh-prism is off and
+  how to get the new page.
 - **Re-check:** curl a public pull request's `/changes` with no cookies and read the 302's
   `location`. Curl its `/files` and a `/commits/<sha>`, and find `#files_bucket`,
   `.pr-toolbar`, `.pr-review-tools`, and the empty `user-login` meta. Signed in with the

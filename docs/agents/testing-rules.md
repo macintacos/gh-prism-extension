@@ -72,13 +72,6 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   so a click that comes too soon is intercepted and retried, with the same forced scroll.
   "ticking a box doesn't scroll the sidebar" polls the box's computed `pointer-events`
   first.
-- **Keep a test's page its window's active tab.** Each launch is an install, so the
-  extension opens its welcome page as the active tab of the window the test's page shares.
-  Chromium answers a tab behind it late: each mouse wheel took 2 s on 2-CPU Linux, and CI
-  ran the suite 2.5 times slower and timed out. macOS hardly shows the cost. The `page`
-  fixture in [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts) closes the welcome tab before it
-  opens the test's page, and a test of the welcome page takes the `welcome` fixture
-  instead.
 - **Reproduce CI's e2e timing on Linux with 2 CPUs.** macOS runs too fast to show a
   slowdown CI fails on. With the extension built on the host, run the suite in
   `mcr.microsoft.com/playwright:v<version>-noble` with the repository mounted, through
