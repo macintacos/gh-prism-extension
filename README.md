@@ -28,6 +28,8 @@ at `/pull/<number>/changes`. It leaves the classic Files changed tab untouched.
 - It splits the count of lines changed in the pull request or commit header into one count
   per section.
 - It collapses or expands a section's files when you click its heading.
+- It dims the files you've marked Viewed on GitHub, in every section that lists them, and
+  follows GitHub's Viewed toggle.
 
 ## Install
 

@@ -128,6 +128,44 @@ export function diffPinFromEmbeddedData(
   return isPrHeadSha(headSha) && isPrHeadSha(baseSha) ? { baseSha, headSha } : undefined;
 }
 
+/** A full load's Viewed state from GitHub's embedded route data. */
+export interface ViewedSeed {
+  /** `user.shouldShowViewedFilesCount`: the page offers Viewed. */
+  readonly offered: boolean;
+  /** Each file's `markedAsViewed`, keyed by its `pathDigest`. */
+  readonly viewed: ReadonlyMap<string, boolean>;
+}
+
+/**
+ * The Viewed seed from GitHub's embedded page data, or `undefined` unless it names `pr` and every
+ * Viewed field has its expected shape.
+ *
+ * @remarks
+ * Reads `payload.pullRequestsChangesRoute`: `diffSummaries[]` of `{ pathDigest, markedAsViewed }`,
+ * with a lowercase-hex digest and a boolean state, and `user.shouldShowViewedFilesCount`. One
+ * malformed entry discards the whole source, so a partial map never dims the wrong rows.
+ */
+export function viewedFromEmbeddedData(
+  json: string | null | undefined,
+  pr: PrRef,
+): ViewedSeed | undefined {
+  const route = at(prPageData(json, pr), "payload", "pullRequestsChangesRoute");
+  const summaries = at(route, "diffSummaries");
+  const offered = at(route, "user", "shouldShowViewedFilesCount");
+  if (!Array.isArray(summaries) || typeof offered !== "boolean") return undefined;
+
+  const viewed = new Map<string, boolean>();
+  for (const entry of summaries) {
+    const digest = at(entry, "pathDigest");
+    const marked = at(entry, "markedAsViewed");
+    // The digest form of files-page.ts's isDiffAnchor: a seeded anchor must match a mounted one.
+    if (typeof digest !== "string" || !/^[0-9a-f]+$/.test(digest) || typeof marked !== "boolean")
+      return undefined;
+    viewed.set(digest, marked);
+  }
+  return { offered, viewed };
+}
+
 const EMBEDDED_DATA_SELECTOR = 'script[data-target="react-app.embeddedData"]';
 const EMBEDDED_DATA_SCRIPT =
   /<script[^>]*data-target="react-app\.embeddedData"[^>]*>([\s\S]*?)<\/script>/;
@@ -146,5 +184,12 @@ export function readPrPageHeadSha(doc: PageDocument, pr: PrRef): string | undefi
 export function readDiffPin(doc: PageDocument, diff: DiffRef): DiffPin | undefined {
   return diff.kind === "pr"
     ? diffPinFromEmbeddedData(doc.querySelector(EMBEDDED_DATA_SELECTOR)?.textContent, diff)
+    : undefined;
+}
+
+/** {@link viewedFromEmbeddedData} for a live page's `document`; a commit's diff has none. */
+export function readViewedSeed(doc: PageDocument, diff: DiffRef): ViewedSeed | undefined {
+  return diff.kind === "pr"
+    ? viewedFromEmbeddedData(doc.querySelector(EMBEDDED_DATA_SELECTOR)?.textContent, diff)
     : undefined;
 }

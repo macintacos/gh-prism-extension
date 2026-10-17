@@ -9,6 +9,7 @@ import { type LandedSection, landingOf, sectionsOf } from "@/utils/intent/landin
 import type { IntentProgress, IntentResult, PendingIntent } from "@/utils/intent/read";
 import { followOnScreen } from "../diffs/on-screen";
 import { showDiffOrder } from "../diffs/order";
+import { followViewed, type VisitViewed } from "../diffs/viewed";
 import { type ChangedFile, type FilesPage, observeTree, readChangedFiles } from "../files-page";
 import { type DiffstatChoice, showDiffstat } from "../header/diffstat-view";
 import { showSections } from "../sidebar/sections-view";
@@ -89,13 +90,18 @@ const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
   });
 
 /**
- * Mounts the sidebar, the diff order, the diffstat, and the on-screen tracker that feeds the
- * sidebar on one page of a visit, and lands `intent` on them in that order, until `signal` aborts.
+ * Mounts the sidebar, the diff order, the diffstat, and the on-screen and Viewed trackers that feed
+ * the sidebar on one page of a visit, and lands `intent` on them in that order, until `signal`
+ * aborts. `viewed` is the visit's Viewed state, shared by its pages.
  */
 export function showVisit(
   page: FilesPage,
   signal: AbortSignal,
-  { intent, diffstat }: { intent: PendingIntent; diffstat: DiffstatChoice },
+  {
+    intent,
+    diffstat,
+    viewed,
+  }: { intent: PendingIntent; diffstat: DiffstatChoice; viewed: VisitViewed },
 ): void {
   const sidebar = showSections(page, signal);
   const views = [
@@ -103,6 +109,7 @@ export function showVisit(
     showDiffOrder(page, signal),
     showDiffstat(page, { choice: diffstat, signal }),
     followOnScreen(page, sidebar.onScreen, signal),
+    followViewed(page, viewed, sidebar.viewed, signal),
   ];
   // The sidebar draws inside the tree's container, so its own changes must not re-list.
   land(page, intent, views, { signal, ignore: sidebar.root });

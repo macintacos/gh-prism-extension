@@ -185,6 +185,13 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
   opacity: 1;
 }
 
+/* A file GitHub shows as Viewed reads as done but stays legible; SectionTree sets
+   --gh-prism-viewed on those rows. It dims the sections, not the row, so the row's
+   ::after bars keep full strength. */
+[data-item-type="file"] > [data-item-section] {
+  opacity: calc(1 - 0.45 * var(--gh-prism-viewed, 0));
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-icon-name="file-tree-icon-chevron"],
   [data-item-section="icon"]::after {

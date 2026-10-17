@@ -6,7 +6,11 @@ import {
   prHeadShaFromEmbeddedData,
   readDiffPin,
   readPrPageHeadSha,
+  readViewedSeed,
+  viewedFromEmbeddedData,
 } from "../../../utils/github/pr-ref";
+import commitFilterFixture from "../../fixtures/viewed-commit-filter-page.html?raw";
+import viewedFixture from "../../fixtures/viewed-files-page.html?raw";
 
 const sha = "a".repeat(40);
 const base = "b".repeat(40);
@@ -140,5 +144,96 @@ describe("readDiffPin", () => {
       headSha: sha,
     };
     expect(readDiffPin(doc, commit)).toBeUndefined();
+  });
+});
+
+const viewedPr: PrRef = { ...pr, number: 3 };
+
+const viewedPayload = (changes: unknown) =>
+  JSON.stringify({
+    payload: {
+      pullRequestsLayoutRoute: {
+        pullRequest: { number: 3 },
+        repository: { ownerLogin: "macintacos", name: "gh-prism-sandbox" },
+      },
+      pullRequestsChangesRoute: changes,
+    },
+  });
+
+const viewedChanges = {
+  diffSummaries: [{ pathDigest: "ab12", markedAsViewed: true }],
+  user: { shouldShowViewedFilesCount: true },
+};
+
+describe("viewedFromEmbeddedData", () => {
+  it("reads every file's Viewed state and the page-wide offer", () => {
+    expect(viewedFromEmbeddedData(prEmbeddedDataFromHtml(viewedFixture), viewedPr)).toEqual({
+      offered: true,
+      viewed: new Map([
+        ["c9bd6e09f349b0f93c557afe2376f4a9345a21b5daed12c6af0a714773aba693", true],
+        ["b1a35a68f14e696205874893c07fd24fdb88882b47c23cc0e0c80a30c7d53759", false],
+        ["13ee4b2252c9e516a0547f2891aa2105c3ca71c6d7a1e682c69be97998dfc87e", false],
+      ]),
+    });
+  });
+
+  it("has no seed for the commit-filtered route", () => {
+    expect(
+      viewedFromEmbeddedData(prEmbeddedDataFromHtml(commitFilterFixture), viewedPr),
+    ).toBeUndefined();
+  });
+
+  it("has no seed when the data names another PR", () => {
+    expect(
+      viewedFromEmbeddedData(prEmbeddedDataFromHtml(viewedFixture), { ...viewedPr, number: 4 }),
+    ).toBeUndefined();
+  });
+
+  it.each([
+    ["malformed JSON", "{not json"],
+    ["no diffSummaries", viewedPayload({ ...viewedChanges, diffSummaries: undefined })],
+    ["diffSummaries not an array", viewedPayload({ ...viewedChanges, diffSummaries: {} })],
+    [
+      "an entry without pathDigest",
+      viewedPayload({ ...viewedChanges, diffSummaries: [{ markedAsViewed: true }] }),
+    ],
+    [
+      "a non-hex pathDigest",
+      viewedPayload({
+        ...viewedChanges,
+        diffSummaries: [{ pathDigest: "src/a.ts", markedAsViewed: true }],
+      }),
+    ],
+    [
+      "a non-boolean markedAsViewed",
+      viewedPayload({
+        ...viewedChanges,
+        diffSummaries: [{ pathDigest: "ab12", markedAsViewed: "true" }],
+      }),
+    ],
+    ["a missing shouldShowViewedFilesCount", viewedPayload({ ...viewedChanges, user: {} })],
+  ])("has no seed for %s", (_, json) => {
+    expect(viewedFromEmbeddedData(json, viewedPr)).toBeUndefined();
+  });
+});
+
+describe("readViewedSeed", () => {
+  const doc = { querySelector: () => ({ textContent: viewedPayload(viewedChanges) }) };
+
+  it("reads the seed from the page's embedded data", () => {
+    expect(readViewedSeed(doc, viewedPr)).toEqual({
+      offered: true,
+      viewed: new Map([["ab12", true]]),
+    });
+  });
+
+  it("has no seed for a commit", () => {
+    const commit: CommitHead = {
+      kind: "commit",
+      owner: "macintacos",
+      repo: "gh-prism-sandbox",
+      headSha: sha,
+    };
+    expect(readViewedSeed(doc, commit)).toBeUndefined();
   });
 });

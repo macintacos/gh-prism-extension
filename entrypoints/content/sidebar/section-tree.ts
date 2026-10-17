@@ -44,6 +44,7 @@ export class SectionTree {
   readonly #tree: FileTree;
   readonly #probe: HTMLElement;
   readonly #onScreen: HTMLStyleElement;
+  readonly #viewed: HTMLStyleElement;
   #files: readonly TreeFile[];
   #byPath: ReadonlyMap<string, TreeFile>;
   #selected: string | undefined;
@@ -66,9 +67,10 @@ export class SectionTree {
     );
     this.#probe.style.height = `${ROW_HEIGHT}px`;
     this.#onScreen = host.ownerDocument.createElement("style");
+    this.#viewed = host.ownerDocument.createElement("style");
     const shadow = host.shadowRoot;
     if (shadow) {
-      shadow.append(this.#probe, this.#onScreen);
+      shadow.append(this.#probe, this.#onScreen, this.#viewed);
       this.#followFocus(shadow);
     }
 
@@ -138,10 +140,12 @@ export class SectionTree {
    * focusing, or scrolling. A style rule rather than row attributes, which re-renders would drop.
    */
   showOnScreen(paths: ReadonlySet<string>): void {
-    const rows = [...paths].map(
-      (path) => `[data-type="item"][data-item-path="${CSS.escape(path)}"]`,
-    );
-    this.#onScreen.textContent = rows.length ? `${rows.join(",")}{--gh-prism-on-screen:1}` : "";
+    this.#onScreen.textContent = rowRule(paths, "--gh-prism-on-screen:1");
+  }
+
+  /** Marks the rows of `paths` as Viewed, the way `showOnScreen` marks rows on screen. */
+  showViewed(paths: ReadonlySet<string>): void {
+    this.#viewed.textContent = rowRule(paths, "--gh-prism-viewed:1");
   }
 
   /** Removes the tree's rows and releases it. */
@@ -245,6 +249,12 @@ function fileTreeOf(
     itemHeight: ROW_HEIGHT,
     unsafeCSS: css,
   });
+}
+
+/** A rule giving the rows of `paths` `declaration`, or nothing when `paths` is empty. */
+function rowRule(paths: ReadonlySet<string>, declaration: string): string {
+  const rows = [...paths].map((path) => `[data-type="item"][data-item-path="${CSS.escape(path)}"]`);
+  return rows.length ? `${rows.join(",")}{${declaration}}` : "";
 }
 
 const byPath = (files: readonly TreeFile[]) => new Map(files.map((file) => [file.path, file]));

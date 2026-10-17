@@ -30,6 +30,8 @@ interface SectionsView extends LandingView {
   readonly root: Element;
   /** Marks the files whose diffs are on screen: their rows, or a collapsed section's header. */
   onScreen(paths: ReadonlySet<string>): void;
+  /** Dims the rows of the files GitHub shows as Viewed. */
+  viewed(paths: ReadonlySet<string>): void;
 }
 
 interface ShownSection {
@@ -266,6 +268,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
   // Only a new current file scrolls the sidebar; re-renders would pull it back mid-scroll.
   let scrolledTo: string | undefined;
   let onScreen: ReadonlySet<string> = new Set();
+  let viewed: ReadonlySet<string> = new Set();
   let latestSections: readonly FileSection[] = [];
 
   /** Marks each section that lists a file on screen; sections-view.css shows it on a collapsed header. */
@@ -349,6 +352,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     else view.prepend(root);
     const tree = new SectionTree(host, files, active);
     tree.showOnScreen(onScreen);
+    tree.showViewed(viewed);
     return { root, counter, tree };
   };
 
@@ -431,6 +435,10 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
       onScreen = paths;
       for (const { tree } of shown.values()) tree.showOnScreen(paths);
       markHeaders();
+    },
+    viewed(paths) {
+      viewed = paths;
+      for (const { tree } of shown.values()) tree.showViewed(paths);
     },
   };
 }

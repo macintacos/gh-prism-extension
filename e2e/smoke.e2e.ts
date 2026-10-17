@@ -316,6 +316,57 @@ test("the sidebar highlights the files whose diffs are on screen", async ({ cont
     .toBe("1");
 });
 
+test("the sidebar dims viewed files and follows GitHub's Viewed toggle", async ({
+  context,
+  page,
+}) => {
+  const url = "https://github.com/macintacos/gh-prism-sandbox/pull/3/changes";
+  await serve(context, url, `<!doctype html>${readFixture("viewed-files-page.html")}`);
+  await page.goto(url);
+  await expect(page.locator('[data-item-path="src/lib.rs"]')).toBeVisible();
+  const viewedOf = (path: string) =>
+    page
+      .locator(`[data-item-path="${path}"]`)
+      .first()
+      .evaluate((row) => {
+        const content = row.querySelector('[data-item-section="content"]');
+        if (!content) throw new Error(`no content section in ${path}'s row`);
+        return {
+          flag: getComputedStyle(row).getPropertyValue("--gh-prism-viewed").trim(),
+          dimmed: Number(getComputedStyle(content).opacity) < 1,
+        };
+      });
+  const setLibViewed = (viewed: boolean) =>
+    page.evaluate((viewed) => {
+      const toggle = document.querySelector(
+        '#diff-b1a35a68f14e696205874893c07fd24fdb88882b47c23cc0e0c80a30c7d53759 button[aria-pressed][aria-label$="Viewed"]',
+      );
+      if (!toggle) throw new Error("no src/lib.rs toggle");
+      toggle.setAttribute("aria-pressed", String(viewed));
+      toggle.setAttribute("aria-label", viewed ? "Viewed" : "Not Viewed");
+    }, viewed);
+
+  await expect.poll(() => viewedOf("config/app.toml")).toEqual({ flag: "1", dimmed: true });
+  expect(await viewedOf("src/lib.rs")).toEqual({ flag: "", dimmed: false });
+
+  await page.evaluate(() => {
+    for (const host of document.querySelectorAll<HTMLElement>(".gh-prism-tree"))
+      host.dataset.e2eMark = "";
+  });
+  await setLibViewed(true);
+  await expect.poll(() => viewedOf("src/lib.rs")).toEqual({ flag: "1", dimmed: true });
+  expect(
+    await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>(".gh-prism-tree")].every(
+        (host) => host.dataset.e2eMark === "",
+      ),
+    ),
+  ).toBe(true);
+
+  await setLibViewed(false);
+  await expect.poll(() => viewedOf("src/lib.rs")).toEqual({ flag: "", dimmed: false });
+});
+
 test("each file's icon takes its type's color in the page's color scheme", async ({
   context,
   page,

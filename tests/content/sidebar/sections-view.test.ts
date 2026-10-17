@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
+import { visitViewed } from "../../../entrypoints/content/diffs/viewed";
 import { findFilesPage } from "../../../entrypoints/content/files-page";
 import { showSections } from "../../../entrypoints/content/sidebar/sections-view";
 import css from "../../../entrypoints/content/sidebar/sections-view.css?raw";
@@ -237,7 +238,11 @@ describe("showSections", () => {
     const page = findFilesPage(document);
     if (!page) throw new Error("fixture lacks the Files changed markup");
     const fresh = new AbortController();
-    showVisit(page, fresh.signal, { intent: () => landedWith(), diffstat: { view: "breakout" } });
+    showVisit(page, fresh.signal, {
+      intent: () => landedWith(),
+      diffstat: { view: "breakout" },
+      viewed: visitViewed(undefined),
+    });
     expect(document.querySelectorAll(".gh-prism-sections")).toHaveLength(1);
 
     fresh.abort();
@@ -1045,6 +1050,65 @@ describe("showSections", () => {
 
       expect(scrollIntoView).not.toHaveBeenCalled();
       scrollIntoView.mockRestore();
+    });
+  });
+
+  describe("the Viewed dim", () => {
+    /** Tells the mounted sidebar which files GitHub shows as Viewed. */
+    const viewed = (...paths: string[]) => {
+      const sidebar = vi.mocked(showSections).mock.results.at(-1)?.value;
+      if (!sidebar) throw new Error("no sidebar mounted");
+      sidebar.viewed(new Set(paths));
+    };
+
+    const dimmed = (section: string, path: string) =>
+      getComputedStyle(rowIn(section, path)).getPropertyValue("--gh-prism-viewed").trim() === "1";
+
+    it("dims a Partial file's rows in every section", async () => {
+      await landed(renderSplit([{ first: 2, last: 8 }]));
+      viewed("src/render.rs");
+
+      expect(dimmed("implementation", "src/render.rs")).toBe(true);
+      expect(dimmed("docs", "src/render.rs")).toBe(true);
+      expect(dimmed("implementation", "src/engine.rs")).toBe(false);
+      expect(dimmed("docs", "README.md")).toBe(false);
+    });
+
+    it("keeps dimmed rows listed, ordered, and clickable", () => {
+      const before = filesIn("implementation");
+      viewed("src/render.rs", "src/engine.rs");
+
+      expect(filesIn("implementation")).toEqual(before);
+      const click = vi.spyOn(nativeLink("src/render.rs"), "click");
+      clickAt(rowIn("implementation", "src/render.rs"));
+      expect(click).toHaveBeenCalledOnce();
+    });
+
+    it("dims rows of a section built later", async () => {
+      byId("docs/guide.md").remove();
+      byId("README.md").remove();
+      await afterDebounce();
+      viewed("docs/intro.md");
+      addNativeFile("docs/intro.md", "config/app.toml");
+      await afterDebounce();
+
+      expect(dimmed("docs", "docs/intro.md")).toBe(true);
+    });
+
+    it("clears the dim", () => {
+      viewed("src/engine.rs");
+      viewed();
+
+      expect(dimmed("implementation", "src/engine.rs")).toBe(false);
+    });
+
+    it("restyles without rebuilding the trees", () => {
+      const host = treeHost("implementation");
+      const row = rowIn("implementation", "src/engine.rs");
+      viewed("src/engine.rs");
+
+      expect(treeHost("implementation")).toBe(host);
+      expect(rowIn("implementation", "src/engine.rs")).toBe(row);
     });
   });
 

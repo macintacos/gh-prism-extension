@@ -15,7 +15,7 @@ import {
 import type { FileSection, LandingView } from "../visit/land";
 
 /** Each tree file's diff anchor, mapped to its path. */
-function pathsByAnchor(sections: readonly FileSection[]): Map<string, string> {
+export function pathsByAnchor(sections: readonly FileSection[]): Map<string, string> {
   const paths = new Map<string, string>();
   for (const { entries } of sections)
     for (const { file } of entries) {
@@ -39,7 +39,7 @@ function pathsOf(
   return shown;
 }
 
-const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>): boolean =>
+export const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>): boolean =>
   a.size === b.size && [...a].every((x) => b.has(x));
 
 /**

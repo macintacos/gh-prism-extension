@@ -2,11 +2,38 @@ import { findFilesPage, readChangedFiles } from "../../entrypoints/content/files
 // The `?raw` import is required: `readFileSync` throws under happy-dom.
 import commitFixture from "./commit-page.html?raw";
 import fixture from "./files-page.html?raw";
+import viewedCommitFilterFixture from "./viewed-commit-filter-page.html?raw";
+import viewedFixture from "./viewed-files-page.html?raw";
 
 /** Replaces `document.body` with the Files changed markup. */
 export function loadFixture(): void {
   document.body.innerHTML = fixture;
 }
+
+/**
+ * Replaces `document.body` with a signed-in pull request's Files changed markup, one file
+ * Viewed.
+ */
+export function loadViewedFixture(): void {
+  document.body.innerHTML = viewedFixture;
+}
+
+/** Replaces `document.body` with the signed-in Files changed markup filtered to one commit. */
+export function loadViewedCommitFilterFixture(): void {
+  document.body.innerHTML = viewedCommitFilterFixture;
+}
+
+/** The viewed fixture's diff anchor for `config/app.toml`, marked Viewed. */
+export const VIEWED_APP_TOML =
+  "diff-c9bd6e09f349b0f93c557afe2376f4a9345a21b5daed12c6af0a714773aba693";
+
+/** The viewed fixture's diff anchor for `src/lib.rs`, not Viewed. */
+export const VIEWED_LIB_RS =
+  "diff-b1a35a68f14e696205874893c07fd24fdb88882b47c23cc0e0c80a30c7d53759";
+
+/** The viewed fixture's diff anchor for `Cargo.lock`, not Viewed. */
+export const VIEWED_CARGO_LOCK =
+  "diff-13ee4b2252c9e516a0547f2891aa2105c3ca71c6d7a1e682c69be97998dfc87e";
 
 /** The fixture element with `id`; throws when the fixture lacks it. */
 export function byId(id: string): HTMLElement {
