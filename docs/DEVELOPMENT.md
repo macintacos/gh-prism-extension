@@ -69,13 +69,15 @@ benchmark lives in `bench/` and runs outside CI, Vitest, and Playwright.
 ## A sandbox repository
 
 `scripts/create-sandbox.sh <owner>/<repo>` creates a private repository under an account
-you control, with seven open pull requests. Small, large, and complicated survey GitHub's
-Files view on pull requests you own. The other four, one per comment syntax (Python,
-C-like, Go, and Lua), mix code with comment and docstring lines. Each one's body lists the
-counts gh-prism should show for Implementation, Tests, and Docs & Comments, worked out by
-hand, so you can check them against the sidebar. It needs the `gh` CLI signed in. It skips
-the repository and each pull request that already exists, so a rerun picks up where it
-left off. A pull request that failed midway is the exception: fix it by hand.
+you control, with nine open pull requests. Small, large, and complicated survey GitHub's
+Files view on pull requests you own. Four more, one per comment syntax (Python, C-like,
+Go, and Lua), mix code with comment and docstring lines. The last two add files with long
+paths and a long file name, for checking that the comment-lines tooltip shows each path
+whole. The bodies of these six list the counts gh-prism should show for Implementation,
+Tests, and Docs & Comments, worked out by hand, so you can check them against the sidebar.
+It needs the `gh` CLI signed in. It skips the repository and each pull request that
+already exists, so a rerun picks up where it left off. A pull request that failed midway
+is the exception: fix it by hand.
 
 ## Git hooks
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Creates a private sandbox repository with seven open PRs for surveying GitHub's
+# Creates a private sandbox repository with nine open PRs for surveying GitHub's
 # Files changed tab: small, large, and complicated, then one per comment syntax
-# (Python, C-like, Go, Lua) with gh-prism's expected counts in its body. All content
-# is fake.
+# (Python, C-like, Go, Lua) and two with long paths and file names, each with
+# gh-prism's expected counts in its body. All content is fake.
 # Resumable per PR: the repo, main, and each PR are skipped when they already exist.
 # A run that fails partway through a PR leaves that PR for you to fix by hand.
 #
@@ -542,6 +542,96 @@ EOF
 	)" >/dev/null
 }
 
+# New files only, so main needs no seeding; the paths are long enough to overflow the sidebar.
+long_paths_pr() {
+	pr_exists long-paths && return
+	git checkout -q -B long-paths origin/main
+	mkdir -p services/billing/internal/reconciliation/adapters \
+		packages/web-dashboard/src/features/organization-settings/components \
+		libraries/shared/text-normalization/src/unicode lib
+
+	cat >services/billing/internal/reconciliation/adapters/payment_provider_webhook_signature_verifier.go <<'EOF'
+package adapters
+
+// VerifySignature reports whether a webhook body matches its signature.
+// An empty signature never matches.
+func VerifySignature(body []byte, signature string) bool {
+	if signature == "" {
+		return false
+	}
+	return len(body) > 0
+}
+EOF
+
+	cat >packages/web-dashboard/src/features/organization-settings/components/MemberPermissionsMatrix.tsx <<'EOF'
+// One row per member, one column per permission.
+export function MemberPermissionsMatrix({ members }: { members: string[] }) {
+  /* Sorted so the table reads alphabetically. */
+  const sorted = [...members].sort();
+  return <table>{sorted.map((name) => <tr key={name}><td>{name}</td></tr>)}</table>;
+}
+EOF
+
+	cat >libraries/shared/text-normalization/src/unicode/normalize_whitespace_and_line_endings.py <<'EOF'
+"""Whitespace and line-ending normalization."""
+
+
+def normalize(text):
+    # Windows line endings become Unix ones.
+    text = text.replace("\r\n", "\n")
+    return " ".join(text.split())
+EOF
+
+	cat >lib/ids.lua <<'EOF'
+-- Ids are positive integers.
+local next_id = 0
+
+return function()
+  next_id = next_id + 1
+  return next_id
+end
+EOF
+
+	commit "Add deeply nested sources"
+	open_pr long-paths "Long paths" "$(
+		cat <<'EOF'
+Expected gh-prism counts. GitHub's total: +30 −0.
+
+- Implementation +23 −0, Docs & Comments +7 −0, no Tests.
+- Implementation comments / docstrings: +7 −0, from:
+  - `lib/ids.lua` +1 −0
+  - `libraries/shared/text-normalization/src/unicode/normalize_whitespace_and_line_endings.py` +2 −0
+  - `packages/web-dashboard/src/features/organization-settings/components/MemberPermissionsMatrix.tsx` +2 −0
+  - `services/billing/internal/reconciliation/adapters/payment_provider_webhook_signature_verifier.go` +2 −0
+- Every path shows whole in the comment-lines tooltip.
+EOF
+	)" >/dev/null
+}
+
+long_file_name_pr() {
+	pr_exists long-file-name && return
+	git checkout -q -B long-file-name origin/main
+	cat >src/AbstractSingletonProxyFactoryBeanConfigurationValidatorRegistry.ts <<'EOF'
+// Registers validators once, at startup.
+export const registry = new Map<string, () => boolean>();
+
+/** Adds a validator under its name. */
+export function register(name: string, check: () => boolean): void {
+  registry.set(name, check);
+}
+EOF
+	commit "Add the validator registry"
+	open_pr long-file-name "Long file name" "$(
+		cat <<'EOF'
+Expected gh-prism counts. GitHub's total: +7 −0.
+
+- Implementation +5 −0, Docs & Comments +2 −0, no Tests.
+- Implementation comments / docstrings: +2 −0, from `src/AbstractSingletonProxyFactoryBeanConfigurationValidatorRegistry.ts` +2 −0.
+- The file name has no separator to break at, and still shows whole in the comment-lines tooltip.
+EOF
+	)" >/dev/null
+}
+
 gh repo view "$repo" >/dev/null 2>&1 ||
 	gh repo create "$repo" --private --description "Fake fixture repo for gh-prism PR UI scenarios"
 
@@ -559,7 +649,9 @@ python_comments_pr
 c_like_comments_pr
 go_comments_pr
 lua_comments_pr
+long_paths_pr
+long_file_name_pr
 
-for branch in small-change large-change complicated-change python-comments c-like-comments go-comments lua-comments; do
+for branch in small-change large-change complicated-change python-comments c-like-comments go-comments lua-comments long-paths long-file-name; do
 	gh pr view "$branch" -R "$repo" --json url --jq .url
 done
