@@ -1708,6 +1708,10 @@ describe("showSections", () => {
       expect(tip().getAttribute("popover")).toBe("manual");
     });
 
+    it("lets each path break after its slashes", () => {
+      expect(tip().querySelector("li code")?.innerHTML).toBe("src/<wbr>engine.rs");
+    });
+
     it("stands alone in a Docs & Comments with no files", async () => {
       byId("docs/guide.md").remove();
       byId("README.md").remove();

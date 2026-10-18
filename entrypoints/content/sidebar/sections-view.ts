@@ -221,15 +221,21 @@ function commentLinesItem(doc: Document, commentLines: CommentLines): HTMLElemen
     el(
       doc,
       "li",
-      "gh-prism-comment-lines-row tw:flex tw:items-center tw:gap-2",
-      el(doc, "code", "tw:truncate tw:text-body-small", path),
+      "gh-prism-comment-lines-row tw:flex tw:items-baseline tw:gap-2 tw:py-1.5 tw:px-2",
+      el(
+        doc,
+        "code",
+        "tw:min-w-0 tw:wrap-anywhere tw:text-body-small",
+        ...breakableAtSlashes(doc, path),
+      ),
       lineTotals(doc, lines),
     ),
   );
+  // GitHub's menu overlay: its shadow draws the edge, so the popover's border is off.
   const tip = el(
     doc,
     "ul",
-    "gh-prism-comment-lines-tip tw:inset-auto tw:mx-0 tw:my-1.5 tw:gap-1 tw:w-max tw:max-w-[320px] tw:py-1.5 tw:px-2 tw:border tw:border-border-default tw:rounded-medium tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:var(--shadow-floating-small)] tw:text-fg-default tw:text-body-small tw:leading-body-small tw:list-none",
+    "gh-prism-comment-lines-tip tw:inset-auto tw:mx-0 tw:my-1.5 tw:w-max tw:max-w-[480px] tw:p-2 tw:border-0 tw:rounded-large tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:var(--shadow-floating-small)] tw:text-fg-default tw:text-body-small tw:leading-body-small tw:list-none",
     ...rows,
   );
   tip.id = "gh-prism-comment-lines-tip";
@@ -261,6 +267,10 @@ function commentLinesItem(doc: Document, commentLines: CommentLines): HTMLElemen
   wrapper.addEventListener("pointerleave", hide);
   return wrapper;
 }
+
+/** `path`'s text with a `<wbr>` after each `/`, where browsers find no line break of their own. */
+const breakableAtSlashes = (doc: Document, path: string): (Node | string)[] =>
+  path.split(/(?<=\/)/).flatMap((part, i) => (i === 0 ? [part] : [doc.createElement("wbr"), part]));
 
 /**
  * Writes the file count of `entries` into a section header's `counter`, or, once `viewed` holds

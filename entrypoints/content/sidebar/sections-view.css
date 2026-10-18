@@ -104,7 +104,10 @@
 .gh-prism-comment-lines-tip {
   position-anchor: --gh-prism-comment-lines;
   position-area: block-end span-inline-end;
-  position-try-fallbacks: flip-block;
+  /* Opens on whichever side of the item has more room, capped to it less its block margins, so a
+     list too long for the viewport scrolls instead of running off it. */
+  position-try: most-block-size flip-block, flip-inline, flip-block flip-inline;
+  max-block-size: calc(100% - var(--base-size-12));
   opacity: 0;
   transition:
     opacity 120ms ease-out,

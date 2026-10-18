@@ -157,8 +157,9 @@ the rows near the viewport. A tree far out of view renders none.
 Docs & Comments ends with the comment-lines item when Implementation's files have comment
 lines. It sits after the tree, outside it, so the handlers that open, mark Viewed, count,
 and scroll to file rows never see it. Hovering or focusing it shows its per-file list as a
-`popover="manual"` tooltip in the top layer, placed by CSS anchor positioning, so the
-sidebar's overflow can't clip it.
+`popover="manual"` tooltip in the top layer. CSS anchor positioning opens it on whichever
+side of the item has more room, and it scrolls when the list outgrows that, so neither the
+sidebar's overflow nor the viewport clips it.
 
 [`entrypoints/content/diffs/on-screen.ts`](../entrypoints/content/diffs/on-screen.ts)
 tracks which files' diffs are on screen. It observes the mounted diff regions with one
