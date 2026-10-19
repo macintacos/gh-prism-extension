@@ -185,17 +185,24 @@ describe("the header's lines-changed counter", () => {
     for (const [, about] of tips) expect(about?.textContent).not.toBe("");
   });
 
-  it("lists each section's lines in the total's tooltip", async () => {
+  it("adds up each section's lines into a total in the total's tooltip", async () => {
     await landed(counted);
     counter()?.click();
 
-    const rows = [...(tipOf(counter())?.children ?? [])];
-    expect(rows.map((row) => textsOf(row.querySelectorAll("span")))).toEqual([
+    const rows = tipOf(counter())?.querySelectorAll(".gh-prism-tip-row, .gh-prism-tip-total") ?? [];
+    expect([...rows].map((row) => textsOf(row.querySelectorAll("span")))).toEqual([
       ["Implementation", "+15", "−4"],
       ["Tests", "+20", "−0"],
       ["Docs & Comments", "+6", "−4"],
       ["Generated / lockfiles", "+1,210", "−350"],
+      ["Total", "+1,251", "−358"],
     ]);
+  });
+
+  it("ends the total's tooltip by saying a click splits it by section", async () => {
+    await landed(counted);
+    counter()?.click();
+    expect(tipOf(counter())?.lastElementChild?.textContent).toBe("Click to split by section");
   });
 
   it("tints each pill, and each row of the total's tooltip, with its section's hue", async () => {
@@ -212,7 +219,7 @@ describe("the header's lines-changed counter", () => {
     expect(huesOf(pills())).toEqual(hues);
 
     counter()?.click();
-    const rows = tipOf(counter())?.querySelectorAll<HTMLElement>(":scope > *") ?? [];
+    const rows = tipOf(counter())?.querySelectorAll<HTMLElement>(".gh-prism-tip-row") ?? [];
     expect(huesOf(rows)).toEqual(hues);
   });
 

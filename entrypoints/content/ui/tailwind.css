@@ -22,6 +22,7 @@
   --color-hue-tint: color-mix(in srgb, var(--gh-prism-hue) 14%, var(--bgColor-default));
   --color-bg-neutral-muted: var(--bgColor-neutral-muted);
   --color-border-default: var(--borderColor-default);
+  --color-border-muted: var(--borderColor-muted);
   --radius-medium: var(--borderRadius-medium);
   --text-body-small: var(--text-body-size-small);
   --text-body-medium: var(--text-body-size-medium);

@@ -42,17 +42,10 @@
   font-weight: var(--base-text-weight-semibold);
 }
 
-.gh-prism-tip > span:not(.gh-prism-tip-row) {
-  color: var(--fgColor-muted);
-}
-
-/* The section's name, pushing its counts to the row's end. */
-.gh-prism-tip-row > span:first-of-type {
-  flex: 1;
-  margin-inline-end: 8px;
-}
-
-.gh-prism-tip-row > .gh-prism-pill-count {
+/* Right-aligned, so each column of counts lines up by place value. */
+.gh-prism-tip-row > .gh-prism-pill-count,
+.gh-prism-tip-total > .gh-prism-pill-count {
+  justify-self: end;
   font-weight: var(--base-text-weight-semibold);
 }
 

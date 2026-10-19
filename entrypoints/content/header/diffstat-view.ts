@@ -4,7 +4,7 @@
  * that breakout and GitHub's own total.
  */
 
-import { type Landing, landingOf, type SectionLines, totalsOf } from "@/utils/intent/landing";
+import { type Landing, landingOf, type SectionLines, sum, totalsOf } from "@/utils/intent/landing";
 import { type FilesPage, findDiffstat, observeDiffstat } from "../files-page";
 import { el } from "../ui/dom";
 import { count, counts } from "../ui/line-counts";
@@ -18,13 +18,12 @@ export interface DiffstatChoice {
   view: "breakout" | "total";
 }
 
-function tip(doc: Document, ...children: Node[]): HTMLElement {
-  const node = el(
-    doc,
-    "span",
-    "gh-prism-tip tw:absolute tw:top-[calc(100%+6px)] tw:right-0 tw:z-100 tw:grid tw:gap-1 tw:w-max tw:max-w-[260px] tw:py-1.5 tw:px-2 tw:border tw:border-border-default tw:rounded-medium tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:var(--shadow-floating-small)] tw:text-fg-default tw:font-normal tw:leading-body-small tw:text-start tw:whitespace-normal",
-    ...children,
-  );
+const TIP =
+  "gh-prism-tip tw:absolute tw:top-[calc(100%+6px)] tw:right-0 tw:z-100 tw:w-max tw:border tw:border-border-default tw:rounded-medium tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:var(--shadow-floating-small)] tw:text-fg-default tw:font-normal tw:leading-body-small tw:text-start tw:whitespace-normal";
+
+/** A tooltip laid out by the `layout` classes, hidden from screen readers. */
+function tip(doc: Document, layout: string, ...children: Node[]): HTMLElement {
+  const node = el(doc, "span", `${TIP} ${layout}`, ...children);
   node.setAttribute("aria-hidden", "true");
   return node;
 }
@@ -39,7 +38,12 @@ function pill(doc: Document, { section, lines }: SectionLines): HTMLElement {
     sectionIcon(doc, section),
     ...counts(doc, lines),
     el(doc, "span", "sr-only", spoken),
-    tip(doc, el(doc, "strong", "", label), el(doc, "span", "", description)),
+    tip(
+      doc,
+      "tw:grid tw:gap-1 tw:max-w-[260px] tw:py-1.5 tw:px-2",
+      el(doc, "strong", "", label),
+      el(doc, "span", "tw:text-fg-muted", description),
+    ),
   );
   markSection(node, section);
   return node;
@@ -49,13 +53,35 @@ function tipRow(doc: Document, { section, lines }: SectionLines): HTMLElement {
   const row = el(
     doc,
     "span",
-    "gh-prism-tip-row tw:flex tw:items-center tw:gap-1",
+    "gh-prism-tip-row tw:col-span-full tw:grid tw:grid-cols-subgrid tw:items-center",
     sectionIcon(doc, section),
-    el(doc, "span", "", SECTION_CATALOG[section].label),
+    el(doc, "span", "tw:pe-6", SECTION_CATALOG[section].label),
     ...counts(doc, lines),
   );
   markSection(row, section);
   return row;
+}
+
+/**
+ * The total view's tooltip: a row per section, ruled off above their sum, then what a click does.
+ * The rows share one grid, so their counts line up in columns.
+ */
+function breakdown(doc: Document, sections: readonly SectionLines[]): HTMLElement {
+  const total = el(
+    doc,
+    "span",
+    "gh-prism-tip-total tw:col-span-full tw:grid tw:grid-cols-subgrid tw:items-center tw:mt-1 tw:pt-2 tw:border-t tw:border-border-muted tw:font-semibold",
+    el(doc, "span", "tw:col-start-2 tw:pe-6", "Total"),
+    ...counts(doc, sum(sections.map(({ lines }) => lines))),
+  );
+
+  return tip(
+    doc,
+    "tw:grid tw:grid-cols-[auto_1fr_auto_auto] tw:gap-x-2 tw:gap-y-1 tw:min-w-48 tw:py-2 tw:px-3 tw:tabular-nums",
+    ...sections.map((lines) => tipRow(doc, lines)),
+    total,
+    el(doc, "span", "tw:col-span-full tw:mt-1 tw:text-fg-muted", "Click to split by section"),
+  );
 }
 
 /**
@@ -73,7 +99,7 @@ function showCounter(
   const doc = page.sidebar.ownerDocument;
   const sections = totalsOf(landing);
   const pills = sections.map((lines) => pill(doc, lines));
-  const breakout = tip(doc, ...sections.map((lines) => tipRow(doc, lines)));
+  const breakout = breakdown(doc, sections);
 
   const button = el(
     doc,
