@@ -1,8 +1,9 @@
 /**
  * The one script module that holds selectors into GitHub's Files view markup; the stylesheets list
  * theirs in a `GitHub hooks:` header. It holds a `PageKind` for a pull request's page and a
- * commit's, finds a Files view's page or a pull request's classic page, and reads its rows; it
- * holds no UI and imports nothing from WXT. The pull request selectors come from EXC-1662's survey.
+ * commit's, finds a Files view's page or a pull request's classic page, reads its rows, and
+ * follows a pull request's narrow-layout overlay; it holds no UI and imports nothing from WXT. The
+ * pull request selectors come from EXC-1662's survey.
  */
 
 /**
@@ -13,6 +14,11 @@
 export interface PageKind {
   /** Selects `FilesPage.sidebar`. */
   readonly sidebar: string;
+  /**
+   * Selects the narrow layout's overlay copy of `sidebar` while it is open; a kind without one
+   * shows its own sidebar there.
+   */
+  readonly overlay?: string;
   /** Selects `FilesPage.diffs`. */
   readonly diffs: string;
   /** The header's slot for its lines-changed counter, which holds a skeleton while it loads. */
@@ -56,6 +62,7 @@ const PR_DIFF_LIST = '[data-testid="progressive-diffs-list"]';
 /** Where a pull request's Files changed tab keeps its markup. */
 export const prPage = {
   sidebar: "#pr-file-tree",
+  overlay: '[role="dialog"] #pr-file-tree',
   diffs: '[data-testid="diff-content"]',
   diffstatSlot: '[class*="rightContentWrapper__"]',
   treeToggle: '[class*="RegularTreeToggle"]',
@@ -117,15 +124,63 @@ export interface FilesPage {
   readonly diffs: Element;
 }
 
+/** A native tree and the sidebar holding it: a page's own, or the narrow layout's overlay copy. */
+export type NativeTree = Pick<FilesPage, "sidebar" | "tree">;
+
 /** The Files changed markup in `root`, or `undefined` when any part is missing (e.g. classic). */
 export function findFilesPage(root: ParentNode): FilesPage | undefined {
   for (const kind of PAGE_KINDS) {
-    const sidebar = root.querySelector(kind.sidebar);
+    // The overlay's portal precedes the page, and its copy of the sidebar shares the docked id.
+    const sidebar = [...root.querySelectorAll(kind.sidebar)].find(
+      (el) => !kind.overlay || !el.matches(kind.overlay),
+    );
     const tree = sidebar?.querySelector('ul[role="tree"]');
     const diffs = root.querySelector(kind.diffs);
     if (sidebar && tree && diffs) return { kind, sidebar, tree, diffs };
   }
   return undefined;
+}
+
+/** The narrow layout's overlay copy of `page`'s tree while it is open, else `undefined`. */
+export function findOverlay(page: FilesPage): NativeTree | undefined {
+  if (!page.kind.overlay) return undefined;
+  const sidebar = page.sidebar.ownerDocument.querySelector(page.kind.overlay);
+  const tree = sidebar?.querySelector('ul[role="tree"]');
+  return sidebar && tree ? { sidebar, tree } : undefined;
+}
+
+/**
+ * Calls `onOpen` with each overlay copy of `page`'s tree as it mounts (and one already open),
+ * with a signal that aborts once it unmounts or is replaced, until `signal` aborts. Undebounced:
+ * it reports in the mutation's microtask, so the sections replace GitHub's tree before the
+ * overlay first paints.
+ */
+export function followOverlay(
+  page: FilesPage,
+  onOpen: (overlay: NativeTree, closed: AbortSignal) => void,
+  { signal }: { signal: AbortSignal },
+): void {
+  if (!page.kind.overlay) return;
+  let shown: NativeTree | undefined;
+  let closed: AbortController | undefined;
+  const reportIfChanged = () => {
+    const overlay = findOverlay(page);
+    if (overlay?.sidebar === shown?.sidebar && overlay?.tree === shown?.tree) return;
+    closed?.abort();
+    shown = overlay;
+    closed = overlay && new AbortController();
+    if (overlay && closed) onOpen(overlay, closed.signal);
+  };
+
+  // ponytail: one querySelector per mutation batch on the whole document; observe only the portal
+  // root if it shows up in a profile.
+  const observer = new MutationObserver(reportIfChanged);
+  observer.observe(page.sidebar.ownerDocument.body, { childList: true, subtree: true });
+  signal.addEventListener("abort", () => {
+    observer.disconnect();
+    closed?.abort();
+  });
+  reportIfChanged();
 }
 
 /** A pull request's classic Files changed page, which gh-prism leaves alone. */

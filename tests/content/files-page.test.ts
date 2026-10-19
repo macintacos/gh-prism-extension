@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { FilesPage } from "../../entrypoints/content/files-page";
+import type { FilesPage, NativeTree } from "../../entrypoints/content/files-page";
 import {
   appendToDiffs,
   commitPage,
@@ -11,7 +11,9 @@ import {
   findDiffList,
   findDiffstat,
   findFilesPage,
+  findOverlay,
   findTreeToggle,
+  followOverlay,
   isSignedIn,
   mountedDiffs,
   observeDiffs,
@@ -28,6 +30,7 @@ import {
 } from "../../entrypoints/content/files-page";
 import {
   byId,
+  closeOverlay,
   diffList,
   foundPage,
   LAUNCHER_DIFF,
@@ -37,6 +40,7 @@ import {
   loadFixture,
   loadViewedCommitFilterFixture,
   loadViewedFixture,
+  openOverlay,
   VIEWED_APP_TOML,
   VIEWED_CARGO_LOCK,
   VIEWED_LIB_RS,
@@ -85,6 +89,128 @@ describe("findFilesPage", () => {
   it("is undefined for classic markup", () => {
     loadClassicFixture("");
     expect(findFilesPage(document)).toBeUndefined();
+  });
+
+  it("finds the docked sidebar while the overlay is open", () => {
+    const docked = byId("pr-file-tree");
+    openOverlay();
+    expect(findFilesPage(document)?.sidebar).toBe(docked);
+  });
+});
+
+describe("findOverlay", () => {
+  it("finds the overlay's sidebar and tree while it is open", () => {
+    const sidebar = openOverlay();
+    expect(findOverlay(foundPage())).toEqual({
+      sidebar,
+      tree: sidebar.querySelector('ul[role="tree"]'),
+    });
+  });
+
+  it("is undefined while the overlay is closed", () => {
+    expect(findOverlay(foundPage())).toBeUndefined();
+  });
+
+  it("is undefined while the overlay's tree has not mounted", () => {
+    openOverlay().querySelector('ul[role="tree"]')?.remove();
+    expect(findOverlay(foundPage())).toBeUndefined();
+  });
+
+  it("is undefined on a commit page", () => {
+    loadCommitFixture();
+    expect(findOverlay(foundPage())).toBeUndefined();
+  });
+});
+
+describe("followOverlay", () => {
+  let controller: AbortController;
+  const onOpen = vi.fn<(overlay: NativeTree, closed: AbortSignal) => void>();
+
+  beforeEach(() => {
+    controller = new AbortController();
+    onOpen.mockReset();
+  });
+
+  afterEach(() => controller.abort());
+
+  // MutationObserver callbacks are microtasks.
+  const flush = () => Promise.resolve();
+  const follow = () => followOverlay(foundPage(), onOpen, { signal: controller.signal });
+  const closedOf = (call: number): AbortSignal => {
+    const signal = onOpen.mock.calls[call]?.[1];
+    if (!signal) throw new Error(`no call ${call}`);
+    return signal;
+  };
+
+  it("reports an overlay as it opens", async () => {
+    follow();
+    const sidebar = openOverlay();
+    await flush();
+    expect(onOpen).toHaveBeenCalledExactlyOnceWith(
+      { sidebar, tree: sidebar.querySelector('ul[role="tree"]') },
+      expect.any(AbortSignal),
+    );
+  });
+
+  it("reports an overlay already open", () => {
+    const sidebar = openOverlay();
+    follow();
+    expect(onOpen).toHaveBeenCalledOnce();
+    expect(onOpen.mock.calls[0]?.[0].sidebar).toBe(sidebar);
+  });
+
+  it("stops reporting once its signal aborts", async () => {
+    follow();
+    controller.abort();
+    openOverlay();
+    await flush();
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("reports again, closing the last, when the overlay's tree is replaced", async () => {
+    const sidebar = openOverlay();
+    follow();
+    const tree = sidebar.querySelector('ul[role="tree"]');
+    const replacement = tree?.cloneNode(true);
+    if (!tree || !(replacement instanceof Element)) throw new Error("overlay has no tree");
+    tree.replaceWith(replacement);
+    await flush();
+    expect(closedOf(0).aborted).toBe(true);
+    expect(onOpen).toHaveBeenCalledTimes(2);
+    expect(onOpen.mock.calls[1]?.[0].tree).toBe(replacement);
+  });
+
+  it("aborts closed once the overlay closes", async () => {
+    openOverlay();
+    follow();
+    closeOverlay();
+    await flush();
+    expect(closedOf(0).aborted).toBe(true);
+  });
+
+  it("aborts closed once its signal aborts", () => {
+    openOverlay();
+    follow();
+    controller.abort();
+    expect(closedOf(0).aborted).toBe(true);
+  });
+
+  it.each([
+    ["without the tree's sidebar", "#pr-file-tree"],
+    ["without its tree", 'ul[role="tree"]'],
+  ])("never reports a dialog %s", async (_, missing) => {
+    follow();
+    openOverlay().closest('[role="dialog"]')?.querySelector(missing)?.remove();
+    await flush();
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("never reports on a commit page", async () => {
+    loadCommitFixture();
+    follow();
+    document.body.prepend(document.createElement("div"));
+    await flush();
+    expect(onOpen).not.toHaveBeenCalled();
   });
 });
 

@@ -31,11 +31,13 @@ classic page, where it opens a dialog instead.
 script module that holds selectors into GitHub's Files view markup. Each kind of Files
 view is a `PageKind`: a pull request's Files changed tab (`prPage`) and a commit's page
 (`commitPage`). A `PageKind` lists where that page keeps its sidebar, native tree, diff
-list, and diffstat, and how a row's link reveals its diff.
+list, and diffstat, and how a row's link reveals its diff. A pull request's kind also
+names the narrow layout's overlay copy of the sidebar.
 
 `findFilesPage` tries each entry of `PAGE_KINDS` in turn and returns the first whose
-sidebar, native tree, and diffs are all present. Callers then ask `files-page.ts`'s
-helpers rather than branching on the kind, so a new page kind is a new `PAGE_KINDS` entry.
+sidebar, native tree, and diffs are all present, passing over the overlay's copy. Callers
+then ask `files-page.ts`'s helpers rather than branching on the kind, so a new page kind
+is a new `PAGE_KINDS` entry.
 
 [`utils/github/files-route.ts`](../utils/github/files-route.ts) reads the URL side: which
 diff a pathname names, and whether a pull request's view is commit-filtered. It reads the
@@ -82,9 +84,11 @@ and the on-screen and Viewed trackers that feed the sidebar). Then `land` passes
 intent read's steps to the views: pending while the read runs, progress as files are
 placed, landed with the result, and then each file's section. Every view gets a step
 before any view gets the next. `land` owns the only observer of the native tree, and it
-re-lists the sections after each change to the tree. One visit reads intent once:
-`index.ts` wraps the read in `shareIntent`, so every page of the visit joins the same
-read.
+re-lists the sections after each change to the tree. While a pull request's narrow layout
+has its "Files" overlay open, `land` also observes the overlay's copy of the tree and
+lists from it, telling each view through `shownIn` before it re-lists. One visit reads
+intent once: `index.ts` wraps the read in `shareIntent`, so every page of the visit joins
+the same read.
 
 ## The classic page notice
 
@@ -148,7 +152,9 @@ and the clear also drops the retired `intent.v1` entries.
 draws the sidebar's sections. GitHub's native tree stays mounted and hidden as the source
 of truth, and each render re-reads its rows. A click on a section's row clicks the native
 row's link. That link's handler mounts a diff that GitHub has virtualized away, which a
-bare hash jump would not do.
+bare hash jump would not do. While the narrow layout's overlay is open, the sidebar moves
+into the overlay's copy of the tree, which then serves as the source and takes the row
+clicks, and it moves back to the docked tree when the overlay closes.
 
 [`entrypoints/content/sidebar/section-tree.ts`](../entrypoints/content/sidebar/section-tree.ts)
 renders each section, and the comment-lines sub-section, as its own `@pierre/trees` file

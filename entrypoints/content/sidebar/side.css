@@ -1,17 +1,53 @@
 /* GitHub hooks: [class*="PageLayout-PaneWrapper"], [class*="PageLayout-ContentWrapper"],
    [class*="PageLayout-Content-"], [class*="PageLayout-PageLayoutContent"], [class*="WideExpanded"],
-   [class*="toolbar__"], [class*="RegularTreeToggle"],
-   [class*="TreeToggle"], [data-component="Stack"], [aria-controls="diff_file_tree"], #pr-file-tree,
-   #diff_file_tree, #diff-content-parent, the filter row's pr-lg-3, a pull request's
-   diffComparisonViewer container (this sheet names a commit's), and PageLayout's
+   [class*="toolbar__"], [class*="RegularTreeToggle"], [class*="MobileTreeToggle"],
+   [class*="prc-Dialog-Backdrop"], [class*="prc-Dialog-Dialog-"], Dialog's 768px fullscreen
+   breakpoint, [class*="TreeToggle"], [data-component="Stack"], [aria-controls="diff_file_tree"],
+   #pr-file-tree, #diff_file_tree, #diff-content-parent, the filter row's pr-lg-3, a pull
+   request's diffComparisonViewer container (this sheet names a commit's), and PageLayout's
    --region-order-pane-end custom property. */
 @import "../ui/tailwind.css" prefix(tw);
 @source "./side.ts";
 
-/* Hidden until the @container rule below shows it: CSS, not tw:hidden, which a later sheet's
-   copy would let outrank that rule. */
+/* Hidden until a rule below shows it: CSS, not tw:hidden, which a later sheet's copy would let
+   outrank those rules. */
 .gh-prism-side-switch {
   display: none;
+}
+
+/* A pull request's narrow layout opens the tree as an overlay, so the switch picks its edge. */
+section[class*="toolbar__"]:has([class*="MobileTreeToggle"]) .gh-prism-side-switch {
+  display: inline-grid;
+}
+
+/* Primer opens the overlay from the left; open it flush right. */
+[data-gh-prism-side="right"] {
+  & [class*="prc-Dialog-Backdrop"]:has(#pr-file-tree) {
+    justify-content: flex-end;
+  }
+
+  & [class*="prc-Dialog-Dialog-"]:has(#pr-file-tree) {
+    border-radius: var(--borderRadius-large) 0 0 var(--borderRadius-large);
+  }
+
+  /* Point the toggle's icon where the overlay opens. */
+  & [class*="MobileTreeToggle"] svg {
+    scale: -1 1;
+  }
+}
+
+/* Primer's slide-in keyframes carry a build hash, so sliding in from the right needs gh-prism's
+   own. Narrower, Primer's fullscreen sheet keeps its own animation. */
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+  [data-gh-prism-side="right"] [class*="prc-Dialog-Dialog-"]:has(#pr-file-tree) {
+    animation-name: gh-prism-overlay-in;
+  }
+}
+
+@keyframes gh-prism-overlay-in {
+  from {
+    translate: 100%;
+  }
 }
 
 /* Primer's tooltip, opening toward the page's middle. */
@@ -35,10 +71,6 @@
   transition:
     opacity 120ms ease-out,
     visibility 120ms;
-}
-
-[data-gh-prism-side="right"] .gh-prism-side-switch::after {
-  inset-inline: auto 0;
 }
 
 .gh-prism-side-switch:is(:hover, :focus-visible)::after {
@@ -128,10 +160,15 @@
   container: diffComparisonViewer / inline-size;
 }
 
-/* Narrower, GitHub opens the tree as an overlay, which has no side to switch. */
+/* Narrower, a commit's tree overlays the diffs, with no side to switch. */
 @container diffComparisonViewer (width >= 1012px) {
   .gh-prism-side-switch {
     display: inline-grid;
+  }
+
+  /* Docked right, the switch ends the toolbar, so its tooltip opens leftward. */
+  [data-gh-prism-side="right"] .gh-prism-side-switch::after {
+    inset-inline: auto 0;
   }
 
   /* Primer's own end-position styles: after the diffs, its divider on the inner edge. */

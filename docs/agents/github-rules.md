@@ -266,6 +266,31 @@ facts about GitHub that held when written, and ends with how to re-check them;
   signed-out data, load the pull request signed out and search its embedded data for a
   base SHA.
 
+## The narrow layout's overlay
+
+Below 1012px, a pull request's tree toggle opens the file tree as a "Files" overlay.
+
+- **Find it as `[role="dialog"] #pr-file-tree`.** The overlay is a Primer `Dialog` in a
+  portal under `body` (`#__primerPortalRoot__`), which precedes the page in document
+  order. It holds its own copy of `#pr-file-tree`, filter and `ul[role=tree]` included,
+  with the docked tree's ids, so a bare `querySelector('#pr-file-tree')` returns the
+  overlay's copy while it is open. Its rows have the docked tree's shape.
+- **Expect a fresh subtree on each open.** Closing unmounts it. The docked `#pr-file-tree`
+  stays mounted and hidden throughout, as the same node, so no page change happens.
+- **Expect a file click to close the overlay** and reveal the diff, trusted or synthetic,
+  on the overlay's link or the hidden docked one. A directory click keeps it open.
+- **Read the edge it opens from off `data-position-regular="left"`:** Primer sets the
+  backdrop's `justify-content` and the dialog's hash-named slide-in keyframes from it, at
+  768px and wider; below 768px Primer shows the overlay fullscreen with its own
+  scale-fade, which gh-prism leaves alone.
+- **Never write Primer's `data-position-*` attributes from script; React owns them.**
+  Override the edge in CSS instead.
+- **Expect no dialog on a commit page.** Its narrow overlay is the same `#diff_file_tree`,
+  repositioned.
+- **Re-check:** signed in with the saved `storageState`, load a pull request's Files
+  changed tab below 1012px wide, click `[class*="MobileTreeToggle"]`, and read
+  `#__primerPortalRoot__`'s markup.
+
 ## Re-checking GitHub
 
 GitHub's React code ships as public assets on `https://github.githubassets.com/assets/`,
