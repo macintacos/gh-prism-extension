@@ -13,7 +13,7 @@ import {
   type PendingIntent,
   shareIntent,
 } from "../../../utils/intent/read";
-import { byId, loadFixture } from "../../fixtures/files-page";
+import { byId, closeOverlay, loadFixture, openOverlay } from "../../fixtures/files-page";
 import { landedWith, pendingIntent, whole } from "../../fixtures/intent";
 import { afterDebounce, filesIn, mountsVisit, progressBar, view } from "../../fixtures/visit";
 
@@ -40,6 +40,7 @@ function recording(name: string): LandingView {
     pending: () => log.push(`${name}.pending`),
     progress: () => log.push(`${name}.progress`),
     landed: () => log.push(`${name}.landed`),
+    shownIn: (tree) => log.push(`${name}.shownIn:${tree === page ? "page" : "overlay"}`),
     sections: (sections) => {
       log.push(`${name}.sections`);
       received.push(sections);
@@ -134,6 +135,45 @@ describe("land", () => {
     await vi.advanceTimersByTimeAsync(100);
 
     expect(log).toEqual([]);
+  });
+
+  describe("with the narrow layout's overlay open", () => {
+    const listed = () =>
+      received.at(-1)?.flatMap(({ entries }) => entries.map(({ file }) => file.path));
+    const dockedRow = (path: string) => page.tree.querySelector(`[id="${CSS.escape(path)}"]`);
+
+    it("lists the overlay's rows, then the docked rows once it closes", async () => {
+      mount(() => result);
+      const overlay = openOverlay();
+      await vi.advanceTimersByTimeAsync(100);
+
+      overlay.querySelector('[id="src/engine.rs"]')?.remove();
+      await vi.advanceTimersByTimeAsync(100);
+      expect(listed()).not.toContain("src/engine.rs");
+      expect(dockedRow("src/engine.rs")).not.toBeNull();
+
+      closeOverlay();
+      await vi.advanceTimersByTimeAsync(100);
+      expect(listed()).toContain("src/engine.rs");
+    });
+
+    it("tells every view where the sections are shown before re-listing them there", async () => {
+      mount(() => result);
+      log.length = 0;
+      openOverlay();
+      await vi.advanceTimersByTimeAsync(100);
+      closeOverlay();
+      await vi.advanceTimersByTimeAsync(100);
+
+      const at = (entry: string, from = 0) => log.indexOf(entry, from);
+      const opened = at("b.shownIn:overlay");
+      const closed = at("b.shownIn:page");
+      expect(at("a.shownIn:overlay")).toBe(0);
+      expect(opened).toBeGreaterThan(-1);
+      expect(at("a.sections", opened)).toBeGreaterThan(opened);
+      expect(closed).toBeGreaterThan(at("a.sections", opened));
+      expect(at("a.sections", closed)).toBeGreaterThan(closed);
+    });
   });
 });
 

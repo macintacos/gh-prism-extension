@@ -82,9 +82,11 @@ and the on-screen and Viewed trackers that feed the sidebar). Then `land` passes
 intent read's steps to the views: pending while the read runs, progress as files are
 placed, landed with the result, and then each file's section. Every view gets a step
 before any view gets the next. `land` owns the only observer of the native tree, and it
-re-lists the sections after each change to the tree. One visit reads intent once:
-`index.ts` wraps the read in `shareIntent`, so every page of the visit joins the same
-read.
+re-lists the sections after each change to the tree. While a pull request's narrow layout
+has its "Files" overlay open, `land` also observes the overlay's copy of the tree and
+lists from it, telling each view through `shownIn` before it re-lists. One visit reads
+intent once: `index.ts` wraps the read in `shareIntent`, so every page of the visit joins
+the same read.
 
 ## The classic page notice
 
@@ -148,7 +150,9 @@ and the clear also drops the retired `intent.v1` entries.
 draws the sidebar's sections. GitHub's native tree stays mounted and hidden as the source
 of truth, and each render re-reads its rows. A click on a section's row clicks the native
 row's link. That link's handler mounts a diff that GitHub has virtualized away, which a
-bare hash jump would not do.
+bare hash jump would not do. While the narrow layout's overlay is open, the sidebar moves
+into the overlay's copy of the tree, which then serves as the source and takes the row
+clicks, and it moves back to the docked tree when the overlay closes.
 
 [`entrypoints/content/sidebar/section-tree.ts`](../entrypoints/content/sidebar/section-tree.ts)
 renders each section, and the comment-lines sub-section, as its own `@pierre/trees` file

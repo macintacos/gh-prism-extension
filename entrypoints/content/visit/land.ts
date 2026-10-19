@@ -10,7 +10,14 @@ import type { IntentProgress, IntentResult, PendingIntent } from "@/utils/intent
 import { followOnScreen } from "../diffs/on-screen";
 import { showDiffOrder } from "../diffs/order";
 import { followViewed, type VisitViewed } from "../diffs/viewed";
-import { type ChangedFile, type FilesPage, observeTree, readChangedFiles } from "../files-page";
+import {
+  type ChangedFile,
+  type FilesPage,
+  followOverlay,
+  type NativeTree,
+  observeTree,
+  readChangedFiles,
+} from "../files-page";
 import { type DiffstatChoice, showDiffstat } from "../header/diffstat-view";
 import { showSections } from "../sidebar/sections-view";
 
@@ -36,6 +43,11 @@ export interface LandingView {
    * tree.
    */
   sections?(sections: readonly FileSection[]): void;
+  /**
+   * The native tree the sections now list: the narrow layout's overlay while it is open, else the
+   * page's own. Called before the re-list.
+   */
+  shownIn?(tree: NativeTree): void;
 }
 
 /**
@@ -50,9 +62,10 @@ export function land(
   { signal, ignore }: { signal: AbortSignal; ignore?: Node },
 ): void {
   let result: IntentResult | undefined;
+  let shown: NativeTree = page;
   const relist = () => {
     if (!result) return;
-    const sections = sectionsOf(landingOf(result), readChangedFiles(page.sidebar));
+    const sections = sectionsOf(landingOf(result), readChangedFiles(shown.sidebar));
     for (const view of views) view.sections?.(sections);
   };
   const settle = (landed: IntentResult) => {
@@ -80,6 +93,23 @@ export function land(
   }
 
   observeTree(page.sidebar, relist, { signal, ignore });
+
+  const showIn = (tree: NativeTree) => {
+    shown = tree;
+    for (const view of views) view.shownIn?.(tree);
+    relist();
+  };
+  followOverlay(
+    page,
+    (overlay, closed) => {
+      showIn(overlay);
+      observeTree(overlay.sidebar, relist, { signal: closed, ignore });
+      closed.addEventListener("abort", () => {
+        if (!signal.aborted) showIn(page);
+      });
+    },
+    { signal },
+  );
 }
 
 /** `read`'s result, or a path-only `failed` one, logged, when it rejects. */
