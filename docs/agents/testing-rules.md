@@ -41,8 +41,10 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   `closedby`, and its `close()` fires `close` at once, where a browser queues it.
   [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s classic Files changed test checks
   `:modal` and closes the dialog by its backdrop.
-- **Stub `togglePopover` in happy-dom, and prove a popover's top layer and anchoring in
-  Chromium.** happy-dom has no Popover API.
+- **Prove tree row layout in Chromium, not happy-dom.** happy-dom computes no style from
+  the section tree's shadow-root sheets, even with `section-tree.css` in
+  `test.css.include`. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `rowLayout` is the
+  pattern.
 - **Read a computed animation through `animation`, not `animationName`.** happy-dom
   computes the shorthand alone, so `animationName` reads `""` whatever the sheet says.
 - **Prove ordering inside one click dispatch in Chromium, not happy-dom.** happy-dom runs
@@ -95,8 +97,10 @@ To check behavior live, build the extension and drive Playwright's bundled Chrom
 - **Sample paint-level state in a `requestAnimationFrame` loop added with
   `addInitScript`.** A single read after load misses intermediate frames.
 - **Use routed fixtures for pull request pages when signed out.** Signed-out GitHub serves
-  the classic Files view. Intent fails fast on a routed fixture, because its repository
-  doesn't exist, so progress steps need a real pull request.
+  the classic Files view. Intent fails fast on a routed pull request fixture, because its
+  repository doesn't exist, so progress steps need a real pull request. A commit fixture
+  can land intent if the test also routes its `<url>.diff`, as `COMMIT_DIFF` in
+  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts) does.
 - **Check colors and contrast on a live GitHub page, never on a routed fixture.** The
   fixtures load no GitHub stylesheet, so every Primer token is unset there, and a rule
   that reads one, such as the Viewed box's `var(--gh-prism-hue)`, computes as invalid. On
