@@ -91,8 +91,9 @@ hk, a git hook manager configured in [`hk.pkl`](../hk.pkl), runs two hooks:
 ## CI
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push and pull
-request. It installs the pinned tools and dependencies, runs `mise run preflight`, builds
-the extension, then runs `mise run e2e`.
+request, as two parallel jobs that each install the pinned tools and dependencies: `check`
+runs `mise run preflight`, and `e2e` runs `mise run e2e`. Both cache bun's package cache,
+and `e2e` also caches Playwright's browsers, each keyed on `bun.lock`.
 
 ## Releases
 
