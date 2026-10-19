@@ -5,7 +5,7 @@
  */
 
 import { type Landing, landingOf, type SectionLines, totalsOf } from "@/utils/intent/landing";
-import { type FilesPage, findDiffstat } from "../files-page";
+import { type FilesPage, findDiffstat, observeDiffstat } from "../files-page";
 import { el } from "../ui/dom";
 import { count, counts } from "../ui/line-counts";
 import { markSection, SECTION_CATALOG, sectionIcon } from "../ui/section-catalog";
@@ -59,17 +59,18 @@ function tipRow(doc: Document, { section, lines }: SectionLines): HTMLElement {
 }
 
 /**
- * Stands in for GitHub's lines-changed counter, `native`, until `signal` aborts: a pill per section
- * with the lines `landing` places there, or GitHub's total, as `choice` says. A click switches
- * view and records it in `choice`. GitHub's counter stays in the page, hidden by the stylesheet
- * while this sits just before it.
+ * Stands in for `page`'s lines-changed counter until `signal` aborts: a pill per section with the
+ * lines `landing` places there, or GitHub's total, as `choice` says. A click switches view and
+ * records it in `choice`. GitHub's counter stays in the page, hidden by the stylesheet while this
+ * sits just before it. A pull request's counter can mount long after intent lands, and GitHub can
+ * swap it for a skeleton again, so this follows it, stepping aside while there is none.
  */
 function showCounter(
-  native: Element,
+  page: FilesPage,
   landing: Landing,
   { choice, signal }: { choice: DiffstatChoice; signal: AbortSignal },
 ): void {
-  const doc = native.ownerDocument;
+  const doc = page.sidebar.ownerDocument;
   const sections = totalsOf(landing);
   const pills = sections.map((lines) => pill(doc, lines));
   const breakout = tip(doc, ...sections.map((lines) => tipRow(doc, lines)));
@@ -80,21 +81,31 @@ function showCounter(
     "gh-prism-diffstat tw:relative tw:flex tw:items-center tw:gap-1 tw:p-0 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-default tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-focus-outline",
   );
   button.type = "button";
-  const render = () => {
+  let native: Element | undefined;
+  const render = (counter: Element) => {
     button.dataset.view = choice.view;
     button.replaceChildren(
-      ...(choice.view === "breakout" ? pills : [native.cloneNode(true), breakout]),
+      ...(choice.view === "breakout" ? pills : [counter.cloneNode(true), breakout]),
     );
   };
   button.addEventListener("click", () => {
     choice.view = choice.view === "breakout" ? "total" : "breakout";
-    render();
+    if (native) render(native);
   });
-  render();
+
+  const follow = () => {
+    native = findDiffstat(page);
+    if (!native) button.remove();
+    else if (button.nextElementSibling !== native) {
+      native.before(button);
+      render(native);
+    }
+  };
 
   const style = Object.assign(doc.createElement("style"), { textContent: css });
-  native.before(button);
+  follow();
   doc.head.append(style);
+  observeDiffstat(page, follow, { signal });
   signal.addEventListener("abort", () => {
     button.remove();
     style.remove();
@@ -111,8 +122,7 @@ export function showDiffstat(
 ): LandingView {
   return {
     landed(result) {
-      const native = result.ok && findDiffstat(page);
-      if (native) showCounter(native, landingOf(result), { choice, signal });
+      if (result.ok) showCounter(page, landingOf(result), { choice, signal });
     },
   };
 }

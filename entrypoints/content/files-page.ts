@@ -15,8 +15,8 @@ export interface PageKind {
   readonly sidebar: string;
   /** Selects `FilesPage.diffs`. */
   readonly diffs: string;
-  /** The header's lines-changed counter. */
-  readonly diffstat: string;
+  /** The header's slot for its lines-changed counter, which holds a skeleton while it loads. */
+  readonly diffstatSlot: string;
   /** A toolbar tree-toggle button; its parent wraps the toggle's buttons. */
   readonly treeToggle: string;
   /** The toggle buttons that collapse the tree in place, not the narrow layout's overlay toggle. */
@@ -57,7 +57,7 @@ const PR_DIFF_LIST = '[data-testid="progressive-diffs-list"]';
 export const prPage = {
   sidebar: "#pr-file-tree",
   diffs: '[data-testid="diff-content"]',
-  diffstat: '[class*="rightContentWrapper__"] > .d-flex',
+  diffstatSlot: '[class*="rightContentWrapper__"]',
   treeToggle: '[class*="RegularTreeToggle"]',
   treeToggleButton: '[class*="RegularTreeToggle"]',
   diffList: PR_DIFF_LIST,
@@ -76,7 +76,7 @@ const COMMIT_DIFF_LIST = '#diff-content-parent > :has(> * > [role="region"])';
 export const commitPage = {
   sidebar: "#diff_file_tree",
   diffs: "#diff-content-parent",
-  diffstat: '[class*="commitFilesChangedContainer__"] > .d-flex',
+  diffstatSlot: '[class*="commitFilesChangedContainer__"]',
   // A commit's sidebar carries a copy of the toolbar for the narrow layout.
   treeToggle: '#diff-content-parent [aria-controls="diff_file_tree"]',
   // `.d-md-none` marks the narrow layout's overlay toggle.
@@ -164,9 +164,28 @@ export function appendToDiffs(page: FilesPage, node: Element): void {
   else page.diffs.append(node);
 }
 
-/** The lines-changed counter in the page's header, or `undefined` when it's missing. */
+const findDiffstatSlot = (page: FilesPage): Element | null =>
+  page.sidebar.ownerDocument.querySelector(page.kind.diffstatSlot);
+
+/** The lines-changed counter in the page's header, or `undefined` while it's missing. */
 export function findDiffstat(page: FilesPage): Element | undefined {
-  return page.sidebar.ownerDocument.querySelector(page.kind.diffstat) ?? undefined;
+  return findDiffstatSlot(page)?.querySelector(":scope > .d-flex") ?? undefined;
+}
+
+/**
+ * Calls `onChange` when the counter's slot gains or loses a child, as when GitHub's counter
+ * replaces its skeleton, until `signal` aborts.
+ */
+export function observeDiffstat(
+  page: FilesPage,
+  onChange: () => void,
+  { signal }: { signal: AbortSignal },
+): void {
+  const slot = findDiffstatSlot(page);
+  if (!slot) return;
+  const observer = new MutationObserver(onChange);
+  observer.observe(slot, { childList: true });
+  signal.addEventListener("abort", () => observer.disconnect());
 }
 
 /**

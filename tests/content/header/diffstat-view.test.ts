@@ -115,6 +115,38 @@ describe("the header's lines-changed counter", () => {
     expect(getComputedStyle(native()).display).toBe("none");
   });
 
+  // A pull request's server-rendered header holds a skeleton until GitHub's own diffstat request
+  // answers, which on a large pull request can be long after a cached intent lands.
+  const skeleton = () =>
+    Object.assign(document.createElement("div"), { className: "skeleton__c5fLaY" });
+
+  it("stands in once GitHub's counter replaces its skeleton after intent lands", async () => {
+    const github = native();
+    const loading = skeleton();
+    github.replaceWith(loading);
+    await landed(counted);
+
+    loading.replaceWith(github);
+    await afterDebounce();
+
+    expect(pills()).toHaveLength(4);
+    expect(counter()?.nextElementSibling).toBe(github);
+  });
+
+  it("steps aside while GitHub shows its skeleton again, and stands in when its counter returns", async () => {
+    await landed(counted);
+    const github = native();
+    const loading = skeleton();
+
+    github.replaceWith(loading);
+    await afterDebounce();
+    expect(counter()).toBeNull();
+
+    loading.replaceWith(github);
+    await afterDebounce();
+    expect(counter()?.nextElementSibling).toBe(github);
+  });
+
   it("switches to GitHub's total when clicked, and back to the sections when clicked again", async () => {
     await landed(counted);
 

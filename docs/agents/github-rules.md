@@ -138,6 +138,30 @@ facts about GitHub that held when written, and ends with how to re-check them;
   pull request, watch `body`'s `style` for `--base-sticky-header-height` while crossing
   1011px, and compare it with a file header's computed `top`.
 
+## The header counter
+
+- **Expect a pull request's lines-changed counter to mount after the tree and diffs.** The
+  server renders the header's `rightContentWrapper__` slot with a skeleton (`skeleton__`)
+  in it. The counter is a client-only child that waits on its own `page_data/diffstat`
+  request, so on a large pull request it lands long after a cached intent does.
+  `showCounter` in
+  [`header/diffstat-view.ts`](../../entrypoints/content/header/diffstat-view.ts) follows
+  the slot through `observeDiffstat` for this reason. A commit page server-renders its
+  counter.
+- **Expect the header to outlive the tab.** It belongs to the pull request's layout route,
+  which Conversation, Commits, Checks, and Files changed share, so a soft navigation from
+  Conversation finds the counter already mounted.
+- **Expect no counter when the diff changes no lines**, as with only renames or binary
+  files, or when the diffstat request fails.
+- **Expect the counter elsewhere under GitHub's `overview` feature.** With route data's
+  `featureStates.overview` `"ENABLED"`, the slot stays empty and the counter renders in
+  the subtitle row ("wants to merge…"), where `diffstatSlot` doesn't find it. This was
+  read from the bundle, not observed, on 2026-10-19.
+- **Re-check:** curl a public pull request's Conversation page signed out and read the
+  `rightContentWrapper__` slot's child, then curl a public commit page and find its
+  counter's "Lines changed" text. Grep the assets for `page_data/diffstat` and
+  `PullRequestHeaderDiffStat`, as [§ Re-checking GitHub](#re-checking-github) describes.
+
 ## Viewed state
 
 - **Read every file's initial Viewed state from route data.** The Files view's
