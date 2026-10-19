@@ -8,7 +8,13 @@
 
 import type { FileTreeRowDecoration } from "@pierre/trees";
 import type { LineCounts } from "@/utils/github/pr-diff";
-import { landingOf, revealLineOf, totalsOf } from "@/utils/intent/landing";
+import {
+  type CommentLines,
+  commentLinesOf,
+  landingOf,
+  revealLineOf,
+  totalsOf,
+} from "@/utils/intent/landing";
 import type { IntentResult, PathOnlyReason } from "@/utils/intent/read";
 import { SECTIONS, type SectionKey } from "@/utils/sections";
 import { revealDiff, revealDiffLine, revealUntil } from "../diffs/reveal";
@@ -204,6 +210,67 @@ function sectionShell(
   };
   return { root, counter, host, toggle, expand };
 }
+
+/**
+ * Docs & Comments' item for `commentLines`, those of Implementation's files: their sum, and a
+ * tooltip listing them per file while it is hovered or focused. It sits outside the tree, so the
+ * file rows' handlers never see it.
+ */
+function commentLinesItem(doc: Document, commentLines: CommentLines): HTMLElement {
+  const rows = commentLines.files.map(({ path, lines }) =>
+    el(
+      doc,
+      "li",
+      "gh-prism-comment-lines-row tw:flex tw:items-baseline tw:gap-2 tw:py-1.5 tw:px-2",
+      el(
+        doc,
+        "code",
+        "tw:min-w-0 tw:wrap-anywhere tw:text-body-small",
+        ...breakableAtSlashes(doc, path),
+      ),
+      lineTotals(doc, lines),
+    ),
+  );
+  // GitHub's menu overlay: its shadow draws the edge, so the popover's border is off.
+  const tip = el(
+    doc,
+    "ul",
+    "gh-prism-comment-lines-tip tw:inset-auto tw:mx-0 tw:my-1.5 tw:w-max tw:max-w-[480px] tw:p-2 tw:border-0 tw:rounded-large tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:var(--shadow-floating-small)] tw:text-fg-default tw:text-body-small tw:leading-body-small tw:list-none",
+    ...rows,
+  );
+  tip.id = "gh-prism-comment-lines-tip";
+  tip.popover = "manual";
+  tip.setAttribute("role", "tooltip");
+
+  const item = el(
+    doc,
+    "button",
+    "gh-prism-comment-lines tw:flex tw:items-center tw:gap-2 tw:w-full tw:h-7 tw:px-2 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-muted tw:[font:inherit] tw:text-start tw:text-body-small tw:cursor-default tw:hover:bg-[var(--control-transparent-bgColor-hover)] tw:focus-visible:outline-2 tw:focus-visible:-outline-offset-2 tw:focus-visible:outline-focus-outline",
+    el(doc, "span", "tw:truncate", "Implementation comments / docstrings"),
+    lineTotals(doc, commentLines.lines),
+  );
+  item.type = "button";
+  item.setAttribute("aria-describedby", tip.id);
+  // The tip is the button's sibling: inside it, the rows would join the button's accessible name.
+  const wrapper = el(doc, "div", "gh-prism-comment-lines-item tw:mx-1", item, tip);
+
+  // Forced toggles: showPopover throws on an open popover, as when focus follows a hover.
+  const show = () => tip.togglePopover(true);
+  const hide = () => tip.togglePopover(false);
+  item.addEventListener("focus", show);
+  item.addEventListener("blur", hide);
+  item.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") hide();
+  });
+  // Hover is the wrapper's, so the pointer can move onto the tip without closing it.
+  wrapper.addEventListener("pointerenter", show);
+  wrapper.addEventListener("pointerleave", hide);
+  return wrapper;
+}
+
+/** `path`'s text with a `<wbr>` after each `/`, where browsers find no line break of their own. */
+const breakableAtSlashes = (doc: Document, path: string): (Node | string)[] =>
+  path.split(/(?<=\/)/).flatMap((part, i) => (i === 0 ? [part] : [doc.createElement("wbr"), part]));
 
 /**
  * Writes the file count of `entries` into a section header's `counter`, or, once `viewed` holds
@@ -456,6 +523,8 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
       order,
       lines: totalOf(key),
     });
+    const commentLines = key === "docs" ? commentLinesOf(landing) : undefined;
+    if (commentLines) host.after(commentLinesItem(doc, commentLines));
     expand(!collapsed.has(key));
     toggle.addEventListener("click", () => {
       const expanded = collapsed.has(key);

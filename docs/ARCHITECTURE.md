@@ -101,9 +101,11 @@ it across the tab's pages, and saves it on each close.
 
 gh-prism lists each changed file in one of five sections, such as Implementation or Tests.
 A file's path picks its section, unless a hunk rule claims some of its changed blocks for
-Documentation or Tests by what they change. Intent is where the hunk rules place a diff's
-files. `intentFor` in [`utils/intent/read.ts`](../utils/intent/read.ts) finds it in three
-steps, cheapest first:
+Docs & Comments or Tests by what they change. Intent is where the hunk rules place a
+diff's files. It also counts, per file, the changed lines the comment scan confirms are
+comments or docstrings in hunks that stay in Implementation; a line only an unread head
+could confirm counts as code. `intentFor` in
+[`utils/intent/read.ts`](../utils/intent/read.ts) finds it in three steps, cheapest first:
 
 1. **Pin hit.** The diff pin, the base and head commits that the page's embedded data
    names, keys a cache entry. A hit returns without connecting to the service worker.
@@ -133,8 +135,10 @@ flowchart TD
 `index.ts` sizes it to 50 entries; a pinned diff takes two, one under its diff key and one
 under its pin. Each store moves its key to the front of an index and drops the entries
 past the limit, so the cache keeps the 50 most recently stored keys. A cache hit alone
-does not refresh its entry. The service worker clears the cache on install, update, and
-dev reload, because a new build may place files differently.
+does not refresh its entry. Entries live under the `intent.v2` key prefix; a new stored
+shape takes a new prefix, so an older entry never validates. The service worker clears the
+cache on install, update, and dev reload, because a new build may place files differently,
+and the clear also drops the retired `intent.v1` entries.
 
 ## Section rows
 
@@ -149,6 +153,13 @@ renders each section as its own `@pierre/trees` file tree in a shadow root. A tr
 height follows its visible rows, so the whole sidebar scrolls as one. The sections view
 calls each tree's `sync()` when the sidebar scrolls or resizes, and `sync()` renders only
 the rows near the viewport. A tree far out of view renders none.
+
+Docs & Comments ends with the comment-lines item when Implementation's files have comment
+lines. It sits after the tree, outside it, so the handlers that open, mark Viewed, count,
+and scroll to file rows never see it. Hovering or focusing it shows its per-file list as a
+`popover="manual"` tooltip in the top layer. CSS anchor positioning opens it on whichever
+side of the item has more room, and it scrolls when the list outgrows that, so neither the
+sidebar's overflow nor the viewport clips it.
 
 [`entrypoints/content/diffs/on-screen.ts`](../entrypoints/content/diffs/on-screen.ts)
 tracks which files' diffs are on screen. It observes the mounted diff regions with one

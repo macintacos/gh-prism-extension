@@ -225,7 +225,7 @@ describe("showSections", () => {
 
     expect(
       [...document.querySelectorAll(".gh-prism-section-label")].map((label) => label.textContent),
-    ).toEqual(["Implementation", "Tests", "Documentation", "Config", "Generated / lockfiles"]);
+    ).toEqual(["Implementation", "Tests", "Docs & Comments", "Config", "Generated / lockfiles"]);
   });
 
   it("sits just before the native tree", () => {
@@ -1643,6 +1643,152 @@ describe("showSections", () => {
 
       expect(countText(counter("docs"))).toBe("1/1");
     });
+  });
+
+  describe("the comment-lines item", () => {
+    const MARKUP = "src/<b>bold</b>.rs";
+    const withCommentLines = () =>
+      landedWith(
+        new Map(),
+        new Map([
+          ["src/engine.rs", { added: 9, removed: 3 }],
+          [MARKUP, { added: 4, removed: 0 }],
+        ]),
+        new Map([
+          ["src/engine.rs", { added: 3, removed: 1 }],
+          [MARKUP, { added: 2, removed: 0 }],
+        ]),
+      );
+
+    let togglePopover: MockInstance<HTMLElement["togglePopover"]>;
+
+    // happy-dom has no Popover API.
+    beforeEach(async () => {
+      togglePopover = vi.fn();
+      Object.assign(HTMLElement.prototype, { togglePopover });
+
+      await landed(withCommentLines());
+    });
+
+    afterEach(() => {
+      Reflect.deleteProperty(HTMLElement.prototype, "togglePopover");
+    });
+
+    const toggles = () =>
+      togglePopover.mock.calls.map(([force], index) => [togglePopover.mock.contexts[index], force]);
+
+    const item = () => {
+      const found = document.querySelector(
+        '.gh-prism-section[data-section="docs"] .gh-prism-comment-lines',
+      );
+      if (!(found instanceof HTMLElement))
+        throw new Error("Docs & Comments has no comment-lines item");
+      return found;
+    };
+    const tip = () => {
+      const found = document.getElementById(item().getAttribute("aria-describedby") ?? "");
+      if (!found) throw new Error("the comment-lines item describes nothing");
+      return found;
+    };
+    const words = (found: Element) => found.querySelector(".sr-only")?.textContent;
+
+    it("sums the comment lines in Docs & Comments", () => {
+      expect(words(item())).toBe("5 added, 1 removed");
+    });
+
+    it("lists each file's comment lines, its path as text", () => {
+      const rows = [...tip().querySelectorAll("li")];
+
+      expect(rows.map((row) => [row.querySelector("code")?.textContent, words(row)])).toEqual([
+        ["src/engine.rs", "3 added, 1 removed"],
+        [MARKUP, "2 added, 0 removed"],
+      ]);
+      expect(tip().querySelector("b")).toBeNull();
+      expect(tip().getAttribute("role")).toBe("tooltip");
+      expect(tip().getAttribute("popover")).toBe("manual");
+    });
+
+    it("lets each path break after its slashes", () => {
+      expect(tip().querySelector("li code")?.innerHTML).toBe("src/<wbr>engine.rs");
+    });
+
+    it("stands alone in a Docs & Comments with no files", async () => {
+      byId("docs/guide.md").remove();
+      byId("README.md").remove();
+      await landed(withCommentLines());
+
+      expect(sectionKeys()).toContain("docs");
+      expect(filesIn("docs")).toEqual([]);
+      expect(words(item())).toBe("5 added, 1 removed");
+    });
+
+    it("counts toward neither the file count nor the viewed count", () => {
+      const counter = () => sectionToggle("docs").querySelector(".gh-prism-counter");
+
+      expect(counter()?.textContent).toBe("2");
+
+      viewed("docs/guide.md");
+
+      expect(counter()?.querySelector('[aria-hidden="true"]')?.textContent).toBe("1/2");
+    });
+
+    // The pointer may cross from the button onto its list, so hover is the wrapper's.
+    const hovered = () => {
+      const found = item().parentElement;
+      if (!found?.classList.contains("gh-prism-comment-lines-item"))
+        throw new Error("the comment-lines button has no wrapper");
+      return found;
+    };
+
+    it.each([
+      ["focus", "blur", item],
+      ["pointerenter", "pointerleave", hovered],
+    ])("shows its list on %s and hides it on %s", (show, hide, target) => {
+      target().dispatchEvent(new Event(show));
+
+      expect(toggles()).toEqual([[tip(), true]]);
+
+      target().dispatchEvent(new Event(hide));
+
+      expect(toggles()).toEqual([
+        [tip(), true],
+        [tip(), false],
+      ]);
+    });
+
+    it("hides its list on Escape", () => {
+      item().dispatchEvent(new Event("focus"));
+      item().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+      expect(toggles().at(-1)).toEqual([tip(), false]);
+    });
+
+    it("is a focusable button that submits nothing", () => {
+      expect(item()).toBeInstanceOf(HTMLButtonElement);
+      expect(item().getAttribute("type")).toBe("button");
+    });
+
+    it("keeps its list out of the button's accessible name", () => {
+      expect(item().contains(tip())).toBe(false);
+      expect(hovered().contains(tip())).toBe(true);
+    });
+
+    it.each([{}, { altKey: true }])(
+      "marks and reveals nothing when clicked with %o",
+      async (init) => {
+        const links = vi.spyOn(HTMLAnchorElement.prototype, "click");
+        const buttons = vi.spyOn(HTMLButtonElement.prototype, "click");
+        viewed();
+
+        clickAt(item(), init);
+        await vi.runAllTimersAsync();
+
+        expect(links).not.toHaveBeenCalled();
+        expect(buttons).not.toHaveBeenCalled();
+        links.mockRestore();
+        buttons.mockRestore();
+      },
+    );
   });
 
   describe("while intent is pending", () => {

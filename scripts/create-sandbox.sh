@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Creates a private sandbox repository with three open PRs (small, large, and
-# complicated) for surveying GitHub's Files changed tab. All content is fake.
+# Creates a private sandbox repository with nine open PRs for surveying GitHub's
+# Files changed tab: small, large, and complicated, then one per comment syntax
+# (Python, C-like, Go, Lua) and two with long paths and file names, each with
+# gh-prism's expected counts in its body. All content is fake.
 # Resumable per PR: the repo, main, and each PR are skipped when they already exist.
 # A run that fails partway through a PR leaves that PR for you to fix by hand.
 #
@@ -358,6 +360,278 @@ EOF
 		-f path=src/engine.rs -F line="$line" -f side=RIGHT >/dev/null
 }
 
+seed_comment_bases() {
+	git cat-file -e origin/main:tally/tally.go 2>/dev/null && return
+	git checkout -q -B main origin/main
+	mkdir -p app tests tally lua
+
+	cat >app/ledger.py <<'EOF'
+# Ledger helpers for the fixture app.
+# Amounts are integers in cents.
+
+RATE = 3
+
+
+def fee(amount):
+    """Return the fee on an amount."""
+    return amount * RATE // 100
+
+
+def label(name):
+    return name.title()
+
+
+def pad(text):
+    return text.ljust(10)
+
+
+def strip(text):
+    return text.strip()
+
+
+def upper(text):
+    return text.upper()
+
+
+def total(amounts):
+    """Sum amounts.
+
+    Negative amounts are refunds.
+    """
+    result = 0
+    for amount in amounts:
+        result += amount
+    return result
+EOF
+
+	cat >tests/test_ledger.py <<'EOF'
+from app.ledger import fee, total
+
+
+def test_fee():
+    assert fee(1000) == 30
+
+
+def test_total():
+    assert total([1, 2]) == 3
+EOF
+
+	cat >tally/tally.go <<'EOF'
+package tally
+
+// Count returns how many items are non-empty.
+func Count(items []string) int {
+	n := 0
+	for _, item := range items {
+		if item != "" {
+			n++
+		}
+	}
+	return n
+}
+EOF
+
+	cat >lua/queue.lua <<'EOF'
+local M = {}
+
+function M.push(queue, item)
+  table.insert(queue, item)
+end
+
+function M.pop(queue)
+  return table.remove(queue, 1)
+end
+
+return M
+EOF
+
+	commit "Add Python, Go, and Lua sources"
+	git push -q origin main
+}
+
+# Each body's counts are worked out by hand from the diff; the sections sum to GitHub's total.
+python_comments_pr() {
+	pr_exists python-comments && return
+	git checkout -q -B python-comments origin/main
+	# The two ledger.py hunks sit 20+ lines apart: a comment-only one and a mixed one.
+	edit app/ledger.py 's/^# Amounts are integers in cents\./# Amounts are whole cents, never floats./m'
+	edit app/ledger.py 's/Negative amounts are refunds\./Negative amounts are refunds and lower the total./'
+	edit app/ledger.py 's/^        result \+= amount\n/        # Skip zero amounts.\n        if amount:\n            result += amount  # refunds subtract\n/m'
+	edit tests/test_ledger.py 's/^    assert total\(\[1, 2\]\) == 3/    # Refunds lower the total.\n    assert total([1, -2]) == -1/m'
+	commit "Skip zero amounts in the ledger total"
+	open_pr python-comments "Python comments and docstrings" "$(
+		cat <<'EOF'
+Expected gh-prism counts. GitHub's total: +7 −4.
+
+- Implementation +2 −1, Tests +2 −1, Docs & Comments +3 −2.
+- Implementation comments / docstrings: +2 −1, from `app/ledger.py` +2 −1.
+- Implementation rows: `app/ledger.py` +2 −1.
+- Docs & Comments also lists `app/ledger.py` +1 −1, its comment-only hunk.
+- Tests rows: `tests/test_ledger.py` +2 −1; a test file's comment lines stay in Tests.
+- The trailing `# refunds subtract` comment counts as code.
+EOF
+	)" >/dev/null
+}
+
+c_like_comments_pr() {
+	pr_exists c-like-comments && return
+	git checkout -q -B c-like-comments origin/main
+	edit src/engine.rs 's/^(?=    pub fn limit)/    \/* The limit counts kept lines,\n       not input lines. *\/\n/m'
+	edit src/engine.rs 's/^        self\.limit\n/        \/\/ Zero means keep one line.\n        self.limit.max(1)\n/m'
+	commit "Keep at least one line in the reported limit"
+	open_pr c-like-comments "C-like comments" "$(
+		cat <<'EOF'
+Expected gh-prism counts. GitHub's total: +4 −1.
+
+- Implementation +1 −1, Docs & Comments +3 −0, no Tests.
+- Implementation comments / docstrings: +3 −0, from `src/engine.rs` +3 −0.
+- Implementation rows: `src/engine.rs` +1 −1.
+EOF
+	)" >/dev/null
+}
+
+go_comments_pr() {
+	pr_exists go-comments && return
+	git checkout -q -B go-comments origin/main
+	cat >tally/tally.go <<'EOF'
+package tally
+
+import "strings"
+
+/*
+Count returns how many items are non-empty.
+Whitespace-only items count as empty.
+*/
+func Count(items []string) int {
+	n := 0
+	for _, item := range items {
+		// Trim before testing.
+		if strings.TrimSpace(item) != "" {
+			n++
+		}
+	}
+	return n
+}
+EOF
+	commit "Count whitespace-only items as empty"
+	open_pr go-comments "Go comments" "$(
+		cat <<'EOF'
+Expected gh-prism counts. GitHub's total: +8 −2.
+
+- Implementation +3 −1, Docs & Comments +5 −1, no Tests.
+- Implementation comments / docstrings: +5 −1, from `tally/tally.go` +5 −1.
+- Implementation rows: `tally/tally.go` +3 −1; an added blank line counts as code.
+EOF
+	)" >/dev/null
+}
+
+lua_comments_pr() {
+	pr_exists lua-comments && return
+	git checkout -q -B lua-comments origin/main
+	edit lua/queue.lua 's/^(?=function M\.push)/--[[\nQueues are plain tables.\n]]\n/m'
+	edit lua/queue.lua 's/^  table\.insert\(queue, item\)/  -- Append at the tail.\n  queue[#queue + 1] = item/m'
+	commit "Append to queues without table.insert"
+	open_pr lua-comments "Lua comments" "$(
+		cat <<'EOF'
+Expected gh-prism counts. GitHub's total: +5 −1.
+
+- Implementation +1 −1, Docs & Comments +4 −0, no Tests.
+- Implementation comments / docstrings: +4 −0, from `lua/queue.lua` +4 −0.
+- Implementation rows: `lua/queue.lua` +1 −1.
+EOF
+	)" >/dev/null
+}
+
+# New files only, so main needs no seeding; the paths are long enough to overflow the sidebar.
+long_paths_pr() {
+	pr_exists long-paths && return
+	git checkout -q -B long-paths origin/main
+	mkdir -p services/billing/internal/reconciliation/adapters \
+		packages/web-dashboard/src/features/organization-settings/components \
+		libraries/shared/text-normalization/src/unicode lib
+
+	cat >services/billing/internal/reconciliation/adapters/payment_provider_webhook_signature_verifier.go <<'EOF'
+package adapters
+
+// VerifySignature reports whether a webhook body matches its signature.
+// An empty signature never matches.
+func VerifySignature(body []byte, signature string) bool {
+	if signature == "" {
+		return false
+	}
+	return len(body) > 0
+}
+EOF
+
+	cat >packages/web-dashboard/src/features/organization-settings/components/MemberPermissionsMatrix.tsx <<'EOF'
+// One row per member, one column per permission.
+export function MemberPermissionsMatrix({ members }: { members: string[] }) {
+  /* Sorted so the table reads alphabetically. */
+  const sorted = [...members].sort();
+  return <table>{sorted.map((name) => <tr key={name}><td>{name}</td></tr>)}</table>;
+}
+EOF
+
+	cat >libraries/shared/text-normalization/src/unicode/normalize_whitespace_and_line_endings.py <<'EOF'
+"""Whitespace and line-ending normalization."""
+
+
+def normalize(text):
+    # Windows line endings become Unix ones.
+    text = text.replace("\r\n", "\n")
+    return " ".join(text.split())
+EOF
+
+	cat >lib/ids.lua <<'EOF'
+-- Ids are positive integers.
+local next_id = 0
+
+return function()
+  next_id = next_id + 1
+  return next_id
+end
+EOF
+
+	commit "Add deeply nested sources"
+	open_pr long-paths "Long paths" "$(
+		cat <<'EOF'
+Expected gh-prism counts. GitHub's total: +30 −0.
+
+- Implementation +23 −0, Docs & Comments +7 −0, no Tests.
+- Implementation comments / docstrings: +7 −0, from:
+  - `lib/ids.lua` +1 −0
+  - `libraries/shared/text-normalization/src/unicode/normalize_whitespace_and_line_endings.py` +2 −0
+  - `packages/web-dashboard/src/features/organization-settings/components/MemberPermissionsMatrix.tsx` +2 −0
+  - `services/billing/internal/reconciliation/adapters/payment_provider_webhook_signature_verifier.go` +2 −0
+- Every path shows whole in the comment-lines tooltip.
+EOF
+	)" >/dev/null
+}
+
+long_file_name_pr() {
+	pr_exists long-file-name && return
+	git checkout -q -B long-file-name origin/main
+	cat >src/AbstractSingletonProxyFactoryBeanConfigurationValidatorRegistry.ts <<'EOF'
+// Registers validators once, at startup.
+export const registry = new Map<string, () => boolean>();
+
+/** Adds a validator under its name. */
+export function register(name: string, check: () => boolean): void {
+  registry.set(name, check);
+}
+EOF
+	commit "Add the validator registry"
+	open_pr long-file-name "Long file name" "$(
+		cat <<'EOF'
+Expected gh-prism counts. GitHub's total: +7 −0.
+
+- Implementation +5 −0, Docs & Comments +2 −0, no Tests.
+- Implementation comments / docstrings: +2 −0, from `src/AbstractSingletonProxyFactoryBeanConfigurationValidatorRegistry.ts` +2 −0.
+- The file name has no separator to break at, and still shows whole in the comment-lines tooltip.
+EOF
+	)" >/dev/null
+}
+
 gh repo view "$repo" >/dev/null 2>&1 ||
 	gh repo create "$repo" --private --description "Fake fixture repo for gh-prism PR UI scenarios"
 
@@ -370,7 +644,14 @@ seed_main
 small_pr
 large_pr
 complicated_pr
+seed_comment_bases
+python_comments_pr
+c_like_comments_pr
+go_comments_pr
+lua_comments_pr
+long_paths_pr
+long_file_name_pr
 
-for branch in small-change large-change complicated-change; do
+for branch in small-change large-change complicated-change python-comments c-like-comments go-comments lua-comments long-paths long-file-name; do
 	gh pr view "$branch" -R "$repo" --json url --jq .url
 done

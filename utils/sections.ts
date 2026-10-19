@@ -28,7 +28,7 @@ const SCRIPT_FILES = glob("{*.sh,*.bash,*.py,*.js,*.ts,*.rs,*.go,*.lua}");
 
 /**
  * The section a changed file belongs in, from its repo-relative `/`-separated path.
- * Generated wins, then Tests, Documentation and Config in that order; anything unmatched is
+ * Generated wins, then Tests, Docs & Comments and Config in that order; anything unmatched is
  * Implementation.
  *
  * @param generated - Whether the file is known to be generated, e.g. from a

@@ -11,12 +11,12 @@ import {
 import type { PrDataClient } from "../github/pr-port";
 import type { DiffPin, DiffRef } from "../github/pr-ref";
 import type { PrDataProblem, PrFilesResult } from "../github/pr-source";
-import { type DocVerdict, docHunkVerdicts } from "../hunk-rules/doc-intent";
+import { commentLineCounts, type DocVerdict, docHunkVerdicts } from "../hunk-rules/doc-intent";
 import { type ScannedHead, scanHeadText } from "../hunk-rules/head-scan";
 import { inlineTestHunkVerdicts, inlineTestRuleApplies } from "../hunk-rules/inline-tests";
-import { SECTIONS, type SectionKey } from "../sections";
+import { classify, SECTIONS, type SectionKey } from "../sections";
 import type { IntentCache, LandedIntent } from "./cache";
-import { sectionOf } from "./landing";
+import { sectionOf, sum } from "./landing";
 
 /**
  * The most files `readIntent` places at once, and so the most heads it reads at once. Over
@@ -60,6 +60,11 @@ export type IntentResult =
       placements: ReadonlyMap<string, Placement>;
       /** Every file in the PR's diff, keyed by path. */
       lines: ReadonlyMap<string, FileLines>;
+      /**
+       * Keyed by path: the changed comment and docstring lines in the file's hunks that stay in
+       * Implementation. A file with none is absent.
+       */
+      commentLines: ReadonlyMap<string, LineCounts>;
     }
   | { ok: false; problem: PathOnlyReason };
 
@@ -73,25 +78,60 @@ async function readHead(
   return content.ok ? scanHeadText(file.path, content.text) : undefined;
 }
 
+const sumHunkLines = (hunks: readonly PrHunk[]): LineCounts => sum(hunks.map(hunkLineCounts));
+
+/** One file's hunk sections, and the comment lines in its hunks that stay in Implementation. */
+interface FileIntent {
+  /**
+   * Each hunk's rule section, or `undefined` to keep it in the path section; aligned with
+   * `parsePrHunks`.
+   */
+  readonly sections: (IntentSection | undefined)[];
+  readonly commentLines: LineCounts;
+}
+
 /**
- * Each hunk's rule section, or `undefined` to keep it in the path section; aligned with
- * `parsePrHunks`. The head is read only when the patch can't settle every hunk as docs and a rule
- * needs it. A file whose every hunk is docs moves whole to Documentation; otherwise a hunk in a test
- * block counts as Tests even when it only edits a doc comment.
+ * `file`'s hunk sections and Implementation comment lines. The head is read only when the patch
+ * can't settle every hunk as docs and a rule or a comment count needs it. A file whose every hunk
+ * is docs moves whole to Docs & Comments; otherwise a hunk in a test block counts as Tests even
+ * when it only edits a doc comment. A head read for any reason settles every unclaimed hunk's
+ * count, as it is the more accurate scan; a hunk whose comment lines only the unread head could
+ * confirm counts none.
  */
-async function hunkSections(
+async function fileIntent(
   client: Pick<PrDataClient, "fileContent">,
   file: PrFileDiff,
-): Promise<(IntentSection | undefined)[]> {
+): Promise<FileIntent> {
+  const noLines = { added: 0, removed: 0 };
   const patchVerdicts = docHunkVerdicts(file);
   // also [] for binary or renamed
-  if (patchVerdicts.every(isDocs)) return patchVerdicts.map(() => "docs");
+  if (patchVerdicts.every(isDocs))
+    return { sections: patchVerdicts.map(() => "docs"), commentLines: noLines };
 
-  const needsHead = inlineTestRuleApplies(file) || patchVerdicts.includes("needs-content");
+  const hunks = hunksOf(file);
+  const countsComments = classify(file.path) === "implementation";
+  const patchCounts = countsComments ? hunks.map((hunk) => commentLineCounts(file.path, hunk)) : [];
+  const needsHead =
+    inlineTestRuleApplies(file) ||
+    patchVerdicts.includes("needs-content") ||
+    patchCounts.includes("needs-content");
   const head = needsHead ? await readHead(client, file) : undefined;
-  if (head === undefined)
-    return patchVerdicts.map((verdict) => (isDocs(verdict) ? "docs" : undefined));
 
+  const sections = head === undefined ? patchSections(patchVerdicts) : headSections(file, head);
+  if (!countsComments) return { sections, commentLines: noLines };
+  const counts = hunks.map((hunk, i) => {
+    if (sections[i] !== undefined) return noLines;
+    if (head !== undefined) return commentLineCounts(file.path, hunk, head);
+    const count = patchCounts[i];
+    return count === undefined || count === "needs-content" ? noLines : count;
+  });
+  return { sections, commentLines: sum(counts) };
+}
+
+const patchSections = (verdicts: readonly DocVerdict[]) =>
+  verdicts.map((verdict) => (isDocs(verdict) ? ("docs" as const) : undefined));
+
+function headSections(file: PrFileDiff, head: ScannedHead): (IntentSection | undefined)[] {
   const headVerdicts = docHunkVerdicts(file, head);
   if (headVerdicts.every(isDocs)) return headVerdicts.map(() => "docs");
   const inTests = inlineTestHunkVerdicts(file, head);
@@ -99,15 +139,6 @@ async function hunkSections(
     inTests[i] ? "tests" : isDocs(verdict) ? "docs" : undefined,
   );
 }
-
-const sumHunkLines = (hunks: readonly PrHunk[]): LineCounts =>
-  hunks.reduce(
-    (sum, hunk) => {
-      const counts = hunkLineCounts(hunk);
-      return { added: sum.added + counts.added, removed: sum.removed + counts.removed };
-    },
-    { added: 0, removed: 0 },
-  );
 
 const shareOf = (section: SectionKey, hunks: readonly PrHunk[]): SectionShare => ({
   section,
@@ -180,21 +211,22 @@ export async function readIntent(
   onProgress?.({ checked: 0, total });
   let checked = 0;
   const placed = await mapAtMost(listed.files, HEAD_READS_AT_ONCE, async (file) => {
-    const placement = placementOf(file, await hunkSections(client, file));
+    const { sections, commentLines } = await fileIntent(client, file);
     checked += 1;
     onProgress?.({ checked, total });
-    return { path: file.path, placement };
+    return { path: file.path, placement: placementOf(file, sections), commentLines };
   });
 
   const placements = new Map<string, Placement>();
-  for (const { path, placement } of placed) {
-    if (placement === undefined) continue;
-    placements.set(path, placement);
+  const commentLines = new Map<string, LineCounts>();
+  for (const { path, placement, commentLines: counts } of placed) {
+    if (placement !== undefined) placements.set(path, placement);
+    if (counts.added + counts.removed > 0) commentLines.set(path, counts);
   }
 
   const lines = new Map<string, FileLines>();
   for (const file of listed.files) lines.set(file.path, linesOf(file));
-  return { ok: true, placements, lines };
+  return { ok: true, placements, lines, commentLines };
 }
 
 /** Where `intentFor` reads a diff, and where it keeps what it read. */

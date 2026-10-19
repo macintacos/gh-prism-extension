@@ -75,6 +75,23 @@ describe("the header's lines-changed counter", () => {
     ]);
   });
 
+  it("counts Implementation files' comment lines in the docs pill, not Implementation's", async () => {
+    await landed(
+      landedWith(
+        new Map(),
+        new Map<string, FileLines>([
+          ["src/parser.rs", { added: 10, removed: 3 }],
+          ["README.md", { added: 1, removed: 0 }],
+        ]),
+        new Map([["src/parser.rs", { added: 4, removed: 1 }]]),
+      ),
+    );
+    expect(pillCounts()).toEqual([
+      ["implementation", ["+6", "−2"]],
+      ["docs", ["+5", "−1"]],
+    ]);
+  });
+
   it("styles its pills with its own stylesheet, without the sidebar, until aborted", () => {
     abort();
     const page = findFilesPage(document);
@@ -130,7 +147,7 @@ describe("the header's lines-changed counter", () => {
     expect(tips.map(([title]) => title?.textContent)).toEqual([
       "Implementation",
       "Tests",
-      "Documentation",
+      "Docs & Comments",
       "Generated / lockfiles",
     ]);
     for (const [, about] of tips) expect(about?.textContent).not.toBe("");
@@ -144,7 +161,7 @@ describe("the header's lines-changed counter", () => {
     expect(rows.map((row) => textsOf(row.querySelectorAll("span")))).toEqual([
       ["Implementation", "+15", "−4"],
       ["Tests", "+20", "−0"],
-      ["Documentation", "+6", "−4"],
+      ["Docs & Comments", "+6", "−4"],
       ["Generated / lockfiles", "+1,210", "−350"],
     ]);
   });
@@ -172,7 +189,7 @@ describe("the header's lines-changed counter", () => {
     expect(pills().map((pill) => pill.querySelector(".sr-only")?.textContent)).toEqual([
       "Implementation: 15 added, 4 removed.",
       "Tests: 20 added, 0 removed.",
-      "Documentation: 6 added, 4 removed.",
+      "Docs & Comments: 6 added, 4 removed.",
       "Generated / lockfiles: 1,210 added, 350 removed.",
     ]);
 

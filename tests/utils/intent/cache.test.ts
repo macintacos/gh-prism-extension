@@ -45,9 +45,20 @@ const landed: Extract<IntentResult, { ok: true }> = {
     ["src/render.rs", { added: 3, removed: 3 }],
     ["logo.png", "binary"],
   ]),
+  commentLines: new Map([["src/render.rs", { added: 1, removed: 0 }]]),
 };
 
 describe("storedIntents", () => {
+  it("misses a stored entry without comment lines", async () => {
+    const storage = jsonStorage();
+    const cache = storedIntents(storage, 10);
+    await cache.set("a", landed);
+    for (const [key, value] of storage.values)
+      storage.values.set(key, value.replace('"commentLines"', '"other"'));
+
+    expect(await cache.get("a")).toBeUndefined();
+  });
+
   it("gives back a stored result, with its maps and hunks that have no head lines", async () => {
     const cache = storedIntents(jsonStorage(), 10);
     await cache.set("a", landed);
@@ -102,6 +113,16 @@ describe("forgetIntents", () => {
     await forgetIntents(storage);
 
     expect(await cache.get("a")).toBeUndefined();
+    expect(storage.values.size).toBe(0);
+  });
+
+  it("leaves nothing of the retired intent.v1 entries either", async () => {
+    const storage = jsonStorage();
+    await storage.setItem("local:intent.v1", ["k"]);
+    await storage.setItem("local:intent.v1:k", {});
+
+    await forgetIntents(storage);
+
     expect(storage.values.size).toBe(0);
   });
 });

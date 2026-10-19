@@ -14,7 +14,12 @@ import {
   syntheticFiles,
 } from "./synthetic";
 
-const NOTHING_PLACED: IntentResult = { ok: true, placements: new Map(), lines: new Map() };
+const NOTHING_PLACED: IntentResult = {
+  ok: true,
+  placements: new Map(),
+  lines: new Map(),
+  commentLines: new Map(),
+};
 
 const round = (ms: number) => Math.round(ms * 10) / 10;
 

@@ -317,6 +317,122 @@ const goSplitPatch = lines(
   "+// Run keeps the first non-blank lines.",
 );
 
+const mixedGoPatch = lines(
+  "@@ -1,2 +1,2 @@",
+  "-// Run keeps lines.",
+  "-func Run() int { return 1 }",
+  "+// Run keeps the first lines.",
+  "+func Run() int { return 2 }",
+);
+const mixedGoHead = lines("// Run keeps the first lines.", "func Run() int { return 2 }");
+
+const mixedAndDocsGoPatch = lines(
+  mixedGoPatch,
+  "@@ -10 +10 @@",
+  "-// Parse keeps the first lines.",
+  "+// Parse keeps the first non-blank lines.",
+);
+const mixedAndDocsGoHead = lines(
+  "// Run keeps the first lines.",
+  "func Run() int { return 2 }",
+  "",
+  "func a() {}",
+  "",
+  "func b() {}",
+  "",
+  "func c() {}",
+  "",
+  "// Parse keeps the first non-blank lines.",
+  "func Parse() {}",
+);
+
+// The hunk opens at line 3, inside the block comment line 1 opens.
+const openerAbovePatch = lines(
+  "@@ -3,3 +3,3 @@",
+  "-Run keeps lines.",
+  "+Run keeps the first lines.",
+  " */",
+  "-func Run() int { return 1 }",
+  "+func Run() int { return 2 }",
+);
+const openerAboveHead = lines(
+  "/*",
+  "Design notes.",
+  "Run keeps the first lines.",
+  "*/",
+  "func Run() int { return 2 }",
+);
+
+// The first hunk is prose with no delimiter in view, which the patch alone reads as code.
+const proseAndOpenerAbovePatch = lines(
+  "@@ -2 +2 @@",
+  "-Design notes.",
+  "+Design notes kept.",
+  "@@ -6,3 +6,3 @@",
+  "-Run keeps lines.",
+  "+Run keeps the first lines.",
+  " */",
+  "-func Run() int { return 1 }",
+  "+func Run() int { return 2 }",
+);
+const proseAndOpenerAboveHead = lines(
+  "/*",
+  "Design notes kept.",
+  "*/",
+  "func a() {}",
+  "/*",
+  "Run keeps the first lines.",
+  "*/",
+  "func Run() int { return 2 }",
+);
+
+const mixedTestBlockPatch = lines(
+  "@@ -7,2 +7,2 @@",
+  "-    // checks the pinned value",
+  '-    fn reports_version() { assert_eq!(version(), "0.1.0"); }',
+  "+    // checks the version",
+  '+    fn reports_version() { assert_eq!(version(), "0.2.0"); }',
+);
+const mixedTestBlockHead = lines(
+  "pub fn version() -> &'static str {",
+  '    "0.2.0"',
+  "}",
+  "",
+  "#[cfg(test)]",
+  "mod tests {",
+  "    // checks the version",
+  '    fn reports_version() { assert_eq!(version(), "0.2.0"); }',
+  "}",
+);
+
+const mixedAndTestsPatch = lines(
+  "@@ -1,3 +1,3 @@",
+  "-/// Runs.",
+  "+/// Runs it.",
+  " pub fn run() -> u8 {",
+  "-    1",
+  "+    2",
+  "@@ -8,3 +8,3 @@",
+  "-    // checks run",
+  "+    // checks that it runs",
+  "     #[test]",
+  "-    fn runs() { assert_eq!(run(), 1); }",
+  "+    fn runs() { assert_eq!(run(), 2); }",
+);
+const mixedAndTestsHead = lines(
+  "/// Runs it.",
+  "pub fn run() -> u8 {",
+  "    2",
+  "}",
+  "",
+  "#[cfg(test)]",
+  "mod tests {",
+  "    // checks that it runs",
+  "    #[test]",
+  "    fn runs() { assert_eq!(run(), 2); }",
+  "}",
+);
+
 const headSha = "c".repeat(40);
 
 function fakeClient(files: PrFilesResult, content: PrFileContentResult) {
@@ -407,6 +523,7 @@ describe("readIntent", () => {
       ok: true,
       placements: new Map([["src/parser.rs", whole("docs")]]),
       lines: new Map([["src/parser.rs", { added: 1, removed: 1 }]]),
+      commentLines: new Map(),
     });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
@@ -421,6 +538,7 @@ describe("readIntent", () => {
       ok: true,
       placements: new Map(),
       lines: new Map([["src/render.go", { added: 1, removed: 1 }]]),
+      commentLines: new Map(),
     });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
@@ -435,6 +553,7 @@ describe("readIntent", () => {
       ok: true,
       placements: new Map(),
       lines: new Map([["src/render.rs", { added: 1, removed: 1 }]]),
+      commentLines: new Map(),
     });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
     expect(client.fileContent).toHaveBeenCalledWith("src/render.rs");
@@ -450,6 +569,7 @@ describe("readIntent", () => {
       ok: true,
       placements: new Map([["src/notes.rs", whole("docs")]]),
       lines: new Map([["src/notes.rs", { added: 2, removed: 2 }]]),
+      commentLines: new Map(),
     });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
     expect(client.fileContent).toHaveBeenCalledWith("src/notes.rs");
@@ -480,6 +600,7 @@ describe("readIntent", () => {
         ],
       ]),
       lines: new Map([["src/notes.rs", { added: 2, removed: 2 }]]),
+      commentLines: new Map(),
     });
   });
 
@@ -493,6 +614,7 @@ describe("readIntent", () => {
       ok: true,
       placements: new Map([["src/lib.rs", whole("tests")]]),
       lines: new Map([["src/lib.rs", { added: 1, removed: 1 }]]),
+      commentLines: new Map(),
     });
   });
 
@@ -506,6 +628,7 @@ describe("readIntent", () => {
       ok: true,
       placements: new Map([["src/engine.rs", whole("tests")]]),
       lines: new Map([["src/engine.rs", { added: 1, removed: 1 }]]),
+      commentLines: new Map(),
     });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
   });
@@ -520,6 +643,7 @@ describe("readIntent", () => {
       ok: true,
       placements: new Map([["src/lib.rs", whole("docs")]]),
       lines: new Map([["src/lib.rs", { added: 1, removed: 1 }]]),
+      commentLines: new Map(),
     });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
@@ -534,6 +658,7 @@ describe("readIntent", () => {
       ok: true,
       placements: new Map(),
       lines: new Map([["src/lib.rs", { added: 1, removed: 1 }]]),
+      commentLines: new Map(),
     });
   });
 
@@ -564,6 +689,7 @@ describe("readIntent", () => {
         ["tests/foo.rs", { added: 1, removed: 1 }],
         ["src/lib.rs", { added: 1, removed: 1 }],
       ]),
+      commentLines: new Map(),
     });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
@@ -581,6 +707,7 @@ describe("readIntent", () => {
       ok: true,
       placements: new Map(),
       lines: new Map([["web/public/logo.png", "binary"]]),
+      commentLines: new Map(),
     });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
@@ -614,6 +741,7 @@ describe("readIntent", () => {
         ],
       ]),
       lines: new Map([["src/render.rs", { added: 2, removed: 2 }]]),
+      commentLines: new Map(),
     });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
   });
@@ -643,6 +771,7 @@ describe("readIntent", () => {
         ],
       ]),
       lines: new Map([["src/engine.rs", { added: 2, removed: 2 }]]),
+      commentLines: new Map(),
     });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
   });
@@ -657,6 +786,7 @@ describe("readIntent", () => {
       ok: true,
       placements: new Map([["src/lib.rs", whole("tests")]]),
       lines: new Map([["src/lib.rs", { added: 2, removed: 2 }]]),
+      commentLines: new Map(),
     });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
   });
@@ -686,10 +816,11 @@ describe("readIntent", () => {
         ],
       ]),
       lines: new Map([["src/engine.rs", { added: 2, removed: 2 }]]),
+      commentLines: new Map(),
     });
   });
 
-  it("keeps a Rust file whose every hunk is docs whole in Documentation, though one sits inside `mod tests`", async () => {
+  it("keeps a Rust file whose every hunk is docs whole in Docs & Comments, though one sits inside `mod tests`", async () => {
     const client = fakeClient(
       { ok: true, files: [modified("src/report.rs", allDocsPatch)] },
       { ok: true, text: allDocsHead },
@@ -699,6 +830,7 @@ describe("readIntent", () => {
       ok: true,
       placements: new Map([["src/report.rs", whole("docs")]]),
       lines: new Map([["src/report.rs", { added: 2, removed: 2 }]]),
+      commentLines: new Map(),
     });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
   });
@@ -732,6 +864,7 @@ describe("readIntent", () => {
         ],
       ]),
       lines: new Map([["engine/engine.go", { added: 2, removed: 2 }]]),
+      commentLines: new Map(),
     });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
@@ -782,6 +915,7 @@ describe("readIntent", () => {
         ],
       ]),
       lines: new Map([["engine/engine.go", { added: 2, removed: 3 }]]),
+      commentLines: new Map(),
     });
   });
 
@@ -814,11 +948,12 @@ describe("readIntent", () => {
         ],
       ]),
       lines: new Map([["engine/engine.go", { added: 2, removed: 2 }]]),
+      commentLines: new Map(),
     });
     expect(client.fileContent).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps a test-directory file's unclaimed code hunk in Tests, beside its docs hunk in Documentation", async () => {
+  it("keeps a test-directory file's unclaimed code hunk in Tests, beside its docs hunk in Docs & Comments", async () => {
     const client = fakeClient(
       { ok: true, files: [modified("tests/engine.go", goSplitPatch)] },
       unreadable,
@@ -843,6 +978,7 @@ describe("readIntent", () => {
         ],
       ]),
       lines: new Map([["tests/engine.go", { added: 2, removed: 2 }]]),
+      commentLines: new Map(),
     });
     expect(client.fileContent).not.toHaveBeenCalled();
   });
@@ -868,8 +1004,158 @@ describe("readIntent", () => {
       ok: true,
       placements: new Map(),
       lines: new Map([["src/render.rs", { added: 2, removed: 2 }]]),
+      commentLines: new Map(),
     });
     expect(client.fileContent).not.toHaveBeenCalled();
+  });
+
+  it("counts an Implementation file's mixed hunk's comment lines, keeping its whole lines and path section", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("engine/run.go", mixedGoPatch)] },
+      { ok: true, text: mixedGoHead },
+    );
+
+    expect(await readIntent(client)).toEqual({
+      ok: true,
+      placements: new Map(),
+      lines: new Map([["engine/run.go", { added: 2, removed: 2 }]]),
+      commentLines: new Map([["engine/run.go", { added: 1, removed: 1 }]]),
+    });
+    expect(client.fileContent).not.toHaveBeenCalled();
+  });
+
+  it("splits out a comment-only hunk whole, and counts comment lines from the mixed hunk only", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("engine/run.go", mixedAndDocsGoPatch)] },
+      { ok: true, text: mixedAndDocsGoHead },
+    );
+
+    const result = await readIntent(client);
+
+    expect(result.ok && result.placements.get("engine/run.go")).toEqual({
+      kind: "split",
+      shares: [
+        {
+          section: "implementation",
+          hunks: [{ first: 1, last: 2 }],
+          lines: { added: 2, removed: 2 },
+        },
+        { section: "docs", hunks: [{ first: 10, last: 10 }], lines: { added: 1, removed: 1 } },
+      ],
+    });
+    expect(result.ok && result.commentLines).toEqual(
+      new Map([["engine/run.go", { added: 1, removed: 1 }]]),
+    );
+  });
+
+  it.each(["tests/run.go", "vite.config.ts"])(
+    "counts no comment lines in %s, whose hunks stay out of Implementation",
+    async (path) => {
+      const client = fakeClient(
+        { ok: true, files: [modified(path, mixedGoPatch)] },
+        { ok: true, text: mixedGoHead },
+      );
+
+      const result = await readIntent(client);
+
+      expect(result.ok && result.commentLines).toEqual(new Map());
+    },
+  );
+
+  it("counts no comment lines in a hunk inside an inline test block", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("src/version.rs", mixedTestBlockPatch)] },
+      { ok: true, text: mixedTestBlockHead },
+    );
+
+    const result = await readIntent(client);
+
+    expect(result.ok && result.placements.get("src/version.rs")).toEqual(whole("tests"));
+    expect(result.ok && result.commentLines).toEqual(new Map());
+  });
+
+  it("reads the head to count a mixed hunk that opens inside a block comment", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("engine/run.go", openerAbovePatch)] },
+      { ok: true, text: openerAboveHead },
+    );
+
+    const result = await readIntent(client);
+
+    expect(result.ok && result.commentLines).toEqual(
+      new Map([["engine/run.go", { added: 1, removed: 1 }]]),
+    );
+    expect(client.fileContent).toHaveBeenCalledTimes(1);
+  });
+
+  it("counts every hunk against the head once another hunk needs it read", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("engine/run.go", proseAndOpenerAbovePatch)] },
+      { ok: true, text: proseAndOpenerAboveHead },
+    );
+
+    const result = await readIntent(client);
+
+    expect(result.ok && result.commentLines).toEqual(
+      new Map([["engine/run.go", { added: 2, removed: 2 }]]),
+    );
+  });
+
+  it("counts no comment lines in a hunk only the head could settle, when the head can't be read", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("engine/run.go", openerAbovePatch)] },
+      unreadable,
+    );
+
+    const result = await readIntent(client);
+
+    expect(result.ok && result.commentLines).toEqual(new Map());
+  });
+
+  it("counts no comment lines in a renamed file", async () => {
+    const client = fakeClient(
+      {
+        ok: true,
+        files: [
+          {
+            kind: "text",
+            path: "engine/run.go",
+            previousPath: "engine/old_run.go",
+            status: "renamed",
+            patch: mixedGoPatch,
+          },
+        ],
+      },
+      { ok: true, text: mixedGoHead },
+    );
+
+    const result = await readIntent(client);
+
+    expect(result.ok && result.commentLines).toEqual(new Map());
+  });
+
+  it("counts comment lines only from a split file's implementation share", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("src/run.rs", mixedAndTestsPatch)] },
+      { ok: true, text: mixedAndTestsHead },
+    );
+
+    const result = await readIntent(client);
+
+    expect(result.ok && result.placements.get("src/run.rs")).toEqual({
+      kind: "split",
+      shares: [
+        {
+          section: "implementation",
+          hunks: [{ first: 1, last: 3 }],
+          lines: { added: 2, removed: 2 },
+        },
+        { section: "tests", hunks: [{ first: 8, last: 10 }], lines: { added: 2, removed: 2 } },
+      ],
+    });
+    expect(result.ok && result.commentLines).toEqual(
+      new Map([["src/run.rs", { added: 1, removed: 1 }]]),
+    );
   });
 
   it("reads at most HEAD_READS_AT_ONCE heads at once, and reports progress once per file", async () => {

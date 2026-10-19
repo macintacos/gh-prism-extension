@@ -41,13 +41,13 @@ commits.
 
 ### Sections
 
-**Section**: One of five groups a changed file is listed in: Implementation, Tests,
-Documentation, Config, and Generated / lockfiles. _Avoid_: category, group, bucket
+**Section**: One of five groups a changed file is listed in: Implementation, Tests, Docs &
+Comments, Config, and Generated / lockfiles. _Avoid_: category, group, bucket
 
 **Path section**: The section a file's path alone puts it in. _Avoid_: default section
 
-**Rule section**: A section a hunk rule can claim whatever the path says: Documentation or
-Tests.
+**Rule section**: A section a hunk rule can claim whatever the path says: Docs & Comments
+or Tests.
 
 ### Placing files
 
@@ -61,10 +61,16 @@ the file lives. There are two: the docstring rule and the inline-test rule. _Avo
 classifier, detector
 
 **Docstring-only change**: A hunk that changes only comments or docstrings. The docstring
-rule claims it for Documentation.
+rule claims it for Docs & Comments.
 
 **Inline-test change**: A hunk whose changes all sit inside a source file's test blocks.
 The inline-test rule claims it for Tests.
+
+**Comment lines**: The changed lines in a hunk left in Implementation that the comment
+scan confirms are comments or docstrings. They count toward Docs & Comments.
+
+**Comment-lines item**: Docs & Comments' one entry that isn't a file. It sums the comment
+lines and lists them per file. _Avoid_: phantom item, phantom row
 
 **Intent**: Where the hunk rules place a diff's files, once read. A file it doesn't
 mention keeps its path section. _Avoid_: classification
@@ -138,4 +144,4 @@ removes.
 - "Source" names both the background's fetcher of diffs and file contents, and where
   intent is read from and cached. Keep it for the fetcher.
 - "Pin" also names a diff head's one commit. Say diff pin only for the base and head pair.
-- The Documentation section's key is `docs`. They are the same section.
+- The Docs & Comments section's key is `docs`. They are the same section.
