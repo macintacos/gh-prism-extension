@@ -160,14 +160,28 @@ describe("totalsOf", () => {
 describe("comment lines", () => {
   const commented = landingOf({
     ok: true,
-    placements: new Map<string, Placement>([["src/render.rs", split]]),
+    placements: new Map<string, Placement>([
+      ["src/render.rs", split],
+      [
+        "src/lexer.rs",
+        {
+          kind: "split",
+          shares: [
+            { section: "implementation", hunks: [], lines: { added: 3, removed: 1 } },
+            { section: "tests", hunks: [], lines: { added: 1, removed: 1 } },
+          ],
+        },
+      ],
+    ]),
     lines: new Map<string, FileLines>([
       ["src/parser.rs", { added: 10, removed: 3 }],
       ["src/render.rs", { added: 7, removed: 1 }],
       ["config/app.toml", "binary"],
       ["tests/integration.rs", { added: 20, removed: 0 }],
+      ["src/lexer.rs", { added: 4, removed: 2 }],
     ]),
     commentLines: new Map([
+      ["src/lexer.rs", { added: 1, removed: 1 }],
       ["src/render.rs", { added: 2, removed: 1 }],
       ["src/parser.rs", { added: 3, removed: 0 }],
     ]),
@@ -189,10 +203,10 @@ describe("comment lines", () => {
     const totals = totalsOf(commented);
 
     expect(totals.find(({ section }) => section === "docs")?.lines).toEqual({
-      added: 7,
-      removed: 1,
+      added: 8,
+      removed: 2,
     });
-    expect(sum(totals.map(({ lines }) => lines))).toEqual({ added: 37, removed: 4 });
+    expect(sum(totals.map(({ lines }) => lines))).toEqual({ added: 41, removed: 6 });
   });
 
   it("move nothing out of a file that doesn't land in Implementation", () => {
@@ -237,10 +251,11 @@ describe("comment lines", () => {
 
   it("list them per file in diff order with their sum", () => {
     expect(commentLinesOf(commented)).toEqual({
-      lines: { added: 5, removed: 1 },
+      lines: { added: 6, removed: 2 },
       files: [
         { path: "src/parser.rs", lines: { added: 3, removed: 0 } },
         { path: "src/render.rs", lines: { added: 2, removed: 1 } },
+        { path: "src/lexer.rs", lines: { added: 1, removed: 1 } },
       ],
     });
   });

@@ -101,7 +101,9 @@ it across the tab's pages, and saves it on each close.
 
 gh-prism lists each changed file in one of five sections, such as Implementation or Tests.
 A file's path picks its section, unless a hunk rule claims some of its changed blocks for
-Docs & Comments or Tests by what they change. Intent is where the hunk rules place a
+Docs & Comments or Tests by what they change. The docstring rule moves an Implementation
+file whole when every hunk is docstring-only, and moves its docstring-only hunks alone
+only when no hunk stays in Implementation as code. Intent is where the hunk rules place a
 diff's files. It also counts, per file, the changed lines the comment scan confirms are
 comments or docstrings in hunks that stay in Implementation; a line only an unread head
 could confirm counts as code. `intentFor` in
