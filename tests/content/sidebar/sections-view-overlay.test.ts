@@ -1,13 +1,7 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { showSections } from "../../../entrypoints/content/sidebar/sections-view";
-import {
-  byId,
-  closeOverlay,
-  loadFixture,
-  loadViewedFixture,
-  openOverlay,
-} from "../../fixtures/files-page";
+import { byId, closeOverlay, loadViewedFixture, openOverlay } from "../../fixtures/files-page";
 import { landedWith } from "../../fixtures/intent";
 import {
   COMMENT_LINES,
@@ -70,6 +64,14 @@ describe("showSections in the narrow layout's overlay", () => {
 
     expect(document.querySelectorAll(".gh-prism-sections")).toHaveLength(1);
     expect(view()?.nextElementSibling).toBe(treeOf(overlay));
+  });
+
+  it("doesn't replay the landing reveal in the overlay", async () => {
+    expect(view()?.hasAttribute("data-reveal")).toBe(true);
+
+    await open();
+
+    expect(view()?.hasAttribute("data-reveal")).toBe(false);
   });
 
   it("moves back before the docked tree once the overlay closes", async () => {
@@ -147,10 +149,6 @@ describe("showSections in the narrow layout's overlay", () => {
 
 describe("a Viewed box ticked in the overlay for a file whose diff isn't mounted", () => {
   const LIB = "src/lib.rs";
-
-  afterEach(() => {
-    loadFixture();
-  });
 
   it("marks the file once the reveal closes the overlay", async () => {
     loadViewedFixture();

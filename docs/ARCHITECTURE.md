@@ -31,11 +31,13 @@ classic page, where it opens a dialog instead.
 script module that holds selectors into GitHub's Files view markup. Each kind of Files
 view is a `PageKind`: a pull request's Files changed tab (`prPage`) and a commit's page
 (`commitPage`). A `PageKind` lists where that page keeps its sidebar, native tree, diff
-list, and diffstat, and how a row's link reveals its diff.
+list, and diffstat, and how a row's link reveals its diff. A pull request's kind also
+names the narrow layout's overlay copy of the sidebar.
 
 `findFilesPage` tries each entry of `PAGE_KINDS` in turn and returns the first whose
-sidebar, native tree, and diffs are all present. Callers then ask `files-page.ts`'s
-helpers rather than branching on the kind, so a new page kind is a new `PAGE_KINDS` entry.
+sidebar, native tree, and diffs are all present, passing over the overlay's copy. Callers
+then ask `files-page.ts`'s helpers rather than branching on the kind, so a new page kind
+is a new `PAGE_KINDS` entry.
 
 [`utils/github/files-route.ts`](../utils/github/files-route.ts) reads the URL side: which
 diff a pathname names, and whether a pull request's view is commit-filtered. It reads the

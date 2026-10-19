@@ -935,6 +935,7 @@ const OVERLAY_HTML = readFixture("pr-overlay.html");
 const NARROW = { width: 900, height: 720 };
 
 /** Mounts the overlay fixture as GitHub does on open: a fresh copy of the docked tree, before the page. */
+// Keep in sync with tests/fixtures/files-page.ts, whose ?raw imports e2e can't load.
 const openOverlay = (page: Page) =>
   page.evaluate((html) => {
     const template = document.createElement("template");
@@ -947,7 +948,6 @@ const openOverlay = (page: Page) =>
     if (!portal || !docked || !slot) throw new Error("fixture has no overlay or tree");
     const tree = docked.cloneNode(true);
     if (!(tree instanceof Element)) throw new Error("docked tree is not an element");
-    for (const nav of tree.querySelectorAll(".gh-prism-sections")) nav.remove();
     slot.replaceWith(tree);
     document.body.prepend(portal);
   }, OVERLAY_HTML);
@@ -978,11 +978,28 @@ test("the narrow overlay opens from the chosen side", async ({ context, page }) 
   await serve(context, PR_URL, PR_BODY);
   await page.goto(PR_URL);
   await openOverlay(page);
-  expect(await backdropJustify(page)).toBe("flex-end");
+  await expect.poll(() => backdropJustify(page)).toBe("flex-end");
   await closeOverlay(page);
   await page.getByRole("button", { name: "Move file tree to the left" }).click();
   await openOverlay(page);
-  expect(await backdropJustify(page)).not.toBe("flex-end");
+  await expect.poll(() => backdropJustify(page)).not.toBe("flex-end");
+});
+
+test("the overlay slides in from the right only beside the page, not as a fullscreen sheet", async ({
+  context,
+  page,
+}) => {
+  const dialogAnimation = () =>
+    page
+      .locator('[class*="prc-Dialog-Dialog-"]:has(#pr-file-tree)')
+      .evaluate((el) => getComputedStyle(el).animationName);
+  await page.setViewportSize(NARROW);
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+  await openOverlay(page);
+  await expect.poll(dialogAnimation).toBe("gh-prism-overlay-in");
+  await page.setViewportSize({ width: 700, height: 720 });
+  await expect.poll(dialogAnimation).not.toBe("gh-prism-overlay-in");
 });
 
 test("the narrow layout shows the side switch beside its tree toggle", async ({
@@ -1008,10 +1025,11 @@ test("the narrow side switch opens its tooltip toward the page's middle", async 
   await page.setViewportSize(NARROW);
   await serve(context, PR_URL, PR_BODY);
   await page.goto(PR_URL);
-  const left = await page
-    .locator(".gh-prism-side-switch")
-    .evaluate((el) => getComputedStyle(el, "::after").left);
-  expect(left).toBe("0px");
+  await expect
+    .poll(() =>
+      page.locator(".gh-prism-side-switch").evaluate((el) => getComputedStyle(el, "::after").left),
+    )
+    .toBe("0px");
 });
 
 test("clicking a file in the narrow overlay scrolls its diff into view", async ({

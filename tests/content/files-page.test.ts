@@ -159,6 +159,14 @@ describe("followOverlay", () => {
     expect(onOpen.mock.calls[0]?.[0].sidebar).toBe(sidebar);
   });
 
+  it("stops reporting once its signal aborts", async () => {
+    follow();
+    controller.abort();
+    openOverlay();
+    await flush();
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
   it("reports again, closing the last, when the overlay's tree is replaced", async () => {
     const sidebar = openOverlay();
     follow();

@@ -51,7 +51,6 @@ export function openOverlay(): HTMLElement {
   if (!portal || !sidebar || !docked || !slot) throw new Error("fixture has no overlay or tree");
   const tree = docked.cloneNode(true);
   if (!(tree instanceof Element)) throw new Error("docked tree is not an element");
-  for (const nav of tree.querySelectorAll(".gh-prism-sections")) nav.remove();
   slot.replaceWith(tree);
   document.body.prepend(portal);
   return sidebar;

@@ -3,8 +3,8 @@
  * stays mounted but hidden as the source of truth, or the narrow layout's overlay copy of it while
  * that is open: each render re-reads it, and file clicks go to its row's link, whose handler mounts
  * a virtualized diff that a bare hash jump would not. A file whose hunks span sections is listed,
- * marked Partial, in each; clicking it there reveals the first of that section's hunks. Docs & Comments ends with a sub-section listing Implementation's
- * files again by their comment lines.
+ * marked Partial, in each; clicking it there reveals the first of that section's hunks. Docs &
+ * Comments ends with a sub-section listing Implementation's files again by their comment lines.
  */
 
 import type { FileTreeRowDecoration } from "@pierre/trees";
@@ -459,9 +459,9 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     }
   };
 
-  let host: NativeTree = page;
+  let source: NativeTree = page;
   const nativeLinkOf = (path: string) =>
-    readChangedFiles(host.sidebar).find((file) => file.path === path)?.link;
+    readChangedFiles(source.sidebar).find((file) => file.path === path)?.link;
 
   const open = ({ listing, path }: ListedFile) => {
     const native = nativeLinkOf(path);
@@ -713,13 +713,14 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
       );
     },
     sections: render,
-    shownIn(tree) {
-      host = tree;
-      tree.tree.before(view);
+    shownIn(native) {
+      source = native;
+      view.removeAttribute("data-reveal");
+      native.tree.before(view);
       // A fresh scroll container doesn't carry the old one's position.
       scrolledTo = undefined;
       // A move need not resize the view, so its ResizeObserver may not fire.
-      for (const { tree: listed } of shown.values()) listed.sync();
+      for (const { tree } of shown.values()) tree.sync();
     },
     onScreen(paths) {
       onScreen = paths;

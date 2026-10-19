@@ -1,7 +1,8 @@
 /**
  * Lands intent on each page of a Files view visit. Hands each step (pending, progress, landed, then
- * the sections) to every view in one order, and owns the only observer of the native tree,
- * re-listing the sections after each change to it. It reads intent once per page; the caller shares
+ * the sections) to every view in one order, and owns the only observers of the native tree and of
+ * the narrow layout's overlay copy, re-listing the sections from whichever is shown after each
+ * change to it. It reads intent once per page; the caller shares
  * that read across a visit's pages (`shareIntent`).
  */
 
@@ -51,9 +52,10 @@ export interface LandingView {
 }
 
 /**
- * Lands `intent` on `views`, then re-lists their sections after each change to `page`'s native
- * tree outside `ignore`, until `signal` aborts. Reads `intent` once. A read that rejects is logged
- * and lands path-only, as `failed`.
+ * Lands `intent` on `views`, then re-lists their sections after each change outside `ignore` to the
+ * shown native tree, `page`'s or its overlay copy while open, until `signal` aborts. Each switch
+ * between the two tells `views` through `shownIn` first. Reads `intent` once. A read that rejects
+ * is logged and lands path-only, as `failed`.
  */
 export function land(
   page: FilesPage,
@@ -105,6 +107,7 @@ export function land(
       showIn(overlay);
       observeTree(overlay.sidebar, relist, { signal: closed, ignore });
       closed.addEventListener("abort", () => {
+        // Teardown aborts closed too, after the sidebar has removed its nav.
         if (!signal.aborted) showIn(page);
       });
     },

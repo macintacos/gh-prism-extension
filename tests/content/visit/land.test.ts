@@ -165,14 +165,16 @@ describe("land", () => {
       closeOverlay();
       await vi.advanceTimersByTimeAsync(100);
 
-      const at = (entry: string, from = 0) => log.indexOf(entry, from);
-      const opened = at("b.shownIn:overlay");
-      const closed = at("b.shownIn:page");
-      expect(at("a.shownIn:overlay")).toBe(0);
-      expect(opened).toBeGreaterThan(-1);
-      expect(at("a.sections", opened)).toBeGreaterThan(opened);
-      expect(closed).toBeGreaterThan(at("a.sections", opened));
-      expect(at("a.sections", closed)).toBeGreaterThan(closed);
+      expect(log).toEqual([
+        "a.shownIn:overlay",
+        "b.shownIn:overlay",
+        "a.sections",
+        "b.sections",
+        "a.shownIn:page",
+        "b.shownIn:page",
+        "a.sections",
+        "b.sections",
+      ]);
     });
   });
 });

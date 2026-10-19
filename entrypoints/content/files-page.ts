@@ -1,8 +1,8 @@
 /**
  * The one script module that holds selectors into GitHub's Files view markup; the stylesheets list
  * theirs in a `GitHub hooks:` header. It holds a `PageKind` for a pull request's page and a
- * commit's, finds a Files view's page or a pull request's classic page, and reads its rows; it
- * holds no UI and imports nothing from WXT. The pull request selectors come from EXC-1662's survey.
+ * commit's, finds a Files view's page or a pull request's classic page, reads its rows, and
+ * follows a pull request's narrow-layout overlay; it holds no UI and imports nothing from WXT. The pull request selectors come from EXC-1662's survey.
  */
 
 /**
@@ -150,7 +150,9 @@ export function findOverlay(page: FilesPage): NativeTree | undefined {
 
 /**
  * Calls `onOpen` with each overlay copy of `page`'s tree as it mounts (and one already open),
- * with a signal that aborts once it unmounts or is replaced, until `signal` aborts.
+ * with a signal that aborts once it unmounts or is replaced, until `signal` aborts. Undebounced:
+ * it reports in the mutation's microtask, so the sections replace GitHub's tree before the
+ * overlay first paints.
  */
 export function followOverlay(
   page: FilesPage,
@@ -169,8 +171,8 @@ export function followOverlay(
     if (overlay && close) onOpen(overlay, close.signal);
   };
 
-  // ponytail: whole-document check per mutation; observe only the portal root if it shows up in
-  // a profile.
+  // ponytail: one querySelector per mutation batch on the whole document; observe only the portal
+  // root if it shows up in a profile.
   const observer = new MutationObserver(check);
   observer.observe(page.sidebar.ownerDocument.body, { childList: true, subtree: true });
   signal.addEventListener("abort", () => {

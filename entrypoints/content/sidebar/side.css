@@ -1,10 +1,10 @@
 /* GitHub hooks: [class*="PageLayout-PaneWrapper"], [class*="PageLayout-ContentWrapper"],
    [class*="PageLayout-Content-"], [class*="PageLayout-PageLayoutContent"], [class*="WideExpanded"],
    [class*="toolbar__"], [class*="RegularTreeToggle"], [class*="MobileTreeToggle"],
-   [class*="prc-Dialog-Backdrop"], [class*="prc-Dialog-Dialog"],
-   [class*="TreeToggle"], [data-component="Stack"], [aria-controls="diff_file_tree"], #pr-file-tree,
-   #diff_file_tree, #diff-content-parent, the filter row's pr-lg-3, a pull request's
-   diffComparisonViewer container (this sheet names a commit's), and PageLayout's
+   [class*="prc-Dialog-Backdrop"], [class*="prc-Dialog-Dialog-"], Dialog's 768px fullscreen
+   breakpoint, [class*="TreeToggle"], [data-component="Stack"], [aria-controls="diff_file_tree"],
+   #pr-file-tree, #diff_file_tree, #diff-content-parent, the filter row's pr-lg-3, a pull
+   request's diffComparisonViewer container (this sheet names a commit's), and PageLayout's
    --region-order-pane-end custom property. */
 @import "../ui/tailwind.css" prefix(tw);
 @source "./side.ts";
@@ -20,30 +20,33 @@ section[class*="toolbar__"]:has([class*="MobileTreeToggle"]) .gh-prism-side-swit
   display: inline-grid;
 }
 
-/* Primer opens the overlay from the left, sliding in on its own build-named keyframes. */
+/* Primer opens the overlay from the left; open it flush right. */
 [data-gh-prism-side="right"] {
   & [class*="prc-Dialog-Backdrop"]:has(#pr-file-tree) {
     justify-content: flex-end;
   }
 
-  & [class*="prc-Dialog-Dialog"]:has(#pr-file-tree) {
+  & [class*="prc-Dialog-Dialog-"]:has(#pr-file-tree) {
     border-radius: var(--borderRadius-large) 0 0 var(--borderRadius-large);
   }
 
+  /* Point the toggle's icon where the overlay opens. */
   & [class*="MobileTreeToggle"] svg {
     scale: -1 1;
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  [data-gh-prism-side="right"] [class*="prc-Dialog-Dialog"]:has(#pr-file-tree) {
+/* Primer's slide-in keyframes carry a build hash, so sliding in from the right needs gh-prism's own.
+   Narrower, Primer's fullscreen sheet keeps its own animation. */
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+  [data-gh-prism-side="right"] [class*="prc-Dialog-Dialog-"]:has(#pr-file-tree) {
     animation-name: gh-prism-overlay-in;
   }
 }
 
 @keyframes gh-prism-overlay-in {
   from {
-    transform: translateX(100%);
+    translate: 100%;
   }
 }
 
