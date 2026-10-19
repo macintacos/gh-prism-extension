@@ -40,17 +40,23 @@ jobs:
         env:
           BUMP: ${{ inputs.bump }}
       - run: bunx wxt zip
-      # Push before submit: an atomic push fails cleanly if trunk moved, before the store sees anything.
-      - name: Commit, tag, and push
+      # Commit before submit: expectedHeadOid fails the commit cleanly if trunk moved, before the store sees anything.
+      # Trunk requires signed commits, and GitHub signs a commit made through its API, not one pushed with git.
+      - name: Commit and tag
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.bump.outputs.version }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898579+github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore: bump version to $VERSION" package.json
-          git tag "v$VERSION"
-          git push --atomic "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:refs/heads/trunk "refs/tags/v$VERSION"
+          sha="$(jq -n --rawfile pkg package.json '{
+            query: "mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }",
+            variables: {input: {
+              branch: {repositoryNameWithOwner: env.GITHUB_REPOSITORY, branchName: "trunk"},
+              expectedHeadOid: env.GITHUB_SHA,
+              message: {headline: "chore: bump version to \(env.VERSION)"},
+              fileChanges: {additions: [{path: "package.json", contents: ($pkg | @base64)}]}
+            }}
+          }' | gh api graphql --input - -q .data.createCommitOnBranch.commit.oid)"
+          gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/v$VERSION" -f sha="$sha"
       - name: Submit to the Chrome Web Store
         run: bunx wxt submit --chrome-zip ".output/gh-prism-$VERSION-chrome.zip"
         env:

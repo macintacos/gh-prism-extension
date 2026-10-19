@@ -82,10 +82,10 @@ release option. On "Cancel", stop.
 mise run release <bump> --notes-file <path>
 ```
 
-The workflow on trunk runs preflight, bumps and commits the version, pushes the commit and
-the `v<version>` tag, submits to the Chrome Web Store, then creates the GitHub Release
-with your notes. Take the run's ID from the `.../actions/runs/<id>` URL the command
-prints. Only when it prints none, fall back to
+The workflow on trunk runs preflight, bumps the version, commits it to trunk and tags it
+`v<version>`, submits to the Chrome Web Store, then creates the GitHub Release with your
+notes. Take the run's ID from the `.../actions/runs/<id>` URL the command prints. Only
+when it prints none, fall back to
 `gh run list --workflow release.yml --limit 1 --json databaseId,url`, which can return an
 older run.
 
@@ -96,8 +96,11 @@ Run `gh run watch <id> --exit-status` as a background command and wait for it to
 On failure, show the failed step's log tail from `gh run view <id> --log-failed`, then say
 which side effects happened:
 
-- **Before "Commit, tag, and push":** nothing changed. The operator can release again.
-- **At or after the push:** the tag and bump commit exist, but the store upload or the
+- **Before "Commit and tag":** nothing changed. The operator can release again.
+- **At "Commit and tag":** the bump commit may be on trunk without its `v<version>` tag.
+  Check with `git ls-remote --tags origin v<version>`. If the tag is missing, the operator
+  tags the bump commit by hand before releasing again.
+- **After "Commit and tag":** the tag and bump commit exist, but the store upload or the
   Release may not. A new release skips to the next version number.
 
 Never re-run the workflow yourself.
