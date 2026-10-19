@@ -1009,10 +1009,10 @@ test("the narrow layout shows the side switch beside its tree toggle", async ({
   await page.setViewportSize(NARROW);
   await serve(context, PR_URL, PR_BODY);
   await page.goto(PR_URL);
-  const toggle = page.locator(".gh-prism-side-switch");
-  await expect(toggle).toBeVisible();
+  const sideSwitch = page.locator(".gh-prism-side-switch");
+  await expect(sideSwitch).toBeVisible();
   expect(
-    await toggle.evaluate(
+    await sideSwitch.evaluate(
       (el) => el.previousElementSibling?.querySelector('[class*="MobileTreeToggle"]') != null,
     ),
   ).toBe(true);

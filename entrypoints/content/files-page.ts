@@ -162,25 +162,25 @@ export function followOverlay(
 ): void {
   if (!page.kind.overlay) return;
   let shown: NativeTree | undefined;
-  let close: AbortController | undefined;
-  const check = () => {
+  let closed: AbortController | undefined;
+  const reportIfChanged = () => {
     const overlay = findOverlay(page);
     if (overlay?.sidebar === shown?.sidebar && overlay?.tree === shown?.tree) return;
-    close?.abort();
+    closed?.abort();
     shown = overlay;
-    close = overlay && new AbortController();
-    if (overlay && close) onOpen(overlay, close.signal);
+    closed = overlay && new AbortController();
+    if (overlay && closed) onOpen(overlay, closed.signal);
   };
 
   // ponytail: one querySelector per mutation batch on the whole document; observe only the portal
   // root if it shows up in a profile.
-  const observer = new MutationObserver(check);
+  const observer = new MutationObserver(reportIfChanged);
   observer.observe(page.sidebar.ownerDocument.body, { childList: true, subtree: true });
   signal.addEventListener("abort", () => {
     observer.disconnect();
-    close?.abort();
+    closed?.abort();
   });
-  check();
+  reportIfChanged();
 }
 
 /** A pull request's classic Files changed page, which gh-prism leaves alone. */
