@@ -81,11 +81,14 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   so a click that comes too soon is intercepted and retried, with the same forced scroll.
   "ticking a box doesn't scroll the sidebar" polls the box's computed `pointer-events`
   first.
-- **Reproduce CI's e2e timing on Linux with 2 CPUs.** macOS runs too fast to show a
+- **Keep each end-to-end test independent of the others.** `playwright.config.ts` sets
+  `fullyParallel`, so the tests in one file run across workers in no fixed order. The
+  `context` fixture gives each test its own browser profile.
+- **Reproduce CI's e2e timing on Linux with 4 CPUs.** macOS runs too fast to show a
   slowdown CI fails on. With the extension built on the host, run the suite in
   `mcr.microsoft.com/playwright:v<version>-noble` with the repository mounted, through
-  `container run -c 2 -m 4G` or `docker run --cpus 2`, and
-  `node node_modules/@playwright/test/cli.js test --workers=1`.
+  `container run -c 4 -m 8G` or `docker run --cpus 4`, and
+  `node node_modules/@playwright/test/cli.js test`. Like CI, it runs 2 workers.
 
 ## Verifying in a real browser
 
