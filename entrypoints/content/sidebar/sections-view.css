@@ -29,7 +29,9 @@
 }
 
 .gh-prism-section-toggle:not(:hover, :focus-visible) .gh-prism-chevron,
-.gh-prism-section-toggle:is(:hover, :focus-visible) .gh-prism-section-icon {
+.gh-prism-section-toggle:is(:hover, :focus-visible) .gh-prism-section-icon,
+.gh-prism-comment-lines-toggle:not(:hover, :focus-visible) .gh-prism-chevron,
+.gh-prism-comment-lines-toggle:is(:hover, :focus-visible) .gh-prism-section-icon {
   opacity: 0;
 }
 
@@ -44,7 +46,8 @@
     opacity 150ms ease-out;
 }
 
-.gh-prism-section-toggle[aria-expanded="false"] .gh-prism-chevron {
+.gh-prism-section-toggle[aria-expanded="false"] .gh-prism-chevron,
+.gh-prism-comment-lines-toggle[aria-expanded="false"] .gh-prism-chevron {
   rotate: -90deg;
 }
 
@@ -93,42 +96,6 @@
   --gh-prism-box-edge: color-mix(in srgb, var(--gh-prism-hue) 35%, var(--fgColor-muted));
   --gh-prism-box-hover-wash: color-mix(in srgb, var(--gh-prism-hue) 12%, transparent);
   --gh-prism-box-hover-fill: color-mix(in srgb, var(--gh-prism-hue) 80%, var(--fgColor-default));
-}
-
-/* The tooltip sits in the top layer, clear of the sidebar's overflow, so it is placed against its
-   item by anchor. */
-.gh-prism-comment-lines {
-  anchor-name: --gh-prism-comment-lines;
-}
-
-.gh-prism-comment-lines-tip {
-  position-anchor: --gh-prism-comment-lines;
-  position-area: block-end span-inline-end;
-  /* Opens on whichever side of the item has more room, capped to it less its block margins, so a
-     list too long for the viewport scrolls instead of running off it. */
-  position-try: most-block-size flip-block, flip-inline, flip-block flip-inline;
-  max-block-size: calc(100% - var(--base-size-12));
-  opacity: 0;
-  transition:
-    opacity 120ms ease-out,
-    overlay 120ms allow-discrete,
-    display 120ms allow-discrete;
-}
-
-/* Display stays CSS: the UA hides a closed popover with display: none, which a utility would beat. */
-.gh-prism-comment-lines-tip:popover-open {
-  display: grid;
-  opacity: 1;
-}
-
-@starting-style {
-  .gh-prism-comment-lines-tip:popover-open {
-    opacity: 0;
-  }
-}
-
-.gh-prism-comment-lines-row > .gh-prism-line-totals .gh-prism-pill-count {
-  font-weight: var(--base-text-weight-semibold);
 }
 
 .gh-prism-skeleton > span {
@@ -182,8 +149,7 @@
   .gh-prism-sections[data-reveal] .gh-prism-section,
   .gh-prism-section-icon,
   .gh-prism-chevron,
-  .gh-prism-files,
-  .gh-prism-comment-lines-tip {
+  .gh-prism-files {
     transition: none;
     animation: none;
   }

@@ -57,20 +57,24 @@ or Tests.
 than the patch.
 
 **Hunk rule**: A rule that claims hunks for a rule section by what they change, not where
-the file lives. There are two: the docstring rule and the inline-test rule. _Avoid_:
-classifier, detector
+the file lives, except that the docstring rule moves an Implementation file only whole.
+There are two: the docstring rule and the inline-test rule. _Avoid_: classifier, detector
 
 **Docstring-only change**: A hunk that changes only comments or docstrings. The docstring
-rule claims it for Docs & Comments.
+rule claims it for Docs & Comments. In an Implementation file it claims the file whole,
+when every hunk is docstring-only. Otherwise the hunk stays in Implementation while some
+other hunk stays there as code, and goes to Docs & Comments when none does.
 
 **Inline-test change**: A hunk whose changes all sit inside a source file's test blocks.
 The inline-test rule claims it for Tests.
 
 **Comment lines**: The changed lines in a hunk left in Implementation that the comment
-scan confirms are comments or docstrings. They count toward Docs & Comments.
+scan confirms are comments or docstrings. They count toward Docs & Comments, in the
+comment-lines sub-section.
 
-**Comment-lines item**: Docs & Comments' one entry that isn't a file. It sums the comment
-lines and lists them per file. _Avoid_: phantom item, phantom row
+**Comment-lines sub-section**: The sub-section at the end of Docs & Comments that lists
+each Implementation file with comment lines, counted by them. Its files don't count toward
+Docs & Comments' own file count. _Avoid_: comment-lines item, phantom item, phantom row
 
 **Intent**: Where the hunk rules place a diff's files, once read. A file it doesn't
 mention keeps its path section. _Avoid_: classification
@@ -83,8 +87,9 @@ sections hunk by hunk.
 **Share**: One section's part of a split file: the hunks placed there and the lines they
 add and remove. _Avoid_: slice, part
 
-**Partial**: The sidebar's word for an entry backed by a share. _Avoid_: share, in
-anything a reviewer reads
+**Partial**: The sidebar's word for an entry holding only part of its file's lines: a
+share, an Implementation entry whose comment lines moved, or a comment-lines sub-section
+entry. _Avoid_: share, in anything a reviewer reads
 
 **Landing**: Every file's resolved place in the sections, whole or as shares, with each
 section's line totals, built from intent or from paths alone.
@@ -121,7 +126,7 @@ visual order changes. _Avoid_: sort
 **Reorderable**: A diff list whose order gh-prism can change. GitHub's virtualized lists
 aren't.
 
-**Reveal**: Bringing a clicked file's diff, or a Partial entry's first hunk, into view.
+**Reveal**: Bringing a clicked file's diff, or a share's first hunk, into view.
 
 **Glide**: The smooth scroll that ends a reveal. _Avoid_: slide
 
