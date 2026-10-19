@@ -3,7 +3,8 @@
  * stays mounted but hidden as the source of truth: each render re-reads it, and file clicks go to
  * its row's link, whose handler mounts a virtualized diff that a bare hash jump would not. A file
  * whose hunks span sections is listed, marked Partial, in each; clicking it there reveals the
- * first of that section's hunks.
+ * first of that section's hunks. Docs & Comments ends with a sub-section listing Implementation's
+ * files again by their comment lines.
  */
 
 import type { FileTreeRowDecoration } from "@pierre/trees";
@@ -31,23 +32,35 @@ import css from "./sections-view.css?inline";
 
 type FileEntry = FileSection["entries"][number];
 
+/** Docs & Comments' sub-section listing Implementation's files by their comment lines. */
+const COMMENT_LINES = "comment-lines";
+
+/** What lists files under a header of its own: a section, or the comment-lines sub-section. */
+type ListingKey = SectionKey | typeof COMMENT_LINES;
+
+interface Listing {
+  readonly key: ListingKey;
+  readonly entries: readonly FileEntry[];
+}
+
 /** The sidebar's sections view, as `showSections` mounts it. */
 interface SectionsView extends LandingView {
   /** The view's `<nav>`. */
   readonly root: Element;
-  /** Marks the files whose diffs are on screen: their rows, or a collapsed section's header. */
+  /** Marks the files whose diffs are on screen: their rows, or a collapsed listing's header. */
   onScreen(paths: ReadonlySet<string>): void;
   /**
    * Called whenever the viewed set changes, from the moment the page offers Viewed: dims the rows
    * of the files GitHub shows as Viewed, gives every file row a checkbox, and, once any file is
-   * viewed, counts each section's viewed files in its header.
+   * viewed, counts each listing's viewed files in its header.
    */
   viewed(paths: ReadonlySet<string>): void;
 }
 
-interface ShownSection {
+interface ShownListing {
   readonly root: HTMLElement;
   readonly counter: HTMLElement;
+  readonly host: HTMLElement;
   readonly tree: SectionTree;
 }
 
@@ -92,10 +105,11 @@ const MARKER = "var(--gh-prism-marker-fg)";
 const COMMENTS = "var(--gh-prism-comment-fg)";
 
 /**
- * A row's comment count, Partial or Binary marker, and lines added and removed, as known. Its
- * title, which the row's accessible name ends with, says each in words.
+ * A row's comment count, Partial or Binary marker, and lines added and removed, as known. Partial
+ * marks a row whose lines are only some of its file's. Its title, which the row's accessible name
+ * ends with, says each in words.
  */
-function decorationOf({ file, share, lines }: FileEntry): FileTreeRowDecoration | undefined {
+function decorationOf({ file, share, lines, moved }: FileEntry): FileTreeRowDecoration | undefined {
   const parts: { text: string; color: string }[] = [];
   const phrases: string[] = [];
 
@@ -105,7 +119,8 @@ function decorationOf({ file, share, lines }: FileEntry): FileTreeRowDecoration 
     phrases.push(`${comments} comment${comments === "1" ? "" : "s"}`);
   }
 
-  if (share) {
+  const partial = share !== undefined || moved !== undefined;
+  if (partial) {
     parts.push({ text: "Partial", color: MARKER });
     phrases.push("Partial: other sections hold the rest");
   }
@@ -119,14 +134,14 @@ function decorationOf({ file, share, lines }: FileEntry): FileTreeRowDecoration 
       { text: `+${added}`, color: added > 0 ? ADDED : UNCHANGED },
       { text: `−${removed}`, color: removed > 0 ? REMOVED : UNCHANGED },
     );
-    phrases.push(`${added} added, ${removed} removed${share ? " in this section" : ""}`);
+    phrases.push(`${added} added, ${removed} removed${partial ? " in this section" : ""}`);
   }
 
   if (parts.length === 0) return undefined;
   return { text: parts.map(({ text }) => text).join(" "), title: phrases.join(". "), parts };
 }
 
-const treeFilesOf = ({ entries }: FileSection): TreeFile[] =>
+const treeFilesOf = ({ entries }: Listing): TreeFile[] =>
   entries.map((entry) => ({
     path: entry.file.path,
     status: entry.file.status,
@@ -145,6 +160,14 @@ const chevron = (doc: Document): SVGSVGElement =>
     "stroke-linejoin": "round",
   });
 
+/** A header's file count, as a pill. */
+const counterPill = (doc: Document) =>
+  el(
+    doc,
+    "span",
+    "gh-prism-counter tw:shrink-0 tw:min-w-5 tw:py-0 tw:px-1.5 tw:rounded-[2em] tw:bg-[var(--counter-bgColor-muted)] tw:text-fg-default tw:text-body-small tw:font-medium tw:leading-body-small tw:text-center",
+  );
+
 /**
  * A section, `order` places from the top, whose header button shows and hides an empty host for
  * its tree. `expand` sets which it does. The button leads with the section's icon, which the
@@ -156,11 +179,7 @@ function sectionShell(
   key: SectionKey,
   { order, lines }: { order: number; lines: LineCounts | undefined },
 ) {
-  const counter = el(
-    doc,
-    "span",
-    "gh-prism-counter tw:shrink-0 tw:min-w-5 tw:py-0 tw:px-1.5 tw:rounded-[2em] tw:bg-[var(--counter-bgColor-muted)] tw:text-fg-default tw:text-body-small tw:font-medium tw:leading-body-small tw:text-center",
-  );
+  const counter = counterPill(doc);
   const glyph = el(
     doc,
     "span",
@@ -211,69 +230,78 @@ function sectionShell(
   return { root, counter, host, toggle, expand };
 }
 
-/**
- * Docs & Comments' item for `commentLines`, those of Implementation's files: their sum, and a
- * tooltip listing them per file while it is hovered or focused. It sits outside the tree, so the
- * file rows' handlers never see it.
- */
-function commentLinesItem(doc: Document, commentLines: CommentLines): HTMLElement {
-  const rows = commentLines.files.map(({ path, lines }) =>
-    el(
-      doc,
-      "li",
-      "gh-prism-comment-lines-row tw:flex tw:items-baseline tw:gap-2 tw:py-1.5 tw:px-2",
-      el(
-        doc,
-        "code",
-        "tw:min-w-0 tw:wrap-anywhere tw:text-body-small",
-        ...breakableAtSlashes(doc, path),
-      ),
-      lineTotals(doc, lines),
-    ),
-  );
-  // GitHub's menu overlay: its shadow draws the edge, so the popover's border is off.
-  const tip = el(
-    doc,
-    "ul",
-    "gh-prism-comment-lines-tip tw:inset-auto tw:mx-0 tw:my-1.5 tw:w-max tw:max-w-[480px] tw:p-2 tw:border-0 tw:rounded-large tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:var(--shadow-floating-small)] tw:text-fg-default tw:text-body-small tw:leading-body-small tw:list-none",
-    ...rows,
-  );
-  tip.id = "gh-prism-comment-lines-tip";
-  tip.popover = "manual";
-  tip.setAttribute("role", "tooltip");
+/** Octicons 19.15.0 comment (MIT, GitHub Inc.). */
+const COMMENT_ICON =
+  "M1 2.75C1 1.784 1.784 1 2.75 1h10.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 13.25 12H9.06l-2.573 2.573A1.458 1.458 0 0 1 4 13.543V12H2.75A1.75 1.75 0 0 1 1 10.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h4.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z";
 
-  const item = el(
+/**
+ * The comment-lines sub-section, nested under Docs & Comments' tree: a smaller header whose button
+ * shows and hides an empty host for its tree, led by a comment icon that swaps for the chevron as
+ * a section's does, and ending with the comment `lines` it lists, if known. `expand` sets which it
+ * does.
+ */
+function commentLinesShell(doc: Document, lines: LineCounts | undefined) {
+  const counter = counterPill(doc);
+  const glyph = el(
+    doc,
+    "span",
+    "gh-prism-glyph tw:grid tw:shrink-0 tw:text-[color:var(--gh-prism-hue)]",
+    icon(doc, COMMENT_ICON, { class: "gh-prism-section-icon" }),
+    chevron(doc),
+  );
+  const toggle = el(
     doc,
     "button",
-    "gh-prism-comment-lines tw:flex tw:items-center tw:gap-2 tw:w-full tw:h-7 tw:px-2 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-muted tw:[font:inherit] tw:text-start tw:text-body-small tw:cursor-default tw:hover:bg-[var(--control-transparent-bgColor-hover)] tw:focus-visible:outline-2 tw:focus-visible:-outline-offset-2 tw:focus-visible:outline-focus-outline",
-    el(doc, "span", "tw:truncate", "Implementation comments / docstrings"),
-    lineTotals(doc, commentLines.lines),
+    "gh-prism-comment-lines-toggle tw:flex tw:items-center tw:gap-2 tw:w-full tw:h-7 tw:py-0 tw:px-3 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-muted tw:[font:inherit] tw:text-start tw:cursor-pointer tw:hover:bg-[var(--control-transparent-bgColor-hover)] tw:focus-visible:outline-2 tw:focus-visible:-outline-offset-2 tw:focus-visible:outline-focus-outline",
+    glyph,
+    el(doc, "span", "tw:truncate", "Implementation comments"),
+    counter,
   );
-  item.type = "button";
-  item.setAttribute("aria-describedby", tip.id);
-  // The tip is the button's sibling: inside it, the rows would join the button's accessible name.
-  const wrapper = el(doc, "div", "gh-prism-comment-lines-item tw:mx-1", item, tip);
+  if (lines) toggle.append(lineTotals(doc, lines));
+  toggle.type = "button";
 
-  // Forced toggles: showPopover throws on an open popover, as when focus follows a hover.
-  const show = () => tip.togglePopover(true);
-  const hide = () => tip.togglePopover(false);
-  item.addEventListener("focus", show);
-  item.addEventListener("blur", hide);
-  item.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") hide();
-  });
-  // Hover is the wrapper's, so the pointer can move onto the tip without closing it.
-  wrapper.addEventListener("pointerenter", show);
-  wrapper.addEventListener("pointerleave", hide);
-  return wrapper;
+  const header = el(
+    doc,
+    "h4",
+    "gh-prism-comment-lines-header tw:m-0 tw:text-body-small tw:font-semibold",
+    toggle,
+  );
+  header.id = `gh-prism-heading-${COMMENT_LINES}`;
+
+  const host = el(doc, "div", "gh-prism-tree");
+  const files = el(doc, "div", "gh-prism-files tw:overflow-clip", host);
+  files.id = `gh-prism-files-${COMMENT_LINES}`;
+  toggle.setAttribute("aria-controls", files.id);
+
+  const root = el(doc, "div", "gh-prism-comment-lines", header, files);
+  root.setAttribute("role", "group");
+  root.setAttribute("aria-labelledby", header.id);
+
+  const expand = (expanded: boolean) => {
+    toggle.setAttribute("aria-expanded", String(expanded));
+    files.inert = !expanded;
+  };
+  return { root, counter, host, toggle, expand };
 }
 
-/** `path`'s text with a `<wbr>` after each `/`, where browsers find no line break of their own. */
-const breakableAtSlashes = (doc: Document, path: string): (Node | string)[] =>
-  path.split(/(?<=\/)/).flatMap((part, i) => (i === 0 ? [part] : [doc.createElement("wbr"), part]));
+/**
+ * The comment-lines sub-section's listing among `sections`, while the landing has `commentLines`:
+ * Implementation's entries whose comment lines moved, each counting only those, and so Partial.
+ */
+function commentLinesListing(
+  sections: readonly FileSection[],
+  commentLines: CommentLines | undefined,
+): Listing[] {
+  if (!commentLines) return [];
+  const implementation = sections.find(({ key }) => key === "implementation")?.entries ?? [];
+  const entries = implementation.flatMap((entry) =>
+    entry.moved ? [{ ...entry, lines: entry.moved }] : [],
+  );
+  return [{ key: COMMENT_LINES, entries }];
+}
 
 /**
- * Writes the file count of `entries` into a section header's `counter`, or, once `viewed` holds
+ * Writes the file count of `entries` into a listing header's `counter`, or, once `viewed` holds
  * any path, how many of them are viewed, as `N/M` with the words for screen readers. An empty
  * `viewed` (nothing viewed yet, or a page that offers no Viewed) keeps the bare count. Leaves the
  * DOM alone when unchanged.
@@ -311,24 +339,40 @@ function isAltClick(event: MouseEvent): boolean {
   return event.button === 0 && event.altKey && !(event.metaKey || event.ctrlKey || event.shiftKey);
 }
 
-/** The file row and section a click inside a section tree landed on. */
-function clickedFile(event: Event): { section: SectionKey; path: string } | undefined {
-  const elements = event.composedPath().filter((node) => node instanceof HTMLElement);
-  const row = elements.find((node) => node.dataset.type === "item");
-  const raw = elements.find((node) => node.classList.contains("gh-prism-section"))?.dataset.section;
-  const section = SECTIONS.find((key) => key === raw);
-  const path = row?.dataset.itemPath;
-  return row?.dataset.itemType === "file" && section && path ? { section, path } : undefined;
+/** A file as one listing lists it. */
+interface ListedFile {
+  readonly listing: ListingKey;
+  readonly path: string;
 }
 
-/** The file whose Viewed checkbox a click inside a section tree landed on, and its section. */
-function clickedCheckbox(event: Event): { section: SectionKey; path: string } | undefined {
+/**
+ * The listing holding the innermost of `elements`: the comment-lines sub-section, which nests in
+ * Docs & Comments, before the section around it.
+ */
+function listingOf(elements: readonly HTMLElement[]): ListingKey | undefined {
+  const holder = elements.find((node) =>
+    node.matches(".gh-prism-comment-lines, .gh-prism-section"),
+  );
+  if (holder?.classList.contains("gh-prism-comment-lines")) return COMMENT_LINES;
+  return SECTIONS.find((key) => key === holder?.dataset.section);
+}
+
+/** The file row and listing a click inside a tree landed on. */
+function clickedFile(event: Event): ListedFile | undefined {
+  const elements = event.composedPath().filter((node) => node instanceof HTMLElement);
+  const row = elements.find((node) => node.dataset.type === "item");
+  const listing = listingOf(elements);
+  const path = row?.dataset.itemPath;
+  return row?.dataset.itemType === "file" && listing && path ? { listing, path } : undefined;
+}
+
+/** The file whose Viewed checkbox a click inside a tree landed on, and its listing. */
+function clickedCheckbox(event: Event): ListedFile | undefined {
   const elements = event.composedPath().filter((node) => node instanceof HTMLElement);
   const box = elements.find((node) => node.matches("input[data-item-checkbox]"));
-  const raw = elements.find((node) => node.classList.contains("gh-prism-section"))?.dataset.section;
-  const section = SECTIONS.find((key) => key === raw);
+  const listing = listingOf(elements);
   const path = box?.dataset.itemCheckbox;
-  return section && path ? { section, path } : undefined;
+  return listing && path ? { listing, path } : undefined;
 }
 
 /**
@@ -355,7 +399,7 @@ function followViewport(view: HTMLElement, onMove: () => void, signal: AbortSign
 /**
  * Mounts the sidebar's sections view in `page` until `signal` aborts, and returns its hooks: a
  * progress bar while intent is pending; on landing, notices for path-only sections or diffs kept
- * in GitHub's order; then a tree per section, each split file listed in every section its hunks
+ * in GitHub's order; then a tree per listing, each split file listed in every section its hunks
  * land in, with the lines each share adds and removes.
  */
 export function showSections(page: FilesPage, signal: AbortSignal): SectionsView {
@@ -368,16 +412,18 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
   );
   view.setAttribute("aria-label", "Changed files by section");
 
-  const shown = new Map<SectionKey, ShownSection>();
+  const shown = new Map<ListingKey, ShownListing>();
   // Outlives the sections themselves, so one that empties and comes back stays collapsed.
-  const collapsed = new Set(
-    SECTIONS.flatMap((key) => (SECTION_CATALOG[key].startsCollapsed ? [key] : [])),
-  );
+  const collapsed = new Set<ListingKey>([
+    ...SECTIONS.flatMap((key) => (SECTION_CATALOG[key].startsCollapsed ? [key] : [])),
+    COMMENT_LINES,
+  ]);
   let loading: LoadingView | undefined;
   let landing = landingOf(undefined);
+  let commentLines: CommentLines | undefined;
   // The reveal in flight. A newer file click, or the view's abort, cancels it.
   let jump: AbortController | undefined;
-  let clicked: { section: SectionKey; path: string } | undefined;
+  let clicked: ListedFile | undefined;
   // Only a new current file scrolls the sidebar; re-renders would pull it back mid-scroll.
   let scrolledTo: string | undefined;
   let onScreen: ReadonlySet<string> = new Set();
@@ -385,19 +431,23 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
   let offered = false;
   // The files whose box click is still settling; their boxes ignore clicks.
   const marking = new Set<string>();
-  let latestSections: readonly FileSection[] = [];
+  let latestListings: readonly Listing[] = [];
 
-  /** Marks each section that lists a file on screen; sections-view.css shows it on a collapsed header. */
+  /**
+   * Marks each section that lists a file on screen; sections-view.css shows it on a collapsed
+   * header. The comment-lines sub-section's files are all Implementation's, which marks them.
+   */
   const markHeaders = () => {
-    for (const { key, entries } of latestSections) {
+    for (const { key, entries } of latestListings) {
+      if (key === COMMENT_LINES) continue;
       const listsOnScreen = entries.some(({ file }) => onScreen.has(file.path));
       shown.get(key)?.root.toggleAttribute("data-on-screen", listsOnScreen);
     }
   };
 
-  /** Writes each shown section's count into its header. */
+  /** Writes each shown listing's count into its header. */
   const countHeaders = () => {
-    for (const { key, entries } of latestSections) {
+    for (const { key, entries } of latestListings) {
       const current = shown.get(key);
       if (current) showCount(current.counter, entries, viewed);
     }
@@ -406,13 +456,14 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
   const nativeLinkOf = (path: string) =>
     readChangedFiles(page.sidebar).find((file) => file.path === path)?.link;
 
-  const open = (section: SectionKey, path: string) => {
+  const open = ({ listing, path }: ListedFile) => {
     const native = nativeLinkOf(path);
     if (!native) return;
-    clicked = { section, path };
+    clicked = { listing, path };
     jump?.abort();
 
-    const line = revealLineOf(landing, path, section);
+    // A comment-lines row stands for its whole file, never one section's share.
+    const line = listing === COMMENT_LINES ? undefined : revealLineOf(landing, path, listing);
     jump = new AbortController();
     if (line === undefined) revealDiff(page, native, { signal: jump.signal });
     else void revealDiffLine(page, native, line, { signal: jump.signal });
@@ -428,11 +479,11 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
    * their checked state never comes from the click, only from what `viewed` reads back off the
    * page.
    */
-  const mark = async (section: SectionKey, path: string) => {
+  const mark = async ({ listing, path }: ListedFile) => {
     const native = nativeLinkOf(path);
     if (signal.aborted || !native || !offered || marking.has(path)) return;
     const want = !viewed.has(path);
-    clicked = { section, path };
+    clicked = { listing, path };
     jump?.abort();
 
     marking.add(path);
@@ -452,11 +503,8 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
    * microtask flip. A double-click's second click is dropped, since GitHub honors a click during a
    * pending save.
    */
-  const markFrom = (
-    event: MouseEvent,
-    { section, path }: { section: SectionKey; path: string },
-  ) => {
-    if (event.detail <= 1) setTimeout(() => void mark(section, path));
+  const markFrom = (event: MouseEvent, file: ListedFile) => {
+    if (event.detail <= 1) setTimeout(() => void mark(file));
   };
 
   /**
@@ -476,36 +524,39 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     return toggle;
   };
 
+  // The comment-lines sub-section comes last, so it never moves a section, and it is built after
+  // the Docs & Comments tree it nests under.
   const render = (sections: readonly FileSection[]) => {
-    dropAllBut(sections);
+    const listings = [...sections, ...commentLinesListing(sections, commentLines)];
+    dropAllBut(listings);
     let previous = [...view.querySelectorAll(".gh-prism-notice")].at(-1) ?? null;
-    for (const [order, section] of sections.entries())
-      previous = showSection(section, order, previous);
-    scrollToCurrent(sections);
-    latestSections = sections;
+    for (const [order, listing] of listings.entries())
+      previous = showListing(listing, order, previous);
+    scrollToCurrent(listings);
+    latestListings = listings;
     markHeaders();
     countHeaders();
   };
 
-  const dropAllBut = (sections: readonly FileSection[]) => {
+  const dropAllBut = (listings: readonly Listing[]) => {
     for (const [key, { root, tree }] of shown) {
-      if (sections.some((section) => section.key === key)) continue;
+      if (listings.some((listing) => listing.key === key)) continue;
       tree.cleanUp();
       root.remove();
       shown.delete(key);
     }
   };
 
-  /** Updates `section`'s tree, or builds it as section `order` after `previous`. Returns its root. */
-  const showSection = (section: FileSection, order: number, previous: Element | null) => {
-    const files = treeFilesOf(section);
-    const active = section.entries.find(({ file }) => file.active)?.file.path;
-    let current = shown.get(section.key);
+  /** Updates `listing`'s tree, or builds it as listing `order` after `previous`. Returns its root. */
+  const showListing = (listing: Listing, order: number, previous: Element | null) => {
+    const files = treeFilesOf(listing);
+    const active = listing.entries.find(({ file }) => file.active)?.file.path;
+    let current = shown.get(listing.key);
     if (current) {
       current.tree.update(files, active);
     } else {
-      current = buildSection(section.key, { order, previous, files, active });
-      shown.set(section.key, current);
+      current = buildListing(listing.key, { order, previous, files, active });
+      shown.set(listing.key, current);
     }
     return current.root;
   };
@@ -513,18 +564,19 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
   const totalOf = (section: SectionKey) =>
     totalsOf(landing).find((total) => total.section === section)?.lines;
 
-  /** Mounts section `key`'s shell after `previous`, then its tree of `files` inside it. */
-  const buildSection = (
-    key: SectionKey,
+  /**
+   * Mounts listing `key`'s shell, a section's after `previous` and the comment-lines sub-section's
+   * under Docs & Comments' tree, then its tree of `files` inside it.
+   */
+  const buildListing = (
+    key: ListingKey,
     { order, previous, files, active }: BuildOptions,
-  ): ShownSection => {
-    // Set once: a section is only built after intent lands, and the landed lines never change.
-    const { root, counter, host, toggle, expand } = sectionShell(doc, key, {
-      order,
-      lines: totalOf(key),
-    });
-    const commentLines = key === "docs" ? commentLinesOf(landing) : undefined;
-    if (commentLines) host.after(commentLinesItem(doc, commentLines));
+  ): ShownListing => {
+    // Set once: a listing is only built after intent lands, and the landed lines never change.
+    const { root, counter, host, toggle, expand } =
+      key === COMMENT_LINES
+        ? commentLinesShell(doc, commentLines?.lines)
+        : sectionShell(doc, key, { order, lines: totalOf(key) });
     expand(!collapsed.has(key));
     toggle.addEventListener("click", () => {
       const expanded = collapsed.has(key);
@@ -533,26 +585,31 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
       expand(expanded);
     });
 
-    if (previous) previous.after(root);
+    if (key === COMMENT_LINES) shown.get("docs")?.host.after(root);
+    else if (previous) previous.after(root);
     else view.prepend(root);
     const tree = new SectionTree(host, files, active);
     tree.showOnScreen(onScreen);
     if (offered) tree.showViewed(viewed);
     if (marking.size > 0) tree.showMarking(new Set(marking));
-    return { root, counter, tree };
+    return { root, counter, host, tree };
   };
 
-  // A split file's sections each list it; only one of them scrolls the sidebar to it.
-  const scrollToCurrent = (sections: readonly FileSection[]) => {
-    const active = sections.flatMap(({ entries }) => entries).find(({ file }) => file.active)
+  /** Whether `key`'s rows are out of sight; the sub-section's hide with Docs & Comments'. */
+  const hidden = (key: ListingKey) =>
+    collapsed.has(key) || (key === COMMENT_LINES && collapsed.has("docs"));
+
+  // A file listed more than once, split or with comment lines, scrolls the sidebar in one listing.
+  const scrollToCurrent = (listings: readonly Listing[]) => {
+    const active = listings.flatMap(({ entries }) => entries).find(({ file }) => file.active)
       ?.file.path;
     if (active === undefined || active === scrolledTo) return;
 
-    const listing = sections.filter(
-      ({ key, entries }) => !collapsed.has(key) && entries.some(({ file }) => file.path === active),
+    const listing = listings.filter(
+      ({ key, entries }) => !hidden(key) && entries.some(({ file }) => file.path === active),
     );
     const target =
-      listing.find(({ key }) => clicked?.path === active && clicked.section === key) ?? listing[0];
+      listing.find(({ key }) => clicked?.path === active && clicked.listing === key) ?? listing[0];
     if (!target) return;
 
     shown.get(target.key)?.tree.scrollToRow(active);
@@ -571,7 +628,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
       }
 
       const file = clickedFile(event);
-      if (file && isPlainLeftClick(event)) open(file.section, file.path);
+      if (file && isPlainLeftClick(event)) open(file);
     },
     { signal },
   );
@@ -629,6 +686,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     },
     landed(result) {
       landing = landingOf(result);
+      commentLines = commentLinesOf(landing);
       if (loading) {
         loading.root.remove();
         loading = undefined;

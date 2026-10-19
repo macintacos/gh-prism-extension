@@ -101,7 +101,9 @@ it across the tab's pages, and saves it on each close.
 
 gh-prism lists each changed file in one of five sections, such as Implementation or Tests.
 A file's path picks its section, unless a hunk rule claims some of its changed blocks for
-Docs & Comments or Tests by what they change. Intent is where the hunk rules place a
+Docs & Comments or Tests by what they change. The docstring rule moves an Implementation
+file whole when every hunk is docstring-only, and moves its docstring-only hunks alone
+only when no hunk stays in Implementation as code. Intent is where the hunk rules place a
 diff's files. It also counts, per file, the changed lines the comment scan confirms are
 comments or docstrings in hunks that stay in Implementation; a line only an unread head
 could confirm counts as code. `intentFor` in
@@ -149,17 +151,18 @@ row's link. That link's handler mounts a diff that GitHub has virtualized away, 
 bare hash jump would not do.
 
 [`entrypoints/content/sidebar/section-tree.ts`](../entrypoints/content/sidebar/section-tree.ts)
-renders each section as its own `@pierre/trees` file tree in a shadow root. A tree's
-height follows its visible rows, so the whole sidebar scrolls as one. The sections view
-calls each tree's `sync()` when the sidebar scrolls or resizes, and `sync()` renders only
-the rows near the viewport. A tree far out of view renders none.
+renders each section, and the comment-lines sub-section, as its own `@pierre/trees` file
+tree in a shadow root. A tree's height follows its visible rows, so the whole sidebar
+scrolls as one. The sections view calls each tree's `sync()` when the sidebar scrolls or
+resizes, and `sync()` renders only the rows near the viewport. A tree far out of view
+renders none.
 
-Docs & Comments ends with the comment-lines item when Implementation's files have comment
-lines. It sits after the tree, outside it, so the handlers that open, mark Viewed, count,
-and scroll to file rows never see it. Hovering or focusing it shows its per-file list as a
-`popover="manual"` tooltip in the top layer. CSS anchor positioning opens it on whichever
-side of the item has more room, and it scrolls when the list outgrows that, so neither the
-sidebar's overflow nor the viewport clips it.
+Docs & Comments ends with the comment-lines sub-section when an Implementation file has
+comment lines. It has its own header and tree inside Docs & Comments' collapsible region,
+and its rows go through the same handlers that open, mark Viewed, count, and scroll to
+file rows. `listingOf` resolves a row to the sub-section, so opening one reveals the whole
+file, and `scrollToCurrent` prefers the Implementation row unless the reviewer clicked the
+sub-section's.
 
 [`entrypoints/content/diffs/on-screen.ts`](../entrypoints/content/diffs/on-screen.ts)
 tracks which files' diffs are on screen. It observes the mounted diff regions with one

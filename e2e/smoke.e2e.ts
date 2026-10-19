@@ -773,3 +773,160 @@ test("each file's icon takes its type's color in the page's color scheme", async
   expect(onDarkOs.font).not.toBeNull();
   expect(onDarkOs.font).toBe(onDarkOs.fontSpan);
 });
+
+/**
+ * How the first row listing `path` lays out: the decoration parts it shows whole and those it
+ * shows only partly, each in visual order, whether its name runs into them or ends in the tree's ellipsis, and whether
+ * its status letter stays in the tree; `null` until the row has all of those.
+ */
+const rowLayout = (page: Page, path: string) =>
+  page.evaluate((path) => {
+    const host = [...document.querySelectorAll(".gh-prism-tree")].find((tree) =>
+      tree.shadowRoot?.querySelector(`[data-item-path="${path}"]`),
+    );
+    const row = host?.shadowRoot?.querySelector(`[data-item-path="${path}"]`);
+    const lane = row?.querySelector('[data-item-section="decoration"]');
+    const content = row?.querySelector('[data-item-section="content"]');
+    const status = row?.querySelector('[data-item-section="git"]');
+    if (!host || !lane || !content || !status) return null;
+    const within = (inner: Element, outer: Element) => {
+      const a = inner.getBoundingClientRect();
+      const b = outer.getBoundingClientRect();
+      return (
+        a.left >= b.left - 0.5 &&
+        a.right <= b.right + 0.5 &&
+        a.top >= b.top - 0.5 &&
+        a.bottom <= b.bottom + 0.5
+      );
+    };
+    const apart = (one: Element, other: Element) => {
+      const a = one.getBoundingClientRect();
+      const b = other.getBoundingClientRect();
+      return (
+        a.right <= b.left + 0.5 ||
+        a.left >= b.right - 0.5 ||
+        a.bottom <= b.top + 0.5 ||
+        a.top >= b.bottom - 0.5
+      );
+    };
+    const parts = [...lane.querySelectorAll("span > span")].sort(
+      (a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left,
+    );
+    return {
+      shown: parts.filter((part) => within(part, lane)).map((part) => part.textContent),
+      cut: parts
+        .filter((part) => !within(part, lane) && !apart(part, lane))
+        .map((part) => part.textContent),
+      overlapped: content.getBoundingClientRect().right > lane.getBoundingClientRect().left + 0.5,
+      ellipsis: [...content.querySelectorAll("[data-truncate-marker]")].some(
+        (marker) => getComputedStyle(marker).opacity === "1",
+      ),
+      statusInTree: within(status, host),
+    };
+  }, path);
+
+test("a row too narrow for its name truncates the name, never its decoration", async ({
+  context,
+  page,
+}) => {
+  const name = "a_module_name_far_too_long_for_the_sidebar_to_show_whole.rs";
+  const rowMarkup = `<li role="treeitem" id="${name}" aria-level="1" aria-label="${name} has 12 comments" aria-selected="false"><div class="PRIVATE_TreeView-item-visual"><svg class="octicon octicon-file-diff"></svg></div><a href="#diff-a11c">${name}</a><div class="PRIVATE_TreeView-item-visual"><div><svg class="octicon octicon-comment"></svg><div>12</div></div></div></li>`;
+  await serve(
+    context,
+    PR_URL,
+    PR_BODY.replace(
+      "<!doctype html>",
+      "<!doctype html><style>#pr-file-tree { width: 280px; }</style>",
+    ).replace(TREE_OPEN, `${TREE_OPEN}${rowMarkup}`),
+  );
+  await page.goto(PR_URL);
+  await expect(page.locator(`[data-item-path="${name}"]`)).toBeVisible();
+
+  await expect
+    .poll(() => rowLayout(page, name))
+    .toEqual({
+      shown: ["12"],
+      cut: [],
+      overlapped: false,
+      ellipsis: true,
+      statusInTree: true,
+    });
+});
+
+// paths.ts, an Implementation file of tests/fixtures/commit-page.html, adds a comment line, so
+// its row reads Partial +1 −1, after the review-comment count COMMIT_WITH_COMMENTS gives it.
+const COMMIT_DIFF = `diff --git a/src/adapters/opencode/paths.ts b/src/adapters/opencode/paths.ts
+index 1111111..2222222 100644
+--- a/src/adapters/opencode/paths.ts
++++ b/src/adapters/opencode/paths.ts
+@@ -1,3 +1,4 @@
+ export const a = 1;
++// The launcher's own path.
++export const b = 2;
+-export const d = 4;
+ export const c = 3;
+`;
+
+const COMMIT_WITH_COMMENTS = COMMIT_BODY.replace(
+  'aria-label="paths.ts"',
+  'aria-label="paths.ts has 3 comments"',
+).replace(
+  'role="presentation" tabindex="-1">paths.ts</a></span>',
+  'role="presentation" tabindex="-1">paths.ts</a></span><div class="PRIVATE_TreeView-item-visual"><div><svg class="octicon octicon-comment"></svg><div>3</div></div></div>',
+);
+
+test("a row short of room for its decoration drops whole parts from its start, never part of one", async ({
+  context,
+  page,
+}) => {
+  const path = "src/adapters/opencode/paths.ts";
+  await serve(
+    context,
+    COMMIT_URL,
+    COMMIT_WITH_COMMENTS.replace(
+      "<!doctype html>",
+      "<!doctype html><style>#diff_file_tree { width: 400px; }</style>",
+    ),
+  );
+  await context.route(`${COMMIT_URL}.diff`, (route) =>
+    route.fulfill({ contentType: "text/plain", body: COMMIT_DIFF }),
+  );
+  await page.goto(COMMIT_URL);
+  const setWidth = (width: number) =>
+    page.evaluate((width) => {
+      document.getElementById("diff_file_tree")!.style.width = `${width}px`;
+    }, width);
+
+  await expect
+    .poll(() => rowLayout(page, path))
+    .toMatchObject({ shown: ["3", "Partial", "+1", "−1"], cut: [], overlapped: false });
+
+  // Room for the name's few characters, Partial and the counts, short of the comment count.
+  await setWidth(250);
+
+  await expect
+    .poll(() => rowLayout(page, path))
+    .toMatchObject({ shown: ["Partial", "+1", "−1"], cut: [], overlapped: false });
+
+  // Room for the name's few characters and the counts, short of Partial by about its width.
+  await setWidth(205);
+
+  await expect
+    .poll(() => rowLayout(page, path))
+    .toMatchObject({ shown: ["+1", "−1"], cut: [], overlapped: false, statusInTree: true });
+
+  // Narrows the tree until the decoration has half its last part's width.
+  await page.evaluate((path) => {
+    const row = [...document.querySelectorAll(".gh-prism-tree")]
+      .map((tree) => tree.shadowRoot?.querySelector(`[data-item-path="${path}"]`))
+      .find((found) => found);
+    const lane = row?.querySelector('[data-item-section="decoration"]');
+    const last = lane?.querySelector("span > span:last-child");
+    const tree = document.getElementById("diff_file_tree");
+    if (!lane || !last || !tree) throw new Error(`no decoration for ${path}`);
+    const excess = lane.getBoundingClientRect().width - last.getBoundingClientRect().width / 2;
+    tree.style.width = `${tree.offsetWidth - excess}px`;
+  }, path);
+
+  await expect.poll(() => rowLayout(page, path)).toMatchObject({ shown: [], cut: [] });
+});

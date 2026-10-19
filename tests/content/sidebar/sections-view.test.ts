@@ -5,7 +5,7 @@ import { findFilesPage } from "../../../entrypoints/content/files-page";
 import { showSections } from "../../../entrypoints/content/sidebar/sections-view";
 import css from "../../../entrypoints/content/sidebar/sections-view.css?raw";
 import { showVisit } from "../../../entrypoints/content/visit/land";
-import type { IntentResult } from "../../../utils/intent/read";
+import type { IntentResult, Placement } from "../../../utils/intent/read";
 import { byId, loadViewedFixture } from "../../fixtures/files-page";
 import { landedWith, pendingIntent, whole } from "../../fixtures/intent";
 import {
@@ -49,23 +49,44 @@ Object.defineProperty(ShadowRoot.prototype, "activeElement", {
 
 const { remountWith, landed, abort } = mountsVisit();
 
-function rowIn(section: string, path: string): HTMLElement {
-  const found = rowsIn(section).find((row) => row.dataset.itemPath === path);
-  if (!found) throw new Error(`${section} has no row for ${path}`);
+/** Where `rowIn` and its kin look for Docs & Comments' comment-lines sub-section. */
+const COMMENT_LINES = "comment-lines";
+
+/** Docs & Comments' comment-lines sub-section, or `null` when the sidebar shows none. */
+const commentLinesRoot = () =>
+  document.querySelector<HTMLElement>(
+    '.gh-prism-section[data-section="docs"] .gh-prism-comment-lines',
+  );
+
+/** The tree host of `listing`, a section's key or `COMMENT_LINES`; throws when there is none. */
+function hostOf(listing: string): HTMLElement {
+  if (listing !== COMMENT_LINES) return treeHost(listing);
+  const host = commentLinesRoot()?.querySelector<HTMLElement>(".gh-prism-tree");
+  if (!host) throw new Error("no comment-lines tree");
+  return host;
+}
+
+const rowsOf = (listing: string) => [
+  ...(hostOf(listing).shadowRoot?.querySelectorAll<HTMLElement>('[data-type="item"]') ?? []),
+];
+
+function rowIn(listing: string, path: string): HTMLElement {
+  const found = rowsOf(listing).find((row) => row.dataset.itemPath === path);
+  if (!found) throw new Error(`${listing} has no row for ${path}`);
   return found;
 }
 
-const partsOf = (section: string, path: string) => [
-  ...rowIn(section, path).querySelectorAll<HTMLElement>(
+const partsOf = (listing: string, path: string) => [
+  ...rowIn(listing, path).querySelectorAll<HTMLElement>(
     '[data-item-section="decoration"] > span > span',
   ),
 ];
 
-const partTexts = (section: string, path: string) =>
-  partsOf(section, path).map((part) => part.textContent);
+const partTexts = (listing: string, path: string) =>
+  partsOf(listing, path).map((part) => part.textContent);
 
-const decorationTitle = (section: string, path: string) =>
-  rowIn(section, path)
+const decorationTitle = (listing: string, path: string) =>
+  rowIn(listing, path)
     .querySelector('[data-item-section="decoration"] > span')
     ?.getAttribute("title") ?? "";
 
@@ -123,32 +144,61 @@ function filesOf(section: string): HTMLElement {
   return files;
 }
 
-/** render.rs split between implementation, with `implementationHunks`, and docs. */
-const renderSplit = (
-  implementationHunks: readonly ({ first: number; last: number } | undefined)[],
-): IntentResult =>
+function commentLinesToggle(): HTMLButtonElement {
+  const toggle = commentLinesRoot()?.querySelector("h4 button");
+  if (!(toggle instanceof HTMLButtonElement))
+    throw new Error("no comment-lines sub-section header button");
+  return toggle;
+}
+
+/** The count in `toggle`'s header: the file count, or `N/M` once a file is viewed. */
+const countIn = (toggle: Element) => {
+  const counter = toggle.querySelector(".gh-prism-counter");
+  return (counter?.querySelector('[aria-hidden="true"]') ?? counter)?.textContent;
+};
+
+/** engine.rs and parser.rs, whole in Implementation, with +3 −1 and +2 −0 comment lines. */
+const withCommentLines = (): IntentResult =>
   landedWith(
+    new Map(),
     new Map([
-      [
-        "src/render.rs",
-        {
-          kind: "split",
-          shares: [
-            {
-              section: "implementation",
-              hunks: implementationHunks,
-              lines: { added: 5, removed: 1 },
-            },
-            {
-              section: "docs",
-              hunks: [undefined, { first: 22, last: 28 }],
-              lines: { added: 3, removed: 1 },
-            },
-          ],
-        },
-      ],
+      ["src/engine.rs", { added: 9, removed: 3 }],
+      ["src/parser.rs", { added: 4, removed: 0 }],
+    ]),
+    new Map([
+      ["src/engine.rs", { added: 3, removed: 1 }],
+      ["src/parser.rs", { added: 2, removed: 0 }],
     ]),
   );
+
+/** render.rs split between implementation, with `implementationHunks`, and docs. */
+const renderSplitPlacements = (
+  implementationHunks: readonly ({ first: number; last: number } | undefined)[],
+): ReadonlyMap<string, Placement> =>
+  new Map([
+    [
+      "src/render.rs",
+      {
+        kind: "split",
+        shares: [
+          {
+            section: "implementation",
+            hunks: implementationHunks,
+            lines: { added: 5, removed: 1 },
+          },
+          {
+            section: "docs",
+            hunks: [undefined, { first: 22, last: 28 }],
+            lines: { added: 3, removed: 1 },
+          },
+        ],
+      },
+    ],
+  ]);
+
+const renderSplit = (
+  implementationHunks: readonly ({ first: number; last: number } | undefined)[],
+): IntentResult => landedWith(renderSplitPlacements(implementationHunks));
 
 describe("showSections", () => {
   /** Tells the mounted sidebar which files GitHub shows as Viewed. */
@@ -598,6 +648,13 @@ describe("showSections", () => {
       expect(partTexts("docs", "src/render.rs")).toEqual(["Partial", "+3", "−1"]);
     });
 
+    it("marks Partial an Implementation row whose comment lines count toward Docs & Comments", async () => {
+      await landed(withCommentLines());
+
+      expect(partTexts("implementation", "src/engine.rs")).toEqual(["1", "Partial", "+6", "−2"]);
+      expect(partTexts("implementation", "src/parser.rs")).toEqual(["Partial", "+2", "−0"]);
+    });
+
     it("shows no counts while they are unknown", () => {
       expect(partTexts("implementation", "src/render.rs")).toEqual([]);
     });
@@ -778,6 +835,25 @@ describe("showSections", () => {
       expect(click).toHaveBeenCalledOnce();
     });
 
+    it("reveals the whole file from a comment-lines row, never a share's hunk", async () => {
+      await landed(
+        landedWith(
+          renderSplitPlacements([{ first: 2, last: 8 }]),
+          new Map([["src/render.rs", { added: 8, removed: 2 }]]),
+          new Map([["src/render.rs", { added: 1, removed: 0 }]]),
+        ),
+      );
+      commentLinesToggle().click();
+      mountRenderDiff(2, 22);
+      const click = vi.spyOn(nativeLink("src/render.rs"), "click");
+
+      clickAt(rowIn(COMMENT_LINES, "src/render.rs"));
+      await afterDebounce();
+
+      expect(click).toHaveBeenCalledOnce();
+      expect(diffScrolls()).toEqual([]);
+    });
+
     it("cancels a jump still waiting for its diff to mount when another entry is clicked", async () => {
       await landed(renderSplit([{ first: 2, last: 8 }]));
       clickAt(rowIn("implementation", "src/render.rs"));
@@ -934,6 +1010,49 @@ describe("showSections", () => {
       });
     });
 
+    describe("for a current file with comment lines", () => {
+      /** The listings whose trees scrolled the sidebar, in order. */
+      const scrolledListings = () =>
+        scrollIntoView.mock.contexts.flatMap((context) =>
+          ["implementation", COMMENT_LINES].filter(
+            (listing) =>
+              context instanceof Node && context.getRootNode() === hostOf(listing).shadowRoot,
+          ),
+        );
+
+      beforeEach(async () => {
+        await landed(withCommentLines());
+        commentLinesToggle().click();
+
+        scrollIntoView.mockClear();
+      });
+
+      it("scrolls Implementation to it", async () => {
+        moveCurrentTo("src/engine.rs");
+        await afterDebounce();
+        expect(scrolledListings()).toEqual(["implementation"]);
+      });
+
+      it("scrolls the comment-lines sub-section when it was clicked there", async () => {
+        clickAt(rowIn(COMMENT_LINES, "src/engine.rs"));
+        moveCurrentTo("src/engine.rs");
+        await afterDebounce();
+        // The click's focus scrolls the sub-section's tree too.
+        expect(new Set(scrolledListings())).toEqual(new Set([COMMENT_LINES]));
+      });
+
+      it("scrolls Implementation once Docs & Comments hides the sub-section it was clicked in", async () => {
+        clickAt(rowIn(COMMENT_LINES, "src/engine.rs"));
+        sectionToggle("docs").click();
+        scrollIntoView.mockClear();
+
+        moveCurrentTo("src/engine.rs");
+        await afterDebounce();
+
+        expect(scrolledListings()).toEqual(["implementation"]);
+      });
+    });
+
     it("leaves the sidebar alone when the current file moves into a collapsed section", async () => {
       sectionToggle("implementation").click();
       moveCurrentTo("src/engine.rs");
@@ -987,6 +1106,25 @@ describe("showSections", () => {
 
       expect(marked("implementation", "src/render.rs")).toBe(true);
       expect(marked("docs", "src/render.rs")).toBe(true);
+    });
+
+    it("marks a file's comment-lines row too", async () => {
+      await landed(withCommentLines());
+      commentLinesToggle().click();
+      onScreen("src/engine.rs");
+
+      expect(marked(COMMENT_LINES, "src/engine.rs")).toBe(true);
+      expect(marked(COMMENT_LINES, "src/parser.rs")).toBe(false);
+    });
+
+    it("leaves a comment-lines file's header mark to Implementation, which lists it too", async () => {
+      await landed(withCommentLines());
+      sectionToggle("docs").click();
+      onScreen("src/engine.rs");
+
+      expect(sectionRoot("implementation").hasAttribute("data-on-screen")).toBe(true);
+      expect(sectionRoot("docs").hasAttribute("data-on-screen")).toBe(false);
+      expect(commentLinesRoot()?.hasAttribute("data-on-screen")).toBe(false);
     });
 
     it("clears the marks when no file is on screen", () => {
@@ -1106,14 +1244,14 @@ describe("showSections", () => {
   });
 
   describe("the Viewed checkbox", () => {
-    const boxesIn = (section: string) => [
-      ...(treeHost(section).shadowRoot?.querySelectorAll<HTMLInputElement>(
+    const boxesIn = (listing: string) => [
+      ...(hostOf(listing).shadowRoot?.querySelectorAll<HTMLInputElement>(
         "input[data-item-checkbox]",
       ) ?? []),
     ];
-    const boxOf = (section: string, path: string) => {
-      const box = boxesIn(section).find((input) => input.dataset.itemCheckbox === path);
-      if (!box) throw new Error(`${section} has no checkbox for ${path}`);
+    const boxOf = (listing: string, path: string) => {
+      const box = boxesIn(listing).find((input) => input.dataset.itemCheckbox === path);
+      if (!box) throw new Error(`${listing} has no checkbox for ${path}`);
       return box;
     };
 
@@ -1413,6 +1551,43 @@ describe("showSections", () => {
         expect(boxOf("docs", LIB).checked).toBe(true);
       });
 
+      describe("on a comment-lines row", () => {
+        beforeEach(async () => {
+          await landed(
+            landedWith(
+              new Map(),
+              new Map([[LIB, { added: 4, removed: 1 }]]),
+              new Map([[LIB, { added: 1, removed: 0 }]]),
+            ),
+          );
+          commentLinesToggle().click();
+        });
+
+        it("marks the file once and ticks its box in every listing", async () => {
+          const toggle = stubToggle(LIB);
+
+          clickAt(boxOf(COMMENT_LINES, LIB));
+          await settle();
+
+          expect(toggle).toHaveBeenCalledOnce();
+          expect(boxOf(COMMENT_LINES, LIB).checked).toBe(true);
+          expect(boxOf("implementation", LIB).checked).toBe(true);
+        });
+
+        it("marks the file when the row is Alt-clicked, opening nothing", async () => {
+          const toggle = stubToggle(LIB);
+          const links = vi.spyOn(HTMLAnchorElement.prototype, "click");
+
+          clickAt(rowIn(COMMENT_LINES, LIB), { altKey: true });
+          await settle();
+
+          expect(toggle).toHaveBeenCalledOnce();
+          expect(links).not.toHaveBeenCalled();
+          expect(boxOf("implementation", LIB).checked).toBe(true);
+          links.mockRestore();
+        });
+      });
+
       describe("for a file whose diff isn't mounted", () => {
         let entry: Element;
 
@@ -1645,150 +1820,94 @@ describe("showSections", () => {
     });
   });
 
-  describe("the comment-lines item", () => {
-    const MARKUP = "src/<b>bold</b>.rs";
-    const withCommentLines = () =>
-      landedWith(
-        new Map(),
-        new Map([
-          ["src/engine.rs", { added: 9, removed: 3 }],
-          [MARKUP, { added: 4, removed: 0 }],
-        ]),
-        new Map([
-          ["src/engine.rs", { added: 3, removed: 1 }],
-          [MARKUP, { added: 2, removed: 0 }],
-        ]),
-      );
-
-    let togglePopover: MockInstance<HTMLElement["togglePopover"]>;
-
-    // happy-dom has no Popover API.
+  describe("the comment-lines sub-section", () => {
     beforeEach(async () => {
-      togglePopover = vi.fn();
-      Object.assign(HTMLElement.prototype, { togglePopover });
-
       await landed(withCommentLines());
     });
 
-    afterEach(() => {
-      Reflect.deleteProperty(HTMLElement.prototype, "togglePopover");
-    });
-
-    const toggles = () =>
-      togglePopover.mock.calls.map(([force], index) => [togglePopover.mock.contexts[index], force]);
-
-    const item = () => {
-      const found = document.querySelector(
-        '.gh-prism-section[data-section="docs"] .gh-prism-comment-lines',
+    const expanded = () => commentLinesToggle().getAttribute("aria-expanded");
+    const filesUnder = () => {
+      const files = document.getElementById(
+        commentLinesToggle().getAttribute("aria-controls") ?? "",
       );
-      if (!(found instanceof HTMLElement))
-        throw new Error("Docs & Comments has no comment-lines item");
-      return found;
+      if (!files) throw new Error("the comment-lines header button controls nothing");
+      return files;
     };
-    const tip = () => {
-      const found = document.getElementById(item().getAttribute("aria-describedby") ?? "");
-      if (!found) throw new Error("the comment-lines item describes nothing");
-      return found;
-    };
-    const words = (found: Element) => found.querySelector(".sr-only")?.textContent;
+    const fileRows = () =>
+      rowsOf(COMMENT_LINES)
+        .filter((row) => row.dataset.itemType === "file")
+        .map((row) => row.dataset.itemPath);
 
-    it("sums the comment lines in Docs & Comments", () => {
-      expect(words(item())).toBe("5 added, 1 removed");
+    it("starts collapsed, at the end of Docs & Comments", () => {
+      expect(expanded()).toBe("false");
+      expect(filesUnder().inert).toBe(true);
+      expect(filesOf("docs").lastElementChild).toBe(commentLinesRoot());
     });
 
-    it("lists each file's comment lines, its path as text", () => {
-      const rows = [...tip().querySelectorAll("li")];
+    it("shows and hides its files when its header is clicked", () => {
+      commentLinesToggle().click();
 
-      expect(rows.map((row) => [row.querySelector("code")?.textContent, words(row)])).toEqual([
-        ["src/engine.rs", "3 added, 1 removed"],
-        [MARKUP, "2 added, 0 removed"],
-      ]);
-      expect(tip().querySelector("b")).toBeNull();
-      expect(tip().getAttribute("role")).toBe("tooltip");
-      expect(tip().getAttribute("popover")).toBe("manual");
+      expect(expanded()).toBe("true");
+      expect(filesUnder().inert).toBe(false);
+      expect(filesUnder().contains(hostOf(COMMENT_LINES))).toBe(true);
+
+      commentLinesToggle().click();
+
+      expect(expanded()).toBe("false");
+      expect(filesUnder().inert).toBe(true);
     });
 
-    it("lets each path break after its slashes", () => {
-      expect(tip().querySelector("li code")?.innerHTML).toBe("src/<wbr>engine.rs");
+    it("is hidden while Docs & Comments is collapsed", () => {
+      commentLinesToggle().click();
+      sectionToggle("docs").click();
+
+      expect(commentLinesRoot()?.closest("[inert]")).toBe(filesOf("docs"));
     });
 
-    it("stands alone in a Docs & Comments with no files", async () => {
+    it("heads its files with their count and the comment lines they add and remove", () => {
+      expect(countIn(commentLinesToggle())).toBe("2");
+      expect(
+        commentLinesToggle().querySelector(".gh-prism-line-totals .sr-only")?.textContent,
+      ).toBe("5 added, 1 removed");
+    });
+
+    it("lists each file with its comment lines, marked Partial", () => {
+      commentLinesToggle().click();
+
+      expect(fileRows()).toEqual(["src/engine.rs", "src/parser.rs"]);
+      expect(partTexts(COMMENT_LINES, "src/engine.rs")).toEqual(["1", "Partial", "+3", "−1"]);
+      expect(partTexts(COMMENT_LINES, "src/parser.rs")).toEqual(["Partial", "+2", "−0"]);
+    });
+
+    it("counts its viewed files in its header once any file is Viewed", () => {
+      viewed("src/engine.rs");
+
+      expect(countIn(commentLinesToggle())).toBe("1/2");
+    });
+
+    it("leaves its files out of Docs & Comments' own counts", () => {
+      expect(countIn(sectionToggle("docs"))).toBe("2");
+
+      viewed("src/engine.rs");
+
+      expect(countIn(sectionToggle("docs"))).toBe("0/2");
+    });
+
+    it("is all a Docs & Comments with no files of its own lists", async () => {
       byId("docs/guide.md").remove();
       byId("README.md").remove();
       await landed(withCommentLines());
 
-      expect(sectionKeys()).toContain("docs");
       expect(filesIn("docs")).toEqual([]);
-      expect(words(item())).toBe("5 added, 1 removed");
+      expect(countIn(commentLinesToggle())).toBe("2");
     });
 
-    it("counts toward neither the file count nor the viewed count", () => {
-      const counter = () => sectionToggle("docs").querySelector(".gh-prism-counter");
+    it("isn't shown when no file has comment lines", async () => {
+      await landed(landedWith(new Map(), new Map([["src/engine.rs", { added: 9, removed: 3 }]])));
 
-      expect(counter()?.textContent).toBe("2");
-
-      viewed("docs/guide.md");
-
-      expect(counter()?.querySelector('[aria-hidden="true"]')?.textContent).toBe("1/2");
+      expect(sectionKeys()).toContain("docs");
+      expect(commentLinesRoot()).toBeNull();
     });
-
-    // The pointer may cross from the button onto its list, so hover is the wrapper's.
-    const hovered = () => {
-      const found = item().parentElement;
-      if (!found?.classList.contains("gh-prism-comment-lines-item"))
-        throw new Error("the comment-lines button has no wrapper");
-      return found;
-    };
-
-    it.each([
-      ["focus", "blur", item],
-      ["pointerenter", "pointerleave", hovered],
-    ])("shows its list on %s and hides it on %s", (show, hide, target) => {
-      target().dispatchEvent(new Event(show));
-
-      expect(toggles()).toEqual([[tip(), true]]);
-
-      target().dispatchEvent(new Event(hide));
-
-      expect(toggles()).toEqual([
-        [tip(), true],
-        [tip(), false],
-      ]);
-    });
-
-    it("hides its list on Escape", () => {
-      item().dispatchEvent(new Event("focus"));
-      item().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-
-      expect(toggles().at(-1)).toEqual([tip(), false]);
-    });
-
-    it("is a focusable button that submits nothing", () => {
-      expect(item()).toBeInstanceOf(HTMLButtonElement);
-      expect(item().getAttribute("type")).toBe("button");
-    });
-
-    it("keeps its list out of the button's accessible name", () => {
-      expect(item().contains(tip())).toBe(false);
-      expect(hovered().contains(tip())).toBe(true);
-    });
-
-    it.each([{}, { altKey: true }])(
-      "marks and reveals nothing when clicked with %o",
-      async (init) => {
-        const links = vi.spyOn(HTMLAnchorElement.prototype, "click");
-        const buttons = vi.spyOn(HTMLButtonElement.prototype, "click");
-        viewed();
-
-        clickAt(item(), init);
-        await vi.runAllTimersAsync();
-
-        expect(links).not.toHaveBeenCalled();
-        expect(buttons).not.toHaveBeenCalled();
-        links.mockRestore();
-        buttons.mockRestore();
-      },
-    );
   });
 
   describe("while intent is pending", () => {

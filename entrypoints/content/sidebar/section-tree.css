@@ -130,13 +130,50 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
   visibility: hidden;
 }
 
+/* A row short of room shrinks its name first, down to a few characters behind the tree's
+   ellipsis, and only then its decoration; the library's flex gives the decoration only what the
+   name leaves, clipping it mid-word. 999999 is the library's own weight for shrinking first. */
+[data-item-section="content"] {
+  flex-shrink: 999999;
+  min-width: 6ch;
+}
+
 [data-item-section="decoration"] {
+  flex: 1 1 auto;
   font-size: var(--text-body-size-small);
   font-variant-numeric: tabular-nums;
 }
 
+/* Laid out from the end and wrapped onto hidden lines, so a decoration short of room drops whole
+   parts, leading ones first; its title and the row's accessible name still carry them. */
 [data-item-section="decoration"] > span {
+  flex-flow: row-reverse wrap;
+  justify-content: flex-start;
+  height: var(--trees-row-height);
   gap: 6px;
+}
+
+/* A row-tall first item, so even the last part wraps away rather than clips; its margin takes
+   back the gap after it. */
+[data-item-section="decoration"] > span::before {
+  content: "";
+  order: -1;
+  height: var(--trees-row-height);
+  margin-inline-start: -6px;
+}
+
+/* Reverses the parts' order so row-reverse shows them in reading order: one rule for each part
+   decorationOf (sections-view.ts) can put before the last. */
+[data-item-section="decoration"] > span > :nth-last-child(2) {
+  order: 1;
+}
+
+[data-item-section="decoration"] > span > :nth-last-child(3) {
+  order: 2;
+}
+
+[data-item-section="decoration"] > span > :nth-last-child(4) {
+  order: 3;
 }
 
 /* Decoration parts carry only text and a color, so each kind of part takes its color from a

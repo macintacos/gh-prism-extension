@@ -464,9 +464,9 @@ python_comments_pr() {
 Expected gh-prism counts. GitHub's total: +7 −4.
 
 - Implementation +2 −1, Tests +2 −1, Docs & Comments +3 −2.
-- Implementation comments / docstrings: +2 −1, from `app/ledger.py` +2 −1.
-- Implementation rows: `app/ledger.py` +2 −1.
-- Docs & Comments also lists `app/ledger.py` +1 −1, its comment-only hunk.
+- Implementation rows: `app/ledger.py` +2 −1, Partial; its comment-only hunk stays with the file.
+- Docs & Comments rows: none.
+- Implementation comments: +3 −2, from `app/ledger.py` +3 −2: its comment-only hunk's +1 −1, plus the +2 −1 comment lines of its mixed hunk.
 - Tests rows: `tests/test_ledger.py` +2 −1; a test file's comment lines stay in Tests.
 - The trailing `# refunds subtract` comment counts as code.
 EOF
@@ -484,8 +484,8 @@ c_like_comments_pr() {
 Expected gh-prism counts. GitHub's total: +4 −1.
 
 - Implementation +1 −1, Docs & Comments +3 −0, no Tests.
-- Implementation comments / docstrings: +3 −0, from `src/engine.rs` +3 −0.
-- Implementation rows: `src/engine.rs` +1 −1.
+- Implementation comments: +3 −0, from `src/engine.rs` +3 −0.
+- Implementation rows: `src/engine.rs` +1 −1, Partial.
 EOF
 	)" >/dev/null
 }
@@ -519,8 +519,8 @@ EOF
 Expected gh-prism counts. GitHub's total: +8 −2.
 
 - Implementation +3 −1, Docs & Comments +5 −1, no Tests.
-- Implementation comments / docstrings: +5 −1, from `tally/tally.go` +5 −1.
-- Implementation rows: `tally/tally.go` +3 −1; an added blank line counts as code.
+- Implementation comments: +5 −1, from `tally/tally.go` +5 −1.
+- Implementation rows: `tally/tally.go` +3 −1, Partial; an added blank line counts as code.
 EOF
 	)" >/dev/null
 }
@@ -536,8 +536,8 @@ lua_comments_pr() {
 Expected gh-prism counts. GitHub's total: +5 −1.
 
 - Implementation +1 −1, Docs & Comments +4 −0, no Tests.
-- Implementation comments / docstrings: +4 −0, from `lua/queue.lua` +4 −0.
-- Implementation rows: `lua/queue.lua` +1 −1.
+- Implementation comments: +4 −0, from `lua/queue.lua` +4 −0.
+- Implementation rows: `lua/queue.lua` +1 −1, Partial.
 EOF
 	)" >/dev/null
 }
@@ -598,12 +598,12 @@ EOF
 Expected gh-prism counts. GitHub's total: +30 −0.
 
 - Implementation +23 −0, Docs & Comments +7 −0, no Tests.
-- Implementation comments / docstrings: +7 −0, from:
+- Implementation comments: +7 −0, from:
   - `lib/ids.lua` +1 −0
   - `libraries/shared/text-normalization/src/unicode/normalize_whitespace_and_line_endings.py` +2 −0
   - `packages/web-dashboard/src/features/organization-settings/components/MemberPermissionsMatrix.tsx` +2 −0
   - `services/billing/internal/reconciliation/adapters/payment_provider_webhook_signature_verifier.go` +2 −0
-- Every path shows whole in the comment-lines tooltip.
+- The Implementation comments sub-section, collapsed by default, lists these files; expanded, and in Implementation, long names truncate with an ellipsis, Partial and the counts show whole or drop whole when there's no room, and no part is cut mid-word.
 EOF
 	)" >/dev/null
 }
@@ -626,8 +626,8 @@ EOF
 Expected gh-prism counts. GitHub's total: +7 −0.
 
 - Implementation +5 −0, Docs & Comments +2 −0, no Tests.
-- Implementation comments / docstrings: +2 −0, from `src/AbstractSingletonProxyFactoryBeanConfigurationValidatorRegistry.ts` +2 −0.
-- The file name has no separator to break at, and still shows whole in the comment-lines tooltip.
+- Implementation comments: +2 −0, from `src/AbstractSingletonProxyFactoryBeanConfigurationValidatorRegistry.ts` +2 −0.
+- The file name has no separator to break at. The Implementation comments sub-section, collapsed by default, lists the file; expanded, and in Implementation, the name truncates with an ellipsis, Partial and the counts show whole or drop whole when there's no room, and no part is cut mid-word.
 EOF
 	)" >/dev/null
 }

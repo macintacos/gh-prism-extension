@@ -22,14 +22,16 @@ how to get the new tab. Once you close the dialog, it stays closed, and
 
 - It groups changed files into five sections: Implementation, Tests, Docs & Comments,
   Config, and Generated / lockfiles.
-- It moves a change that touches only comments or docstrings to Docs & Comments, and a
-  change that sits only inside inline test blocks, such as a Rust `mod tests` block, to
-  Tests.
-- In a change that stays in Implementation, it counts the comment and docstring lines
-  toward Docs & Comments, and lists them per file under
-  **Implementation comments / docstrings** at the end of that section.
+- It moves a file whose changes touch only comments or docstrings to Docs & Comments, and
+  a change that sits only inside inline test blocks, such as a Rust `mod tests` block, to
+  Tests. Outside Implementation, it moves a comment-only change on its own.
+- In a file that stays in Implementation, it counts the comment and docstring lines toward
+  Docs & Comments and lists the file by them under **Implementation comments**, a
+  sub-section at the end of Docs & Comments, collapsed by default.
 - It lists a file whose changes belong in more than one section under each of those
-  sections, and marks each entry `Partial`.
+  sections, and marks each entry `Partial`. It also marks `Partial` an Implementation
+  entry whose comment lines count toward Docs & Comments, and every entry in the
+  sub-section.
 - It lays out the diffs in the order the sidebar lists their files.
 - It splits the count of lines changed in the pull request or commit header into one count
   per section.

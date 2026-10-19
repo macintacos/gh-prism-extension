@@ -94,9 +94,10 @@ interface FileIntent {
  * `file`'s hunk sections and Implementation comment lines. The head is read only when the patch
  * can't settle every hunk as docs and a rule or a comment count needs it. A file whose every hunk
  * is docs moves whole to Docs & Comments; otherwise a hunk in a test block counts as Tests even
- * when it only edits a doc comment. A head read for any reason settles every unclaimed hunk's
- * count, as it is the more accurate scan; a hunk whose comment lines only the unread head could
- * confirm counts none.
+ * when it only edits a doc comment, and an Implementation file that keeps a code hunk outside its
+ * test blocks keeps its other docs hunks too, counting their comment lines. A head read for any reason settles every unclaimed hunk's count, as it is
+ * the more accurate scan; a hunk whose comment lines only the unread head could confirm counts
+ * none.
  */
 async function fileIntent(
   client: Pick<PrDataClient, "fileContent">,
@@ -117,7 +118,8 @@ async function fileIntent(
     patchCounts.includes("needs-content");
   const head = needsHead ? await readHead(client, file) : undefined;
 
-  const sections = head === undefined ? patchSections(patchVerdicts) : headSections(file, head);
+  const sections =
+    head === undefined ? patchSections(file.path, patchVerdicts) : headSections(file, head);
   if (!countsComments) return { sections, commentLines: noLines };
   const counts = hunks.map((hunk, i) => {
     if (sections[i] !== undefined) return noLines;
@@ -128,15 +130,21 @@ async function fileIntent(
   return { sections, commentLines: sum(counts) };
 }
 
-const patchSections = (verdicts: readonly DocVerdict[]) =>
-  verdicts.map((verdict) => (isDocs(verdict) ? ("docs" as const) : undefined));
+/** Where a docs hunk goes in a file that doesn't move whole: an Implementation file keeps it. */
+const docsHunkSection = (path: string): IntentSection | undefined =>
+  classify(path) === "implementation" ? undefined : "docs";
+
+const patchSections = (path: string, verdicts: readonly DocVerdict[]) =>
+  verdicts.map((verdict) => (isDocs(verdict) ? docsHunkSection(path) : undefined));
 
 function headSections(file: PrFileDiff, head: ScannedHead): (IntentSection | undefined)[] {
   const headVerdicts = docHunkVerdicts(file, head);
   if (headVerdicts.every(isDocs)) return headVerdicts.map(() => "docs");
   const inTests = inlineTestHunkVerdicts(file, head);
+  const keepsCode = headVerdicts.some((verdict, i) => !inTests[i] && !isDocs(verdict));
+  const docsSection = keepsCode ? docsHunkSection(file.path) : "docs";
   return headVerdicts.map((verdict, i) =>
-    inTests[i] ? "tests" : isDocs(verdict) ? "docs" : undefined,
+    inTests[i] ? "tests" : isDocs(verdict) ? docsSection : undefined,
   );
 }
 
