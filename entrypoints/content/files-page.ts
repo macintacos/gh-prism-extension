@@ -2,7 +2,8 @@
  * The one script module that holds selectors into GitHub's Files view markup; the stylesheets list
  * theirs in a `GitHub hooks:` header. It holds a `PageKind` for a pull request's page and a
  * commit's, finds a Files view's page or a pull request's classic page, reads its rows, and
- * follows a pull request's narrow-layout overlay; it holds no UI and imports nothing from WXT. The pull request selectors come from EXC-1662's survey.
+ * follows a pull request's narrow-layout overlay; it holds no UI and imports nothing from WXT. The
+ * pull request selectors come from EXC-1662's survey.
  */
 
 /**

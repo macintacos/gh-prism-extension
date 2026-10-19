@@ -36,8 +36,8 @@ section[class*="toolbar__"]:has([class*="MobileTreeToggle"]) .gh-prism-side-swit
   }
 }
 
-/* Primer's slide-in keyframes carry a build hash, so sliding in from the right needs gh-prism's own.
-   Narrower, Primer's fullscreen sheet keeps its own animation. */
+/* Primer's slide-in keyframes carry a build hash, so sliding in from the right needs gh-prism's
+   own. Narrower, Primer's fullscreen sheet keeps its own animation. */
 @media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
   [data-gh-prism-side="right"] [class*="prc-Dialog-Dialog-"]:has(#pr-file-tree) {
     animation-name: gh-prism-overlay-in;

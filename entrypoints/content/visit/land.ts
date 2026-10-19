@@ -2,8 +2,8 @@
  * Lands intent on each page of a Files view visit. Hands each step (pending, progress, landed, then
  * the sections) to every view in one order, and owns the only observers of the native tree and of
  * the narrow layout's overlay copy, re-listing the sections from whichever is shown after each
- * change to it. It reads intent once per page; the caller shares
- * that read across a visit's pages (`shareIntent`).
+ * change to it. It reads intent once per page; the caller shares that read across a visit's pages
+ * (`shareIntent`).
  */
 
 import { type LandedSection, landingOf, sectionsOf } from "@/utils/intent/landing";
