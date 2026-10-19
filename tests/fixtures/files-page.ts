@@ -3,6 +3,7 @@ import { findFilesPage, readChangedFiles } from "../../entrypoints/content/files
 import classicFixture from "./classic-files-page.html?raw";
 import commitFixture from "./commit-page.html?raw";
 import fixture from "./files-page.html?raw";
+import overlayFixture from "./pr-overlay.html?raw";
 import viewedCommitFilterFixture from "./viewed-commit-filter-page.html?raw";
 import viewedFixture from "./viewed-files-page.html?raw";
 
@@ -35,6 +36,31 @@ export const VIEWED_LIB_RS =
 /** The viewed fixture's diff anchor for `Cargo.lock`, not Viewed. */
 export const VIEWED_CARGO_LOCK =
   "diff-13ee4b2252c9e516a0547f2891aa2105c3ca71c6d7a1e682c69be97998dfc87e";
+
+/**
+ * Opens the narrow layout's overlay ahead of the page, as GitHub's portal precedes it, holding a
+ * copy of the docked tree; returns the overlay's `#pr-file-tree`.
+ */
+export function openOverlay(): HTMLElement {
+  const template = document.createElement("template");
+  template.innerHTML = overlayFixture;
+  const portal = template.content.querySelector("#__primerPortalRoot__");
+  const docked = document.querySelector('#pr-file-tree ul[role="tree"]');
+  const sidebar = portal?.querySelector<HTMLElement>("#pr-file-tree");
+  const slot = sidebar?.querySelector('[class*="FileTreeScrollable"] ul[role="tree"]');
+  if (!portal || !sidebar || !docked || !slot) throw new Error("fixture has no overlay or tree");
+  const tree = docked.cloneNode(true);
+  if (!(tree instanceof Element)) throw new Error("docked tree is not an element");
+  for (const nav of tree.querySelectorAll(".gh-prism-sections")) nav.remove();
+  slot.replaceWith(tree);
+  document.body.prepend(portal);
+  return sidebar;
+}
+
+/** Closes the overlay `openOverlay` opened. */
+export function closeOverlay(): void {
+  document.getElementById("__primerPortalRoot__")?.remove();
+}
 
 /** The fixture element with `id`; throws when the fixture lacks it. */
 export function byId(id: string): HTMLElement {
