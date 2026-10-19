@@ -930,3 +930,160 @@ test("a row short of room for its decoration drops whole parts from its start, n
 
   await expect.poll(() => rowLayout(page, path)).toMatchObject({ shown: [], cut: [] });
 });
+
+const OVERLAY_HTML = readFixture("pr-overlay.html");
+const NARROW = { width: 900, height: 720 };
+
+/** Mounts the overlay fixture as GitHub does on open: a fresh copy of the docked tree, before the page. */
+const openOverlay = (page: Page) =>
+  page.evaluate((html) => {
+    const template = document.createElement("template");
+    template.innerHTML = html;
+    const portal = template.content.querySelector("#__primerPortalRoot__");
+    const docked = document.querySelector('#pr-file-tree ul[role="tree"]');
+    const slot = portal?.querySelector(
+      '#pr-file-tree [class*="FileTreeScrollable"] ul[role="tree"]',
+    );
+    if (!portal || !docked || !slot) throw new Error("fixture has no overlay or tree");
+    const tree = docked.cloneNode(true);
+    if (!(tree instanceof Element)) throw new Error("docked tree is not an element");
+    for (const nav of tree.querySelectorAll(".gh-prism-sections")) nav.remove();
+    slot.replaceWith(tree);
+    document.body.prepend(portal);
+  }, OVERLAY_HTML);
+
+const closeOverlay = (page: Page) =>
+  page.evaluate(() => document.getElementById("__primerPortalRoot__")?.remove());
+
+const overlay = (page: Page) => page.locator('[role="dialog"] #pr-file-tree');
+const backdropJustify = (page: Page) =>
+  page
+    .locator('[class*="prc-Dialog-Backdrop"]')
+    .evaluate((el) => getComputedStyle(el).justifyContent);
+
+test("the narrow overlay shows the sections in place of GitHub's tree", async ({
+  context,
+  page,
+}) => {
+  await page.setViewportSize(NARROW);
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+  await openOverlay(page);
+  await expect(overlay(page).locator(".gh-prism-sections")).toHaveCount(1);
+  await expect(overlay(page).locator('ul[role="tree"]')).toBeHidden();
+});
+
+test("the narrow overlay opens from the chosen side", async ({ context, page }) => {
+  await page.setViewportSize(NARROW);
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+  await openOverlay(page);
+  expect(await backdropJustify(page)).toBe("flex-end");
+  await closeOverlay(page);
+  await page.getByRole("button", { name: "Move file tree to the left" }).click();
+  await openOverlay(page);
+  expect(await backdropJustify(page)).not.toBe("flex-end");
+});
+
+test("the narrow layout shows the side switch beside its tree toggle", async ({
+  context,
+  page,
+}) => {
+  await page.setViewportSize(NARROW);
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+  const toggle = page.locator(".gh-prism-side-switch");
+  await expect(toggle).toBeVisible();
+  expect(
+    await toggle.evaluate(
+      (el) => el.previousElementSibling?.querySelector('[class*="MobileTreeToggle"]') != null,
+    ),
+  ).toBe(true);
+});
+
+test("the narrow side switch opens its tooltip toward the page's middle", async ({
+  context,
+  page,
+}) => {
+  await page.setViewportSize(NARROW);
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+  const left = await page
+    .locator(".gh-prism-side-switch")
+    .evaluate((el) => getComputedStyle(el, "::after").left);
+  expect(left).toBe("0px");
+});
+
+test("clicking a file in the narrow overlay scrolls its diff into view", async ({
+  context,
+  page,
+}) => {
+  await page.setViewportSize(NARROW);
+  await serve(
+    context,
+    PR_URL,
+    `${PR_BODY}<div id="${README_DIFF}" style="margin-top: 300vh">README.md</div>`,
+  );
+  await page.goto(PR_URL);
+  await openOverlay(page);
+  const diff = page.locator(`#${README_DIFF}`);
+  await expect(diff).not.toBeInViewport();
+  await overlay(page).locator('[data-item-path="README.md"]').click();
+  await expect(diff).toBeInViewport();
+});
+
+test("closing the narrow overlay returns the sections to the docked tree", async ({
+  context,
+  page,
+}) => {
+  await page.setViewportSize(NARROW);
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+  await openOverlay(page);
+  await expect(overlay(page).locator(".gh-prism-sections")).toHaveCount(1);
+  await closeOverlay(page);
+  await expect(page.locator("#pr-file-tree .gh-prism-sections")).toHaveCount(1);
+});
+
+test("an open overlay keeps one sidebar, and its collapsed section, across the narrow breakpoint", async ({
+  context,
+  page,
+}) => {
+  await page.setViewportSize(NARROW);
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+  await openOverlay(page);
+  const toggle = overlay(page).locator(
+    '.gh-prism-section[data-section="implementation"] .gh-prism-section-toggle',
+  );
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.setViewportSize(NARROW);
+  await expect(page.locator(".gh-prism-sections")).toHaveCount(1);
+  await expect(overlay(page).locator(".gh-prism-sections")).toHaveCount(1);
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+});
+
+test("without a narrow tree toggle, the side switch stays hidden below 1012px", async ({
+  context,
+  page,
+}) => {
+  await page.setViewportSize(NARROW);
+  await serve(
+    context,
+    PR_URL,
+    PR_BODY.replace(/<button class="[^"]*MobileTreeToggle[^"]*"><\/button>/, ""),
+  );
+  await page.goto(PR_URL);
+  await expect(page.locator(".gh-prism-sections")).toHaveCount(1);
+  await expect(page.locator(".gh-prism-side-switch")).toBeHidden();
+});
+
+test("a commit's narrow layout keeps the side switch hidden", async ({ context, page }) => {
+  await page.setViewportSize({ width: 700, height: 720 });
+  await serve(context, COMMIT_URL, COMMIT_BODY);
+  await page.goto(COMMIT_URL);
+  await expect(page.locator(".gh-prism-sections")).toHaveCount(1);
+  await expect(page.locator(".gh-prism-side-switch")).toBeHidden();
+});
