@@ -5,6 +5,7 @@ import { PR_DATA_PORT, servePrDataPort } from "../utils/github/pr-port";
 import { createPrDataSource } from "../utils/github/pr-source";
 import { forgetIntents } from "../utils/intent/cache";
 import { whatsNewSeen } from "../utils/prefs";
+import { dismissWhatsNew } from "../utils/whats-new";
 
 /**
  * Serves pull request data to content scripts, clears the intent cache on install, and marks a
@@ -16,8 +17,8 @@ export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(({ reason }) => {
     void forgetIntents(storage);
     if (reason !== "install") return;
-    whatsNewSeen
-      .setValue({ dismissed: browser.runtime.getManifest().version })
+    void whatsNewSeen
+      .setValue(dismissWhatsNew({}, browser.runtime.getManifest().version))
       .catch((error: unknown) =>
         console.error("gh-prism: saving the what's-new mark failed", error),
       );

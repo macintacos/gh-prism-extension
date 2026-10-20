@@ -65,11 +65,11 @@ describe("background", () => {
   });
 
   it("leaves the notes to show after an update", async () => {
+    const setValue = vi.spyOn(whatsNewSeen, "setValue");
+
     await fakeBrowser.runtime.onInstalled.trigger({ reason: "update", previousVersion: "0.3.2" });
 
-    await vi.waitFor(async () =>
-      expect(await fakeBrowser.storage.local.get("whatsNewSeen")).toEqual({}),
-    );
+    expect(setValue).not.toHaveBeenCalled();
   });
 
   it("serves the PR data port", () => {

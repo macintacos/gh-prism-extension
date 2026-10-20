@@ -41,10 +41,26 @@ describe("whatsNewBlock", () => {
 
   it("removes itself and calls dismiss once when dismissed", () => {
     const button = block.querySelector<HTMLButtonElement>('[aria-label="Dismiss what\'s new"]');
+
     button?.click();
 
     expect(block.isConnected).toBe(false);
     expect(dismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands focus to the nav's first section toggle when dismissed", () => {
+    const section = Object.assign(document.createElement("button"), {
+      className: "gh-prism-section-toggle",
+    });
+    const nav = document.createElement("nav");
+    nav.append(block, section);
+    document.body.append(nav);
+    const button = block.querySelector<HTMLButtonElement>('[aria-label="Dismiss what\'s new"]');
+    button?.focus();
+
+    button?.click();
+
+    expect(document.activeElement).toBe(section);
   });
 
   it("holds the rendered notes, then a link to the version's release", () => {

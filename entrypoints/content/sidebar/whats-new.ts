@@ -1,6 +1,9 @@
 /**
  * The sidebar's what's-new block: the installed version's release notes, collapsed under a header
  * the user can expand or dismiss.
+ *
+ * No sheet of its own: `sidebar/sections-view.css` `@source`s this file, so the block is styled
+ * only inside the sections view.
  */
 
 import { el, icon, X_ICON } from "../ui/dom";
@@ -8,18 +11,23 @@ import { markdownNodes } from "../ui/markdown";
 import { chevron } from "./sections-view";
 
 /** The version whose `notes` the block shows, and how to remember that the user dismissed it. */
-export type WhatsNew = { version: string; notes: string; dismiss: () => void };
+export interface WhatsNew {
+  readonly version: string;
+  readonly notes: string;
+  readonly dismiss: () => void;
+}
 
 /** Octicons 19.15.0 (MIT, GitHub Inc.): megaphone. */
 const MEGAPHONE_ICON =
   "M3.25 9a.75.75 0 0 1 .75.75c0 2.142.456 3.828.733 4.653a.122.122 0 0 0 .05.064.212.212 0 0 0 .117.033h1.31c.085 0 .18-.042.258-.152a.45.45 0 0 0 .075-.366A16.743 16.743 0 0 1 6 9.75a.75.75 0 0 1 1.5 0c0 1.588.25 2.926.494 3.85.293 1.113-.504 2.4-1.783 2.4H4.9c-.686 0-1.35-.41-1.589-1.12A16.4 16.4 0 0 1 2.5 9.75.75.75 0 0 1 3.25 9ZM0 6a4 4 0 0 1 4-4h2.75a.75.75 0 0 1 .75.75v6.5a.75.75 0 0 1-.75.75H4a4 4 0 0 1-4-4Zm4-2.5a2.5 2.5 0 1 0 0 5h2v-5ZM15.59.082A.75.75 0 0 1 16 .75v10.5a.75.75 0 0 1-1.189.608l-.002-.001h.001l-.014-.01a5.775 5.775 0 0 0-.422-.25 10.63 10.63 0 0 0-1.469-.64C11.576 10.484 9.536 10 6.75 10a.75.75 0 0 1 0-1.5c2.964 0 5.174.516 6.658 1.043.423.151.787.3 1.092.443V2.014c-.305.143-.669.292-1.092.443C11.924 2.984 9.713 3.5 6.75 3.5a.75.75 0 0 1 0-1.5c2.786 0 4.826-.484 6.155-.957.665-.236 1.154-.47 1.47-.64.144-.077.284-.161.421-.25l.014-.01a.75.75 0 0 1 .78-.061Z";
 
-const RELEASES = "https://github.com/macintacos/gh-prism-extension/releases/tag/v";
+const releaseUrl = (version: string) =>
+  `https://github.com/macintacos/gh-prism-extension/releases/tag/v${version}`;
 
 /**
  * `whatsNew`'s block, collapsed: a header whose toggle shows and hides the notes, led by an icon
  * the stylesheet swaps for the chevron as a section's does, and a button that removes the block
- * and calls `dismiss`.
+ * and calls `dismiss`, and below the notes a link to the version's GitHub Release.
  */
 export function whatsNewBlock(doc: Document, { version, notes, dismiss }: WhatsNew): HTMLElement {
   const glyph = el(
@@ -47,7 +55,7 @@ export function whatsNewBlock(doc: Document, { version, notes, dismiss }: WhatsN
   );
   header.id = "gh-prism-heading-whats-new";
 
-  // Primer's medium invisible IconButton.
+  // Primer's invisible IconButton, at the header row's height.
   const close = el(
     doc,
     "button",
@@ -63,7 +71,7 @@ export function whatsNewBlock(doc: Document, { version, notes, dismiss }: WhatsN
     "tw:inline-block tw:mt-2 tw:text-[color:var(--fgColor-accent)] tw:font-medium",
     `View v${version} on GitHub`,
   );
-  link.href = `${RELEASES}${version}`;
+  link.href = releaseUrl(version);
   link.target = "_blank";
   link.rel = "noreferrer";
 
@@ -95,7 +103,9 @@ export function whatsNewBlock(doc: Document, { version, notes, dismiss }: WhatsN
     body.inert = !expanded;
   });
   close.addEventListener("click", () => {
+    const nav = root.parentElement;
     root.remove();
+    nav?.querySelector<HTMLElement>(".gh-prism-section-toggle")?.focus();
     dismiss();
   });
   return root;

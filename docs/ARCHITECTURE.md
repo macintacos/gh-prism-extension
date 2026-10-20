@@ -15,7 +15,8 @@ The service worker in [`entrypoints/background.ts`](../entrypoints/background.ts
 diffs and file contents from github.com. It serves them to content scripts over a
 long-lived message port, defined in
 [`utils/github/pr-port.ts`](../utils/github/pr-port.ts). It also clears the intent cache
-whenever the extension is installed, updated, or reloaded in development.
+whenever the extension is installed, updated, or reloaded in development, and on a fresh
+install it marks the installed version's what's-new notes dismissed.
 
 The content script in [`entrypoints/content/index.ts`](../entrypoints/content/index.ts)
 runs on every github.com page at `document_start`, so its watcher is in place before
@@ -101,6 +102,24 @@ toolbar's review tools opens it again. `index.ts` reads the dismissal from
 `classicNoticeDismissed` in [`utils/prefs.ts`](../utils/prefs.ts) before watching, shares
 it across the tab's pages, and saves it on each close.
 
+## The what's-new block
+
+After an update, the sidebar opens with a collapsed what's-new block holding the installed
+version's release notes, built by
+[`entrypoints/content/sidebar/whats-new.ts`](../entrypoints/content/sidebar/whats-new.ts).
+The release workflow passes the notes into the build as `WXT_RELEASE_NOTES`, so nothing is
+fetched at runtime.
+[`entrypoints/content/ui/markdown.ts`](../entrypoints/content/ui/markdown.ts) renders them
+from a small Markdown subset as plain DOM, never HTML.
+[`utils/whats-new.ts`](../utils/whats-new.ts) decides when the block shows: from the first
+view of a version until the reviewer dismisses it or 3 days after that view. `index.ts`
+reads `whatsNewSeen` from [`utils/prefs.ts`](../utils/prefs.ts) before the first render,
+and watches it only if, at the tab's startup, the block can still show, since a dismissed
+or expired version never shows again. A dismissal in one tab drops the block from the
+others on their next page. On `runtime.onInstalled` with reason `install`,
+[`entrypoints/background.ts`](../entrypoints/background.ts) marks the installed version
+dismissed, so only an update shows the notes.
+
 ## Intent and its cache
 
 gh-prism lists each changed file in one of five sections, such as Implementation or Tests.
@@ -155,18 +174,6 @@ row's link. That link's handler mounts a diff that GitHub has virtualized away, 
 bare hash jump would not do. While the narrow layout's overlay is open, the sidebar moves
 into the overlay's copy of the tree, which then serves as the source and takes the row
 clicks, and it moves back to the docked tree when the overlay closes.
-
-After an update, the sidebar opens with a collapsed what's-new block holding the installed
-version's release notes, built by
-[`entrypoints/content/sidebar/whats-new.ts`](../entrypoints/content/sidebar/whats-new.ts).
-The release workflow passes the notes into the build as `WXT_RELEASE_NOTES`, so nothing is
-fetched at runtime.
-[`entrypoints/content/ui/markdown.ts`](../entrypoints/content/ui/markdown.ts) renders them
-from a small Markdown subset as plain DOM, never HTML.
-[`utils/whats-new.ts`](../utils/whats-new.ts) decides when the block shows: from the first
-view of a version until the reviewer dismisses it or 3 days pass. `index.ts` keeps that
-state in `whatsNewSeen` and watches it, so a dismissal in one tab clears the block from
-the others on their next page.
 
 [`entrypoints/content/sidebar/section-tree.ts`](../entrypoints/content/sidebar/section-tree.ts)
 renders each section, and the comment-lines sub-section, as its own `@pierre/trees` file
@@ -230,7 +237,7 @@ then mounted only on the pages that need it. The rules for writing styles are in
 
 ```text
 entrypoints/
-  background.ts          service worker: PR data port, cache clearing on install
+  background.ts          service worker: PR data port, cache clearing and what's-new mark on install
   content/
     index.ts             content script entry: wires the watchers, intent, and views
     files-page.ts        every GitHub Files view selector; page kinds; the classic page

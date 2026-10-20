@@ -54,7 +54,14 @@ describe("markdownNodes", () => {
     const root = rendered("[x](javascript:alert(1))");
 
     expect(root.querySelector("a")).toBeNull();
-    expect(root.textContent).toContain("x");
+    expect(root.textContent).toBe("[x](javascript:alert(1))");
+  });
+
+  it("leaves a bare URL's trailing punctuation as text", () => {
+    const root = rendered("see https://example.com/a.");
+
+    expect(root.querySelector("a")?.getAttribute("href")).toBe("https://example.com/a");
+    expect(root.querySelector("p")?.lastChild?.textContent).toBe(".");
   });
 
   it("renders a GitHub-generated release body", () => {

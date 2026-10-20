@@ -598,6 +598,7 @@ describe("showSections", () => {
 
     it("leaves the notice first when the block is gone before landing", async () => {
       const { block, pending } = mountUnderBlock();
+
       block.remove();
       pending.resolve({ ok: false, problem: "no-access" });
       await afterDebounce();

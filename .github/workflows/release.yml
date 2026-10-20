@@ -8,7 +8,7 @@ on:
         type: choice
         options: [patch, minor, major]
       notes:
-        description: GitHub Release notes (generated when empty)
+        description: Release notes for the GitHub Release and the sidebar's What's new (generated when empty)
         required: false
         type: string
 permissions: {}

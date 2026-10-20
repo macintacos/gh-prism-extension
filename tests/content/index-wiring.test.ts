@@ -7,6 +7,7 @@ import { dockSidebar, type Side } from "../../entrypoints/content/sidebar/side";
 import { showVisit } from "../../entrypoints/content/visit/land";
 import { readFilesRoute } from "../../utils/github/files-route";
 import { intentFor } from "../../utils/intent/read";
+import { whatsNewSeen } from "../../utils/prefs";
 import {
   byId,
   loadClassicFixture,
@@ -330,6 +331,7 @@ describe("content script", () => {
 
     it("stores a dismissal", async () => {
       await run();
+
       block()?.querySelector<HTMLButtonElement>('[aria-label="Dismiss what\'s new"]')?.click();
 
       await vi.waitFor(async () => expect(await seen()).toMatchObject({ dismissed: VERSION }));
@@ -356,6 +358,22 @@ describe("content script", () => {
       await run();
 
       expect(block()).toBeNull();
+    });
+
+    it.each([
+      { hidden: "dismissed", saved: () => ({ dismissed: VERSION }) },
+      {
+        hidden: "expired",
+        saved: () => ({ shown: { version: VERSION, at: Date.now() - 3 * 24 * 60 * 60 * 1000 } }),
+      },
+    ])("leaves other tabs' storage writes unwatched once $hidden", async ({ saved }) => {
+      vi.setSystemTime(10 * 24 * 60 * 60 * 1000);
+      await fakeBrowser.storage.local.set({ whatsNewSeen: saved() });
+      const watch = vi.spyOn(whatsNewSeen, "watch");
+
+      await run();
+
+      expect(watch).not.toHaveBeenCalled();
     });
 
     it("shows nothing and stores nothing when the build has no notes", async () => {

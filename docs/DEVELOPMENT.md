@@ -29,7 +29,10 @@ GitHub sign-in survives `wxt clean` and is shared by every worktree. Because eve
 worktree uses the same profile, only one dev session runs at a time.
 
 To preview the sidebar's what's-new block, pass release notes into the build:
-`WXT_RELEASE_NOTES="$(cat notes.md)" mise run dev`.
+`WXT_RELEASE_NOTES="$(cat notes.md)" mise run dev`. A fresh install, a dismissal, or a
+3-day-old first view hides it. If it doesn't show, run
+`chrome.storage.local.remove("whatsNewSeen")` in the extension's service-worker console,
+then reload a Files view.
 
 ## Tasks
 

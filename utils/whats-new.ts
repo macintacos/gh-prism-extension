@@ -1,7 +1,14 @@
 /** When the what's-new block shows: the rule alone, with the clock passed in. */
 
 /** What gh-prism remembers about the what's-new block; version strings and a timestamp only. */
-export type WhatsNewState = { dismissed?: string; shown?: { version: string; at: number } };
+export interface WhatsNewState {
+  dismissed?: string;
+  shown?: {
+    version: string;
+    /** When `version` first showed, in ms since the epoch. */
+    at: number;
+  };
+}
 
 const WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
 

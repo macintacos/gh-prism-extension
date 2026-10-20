@@ -103,14 +103,14 @@ mode
 **Sidebar**: gh-prism's sectioned list of changed files, shown in place of the native
 tree. _Avoid_: file tree, which is GitHub's
 
-**What's new**: The sidebar's block of the installed version's release notes, shown above
-the sections after an update until the reviewer dismisses it or 3 days pass. _Avoid_:
-section, changelog
-
 **Side**: The edge the sidebar docks on, left or right. _Avoid_: position
 
 **Slide**: The sidebar's animated move when it switches sides, collapses, or expands.
 _Avoid_: glide
+
+**What's new**: The sidebar's block of the installed version's release notes, shown above
+the sections after an update until the reviewer dismisses it or 3 days after it first
+shows. _Avoid_: section, changelog
 
 **Current file**: GitHub's `aria-current` file, shown as the sidebar's selected row. There
 is at most one.

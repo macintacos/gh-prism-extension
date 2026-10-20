@@ -1,14 +1,20 @@
+/**
+ * Release notes Markdown as DOM. Writes bare tags (`h4`, `p`, `ul`, `li`, `strong`, `code`, `a`)
+ * and no classes, so the caller styles them. Headings are all `h4` so the notes never outrank the
+ * block's `h3`.
+ */
 import { el } from "./dom";
 
 const HEADING = /^#{1,6}\s+(.*)$/;
 const BULLET = /^[-*]\s+(.*)$/;
+// A URL never ends in sentence punctuation, so a trailing period stays text.
 const INLINE =
-  /\*\*(.+?)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)|(https?:\/\/[^\s<>()]*[^\s<>().,;:!?'"])/g;
+  /\*\*(?<bold>.+?)\*\*|`(?<code>[^`]+)`|\[(?<label>[^\]]+)\]\((?<href>[^)\s]+)\)|(?<bare>https?:\/\/[^\s<>()]*[^\s<>().,;:!?'"])/g;
 
 /**
- * `markdown` as DOM nodes of `doc`, from a subset: headings (all as `h4`), `-`/`*` bullets,
- * paragraphs, `**bold**`, `` `code` ``, `[text](url)`, and bare http(s) URLs. Everything else,
- * HTML included, stays literal text.
+ * `markdown` as DOM nodes of `doc`, from a subset: headings, `-`/`*` bullets, paragraphs,
+ * `**bold**`, `` `code` ``, `[text](url)`, and bare http(s) URLs. Everything else, HTML included,
+ * stays literal text.
  */
 export function markdownNodes(doc: Document, markdown: string): Node[] {
   const nodes: Node[] = [];
@@ -21,26 +27,22 @@ export function markdownNodes(doc: Document, markdown: string): Node[] {
   };
 
   for (const line of markdown.split(/\r?\n/).map((raw) => raw.trim())) {
-    const heading = HEADING.exec(line);
-    const bullet = BULLET.exec(line);
-    if (bullet) {
+    const bullet = BULLET.exec(line)?.[1];
+    const heading = HEADING.exec(line)?.[1];
+    if (bullet === undefined) list = undefined;
+
+    if (bullet !== undefined) {
       endParagraph();
       if (!list) {
         list = el(doc, "ul", "");
         nodes.push(list);
       }
-      list.append(el(doc, "li", "", ...inlineNodes(doc, bullet[1] ?? "")));
-      continue;
-    }
-    list = undefined;
-    if (heading) {
+      list.append(el(doc, "li", "", ...inlineNodes(doc, bullet)));
+    } else if (heading !== undefined) {
       endParagraph();
-      nodes.push(el(doc, "h4", "", ...inlineNodes(doc, heading[1] ?? "")));
-    } else if (line === "") {
-      endParagraph();
-    } else {
-      paragraph.push(line);
-    }
+      nodes.push(el(doc, "h4", "", ...inlineNodes(doc, heading)));
+    } else if (line === "") endParagraph();
+    else paragraph.push(line);
   }
   endParagraph();
 
@@ -54,20 +56,29 @@ function inlineNodes(doc: Document, text: string): (Node | string)[] {
     nodes.push(text.slice(last, match.index));
     last = match.index + match[0].length;
 
-    const [source, bold, code, label, href, bare] = match;
+    const groups: Partial<Record<string, string>> = match.groups ?? {};
+    const { bold, code, label, href, bare } = groups;
     if (bold !== undefined) nodes.push(el(doc, "strong", "", ...inlineNodes(doc, bold)));
     else if (code !== undefined) nodes.push(el(doc, "code", "", code));
-    else nodes.push(link(doc, label ?? bare ?? "", href ?? bare ?? "") ?? source);
+    else nodes.push(link(doc, label ?? bare ?? "", href ?? bare ?? "") ?? match[0]);
   }
   nodes.push(text.slice(last));
 
   return nodes.filter((node) => node !== "");
 }
 
-/** An `a` to `href` opening in a new tab, or undefined unless `href` is an http(s) URL. */
+/**
+ * An `a` to `href` opening in a new tab, so a click doesn't leave the pull request, or undefined
+ * unless `href` is an http(s) URL.
+ */
 function link(doc: Document, text: string, href: string): HTMLAnchorElement | undefined {
-  if (!URL.canParse(href) || !["https:", "http:"].includes(new URL(href).protocol))
+  let url: URL;
+  try {
+    url = new URL(href);
+  } catch {
     return undefined;
+  }
+  if (!["https:", "http:"].includes(url.protocol)) return undefined;
 
   const a = el(doc, "a", "", text);
   a.href = href;

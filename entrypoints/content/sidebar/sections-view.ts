@@ -406,7 +406,8 @@ function followViewport(view: HTMLElement, onMove: () => void, signal: AbortSign
  * Mounts the sidebar's sections view in `page` until `signal` aborts, and returns its hooks: a
  * progress bar while intent is pending; on landing, notices for path-only sections or diffs kept
  * in GitHub's order; then a tree per listing, each split file listed in every section its hunks
- * land in, with the lines each share adds and removes.
+ * land in, with the lines each share adds and removes. All of it anchors below a leading
+ * what's-new block when the nav holds one.
  */
 export function showSections(page: FilesPage, signal: AbortSignal): SectionsView {
   const doc = page.sidebar.ownerDocument;
