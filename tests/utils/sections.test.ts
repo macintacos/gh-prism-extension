@@ -42,6 +42,8 @@ const cases: Record<SectionKey, string[]> = {
     "doc/help.txt",
     ".github/CONTRIBUTING.md",
     "a\n.md",
+    "docs/man/man1/gh.1",
+    "man/man5/gh-config.5",
   ],
   config: [
     "a.toml",
@@ -68,6 +70,9 @@ const cases: Record<SectionKey, string[]> = {
     "vitest.config.mts",
     "apps/web/vite.config.js",
     "postcss.config.cjs",
+    "BUILD.bazel",
+    "pkg/BUILD.bazel",
+    "MODULE.bazel",
   ],
   implementation: [
     "plugin/lsp.lua",
@@ -88,6 +93,7 @@ const cases: Record<SectionKey, string[]> = {
     "contest.py",
     "testing/a.lua",
     "mydocs/a.txt",
+    "src/man/page.ts",
     "src/config.ts",
   ],
 };

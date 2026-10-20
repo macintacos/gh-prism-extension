@@ -1,9 +1,10 @@
 /**
  * Path rules ported from changeset.nvim's `lua/changeset/sections.lua` at
  * macintacos/changeset.nvim@2b6115db3a5394a207836afdeaa8237225b8de93 — the glob strings are
- * copied verbatim, plus the `e2e` test dir, `*.e2e.*` test files, and `*.config.*` tool configs
- * such as `vite.config.ts`, so diff that file against this one when syncing. Upstream's labels
- * and icons are not ported; this sidebar's own live in `entrypoints/content/ui/section-catalog.ts`.
+ * copied verbatim, plus the `e2e` test dir, `*.e2e.*` test files, `*.config.*` tool configs
+ * such as `vite.config.ts`, `*.bazel` build files, and `man1`–`man9` man page dirs, so diff that
+ * file against this one when syncing. Upstream's labels and icons are not ported; this sidebar's
+ * own live in `entrypoints/content/ui/section-catalog.ts`.
  * Upstream's `test_rule` is ported in `utils/hunk-rules/inline-tests.ts`.
  */
 
@@ -20,8 +21,9 @@ const TEST_FILES = glob(
 );
 const DOC_FILES = glob("{*.md,*.mdx,*.rst,README*,CHANGELOG*}");
 const DOC_DIRS = new Set(["doc", "docs"]);
+const MAN_DIRS = new Set(["man1", "man2", "man3", "man4", "man5", "man6", "man7", "man8", "man9"]);
 const CONFIG_FILES = glob(
-  "{*.toml,*.yaml,*.yml,*.pkl,*.json,*.ini,*.cfg,*.config.*,.*,Makefile,Dockerfile,go.mod}",
+  "{*.toml,*.yaml,*.yml,*.pkl,*.json,*.ini,*.cfg,*.config.*,*.bazel,.*,Makefile,Dockerfile,go.mod}",
 );
 const CONFIG_DIRS = new Set([".github"]);
 const SCRIPT_FILES = glob("{*.sh,*.bash,*.py,*.js,*.ts,*.rs,*.go,*.lua}");
@@ -40,7 +42,13 @@ export function classify(path: string, generated = false): SectionKey {
   const name = path.slice(path.lastIndexOf("/") + 1);
   if (generated || GENERATED_FILES.test(name)) return "generated";
   if (hasDir(dirs, TEST_DIRS) || TEST_FILES.test(name)) return "tests";
-  if (DOC_FILES.test(name) || (name.endsWith(".txt") && hasDir(dirs, DOC_DIRS))) return "docs";
+  if (
+    DOC_FILES.test(name) ||
+    hasDir(dirs, MAN_DIRS) ||
+    (name.endsWith(".txt") && hasDir(dirs, DOC_DIRS))
+  ) {
+    return "docs";
+  }
   if (CONFIG_FILES.test(name) || (hasDir(dirs, CONFIG_DIRS) && !SCRIPT_FILES.test(name))) {
     return "config";
   }
