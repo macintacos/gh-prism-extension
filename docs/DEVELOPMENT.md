@@ -103,11 +103,12 @@ below and reports the GitHub Release.
 
 `mise run release <bump> [--notes-file <path>]` runs `gh workflow run` on
 [`.github/workflows/release.yml`](../.github/workflows/release.yml). On trunk, the
-workflow runs `preflight`, bumps `package.json`'s version, zips the extension, commits
-`chore: bump version to X.Y.Z` to trunk through GitHub's API so GitHub signs it, tags it
-`vX.Y.Z`, then submits the zip to the Chrome Web Store with `wxt submit`. Last, it creates
-the `vX.Y.Z` GitHub Release, with the notes file as its body, or with GitHub's generated
-notes when you pass none.
+workflow runs `preflight` and bumps `package.json`'s version. It then resolves the release
+notes: the notes file, or GitHub's generated notes when you pass none. It zips the
+extension with those notes inside, so the sidebar can show them under "What's new". It
+commits `chore: bump version to X.Y.Z` to trunk through GitHub's API so GitHub signs it,
+tags it `vX.Y.Z`, then submits the zip to the Chrome Web Store with `wxt submit`. Last, it
+creates the `vX.Y.Z` GitHub Release with the same notes as its body.
 
 Only the repository owner can run it. It uses the `chrome-web-store` environment, which
 allows only trunk and holds four secrets: `CHROME_EXTENSION_ID`, `CHROME_PUBLISHER_ID`,

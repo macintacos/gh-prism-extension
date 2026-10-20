@@ -39,7 +39,19 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
         env:
           BUMP: ${{ inputs.bump }}
-      - run: bunx wxt zip
+      # Before the build: the build ships these notes, and the Release publishes the same file.
+      - name: Resolve the release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NOTES: ${{ inputs.notes }}
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          if [ -n "$NOTES" ]; then
+            printf '%s\n' "$NOTES" > "$RUNNER_TEMP/notes.md"
+          else
+            gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="v$VERSION" -f target_commitish="$GITHUB_SHA" --jq .body > "$RUNNER_TEMP/notes.md"
+          fi
+      - run: WXT_RELEASE_NOTES="$(cat "$RUNNER_TEMP/notes.md")" bunx wxt zip
       # Commit before submit: expectedHeadOid fails the commit cleanly if trunk moved, before the store sees anything.
       # Trunk requires signed commits, and GitHub signs a commit made through its API, not one pushed with git.
       - name: Commit and tag
@@ -74,11 +86,5 @@ jobs:
       - name: Create the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-          NOTES: ${{ inputs.notes }}
           VERSION: ${{ steps.bump.outputs.version }}
-        run: |
-          if [ -n "$NOTES" ]; then
-            gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --verify-tag --title "v$VERSION" --notes "$NOTES"
-          else
-            gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --verify-tag --title "v$VERSION" --generate-notes
-          fi
+        run: gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --verify-tag --title "v$VERSION" --notes-file "$RUNNER_TEMP/notes.md"
