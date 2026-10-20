@@ -98,11 +98,12 @@ gh-prism needs access to three hosts and to Chrome's extension storage, and noth
 - `https://patch-diff.githubusercontent.com/*` is where GitHub redirects diff downloads.
 - `https://raw.githubusercontent.com/*` is where GitHub redirects raw-file downloads.
 - Extension storage holds the side you put the sidebar on, whether you closed the dialog
-  on the classic Files changed tab, and where gh-prism placed each file for the diffs it
-  read most recently. It keeps up to 50 placement entries, and a pull request's diff can
-  take two: one for the diff and one for the base and head commits it runs between. Chrome
-  syncs the side to your other computers when Chrome sync is on. The dismissal and the
-  placements stay on this computer.
+  on the classic Files changed tab, which version's what's-new notes you dismissed or
+  first saw and when, and where gh-prism placed each file for the diffs it read most
+  recently. It keeps up to 50 placement entries, and a pull request's diff can take two:
+  one for the diff and one for the base and head commits it runs between. Chrome syncs the
+  side to your other computers when Chrome sync is on. The dismissal, the what's-new
+  notes, and the placements stay on this computer.
 
 ## Troubleshooting
 
