@@ -42,7 +42,7 @@ export default defineContentScript({
     } satisfies IntentSources;
     const release = releaseOf(import.meta.env.WXT_RELEASE_NOTES);
     // Read before watching, so a saved side or dismissal never shows its default first.
-    const [savedSide, dismissed, whatsNewFor] = await Promise.all([
+    const [savedSide, dismissed, whatsNewForPage] = await Promise.all([
       readSavedSide(),
       readNoticeDismissed(),
       release && followWhatsNew(release, ctx),
@@ -64,7 +64,7 @@ export default defineContentScript({
           const viewed = visitViewed(fullLoad ? readViewedSeed(document, route.diff) : undefined);
           fullLoad = false;
           return (page, signal) => {
-            showVisit(page, signal, { intent, diffstat, viewed, whatsNew: whatsNewFor?.() });
+            showVisit(page, signal, { intent, diffstat, viewed, whatsNew: whatsNewForPage?.() });
             dockSidebar(page, signal, { choice: side, save: saveSide });
           };
         },

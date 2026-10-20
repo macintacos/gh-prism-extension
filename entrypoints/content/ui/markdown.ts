@@ -51,10 +51,10 @@ export function markdownNodes(doc: Document, markdown: string): Node[] {
 
 function inlineNodes(doc: Document, text: string): (Node | string)[] {
   const nodes: (Node | string)[] = [];
-  let last = 0;
+  let consumed = 0;
   for (const match of text.matchAll(INLINE)) {
-    nodes.push(text.slice(last, match.index));
-    last = match.index + match[0].length;
+    nodes.push(text.slice(consumed, match.index));
+    consumed = match.index + match[0].length;
 
     const groups: Partial<Record<string, string>> = match.groups ?? {};
     const { bold, code, label, href, bare } = groups;
@@ -62,7 +62,7 @@ function inlineNodes(doc: Document, text: string): (Node | string)[] {
     else if (code !== undefined) nodes.push(el(doc, "code", "", code));
     else nodes.push(link(doc, label ?? bare ?? "", href ?? bare ?? "") ?? match[0]);
   }
-  nodes.push(text.slice(last));
+  nodes.push(text.slice(consumed));
 
   return nodes.filter((node) => node !== "");
 }

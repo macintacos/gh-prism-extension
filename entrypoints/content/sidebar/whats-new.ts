@@ -75,27 +75,27 @@ export function whatsNewBlock(doc: Document, { version, notes, dismiss }: WhatsN
   link.target = "_blank";
   link.rel = "noreferrer";
 
-  const scroll = el(
+  const notesPane = el(
     doc,
     "div",
     "tw:max-h-64 tw:overflow-y-auto tw:pt-0 tw:px-3 tw:pb-3 tw:text-body-small tw:leading-body-small tw:text-fg-default tw:[&_:is(p,ul,h4)]:mt-0 tw:[&_:is(p,ul,h4)]:mb-2 tw:[&_ul]:ps-5 tw:[&_h4]:text-body-small tw:[&_h4]:font-semibold",
     ...markdownNodes(doc, notes),
     link,
   );
-  const body = el(doc, "div", "gh-prism-whats-new-body tw:overflow-clip", scroll);
+  const body = el(doc, "div", "gh-prism-whats-new-body tw:overflow-clip", notesPane);
   body.id = "gh-prism-whats-new-body";
   body.inert = true;
   toggle.setAttribute("aria-controls", body.id);
 
-  const root = el(
+  const block = el(
     doc,
     "section",
     "gh-prism-whats-new tw:rounded-medium tw:bg-[var(--gh-prism-tint)]",
     el(doc, "div", "tw:flex tw:items-center", header, close),
     body,
   );
-  root.setAttribute("aria-labelledby", header.id);
-  root.style.setProperty("--gh-prism-hue", "var(--fgColor-success)");
+  block.setAttribute("aria-labelledby", header.id);
+  block.style.setProperty("--gh-prism-hue", "var(--fgColor-success)");
 
   toggle.addEventListener("click", () => {
     const expanded = toggle.getAttribute("aria-expanded") !== "true";
@@ -103,10 +103,10 @@ export function whatsNewBlock(doc: Document, { version, notes, dismiss }: WhatsN
     body.inert = !expanded;
   });
   close.addEventListener("click", () => {
-    const nav = root.parentElement;
-    root.remove();
+    const nav = block.parentElement;
+    block.remove();
     nav?.querySelector<HTMLElement>(".gh-prism-section-toggle")?.focus();
     dismiss();
   });
-  return root;
+  return block;
 }

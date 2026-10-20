@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { dismissWhatsNew, whatsNewAt, whatsNewStateOf } from "../../utils/whats-new";
 
-const DAYS_3 = 3 * 24 * 60 * 60 * 1000;
+const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
 
 describe("whatsNewAt", () => {
   it("shows a version on first view and stamps it", () => {
@@ -14,7 +14,7 @@ describe("whatsNewAt", () => {
   it("keeps showing a stamped version until 3 days pass, leaving its state as is", () => {
     const state = { shown: { version: "0.4.0", at: 100 } };
 
-    const result = whatsNewAt(state, "0.4.0", 100 + DAYS_3 - 1);
+    const result = whatsNewAt(state, "0.4.0", 100 + THREE_DAYS_MS - 1);
 
     expect(result.shows).toBe(true);
     expect(result.state).toBe(state);
@@ -23,7 +23,7 @@ describe("whatsNewAt", () => {
   it("hides a stamped version once 3 days pass", () => {
     const state = { shown: { version: "0.4.0", at: 100 } };
 
-    expect(whatsNewAt(state, "0.4.0", 100 + DAYS_3).shows).toBe(false);
+    expect(whatsNewAt(state, "0.4.0", 100 + THREE_DAYS_MS).shows).toBe(false);
   });
 
   it("hides a dismissed version", () => {
@@ -40,9 +40,9 @@ describe("whatsNewAt", () => {
   it("restarts the window for a newer version after an older one was shown", () => {
     const state = { shown: { version: "0.3.2", at: 0 } };
 
-    expect(whatsNewAt(state, "0.4.0", DAYS_3 * 2)).toEqual({
+    expect(whatsNewAt(state, "0.4.0", THREE_DAYS_MS * 2)).toEqual({
       shows: true,
-      state: { shown: { version: "0.4.0", at: DAYS_3 * 2 } },
+      state: { shown: { version: "0.4.0", at: THREE_DAYS_MS * 2 } },
     });
   });
 });
