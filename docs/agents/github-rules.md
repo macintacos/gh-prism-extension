@@ -171,10 +171,14 @@ facts about GitHub that held when written, and ends with how to re-check them;
 - **Read a repo's visibility from two `<head>` metas.**
   `octolytics-dimension-repository_public` (`"true"`/`"false"`) and
   `octolytics-dimension-repository_nwo` are served on pull request `/changes` and `/files`
-  and on commit pages, signed in or out. A soft navigation can leave another repo's metas
-  behind, so treat the repo as public only when `nwo` matches the route's repo.
-- **Re-check:** curl a public pull request's `/changes` and a commit page and grep
-  `octolytics-dimension-repository_`.
+  and on commit pages, signed in or out. A soft navigation may leave another repo's metas
+  behind (inferred, not observed), so treat the repo as public only when `nwo` matches the
+  route's repo.
+- **Re-check:** curl a public commit page and grep `octolytics-dimension-repository_` and
+  `diff-file-tree-filter`, and curl a public pull request's `/files` (signed out,
+  `/changes` 302s there) for the metas. Signed in with the saved `storageState`, load a
+  pull request's `/changes` in Playwright, read both metas and `#diff-file-tree-filter`'s
+  markup, then below 1012px open the overlay and find its copy of the row.
 
 ## Viewed state
 

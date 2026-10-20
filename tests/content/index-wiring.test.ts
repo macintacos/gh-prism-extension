@@ -45,6 +45,7 @@ const afterMutations = () => vi.advanceTimersByTimeAsync(0);
 beforeEach(() => {
   fakeBrowser.reset();
   vi.resetAllMocks();
+  // main reads the version on every run; fakeBrowser leaves runtime.getManifest unmocked.
   vi.spyOn(fakeBrowser.runtime, "getManifest").mockReturnValue({
     manifest_version: 3,
     name: "gh-prism",

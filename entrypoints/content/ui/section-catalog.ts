@@ -3,7 +3,10 @@ import { icon } from "./dom";
 
 /** One section's identity. */
 interface SectionRow {
-  /** The section's name in the sidebar and the header counter. */
+  /**
+   * The section's name in the sidebar and the header counter. The report form's section
+   * dropdowns (.github/ISSUE_TEMPLATE/miscategorized.yml) repeat it by hand; keep them in sync.
+   */
   readonly label: string;
   /** A 16px Octicon's path, drawn by `sectionIcon`. */
   readonly icon: string;
@@ -21,7 +24,6 @@ interface SectionRow {
  *
  * Octicons 19.15.0 (MIT, GitHub Inc.): code, beaker, book, gear, package.
  */
-// The labels repeat in .github/ISSUE_TEMPLATE/miscategorized.yml's section dropdowns; keep them in sync.
 export const SECTION_CATALOG: Readonly<Record<SectionKey, SectionRow>> = {
   implementation: {
     label: "Implementation",

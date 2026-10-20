@@ -1,5 +1,4 @@
-/* GitHub hooks: Primer's --button-default-* and --control-medium-size button properties, and its
-   --tooltip-bgColor and --tooltip-fgColor tooltip properties. */
+/* No GitHub hooks: every rule selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @source "./report.ts";
 

@@ -263,7 +263,7 @@ export function findTreeToggle(page: FilesPage): Element | undefined {
   return page.sidebar.ownerDocument.querySelector(page.kind.treeToggle)?.parentElement ?? undefined;
 }
 
-/** The filter row's child holding GitHub's filter-options button, which the report link follows. */
+/** The filter row's child holding GitHub's filter-options button, or `undefined` when it's missing. */
 export const findFilterOptions = (page: FilesPage): Element | undefined =>
   page.sidebar
     .querySelector('#diff-file-tree-filter button[aria-haspopup="true"]')

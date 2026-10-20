@@ -122,14 +122,15 @@ dismissed, so only an update shows the notes.
 
 ## The report link
 
-A link after the file tree's filter-options button, built by
-[`entrypoints/content/sidebar/report.ts`](../entrypoints/content/sidebar/report.ts), opens
-a new issue on gh-prism's repo with the **Report miscategorized file** form
-(`.github/ISSUE_TEMPLATE/miscategorized.yml`) selected and the extension version
-prefilled. The diff's URL is prefilled only when the page's
-`octolytics-dimension-repository_public` meta is `true` and its `_nwo` meta names the
-route's repo; otherwise the URL is left out, so a private diff's address never reaches a
-public issue.
+`showReportLink` in
+[`entrypoints/content/sidebar/report.ts`](../entrypoints/content/sidebar/report.ts) adds a
+link after the docked file tree's filter-options button on each page. It opens a new issue
+on gh-prism's repo with the **Report miscategorized file** form
+([`.github/ISSUE_TEMPLATE/miscategorized.yml`](../.github/ISSUE_TEMPLATE/miscategorized.yml))
+selected and the extension version prefilled. It prefills the diff's URL only when
+`isPublicRepo` in [`files-page.ts`](../entrypoints/content/files-page.ts) confirms from
+the page's `<head>` that the route's own repo is public; otherwise it leaves the URL out,
+so a private diff's address never reaches a public issue.
 
 ## Intent and its cache
 

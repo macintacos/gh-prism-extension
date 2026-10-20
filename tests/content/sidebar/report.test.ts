@@ -49,7 +49,7 @@ it.each<{ visibility: string; metas: Record<string, string>; diffUrl: string | n
   { visibility: "private", metas: { public: "false", nwo: "o/r" }, diffUrl: null },
   { visibility: "unknown", metas: {}, diffUrl: null },
 ])(
-  "prefills the report form, with the diff's URL only when $visibility is public",
+  "prefills the report form for a $visibility repo, with the diff's URL only when public",
   ({ metas, diffUrl }) => {
     setMetas(metas);
 

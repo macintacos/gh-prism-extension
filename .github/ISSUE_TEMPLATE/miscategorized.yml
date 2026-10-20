@@ -1,8 +1,8 @@
 # The section options repeat SECTION_CATALOG's labels (entrypoints/content/ui/section-catalog.ts);
-# entrypoints/content/sidebar/report.ts prefills diff-url and version by id.
+# entrypoints/content/sidebar/report.ts opens this form by file name and prefills diff-url and version by id.
 name: Report miscategorized file
 description: Files showed up in the wrong section of gh-prism's sidebar.
-labels: [miscategorized]
+labels: [miscategorized] # must exist on the repo; GitHub drops an unknown label silently
 body:
   - type: markdown
     attributes:

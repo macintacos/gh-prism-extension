@@ -251,11 +251,23 @@ describe("isPublicRepo", () => {
     `<meta name="octolytics-dimension-repository_${name}" content="${content}">`;
 
   it.each([
-    { metas: meta("public", "true") + meta("nwo", "Octocat/Hello-World"), isPublic: true },
-    { metas: meta("public", "false") + meta("nwo", "octocat/hello-world"), isPublic: false },
-    { metas: "", isPublic: false },
-    { metas: meta("public", "true") + meta("nwo", "octocat/other"), isPublic: false },
-  ])("is $isPublic for head metas '$metas'", ({ metas, isPublic }) => {
+    {
+      case: "public, its own nwo in another case",
+      metas: meta("public", "true") + meta("nwo", "Octocat/Hello-World"),
+      isPublic: true,
+    },
+    {
+      case: "private",
+      metas: meta("public", "false") + meta("nwo", "octocat/hello-world"),
+      isPublic: false,
+    },
+    { case: "the metas are missing", metas: "", isPublic: false },
+    {
+      case: "public, another repo's nwo",
+      metas: meta("public", "true") + meta("nwo", "octocat/other"),
+      isPublic: false,
+    },
+  ])("is $isPublic when $case", ({ metas, isPublic }) => {
     document.head.innerHTML = metas;
     expect(isPublicRepo(document, REPO)).toBe(isPublic);
   });
@@ -459,6 +471,12 @@ describe("diffEntryOf", () => {
   });
 });
 
+const filterOptionsButton = (root: ParentNode) => {
+  const button = root.querySelector('#diff-file-tree-filter [aria-label="Filter options"]');
+  if (!button) throw new Error("fixture has no filter-options button");
+  return button;
+};
+
 const virtualize = (page: FilesPage) => {
   page.diffs.insertAdjacentHTML("beforeend", '<div data-index="0"><div role="region"></div></div>');
 };
@@ -477,9 +495,13 @@ describe("the pull request kind", () => {
   });
 
   it("finds the filter row's child holding the filter-options button", () => {
-    expect(findFilterOptions(foundPage())).toBe(
-      document.querySelector('#diff-file-tree-filter [aria-label="Filter options"]')?.parentElement,
-    );
+    expect(findFilterOptions(foundPage())).toBe(filterOptionsButton(document).parentElement);
+  });
+
+  it("finds the docked sidebar's filter options while the overlay is open", () => {
+    const docked = filterOptionsButton(byId("pr-file-tree")).parentElement;
+    openOverlay();
+    expect(findFilterOptions(foundPage())).toBe(docked);
   });
 
   it("finds the toolbar's tree toggle", () => {
@@ -548,9 +570,7 @@ describe("the commit kind", () => {
   });
 
   it("finds the filter row's child holding the filter-options button", () => {
-    expect(findFilterOptions(foundPage())).toBe(
-      document.querySelector('#diff-file-tree-filter [aria-label="Filter options"]')?.parentElement,
-    );
+    expect(findFilterOptions(foundPage())).toBe(filterOptionsButton(document).parentElement);
   });
 
   it("finds the toolbar's tree toggle, not the copy inside the sidebar", () => {
