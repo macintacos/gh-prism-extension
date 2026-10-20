@@ -499,9 +499,9 @@ describe("the pull request kind", () => {
   });
 
   it("finds the docked sidebar's filter options while the overlay is open", () => {
-    const docked = filterOptionsButton(byId("pr-file-tree")).parentElement;
+    const dockedFilterOptions = filterOptionsButton(byId("pr-file-tree")).parentElement;
     openOverlay();
-    expect(findFilterOptions(foundPage())).toBe(docked);
+    expect(findFilterOptions(foundPage())).toBe(dockedFilterOptions);
   });
 
   it("finds the toolbar's tree toggle", () => {

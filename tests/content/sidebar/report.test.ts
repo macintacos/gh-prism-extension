@@ -91,10 +91,10 @@ it("replaces a link a restored snapshot carries", () => {
 
 it("removes the link and its style on abort", () => {
   mount();
-  const styles = document.head.querySelectorAll("style").length;
+  const styleCount = document.head.querySelectorAll("style").length;
 
   controller.abort();
 
   expect(link()).toBeNull();
-  expect(document.head.querySelectorAll("style")).toHaveLength(styles - 1);
+  expect(document.head.querySelectorAll("style")).toHaveLength(styleCount - 1);
 });

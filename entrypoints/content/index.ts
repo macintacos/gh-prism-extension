@@ -65,13 +65,13 @@ export default defineContentScript({
           // Route data is fresh only until GitHub's first navigation.
           const viewed = visitViewed(fullLoad ? readViewedSeed(document, route.diff) : undefined);
           fullLoad = false;
-          const report = {
+          const reportOptions = {
             repo: route.diff,
             diffUrl: location.origin + location.pathname,
             version,
           };
           return (page, signal) => {
-            showReportLink(page, signal, report);
+            showReportLink(page, signal, reportOptions);
             showVisit(page, signal, { intent, diffstat, viewed, whatsNew: whatsNewForPage?.() });
             dockSidebar(page, signal, { choice: side, save: saveSide });
           };
