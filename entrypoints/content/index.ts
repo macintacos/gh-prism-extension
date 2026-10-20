@@ -1,14 +1,22 @@
+import { browser } from "wxt/browser";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { storage } from "wxt/utils/storage";
 import { connectPrData } from "@/utils/github/pr-port";
 import { readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
 import { storedIntents } from "@/utils/intent/cache";
 import { type IntentSources, intentFor, shareIntent } from "@/utils/intent/read";
-import { classicNoticeDismissed, sidebarSide } from "@/utils/prefs";
+import { classicNoticeDismissed, sidebarSide, whatsNewSeen } from "@/utils/prefs";
+import {
+  dismissWhatsNew,
+  type WhatsNewState,
+  whatsNewAt,
+  whatsNewStateOf,
+} from "@/utils/whats-new";
 import { type NoticeChoice, showClassicNotice } from "./classic/notice";
 import { visitViewed } from "./diffs/viewed";
 import type { DiffstatChoice } from "./header/diffstat-view";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar/side";
+import type { WhatsNew } from "./sidebar/whats-new";
 import { showVisit } from "./visit/land";
 import { watchClassicPages, watchFilesPages } from "./visit/watch";
 
@@ -31,9 +39,20 @@ export default defineContentScript({
       pinOf: (diff) => readDiffPin(document, diff),
     } satisfies IntentSources;
     // Read before watching, so a saved side or dismissal never shows its default first.
-    const [savedSide, dismissed] = await Promise.all([readSavedSide(), readNoticeDismissed()]);
+    const env: unknown = import.meta.env.WXT_RELEASE_NOTES;
+    const notes = typeof env === "string" ? env : "";
+    const version = notes ? browser.runtime.getManifest().version : "";
+    const [savedSide, dismissed, savedWhatsNew] = await Promise.all([
+      readSavedSide(),
+      readNoticeDismissed(),
+      notes ? readWhatsNew() : {},
+    ]);
     const side = sideChoiceOf(savedSide);
     const notice: NoticeChoice = { dismissed };
+    const whatsNew: WhatsNewChoice = { state: whatsNewStateOf(savedWhatsNew) };
+    if (notes) {
+      ctx.onInvalidated(whatsNewSeen.watch((saved) => (whatsNew.state = whatsNewStateOf(saved))));
+    }
     let fullLoad = true;
     // Registered before watchFilesPages, so the flag clears before a navigation's visit runs.
     const navigated = () => (fullLoad = false);
@@ -49,7 +68,12 @@ export default defineContentScript({
           const viewed = visitViewed(fullLoad ? readViewedSeed(document, route.diff) : undefined);
           fullLoad = false;
           return (page, signal) => {
-            showVisit(page, signal, { intent, diffstat, viewed });
+            showVisit(page, signal, {
+              intent,
+              diffstat,
+              viewed,
+              whatsNew: notes ? whatsNewOn(whatsNew, version, notes) : undefined,
+            });
             dockSidebar(page, signal, { choice: side, save: saveSide });
           };
         },
@@ -100,3 +124,33 @@ const saveDismissed = () =>
     .catch((error: unknown) =>
       console.error("gh-prism: saving the notice's dismissal failed", error),
     );
+
+/** The tab's latest what's-new state, kept current across tabs. */
+type WhatsNewChoice = { state: WhatsNewState };
+
+/** The stored what's-new state, unchecked, or none when storage won't read. */
+const readWhatsNew = (): Promise<unknown> =>
+  whatsNewSeen.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading what's new failed", error);
+    return {};
+  });
+
+const saveWhatsNew = (state: WhatsNewState) =>
+  whatsNewSeen
+    .setValue(state)
+    .catch((error: unknown) => console.error("gh-prism: saving what's new failed", error));
+
+/** `version`'s block for this page, when it shows; stores the stamp a first showing makes. */
+function whatsNewOn(choice: WhatsNewChoice, version: string, notes: string): WhatsNew | undefined {
+  const { shows, state } = whatsNewAt(choice.state, version, Date.now());
+  if (state !== choice.state) {
+    choice.state = state;
+    void saveWhatsNew(state);
+  }
+  if (!shows) return undefined;
+  const dismiss = () => {
+    choice.state = dismissWhatsNew(choice.state, version);
+    void saveWhatsNew(choice.state);
+  };
+  return { version, notes, dismiss };
+}

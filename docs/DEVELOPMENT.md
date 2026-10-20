@@ -28,6 +28,9 @@ changes. Chrome runs on a dedicated profile at
 GitHub sign-in survives `wxt clean` and is shared by every worktree. Because every
 worktree uses the same profile, only one dev session runs at a time.
 
+To preview the sidebar's what's-new block, pass release notes into the build:
+`WXT_RELEASE_NOTES="$(cat notes.md)" mise run dev`.
+
 ## Tasks
 
 `mise tasks` lists every task. Each one is a script in

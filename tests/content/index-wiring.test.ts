@@ -10,6 +10,7 @@ import { intentFor } from "../../utils/intent/read";
 import {
   byId,
   loadClassicFixture,
+  loadCommitFixture,
   loadFixture,
   loadViewedFixture,
   VIEWED_APP_TOML,
@@ -31,7 +32,11 @@ vi.mock(import("../../entrypoints/content/sidebar/side"), async (importOriginal)
 
 const PR = "/o/r/pull/1/changes";
 let controller: AbortController;
-const run = () => contentScript.main({ signal: controller.signal } as ContentScriptContext);
+const run = () => {
+  const { signal } = controller;
+  const onInvalidated = (cb: () => void) => signal.addEventListener("abort", cb);
+  return contentScript.main({ signal, onInvalidated } as ContentScriptContext);
+};
 const docked = () => vi.mocked(dockSidebar).mock.calls.map(([, , options]) => options);
 // Runs the MutationObserver's pending microtask, and no timer.
 const afterMutations = () => vi.advanceTimersByTimeAsync(0);
@@ -49,6 +54,7 @@ afterEach(() => {
   controller.abort();
   vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
 });
 
 describe("content script", () => {
@@ -275,6 +281,91 @@ describe("content script", () => {
 
       expect(dialog()).toBeNull();
       expect(opener()).toBeNull();
+    });
+  });
+
+  describe("with release notes", () => {
+    const VERSION = "1.2.3";
+    const block = () => document.querySelector(".gh-prism-whats-new");
+    const seen = async () => (await fakeBrowser.storage.local.get("whatsNewSeen")).whatsNewSeen;
+
+    beforeEach(async () => {
+      vi.stubEnv("WXT_RELEASE_NOTES", "- Faster sections");
+      vi.spyOn(fakeBrowser.runtime, "getManifest").mockReturnValue({
+        manifest_version: 3,
+        name: "gh-prism",
+        version: VERSION,
+      });
+      const actual = await vi.importActual<typeof import("../../entrypoints/content/visit/land")>(
+        "../../entrypoints/content/visit/land",
+      );
+      vi.mocked(showVisit).mockImplementation(actual.showVisit);
+    });
+
+    it.each([
+      { page: "a pull request", path: PR, load: loadFixture },
+      { page: "a commit", path: "/o/r/commit/dd95cdc", load: loadCommitFixture },
+    ])("shows the block atop the sidebar on $page and stamps it", async ({ path, load }) => {
+      history.replaceState(null, "", path);
+      load();
+      const at = Date.now();
+
+      await run();
+
+      expect(block()).toBeInstanceOf(HTMLElement);
+      expect(block()?.parentElement?.firstElementChild).toBe(block());
+      expect(block()?.closest(".gh-prism-sections")).not.toBeNull();
+      await vi.waitFor(async () =>
+        expect(await seen()).toEqual({ shown: { version: VERSION, at } }),
+      );
+    });
+
+    it("shows nothing once the version is dismissed", async () => {
+      await fakeBrowser.storage.local.set({ whatsNewSeen: { dismissed: VERSION } });
+
+      await run();
+
+      expect(block()).toBeNull();
+    });
+
+    it("stores a dismissal", async () => {
+      await run();
+      block()?.querySelector<HTMLButtonElement>('[aria-label="Dismiss what\'s new"]')?.click();
+
+      await vi.waitFor(async () => expect(await seen()).toMatchObject({ dismissed: VERSION }));
+    });
+
+    it("drops the block on the next page once another tab dismisses it", async () => {
+      await run();
+      expect(block()).not.toBeNull();
+
+      await fakeBrowser.storage.local.set({ whatsNewSeen: { dismissed: VERSION } });
+      const sidebar = byId("pr-file-tree");
+      sidebar.replaceWith(sidebar.cloneNode(true));
+      await afterMutations();
+
+      expect(block()).toBeNull();
+    });
+
+    it("shows nothing 3 days after it was first shown", async () => {
+      vi.setSystemTime(10 * 24 * 60 * 60 * 1000);
+      await fakeBrowser.storage.local.set({
+        whatsNewSeen: { shown: { version: VERSION, at: Date.now() - 3 * 24 * 60 * 60 * 1000 } },
+      });
+
+      await run();
+
+      expect(block()).toBeNull();
+    });
+
+    it("shows nothing and stores nothing when the build has no notes", async () => {
+      vi.stubEnv("WXT_RELEASE_NOTES", undefined);
+
+      await run();
+      await afterMutations();
+
+      expect(block()).toBeNull();
+      expect(await seen()).toBeUndefined();
     });
   });
 });

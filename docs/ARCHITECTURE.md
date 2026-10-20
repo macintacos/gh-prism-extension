@@ -156,6 +156,18 @@ bare hash jump would not do. While the narrow layout's overlay is open, the side
 into the overlay's copy of the tree, which then serves as the source and takes the row
 clicks, and it moves back to the docked tree when the overlay closes.
 
+After an update, the sidebar opens with a collapsed what's-new block holding the installed
+version's release notes, built by
+[`entrypoints/content/sidebar/whats-new.ts`](../entrypoints/content/sidebar/whats-new.ts).
+The release workflow passes the notes into the build as `WXT_RELEASE_NOTES`, so nothing is
+fetched at runtime.
+[`entrypoints/content/ui/markdown.ts`](../entrypoints/content/ui/markdown.ts) renders them
+from a small Markdown subset as plain DOM, never HTML.
+[`utils/whats-new.ts`](../utils/whats-new.ts) decides when the block shows: from the first
+view of a version until the reviewer dismisses it or 3 days pass. `index.ts` keeps that
+state in `whatsNewSeen` and watches it, so a dismissal in one tab clears the block from
+the others on their next page.
+
 [`entrypoints/content/sidebar/section-tree.ts`](../entrypoints/content/sidebar/section-tree.ts)
 renders each section, and the comment-lines sub-section, as its own `@pierre/trees` file
 tree in a shadow root. A tree's height follows its visible rows, so the whole sidebar
@@ -224,16 +236,17 @@ entrypoints/
     files-page.ts        every GitHub Files view selector; page kinds; the classic page
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
-    sidebar/             section trees, sidebar side switch
+    sidebar/             section trees, sidebar side switch, what's-new block
     diffs/               diff order, reveal, on-screen and Viewed tracking
     header/              diffstat breakout
-    ui/                  shared DOM helpers, loading view, Tailwind tokens
+    ui/                  shared DOM helpers, loading view, Markdown subset, Tailwind tokens
 utils/
   github/                routes, diff parsing, the PR data port and source
   intent/                reading, caching, and landing intent
   hunk-rules/            the docstring and inline-test rules
   sections.ts            path rules for the five sections
   prefs.ts               saved preferences
+  whats-new.ts           when the what's-new block shows
 tests/                   Vitest unit tests, mirroring the source tree
 e2e/                     Playwright smoke tests against the built extension
 bench/                   large-diff benchmark
