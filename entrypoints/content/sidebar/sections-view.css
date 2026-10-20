@@ -3,6 +3,7 @@
 @import "../ui/tailwind.css" prefix(tw);
 @source "./sections-view.ts";
 @source "../ui/line-counts.ts";
+@source "./whats-new.ts";
 
 /* Hidden, not removed: the filter keeps editing these rows, and the view mirrors them. */
 :is(#pr-file-tree, #diff_file_tree):has(.gh-prism-sections) ul[role="tree"] {
@@ -17,7 +18,8 @@
 }
 
 /* Opaque, so the tree's truncated names can fade into it. */
-.gh-prism-section {
+.gh-prism-section,
+.gh-prism-whats-new {
   --gh-prism-tint: color-mix(in srgb, var(--gh-prism-hue) 8%, var(--bgColor-default));
   /* The on-screen bar, on a tree's rows and on a collapsed section's header. */
   --gh-prism-on-screen-bar: color-mix(in srgb, var(--gh-prism-hue) 40%, transparent);
@@ -30,6 +32,8 @@
 
 .gh-prism-section-toggle:not(:hover, :focus-visible) .gh-prism-chevron,
 .gh-prism-section-toggle:is(:hover, :focus-visible) .gh-prism-section-icon,
+.gh-prism-whats-new-toggle:not(:hover, :focus-visible) .gh-prism-chevron,
+.gh-prism-whats-new-toggle:is(:hover, :focus-visible) .gh-prism-section-icon,
 .gh-prism-comment-lines-toggle:not(:hover, :focus-visible) .gh-prism-chevron,
 .gh-prism-comment-lines-toggle:is(:hover, :focus-visible) .gh-prism-section-icon {
   opacity: 0;
@@ -47,6 +51,7 @@
 }
 
 .gh-prism-section-toggle[aria-expanded="false"] .gh-prism-chevron,
+.gh-prism-whats-new-toggle[aria-expanded="false"] .gh-prism-chevron,
 .gh-prism-comment-lines-toggle[aria-expanded="false"] .gh-prism-chevron {
   rotate: -90deg;
 }
@@ -57,13 +62,15 @@
 }
 
 /* Collapsed as inert, not hidden: GitHub forces [hidden] to display: none, which can't animate. */
-.gh-prism-files {
+.gh-prism-files,
+.gh-prism-whats-new-body {
   transition-property: height, padding-bottom, opacity, visibility;
   transition-duration: 200ms;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.gh-prism-files[inert] {
+.gh-prism-files[inert],
+.gh-prism-whats-new-body[inert] {
   height: 0;
   padding-bottom: 0;
   opacity: 0;
@@ -149,7 +156,8 @@
   .gh-prism-sections[data-reveal] .gh-prism-section,
   .gh-prism-section-icon,
   .gh-prism-chevron,
-  .gh-prism-files {
+  .gh-prism-files,
+  .gh-prism-whats-new-body {
     transition: none;
     animation: none;
   }

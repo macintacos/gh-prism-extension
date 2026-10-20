@@ -562,6 +562,50 @@ describe("showSections", () => {
     });
   });
 
+  describe("under a what's-new block", () => {
+    /** Mounts on a pending intent, prepends a stand-in block, and returns the block and intent. */
+    const mountUnderBlock = () => {
+      const pending = pendingIntent();
+      remountWith(pending.intent);
+      const block = document.createElement("section");
+      block.className = "gh-prism-whats-new";
+      view()?.prepend(block);
+      return { block, pending };
+    };
+    const childClasses = () => [...(view()?.children ?? [])].map((child) => child.classList[0]);
+
+    it("keeps the block first, then the notice and the sections", async () => {
+      const { pending } = mountUnderBlock();
+      pending.resolve({ ok: false, problem: "no-access" });
+      await afterDebounce();
+
+      expect(childClasses()).toEqual([
+        "gh-prism-whats-new",
+        "gh-prism-notice",
+        ...sectionKeys().map(() => "gh-prism-section"),
+      ]);
+    });
+
+    it("keeps the block first above the sections when there is no notice", async () => {
+      const { pending } = mountUnderBlock();
+      pending.resolve(landedWith());
+      await afterDebounce();
+
+      expect(view()?.firstElementChild?.classList.contains("gh-prism-whats-new")).toBe(true);
+      expect(sectionKeys()).toEqual(["implementation", "tests", "docs", "config", "generated"]);
+      expect(countIn(sectionToggle("docs"))).toBe("2");
+    });
+
+    it("leaves the notice first when the block is gone before landing", async () => {
+      const { block, pending } = mountUnderBlock();
+      block.remove();
+      pending.resolve({ ok: false, problem: "no-access" });
+      await afterDebounce();
+
+      expect(view()?.firstElementChild?.classList.contains("gh-prism-notice")).toBe(true);
+    });
+  });
+
   it("renders at once, without a reveal, when there is no intent to wait for", () => {
     expect(view()?.hasAttribute("aria-busy")).toBe(false);
     expect(view()?.hasAttribute("data-reveal")).toBe(false);

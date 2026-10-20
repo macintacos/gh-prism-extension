@@ -155,7 +155,7 @@ const treeFilesOf = ({ entries }: Listing): TreeFile[] =>
   }));
 
 /** Lucide chevron-down (ISC licence). */
-const chevron = (doc: Document): SVGSVGElement =>
+export const chevron = (doc: Document): SVGSVGElement =>
   icon(doc, "m6 9 6 6 6-6", {
     class: "gh-prism-chevron",
     viewBox: "0 0 24 24",
@@ -536,7 +536,9 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
   const render = (sections: readonly FileSection[]) => {
     const listings = [...sections, ...commentLinesListing(sections, commentLines)];
     dropAllBut(listings);
-    let previous = [...view.querySelectorAll(".gh-prism-notice")].at(-1) ?? null;
+    let previous =
+      [...view.querySelectorAll(".gh-prism-notice")].at(-1) ??
+      view.querySelector(".gh-prism-whats-new");
     for (const [order, listing] of listings.entries())
       previous = showListing(listing, order, previous);
     scrollToCurrent(listings);
@@ -701,16 +703,17 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
         view.toggleAttribute("data-reveal", true);
       }
 
-      view.prepend(
-        ...noticesOf(result, reorderable(page)).map((text) =>
-          el(
-            doc,
-            "p",
-            "gh-prism-notice tw:m-0 tw:pt-1.5 tw:px-2 tw:pb-1 tw:text-body-small tw:leading-body-small tw:text-fg-muted",
-            text,
-          ),
+      const notices = noticesOf(result, reorderable(page)).map((text) =>
+        el(
+          doc,
+          "p",
+          "gh-prism-notice tw:m-0 tw:pt-1.5 tw:px-2 tw:pb-1 tw:text-body-small tw:leading-body-small tw:text-fg-muted",
+          text,
         ),
       );
+      const whatsNew = view.querySelector(".gh-prism-whats-new");
+      if (whatsNew) whatsNew.after(...notices);
+      else view.prepend(...notices);
     },
     sections: render,
     shownIn(native) {
