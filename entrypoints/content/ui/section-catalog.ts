@@ -21,6 +21,7 @@ interface SectionRow {
  *
  * Octicons 19.15.0 (MIT, GitHub Inc.): code, beaker, book, gear, package.
  */
+// The labels repeat in .github/ISSUE_TEMPLATE/miscategorized.yml's section dropdowns; keep them in sync.
 export const SECTION_CATALOG: Readonly<Record<SectionKey, SectionRow>> = {
   implementation: {
     label: "Implementation",
