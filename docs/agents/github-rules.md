@@ -162,6 +162,24 @@ facts about GitHub that held when written, and ends with how to re-check them;
   counter's "Lines changed" text. Grep the assets for `page_data/diffstat` and
   `PullRequestHeaderDiffStat`, as [§ Re-checking GitHub](#re-checking-github) describes.
 
+## The filter row and repo visibility
+
+- **Expect one filter row shape on both kinds.** A pull request and a commit page both
+  render `#diff-file-tree-filter` with the filter input and, in a `.position-relative`
+  wrapper, the filter-options `IconButton` (`aria-haspopup="true"`). The narrow layout's
+  overlay copies the row with the same ids, so scope lookups to the docked sidebar.
+- **Read a repo's visibility from two `<head>` metas.**
+  `octolytics-dimension-repository_public` (`"true"`/`"false"`) and
+  `octolytics-dimension-repository_nwo` are served on pull request `/changes` and `/files`
+  and on commit pages, signed in or out. A soft navigation may leave another repo's metas
+  behind (inferred, not observed), so treat the repo as public only when `nwo` matches the
+  route's repo.
+- **Re-check:** curl a public commit page and grep `octolytics-dimension-repository_` and
+  `diff-file-tree-filter`, and curl a public pull request's `/files` (signed out,
+  `/changes` 302s there) for the metas. Signed in with the saved `storageState`, load a
+  pull request's `/changes` in Playwright, read both metas and `#diff-file-tree-filter`'s
+  markup, then below 1012px open the overlay and find its copy of the row.
+
 ## Viewed state
 
 - **Read every file's initial Viewed state from route data.** The Files view's

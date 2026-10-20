@@ -44,6 +44,9 @@ how to get the new tab. Once you close the dialog, it stays closed, and
 - After an update, the sidebar opens with a collapsed **What's new in vX.Y.Z** block of
   that version's release notes. It goes away when you dismiss it, or 3 days after you
   first see it.
+- A **Report a miscategorized file** button beside the file tree's filter opens a new
+  issue on gh-prism's repository with your gh-prism version filled in, and, on a public
+  repository only, the diff's URL.
 
 ## Install
 

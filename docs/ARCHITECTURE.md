@@ -120,6 +120,18 @@ others on their next page. On `runtime.onInstalled` with reason `install`,
 [`entrypoints/background.ts`](../entrypoints/background.ts) marks the installed version
 dismissed, so only an update shows the notes.
 
+## The report link
+
+`showReportLink` in
+[`entrypoints/content/sidebar/report.ts`](../entrypoints/content/sidebar/report.ts) adds a
+link after the docked file tree's filter-options button on each page. It opens a new issue
+on gh-prism's repo with the **Report miscategorized file** form
+([`.github/ISSUE_TEMPLATE/miscategorized.yml`](../.github/ISSUE_TEMPLATE/miscategorized.yml))
+selected and the extension version prefilled. It prefills the diff's URL only when
+`isPublicRepo` in [`files-page.ts`](../entrypoints/content/files-page.ts) confirms from
+the page's `<head>` that the route's own repo is public; otherwise it leaves the URL out,
+so a private diff's address never reaches a public issue.
+
 ## Intent and its cache
 
 gh-prism lists each changed file in one of five sections, such as Implementation or Tests.
@@ -243,7 +255,7 @@ entrypoints/
     files-page.ts        every GitHub Files view selector; page kinds; the classic page
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
-    sidebar/             section trees, sidebar side switch, what's-new block
+    sidebar/             section trees, sidebar side switch, what's-new block, report link
     diffs/               diff order, reveal, on-screen and Viewed tracking
     header/              diffstat breakout
     ui/                  shared DOM helpers, loading view, Markdown subset, Tailwind tokens

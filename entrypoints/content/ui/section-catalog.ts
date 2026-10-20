@@ -3,7 +3,10 @@ import { icon } from "./dom";
 
 /** One section's identity. */
 interface SectionRow {
-  /** The section's name in the sidebar and the header counter. */
+  /**
+   * The section's name in the sidebar and the header counter. The report form's section
+   * dropdowns (.github/ISSUE_TEMPLATE/miscategorized.yml) repeat it by hand; keep them in sync.
+   */
   readonly label: string;
   /** A 16px Octicon's path, drawn by `sectionIcon`. */
   readonly icon: string;

@@ -202,6 +202,18 @@ export function findClassicPage(root: ParentNode): ClassicPage | undefined {
 export const isSignedIn = (doc: Document): boolean =>
   Boolean(doc.head.querySelector('meta[name="user-login"]')?.getAttribute("content"));
 
+/** Whether `doc` shows `repo` as public; false when private, internal, or unconfirmed. */
+export function isPublicRepo(doc: Document, repo: { owner: string; repo: string }): boolean {
+  const meta = (name: string) =>
+    doc.head
+      .querySelector(`meta[name="octolytics-dimension-repository_${name}"]`)
+      ?.getAttribute("content");
+  return (
+    meta("public") === "true" &&
+    meta("nwo")?.toLowerCase() === `${repo.owner}/${repo.repo}`.toLowerCase()
+  );
+}
+
 // Both of GitHub's virtualized lists index each row they place.
 const VIRTUALIZED = '[data-index] [role="region"]';
 
@@ -250,6 +262,14 @@ export function observeDiffstat(
 export function findTreeToggle(page: FilesPage): Element | undefined {
   return page.sidebar.ownerDocument.querySelector(page.kind.treeToggle)?.parentElement ?? undefined;
 }
+
+/**
+ * The filter row's child holding GitHub's filter-options button, or `undefined` when it's missing.
+ */
+export const findFilterOptions = (page: FilesPage): Element | undefined =>
+  page.sidebar
+    .querySelector('#diff-file-tree-filter button[aria-haspopup="true"]')
+    ?.closest("#diff-file-tree-filter > *") ?? undefined;
 
 /** The tree-toggle button `target` sits in, when it collapses the tree in place. */
 export const treeToggleButtonOf = (page: FilesPage, target: Element): HTMLElement | null =>

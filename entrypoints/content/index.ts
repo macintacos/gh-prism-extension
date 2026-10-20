@@ -16,6 +16,7 @@ import {
 import { type NoticeChoice, showClassicNotice } from "./classic/notice";
 import { visitViewed } from "./diffs/viewed";
 import type { DiffstatChoice } from "./header/diffstat-view";
+import { showReportLink } from "./sidebar/report";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar/side";
 import type { WhatsNew } from "./sidebar/whats-new";
 import { showVisit } from "./visit/land";
@@ -25,9 +26,9 @@ const CACHED_DIFFS = 50;
 
 /**
  * On every Files view on github.com, shows the sidebar's sections, orders the diffs to match,
- * stands in for the diffstat, docks the sidebar on the saved side with a switch, and, after an
- * update, opens the sidebar with that release's notes. On a pull
- * request's classic Files changed page, explains why gh-prism is off there.
+ * stands in for the diffstat, docks the sidebar on the saved side with a switch, adds a link to
+ * report a miscategorized file, and, after an update, opens the sidebar with that release's
+ * notes. On a pull request's classic Files changed page, explains why gh-prism is off there.
  */
 export default defineContentScript({
   // Every GitHub page: soft navigation reaches a pull request without re-injecting the script.
@@ -35,12 +36,13 @@ export default defineContentScript({
   runAt: "document_start",
   async main(ctx) {
     const diffstat: DiffstatChoice = { view: "breakout" };
+    const version = browser.runtime.getManifest().version;
     const sources = {
       connect: connectPrData,
       cache: storedIntents(storage, CACHED_DIFFS),
       pinOf: (diff) => readDiffPin(document, diff),
     } satisfies IntentSources;
-    const release = releaseOf(import.meta.env.WXT_RELEASE_NOTES);
+    const release = releaseOf(import.meta.env.WXT_RELEASE_NOTES, version);
     // Read before watching, so a saved side or dismissal never shows its default first.
     const [savedSide, dismissed, whatsNewForPage] = await Promise.all([
       readSavedSide(),
@@ -63,7 +65,13 @@ export default defineContentScript({
           // Route data is fresh only until GitHub's first navigation.
           const viewed = visitViewed(fullLoad ? readViewedSeed(document, route.diff) : undefined);
           fullLoad = false;
+          const reportOptions = {
+            repo: route.diff,
+            diffUrl: location.origin + location.pathname,
+            version,
+          };
           return (page, signal) => {
+            showReportLink(page, signal, reportOptions);
             showVisit(page, signal, { intent, diffstat, viewed, whatsNew: whatsNewForPage?.() });
             dockSidebar(page, signal, { choice: side, save: saveSide });
           };
@@ -122,10 +130,8 @@ interface Release {
 }
 
 /** The release whose notes this build carries; none for a build without notes. */
-function releaseOf(notes: unknown): Release | undefined {
-  return typeof notes === "string" && notes !== ""
-    ? { version: browser.runtime.getManifest().version, notes }
-    : undefined;
+function releaseOf(notes: unknown, version: string): Release | undefined {
+  return typeof notes === "string" && notes !== "" ? { version, notes } : undefined;
 }
 
 /** The tab's latest what's-new state, kept current across tabs. */

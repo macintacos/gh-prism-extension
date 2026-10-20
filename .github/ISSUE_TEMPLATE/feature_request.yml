@@ -1,0 +1,14 @@
+name: Feature request
+description: Suggest something gh-prism should do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What should gh-prism do?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why

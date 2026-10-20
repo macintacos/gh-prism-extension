@@ -1,0 +1,58 @@
+# The section options repeat SECTION_CATALOG's labels (entrypoints/content/ui/section-catalog.ts);
+# entrypoints/content/sidebar/report.ts opens this form by file name and prefills diff-url and
+# version by id.
+name: Report miscategorized file
+description: Files showed up in the wrong section of gh-prism's sidebar.
+labels: [miscategorized] # must exist on the repo; GitHub drops an unknown label silently
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Each report covers files that showed up in the same wrong section and belong in the same right section. Files that went wrong in different ways each need a report of their own.
+
+        **This issue is public.** Don't paste file names, paths, or code from a private repository.
+  - type: textarea
+    id: files
+    attributes:
+      label: Files
+      description: The files' paths, one per line. For a private repository, describe them without naming them, such as "`*.snap` files under `__snapshots__/`".
+    validations:
+      required: true
+  - type: dropdown
+    id: shown-in
+    attributes:
+      label: Section they showed up in
+      options:
+        - Implementation
+        - Tests
+        - "Docs & Comments"
+        - Config
+        - Generated / lockfiles
+    validations:
+      required: true
+  - type: dropdown
+    id: belongs-in
+    attributes:
+      label: Section they belong in
+      options:
+        - Implementation
+        - Tests
+        - "Docs & Comments"
+        - Config
+        - Generated / lockfiles
+    validations:
+      required: true
+  - type: input
+    id: diff-url
+    attributes:
+      label: Diff URL
+      description: The pull request's or commit's Files view, if you can share it.
+  - type: input
+    id: version
+    attributes:
+      label: gh-prism version
+  - type: textarea
+    id: details
+    attributes:
+      label: Anything else
+      description: Why the files belong in the other section, or anything else that helps.

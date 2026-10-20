@@ -11,9 +11,11 @@ import {
   findDiffList,
   findDiffstat,
   findFilesPage,
+  findFilterOptions,
   findOverlay,
   findTreeToggle,
   followOverlay,
+  isPublicRepo,
   isSignedIn,
   mountedDiffs,
   observeDiffs,
@@ -243,6 +245,34 @@ describe("isSignedIn", () => {
   });
 });
 
+describe("isPublicRepo", () => {
+  const REPO = { owner: "octocat", repo: "hello-world" };
+  const meta = (name: string, content: string) =>
+    `<meta name="octolytics-dimension-repository_${name}" content="${content}">`;
+
+  it.each([
+    {
+      case: "public, its own nwo in another case",
+      metas: meta("public", "true") + meta("nwo", "Octocat/Hello-World"),
+      isPublic: true,
+    },
+    {
+      case: "private",
+      metas: meta("public", "false") + meta("nwo", "octocat/hello-world"),
+      isPublic: false,
+    },
+    { case: "the metas are missing", metas: "", isPublic: false },
+    {
+      case: "public, another repo's nwo",
+      metas: meta("public", "true") + meta("nwo", "octocat/other"),
+      isPublic: false,
+    },
+  ])("is $isPublic when $case", ({ metas, isPublic }) => {
+    document.head.innerHTML = metas;
+    expect(isPublicRepo(document, REPO)).toBe(isPublic);
+  });
+});
+
 describe("readChangedFiles", () => {
   const file = (path: string) => {
     const found = readChangedFiles(document).find((f) => f.path === path);
@@ -441,6 +471,12 @@ describe("diffEntryOf", () => {
   });
 });
 
+const filterOptionsButton = (root: ParentNode) => {
+  const button = root.querySelector('#diff-file-tree-filter [aria-label="Filter options"]');
+  if (!button) throw new Error("fixture has no filter-options button");
+  return button;
+};
+
 const virtualize = (page: FilesPage) => {
   page.diffs.insertAdjacentHTML("beforeend", '<div data-index="0"><div role="region"></div></div>');
 };
@@ -456,6 +492,16 @@ describe("the pull request kind", () => {
 
   it("finds the header's lines-changed counter", () => {
     expect(findDiffstat(foundPage())?.textContent).toContain("+1,604");
+  });
+
+  it("finds the filter row's child holding the filter-options button", () => {
+    expect(findFilterOptions(foundPage())).toBe(filterOptionsButton(document).parentElement);
+  });
+
+  it("finds the docked sidebar's filter options while the overlay is open", () => {
+    const dockedFilterOptions = filterOptionsButton(byId("pr-file-tree")).parentElement;
+    openOverlay();
+    expect(findFilterOptions(foundPage())).toBe(dockedFilterOptions);
   });
 
   it("finds the toolbar's tree toggle", () => {
@@ -521,6 +567,10 @@ describe("the commit kind", () => {
 
   it("finds the header's lines-changed counter", () => {
     expect(findDiffstat(foundPage())?.textContent).toContain("+165");
+  });
+
+  it("finds the filter row's child holding the filter-options button", () => {
+    expect(findFilterOptions(foundPage())).toBe(filterOptionsButton(document).parentElement);
   });
 
   it("finds the toolbar's tree toggle, not the copy inside the sidebar", () => {
