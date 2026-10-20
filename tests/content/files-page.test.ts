@@ -11,9 +11,11 @@ import {
   findDiffList,
   findDiffstat,
   findFilesPage,
+  findFilterOptions,
   findOverlay,
   findTreeToggle,
   followOverlay,
+  isPublicRepo,
   isSignedIn,
   mountedDiffs,
   observeDiffs,
@@ -243,6 +245,22 @@ describe("isSignedIn", () => {
   });
 });
 
+describe("isPublicRepo", () => {
+  const REPO = { owner: "octocat", repo: "hello-world" };
+  const meta = (name: string, content: string) =>
+    `<meta name="octolytics-dimension-repository_${name}" content="${content}">`;
+
+  it.each([
+    { metas: meta("public", "true") + meta("nwo", "Octocat/Hello-World"), isPublic: true },
+    { metas: meta("public", "false") + meta("nwo", "octocat/hello-world"), isPublic: false },
+    { metas: "", isPublic: false },
+    { metas: meta("public", "true") + meta("nwo", "octocat/other"), isPublic: false },
+  ])("is $isPublic for head metas '$metas'", ({ metas, isPublic }) => {
+    document.head.innerHTML = metas;
+    expect(isPublicRepo(document, REPO)).toBe(isPublic);
+  });
+});
+
 describe("readChangedFiles", () => {
   const file = (path: string) => {
     const found = readChangedFiles(document).find((f) => f.path === path);
@@ -458,6 +476,12 @@ describe("the pull request kind", () => {
     expect(findDiffstat(foundPage())?.textContent).toContain("+1,604");
   });
 
+  it("finds the filter row's child holding the filter-options button", () => {
+    expect(findFilterOptions(foundPage())).toBe(
+      document.querySelector('#diff-file-tree-filter [aria-label="Filter options"]')?.parentElement,
+    );
+  });
+
   it("finds the toolbar's tree toggle", () => {
     expect(findTreeToggle(foundPage())).toBe(toggleButton().parentElement);
   });
@@ -521,6 +545,12 @@ describe("the commit kind", () => {
 
   it("finds the header's lines-changed counter", () => {
     expect(findDiffstat(foundPage())?.textContent).toContain("+165");
+  });
+
+  it("finds the filter row's child holding the filter-options button", () => {
+    expect(findFilterOptions(foundPage())).toBe(
+      document.querySelector('#diff-file-tree-filter [aria-label="Filter options"]')?.parentElement,
+    );
   });
 
   it("finds the toolbar's tree toggle, not the copy inside the sidebar", () => {
