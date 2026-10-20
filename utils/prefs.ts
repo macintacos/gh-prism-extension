@@ -6,6 +6,7 @@
  */
 
 import { storage } from "wxt/utils/storage";
+import type { WhatsNewState } from "./whats-new";
 
 /** The edge the sidebar docks on. */
 export type Side = "left" | "right";
@@ -22,4 +23,12 @@ export const sidebarSide = storage.defineItem<Side>("sync:sidebarSide", { fallba
  */
 export const classicNoticeDismissed = storage.defineItem<boolean>("local:classicNoticeDismissed", {
   fallback: false,
+});
+
+/**
+ * Which version's what's-new notes the user dismissed or first saw, and when; kept on this
+ * computer only.
+ */
+export const whatsNewSeen = storage.defineItem<WhatsNewState>("local:whatsNewSeen", {
+  fallback: {},
 });

@@ -1,6 +1,9 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { visitViewed } from "../../../entrypoints/content/diffs/viewed";
+import { findFilesPage } from "../../../entrypoints/content/files-page";
 import { showSections } from "../../../entrypoints/content/sidebar/sections-view";
+import { showVisit } from "../../../entrypoints/content/visit/land";
 import { byId, closeOverlay, loadViewedFixture, openOverlay } from "../../fixtures/files-page";
 import { landedWith } from "../../fixtures/intent";
 import {
@@ -32,7 +35,7 @@ vi.mock(import("../../../entrypoints/content/sidebar/sections-view"), async (imp
 
 patchShadowActiveElement();
 
-const { landed } = mountsVisit();
+const { landed, abort } = mountsVisit();
 
 const sidebar = () => {
   const mounted = vi.mocked(showSections).mock.results.at(-1)?.value;
@@ -63,6 +66,26 @@ describe("showSections in the narrow layout's overlay", () => {
     await open();
 
     expect(document.querySelectorAll(".gh-prism-sections")).toHaveLength(1);
+    expect(view()?.nextElementSibling).toBe(treeOf(overlay));
+  });
+
+  it("keeps the what's-new block first in the overlay", async () => {
+    abort();
+    const page = findFilesPage(document);
+    if (!page) throw new Error("fixture lacks the Files changed markup");
+    const visit = new AbortController();
+    onTestFinished(() => visit.abort());
+    showVisit(page, visit.signal, {
+      intent: () => landedWith(),
+      diffstat: { view: "breakout" },
+      viewed: visitViewed(undefined),
+      whatsNew: { version: "1.2.3", notes: "", dismiss: () => {} },
+    });
+    await open();
+
+    const block = overlay.parentElement?.querySelector(".gh-prism-whats-new");
+    expect(block).toBeInstanceOf(HTMLElement);
+    expect(block?.parentElement?.firstElementChild).toBe(block);
     expect(view()?.nextElementSibling).toBe(treeOf(overlay));
   });
 

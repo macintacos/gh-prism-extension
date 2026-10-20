@@ -40,6 +40,9 @@ tests, the benchmark, dev dependencies, refactors, and version bump commits. A f
 feature new in this release is not a `Fixed` entry, because users never saw the bug; fold
 it into the feature's `Added` entry or drop it.
 
+The notes also ship in the build, and users see them in the sidebar under "What's new", so
+write them for users.
+
 The body has three parts:
 
 1. **The theme line.** One or two sentences that open with `gh-prism <version>` and a

@@ -108,6 +108,10 @@ tree. _Avoid_: file tree, which is GitHub's
 **Slide**: The sidebar's animated move when it switches sides, collapses, or expands.
 _Avoid_: glide
 
+**What's new**: The sidebar's block of the installed version's release notes, shown above
+the sections after an update until the reviewer dismisses it or 3 days after it first
+shows. _Avoid_: section, changelog
+
 **Current file**: GitHub's `aria-current` file, shown as the sidebar's selected row. There
 is at most one.
 

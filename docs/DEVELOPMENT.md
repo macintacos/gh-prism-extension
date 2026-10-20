@@ -28,6 +28,12 @@ changes. Chrome runs on a dedicated profile at
 GitHub sign-in survives `wxt clean` and is shared by every worktree. Because every
 worktree uses the same profile, only one dev session runs at a time.
 
+To preview the sidebar's what's-new block, pass release notes into the build:
+`WXT_RELEASE_NOTES="$(cat notes.md)" mise run dev`. A fresh install, a dismissal, or a
+3-day-old first view hides it. If it doesn't show, run
+`chrome.storage.local.remove("whatsNewSeen")` in the extension's service-worker console,
+then reload a Files view.
+
 ## Tasks
 
 `mise tasks` lists every task. Each one is a script in
@@ -103,11 +109,12 @@ below and reports the GitHub Release.
 
 `mise run release <bump> [--notes-file <path>]` runs `gh workflow run` on
 [`.github/workflows/release.yml`](../.github/workflows/release.yml). On trunk, the
-workflow runs `preflight`, bumps `package.json`'s version, zips the extension, commits
-`chore: bump version to X.Y.Z` to trunk through GitHub's API so GitHub signs it, tags it
-`vX.Y.Z`, then submits the zip to the Chrome Web Store with `wxt submit`. Last, it creates
-the `vX.Y.Z` GitHub Release, with the notes file as its body, or with GitHub's generated
-notes when you pass none.
+workflow runs `preflight` and bumps `package.json`'s version. It then resolves the release
+notes: the notes file, or GitHub's generated notes when you pass none. It zips the
+extension with those notes inside, so the sidebar can show them under "What's new". It
+commits `chore: bump version to X.Y.Z` to trunk through GitHub's API so GitHub signs it,
+tags it `vX.Y.Z`, then submits the zip to the Chrome Web Store with `wxt submit`. Last, it
+creates the `vX.Y.Z` GitHub Release with the same notes as its body.
 
 Only the repository owner can run it. It uses the `chrome-web-store` environment, which
 allows only trunk and holds four secrets: `CHROME_EXTENSION_ID`, `CHROME_PUBLISHER_ID`,

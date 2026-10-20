@@ -5,7 +5,7 @@
  */
 
 import { type ClassicPage, isSignedIn } from "../files-page";
-import { el, icon } from "../ui/dom";
+import { el, icon, X_ICON } from "../ui/dom";
 import { SECTION_SPECTRUM } from "../ui/section-catalog";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./notice.css?inline";
@@ -29,10 +29,6 @@ const TITLE_ID = "gh-prism-classic-notice-title";
 
 /** gh-prism's mark: a prism and the bands it splits light into. */
 const PRISM = "M5.5 2 10 14H1Z M8 4.5h7V6H8Z M9.25 7.5H15V9H9.25Z M10.5 10.5H15V12h-4.5Z";
-
-/** Octicons 19.15.0 (MIT, GitHub Inc.): x. */
-const X =
-  "M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z";
 
 // Primer's medium Button, default and primary.
 const BUTTON =
@@ -120,7 +116,7 @@ function noticeDialog(doc: Document, signedIn: boolean): HTMLDialogElement {
     doc,
     "button",
     "tw:shrink-0 tw:inline-grid tw:place-content-center tw:size-[var(--control-medium-size,32px)] tw:p-0 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-iconColor-rest)] tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:hover:text-[color:var(--button-invisible-iconColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
-    icon(doc, X, {}),
+    icon(doc, X_ICON, {}),
   );
   close.type = "button";
   close.setAttribute("aria-label", "Close");

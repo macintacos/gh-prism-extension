@@ -21,6 +21,7 @@ import {
 } from "../files-page";
 import { type DiffstatChoice, showDiffstat } from "../header/diffstat-view";
 import { showSections } from "../sidebar/sections-view";
+import { type WhatsNew, whatsNewBlock } from "../sidebar/whats-new";
 
 /**
  * The native tree's files in the sections they land in: what the sidebar lists and the diffs
@@ -125,7 +126,8 @@ const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
 /**
  * Mounts the sidebar, the diff order, the diffstat, and the on-screen and Viewed trackers that feed
  * the sidebar on one page of a visit, and lands `intent` on them in that order, until `signal`
- * aborts. `viewed` is the visit's Viewed state, shared by its pages.
+ * aborts. `viewed` is the visit's Viewed state, shared by its pages. `whatsNew`, when given, opens
+ * the sidebar with its block.
  */
 export function showVisit(
   page: FilesPage,
@@ -134,9 +136,11 @@ export function showVisit(
     intent,
     diffstat,
     viewed,
-  }: { intent: PendingIntent; diffstat: DiffstatChoice; viewed: VisitViewed },
+    whatsNew,
+  }: { intent: PendingIntent; diffstat: DiffstatChoice; viewed: VisitViewed; whatsNew?: WhatsNew },
 ): void {
   const sidebar = showSections(page, signal);
+  if (whatsNew) sidebar.root.prepend(whatsNewBlock(page.sidebar.ownerDocument, whatsNew));
   const views = [
     sidebar,
     showDiffOrder(page, signal),

@@ -1,14 +1,23 @@
+import { browser } from "wxt/browser";
+import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { storage } from "wxt/utils/storage";
 import { connectPrData } from "@/utils/github/pr-port";
 import { readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
 import { storedIntents } from "@/utils/intent/cache";
 import { type IntentSources, intentFor, shareIntent } from "@/utils/intent/read";
-import { classicNoticeDismissed, sidebarSide } from "@/utils/prefs";
+import { classicNoticeDismissed, sidebarSide, whatsNewSeen } from "@/utils/prefs";
+import {
+  dismissWhatsNew,
+  type WhatsNewState,
+  whatsNewAt,
+  whatsNewStateOf,
+} from "@/utils/whats-new";
 import { type NoticeChoice, showClassicNotice } from "./classic/notice";
 import { visitViewed } from "./diffs/viewed";
 import type { DiffstatChoice } from "./header/diffstat-view";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar/side";
+import type { WhatsNew } from "./sidebar/whats-new";
 import { showVisit } from "./visit/land";
 import { watchClassicPages, watchFilesPages } from "./visit/watch";
 
@@ -16,7 +25,8 @@ const CACHED_DIFFS = 50;
 
 /**
  * On every Files view on github.com, shows the sidebar's sections, orders the diffs to match,
- * stands in for the diffstat, and docks the sidebar on the saved side with a switch. On a pull
+ * stands in for the diffstat, docks the sidebar on the saved side with a switch, and, after an
+ * update, opens the sidebar with that release's notes. On a pull
  * request's classic Files changed page, explains why gh-prism is off there.
  */
 export default defineContentScript({
@@ -30,8 +40,13 @@ export default defineContentScript({
       cache: storedIntents(storage, CACHED_DIFFS),
       pinOf: (diff) => readDiffPin(document, diff),
     } satisfies IntentSources;
+    const release = releaseOf(import.meta.env.WXT_RELEASE_NOTES);
     // Read before watching, so a saved side or dismissal never shows its default first.
-    const [savedSide, dismissed] = await Promise.all([readSavedSide(), readNoticeDismissed()]);
+    const [savedSide, dismissed, whatsNewForPage] = await Promise.all([
+      readSavedSide(),
+      readNoticeDismissed(),
+      release && followWhatsNew(release, ctx),
+    ]);
     const side = sideChoiceOf(savedSide);
     const notice: NoticeChoice = { dismissed };
     let fullLoad = true;
@@ -49,7 +64,7 @@ export default defineContentScript({
           const viewed = visitViewed(fullLoad ? readViewedSeed(document, route.diff) : undefined);
           fullLoad = false;
           return (page, signal) => {
-            showVisit(page, signal, { intent, diffstat, viewed });
+            showVisit(page, signal, { intent, diffstat, viewed, whatsNew: whatsNewForPage?.() });
             dockSidebar(page, signal, { choice: side, save: saveSide });
           };
         },
@@ -100,3 +115,62 @@ const saveDismissed = () =>
     .catch((error: unknown) =>
       console.error("gh-prism: saving the notice's dismissal failed", error),
     );
+
+interface Release {
+  readonly version: string;
+  readonly notes: string;
+}
+
+/** The release whose notes this build carries; none for a build without notes. */
+function releaseOf(notes: unknown): Release | undefined {
+  return typeof notes === "string" && notes !== ""
+    ? { version: browser.runtime.getManifest().version, notes }
+    : undefined;
+}
+
+/** The tab's latest what's-new state, kept current across tabs. */
+interface WhatsNewChoice {
+  state: WhatsNewState;
+}
+
+/**
+ * Each page's block for `release`, from stored state kept current across tabs until `ctx` ends.
+ * A version hidden at startup never shows again, so its tab skips the watch.
+ */
+async function followWhatsNew(release: Release, ctx: ContentScriptContext) {
+  const choice: WhatsNewChoice = { state: whatsNewStateOf(await readWhatsNew()) };
+  if (whatsNewAt(choice.state, release.version, Date.now()).shows) {
+    ctx.onInvalidated(whatsNewSeen.watch((saved) => (choice.state = whatsNewStateOf(saved))));
+  }
+  return () => whatsNewOn(choice, release);
+}
+
+/** The stored what's-new state, unchecked, or the default when storage won't read. */
+const readWhatsNew = (): Promise<unknown> =>
+  whatsNewSeen.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading the what's-new state failed", error);
+    return whatsNewSeen.fallback;
+  });
+
+const saveWhatsNew = (state: WhatsNewState) =>
+  whatsNewSeen
+    .setValue(state)
+    .catch((error: unknown) =>
+      console.error("gh-prism: saving the what's-new state failed", error),
+    );
+
+/** `release`'s block for this page, when it shows; stores the stamp a first showing makes. */
+function whatsNewOn(choice: WhatsNewChoice, release: Release): WhatsNew | undefined {
+  const { version } = release;
+  const { shows, state } = whatsNewAt(choice.state, version, Date.now());
+  if (state !== choice.state) {
+    choice.state = state;
+    void saveWhatsNew(state);
+  }
+  if (!shows) return undefined;
+  const dismiss = () => {
+    choice.state = dismissWhatsNew(choice.state, version);
+    void saveWhatsNew(choice.state);
+  };
+  return { ...release, dismiss };
+}

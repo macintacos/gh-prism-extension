@@ -41,6 +41,9 @@ how to get the new tab. Once you close the dialog, it stays closed, and
   (`N/M`). It follows GitHub's Viewed toggle.
 - It marks a file Viewed on GitHub when you tick the checkbox on its row, or when you
   Alt-click the row (Option-click on macOS). Doing either again marks it not viewed.
+- After an update, the sidebar opens with a collapsed **What's new in vX.Y.Z** block of
+  that version's release notes. It goes away when you dismiss it, or 3 days after you
+  first see it.
 
 ## Install
 
@@ -98,11 +101,12 @@ gh-prism needs access to three hosts and to Chrome's extension storage, and noth
 - `https://patch-diff.githubusercontent.com/*` is where GitHub redirects diff downloads.
 - `https://raw.githubusercontent.com/*` is where GitHub redirects raw-file downloads.
 - Extension storage holds the side you put the sidebar on, whether you closed the dialog
-  on the classic Files changed tab, and where gh-prism placed each file for the diffs it
-  read most recently. It keeps up to 50 placement entries, and a pull request's diff can
-  take two: one for the diff and one for the base and head commits it runs between. Chrome
-  syncs the side to your other computers when Chrome sync is on. The dismissal and the
-  placements stay on this computer.
+  on the classic Files changed tab, which version's what's-new notes you dismissed or
+  first saw and when, and where gh-prism placed each file for the diffs it read most
+  recently. It keeps up to 50 placement entries, and a pull request's diff can take two:
+  one for the diff and one for the base and head commits it runs between. Chrome syncs the
+  side to your other computers when Chrome sync is on. The notice's dismissal, the
+  what's-new marks, and the placements stay on this computer.
 
 ## Troubleshooting
 

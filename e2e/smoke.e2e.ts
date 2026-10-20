@@ -173,6 +173,8 @@ test("a pull request mounts its sections in path-only mode", async ({ context, p
     await expect(nav.getByRole("heading", { name })).toBeVisible();
   }
   await expect(page.locator(".gh-prism-notice")).toHaveText(/^Grouped by path\./);
+  // The e2e build carries no release notes.
+  await expect(page.locator(".gh-prism-whats-new")).toHaveCount(0);
 });
 
 test("a commit mounts its sections in path-only mode", async ({ context, page }) => {
