@@ -39,13 +39,28 @@ describe("whatsNewBlock", () => {
     expect(block.style.getPropertyValue("--gh-prism-hue")).toBe("var(--fgColor-success)");
   });
 
-  it("removes itself and calls dismiss once when dismissed", () => {
+  it("calls dismiss once at the click and leaves inert while it collapses", () => {
     const button = block.querySelector<HTMLButtonElement>('[aria-label="Dismiss what\'s new"]');
 
     button?.click();
+    button?.click();
 
-    expect(block.isConnected).toBe(false);
     expect(dismiss).toHaveBeenCalledTimes(1);
+    expect(block.isConnected).toBe(true);
+    expect(block.inert).toBe(true);
+  });
+
+  it("removes itself once its collapse has run", () => {
+    vi.useFakeTimers();
+    try {
+      block.querySelector<HTMLButtonElement>('[aria-label="Dismiss what\'s new"]')?.click();
+
+      vi.advanceTimersByTime(200);
+
+      expect(block.isConnected).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("hands focus to the nav's first section toggle when dismissed", () => {

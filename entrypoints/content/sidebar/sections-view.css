@@ -77,6 +77,22 @@
   visibility: hidden;
 }
 
+/* Dismissed, until whats-new.ts removes it once this transition's duration has passed. */
+.gh-prism-whats-new {
+  transition-property: height, margin-bottom, opacity, visibility;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gh-prism-whats-new[inert] {
+  overflow: clip;
+  height: 0;
+  /* Cancels the nav's tw:gap-1.5, so the sections don't jump when the block is removed. */
+  margin-bottom: -6px;
+  opacity: 0;
+  visibility: hidden;
+}
+
 /* @pierre/trees reads these through each tree's shadow root. */
 .gh-prism-tree {
   --trees-bg-override: var(--gh-prism-tint);
@@ -157,7 +173,8 @@
   .gh-prism-section-icon,
   .gh-prism-chevron,
   .gh-prism-files,
-  .gh-prism-whats-new-body {
+  .gh-prism-whats-new-body,
+  .gh-prism-whats-new {
     transition: none;
     animation: none;
   }

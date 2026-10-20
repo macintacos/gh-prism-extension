@@ -103,10 +103,13 @@ export function whatsNewBlock(doc: Document, { version, notes, dismiss }: WhatsN
     body.inert = !expanded;
   });
   close.addEventListener("click", () => {
-    const nav = block.parentElement;
-    block.remove();
-    nav?.querySelector<HTMLElement>(".gh-prism-section-toggle")?.focus();
+    if (block.inert) return;
+    block.inert = true;
+    block.parentElement?.querySelector<HTMLElement>(".gh-prism-section-toggle")?.focus();
     dismiss();
+    // A timer, not transitionend: it also fires under reduced motion, where no transition runs.
+    // Keep at the stylesheet's .gh-prism-whats-new transition duration.
+    setTimeout(() => block.remove(), 200);
   });
   return block;
 }
