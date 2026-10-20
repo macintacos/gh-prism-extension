@@ -45,6 +45,11 @@ const afterMutations = () => vi.advanceTimersByTimeAsync(0);
 beforeEach(() => {
   fakeBrowser.reset();
   vi.resetAllMocks();
+  vi.spyOn(fakeBrowser.runtime, "getManifest").mockReturnValue({
+    manifest_version: 3,
+    name: "gh-prism",
+    version: "0.0.0",
+  });
   vi.useFakeTimers();
   history.replaceState(null, "", PR);
   loadFixture();

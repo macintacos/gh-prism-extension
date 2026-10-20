@@ -16,6 +16,7 @@ import {
 import { type NoticeChoice, showClassicNotice } from "./classic/notice";
 import { visitViewed } from "./diffs/viewed";
 import type { DiffstatChoice } from "./header/diffstat-view";
+import { showReportLink } from "./sidebar/report";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar/side";
 import type { WhatsNew } from "./sidebar/whats-new";
 import { showVisit } from "./visit/land";
@@ -25,8 +26,9 @@ const CACHED_DIFFS = 50;
 
 /**
  * On every Files view on github.com, shows the sidebar's sections, orders the diffs to match,
- * stands in for the diffstat, docks the sidebar on the saved side with a switch, and, after an
- * update, opens the sidebar with that release's notes. On a pull
+ * stands in for the diffstat, docks the sidebar on the saved side with a switch, adds a link to
+ * report a miscategorized file, and, after an update, opens the sidebar with that release's
+ * notes. On a pull
  * request's classic Files changed page, explains why gh-prism is off there.
  */
 export default defineContentScript({
@@ -35,6 +37,7 @@ export default defineContentScript({
   runAt: "document_start",
   async main(ctx) {
     const diffstat: DiffstatChoice = { view: "breakout" };
+    const version = browser.runtime.getManifest().version;
     const sources = {
       connect: connectPrData,
       cache: storedIntents(storage, CACHED_DIFFS),
@@ -63,7 +66,13 @@ export default defineContentScript({
           // Route data is fresh only until GitHub's first navigation.
           const viewed = visitViewed(fullLoad ? readViewedSeed(document, route.diff) : undefined);
           fullLoad = false;
+          const report = {
+            repo: route.diff,
+            diffUrl: location.origin + location.pathname,
+            version,
+          };
           return (page, signal) => {
+            showReportLink(page, signal, report);
             showVisit(page, signal, { intent, diffstat, viewed, whatsNew: whatsNewForPage?.() });
             dockSidebar(page, signal, { choice: side, save: saveSide });
           };
