@@ -59,10 +59,13 @@ export class SectionTree {
   readonly #probe: HTMLElement;
   readonly #onScreen: HTMLStyleElement;
   readonly #viewed: HTMLStyleElement;
+  readonly #pointed: HTMLStyleElement;
   #files: readonly TreeFile[];
   #byPath: ReadonlyMap<string, TreeFile>;
   #selected: string | undefined;
   #focused: string | null | undefined;
+  #hoverFolder: string | undefined;
+  #focusFolder: string | undefined;
   #viewedPaths: ReadonlySet<string> | undefined;
   #marking: ReadonlySet<string> = new Set();
   readonly #altKey: string;
@@ -86,10 +89,21 @@ export class SectionTree {
     this.#probe.style.height = `${ROW_HEIGHT}px`;
     this.#onScreen = host.ownerDocument.createElement("style");
     this.#viewed = host.ownerDocument.createElement("style");
+    this.#pointed = host.ownerDocument.createElement("style");
     const shadow = host.shadowRoot;
     if (shadow) {
-      shadow.append(this.#probe, this.#onScreen, this.#viewed);
+      shadow.append(this.#probe, this.#onScreen, this.#viewed, this.#pointed);
       this.#followFocus(shadow);
+      shadow.addEventListener("pointermove", (event) => {
+        const folder = folderAt(event.target);
+        if (folder === this.#hoverFolder) return;
+        this.#hoverFolder = folder;
+        this.#showPointed();
+      });
+      host.addEventListener("pointerleave", () => {
+        this.#hoverFolder = undefined;
+        this.#showPointed();
+      });
     }
 
     this.#select(selected);
@@ -184,6 +198,16 @@ export class SectionTree {
     this.#tree.render({ fileTreeContainer: this.#host });
   }
 
+  /**
+   * Unlights the hairlines the pointer and focus light, until the pointer next moves or focus
+   * next moves within the tree: what they point at may have scrolled away.
+   */
+  clearPointed(): void {
+    this.#hoverFolder = undefined;
+    this.#focusFolder = undefined;
+    this.#showPointed();
+  }
+
   /** Removes the tree's rows and releases it. */
   cleanUp(): void {
     this.#tree.cleanUp();
@@ -195,6 +219,8 @@ export class SectionTree {
    */
   #followFocus(shadow: ShadowRoot): void {
     shadow.addEventListener("focusin", (event) => {
+      this.#focusFolder = folderAt(event.target);
+      this.#showPointed();
       // A checkbox taking focus must not scroll the sidebar to the tree's last focused row.
       if (!(event.target instanceof Element && event.target.matches('[data-type="item"]'))) return;
       const path = this.#tree.getFocusedPath();
@@ -205,8 +231,23 @@ export class SectionTree {
     shadow.addEventListener("focusout", (event) => {
       // A null relatedTarget is a row unmounting or the window blurring, not focus leaving.
       const next = event instanceof FocusEvent ? event.relatedTarget : null;
-      if (next instanceof Node && next.getRootNode() !== shadow) this.#focused = undefined;
+      if (next instanceof Node && next.getRootNode() !== shadow) {
+        this.#focused = undefined;
+        this.#focusFolder = undefined;
+        this.#showPointed();
+      }
     });
+  }
+
+  #showPointed(): void {
+    this.#pointed.textContent = litRule(
+      [this.#hoverFolder, this.#focusFolder]
+        .filter((folder) => folder !== undefined)
+        .map(
+          (folder) =>
+            `[data-item-section="spacing-item"][data-ancestor-path="${CSS.escape(folder)}"]`,
+        ),
+    );
   }
 
   #decorationOf(path: string): RowDecoration | null {
@@ -321,6 +362,17 @@ const LIT = "--gh-prism-lit:1;--gh-prism-flare:gh-prism-flare";
 /** A rule lighting what `selectors` match, or nothing when there are none. */
 function litRule(selectors: readonly string[]): string {
   return selectors.length ? `${selectors.join(",")}{${LIT}}` : "";
+}
+
+/** The folder whose hairline `target`'s row lights: a folder's own, or a file's directory. */
+function folderAt(target: EventTarget | null): string | undefined {
+  const row =
+    target instanceof Element
+      ? target.closest<HTMLElement>('[data-type="item"],[data-item-checkbox]')
+      : null;
+  if (row?.dataset.itemType === "folder") return row.dataset.itemPath;
+  const path = row?.dataset.itemPath ?? row?.dataset.itemCheckbox ?? "";
+  return path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : undefined;
 }
 
 /** The Alt key's name on the platform `navigator` reports. */

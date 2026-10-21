@@ -672,6 +672,15 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     },
     signal,
   );
+  // The main view scrolls as the document; the sidebar's own pane scrolls as an element.
+  doc.addEventListener(
+    "scroll",
+    (event) => {
+      if (event.target !== doc) return;
+      for (const { tree } of shown.values()) tree.clearPointed();
+    },
+    { capture: true, signal },
+  );
 
   // A DOM clone of the sidebar, such as a restored snapshot, can carry an earlier view.
   for (const stale of page.sidebar.querySelectorAll(".gh-prism-sections")) stale.remove();
