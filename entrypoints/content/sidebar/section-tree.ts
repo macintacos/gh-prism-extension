@@ -263,7 +263,7 @@ export class SectionTree {
 
   #showPointed(): void {
     const rule = ruleOf(
-      [this.#hoverFolder, this.#focusFolder].filter((f) => f !== undefined).map(pieceOf),
+      [this.#hoverFolder, this.#focusFolder].filter((folder) => folder !== undefined).map(pieceOf),
       LIT,
     );
     if (this.#pointed.textContent !== rule) this.#pointed.textContent = rule;
