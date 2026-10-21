@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Build the extension into .output/chrome-mv3, ready for Chrome's Load unpacked"
+
+set -euo pipefail
+
+bun run build
