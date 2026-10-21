@@ -19,15 +19,16 @@ const isEditable = (target: EventTarget | null): boolean =>
   (target.isContentEditable || target.matches("input, textarea, select"));
 
 /**
- * The link `step` files on from the one `hash` names, or the first link when it names none;
- * `undefined` past either end.
+ * The link `step` files on from the one `hash` names, itself or through one of its lines, or the
+ * first link when it names none; `undefined` past either end.
  */
 function neighbor(
   links: readonly HTMLAnchorElement[],
   hash: string,
   step: number,
 ): HTMLAnchorElement | undefined {
-  const at = links.findIndex((link) => link.getAttribute("href") === hash);
+  // A line's anchor extends its file's: `#diff-…R12`.
+  const at = links.findIndex((link) => hash.startsWith(link.hash));
   return links[at < 0 ? 0 : at + step];
 }
 

@@ -53,6 +53,14 @@ describe("j and k", () => {
     expect(clicked()).toEqual(["tests/integration.rs"]);
   });
 
+  it("step from the file whose line the URL names", () => {
+    history.replaceState(null, "", `${linkTo("tests/integration.rs").getAttribute("href")}R12`);
+
+    press("j");
+
+    expect(clicked()).toEqual(["docs/guide.md"]);
+  });
+
   it("reveal the sidebar's first file when the URL names none", () => {
     press("j");
 
