@@ -344,7 +344,14 @@ test("the sidebar highlights the files whose diffs are on screen", async ({ cont
       const rendered = new Set(rows.map((row) => row.dataset.itemPath));
       const marked = rows
         .filter(
-          (row) => getComputedStyle(row).getPropertyValue("--gh-prism-on-screen").trim() === "1",
+          (row) =>
+            getComputedStyle(
+              row.querySelector(
+                `:scope > [data-item-section="spacing"] > [data-ancestor-path="${row.dataset.itemPath?.replace(/[^/]*$/, "")}"]`,
+              ) ?? row,
+            )
+              .getPropertyValue("--gh-prism-lit")
+              .trim() === "1",
         )
         .map((row) => row.dataset.itemPath ?? "");
       const inView = [...document.querySelectorAll('[role="region"][data-n]')]
@@ -408,12 +415,30 @@ test("the sidebar highlights the files whose diffs are on screen", async ({ cont
   await scrollToDiff(100);
   await expect(page.locator('[data-item-path="bulk/file-100.rs"]')).toHaveCount(0);
   await scrollSidebarToBulkRow(page, 100);
-  const row = page.locator('[data-item-path="bulk/file-100.rs"]');
+  const piece = page.locator(
+    '[data-item-path="bulk/file-100.rs"] > [data-item-section="spacing"] > [data-ancestor-path="bulk/"]',
+  );
   await expect
     .poll(() =>
-      row.evaluate((el) => getComputedStyle(el).getPropertyValue("--gh-prism-on-screen").trim()),
+      piece.evaluate((el) => getComputedStyle(el).getPropertyValue("--gh-prism-lit").trim()),
     )
     .toBe("1");
+  expect(await piece.evaluate((el) => getComputedStyle(el).animation)).toContain("gh-prism-flare");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  expect(await piece.evaluate((el) => getComputedStyle(el).animation)).not.toContain(
+    "gh-prism-flare",
+  );
+
+  const resting = page.locator(
+    '[data-item-path="bulk/file-101.rs"] > [data-item-section="spacing"] > [data-ancestor-path="bulk/"]',
+  );
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  await expect
+    .poll(() =>
+      resting.evaluate((el) => getComputedStyle(el).getPropertyValue("--gh-prism-lit").trim()),
+    )
+    .toBe("");
+  expect(await resting.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
 });
 
 test("the sidebar dims viewed files and follows GitHub's Viewed toggle", async ({
@@ -431,21 +456,25 @@ test("the sidebar dims viewed files and follows GitHub's Viewed toggle", async (
       .evaluate((row) => {
         const content = row.querySelector('[data-item-section="content"]');
         if (!content) throw new Error(`no content section in ${path}'s row`);
+        const spacing = row.querySelector('[data-item-section="spacing"]');
         return {
           flag: getComputedStyle(row).getPropertyValue("--gh-prism-viewed").trim(),
           dimmed: Number(getComputedStyle(content).opacity) < 1,
+          spacingOpacity: spacing && getComputedStyle(spacing).opacity,
         };
       });
 
-  await expect.poll(() => viewedOf("config/app.toml")).toEqual({ flag: "1", dimmed: true });
-  expect(await viewedOf("src/lib.rs")).toEqual({ flag: "", dimmed: false });
+  await expect
+    .poll(() => viewedOf("config/app.toml"))
+    .toEqual({ flag: "1", dimmed: true, spacingOpacity: "1" });
+  expect(await viewedOf("src/lib.rs")).toMatchObject({ flag: "", dimmed: false });
 
   await page.evaluate(() => {
     for (const host of document.querySelectorAll<HTMLElement>(".gh-prism-tree"))
       host.dataset.e2eMark = "";
   });
   await setViewed(page, VIEWED_LIB_RS, true);
-  await expect.poll(() => viewedOf("src/lib.rs")).toEqual({ flag: "1", dimmed: true });
+  await expect.poll(() => viewedOf("src/lib.rs")).toMatchObject({ flag: "1", dimmed: true });
   expect(
     await page.evaluate(() =>
       [...document.querySelectorAll<HTMLElement>(".gh-prism-tree")].every(
@@ -455,7 +484,7 @@ test("the sidebar dims viewed files and follows GitHub's Viewed toggle", async (
   ).toBe(true);
 
   await setViewed(page, VIEWED_LIB_RS, false);
-  await expect.poll(() => viewedOf("src/lib.rs")).toEqual({ flag: "", dimmed: false });
+  await expect.poll(() => viewedOf("src/lib.rs")).toMatchObject({ flag: "", dimmed: false });
 });
 
 test("section headers count viewed files once any file is Viewed", async ({ context, page }) => {

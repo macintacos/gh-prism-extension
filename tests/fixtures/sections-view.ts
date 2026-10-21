@@ -36,6 +36,17 @@ export const viewed = (...paths: string[]) => {
   sidebar.viewed(new Set(paths));
 };
 
+/** Tells the mounted sidebar which files are on screen. The test file must mock `showSections`. */
+export const onScreen = (...paths: string[]): void => {
+  const sidebar = vi.mocked(showSections).mock.results.at(-1)?.value;
+  if (!sidebar) throw new Error("no sidebar mounted");
+  sidebar.onScreen(new Set(paths));
+};
+
+/** Whether the sidebar lights `element`: a hairline piece or a top-level row's edge. */
+export const lit = (element: Element): boolean =>
+  getComputedStyle(element).getPropertyValue("--gh-prism-lit").trim() === "1";
+
 /** Where `rowIn` and its kin look for Docs & Comments' comment-lines sub-section. */
 export const COMMENT_LINES = "comment-lines";
 

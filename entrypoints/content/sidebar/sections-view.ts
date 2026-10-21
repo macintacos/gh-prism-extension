@@ -53,7 +53,7 @@ interface Listing {
 interface SectionsView extends LandingView {
   /** The view's `<nav>`. */
   readonly root: Element;
-  /** Marks the files whose diffs are on screen: their rows, or a collapsed listing's header. */
+  /** Marks the files whose diffs are on screen: their hairline piece (a top-level file's row edge), or a collapsed listing's header. */
   onScreen(paths: ReadonlySet<string>): void;
   /**
    * Called whenever the viewed set changes, from the moment the page offers Viewed: dims the rows
@@ -671,6 +671,15 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
       for (const { tree } of shown.values()) tree.sync();
     },
     signal,
+  );
+  // Only the page's own scroll: the sidebar's pane scrolls to follow focus, whose folder must stay lit.
+  doc.addEventListener(
+    "scroll",
+    (event) => {
+      if (event.target !== doc) return;
+      for (const { tree } of shown.values()) tree.clearPointed();
+    },
+    { capture: true, signal },
   );
 
   // A DOM clone of the sidebar, such as a restored snapshot, can carry an earlier view.

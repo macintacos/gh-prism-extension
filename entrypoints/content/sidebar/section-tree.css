@@ -202,30 +202,60 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
     center / contain no-repeat;
 }
 
-/* A file whose diff is on screen gets a faint bar in the section's hue; SectionTree sets
-   --gh-prism-on-screen on those rows. */
-[data-type="item"]::after {
-  content: "";
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  left: 0;
-  width: 3px;
-  border-radius: 2px;
-  background: var(--gh-prism-on-screen-bar);
-  opacity: var(--gh-prism-on-screen, 0);
+/* Each folder's hairline, always shown; the library hides it at rest. */
+[data-item-section="spacing-item"] {
+  --gh-prism-unlit: var(--trees-indent-guide-bg);
+  opacity: 1;
+  border-left-color: currentColor;
 }
 
-/* GitHub's current file, marked as GitHub marks its current tree item; outranks the on-screen bar by specificity. */
+/* Every row's left edge, transparent at rest; only a top-level file, which has no folder line, lights it. */
+[data-type="item"]::after {
+  --gh-prism-unlit: transparent;
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  background: currentColor;
+}
+
+/* SectionTree sets --gh-prism-lit and --gh-prism-flare on lit pieces and edges. A transition
+   takes its duration from the new style, so lighting is instant (the flare carries it) and only
+   going dark fades. */
+[data-item-section="spacing-item"],
+[data-type="item"]::after {
+  color: color-mix(
+    in srgb,
+    var(--fgColor-muted) calc(var(--gh-prism-lit, 0) * 100%),
+    var(--gh-prism-unlit)
+  );
+  transition: color calc((1 - var(--gh-prism-lit, 0)) * 150ms) ease-out;
+  animation: var(--gh-prism-flare, none) 250ms ease-out;
+}
+
+@keyframes gh-prism-flare {
+  from {
+    color: var(--fgColor-default);
+    box-shadow: 0 0 4px var(--fgColor-muted);
+  }
+}
+
+/* GitHub's current file, marked as GitHub marks its current tree item; outranks the edge by specificity. */
 [data-type="item"][data-item-selected="true"]::after {
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 2px;
   background: var(--gh-prism-hue);
-  opacity: 1;
+  animation: none;
 }
 
 /* A file GitHub shows as Viewed reads as done but stays legible; SectionTree sets
-   --gh-prism-viewed on those rows. It dims the sections, not the row, so the row's
-   ::after bars keep full strength. */
-[data-item-type="file"] > [data-item-section] {
+   --gh-prism-viewed on those rows. It dims the sections, not the row, and not the hairlines,
+   so the row's ::after and its folder's line keep full strength. */
+[data-item-type="file"] > [data-item-section]:not([data-item-section="spacing"]) {
   opacity: calc(1 - 0.45 * var(--gh-prism-viewed, 0));
 }
 
@@ -351,6 +381,12 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
   [data-item-checkbox],
   [data-item-checkbox]::before {
     transition: none;
+  }
+
+  [data-item-section="spacing-item"],
+  [data-type="item"]::after {
+    transition: none;
+    animation: none;
   }
 
   /* Unspun, the open ring still reads as working. */
