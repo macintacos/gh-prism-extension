@@ -202,34 +202,46 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
     center / contain no-repeat;
 }
 
-/* Each folder's hairline, always shown; the library hides it at rest. */
+/* Each folder's hairline, always shown and dotted; the library hides it at rest. Its ::before
+   lays the lit line over the dots. */
 [data-item-section="spacing-item"] {
-  --gh-prism-unlit: var(--trees-indent-guide-bg);
+  position: relative;
   opacity: 1;
-  border-left-color: currentColor;
+  border-left-style: dotted;
 }
 
-/* Every row's left edge, transparent at rest; only a top-level file, which has no folder line, lights it. */
-[data-type="item"]::after {
-  --gh-prism-unlit: transparent;
+[data-item-section="spacing-item"]::before {
   content: "";
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 0;
+  left: -1px;
   width: 1px;
+  background: currentColor;
+}
+
+/* A pip at every row's left edge, in the current-file bar's slot; only a top-level file, which
+   has no folder line, lights it. */
+[data-type="item"]::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 2px;
+  border-radius: 1px;
   background: currentColor;
 }
 
 /* SectionTree sets --gh-prism-lit and --gh-prism-flare on lit pieces and edges. A transition
    takes its duration from the new style, so lighting is instant (the flare carries it) and only
    going dark fades. */
-[data-item-section="spacing-item"],
+[data-item-section="spacing-item"]::before,
 [data-type="item"]::after {
   color: color-mix(
     in srgb,
     var(--fgColor-muted) calc(var(--gh-prism-lit, 0) * 100%),
-    var(--gh-prism-unlit)
+    transparent
   );
   transition: color calc((1 - var(--gh-prism-lit, 0)) * 150ms) ease-out;
   animation: var(--gh-prism-flare, none) 250ms ease-out;
@@ -383,7 +395,7 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
     transition: none;
   }
 
-  [data-item-section="spacing-item"],
+  [data-item-section="spacing-item"]::before,
   [data-type="item"]::after {
     transition: none;
     animation: none;

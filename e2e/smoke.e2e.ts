@@ -423,9 +423,11 @@ test("the sidebar highlights the files whose diffs are on screen", async ({ cont
       piece.evaluate((el) => getComputedStyle(el).getPropertyValue("--gh-prism-lit").trim()),
     )
     .toBe("1");
-  expect(await piece.evaluate((el) => getComputedStyle(el).animation)).toContain("gh-prism-flare");
+  expect(await piece.evaluate((el) => getComputedStyle(el, "::before").animation)).toContain(
+    "gh-prism-flare",
+  );
   await page.emulateMedia({ reducedMotion: "reduce" });
-  expect(await piece.evaluate((el) => getComputedStyle(el).animation)).not.toContain(
+  expect(await piece.evaluate((el) => getComputedStyle(el, "::before").animation)).not.toContain(
     "gh-prism-flare",
   );
 
