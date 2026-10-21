@@ -118,10 +118,18 @@ facts about GitHub that held when written, and ends with how to re-check them;
   GitHub lands deep links itself.
 - **Reorder diffs with CSS `order`.** GitHub's tree click scrolls by
   `getBoundingClientRect`, so it stays correct after a CSS reorder.
+- **Expect GitHub to bind `j` and `k` to files only in single-file mode.** They are the
+  toolbar's Previous and Next file buttons' `data-hotkey`, rendered only with route data's
+  `isSingleFileMode`, and they step in GitHub's order. Refined GitHub binds them on every
+  Files view: it walks `div[class*="targetable" i][id^="diff-"]` in DOM order from
+  `:target`, so CSS `order` doesn't reach it, and a tree click's `replaceState` leaves
+  `:target` behind. [`diffs/file-keys.ts`](../../entrypoints/content/diffs/file-keys.ts)
+  takes the keys first.
 - **Re-check:** load a pull request with few files, and a public commit touching more than
   40 files, and inspect the list's markup. Search the page's embedded data for
   `virtualizeDiffEntries`, and watch the network panel for `diff_entries` requests while
-  scrolling. Read the mount-time scrolls from GitHub's bundle.
+  scrolling. Read the mount-time scrolls from GitHub's bundle. Grep the bundle for
+  `"data-hotkey":"j"` and read the `isSingleFileMode` gate around it.
 
 ## Sticky headers
 

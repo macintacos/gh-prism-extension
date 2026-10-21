@@ -80,14 +80,14 @@ stateDiagram-v2
 ```
 
 [`entrypoints/content/visit/land.ts`](../entrypoints/content/visit/land.ts) runs on each
-page. `showVisit` mounts five views (the sidebar sections, the diff order, the diffstat,
-and the on-screen and Viewed trackers that feed the sidebar). Then `land` passes the
-intent read's steps to the views: pending while the read runs, progress as files are
-placed, landed with the result, and then each file's section. Every view gets a step
-before any view gets the next. `land` owns the only observer of the native tree, and it
-re-lists the sections after each change to the tree. While a pull request's narrow layout
-has its "Files" overlay open, `land` also observes the overlay's copy of the tree and
-lists from it, telling each view through `shownIn` before it re-lists. One visit reads
+page. `showVisit` mounts six views (the sidebar sections, the diff order, the j/k file
+keys, the diffstat, and the on-screen and Viewed trackers that feed the sidebar). Then
+`land` passes the intent read's steps to the views: pending while the read runs, progress
+as files are placed, landed with the result, and then each file's section. Every view gets
+a step before any view gets the next. `land` owns the only observer of the native tree,
+and it re-lists the sections after each change to the tree. While a pull request's narrow
+layout has its "Files" overlay open, `land` also observes the overlay's copy of the tree
+and lists from it, telling each view through `shownIn` before it re-lists. One visit reads
 intent once: `index.ts` wraps the read in `shareIntent`, so every page of the visit joins
 the same read.
 
@@ -233,6 +233,13 @@ diff's entry and moves no node that React renders, so comments, Viewed, and GitH
 scroll to a file keep working. While GitHub virtualizes a long diff list, placing each
 diff absolutely, the diffs keep GitHub's order, so they no longer follow the sidebar.
 
+[`entrypoints/content/diffs/file-keys.ts`](../entrypoints/content/diffs/file-keys.ts)
+has `j` and `k` reveal the next and previous file in the sidebar's order, from the file
+the URL's hash names. CSS `order` leaves the diffs in GitHub's DOM order, so a stepper
+that walks the DOM, such as Refined GitHub's, would jump around the page. The view cancels
+the keys before the page's own listeners see them, and only while the diffs follow the
+sidebar.
+
 [`entrypoints/content/diffs/reveal.ts`](../entrypoints/content/diffs/reveal.ts) brings a
 file's diff, or a line in it, into view. On a pull request it clicks the native row's link
 and glides the window to where GitHub scrolls. On a commit it follows the link's hash
@@ -258,7 +265,7 @@ entrypoints/
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, what's-new block, report link
-    diffs/               diff order, reveal, on-screen and Viewed tracking
+    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
     header/              diffstat breakout
     ui/                  shared DOM helpers, loading view, Markdown subset, Tailwind tokens
 utils/

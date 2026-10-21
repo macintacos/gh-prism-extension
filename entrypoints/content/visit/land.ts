@@ -8,6 +8,7 @@
 
 import { type LandedSection, landingOf, sectionsOf } from "@/utils/intent/landing";
 import type { IntentProgress, IntentResult, PendingIntent } from "@/utils/intent/read";
+import { followFileKeys } from "../diffs/file-keys";
 import { followOnScreen } from "../diffs/on-screen";
 import { showDiffOrder } from "../diffs/order";
 import { followViewed, type VisitViewed } from "../diffs/viewed";
@@ -124,10 +125,10 @@ const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
   });
 
 /**
- * Mounts the sidebar, the diff order, the diffstat, and the on-screen and Viewed trackers that feed
- * the sidebar on one page of a visit, and lands `intent` on them in that order, until `signal`
- * aborts. `viewed` is the visit's Viewed state, shared by its pages. `whatsNew`, when given, opens
- * the sidebar with its block.
+ * Mounts the sidebar, the diff order, the j/k file keys, the diffstat, and the on-screen and Viewed
+ * trackers that feed the sidebar on one page of a visit, and lands `intent` on them in that order,
+ * until `signal` aborts. `viewed` is the visit's Viewed state, shared by its pages. `whatsNew`,
+ * when given, opens the sidebar with its block.
  */
 export function showVisit(
   page: FilesPage,
@@ -144,6 +145,7 @@ export function showVisit(
   const views = [
     sidebar,
     showDiffOrder(page, signal),
+    followFileKeys(page, signal),
     showDiffstat(page, { choice: diffstat, signal }),
     followOnScreen(page, sidebar.onScreen, signal),
     followViewed(page, viewed, sidebar.viewed, signal),
