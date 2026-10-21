@@ -205,8 +205,10 @@ sub-section's.
 tracks which files' diffs are on screen. It observes the mounted diff regions with one
 `IntersectionObserver`, its top inset by `coveredTop` (the band GitHub's sticky chrome
 covers), and feeds each changed set of paths to the sections view's `onScreen`. Each tree
-marks those rows faintly, and a collapsed section marks its header instead. The mark never
-scrolls the sidebar.
+lights the piece of each on-screen file's folder hairline (a top-level file's row edge),
+and a collapsed section marks its header instead. Hovering or focusing a row lights its
+folder's whole hairline, until the page or sidebar scrolls. The mark never scrolls the
+sidebar.
 
 [`entrypoints/content/diffs/viewed.ts`](../entrypoints/content/diffs/viewed.ts) tracks
 which files the reviewer has marked Viewed. On the visit a full load started (before
