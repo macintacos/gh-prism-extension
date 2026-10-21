@@ -1,7 +1,13 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
-import { showSections } from "../../../entrypoints/content/sidebar/sections-view";
-import { hostOf, patchShadowActiveElement, rowIn, viewed } from "../../fixtures/sections-view";
+import {
+  hostOf,
+  lit,
+  onScreen,
+  patchShadowActiveElement,
+  rowIn,
+  viewed,
+} from "../../fixtures/sections-view";
 import { addNativeFile, afterDebounce, mountsVisit } from "../../fixtures/visit";
 
 // Chrome content scripts run in an isolated world whose `customElements` is null, so every test
@@ -20,23 +26,20 @@ patchShadowActiveElement();
 
 mountsVisit();
 
-const lit = (element: Element) =>
-  getComputedStyle(element).getPropertyValue("--gh-prism-lit").trim() === "1";
-
-/** The pieces of `folder`'s hairline that `listing`'s tree renders. */
-const pieces = (listing: string, folder: string) => [
-  ...(hostOf(listing).shadowRoot?.querySelectorAll(
-    `[data-item-section="spacing-item"][data-ancestor-path="${folder}"]`,
-  ) ?? []),
-];
-
-const allLit = (listing: string, folder: string) => {
-  const found = pieces(listing, folder);
+/** The pieces of `folder`'s hairline that `listing`'s tree renders; throws when there are none. */
+const pieces = (listing: string, folder: string) => {
+  const found = [
+    ...(hostOf(listing).shadowRoot?.querySelectorAll(
+      `[data-item-section="spacing-item"][data-ancestor-path="${folder}"]`,
+    ) ?? []),
+  ];
   if (found.length === 0) throw new Error(`${listing} draws no hairline for ${folder}`);
-  return found.every(lit);
+  return found;
 };
 
-const anyLit = (listing: string, folder: string) => pieces(listing, folder).some(lit);
+const allLit = (listing: string, folder: string) => pieces(listing, folder).every(lit);
+
+const noneLit = (listing: string, folder: string) => !pieces(listing, folder).some(lit);
 
 const pointAt = (target: Element) =>
   target.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, composed: true }));
@@ -51,13 +54,6 @@ const boxOf = (listing: string, path: string) => {
   );
   if (!box) throw new Error(`${listing} has no checkbox for ${path}`);
   return box;
-};
-
-/** Tells the mounted sidebar which files are on screen. */
-const onScreen = (...paths: string[]) => {
-  const sidebar = vi.mocked(showSections).mock.results.at(-1)?.value;
-  if (!sidebar) throw new Error("no sidebar mounted");
-  sidebar.onScreen(new Set(paths));
 };
 
 describe("showSections", () => {
@@ -76,7 +72,17 @@ describe("showSections", () => {
       pointAt(rowIn("implementation", "src/parser/"));
 
       expect(allLit("implementation", "src/parser/")).toBe(true);
-      expect(anyLit("implementation", "src/")).toBe(false);
+      expect(noneLit("implementation", "src/")).toBe(true);
+    });
+
+    it("light a hovered file's flattened folder chain", async () => {
+      addNativeFile("src/deep/inner/a.rs", "src/lib.rs");
+      addNativeFile("src/deep/inner/b.rs", "src/lib.rs");
+      await afterDebounce();
+
+      pointAt(rowIn("implementation", "src/deep/inner/a.rs"));
+
+      expect(allLit("implementation", "src/deep/inner/")).toBe(true);
     });
 
     it("light a hovered Viewed box's row's folder", () => {
@@ -89,31 +95,31 @@ describe("showSections", () => {
 
     it("go out when the pointer leaves the tree", () => {
       pointAt(rowIn("implementation", "src/engine.rs"));
+
       leave("implementation");
 
-      expect(anyLit("implementation", "src/")).toBe(false);
+      expect(noneLit("implementation", "src/")).toBe(true);
     });
 
     it("keep an on-screen file's piece lit through a hover and after it", () => {
       onScreen("src/engine.rs");
-      const piece = () =>
-        rowIn("implementation", "src/engine.rs").querySelector(
-          ':scope > [data-item-section="spacing"] > :last-child',
-        );
 
       pointAt(rowIn("implementation", "src/lib.rs"));
       leave("implementation");
 
-      const found = piece();
-      expect(found && lit(found)).toBe(true);
+      const piece = rowIn("implementation", "src/engine.rs").querySelector(
+        ':scope > [data-item-section="spacing"] > [data-ancestor-path="src/"]',
+      );
+      expect(piece && lit(piece)).toBe(true);
     });
 
     it("go out on a page scroll and light again on the next pointer move", () => {
       const row = rowIn("implementation", "src/engine.rs");
       pointAt(row);
+
       scrollPage();
 
-      expect(anyLit("implementation", "src/")).toBe(false);
+      expect(noneLit("implementation", "src/")).toBe(true);
 
       pointAt(row);
 
@@ -128,17 +134,40 @@ describe("showSections", () => {
 
     it("go out when focus leaves the tree", () => {
       rowIn("implementation", "src/engine.rs").focus();
+
       document.body.tabIndex = -1;
       document.body.focus();
 
-      expect(anyLit("implementation", "src/")).toBe(false);
+      expect(noneLit("implementation", "src/")).toBe(true);
+    });
+
+    it("go out when focus leaves the tree for nothing focusable", () => {
+      const row = rowIn("implementation", "src/engine.rs");
+      row.focus();
+
+      row.blur();
+      vi.runOnlyPendingTimers();
+
+      expect(noneLit("implementation", "src/")).toBe(true);
     });
 
     it("go out for a focused row on a page scroll", () => {
       rowIn("implementation", "src/engine.rs").focus();
+
       scrollPage();
 
-      expect(anyLit("implementation", "src/")).toBe(false);
+      expect(noneLit("implementation", "src/")).toBe(true);
+    });
+
+    it("stay out after a page scroll when the library re-focuses the same row", () => {
+      const row = rowIn("implementation", "src/engine.rs");
+      row.focus();
+      scrollPage();
+
+      row.blur();
+      row.focus();
+
+      expect(noneLit("implementation", "src/")).toBe(true);
     });
   });
 });

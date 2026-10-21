@@ -209,7 +209,7 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
   border-left-color: currentColor;
 }
 
-/* A top-level row's edge, which has no folder line, so shows only when lit. */
+/* Every row's left edge, transparent at rest; only a top-level file, which has no folder line, lights it. */
 [data-type="item"]::after {
   --gh-prism-unlit: transparent;
   content: "";
@@ -221,8 +221,9 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
   background: currentColor;
 }
 
-/* SectionTree sets --gh-prism-lit and --gh-prism-flare on lit pieces and edges. Lighting is
-   the flare's alone; only going dark fades. */
+/* SectionTree sets --gh-prism-lit and --gh-prism-flare on lit pieces and edges. A transition
+   takes its duration from the new style, so lighting is instant (the flare carries it) and only
+   going dark fades. */
 [data-item-section="spacing-item"],
 [data-type="item"]::after {
   color: color-mix(

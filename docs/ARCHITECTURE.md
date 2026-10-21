@@ -192,7 +192,9 @@ renders each section, and the comment-lines sub-section, as its own `@pierre/tre
 tree in a shadow root. A tree's height follows its visible rows, so the whole sidebar
 scrolls as one. The sections view calls each tree's `sync()` when the sidebar scrolls or
 resizes, and `sync()` renders only the rows near the viewport. A tree far out of view
-renders none.
+renders none. Hovering or focusing a row lights its folder's whole hairline (a folder
+row's own) until the pointer leaves the tree, focus leaves it, or the page scrolls;
+`sections-view.ts` calls each tree's `clearPointed()` on a document scroll.
 
 Docs & Comments ends with the comment-lines sub-section when an Implementation file has
 comment lines. It has its own header and tree inside Docs & Comments' collapsible region,
@@ -206,9 +208,7 @@ tracks which files' diffs are on screen. It observes the mounted diff regions wi
 `IntersectionObserver`, its top inset by `coveredTop` (the band GitHub's sticky chrome
 covers), and feeds each changed set of paths to the sections view's `onScreen`. Each tree
 lights the piece of each on-screen file's folder hairline (a top-level file's row edge),
-and a collapsed section marks its header instead. Hovering or focusing a row lights its
-folder's whole hairline, until the page or sidebar scrolls. The mark never scrolls the
-sidebar.
+and a collapsed section marks its header instead. The mark never scrolls the sidebar.
 
 [`entrypoints/content/diffs/viewed.ts`](../entrypoints/content/diffs/viewed.ts) tracks
 which files the reviewer has marked Viewed. On the visit a full load started (before

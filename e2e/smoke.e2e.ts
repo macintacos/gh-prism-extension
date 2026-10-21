@@ -346,7 +346,9 @@ test("the sidebar highlights the files whose diffs are on screen", async ({ cont
         .filter(
           (row) =>
             getComputedStyle(
-              row.querySelector(':scope > [data-item-section="spacing"] > :last-child') ?? row,
+              row.querySelector(
+                `:scope > [data-item-section="spacing"] > [data-ancestor-path="${row.dataset.itemPath?.replace(/[^/]*$/, "")}"]`,
+              ) ?? row,
             )
               .getPropertyValue("--gh-prism-lit")
               .trim() === "1",
@@ -414,7 +416,7 @@ test("the sidebar highlights the files whose diffs are on screen", async ({ cont
   await expect(page.locator('[data-item-path="bulk/file-100.rs"]')).toHaveCount(0);
   await scrollSidebarToBulkRow(page, 100);
   const piece = page.locator(
-    '[data-item-path="bulk/file-100.rs"] > [data-item-section="spacing"] > :last-child',
+    '[data-item-path="bulk/file-100.rs"] > [data-item-section="spacing"] > [data-ancestor-path="bulk/"]',
   );
   await expect
     .poll(() =>
@@ -428,7 +430,7 @@ test("the sidebar highlights the files whose diffs are on screen", async ({ cont
   );
 
   const resting = page.locator(
-    '[data-item-path="bulk/file-101.rs"] > [data-item-section="spacing"] > :last-child',
+    '[data-item-path="bulk/file-101.rs"] > [data-item-section="spacing"] > [data-ancestor-path="bulk/"]',
   );
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
   await expect

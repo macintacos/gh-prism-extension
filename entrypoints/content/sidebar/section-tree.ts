@@ -66,6 +66,8 @@ export class SectionTree {
   #focused: string | null | undefined;
   #hoverFolder: string | undefined;
   #focusFolder: string | undefined;
+  /** The path of the row or box focus last moved to within the tree. */
+  #focusAt: string | undefined;
   #viewedPaths: ReadonlySet<string> | undefined;
   #marking: ReadonlySet<string> = new Set();
   readonly #altKey: string;
@@ -94,16 +96,7 @@ export class SectionTree {
     if (shadow) {
       shadow.append(this.#probe, this.#onScreen, this.#viewed, this.#pointed);
       this.#followFocus(shadow);
-      shadow.addEventListener("pointermove", (event) => {
-        const folder = folderAt(event.target);
-        if (folder === this.#hoverFolder) return;
-        this.#hoverFolder = folder;
-        this.#showPointed();
-      });
-      host.addEventListener("pointerleave", () => {
-        this.#hoverFolder = undefined;
-        this.#showPointed();
-      });
+      this.#followPointer(host, shadow);
     }
 
     this.#select(selected);
@@ -168,25 +161,28 @@ export class SectionTree {
   }
 
   /**
-   * Lights each of `paths`' piece of its folder's hairline, or a top-level row's edge, including
-   * rows the viewport mounts later, without selecting, focusing, or scrolling. A style rule
-   * rather than row attributes, which re-renders would drop.
+   * Lights, for each of `paths`, its row's piece of its folder's hairline, or a top-level row's
+   * edge, including rows the viewport mounts later, without selecting, focusing, or scrolling. A
+   * style rule rather than row attributes, which re-renders would drop.
    */
   showOnScreen(paths: ReadonlySet<string>): void {
-    this.#onScreen.textContent = litRule(
+    this.#onScreen.textContent = ruleOf(
       [...paths].map((path) => {
-        const row = `[data-type="item"][data-item-path="${CSS.escape(path)}"]`;
-        return `${row}>[data-item-section="spacing"]>:last-child,${row}:not([data-item-parent-path])`;
+        const folder = folderOf(path);
+        return folder === undefined
+          ? rowOf(path)
+          : `${rowOf(path)}>[data-item-section="spacing"]>${pieceOf(folder)}`;
       }),
+      LIT,
     );
   }
 
   /**
-   * Marks the rows of `paths` as Viewed, the way `showOnScreen` marks rows on screen, and gives
-   * every file row a Viewed checkbox.
+   * Marks the rows of `paths` as Viewed with a style rule, which re-renders keep, and gives every
+   * file row a Viewed checkbox.
    */
   showViewed(paths: ReadonlySet<string>): void {
-    this.#viewed.textContent = rowRule(paths, "--gh-prism-viewed:1");
+    this.#viewed.textContent = ruleOf([...paths].map(rowOf), "--gh-prism-viewed:1");
     this.#viewedPaths = paths;
     this.#host.setAttribute("data-gh-prism-checkboxes", "");
     this.#tree.render({ fileTreeContainer: this.#host });
@@ -215,12 +211,17 @@ export class SectionTree {
 
   /**
    * The library scrolls only its own viewport to a focused row, so the sidebar has to follow.
-   * It also re-focuses a row the viewport unmounted, which must not pull the sidebar back.
+   * It also re-focuses a row the viewport unmounted, which must neither pull the sidebar back nor
+   * relight a hairline. Lights the focused row's folder until focus leaves the tree.
    */
   #followFocus(shadow: ShadowRoot): void {
     shadow.addEventListener("focusin", (event) => {
-      this.#focusFolder = folderAt(event.target);
-      this.#showPointed();
+      const at = pathAt(event.target);
+      if (at !== this.#focusAt) {
+        this.#focusAt = at;
+        this.#focusFolder = folderAt(event.target);
+        this.#showPointed();
+      }
       // A checkbox taking focus must not scroll the sidebar to the tree's last focused row.
       if (!(event.target instanceof Element && event.target.matches('[data-type="item"]'))) return;
       const path = this.#tree.getFocusedPath();
@@ -229,25 +230,43 @@ export class SectionTree {
       this.#scrollTo(this.#tree.getFocusedIndex());
     });
     shadow.addEventListener("focusout", (event) => {
-      // A null relatedTarget is a row unmounting or the window blurring, not focus leaving.
+      // A null relatedTarget is a row unmounting, the window blurring, or focus dropping to the
+      // page; only the last leaves the tree with nothing focused once the library re-focuses.
       const next = event instanceof FocusEvent ? event.relatedTarget : null;
       if (next instanceof Node && next.getRootNode() !== shadow) {
         this.#focused = undefined;
-        this.#focusFolder = undefined;
-        this.#showPointed();
+        this.#unlightFocus();
+      } else if (next === null) {
+        setTimeout(() => {
+          if (!shadow.activeElement) this.#unlightFocus();
+        });
       }
     });
   }
 
+  #unlightFocus(): void {
+    this.#focusAt = undefined;
+    this.#focusFolder = undefined;
+    this.#showPointed();
+  }
+
+  #followPointer(host: HTMLElement, shadow: ShadowRoot): void {
+    shadow.addEventListener("pointermove", (event) => {
+      this.#hoverFolder = folderAt(event.target);
+      this.#showPointed();
+    });
+    host.addEventListener("pointerleave", () => {
+      this.#hoverFolder = undefined;
+      this.#showPointed();
+    });
+  }
+
   #showPointed(): void {
-    this.#pointed.textContent = litRule(
-      [this.#hoverFolder, this.#focusFolder]
-        .filter((folder) => folder !== undefined)
-        .map(
-          (folder) =>
-            `[data-item-section="spacing-item"][data-ancestor-path="${CSS.escape(folder)}"]`,
-        ),
+    const rule = ruleOf(
+      [this.#hoverFolder, this.#focusFolder].filter((f) => f !== undefined).map(pieceOf),
+      LIT,
     );
+    if (this.#pointed.textContent !== rule) this.#pointed.textContent = rule;
   }
 
   #decorationOf(path: string): RowDecoration | null {
@@ -350,29 +369,46 @@ function fileTreeOf(
   });
 }
 
-/** A rule giving the rows of `paths` `declaration`, or nothing when `paths` is empty. */
-function rowRule(paths: ReadonlySet<string>, declaration: string): string {
-  const rows = [...paths].map((path) => `[data-type="item"][data-item-path="${CSS.escape(path)}"]`);
-  return rows.length ? `${rows.join(",")}{${declaration}}` : "";
+/** A rule giving what `selectors` match `declaration`, or nothing when there are none. */
+function ruleOf(selectors: readonly string[], declaration: string): string {
+  return selectors.length ? `${selectors.join(",")}{${declaration}}` : "";
 }
 
-// Both flags, since CSS cannot branch on a value: one drives the color, the other names the flare.
+const rowOf = (path: string) => `[data-type="item"][data-item-path="${CSS.escape(path)}"]`;
+
+/** Every piece of `folder`'s hairline, by the hook @pierre/trees' own guide styles use. */
+const pieceOf = (folder: string) =>
+  `[data-item-section="spacing-item"][data-ancestor-path="${CSS.escape(folder)}"]`;
+
+// Both flags, since CSS cannot branch on a value: one drives the color, the other names the
+// flare, which names section-tree.css's @keyframes.
 const LIT = "--gh-prism-lit:1;--gh-prism-flare:gh-prism-flare";
 
-/** A rule lighting what `selectors` match, or nothing when there are none. */
-function litRule(selectors: readonly string[]): string {
-  return selectors.length ? `${selectors.join(",")}{${LIT}}` : "";
+/** The directory `path` sits in, as `data-ancestor-path` spells it; undefined at top level. */
+function folderOf(path: string): string | undefined {
+  const end = path.lastIndexOf("/") + 1;
+  return end > 0 ? path.slice(0, end) : undefined;
 }
 
-/** The folder whose hairline `target`'s row lights: a folder's own, or a file's directory. */
+const rowAt = (target: EventTarget | null) =>
+  target instanceof Element
+    ? target.closest<HTMLElement>('[data-type="item"],[data-item-checkbox]')
+    : null;
+
+/** The path of the row or Viewed box `target` sits in. */
+function pathAt(target: EventTarget | null): string | undefined {
+  const row = rowAt(target);
+  return row?.dataset.itemPath ?? row?.dataset.itemCheckbox;
+}
+
+/**
+ * The folder whose hairline `target`'s row lights: a folder's own, or a file's directory;
+ * undefined for a top-level file or a target outside any row.
+ */
 function folderAt(target: EventTarget | null): string | undefined {
-  const row =
-    target instanceof Element
-      ? target.closest<HTMLElement>('[data-type="item"],[data-item-checkbox]')
-      : null;
+  const row = rowAt(target);
   if (row?.dataset.itemType === "folder") return row.dataset.itemPath;
-  const path = row?.dataset.itemPath ?? row?.dataset.itemCheckbox ?? "";
-  return path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : undefined;
+  return folderOf(pathAt(target) ?? "");
 }
 
 /** The Alt key's name on the platform `navigator` reports. */

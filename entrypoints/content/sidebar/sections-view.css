@@ -21,8 +21,6 @@
 .gh-prism-section,
 .gh-prism-whats-new {
   --gh-prism-tint: color-mix(in srgb, var(--gh-prism-hue) 8%, var(--bgColor-default));
-  /* The on-screen bar on a collapsed section's header. */
-  --gh-prism-on-screen-bar: color-mix(in srgb, var(--gh-prism-hue) 40%, transparent);
 }
 
 /* The section's icon at rest, swapped for the chevron while the header is hovered or focused. */
@@ -56,9 +54,9 @@
   rotate: -90deg;
 }
 
-/* A collapsed section listing a file on screen: its rows are hidden, so its header shows the bar. */
+/* A collapsed section listing a file on screen: its rows are hidden, so its header shows a bar in the section's hue instead. */
 .gh-prism-section[data-on-screen] .gh-prism-section-toggle[aria-expanded="false"] {
-  box-shadow: inset 3px 0 0 var(--gh-prism-on-screen-bar);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--gh-prism-hue) 40%, transparent);
 }
 
 /* Collapsed as inert, not hidden: GitHub forces [hidden] to display: none, which can't animate. */

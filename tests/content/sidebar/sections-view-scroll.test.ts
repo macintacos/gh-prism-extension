@@ -1,6 +1,5 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
-import { showSections } from "../../../entrypoints/content/sidebar/sections-view";
 import { byId } from "../../fixtures/files-page";
 import { landedWith } from "../../fixtures/intent";
 import {
@@ -9,6 +8,8 @@ import {
   commentLinesRoot,
   commentLinesToggle,
   hostOf,
+  lit,
+  onScreen,
   partTexts,
   patchShadowActiveElement,
   press,
@@ -244,30 +245,28 @@ describe("showSections", () => {
   });
 
   describe("the on-screen highlight", () => {
-    /** Tells the mounted sidebar which files are on screen. */
-    const onScreen = (...paths: string[]) => {
-      const sidebar = vi.mocked(showSections).mock.results.at(-1)?.value;
-      if (!sidebar) throw new Error("no sidebar mounted");
-      sidebar.onScreen(new Set(paths));
-    };
-
-    const lit = (element: Element) =>
-      getComputedStyle(element).getPropertyValue("--gh-prism-lit").trim() === "1";
+    const pieceIn = (row: Element, folder: string) =>
+      row.querySelector(
+        `:scope > [data-item-section="spacing"] > [data-ancestor-path="${folder}"]`,
+      );
 
     /** Whether the row's piece of its folder's hairline is lit, or a top-level row's edge. */
     const marked = (section: string, path: string) => {
       const row = rowIn(section, path);
-      return lit(row.querySelector(':scope > [data-item-section="spacing"] > :last-child') ?? row);
+      return lit(pieceIn(row, path.slice(0, path.lastIndexOf("/") + 1)) ?? row);
     };
 
-    it("lights a nested file's piece of its own folder's hairline alone", () => {
-      onScreen("src/engine.rs");
+    it("lights a nested file's piece of its own folder's hairline alone", async () => {
+      addNativeFile("src/parser/lex.rs", "src/lib.rs");
+      addNativeFile("src/parser/ast.rs", "src/lib.rs");
+      await afterDebounce();
 
-      const row = rowIn("implementation", "src/engine.rs");
-      const pieces = [...row.querySelectorAll(':scope > [data-item-section="spacing"] > *')];
-      expect(pieces.length).toBeGreaterThan(0);
-      expect(pieces.map(lit)).toEqual([...pieces.slice(0, -1).map(() => false), true]);
-      expect(lit(row)).toBe(false);
+      onScreen("src/parser/lex.rs");
+
+      const row = rowIn("implementation", "src/parser/lex.rs");
+      const [outer, own] = [pieceIn(row, "src/"), pieceIn(row, "src/parser/")];
+      if (!outer || !own) throw new Error("src/parser/lex.rs draws no hairline pieces");
+      expect([lit(outer), lit(own), lit(row)]).toEqual([false, true, false]);
     });
 
     it("lights a top-level file's row", () => {
