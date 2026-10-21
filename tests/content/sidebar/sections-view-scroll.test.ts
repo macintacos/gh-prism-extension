@@ -251,9 +251,30 @@ describe("showSections", () => {
       sidebar.onScreen(new Set(paths));
     };
 
-    const marked = (section: string, path: string) =>
-      getComputedStyle(rowIn(section, path)).getPropertyValue("--gh-prism-on-screen").trim() ===
-      "1";
+    const lit = (element: Element) =>
+      getComputedStyle(element).getPropertyValue("--gh-prism-lit").trim() === "1";
+
+    /** Whether the row's piece of its folder's hairline is lit, or a top-level row's edge. */
+    const marked = (section: string, path: string) => {
+      const row = rowIn(section, path);
+      return lit(row.querySelector(':scope > [data-item-section="spacing"] > :last-child') ?? row);
+    };
+
+    it("lights a nested file's piece of its own folder's hairline alone", () => {
+      onScreen("src/engine.rs");
+
+      const row = rowIn("implementation", "src/engine.rs");
+      const pieces = [...row.querySelectorAll(':scope > [data-item-section="spacing"] > *')];
+      expect(pieces.length).toBeGreaterThan(0);
+      expect(pieces.map(lit)).toEqual([...pieces.slice(0, -1).map(() => false), true]);
+      expect(lit(row)).toBe(false);
+    });
+
+    it("lights a top-level file's row", () => {
+      onScreen("README.md");
+
+      expect(lit(rowIn("docs", "README.md"))).toBe(true);
+    });
 
     const sectionRoot = (section: string) => {
       const root = document.querySelector(`.gh-prism-section[data-section="${section}"]`);

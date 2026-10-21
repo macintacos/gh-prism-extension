@@ -21,7 +21,7 @@
 .gh-prism-section,
 .gh-prism-whats-new {
   --gh-prism-tint: color-mix(in srgb, var(--gh-prism-hue) 8%, var(--bgColor-default));
-  /* The on-screen bar, on a tree's rows and on a collapsed section's header. */
+  /* The on-screen bar on a collapsed section's header. */
   --gh-prism-on-screen-bar: color-mix(in srgb, var(--gh-prism-hue) 40%, transparent);
 }
 

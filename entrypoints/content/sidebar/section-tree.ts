@@ -154,11 +154,17 @@ export class SectionTree {
   }
 
   /**
-   * Marks the rows of `paths`, including rows the viewport mounts later, without selecting,
-   * focusing, or scrolling. A style rule rather than row attributes, which re-renders would drop.
+   * Lights each of `paths`' piece of its folder's hairline, or a top-level row's edge, including
+   * rows the viewport mounts later, without selecting, focusing, or scrolling. A style rule
+   * rather than row attributes, which re-renders would drop.
    */
   showOnScreen(paths: ReadonlySet<string>): void {
-    this.#onScreen.textContent = rowRule(paths, "--gh-prism-on-screen:1");
+    this.#onScreen.textContent = litRule(
+      [...paths].map((path) => {
+        const row = `[data-type="item"][data-item-path="${CSS.escape(path)}"]`;
+        return `${row}>[data-item-section="spacing"]>:last-child,${row}:not([data-item-parent-path])`;
+      }),
+    );
   }
 
   /**
@@ -307,6 +313,14 @@ function fileTreeOf(
 function rowRule(paths: ReadonlySet<string>, declaration: string): string {
   const rows = [...paths].map((path) => `[data-type="item"][data-item-path="${CSS.escape(path)}"]`);
   return rows.length ? `${rows.join(",")}{${declaration}}` : "";
+}
+
+// Both flags, since CSS cannot branch on a value: one drives the color, the other names the flare.
+const LIT = "--gh-prism-lit:1;--gh-prism-flare:gh-prism-flare";
+
+/** A rule lighting what `selectors` match, or nothing when there are none. */
+function litRule(selectors: readonly string[]): string {
+  return selectors.length ? `${selectors.join(",")}{${LIT}}` : "";
 }
 
 /** The Alt key's name on the platform `navigator` reports. */
