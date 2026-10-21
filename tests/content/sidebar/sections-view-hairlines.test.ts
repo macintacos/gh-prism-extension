@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
 import {
+  clickAt,
   hostOf,
   lit,
   onScreen,
@@ -39,6 +40,12 @@ const pieces = (listing: string, folder: string) => {
 
 const allLit = (listing: string, folder: string) => pieces(listing, folder).every(lit);
 
+/** The paths of the rows that hold the last piece of `folder`'s hairline. */
+const endsOf = (listing: string, folder: string) =>
+  pieces(listing, folder)
+    .filter((piece) => getComputedStyle(piece).getPropertyValue("--gh-prism-last").trim() === "1")
+    .map((piece) => piece.closest<HTMLElement>('[data-type="item"]')?.dataset.itemPath);
+
 const noneLit = (listing: string, folder: string) => !pieces(listing, folder).some(lit);
 
 const pointAt = (target: Element) =>
@@ -58,6 +65,27 @@ const boxOf = (listing: string, path: string) => {
 
 describe("showSections", () => {
   describe("the folder hairlines", () => {
+    it("end in each folder's last visible row", async () => {
+      addNativeFile("pkg/core/a.rs", "src/lib.rs");
+      addNativeFile("pkg/util/b.rs", "pkg/core/a.rs");
+      await afterDebounce();
+
+      expect(endsOf("implementation", "pkg/")).toEqual(["pkg/util/b.rs"]);
+      expect(endsOf("implementation", "pkg/core/")).toEqual(["pkg/core/a.rs"]);
+      expect(endsOf("implementation", "pkg/util/")).toEqual(["pkg/util/b.rs"]);
+    });
+
+    it("end in a collapsed last folder's own row", async () => {
+      addNativeFile("pkg/core/a.rs", "src/lib.rs");
+      addNativeFile("pkg/util/b.rs", "pkg/core/a.rs");
+      await afterDebounce();
+
+      clickAt(rowIn("implementation", "pkg/util/"));
+      await afterDebounce();
+
+      expect(endsOf("implementation", "pkg/")).toEqual(["pkg/util/"]);
+    });
+
     it("light every piece of a hovered file's folder", () => {
       pointAt(rowIn("implementation", "src/engine.rs"));
 

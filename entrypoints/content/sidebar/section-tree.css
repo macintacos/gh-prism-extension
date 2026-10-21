@@ -206,8 +206,18 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
    lays the lit line over the dots. */
 [data-item-section="spacing-item"] {
   position: relative;
+  align-self: stretch;
+  height: auto;
+  margin-bottom: calc(var(--gh-prism-last, 0) * 6px);
   opacity: 1;
   border-left-style: dotted;
+}
+
+/* A line runs from its first row's icon top to its last row's icon bottom: (28px row − 16px icon)
+   / 2. A first child's row holds the first piece; SectionTree sets --gh-prism-last on the last.
+   Even insets keep the dots in step from row to row. */
+[aria-posinset="1"] > [data-item-section="spacing"] > :last-child {
+  margin-top: 6px;
 }
 
 [data-item-section="spacing-item"]::before {

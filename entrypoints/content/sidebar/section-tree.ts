@@ -2,6 +2,7 @@ import "./custom-elements-stub";
 import {
   FileTree,
   type FileTreeRowDecoration,
+  type FileTreeVisibleRow,
   type GitStatus,
   preparePresortedFileTreeInput,
 } from "@pierre/trees";
@@ -60,6 +61,7 @@ export class SectionTree {
   readonly #onScreen: HTMLStyleElement;
   readonly #viewed: HTMLStyleElement;
   readonly #pointed: HTMLStyleElement;
+  readonly #lastPieces: HTMLStyleElement;
   #files: readonly TreeFile[];
   #byPath: ReadonlyMap<string, TreeFile>;
   #selected: string | undefined;
@@ -92,19 +94,22 @@ export class SectionTree {
     this.#onScreen = host.ownerDocument.createElement("style");
     this.#viewed = host.ownerDocument.createElement("style");
     this.#pointed = host.ownerDocument.createElement("style");
+    this.#lastPieces = host.ownerDocument.createElement("style");
     const shadow = host.shadowRoot;
     if (shadow) {
-      shadow.append(this.#probe, this.#onScreen, this.#viewed, this.#pointed);
+      shadow.append(this.#probe, this.#onScreen, this.#viewed, this.#pointed, this.#lastPieces);
       this.#followFocus(shadow);
       this.#followPointer(host, shadow);
     }
 
     this.#select(selected);
+    this.#showLastPieces();
     this.#tree.subscribe(() => {
       // The tree selects on clicks too, but only the native tree's current row may be selected.
       // Once the selection matches, #select changes nothing, so the emit it causes settles.
       this.#select(this.#selected);
       this.#fit();
+      this.#showLastPieces();
     });
   }
 
@@ -169,9 +174,7 @@ export class SectionTree {
     this.#onScreen.textContent = ruleOf(
       [...paths].map((path) => {
         const folder = folderOf(path);
-        return folder === undefined
-          ? rowOf(path)
-          : `${rowOf(path)}>[data-item-section="spacing"]>${pieceOf(folder)}`;
+        return folder === undefined ? rowOf(path) : pieceIn(path, folder);
       }),
       LIT,
     );
@@ -267,6 +270,19 @@ export class SectionTree {
       LIT,
     );
     if (this.#pointed.textContent !== rule) this.#pointed.textContent = rule;
+  }
+
+  /**
+   * Marks the last piece of each folder's hairline, in its last visible row, so the line stops
+   * short of that row's foot. A style rule, as row attributes would drop on re-render.
+   */
+  #showLastPieces(): void {
+    const rows = this.#tree.getVisibleRows(0, this.#tree.getVisibleCount() - 1);
+    const rule = ruleOf(
+      rows.flatMap((row, i) => lastPiecesIn(row, rows[i + 1])),
+      "--gh-prism-last:1",
+    );
+    if (this.#lastPieces.textContent !== rule) this.#lastPieces.textContent = rule;
   }
 
   #decorationOf(path: string): RowDecoration | null {
@@ -379,6 +395,17 @@ const rowOf = (path: string) => `[data-type="item"][data-item-path="${CSS.escape
 /** Every piece of `folder`'s hairline, by the hook @pierre/trees' own guide styles use. */
 const pieceOf = (folder: string) =>
   `[data-item-section="spacing-item"][data-ancestor-path="${CSS.escape(folder)}"]`;
+
+/** The piece of `folder`'s hairline in `path`'s row. */
+const pieceIn = (path: string, folder: string) =>
+  `${rowOf(path)}>[data-item-section="spacing"]>${pieceOf(folder)}`;
+
+/**
+ * The pieces in `row` whose hairlines end there, given the visible row after it: in preorder,
+ * `next` sits inside only the first `next.depth` of `row`'s ancestors.
+ */
+const lastPiecesIn = (row: FileTreeVisibleRow, next: FileTreeVisibleRow | undefined) =>
+  row.ancestorPaths.slice(next?.depth ?? 0, row.depth).map((folder) => pieceIn(row.path, folder));
 
 // Both flags, since CSS cannot branch on a value: one drives the color, the other names the
 // flare, which names section-tree.css's @keyframes.
