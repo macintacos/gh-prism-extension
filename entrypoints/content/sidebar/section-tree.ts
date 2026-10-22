@@ -407,9 +407,7 @@ const pieceIn = (path: string, folder: string) =>
 const lastPiecesIn = (row: FileTreeVisibleRow, next: FileTreeVisibleRow | undefined) =>
   row.ancestorPaths.slice(next?.depth ?? 0, row.depth).map((folder) => pieceIn(row.path, folder));
 
-// Both flags, since CSS cannot branch on a value: one drives the color, the other names the
-// flare, which names section-tree.css's @keyframes.
-const LIT = "--gh-prism-lit:1;--gh-prism-flare:gh-prism-flare";
+const LIT = "--gh-prism-lit:1";
 
 /** The directory `path` sits in, as `data-ancestor-path` spells it; undefined at top level. */
 function folderOf(path: string): string | undefined {

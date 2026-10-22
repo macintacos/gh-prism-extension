@@ -423,13 +423,10 @@ test("the sidebar highlights the files whose diffs are on screen", async ({ cont
       piece.evaluate((el) => getComputedStyle(el).getPropertyValue("--gh-prism-lit").trim()),
     )
     .toBe("1");
-  expect(await piece.evaluate((el) => getComputedStyle(el, "::before").animation)).toContain(
-    "gh-prism-flare",
-  );
+  const fade = () => piece.evaluate((el) => getComputedStyle(el, "::before").transitionDuration);
+  expect(await fade()).not.toBe("0s");
   await page.emulateMedia({ reducedMotion: "reduce" });
-  expect(await piece.evaluate((el) => getComputedStyle(el, "::before").animation)).not.toContain(
-    "gh-prism-flare",
-  );
+  expect(await fade()).toBe("0s");
 
   const resting = page.locator(
     '[data-item-path="bulk/file-101.rs"] > [data-item-section="spacing"] > [data-ancestor-path="bulk/"]',

@@ -247,9 +247,7 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
   background: currentColor;
 }
 
-/* SectionTree sets --gh-prism-lit and --gh-prism-flare on lit pieces and edges. A transition
-   takes its duration from the new style, so lighting is instant (the flare carries it) and only
-   going dark fades. */
+/* SectionTree sets --gh-prism-lit on lit pieces and edges. */
 [data-item-section="spacing-item"]::before,
 [data-type="item"]::after {
   color: color-mix(
@@ -257,15 +255,7 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
     var(--fgColor-muted) calc(var(--gh-prism-lit, 0) * 100%),
     transparent
   );
-  transition: color calc((1 - var(--gh-prism-lit, 0)) * 150ms) ease-out;
-  animation: var(--gh-prism-flare, none) 250ms ease-out;
-}
-
-@keyframes gh-prism-flare {
-  from {
-    color: var(--fgColor-default);
-    box-shadow: 0 0 4px var(--fgColor-muted);
-  }
+  transition: color 250ms ease-in-out;
 }
 
 /* GitHub's current file, marked as GitHub marks its current tree item; outranks the edge by specificity. */
@@ -275,7 +265,6 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
   width: 3px;
   border-radius: 2px;
   background: var(--gh-prism-hue);
-  animation: none;
 }
 
 /* A file GitHub shows as Viewed reads as done but stays legible; SectionTree sets
@@ -412,7 +401,6 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
   [data-item-section="spacing-item"]::before,
   [data-type="item"]::after {
     transition: none;
-    animation: none;
   }
 
   /* Unspun, the open ring still reads as working. */
