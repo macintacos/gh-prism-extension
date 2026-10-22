@@ -210,7 +210,11 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
   height: auto;
   margin-bottom: calc(var(--gh-prism-last, 0) * 6px);
   opacity: 1;
-  border-left-style: dotted;
+  /* A 2px tile under a clear border, not a dotted border: Chrome fits a dotted border's dots to
+     each piece, which doubles them where two pieces meet. */
+  border-left-color: transparent;
+  background: linear-gradient(var(--trees-indent-guide-bg) 50%, transparent 0) 0 0 / 1px 2px
+    repeat-y border-box;
 }
 
 /* A line runs from its first row's icon top to its last row's icon bottom: (28px row − 16px icon)
