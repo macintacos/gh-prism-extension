@@ -924,7 +924,9 @@ test("a row short of room for its decoration drops whole parts from its start, n
   await page.goto(COMMIT_URL);
   const setWidth = (width: number) =>
     page.evaluate((width) => {
-      document.getElementById("diff_file_tree")!.style.width = `${width}px`;
+      const tree = document.getElementById("diff_file_tree");
+      if (!tree) throw new Error("no #diff_file_tree");
+      tree.style.width = `${width}px`;
     }, width);
 
   await expect
