@@ -2,8 +2,8 @@
  * Path rules ported from changeset.nvim's `lua/changeset/sections.lua` at
  * macintacos/changeset.nvim@2b6115db3a5394a207836afdeaa8237225b8de93 — the glob strings are
  * copied verbatim, plus the `e2e` test dir, `*.e2e.*` test files, `*.config.*` tool configs
- * such as `vite.config.ts`, `*.bazel` build files, and `man1`–`man9` man page dirs, so diff that
- * file against this one when syncing. Upstream's labels and icons are not ported; this sidebar's
+ * such as `vite.config.ts`, `*.bazel` build files, `LICENSE*` files, and `man1`–`man9` man page
+ * dirs, so diff that file against this one when syncing. Upstream's labels and icons are not ported; this sidebar's
  * own live in `entrypoints/content/ui/section-catalog.ts`.
  * Upstream's `test_rule` is ported in `utils/hunk-rules/inline-tests.ts`.
  */
@@ -19,7 +19,7 @@ const TEST_DIRS = new Set(["tests", "test", "spec", "__tests__", "testdata", "e2
 const TEST_FILES = glob(
   "{*_spec.*,*_test.*,*.test.*,*.spec.*,*.e2e.*,test_*.py,conftest.py,*.bats}",
 );
-const DOC_FILES = glob("{*.md,*.mdx,*.rst,README*,CHANGELOG*}");
+const DOC_FILES = glob("{*.md,*.mdx,*.rst,README*,CHANGELOG*,LICENSE*}");
 const DOC_DIRS = new Set(["doc", "docs"]);
 const MAN_DIRS = new Set(["man1", "man2", "man3", "man4", "man5", "man6", "man7", "man8", "man9"]);
 const CONFIG_FILES = glob(
