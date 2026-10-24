@@ -389,7 +389,7 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
 
 @media (prefers-reduced-motion: reduce) {
   [data-icon-name="file-tree-icon-chevron"],
-  [data-item-section="icon"]::after {
+  [data-item-type="folder"] > [data-item-section="icon"]::after {
     transition: none;
   }
 
