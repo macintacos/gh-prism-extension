@@ -85,6 +85,9 @@
 .gh-prism-whats-new[inert] {
   overflow: clip;
   height: 0;
+  /* A flex item's automatic minimum holds it at its content's height; clip, unlike hidden,
+     doesn't lift it. */
+  min-height: 0;
   /* Cancels the nav's tw:gap-1.5, so the sections don't jump when the block is removed. */
   margin-bottom: -6px;
   opacity: 0;
