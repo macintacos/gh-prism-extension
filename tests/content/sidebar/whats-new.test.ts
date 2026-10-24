@@ -55,7 +55,7 @@ describe("whatsNewBlock", () => {
     try {
       block.querySelector<HTMLButtonElement>('[aria-label="Dismiss what\'s new"]')?.click();
 
-      vi.advanceTimersByTime(200);
+      vi.advanceTimersByTime(160);
 
       expect(block.isConnected).toBe(false);
     } finally {

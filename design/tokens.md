@@ -99,16 +99,12 @@ Under `prefers-reduced-motion: reduce`, every row drops to no motion. A stopped 
 keeps its open ring, so it still reads as working. `decisions.md` says why a close runs
 quicker than an open.
 
-Some motion in the code predates this scale. Move each to its row when that code next
-changes:
+The closing row also sets the timer in `sidebar/whats-new.ts` that removes a dismissed
+what's-new block, so a change to that row's duration changes the timer too.
 
-- The collapses of a section, the what's-new block, and the comment-lines sub-section,
-  with their chevrons, run at 200 ms on `cubic-bezier(0.4, 0, 0.2, 1)` in
-  `sidebar/sections-view.css`. So does the folder chevron in `sidebar/section-tree.css`.
-- Dismissing the what's-new block also runs at 200 ms, and `sidebar/whats-new.ts` removes
-  the block on a matching 200 ms timer, so the timer changes with the CSS.
-- The Viewed box's check pops in on an overshoot curve, and the on-screen hairlines fade
-  over 250 ms `ease-in-out`, both in `sidebar/section-tree.css`.
+Two motions in `sidebar/section-tree.css` predate this scale: the Viewed box's check pops
+in on an overshoot curve, and the on-screen hairlines fade over 250 ms `ease-in-out`. Move
+each to its row when that code next changes.
 
 The classic-page dialog's entrance stays as it is, because it copies Primer's own dialog
 entrance.

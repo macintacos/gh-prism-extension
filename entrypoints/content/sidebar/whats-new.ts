@@ -109,7 +109,7 @@ export function whatsNewBlock(doc: Document, { version, notes, dismiss }: WhatsN
     dismiss();
     // A timer, not transitionend: it also fires under reduced motion, where no transition runs.
     // Keep at the stylesheet's .gh-prism-whats-new transition duration.
-    setTimeout(() => block.remove(), 200);
+    setTimeout(() => block.remove(), 160);
   });
   return block;
 }
