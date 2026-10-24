@@ -221,7 +221,7 @@ function sectionShell(
   const root = el(
     doc,
     "section",
-    "gh-prism-section tw:rounded-medium tw:bg-[var(--gh-prism-tint)]",
+    "gh-prism-section tw:rounded-medium tw:border tw:border-hue-edge tw:bg-[var(--gh-prism-tint)] tw:shadow-[var(--shadow-resting-small)]",
     header,
     files,
   );

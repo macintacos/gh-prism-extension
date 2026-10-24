@@ -29,6 +29,9 @@ export default defineConfig({
   vite: () => ({
     plugins: [tailwindcss()],
     build: {
+      // light-dark() landed in Chrome 123. Under Vite's older default, the CSS minifier rewrites it into a fallback
+      // that reads only a color-scheme set in gh-prism's own sheets, never GitHub's.
+      cssTarget: "chrome123",
       rolldownOptions: {
         // Dev builds emit sourcemaps, but @tailwindcss/vite returns none for the sheets it compiles. Every sheet is
         // imported ?inline as a JS string, so its map is never read.

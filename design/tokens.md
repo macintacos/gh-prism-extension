@@ -5,7 +5,7 @@ maintain its design direction.*
 
 Tokens live in the code. This file points at each source instead of copying its values, so
 it can't drift from them. A value the code doesn't have yet, such as the
-[section edge](#section-edge) and the [motion scale](#motion), lives here until it lands.
+[motion scale](#motion), lives here until it lands.
 
 ## Colour
 
@@ -41,16 +41,19 @@ every section's hue, in section order.
 
 ## Section edge
 
-A section's hairline mixes 22% of its hue into a ground darker than the section's fill:
-`--borderColor-default` in a light theme, and `--bgColor-inset` in a dark one. In a dark
-theme the line sits below the tint, so it edges the section without brightening it. The
-section also takes Primer's resting shadow, `--shadow-resting-small`.
+A section's hairline is `--color-hue-edge` in `ui/tailwind.css`, applied as
+`tw:border-hue-edge`. It mixes the section's hue into a ground darker than the section's
+fill: `--borderColor-default` in a light theme, and `--bgColor-inset` in a dark one. In a
+dark theme the line sits below the tint, so it edges the section without brightening it.
+The section also takes Primer's resting shadow, `--shadow-resting-small`. The what's-new
+block takes the same edge and shadow.
 
-This edge is decided but not yet in the code. When it lands, define the mix in
-`ui/tailwind.css` and point this section at it. Unlike every other Primer colour here, it
-picks a different Primer variable per theme, so write it with `light-dark()`. That follows
-GitHub's theme, not the OS, because GitHub sets `color-scheme` on the page;
-`sidebar/section-tree.css` relies on the same fact when it inherits `color-scheme`.
+Unlike every other Primer colour here, the edge picks a different Primer variable per
+theme, with `light-dark()`. That follows GitHub's theme, not the OS, because GitHub sets
+`color-scheme` on the page; `sidebar/section-tree.css` relies on the same fact when it
+inherits `color-scheme`. `light-dark()` is also why `build.cssTarget` in `wxt.config.ts`
+is Chrome 123: under an older target, the build rewrites it into a fallback that ignores
+GitHub's theme.
 
 ## Type
 

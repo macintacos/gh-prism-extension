@@ -22,8 +22,8 @@ folder icon in the section's hue, in `sidebar/section-tree.css`.
 
 A section and its rows sit on the section's tint, so each section reads as one block.
 Sections stack with a 6px gap, `tw:gap-1.5` in `sidebar/sections-view.ts`. The
-[section edge](tokens.md#section-edge) and Primer's resting shadow will set each section
-apart from its neighbours. Neither has shipped yet, so today a section has only its tint.
+[section edge](tokens.md#section-edge) and Primer's resting shadow set each section apart
+from its neighbours. The what's-new block above the sections shares this surface.
 
 ## File rows
 

@@ -90,7 +90,7 @@ export function whatsNewBlock(doc: Document, { version, notes, dismiss }: WhatsN
   const block = el(
     doc,
     "section",
-    "gh-prism-whats-new tw:rounded-medium tw:bg-[var(--gh-prism-tint)]",
+    "gh-prism-whats-new tw:rounded-medium tw:border tw:border-hue-edge tw:bg-[var(--gh-prism-tint)] tw:shadow-[var(--shadow-resting-small)]",
     el(doc, "div", "tw:flex tw:items-center", header, close),
     body,
   );

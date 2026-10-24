@@ -77,7 +77,7 @@
 
 /* Dismissed, until whats-new.ts removes it once this transition's duration has passed. */
 .gh-prism-whats-new {
-  transition-property: height, margin-bottom, opacity, visibility;
+  transition-property: height, margin-bottom, border-width, opacity, visibility;
   transition-duration: 200ms;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -88,8 +88,10 @@
   /* A flex item's automatic minimum holds it at its content's height; clip, unlike hidden,
      doesn't lift it. */
   min-height: 0;
-  /* Cancels the nav's tw:gap-1.5, so the sections don't jump when the block is removed. */
+  /* With the edge gone too, cancels the nav's tw:gap-1.5, so the sections don't jump when the
+     block is removed. */
   margin-bottom: -6px;
+  border-width: 0;
   opacity: 0;
   visibility: hidden;
 }

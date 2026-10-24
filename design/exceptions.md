@@ -29,8 +29,7 @@ the departure as intended.
 - **Sound: none, not on by default.** gh-prism runs inside github.com, where a sound would
   surprise the reviewer, and it has no settings surface to turn one off. Revisit this if
   gh-prism gains an options page.
-- **Section edge: a different Primer variable per theme, once it ships.** Every other
-  colour gh-prism paints, except the file icons, is one Primer variable that GitHub
-  themes. The edge needs a darker ground in a dark theme, because the border variable it
-  mixes into in a light theme would brighten the section. `tokens.md` § Section edge has
-  the recipe.
+- **Section edge: a different Primer variable per theme.** Every other colour gh-prism
+  paints, except the file icons, is one Primer variable that GitHub themes. The edge needs
+  a darker ground in a dark theme, because the border variable it mixes into in a light
+  theme would brighten the section. `tokens.md` § Section edge has the recipe.

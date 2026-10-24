@@ -20,6 +20,13 @@
   --color-fg-success: var(--fgColor-success);
   --color-fg-danger: var(--fgColor-danger);
   --color-hue-tint: color-mix(in srgb, var(--gh-prism-hue) 14%, var(--bgColor-default));
+  /* A dark theme's border would brighten the edge, so it mixes into the darker inset there.
+     light-dark() follows GitHub's theme, because GitHub sets color-scheme on the page. */
+  --color-hue-edge: color-mix(
+    in srgb,
+    var(--gh-prism-hue) 22%,
+    light-dark(var(--borderColor-default), var(--bgColor-inset))
+  );
   --color-bg-neutral-muted: var(--bgColor-neutral-muted);
   --color-border-default: var(--borderColor-default);
   --color-border-muted: var(--borderColor-muted);

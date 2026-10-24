@@ -46,6 +46,12 @@ markup a sheet targets are in [`github-rules.md`](github-rules.md).
   [`ui/tailwind.css`](../../entrypoints/content/ui/tailwind.css) imports
   `tailwindcss/utilities.css` alone, so utilities meet GitHub's unlayered rules on
   specificity and nothing resets GitHub's page.
+- **Raise `build.cssTarget` in [`wxt.config.ts`](../../wxt.config.ts) rather than let the
+  build rewrite a CSS feature.** The build's CSS minifier, Lightning CSS, rewrites any
+  feature that target lacks and can emulate. Its rewrite of `light-dark()` reads only a
+  `color-scheme` set in gh-prism's own sheets, never GitHub's, so the section edge would
+  lose its theme. After using a feature newer than the target, check the built sheet in
+  `.output/chrome-mv3/`.
 
 ## Overrides
 
