@@ -25,6 +25,7 @@ digraph gh_prism_docs_router {
     "Which doc does the change affect?" -> "Edit docs/README.md" [label="the router for docs/: which page answers a reader's question"];
     "Which doc does the change affect?" -> "Edit docs/ARCHITECTURE.md" [label="how gh-prism works: page kinds, the visit lifecycle, intent and its cache, section rows, diff order, styling, source layout"];
     "Which doc does the change affect?" -> "Edit docs/DEVELOPMENT.md" [label="developing gh-prism: setup, the dev browser, the task catalog, tests, the benchmark, the sandbox repository, hooks, CI, patched dependencies"];
+    "Which doc does the change affect?" -> "Edit design/" [label="gh-prism's design direction: the brief, tokens, patterns, departures from the /taste defaults, dated design picks"];
     "Which doc does the change affect?" -> "Edit .claude/skills/release-gh-prism/SKILL.md" [label="the release skill: computing, confirming, and dispatching a release, the release notes"];
     "Which doc does the change affect?" -> "Edit a docs/agents/*-rules.md rule file" [label="a rule for a code area that AGENTS.md routes to"];
 }
@@ -57,6 +58,12 @@ digraph gh_prism_docs_router {
 - **`docs/DEVELOPMENT.md`**: developing gh-prism past the first run. How to edit it:
   [`references/development.md`](references/development.md). Its task catalog changes with
   `.mise/tasks/`, and its setup changes with `CONTRIBUTING.md`.
+- **`design/`**: gh-prism's design direction, for coding agents changing how it looks,
+  moves, or reads, and the people who maintain that direction. Its entry file,
+  `design/README.md`, routes to the other files in it. How to edit it:
+  [`references/design.md`](references/design.md). Its `tokens.md` changes when a token or
+  module it names is renamed or moved, and its `patterns.md` changes with the modules it
+  names.
 - **`.claude/skills/release-gh-prism/SKILL.md`**: the `/release-gh-prism` skill, which
   drives a release from the version to the published GitHub Release. How to edit it:
   [`references/release-skill.md`](references/release-skill.md). It changes with the
@@ -70,10 +77,11 @@ digraph gh_prism_docs_router {
 ## Audience and diagrams
 
 `README.md`, `CONTRIBUTING.md`, `CONTEXT.md`, and every page directly under `docs/` are
-human-facing. `AGENTS.md`, `CLAUDE.md`, and everything under `docs/agents/` are
-agent-facing. Put a new human-facing doc directly under `docs/`, and a new agent-facing
-one under `docs/agents/`. State a new doc's audience on line 3, under its H1, as
-`*Audience: …*`.
+human-facing. `AGENTS.md`, `CLAUDE.md`, everything under `docs/agents/`, and everything
+under `design/` are agent-facing. Put a new human-facing doc directly under `docs/`, and a
+new agent-facing one under `docs/agents/`. `design/` is the exception: it sits at the
+root, because the `/taste` skill reads it there. State a new doc's audience on line 3,
+under its H1, as `*Audience: …*`.
 
 Diagrams follow the same split on purpose. Human-facing docs use mermaid, which GitHub
 renders inline. Agent-facing docs use graphviz in a `graphviz` fence, which agents read as

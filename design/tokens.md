@@ -1,0 +1,111 @@
+# gh-prism design tokens
+
+*Audience: coding agents changing how gh-prism looks, moves, or reads, and the people who
+maintain its design direction.*
+
+Tokens live in the code. This file points at each source instead of copying its values, so
+it can't drift from them. A value the code doesn't have yet, such as the
+[section edge](#section-edge) and the [motion scale](#motion), lives here until it lands.
+
+## Colour
+
+Every colour gh-prism paints is a Primer variable, such as `--fgColor-muted`, that
+GitHub's page defines for the reviewer's theme. gh-prism defines no colour of its own. The
+one exception is the file icons, which keep the palette of `@pierre/trees`, the library
+that draws each section's file tree. `sidebar/section-tree.css` makes that palette follow
+GitHub's theme and colours the icons it adds.
+
+[`entrypoints/content/ui/tailwind.css`](../entrypoints/content/ui/tailwind.css) maps the
+Primer variables gh-prism uses to `tw:` utilities, so Primer's `--fgColor-muted` becomes
+`tw:text-fg-muted`. A Primer variable used in one rule stays a `var()` there until a
+second rule uses it.
+
+Each section's hue is the Primer foreground variable in its row of `SECTION_CATALOG`, in
+[`entrypoints/content/ui/section-catalog.ts`](../entrypoints/content/ui/section-catalog.ts).
+`markSection` sets it on an element as `--gh-prism-hue`, and every colour tied to a
+section reads that property.
+
+A section's tint mixes its hue into `--bgColor-default`. Each tint's strength lives beside
+the rule that uses it:
+
+- `--gh-prism-tint` in
+  [`entrypoints/content/sidebar/sections-view.css`](../entrypoints/content/sidebar/sections-view.css)
+  colours the backgrounds of sections and of the what's-new block of release notes.
+- `--color-hue-tint` in `ui/tailwind.css` colours the header counter's pills.
+
+The Viewed box's edge and hover colours are in `sidebar/sections-view.css` too. They are
+mixed so the box holds 3:1 against every row background.
+
+The spectrum is `SECTION_SPECTRUM` in `ui/section-catalog.ts`: a left-to-right band of
+every section's hue, in section order.
+
+## Section edge
+
+A section's hairline mixes 22% of its hue into a ground darker than the section's fill:
+`--borderColor-default` in a light theme, and `--bgColor-inset` in a dark one. In a dark
+theme the line sits below the tint, so it edges the section without brightening it. The
+section also takes Primer's resting shadow, `--shadow-resting-small`.
+
+This edge is decided but not yet in the code. When it lands, define the mix in
+`ui/tailwind.css` and point this section at it. Unlike every other Primer colour here, it
+picks a different Primer variable per theme, so write it with `light-dark()`. That follows
+GitHub's theme, not the OS, because GitHub sets `color-scheme` on the page;
+`sidebar/section-tree.css` relies on the same fact when it inherits `color-scheme`.
+
+## Type
+
+Prose and labels use GitHub's sans stack, which they inherit from the page. File names in
+the sidebar use `--fontStack-monospace` at `--text-body-size-small`, the face and size
+GitHub sets diff code in, so a name reads the same in the sidebar and in its diff header.
+Counts, markers, and status letters in a row use `--fontStack-sansSerif`, with tabular
+figures so columns of counts line up.
+
+Sizes, line heights, and weights are the `--text-body-*`, `--leading-body-*`, and
+`--font-weight-*` tokens in `ui/tailwind.css`.
+
+## Radius
+
+Sections and the controls inside them share Primer's medium radius,
+`--borderRadius-medium`, which GitHub's file cards beside the sidebar use too. Pills use
+`2em`, so they stay fully round. The Viewed box and the loading bar keep small fixed radii
+of their own, in `sidebar/section-tree.css` and `ui/loading-view.ts`, because they are too
+small for the medium radius. The skeleton lines in `diffs/order.css` and
+`sidebar/sections-view.css` take a fixed radius of half their height, so they stay round
+too. `exceptions.md` says why sections don't step up to a larger radius.
+
+## Spacing
+
+Space follows the 4px scale that `--spacing` sets in `ui/tailwind.css`, so `tw:gap-1.5` is
+6px. A height a module fixes stays in that module: a file row's is `ROW_HEIGHT` in
+`sidebar/section-tree.ts`, and a section header's is `tw:h-9` in
+`sidebar/sections-view.ts`.
+
+## Motion
+
+Motion has no token source yet, so this table is the source until the scale lands in
+`ui/tailwind.css`. Pick the row by what the motion does:
+
+| Row | Duration and curve | Use |
+| --- | --- | --- |
+| Feedback | 120–150 ms, `ease-out` | hover, tooltips, icon swaps, the Viewed box filling |
+| State, opening | 240 ms, `cubic-bezier(0.16, 1, 0.3, 1)` | a section or block expanding, its chevron turning open |
+| State, closing | 160 ms, `ease-out` | a section or block collapsing, its chevron turning closed, a dismissal |
+| Spatial | 280 ms, `cubic-bezier(0.2, 0.7, 0.2, 1)` | the sidebar's slide, sections dropping in after loading |
+
+Under `prefers-reduced-motion: reduce`, every row drops to no motion. A stopped spinner
+keeps its open ring, so it still reads as working. `decisions.md` says why a close runs
+quicker than an open.
+
+Some motion in the code predates this scale. Move each to its row when that code next
+changes:
+
+- The collapses of a section, the what's-new block, and the comment-lines sub-section,
+  with their chevrons, run at 200 ms on `cubic-bezier(0.4, 0, 0.2, 1)` in
+  `sidebar/sections-view.css`. So does the folder chevron in `sidebar/section-tree.css`.
+- Dismissing the what's-new block also runs at 200 ms, and `sidebar/whats-new.ts` removes
+  the block on a matching 200 ms timer, so the timer changes with the CSS.
+- The Viewed box's check pops in on an overshoot curve, and the on-screen hairlines fade
+  over 250 ms `ease-in-out`, both in `sidebar/section-tree.css`.
+
+The classic-page dialog's entrance stays as it is, because it copies Primer's own dialog
+entrance.

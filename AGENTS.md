@@ -25,6 +25,7 @@ digraph gh_prism_rules_router {
 
     "Working on gh-prism" -> "What does the change touch?";
     "What does the change touch?" -> "Load docs/agents/styling-rules.md" [label="styles: any stylesheet under entrypoints/content/, tw:-prefixed Tailwind classes, entrypoints/content/ui/tailwind.css, how a stylesheet reaches the page"];
+    "What does the change touch?" -> "Read design/README.md" [label="how gh-prism looks, moves, or reads (its wording): colour, type, radius, motion, key hints, a new control, view, or notice"];
     "What does the change touch?" -> "Load docs/agents/github-rules.md" [label="GitHub's pages: files-page.ts selectors, a stylesheet's GitHub hooks: header comment, entrypoints/content/diffs/, entrypoints/content/visit/, utils/github/"];
     "What does the change touch?" -> "Load docs/agents/testing-rules.md" [label="tests: tests/, e2e/, bench/, vitest.config.ts, playwright.config.ts, checking a change in a real browser"];
     "What does the change touch?" -> "Load docs/agents/typescript-rules.md" [label="TypeScript under entrypoints/ or utils/: function-body shape, persisted state"];
