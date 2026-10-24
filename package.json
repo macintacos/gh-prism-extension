@@ -1,7 +1,7 @@
 {
   "name": "gh-prism",
   "description": "Sectioned Files changed sidebar for GitHub pull requests",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "private": true,
   "type": "module",
   "scripts": {
