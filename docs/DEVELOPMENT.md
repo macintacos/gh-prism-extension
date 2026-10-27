@@ -46,7 +46,7 @@ then reload a Files view.
 | `mise run build` | Builds the extension into `.output/chrome-mv3`, ready for Chrome's **Load unpacked**. |
 | `mise run test [filter] [-w]` | Runs Vitest, only on test files whose path contains `filter`; `-w` reruns on change. |
 | `mise run e2e` | Builds the extension and runs the Playwright smoke suite against it. |
-| `mise run bench [--entry-size n]` | Times the diff order, section trees, and intent read on large synthetic diffs. |
+| `mise run bench [--entry-size n]` | Times the diff order, section trees, a sidebar resize, and intent read on large synthetic diffs. |
 | `mise run format` | Formats every file. |
 | `mise run format-check` | Checks formatting without writing. |
 | `mise run lint` | Runs the linters, read-only. |
@@ -69,9 +69,11 @@ The rules for writing tests are in
 ## Benchmark
 
 `mise run bench` times the real diff order, section trees, and intent read in headless
-Chromium on synthetic diffs of 100, 300, and 1,000 files. `--entry-size n` sets how many
-elements each synthetic diff entry has, its wrapper included; the default is 95. The
-benchmark lives in `bench/` and runs outside CI, Vitest, and Playwright.
+Chromium on synthetic diffs of 100, 300, and 1,000 files. Its resize case narrows the
+sidebar 20 times, one step per frame, and reports each step's p50 and p95 time, folder
+chain refits included. `--entry-size n` sets how many elements each synthetic diff entry
+has, its wrapper included; the default is 95. The benchmark lives in `bench/` and runs
+outside CI, Vitest, and Playwright.
 
 ## A sandbox repository
 
@@ -132,9 +134,15 @@ Two dependencies carry local patches in [`patches/`](../patches/), which Bun app
 install through `patchedDependencies` in [`package.json`](../package.json):
 
 - `@pierre/trees` adds a row decoration's title to the row's accessible label, and renders
-  a checkbox beside a row whose decoration asks for one.
+  a checkbox beside a row whose decoration asks for one. It also renders a flattened row's
+  folders as whole units around a hidden `…`, and gives every row an `aria-hidden` copy of
+  its full name.
 - `wxt` escapes the entrypoint path in a regular expression, so a checkout whose path
   holds a character such as `+` still builds.
 
 A patch is pinned to one exact version. When you upgrade a patched dependency, regenerate
-its patch with `bun patch`, or drop the patch once upstream fixes the issue.
+its patch with `bun patch`, or drop the patch once upstream fixes the issue. Bun's
+isolated linker trips on `bun patch --commit`: it leaves `node_modules/<pkg>` a real
+directory, so the package's own dependencies stop resolving, and it adds a `.bun-tag-*`
+file to the patch. Delete that file's hunk from the patch, then run
+`rm -rf node_modules/<pkg> && bun install` to restore the link.

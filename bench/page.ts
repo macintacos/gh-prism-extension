@@ -161,6 +161,58 @@ function sectionTrees(count: number, hosts: "sidebar" | "fixed" = "sidebar") {
   };
 }
 
+/** Every tree's chain-fit style text, which changes only when a chain row refits. */
+const treeStyles = () =>
+  [...document.querySelectorAll(".gh-prism-tree")]
+    .flatMap((host) => [...(host.shadowRoot?.querySelectorAll("style") ?? [])])
+    .map((style) => style.textContent)
+    .filter((text) => text?.includes("[data-item-flattened"))
+    .join("");
+
+/**
+ * Called from a requestAnimationFrame callback, resolves once that frame's rendering, observers
+ * included, has run.
+ */
+const afterFrame = () =>
+  new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = resolve;
+    channel.port2.postMessage(null);
+  });
+
+const percentile = (sorted: readonly number[], p: number) =>
+  sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] ?? 0;
+
+/**
+ * Mounts the sidebar's trees on `count` files, then narrows the sidebar 20 times, one step per
+ * frame, timing each step from the width change to the end of its frame's rendering, so the
+ * trees' resize refits count. Throws unless some step refit a chain row.
+ */
+async function resize(count: number) {
+  await sectionTrees(count, "sidebar").mount();
+  const sidebar = document.getElementById("pr-file-tree");
+  if (!sidebar) throw new Error("no #pr-file-tree");
+  const stepMs: number[] = [];
+  let refitSteps = 0;
+  for (let step = 0; step < 20; step++) {
+    await nextFrame();
+    const stylesBefore = treeStyles();
+    const start = performance.now();
+    sidebar.style.width = `${480 - step * 16}px`;
+    await afterFrame();
+    stepMs.push(performance.now() - start);
+    if (treeStyles() !== stylesBefore) refitSteps += 1;
+  }
+  if (refitSteps === 0) throw new Error("no step refit a chain row");
+  const sorted = stepMs.toSorted((a, b) => a - b);
+  return {
+    files: count,
+    "step p50 ms": round(percentile(sorted, 0.5)),
+    "step p95 ms": round(percentile(sorted, 0.95)),
+    "refit steps": refitSteps,
+  };
+}
+
 /** Times `readIntent` over in-memory heads; throws unless every head was read once and some file split. */
 async function intent(count: number) {
   const files = syntheticFiles(count);
@@ -187,7 +239,7 @@ async function intent(count: number) {
   return { files: count, "heads read": reads, "read ms": ms };
 }
 
-const bench = { diffOrder, sectionTrees, intent };
+const bench = { diffOrder, sectionTrees, resize, intent };
 
 /** The benchmarks this page puts on `window.bench`, for `run.ts` to call through Playwright. */
 export type Bench = typeof bench;

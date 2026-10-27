@@ -30,6 +30,7 @@ import {
 import { el, icon } from "../ui/dom";
 import { lineTotals } from "../ui/line-counts";
 import { type LoadingView, loadingView } from "../ui/loading-view";
+import { followReveals, fullName } from "../ui/reveal";
 import { markSection, SECTION_CATALOG, sectionIcon } from "../ui/section-catalog";
 import type { FileSection, LandingView } from "../visit/land";
 import { SectionTree, type TreeFile } from "./section-tree";
@@ -193,7 +194,8 @@ function sectionShell(
     sectionIcon(doc, key),
     chevron(doc),
   );
-  const name = el(doc, "span", "gh-prism-section-label tw:truncate", SECTION_CATALOG[key].label);
+  const { label } = SECTION_CATALOG[key];
+  const name = el(doc, "span", "gh-prism-section-label tw:truncate", label, fullName(doc, label));
   const toggle = el(
     doc,
     "button",
@@ -247,6 +249,7 @@ const COMMENT_ICON =
  * does.
  */
 function commentLinesShell(doc: Document, lines: LineCounts | undefined) {
+  const label = "Implementation comments";
   const counter = counterPill(doc);
   const glyph = el(
     doc,
@@ -260,7 +263,7 @@ function commentLinesShell(doc: Document, lines: LineCounts | undefined) {
     "button",
     "gh-prism-comment-lines-toggle tw:flex tw:items-center tw:gap-2 tw:w-full tw:h-7 tw:py-0 tw:px-3 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-muted tw:[font:inherit] tw:text-start tw:cursor-pointer tw:hover:bg-[var(--control-transparent-bgColor-hover)] tw:focus-visible:outline-2 tw:focus-visible:-outline-offset-2 tw:focus-visible:outline-focus-outline",
     glyph,
-    el(doc, "span", "tw:truncate", "Implementation comments"),
+    el(doc, "span", "tw:truncate", label, fullName(doc, label)),
     counter,
   );
   if (lines) toggle.append(lineTotals(doc, lines));
@@ -418,6 +421,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     "gh-prism-sections tw:flex tw:flex-col tw:gap-1.5 tw:text-body-medium tw:[interpolate-size:allow-keywords]",
   );
   view.setAttribute("aria-label", "Changed files by section");
+  followReveals(view, matchMedia("(prefers-reduced-motion: reduce)"));
 
   const shown = new Map<ListingKey, ShownListing>();
   // Outlives the sections themselves, so one that empties and comes back stays collapsed.

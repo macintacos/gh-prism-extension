@@ -1,9 +1,11 @@
 /**
- * The large-diff benchmark, run by `mise run bench`: times the real diff order, section trees and
- * intent read in headless Chromium on synthetic diffs of 100, 300 and 1,000 files. Kept out of CI,
- * Vitest and Playwright on purpose, so no file here may match `*.{test,spec}.*` or `*.e2e.ts`.
+ * The large-diff benchmark, run by `mise run bench`: times the real diff order, section trees,
+ * sidebar resize and intent read in headless Chromium on synthetic diffs of 100, 300 and 1,000
+ * files. Kept out of CI, Vitest and Playwright on purpose, so no file here may match
+ * `*.{test,spec}.*` or `*.e2e.ts`.
  */
-import { join } from "node:path";
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
 import { type CDPSession, chromium, type Page } from "@playwright/test";
 import type { Bench } from "./page";
@@ -15,6 +17,10 @@ interface BunPlugin {
     onResolve(
       options: { filter: RegExp },
       resolve: (args: { path: string; resolveDir: string }) => { path: string },
+    ): void;
+    onLoad(
+      options: { filter: RegExp },
+      load: (args: { path: string }) => Promise<{ contents: string; loader: "text" }>,
     ): void;
   }): void;
 }
@@ -52,8 +58,30 @@ const inline: BunPlugin = {
     build.onResolve({ filter: /\?inline$/ }, ({ path, resolveDir }) => ({
       path: Bun.resolveSync(path.slice(0, -"?inline".length), resolveDir),
     }));
+    build.onLoad({ filter: /\.css$/ }, async ({ path }) => ({
+      contents: await withImports(path),
+      loader: "text",
+    }));
   },
 };
+
+/**
+ * `path`'s sheet with each plain `@import` replaced by the imported sheet, as Vite inlines it. A
+ * shadow root can't fetch the import, and without `ui/reveal.css` a row's full-name copy lays out
+ * inline, taking room from its folder units. Imports with a modifier, such as Tailwind's
+ * `prefix(tw)`, stay.
+ */
+async function withImports(path: string): Promise<string> {
+  const sheet = await readFile(path, "utf8");
+  const imports = [...sheet.matchAll(/@import "([^"]+)";/g)];
+  const importedSheets = await Promise.all(
+    imports.map(([, url = ""]) => withImports(join(dirname(path), url))),
+  );
+  return imports.reduce(
+    (text, [statement], i) => text.replace(statement, importedSheets[i] ?? ""),
+    sheet,
+  );
+}
 
 async function bundle(): Promise<string> {
   const built = await Bun.build({
@@ -121,6 +149,7 @@ const TABLES: [string, (page: Page, files: number) => Promise<object>][] = [
   ["Diff order", diffOrder],
   ["Section trees", (page, files) => sectionTrees(page, files, "sidebar")],
   ["Section trees, fixed-height hosts", (page, files) => sectionTrees(page, files, "fixed")],
+  ["Resize", (page, files) => page.evaluate((files) => window.bench.resize(files), files)],
   ["Intent", (page, files) => page.evaluate((files) => window.bench.intent(files), files)],
 ];
 

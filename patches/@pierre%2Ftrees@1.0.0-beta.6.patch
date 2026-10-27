@@ -1,8 +1,57 @@
 diff --git a/dist/render/FileTreeView.js b/dist/render/FileTreeView.js
-index 7d3b818c43a7621ab9170da32b180232ed3c9472..ce5f23150b7c3dfdf638726bb68f3e8718336eb1 100644
+index 7d3b818c43a7621ab9170da32b180232ed3c9472..cbbc4abc3adb7eccc9d4c122e08e1e4beefbba71 100644
 --- a/dist/render/FileTreeView.js
 +++ b/dist/render/FileTreeView.js
-@@ -438,7 +438,7 @@ function renderStyledRow(frame, row, key, options = {}) {
+@@ -25,11 +25,27 @@ function formatFlattenedSegments(row, renameInput = null, dragTargetFlattenedSeg
+ 		"data-item-flattened-subitems": true,
+ 		children: segments.map((segment, index) => {
+ 			const isLast = index === segments.length - 1;
+-			return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx("span", {
++			const separator = index > 0 ? /* @__PURE__ */ jsx("span", {
++				"data-item-flattened-separator": true,
++				children: "/"
++			}) : null;
++			const name = !isLast ? segment.name : renameInput ?? /* @__PURE__ */ jsx(MiddleTruncate, {
++				minimumLength: 5,
++				split: "extension",
++				children: segment.name
++			});
++			return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsxs("span", {
+ 				"data-item-flattened-subitem": segment.path,
+ 				"data-item-flattened-subitem-drag-target": dragTargetFlattenedSegmentPath === segment.path ? "true" : void 0,
+-				children: isLast && renameInput != null ? renameInput : /* @__PURE__ */ jsx(Truncate, { children: segment.name })
+-			}), index < segments.length - 1 ? " / " : ""] }, segment.path);
++				children: [separator, name]
++			}), index === 0 ? /* @__PURE__ */ jsxs("span", {
++				"data-item-flattened-ellipsis": true,
++				"aria-hidden": "true",
++				children: [/* @__PURE__ */ jsx("span", {
++					"data-item-flattened-separator": true,
++					children: "/"
++				}), "…"]
++			}) : null] }, segment.path);
+ 		})
+ 	});
+ }
+@@ -376,11 +392,15 @@ function renderFileTreeRowContent(row, resolveIcon, { actionLaneEnabled = false,
+ 		}),
+ 		/* @__PURE__ */ jsx("div", {
+ 			"data-item-section": "content",
+-			children: row.isFlattened ? formatFlattenedSegments(row, renameInput, dragTargetFlattenedSegmentPath) : renameInput ?? /* @__PURE__ */ jsx(MiddleTruncate, {
++			children: [row.isFlattened ? formatFlattenedSegments(row, renameInput, dragTargetFlattenedSegmentPath) : renameInput ?? /* @__PURE__ */ jsx(MiddleTruncate, {
+ 				minimumLength: 5,
+ 				split: "extension",
+ 				children: row.name
+-			})
++			}), /* @__PURE__ */ jsx("span", {
++				"data-full-name": true,
++				"aria-hidden": "true",
++				children: /* @__PURE__ */ jsx("span", { children: row.flattenedSegments?.map((segment) => segment.name).join("/") || row.name })
++			}, `full-name:${targetPath}`)]
+ 		}),
+ 		decorationLaneEnabled ? /* @__PURE__ */ jsx("div", {
+ 			"data-item-section": "decoration",
+@@ -438,7 +458,7 @@ function renderStyledRow(frame, row, key, options = {}) {
  	});
  	const commonProps = {
  		...computeFileTreeRowElementAttributes({
@@ -11,7 +60,7 @@ index 7d3b818c43a7621ab9170da32b180232ed3c9472..ce5f23150b7c3dfdf638726bb68f3e87
  			domId: row.isFocused ? getFileTreeFocusedRowDomId(instanceId, targetPath, isParked) : void 0,
  			extraStyle: style,
  			features: {
-@@ -515,7 +515,27 @@ function renderStyledRow(frame, row, key, options = {}) {
+@@ -515,7 +535,27 @@ function renderStyledRow(frame, row, key, options = {}) {
  }
  function renderRangeChildren(frame, range, hiddenRowPaths) {
  	if (range.end < range.start) return [];
@@ -40,7 +89,7 @@ index 7d3b818c43a7621ab9170da32b180232ed3c9472..ce5f23150b7c3dfdf638726bb68f3e87
  }
  function FileTreeView({ composition, controller, gitStatusByPath, ignoredGitDirectories, directoriesWithGitChanges, icons, instanceId, itemHeight = FILE_TREE_DEFAULT_ITEM_HEIGHT, overscan = 10, renamingEnabled = false, renderRowDecoration, searchBlurBehavior = "close", searchEnabled = false, searchFakeFocus = false, slotHost, stickyFolders = false, initialViewportHeight = 420 }) {
  	"use no memo";
-@@ -1525,6 +1545,10 @@ function FileTreeView({ composition, controller, gitStatusByPath, ignoredGitDire
+@@ -1525,6 +1565,10 @@ function FileTreeView({ composition, controller, gitStatusByPath, ignoredGitDire
  			previousFocusedPathRef.current = focusedPath;
  			return;
  		}

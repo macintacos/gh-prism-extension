@@ -108,6 +108,39 @@ describe("showSections", () => {
     ]);
   });
 
+  it("renders a flattened row's folders as whole units around a hidden ellipsis, and every row a full-name copy", async () => {
+    const chain = "managed/dot_config/opencode/skills/sentry-cli";
+    addNativeFile(`${chain}/SKILL.md`, "docs/guide.md");
+    await afterDebounce();
+
+    const folder = rowsIn("docs").find((row) => row.getAttribute("aria-label")?.includes(" / "));
+    const file = rowIn("docs", `${chain}/SKILL.md`);
+    const units = [...(folder?.querySelectorAll("[data-item-flattened-subitems] > *") ?? [])];
+    const deepest = units.pop();
+    expect(units.map((unit) => unit.textContent)).toEqual([
+      "managed",
+      "/…",
+      "/dot_config",
+      "/opencode",
+      "/skills",
+    ]);
+    expect(units[1]?.matches("[data-item-flattened-ellipsis][aria-hidden=true]")).toBe(true);
+    expect(deepest?.getAttribute("data-item-flattened-subitem")).toMatch(/sentry-cli\/?$/);
+    expect(
+      [...units.slice(2), deepest].every((unit) =>
+        unit?.firstElementChild?.matches("[data-item-flattened-separator]"),
+      ),
+    ).toBe(true);
+    expect(folder?.querySelector("[data-full-name][aria-hidden=true]")?.textContent).toBe(
+      "managed/dot_config/opencode/skills/sentry-cli",
+    );
+    expect(folder?.getAttribute("aria-label")).toBe(
+      "managed / dot_config / opencode / skills / sentry-cli",
+    );
+    expect(file.querySelector("[data-full-name]")?.textContent).toBe("SKILL.md");
+    expect(file.getAttribute("aria-label")).toMatch(/^SKILL\.md/);
+  });
+
   it("names each section by its header", () => {
     const sections = [...document.querySelectorAll(".gh-prism-section")];
     expect(sections).toHaveLength(5);
@@ -119,7 +152,9 @@ describe("showSections", () => {
     }
 
     expect(
-      [...document.querySelectorAll(".gh-prism-section-label")].map((label) => label.textContent),
+      [...document.querySelectorAll(".gh-prism-section-label")].map(
+        (label) => label.firstChild?.textContent,
+      ),
     ).toEqual(["Implementation", "Tests", "Docs & Comments", "Config", "Generated / lockfiles"]);
   });
 

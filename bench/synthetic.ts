@@ -9,6 +9,9 @@ export interface SyntheticFile {
 
 const pathOf = (i: number): string => {
   if (i % 10 === 0) return `docs/guide-${i % 4}/page-${i}.md`;
+  // A chain of single-child folders, which the sidebar flattens into one row it fits to its width.
+  if (i % 10 === 3)
+    return `managed/home-${i % 7}/dot_config/opencode/skills/sentry-cli-${i % 7}/note-${i}.md`;
   if (i % 5 === 1) return `crates/pkg-${i % 8}/tests/case-${i}.rs`;
   return `crates/pkg-${i % 8}/src/mod-${Math.floor(i / 8) % 6}/file-${i}.rs`;
 };

@@ -40,6 +40,19 @@ Only then does the row drop whole decoration parts, leading ones first, never cl
 mid-word. The row's title and accessible name still carry every part.
 `sidebar/section-tree.css` holds the layout.
 
+A folder chain short of room keeps its first folder and as many trailing folders as fit
+around one `…`. With room for less, it shows `…` and the deepest folder alone. Only the
+deepest folder's name is ever cut, in the middle. `sidebar/chain-fit.ts` decides the fit;
+`sidebar/section-tree.css` lays it out.
+
+## Truncated names
+
+A truncated name shows whole on hover and focus. A file row keeps its middle truncation at
+rest and scrolls only its file name; a folder chain scrolls its full path; a section
+header keeps its end ellipsis at rest and scrolls its label. Under reduced motion each
+shows its full name as a strip the reviewer scrolls by hand. `ui/reveal.ts`'s `fullName()`
+builds the copy; `ui/reveal.css` and `ui/reveal.ts` show and scroll it.
+
 ## Viewed
 
 A Viewed row dims everything but its checkbox, so the reviewer can still read the row and

@@ -2,6 +2,7 @@
    Chrome ignores @property in a shadow root, so no utility here may read a --tw-* variable:
    border, outline, shadow, ring, transform, gradient, leading, font-weight and tabular-nums. */
 @import "../ui/tailwind.css" prefix(tw);
+@import "../ui/reveal.css";
 @source "./section-tree.ts";
 
 /* Each host stays as tall as its rows, so the sidebar scrolls as one, and the library's viewport
@@ -140,6 +141,52 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
 [data-item-section="content"] {
   flex-shrink: 999999;
   min-width: 6ch;
+}
+
+/* Hidden units stay laid out, never display: none, so the fit can still measure them. */
+[data-item-flattened-ellipsis] {
+  position: absolute;
+  visibility: hidden;
+}
+
+/* Separators carry their own spacing, below. */
+[data-item-flattened-subitems] {
+  gap: 0;
+}
+
+/* Padding, not margin, so the chain fit's measured widths include it. */
+[data-item-flattened-separator] {
+  padding-inline: 2px;
+}
+
+/* Clicking a folder in a chain toggles the whole row, so no folder reads as its own link. */
+[data-item-flattened-subitem]:hover {
+  text-decoration: none;
+}
+
+/* A row, so the deepest folder's block-level truncation sits beside its separator. */
+[data-item-flattened-subitem] {
+  display: flex;
+  flex: none;
+}
+
+[data-item-flattened-subitem] > [data-truncate-group-container] {
+  min-width: 0;
+}
+
+[data-item-flattened-subitem]:last-child {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* A folder row's name fills its free space whatever folders it shows, so that width is the room
+   SectionTree fits the chain to; a width that followed the fit would feed back on it. */
+[data-item-type="folder"] > [data-item-section="content"] {
+  flex: 1 1 0;
+}
+
+[data-item-type="folder"] > [data-item-section="decoration"] {
+  flex: none;
 }
 
 [data-item-section="decoration"] {

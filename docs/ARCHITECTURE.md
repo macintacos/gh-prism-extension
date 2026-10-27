@@ -194,7 +194,17 @@ scrolls as one. The sections view calls each tree's `sync()` when the sidebar sc
 resizes, and `sync()` renders only the rows near the viewport. A tree far out of view
 renders none. Hovering or focusing a row lights its folder's whole hairline (a folder
 row's own) until the pointer leaves the tree, focus leaves it, or the page scrolls;
-`sections-view.ts` calls each tree's `clearPointed()` on a document scroll.
+`sections-view.ts` calls each tree's `clearPointed()` on a document scroll. Each tree fits
+every flattened folder chain to its row
+([`sidebar/chain-fit.ts`](../entrypoints/content/sidebar/chain-fit.ts)) with a per-path
+style rule, and refits whenever rows render or the host resizes.
+
+A truncated tree row or section header shows its full name on hover and focus, from an
+`aria-hidden` copy of it. [`ui/reveal.css`](../entrypoints/content/ui/reveal.css),
+imported by both the tree's and the sections view's sheets, decides when the copy shows:
+after a wait, while its button is hovered or focus-visible.
+[`ui/reveal.ts`](../entrypoints/content/ui/reveal.ts) decides how it moves: it marks a
+copy whose name overflows and scrolls it back and forth once it has faded in.
 
 Docs & Comments ends with the comment-lines sub-section when an Implementation file has
 comment lines. It has its own header and tree inside Docs & Comments' collapsible region,
@@ -267,7 +277,7 @@ entrypoints/
     sidebar/             section trees, sidebar side switch, what's-new block, report link
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
     header/              diffstat breakout
-    ui/                  shared DOM helpers, loading view, Markdown subset, Tailwind tokens
+    ui/                  shared DOM helpers, loading view, Markdown subset, name reveal, Tailwind tokens
 utils/
   github/                routes, diff parsing, the PR data port and source
   intent/                reading, caching, and landing intent

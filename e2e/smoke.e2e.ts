@@ -1,6 +1,13 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { type BrowserContext, test as base, chromium, expect, type Page } from "@playwright/test";
+import {
+  type BrowserContext,
+  test as base,
+  chromium,
+  expect,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 import { commitPage } from "../entrypoints/content/files-page";
 
 const EXTENSION = join(import.meta.dirname, "../.output/chrome-mv3");
@@ -27,6 +34,9 @@ const bulkRow = (n: number) => {
   const name = `file-${String(n).padStart(3, "0")}.rs`;
   return `<li role="treeitem" id="bulk/${name}" aria-level="1" aria-label="${name}" aria-selected="false"><a href="#${bulkDiff(n)}">${name}</a></li>`;
 };
+// gh-prism's tree flattens its folders into one chain row above the file.
+const CHAIN_FILE = "managed/dot_config/opencode/skills/sentry-cli/SKILL.md";
+const CHAIN_ROW = `<li role="treeitem" id="${CHAIN_FILE}" aria-level="1" aria-label="SKILL.md" aria-selected="false"><a href="#diff-c4a1">SKILL.md</a></li>`;
 // 300 more files under a new top-level bulk/, in a sidebar that scrolls within the 720 px viewport
 // as GitHub's pane does. No file is current, so the sidebar starts at its top rather than revealing one.
 const LARGE_PR_BODY = PR_BODY.replace(
@@ -910,6 +920,375 @@ test("a row too narrow for its name truncates the name, never its decoration", a
       ellipsis: true,
       statusInTree: true,
     });
+});
+
+/**
+ * The chain row above CHAIN_FILE: the units it shows, in order, as folder names and `…`, and
+ * which of those are cut; `null` until it renders.
+ */
+const chainLayout = (page: Page) =>
+  page.evaluate(() => {
+    const row = [...document.querySelectorAll(".gh-prism-tree")]
+      .flatMap((tree) => [...(tree.shadowRoot?.querySelectorAll('[data-type="item"]') ?? [])])
+      .find((item) => item.querySelector('[data-item-flattened-subitem$="sentry-cli/"]'));
+    const units = [...(row?.querySelectorAll("[data-item-flattened-subitems] > *") ?? [])].filter(
+      (unit) => getComputedStyle(unit).visibility === "visible",
+    );
+    if (!units.length) return null;
+    const nameOf = (unit: Element) =>
+      unit.getAttribute("data-item-flattened-subitem")?.split("/").at(-2) ?? "…";
+    const isCut = (unit: Element) =>
+      unit.scrollWidth > unit.clientWidth ||
+      [...unit.querySelectorAll("[data-truncate-marker]")].some(
+        (marker) => getComputedStyle(marker).opacity === "1",
+      );
+    return { shown: units.map(nameOf), cut: units.filter(isCut).map(nameOf) };
+  });
+
+const setTreeWidth = (page: Page, width: number) =>
+  page.evaluate((width) => {
+    const tree = document.getElementById("pr-file-tree");
+    if (!tree) throw new Error("no #pr-file-tree");
+    tree.style.width = `${width}px`;
+  }, width);
+
+const servesChain = async (context: BrowserContext, page: Page) => {
+  await serve(context, PR_URL, PR_BODY.replace(TREE_OPEN, `${TREE_OPEN}${CHAIN_ROW}`));
+  await page.goto(PR_URL);
+};
+
+const expectCollapsedChain = async (page: Page) => {
+  await setTreeWidth(page, 280);
+
+  await expect
+    .poll(async () => {
+      const layout = await chainLayout(page);
+      return {
+        first: layout?.shown[0],
+        last: layout?.shown.at(-1),
+        ellipses: layout?.shown.filter((name) => name === "…").length,
+        cut: layout?.cut,
+      };
+    })
+    .toEqual({ first: "managed", last: "sentry-cli", ellipses: 1, cut: [] });
+};
+
+test("a folder chain too long for its row keeps its first and deepest folders around one …", async ({
+  context,
+  page,
+}) => {
+  await servesChain(context, page);
+
+  await expectCollapsedChain(page);
+});
+
+test("a folder chain refits as the sidebar is resized", async ({ context, page }) => {
+  await servesChain(context, page);
+  await setTreeWidth(page, 280);
+  await expect.poll(() => chainLayout(page)).toMatchObject({ cut: [] });
+  const collapsed = await chainLayout(page);
+
+  await setTreeWidth(page, 900);
+  await expect
+    .poll(() => chainLayout(page))
+    .toEqual({
+      shown: ["managed", "dot_config", "opencode", "skills", "sentry-cli"],
+      cut: [],
+    });
+
+  await setTreeWidth(page, 280);
+  await expect.poll(() => chainLayout(page)).toEqual(collapsed);
+  expect(collapsed?.shown).toContain("…");
+});
+
+test("a folder chain at 200% zoom keeps the same rules", async ({ context, page }) => {
+  await page.addInitScript(() => {
+    document.documentElement.style.zoom = "2";
+  });
+  await servesChain(context, page);
+
+  await expectCollapsedChain(page);
+});
+
+test("a folder chain with room for only its deepest folder shows … and that folder", async ({
+  context,
+  page,
+}) => {
+  await servesChain(context, page);
+  await setTreeWidth(page, 190);
+
+  await expect.poll(() => chainLayout(page)).toEqual({ shown: ["…", "sentry-cli"], cut: [] });
+});
+
+test("a deepest folder too long for its row truncates in the middle", async ({ context, page }) => {
+  await servesChain(context, page);
+  await setTreeWidth(page, 140);
+
+  await expect
+    .poll(() => chainLayout(page))
+    .toEqual({ shown: ["…", "sentry-cli"], cut: ["sentry-cli"] });
+});
+
+test("a folder chain settles at every sidebar width", async ({ context, page }) => {
+  const chains = [
+    "alpha/bravo-charlie/delta/echo_foxtrot/golf-hotel-india",
+    "pkg/a/b/zzz-component",
+  ];
+  const rows = chains.map(
+    (chain, i) =>
+      `<li role="treeitem" id="${chain}/F${i}.md" aria-level="1" aria-label="F${i}.md" aria-selected="false"><a href="#diff-c4b${i}">F${i}.md</a></li>`,
+  );
+  await serve(
+    context,
+    PR_URL,
+    PR_BODY.replace(TREE_OPEN, `${TREE_OPEN}${CHAIN_ROW}${rows.join("")}`),
+  );
+  await page.goto(PR_URL);
+  await expect.poll(() => chainLayout(page)).not.toBeNull();
+
+  const unsettled = await page.evaluate(async () => {
+    const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+    const layout = () =>
+      [...document.querySelectorAll(".gh-prism-tree")]
+        .flatMap((tree) => [
+          ...(tree.shadowRoot?.querySelectorAll("[data-item-flattened-subitems] > *") ?? []),
+        ])
+        .map((unit) => getComputedStyle(unit).visibility)
+        .join();
+    const tree = document.getElementById("pr-file-tree");
+    if (!tree) throw new Error("no #pr-file-tree");
+    const unsettledWidths = [];
+    for (let width = 220; width <= 370; width++) {
+      tree.style.width = `${width}px`;
+      await frame();
+      await frame();
+      const before = layout();
+      await frame();
+      if (layout() !== before) unsettledWidths.push(width);
+    }
+    return unsettledWidths;
+  });
+
+  expect(unsettled).toEqual([]);
+});
+
+const CHAIN_PATH = "managed/dot_config/opencode/skills/sentry-cli/";
+const CHAIN_FULL_NAME = "managed/dot_config/opencode/skills/sentry-cli";
+const CHAIN_ACCESSIBLE_NAME = "managed / dot_config / opencode / skills / sentry-cli";
+
+/**
+ * Samples every frame, in the page and the trees' shadow roots, for each shown full-name copy:
+ * the distinct transforms its text took, and any copy shown on a row neither hovered nor
+ * focus-visible, or reading another row's name.
+ */
+const sampleReveals = (page: Page) =>
+  page.addInitScript(() => {
+    const seen: Record<string, string[]> = {};
+    const strays: string[] = [];
+    Object.assign(window, { revealSeen: seen, revealStrays: strays });
+    const tick = () => {
+      const roots = [
+        document,
+        ...[...document.querySelectorAll(".gh-prism-tree")].flatMap((tree) =>
+          tree.shadowRoot ? [tree.shadowRoot] : [],
+        ),
+      ];
+      for (const copy of roots.flatMap((root) => [...root.querySelectorAll("[data-full-name]")])) {
+        if (getComputedStyle(copy).visibility !== "visible") continue;
+        const text = copy.textContent ?? "";
+        const transform = getComputedStyle(copy.firstElementChild ?? copy).transform;
+        seen[text] = [...new Set([...(seen[text] ?? []), transform])];
+        const button = copy.closest("button");
+        const readsOwnName =
+          !button?.matches('[data-type="item"]') ||
+          button.getAttribute("aria-label")?.replaceAll(" / ", "/").startsWith(text);
+        if (!button?.matches(":hover, :focus-visible") || !readsOwnName) strays.push(text);
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+
+/** The distinct transforms `text`'s revealed copy has taken so far. */
+const transformsOf = (page: Page, text: string) =>
+  page.evaluate(
+    (text) =>
+      (window as unknown as { revealSeen: Record<string, string[]> }).revealSeen[text] ?? [],
+    text,
+  );
+
+/**
+ * Inside button `row`: whether its full-name copy shows, what it reads, whether anything of the
+ * at-rest text still paints, and how many animations its text runs.
+ */
+const revealOf = (row: Locator) =>
+  row.evaluate((row) => {
+    const copy = row.querySelector("[data-full-name]");
+    const host = copy?.parentElement;
+    if (!copy || !host) return null;
+    const style = getComputedStyle(copy);
+    const atRest = [host, ...host.querySelectorAll("*")].filter(
+      (part) => !copy.contains(part) && getComputedStyle(part).visibility === "visible",
+    );
+    return {
+      shown: style.visibility === "visible" && style.opacity === "1",
+      text: copy.textContent,
+      atRestShown: atRest.length > 0,
+      animations: copy.firstElementChild?.getAnimations().length ?? 0,
+    };
+  });
+
+const servesNarrowChain = async (context: BrowserContext, page: Page) => {
+  await sampleReveals(page);
+  await servesChain(context, page);
+  await setTreeWidth(page, 280);
+  await expect.poll(() => chainLayout(page)).toMatchObject({ cut: [] });
+};
+
+const expectScrollingReveal = async (page: Page, row: Locator, text: string) => {
+  await expect
+    .poll(() => revealOf(row))
+    .toEqual({ shown: true, text, atRestShown: false, animations: 1 });
+  await expect.poll(async () => (await transformsOf(page, text)).length).toBeGreaterThan(2);
+};
+
+test("hovering a truncated row scrolls its full name, and leaving restores it", async ({
+  context,
+  page,
+}) => {
+  await servesNarrowChain(context, page);
+  const row = page.locator(`[data-item-path="${CHAIN_PATH}"]`);
+
+  const folder = row.locator("[data-item-flattened-subitem]").last();
+  await folder.hover();
+  // Read before the reveal hides the folder and it stops matching :hover.
+  expect(
+    await folder.evaluate((el) => el.matches(":hover") && getComputedStyle(el).textDecorationLine),
+  ).toBe("none");
+  await expectScrollingReveal(page, row, CHAIN_FULL_NAME);
+
+  await page.mouse.move(0, 0);
+  await expect(revealOf(row)).resolves.toEqual({
+    shown: false,
+    text: CHAIN_FULL_NAME,
+    atRestShown: true,
+    animations: 0,
+  });
+});
+
+test("keyboard focus reveals a truncated row's full name", async ({ context, page }) => {
+  await servesNarrowChain(context, page);
+  const row = page.locator(`[data-item-path="${CHAIN_PATH}"]`);
+
+  await row.focus();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowUp");
+
+  await expect(row).toBeFocused();
+  await expectScrollingReveal(page, row, CHAIN_FULL_NAME);
+});
+
+test("a truncated file row reveals its file name, not its path", async ({ context, page }) => {
+  const name = "a_module_name_far_too_long_for_the_sidebar_to_show_whole.rs";
+  await sampleReveals(page);
+  await serve(
+    context,
+    PR_URL,
+    PR_BODY.replace(
+      "<!doctype html>",
+      "<!doctype html><style>#pr-file-tree { width: 280px; }</style>",
+    ).replace(
+      TREE_OPEN,
+      `${TREE_OPEN}<li role="treeitem" id="src/${name}" aria-level="1" aria-label="${name}" aria-selected="false"><a href="#diff-a11c">${name}</a></li>`,
+    ),
+  );
+  await page.goto(PR_URL);
+  const row = page.locator(`[data-item-path="src/${name}"]`);
+
+  await row.hover();
+
+  await expectScrollingReveal(page, row, name);
+});
+
+test("a truncated section header reveals its full label", async ({ context, page }) => {
+  await sampleReveals(page);
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+  const toggle = page.locator(
+    '.gh-prism-section[data-section="generated"] .gh-prism-section-toggle',
+  );
+  await expect(toggle).toBeVisible();
+  await setTreeWidth(page, 150);
+
+  await toggle.hover();
+
+  await expectScrollingReveal(page, toggle, "Generated / lockfiles");
+});
+
+test("a row stays clickable while its name scrolls", async ({ context, page }) => {
+  await servesNarrowChain(context, page);
+  const row = page.locator(`[data-item-path="${CHAIN_PATH}"]`);
+  const expandedBefore = await row.getAttribute("aria-expanded");
+  await row.hover();
+  await expectScrollingReveal(page, row, CHAIN_FULL_NAME);
+
+  await row.click();
+
+  await expect(row).not.toHaveAttribute("aria-expanded", expandedBefore ?? "");
+});
+
+test("scrolling the tree never leaves a revealed name on another file's row", async ({
+  context,
+  page,
+}) => {
+  await sampleReveals(page);
+  await serve(context, PR_URL, LARGE_PR_BODY.replace(TREE_OPEN, `${TREE_OPEN}${CHAIN_ROW}`));
+  await page.goto(PR_URL);
+  await setTreeWidth(page, 280);
+  const row = page.locator(`[data-item-path="${CHAIN_PATH}"]`);
+  await row.hover();
+  await expect.poll(() => revealOf(row)).toMatchObject({ shown: true });
+  const sidebar = page.locator("#pr-file-tree");
+  const scrollTopBefore = await sidebar.evaluate((sidebar) => sidebar.scrollTop);
+
+  for (let step = 0; step < 10; step++) await page.mouse.wheel(0, -300);
+  await expect
+    .poll(() => sidebar.evaluate((sidebar) => sidebar.scrollTop))
+    .toBeLessThan(scrollTopBefore - 2000);
+
+  expect(
+    await page.evaluate(() => (window as unknown as { revealStrays: string[] }).revealStrays),
+  ).toEqual([]);
+});
+
+test("under reduced motion a revealed name scrolls only by hand", async ({ context, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await servesNarrowChain(context, page);
+  const row = page.locator(`[data-item-path="${CHAIN_PATH}"]`);
+
+  await row.hover();
+  await expect.poll(() => revealOf(row)).toMatchObject({ shown: true, animations: 0 });
+
+  const scrolled = await row.evaluate((row) => {
+    const copy = row.querySelector("[data-full-name]");
+    if (!copy) return 0;
+    copy.scrollLeft = 30;
+    return copy.scrollLeft;
+  });
+  expect(scrolled).toBe(30);
+});
+
+test("a folder chain's accessible name is its full path, once", async ({ context, page }) => {
+  await servesNarrowChain(context, page);
+
+  const row = page.getByRole("treeitem", { name: CHAIN_ACCESSIBLE_NAME, exact: true });
+
+  await expect(row).toHaveCount(1);
+  await expect(row.locator("[data-full-name]")).toHaveAttribute("aria-hidden", "true");
+  await expect(row.locator("[data-item-flattened-ellipsis]")).toHaveAttribute(
+    "aria-hidden",
+    "true",
+  );
 });
 
 // paths.ts, an Implementation file of tests/fixtures/commit-page.html, adds a comment line, so
