@@ -474,15 +474,15 @@ function contentWidth(element: HTMLElement): number {
  */
 function naturalWidth(unit: HTMLElement): number {
   const separator = unit.querySelector<HTMLElement>("[data-item-flattened-separator]");
-  const hiddenSeparator =
+  const hiddenSeparatorWidth =
     separator && getComputedStyle(separator).position === "absolute"
       ? separator.getBoundingClientRect().width
       : 0;
-  const cut = [...unit.querySelectorAll('[data-truncate-content="visible"]')].reduce(
+  const cutWidth = [...unit.querySelectorAll('[data-truncate-content="visible"]')].reduce(
     (total, text) => total + textWidth(text) - text.getBoundingClientRect().width,
     0,
   );
-  return unit.getBoundingClientRect().width + cut + hiddenSeparator;
+  return unit.getBoundingClientRect().width + cutWidth + hiddenSeparatorWidth;
 }
 
 function textWidth(element: Element): number {

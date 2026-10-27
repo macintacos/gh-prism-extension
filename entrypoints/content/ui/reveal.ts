@@ -27,16 +27,16 @@ export function fullName(doc: Document, text: string): HTMLElement {
 export function revealFrames(distance: number): { keyframes: Keyframe[]; duration: number } {
   const leg = (distance / SPEED) * 1000;
   const duration = 2 * (HOLD + leg);
-  const at = (time: number) => time / duration;
+  const offsetAt = (time: number) => time / duration;
   const home = "translateX(0px)";
   const away = `translateX(-${distance}px)`;
   return {
     duration,
     keyframes: [
       { offset: 0, transform: home },
-      { offset: at(HOLD), transform: home, easing: "ease-in-out" },
-      { offset: at(HOLD + leg), transform: away },
-      { offset: at(2 * HOLD + leg), transform: away, easing: "ease-in-out" },
+      { offset: offsetAt(HOLD), transform: home, easing: "ease-in-out" },
+      { offset: offsetAt(HOLD + leg), transform: away },
+      { offset: offsetAt(2 * HOLD + leg), transform: away, easing: "ease-in-out" },
       { offset: 1, transform: home },
     ],
   };
@@ -48,14 +48,14 @@ export function revealFrames(distance: number): { keyframes: Keyframe[]; duratio
  * matches, and cancels the scroll once the button is neither hovered nor focus-visible.
  */
 export function followReveals(root: ShadowRoot | HTMLElement, reducedMotion: MediaQueryList): void {
-  const mark = (event: Event) => {
+  const markOverflow = (event: Event) => {
     const copy = copyIn(event.target);
     const inner = copy?.firstElementChild;
     if (!copy || !inner) return;
     copy.toggleAttribute("data-overflows", inner.scrollWidth > copy.clientWidth);
   };
-  root.addEventListener("pointerover", mark);
-  root.addEventListener("focusin", mark);
+  root.addEventListener("pointerover", markOverflow);
+  root.addEventListener("focusin", markOverflow);
 
   // A copy is keyed by its row's path, so a recycled row element brings a fresh one.
   const scrolls = new WeakMap<Element, Animation>();

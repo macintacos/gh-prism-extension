@@ -192,24 +192,24 @@ async function resize(count: number) {
   await sectionTrees(count, "sidebar").mount();
   const sidebar = document.getElementById("pr-file-tree");
   if (!sidebar) throw new Error("no #pr-file-tree");
-  const steps: number[] = [];
-  let refits = 0;
+  const stepMs: number[] = [];
+  let refitSteps = 0;
   for (let step = 0; step < 20; step++) {
     await nextFrame();
-    const before = treeStyles();
+    const stylesBefore = treeStyles();
     const start = performance.now();
     sidebar.style.width = `${480 - step * 16}px`;
     await afterFrame();
-    steps.push(performance.now() - start);
-    if (treeStyles() !== before) refits += 1;
+    stepMs.push(performance.now() - start);
+    if (treeStyles() !== stylesBefore) refitSteps += 1;
   }
-  if (refits === 0) throw new Error("no step refit a chain row");
-  const sorted = steps.toSorted((a, b) => a - b);
+  if (refitSteps === 0) throw new Error("no step refit a chain row");
+  const sorted = stepMs.toSorted((a, b) => a - b);
   return {
     files: count,
     "step p50 ms": round(percentile(sorted, 0.5)),
     "step p95 ms": round(percentile(sorted, 0.95)),
-    "refit steps": refits,
+    "refit steps": refitSteps,
   };
 }
 

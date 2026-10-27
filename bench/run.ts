@@ -74,10 +74,13 @@ const inline: BunPlugin = {
 async function withImports(path: string): Promise<string> {
   const sheet = await readFile(path, "utf8");
   const imports = [...sheet.matchAll(/@import "([^"]+)";/g)];
-  const inlined = await Promise.all(
+  const importedSheets = await Promise.all(
     imports.map(([, url = ""]) => withImports(join(dirname(path), url))),
   );
-  return imports.reduce((text, [statement], i) => text.replace(statement, inlined[i] ?? ""), sheet);
+  return imports.reduce(
+    (text, [statement], i) => text.replace(statement, importedSheets[i] ?? ""),
+    sheet,
+  );
 }
 
 async function bundle(): Promise<string> {

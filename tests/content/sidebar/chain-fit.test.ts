@@ -21,21 +21,22 @@ describe("fitChain", () => {
 describe("chainRule", () => {
   const row = "a/b/c/d/";
   const units = ["a/", "a/b/", "a/b/c/", "a/b/c/d/"];
-  const at = `[data-type="item"][data-item-path="${CSS.escape(row)}"]`;
-  const unit = (path: string) => `${at} [data-item-flattened-subitem="${CSS.escape(path)}"]`;
+  const rowSelector = `[data-type="item"][data-item-path="${CSS.escape(row)}"]`;
+  const unitSelector = (path: string) =>
+    `${rowSelector} [data-item-flattened-subitem="${CSS.escape(path)}"]`;
 
   it("hides the middle folders and shows the …", () => {
     expect(chainRule(row, units, { first: true, from: 3 })).toBe(
-      `${unit("a/b/")},${unit("a/b/c/")}{position:absolute;visibility:hidden}` +
-        `${at} [data-item-flattened-ellipsis]{position:static;visibility:inherit}`,
+      `${unitSelector("a/b/")},${unitSelector("a/b/c/")}{position:absolute;visibility:hidden}` +
+        `${rowSelector} [data-item-flattened-ellipsis]{position:static;visibility:inherit}`,
     );
   });
 
   it("hides the first folder and the …'s separator", () => {
     expect(chainRule(row, units, { first: false, from: 3 })).toBe(
-      `${unit("a/")},${unit("a/b/")},${unit("a/b/c/")}{position:absolute;visibility:hidden}` +
-        `${at} [data-item-flattened-ellipsis]{position:static;visibility:inherit}` +
-        `${at} [data-item-flattened-ellipsis]>[data-item-flattened-separator]{position:absolute;visibility:hidden}`,
+      `${unitSelector("a/")},${unitSelector("a/b/")},${unitSelector("a/b/c/")}{position:absolute;visibility:hidden}` +
+        `${rowSelector} [data-item-flattened-ellipsis]{position:static;visibility:inherit}` +
+        `${rowSelector} [data-item-flattened-ellipsis]>[data-item-flattened-separator]{position:absolute;visibility:hidden}`,
     );
   });
 

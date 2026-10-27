@@ -1057,16 +1057,16 @@ test("a folder chain settles at every sidebar width", async ({ context, page }) 
         .join();
     const tree = document.getElementById("pr-file-tree");
     if (!tree) throw new Error("no #pr-file-tree");
-    const widths = [];
+    const unsettledWidths = [];
     for (let width = 220; width <= 370; width++) {
       tree.style.width = `${width}px`;
       await frame();
       await frame();
       const before = layout();
       await frame();
-      if (layout() !== before) widths.push(width);
+      if (layout() !== before) unsettledWidths.push(width);
     }
-    return widths;
+    return unsettledWidths;
   });
 
   expect(unsettled).toEqual([]);
@@ -1098,10 +1098,10 @@ const sampleReveals = (page: Page) =>
         const transform = getComputedStyle(copy.firstElementChild ?? copy).transform;
         seen[text] = [...new Set([...(seen[text] ?? []), transform])];
         const button = copy.closest("button");
-        const own =
+        const readsOwnName =
           !button?.matches('[data-type="item"]') ||
           button.getAttribute("aria-label")?.startsWith(text);
-        if (!button?.matches(":hover, :focus-visible") || !own) strays.push(text);
+        if (!button?.matches(":hover, :focus-visible") || !readsOwnName) strays.push(text);
       }
       requestAnimationFrame(tick);
     };
@@ -1222,13 +1222,13 @@ test("a truncated section header reveals its full label", async ({ context, page
 test("a row stays clickable while its name scrolls", async ({ context, page }) => {
   await servesNarrowChain(context, page);
   const row = page.locator(`[data-item-path="${CHAIN_PATH}"]`);
-  const expanded = await row.getAttribute("aria-expanded");
+  const expandedBefore = await row.getAttribute("aria-expanded");
   await row.hover();
   await expectScrollingReveal(page, row, CHAIN_NAME);
 
   await row.click();
 
-  await expect(row).not.toHaveAttribute("aria-expanded", expanded ?? "");
+  await expect(row).not.toHaveAttribute("aria-expanded", expandedBefore ?? "");
 });
 
 test("scrolling the tree never leaves a revealed name on another file's row", async ({
@@ -1243,12 +1243,12 @@ test("scrolling the tree never leaves a revealed name on another file's row", as
   await row.hover();
   await expect.poll(() => revealOf(row)).toMatchObject({ shown: true });
   const sidebar = page.locator("#pr-file-tree");
-  const from = await sidebar.evaluate((sidebar) => sidebar.scrollTop);
+  const scrollTopBefore = await sidebar.evaluate((sidebar) => sidebar.scrollTop);
 
   for (let step = 0; step < 10; step++) await page.mouse.wheel(0, -300);
   await expect
     .poll(() => sidebar.evaluate((sidebar) => sidebar.scrollTop))
-    .toBeLessThan(from - 2000);
+    .toBeLessThan(scrollTopBefore - 2000);
 
   expect(
     await page.evaluate(() => (window as unknown as { revealStrays: string[] }).revealStrays),

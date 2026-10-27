@@ -13,11 +13,11 @@ export interface ChainFit {
  * `ellipsis` is the `…` unit's width, its separator included. Widths in CSS px.
  */
 export function fitChain(units: readonly number[], ellipsis: number, room: number): ChainFit {
-  const sum = (from: number) => units.slice(from).reduce((total, width) => total + width, 0);
-  if (sum(0) <= room) return { first: true, from: 1 };
+  const widthFrom = (from: number) => units.slice(from).reduce((total, width) => total + width, 0);
+  if (widthFrom(0) <= room) return { first: true, from: 1 };
 
   for (let from = 2; from < units.length; from++) {
-    if ((units[0] ?? 0) + ellipsis + sum(from) <= room) return { first: true, from };
+    if ((units[0] ?? 0) + ellipsis + widthFrom(from) <= room) return { first: true, from };
   }
   return { first: false, from: units.length - 1 };
 }
@@ -30,16 +30,18 @@ const HIDDEN = "position:absolute;visibility:hidden";
  * nothing hides.
  */
 export function chainRule(rowPath: string, unitPaths: readonly string[], fit: ChainFit): string {
-  const row = `[data-type="item"][data-item-path="${CSS.escape(rowPath)}"]`;
-  const hidden = unitPaths.slice(fit.first ? 1 : 0, fit.from);
-  if (!hidden.length) return "";
+  const rowSelector = `[data-type="item"][data-item-path="${CSS.escape(rowPath)}"]`;
+  const hiddenPaths = unitPaths.slice(fit.first ? 1 : 0, fit.from);
+  if (!hiddenPaths.length) return "";
 
-  const ellipsis = `${row} [data-item-flattened-ellipsis]`;
-  const units = hidden.map((path) => `${row} [data-item-flattened-subitem="${CSS.escape(path)}"]`);
+  const ellipsisSelector = `${rowSelector} [data-item-flattened-ellipsis]`;
+  const hiddenUnitSelectors = hiddenPaths.map(
+    (path) => `${rowSelector} [data-item-flattened-subitem="${CSS.escape(path)}"]`,
+  );
   return (
-    `${units.join(",")}{${HIDDEN}}` +
+    `${hiddenUnitSelectors.join(",")}{${HIDDEN}}` +
     // inherit, not visible, so the row's revealed full name can hide it too.
-    `${ellipsis}{position:static;visibility:inherit}` +
-    (fit.first ? "" : `${ellipsis}>[data-item-flattened-separator]{${HIDDEN}}`)
+    `${ellipsisSelector}{position:static;visibility:inherit}` +
+    (fit.first ? "" : `${ellipsisSelector}>[data-item-flattened-separator]{${HIDDEN}}`)
   );
 }
