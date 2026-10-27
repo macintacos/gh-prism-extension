@@ -138,8 +138,31 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
    ellipsis, and only then its decoration; the library's flex gives the decoration only what the
    name leaves, clipping it mid-word. 999999 is the library's own weight for shrinking first. */
 [data-item-section="content"] {
+  position: relative;
   flex-shrink: 999999;
   min-width: 6ch;
+}
+
+/* Hidden units stay laid out, never display: none, so the fit can still measure them. */
+[data-full-name],
+[data-item-flattened-ellipsis] {
+  position: absolute;
+  visibility: hidden;
+}
+
+[data-full-name] {
+  inset: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+[data-item-flattened-subitem] {
+  flex: none;
+}
+
+[data-item-flattened-subitem]:last-child {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 [data-item-section="decoration"] {

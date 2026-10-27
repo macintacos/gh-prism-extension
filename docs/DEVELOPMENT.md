@@ -132,9 +132,15 @@ Two dependencies carry local patches in [`patches/`](../patches/), which Bun app
 install through `patchedDependencies` in [`package.json`](../package.json):
 
 - `@pierre/trees` adds a row decoration's title to the row's accessible label, and renders
-  a checkbox beside a row whose decoration asks for one.
+  a checkbox beside a row whose decoration asks for one. It also renders a flattened row's
+  folders as whole units around a hidden `…`, and gives every row an `aria-hidden` copy of
+  its full name.
 - `wxt` escapes the entrypoint path in a regular expression, so a checkout whose path
   holds a character such as `+` still builds.
 
 A patch is pinned to one exact version. When you upgrade a patched dependency, regenerate
-its patch with `bun patch`, or drop the patch once upstream fixes the issue.
+its patch with `bun patch`, or drop the patch once upstream fixes the issue. Bun's
+isolated linker trips on `bun patch --commit`: it leaves `node_modules/<pkg>` a real
+directory, so the package's own dependencies stop resolving, and it adds a `.bun-tag-*`
+file to the patch. Delete that file's hunk from the patch, then run
+`rm -rf node_modules/<pkg> && bun install` to restore the link.
