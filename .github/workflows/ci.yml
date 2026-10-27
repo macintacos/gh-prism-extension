@@ -39,5 +39,4 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('bun.lock') }}
           restore-keys: playwright-${{ runner.os }}-
-      - run: bunx --no-install playwright install-deps chromium
       - run: mise run e2e
