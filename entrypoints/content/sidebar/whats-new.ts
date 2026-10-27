@@ -78,7 +78,7 @@ export function whatsNewBlock(doc: Document, { version, notes, dismiss }: WhatsN
   const notesPane = el(
     doc,
     "div",
-    "tw:max-h-64 tw:overflow-y-auto tw:pt-0 tw:px-3 tw:pb-3 tw:text-body-small tw:leading-body-small tw:text-fg-default tw:[&_:is(p,ul,h4)]:mt-0 tw:[&_:is(p,ul,h4)]:mb-2 tw:[&_ul]:ps-5 tw:[&_h4]:text-body-small tw:[&_h4]:font-semibold",
+    "gh-prism-whats-new-notes tw:max-h-64 tw:overflow-y-auto tw:pt-0 tw:px-3 tw:pb-3 tw:text-body-small tw:leading-body-small tw:text-fg-default tw:[&_:is(p,ul,h4)]:mt-0 tw:[&_:is(p,ul,h4)]:mb-2 tw:[&_ul]:ps-5 tw:[&_h4]:text-body-small tw:[&_h4]:font-semibold",
     ...markdownNodes(doc, notes),
     link,
   );
