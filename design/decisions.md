@@ -6,6 +6,24 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-26: Names too long for their row
+
+- **Compared:** three treatments, mocked on a chain of five flattened folders. The first
+  drops leading folders whole behind `…` and shows the full path in a tooltip on hover and
+  focus. The second keeps the first folder and as many trailing folders as fit around a
+  `…`, and scrolls the full name back and forth on hover and focus. The third cuts each
+  parent folder to its first few letters and opens the full path over the row on hover and
+  focus.
+- **Won:** the scrolling name. A folder chain keeps its first folder and as many trailing
+  folders as fit, and hides the rest behind one `…` between slashes. When that doesn't
+  fit, the first folder hides too. A folder's name is cut only when the deepest folder
+  alone doesn't fit the row. A file row scrolls only its name, not its path. Under reduced
+  motion, the reviewer scrolls the full name by hand. The row refits as the sidebar is
+  resized, so a sidebar wide enough shows the whole path.
+- **Why:** a reviewer should see roughly where a file lives at a glance, and hover should
+  pin down exactly where. The scroll departs from the brief's rule to move only to confirm
+  an action or show a state change, so the brief says so once this lands.
+
 ## 2026-10-23: Section edge and corners
 
 - **Compared:** three hairlines at 8px corners, each in light and dark. Each mixed the
