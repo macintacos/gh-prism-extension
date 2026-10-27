@@ -7,8 +7,8 @@ import { el } from "./dom";
 
 /** Average scroll speed, px/s, and the pause at each end, ms. The wait and fade-in live only in
  * reveal.css: the scroll starts when the fade-in ends. */
-const SPEED = 60; // px/s
-const HOLD = 1000; // ms
+const SPEED = 60;
+const HOLD = 1000;
 // Keep in sync with reveal.css's end padding, so the last letter scrolls clear of the fade.
 const END_PADDING = 12; // px
 
