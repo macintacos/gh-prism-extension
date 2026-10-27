@@ -94,8 +94,8 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
 - **Reproduce CI's e2e timing on Linux with 4 CPUs.** macOS runs too fast to show a
   slowdown CI fails on. With the extension built on the host, run the suite in
   `mcr.microsoft.com/playwright:v<version>-noble` with the repository mounted, through
-  `container run -c 4 -m 8G` or `docker run --cpus 4`, and
-  `node node_modules/@playwright/test/cli.js test`. Like CI, it runs 2 workers.
+  `container run -c 4 -m 8G` or `docker run --cpus 4` with `-e CI=1` for CI's 4 workers,
+  and `node node_modules/@playwright/test/cli.js test`.
 
 ## Verifying in a real browser
 
