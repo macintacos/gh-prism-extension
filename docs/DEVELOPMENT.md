@@ -46,7 +46,7 @@ then reload a Files view.
 | `mise run build` | Builds the extension into `.output/chrome-mv3`, ready for Chrome's **Load unpacked**. |
 | `mise run test [filter] [-w]` | Runs Vitest, only on test files whose path contains `filter`; `-w` reruns on change. |
 | `mise run e2e` | Builds the extension and runs the Playwright smoke suite against it. |
-| `mise run bench [--entry-size n]` | Times the diff order, section trees, and intent read on large synthetic diffs. |
+| `mise run bench [--entry-size n]` | Times the diff order, section trees, a sidebar resize, and intent read on large synthetic diffs. |
 | `mise run format` | Formats every file. |
 | `mise run format-check` | Checks formatting without writing. |
 | `mise run lint` | Runs the linters, read-only. |
@@ -69,9 +69,11 @@ The rules for writing tests are in
 ## Benchmark
 
 `mise run bench` times the real diff order, section trees, and intent read in headless
-Chromium on synthetic diffs of 100, 300, and 1,000 files. `--entry-size n` sets how many
-elements each synthetic diff entry has, its wrapper included; the default is 95. The
-benchmark lives in `bench/` and runs outside CI, Vitest, and Playwright.
+Chromium on synthetic diffs of 100, 300, and 1,000 files. Its resize case narrows the
+sidebar 20 times, one step per frame, and reports each step's p50 and p95 time, folder
+chain refits included. `--entry-size n` sets how many elements each synthetic diff entry
+has, its wrapper included; the default is 95. The benchmark lives in `bench/` and runs
+outside CI, Vitest, and Playwright.
 
 ## A sandbox repository
 
