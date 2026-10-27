@@ -20,7 +20,7 @@ import {
   observeTree,
   readChangedFiles,
 } from "../files-page";
-import { type DiffstatChoice, showDiffstat } from "../header/diffstat-view";
+import { type DiffstatOptions, showDiffstat } from "../header/diffstat-view";
 import { showSections } from "../sidebar/sections-view";
 import { type WhatsNew, whatsNewBlock } from "../sidebar/whats-new";
 
@@ -138,7 +138,7 @@ export function showVisit(
     diffstat,
     viewed,
     whatsNew,
-  }: { intent: PendingIntent; diffstat: DiffstatChoice; viewed: VisitViewed; whatsNew?: WhatsNew },
+  }: { intent: PendingIntent; diffstat: DiffstatOptions; viewed: VisitViewed; whatsNew?: WhatsNew },
 ): void {
   const sidebar = showSections(page, signal);
   if (whatsNew) sidebar.root.prepend(whatsNewBlock(page.sidebar.ownerDocument, whatsNew));
@@ -146,7 +146,7 @@ export function showVisit(
     sidebar,
     showDiffOrder(page, signal),
     followFileKeys(page, signal),
-    showDiffstat(page, { choice: diffstat, signal }),
+    showDiffstat(page, { ...diffstat, signal }),
     followOnScreen(page, sidebar.onScreen, signal),
     followViewed(page, viewed, sidebar.viewed, signal),
   ];

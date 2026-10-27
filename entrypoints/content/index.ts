@@ -6,7 +6,13 @@ import { connectPrData } from "@/utils/github/pr-port";
 import { readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
 import { storedIntents } from "@/utils/intent/cache";
 import { type IntentSources, intentFor, shareIntent } from "@/utils/intent/read";
-import { classicNoticeDismissed, sidebarSide, whatsNewSeen } from "@/utils/prefs";
+import {
+  classicNoticeDismissed,
+  type DiffstatView,
+  diffstatView,
+  sidebarSide,
+  whatsNewSeen,
+} from "@/utils/prefs";
 import {
   dismissWhatsNew,
   type WhatsNewState,
@@ -35,7 +41,6 @@ export default defineContentScript({
   matches: ["https://github.com/*"],
   runAt: "document_start",
   async main(ctx) {
-    const diffstat: DiffstatChoice = { view: "breakout" };
     const version = browser.runtime.getManifest().version;
     const sources = {
       connect: connectPrData,
@@ -43,13 +48,15 @@ export default defineContentScript({
       pinOf: (diff) => readDiffPin(document, diff),
     } satisfies IntentSources;
     const release = releaseOf(import.meta.env.WXT_RELEASE_NOTES, version);
-    // Read before watching, so a saved side or dismissal never shows its default first.
-    const [savedSide, dismissed, whatsNewForPage] = await Promise.all([
+    // Read before watching, so a saved side, view, or dismissal never shows its default first.
+    const [savedSide, savedDiffstat, dismissed, whatsNewForPage] = await Promise.all([
       readSavedSide(),
+      readSavedDiffstat(),
       readNoticeDismissed(),
       release && followWhatsNew(release, ctx),
     ]);
     const side = sideChoiceOf(savedSide);
+    const diffstat = diffstatChoiceOf(savedDiffstat);
     const notice: NoticeChoice = { dismissed };
     let fullLoad = true;
     // Registered before watchFilesPages, so the flag clears before a navigation's visit runs.
@@ -72,7 +79,12 @@ export default defineContentScript({
           };
           return (page, signal) => {
             showReportLink(page, signal, reportOptions);
-            showVisit(page, signal, { intent, diffstat, viewed, whatsNew: whatsNewForPage?.() });
+            showVisit(page, signal, {
+              intent,
+              diffstat: { choice: diffstat, save: saveDiffstat },
+              viewed,
+              whatsNew: whatsNewForPage?.(),
+            });
             dockSidebar(page, signal, { choice: side, save: saveSide });
           };
         },
@@ -106,6 +118,24 @@ const saveSide = (picked: Side) =>
   sidebarSide
     .setValue(picked)
     .catch((error: unknown) => console.error("gh-prism: saving the sidebar side failed", error));
+
+/** The stored diffstat view, unchecked, or the default when storage won't read. */
+const readSavedDiffstat = (): Promise<unknown> =>
+  diffstatView.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading the diffstat view failed", error);
+    return diffstatView.fallback;
+  });
+
+/** The view the header counter opens on: `saved`, when it names one, else the default. */
+function diffstatChoiceOf(saved: unknown): DiffstatChoice {
+  // `fallback` covers only a missing view; a corrupt one reads back as stored.
+  return { view: saved === "breakout" || saved === "total" ? saved : diffstatView.fallback };
+}
+
+const saveDiffstat = (view: DiffstatView) =>
+  diffstatView
+    .setValue(view)
+    .catch((error: unknown) => console.error("gh-prism: saving the diffstat view failed", error));
 
 /** Whether the user dismissed the classic page's notice; not, when storage won't read. */
 const readNoticeDismissed = (): Promise<boolean> =>

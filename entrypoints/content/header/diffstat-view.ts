@@ -5,6 +5,7 @@
  */
 
 import { type Landing, landingOf, type SectionLines, sum, totalsOf } from "@/utils/intent/landing";
+import type { DiffstatView } from "@/utils/prefs";
 import { type FilesPage, findDiffstat, observeDiffstat } from "../files-page";
 import { el } from "../ui/dom";
 import { count, counts } from "../ui/line-counts";
@@ -15,7 +16,14 @@ import css from "./diffstat-view.css?inline";
 
 /** Which view the header counter shows. One per tab, so the choice carries to the next page. */
 export interface DiffstatChoice {
-  view: "breakout" | "total";
+  view: DiffstatView;
+}
+
+/** The tab's view choice for `showDiffstat` to apply, and how to persist a switch. */
+export interface DiffstatOptions {
+  readonly choice: DiffstatChoice;
+  /** Remembers a view the counter switched to. */
+  readonly save: (view: DiffstatView) => void;
 }
 
 const TIP =
@@ -86,15 +94,15 @@ function breakdown(doc: Document, sections: readonly SectionLines[]): HTMLElemen
 
 /**
  * Stands in for `page`'s lines-changed counter until `signal` aborts: a pill per section with the
- * lines `landing` places there, or GitHub's total, as `choice` says. A click switches view and
- * records it in `choice`. GitHub's counter stays in the page, hidden by the stylesheet while this
+ * lines `landing` places there, or GitHub's total, as `choice` says. A click switches view,
+ * records it in `choice`, and `save`s it. GitHub's counter stays in the page, hidden by the stylesheet while this
  * sits just before it. A pull request's counter can mount long after intent lands, and GitHub can
  * swap it for a skeleton again, so this follows it, stepping aside while there is none.
  */
 function showCounter(
   page: FilesPage,
   landing: Landing,
-  { choice, signal }: { choice: DiffstatChoice; signal: AbortSignal },
+  { choice, save, signal }: DiffstatOptions & { readonly signal: AbortSignal },
 ): void {
   const doc = page.sidebar.ownerDocument;
   const sections = totalsOf(landing);
@@ -116,6 +124,7 @@ function showCounter(
   };
   button.addEventListener("click", () => {
     choice.view = choice.view === "breakout" ? "total" : "breakout";
+    save(choice.view);
     if (native) render(native);
   });
 
@@ -144,11 +153,11 @@ function showCounter(
  */
 export function showDiffstat(
   page: FilesPage,
-  { choice, signal }: { choice: DiffstatChoice; signal: AbortSignal },
+  { choice, save, signal }: DiffstatOptions & { readonly signal: AbortSignal },
 ): LandingView {
   return {
     landed(result) {
-      if (result.ok) showCounter(page, landingOf(result), { choice, signal });
+      if (result.ok) showCounter(page, landingOf(result), { choice, save, signal });
     },
   };
 }

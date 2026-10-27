@@ -77,7 +77,7 @@ describe("showSections in the narrow layout's overlay", () => {
     onTestFinished(() => visit.abort());
     showVisit(page, visit.signal, {
       intent: () => landedWith(),
-      diffstat: { view: "breakout" },
+      diffstat: { choice: { view: "breakout" }, save: () => {} },
       viewed: visitViewed(undefined),
       whatsNew: { version: "1.2.3", notes: "", dismiss: () => {} },
     });

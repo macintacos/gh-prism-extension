@@ -7,7 +7,7 @@ import { dockSidebar, type Side } from "../../entrypoints/content/sidebar/side";
 import { showVisit } from "../../entrypoints/content/visit/land";
 import { readFilesRoute } from "../../utils/github/files-route";
 import { intentFor } from "../../utils/intent/read";
-import { whatsNewSeen } from "../../utils/prefs";
+import { type DiffstatView, whatsNewSeen } from "../../utils/prefs";
 import {
   byId,
   loadClassicFixture,
@@ -120,6 +120,43 @@ describe("content script", () => {
     docked()[0]?.save("left");
 
     await vi.waitFor(() => expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure));
+  });
+
+  it.each<{ saved?: unknown; opens: DiffstatView }>([
+    { saved: "total", opens: "total" },
+    { saved: "sideways", opens: "breakout" },
+    { opens: "breakout" },
+  ])(
+    "opens the header counter on the $opens from the first page (saved: $saved)",
+    async ({ saved, opens }) => {
+      // Raw key on purpose, so the test outlives a move to typed storage items.
+      if (saved !== undefined) await fakeBrowser.storage.sync.set({ diffstatView: saved });
+      const views: DiffstatView[] = [];
+      vi.mocked(showVisit).mockImplementationOnce((_page, _signal, { diffstat }) => {
+        views.push(diffstat.choice.view);
+      });
+
+      await run();
+
+      expect(views).toEqual([opens]);
+    },
+  );
+
+  it("opens a commit, after a reload, on the view a pull request switched to", async () => {
+    await run();
+    vi.mocked(showVisit).mock.calls[0]?.[2].diffstat.save("total");
+    await vi.waitFor(async () =>
+      expect(await fakeBrowser.storage.sync.get("diffstatView")).toEqual({ diffstatView: "total" }),
+    );
+
+    controller.abort();
+    controller = new AbortController();
+    history.replaceState(null, "", "/o/r/commit/dd95cdc");
+    loadCommitFixture();
+    await run();
+
+    expect(showVisit).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(showVisit).mock.calls.at(-1)?.[2].diffstat.choice.view).toBe("total");
   });
 
   it("mounts every page of a visit on one shared diff read", async () => {
