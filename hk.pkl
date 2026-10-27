@@ -99,6 +99,11 @@ hooks {
     steps = new Mapping<String, Step> {
       ...formatters
       ...linters
+      // Not in `linters`: CI's `check` job lacks the extension, and the `lockfile` job verifies there.
+      ["Actions(Lock)     [[gh.actions-lock]]"] = new Step {
+        glob = List(".github/workflows/*.{yml,yaml}", ".github/workflows/actions.lock")
+        check = "gh actions-lock --verify-local"
+      }
     }
   }
 
