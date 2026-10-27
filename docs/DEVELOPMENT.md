@@ -100,11 +100,18 @@ hk, a git hook manager configured in [`hk.pkl`](../hk.pkl), runs two hooks:
 ## CI
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push and pull
-request, as two parallel jobs that each install the pinned tools and dependencies: `check`
-runs `mise run preflight`, and `e2e` runs `mise run e2e`. Both cache bun's package cache,
-and `e2e` also caches Playwright's browsers, each keyed on `bun.lock`. `e2e` skips
+request, as three parallel jobs. Two of them install the pinned tools and dependencies:
+`check` runs `mise run preflight`, and `e2e` runs `mise run e2e`. Both cache bun's package
+cache, and `e2e` also caches Playwright's browsers, each keyed on `bun.lock`. `e2e` skips
 `playwright install-deps`: the runner image already has Chromium's system libraries, and
 that step's apt downloads sometimes stall for minutes.
+
+The third, `lockfile`, runs `gh actions-lock --verify`. The workflows reference actions by
+tag, and [`.github/workflows/actions.lock`](../.github/workflows/actions.lock) pins each
+tag to a commit, which is what the runner executes. After you add or change a `uses:`
+line, run `gh actions-lock` to update the lockfile. It needs the
+[gh-actions-lock](https://github.com/github/gh-actions-lock) extension:
+`gh extension install github/gh-actions-lock`.
 
 ## Releases
 
