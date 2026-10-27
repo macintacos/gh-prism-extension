@@ -93,7 +93,8 @@ that failed midway is the exception: fix it by hand.
 hk, a git hook manager configured in [`hk.pkl`](../hk.pkl), runs two hooks:
 
 - **pre-commit** formats and lints the staged files, so every commit stays formatted and
-  clean.
+  clean. When a workflow or the lockfile is staged, it also runs
+  `gh actions-lock --verify-local`, which fails when a `uses:` line has no lockfile entry.
 - **pre-push** runs `mise run test` when a pushed change touches TypeScript, JavaScript,
   `package.json`, or `bun.lock`.
 
