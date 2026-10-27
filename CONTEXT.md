@@ -138,8 +138,7 @@ aren't.
 
 **Breakout**: The diffstat view with one pill per section.
 
-**Pill**: One section's rounded label in the breakout: its icon and the lines it adds and
-removes.
+**Pill**: One section's label in the breakout: its icon and the lines it adds and removes.
 
 **Total**: The diffstat view that shows GitHub's own count.
 

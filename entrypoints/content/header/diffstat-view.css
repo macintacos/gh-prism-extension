@@ -23,6 +23,26 @@
   color: var(--gh-prism-hue);
 }
 
+.gh-prism-diffstat > .gh-prism-pill > svg {
+  color: var(--fgColor-muted);
+  transition: color 120ms ease-out;
+}
+
+.gh-prism-diffstat:is(:hover, :focus-visible) > .gh-prism-pill > svg {
+  color: var(--gh-prism-hue);
+}
+
+/* Centred on the pill's 20px line. */
+.gh-prism-pill + .gh-prism-pill::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 4px;
+  width: 1px;
+  height: 12px;
+  background: var(--borderColor-default);
+}
+
 .gh-prism-tip {
   opacity: 0;
   visibility: hidden;
@@ -53,5 +73,9 @@
   .gh-prism-tip {
     transition: none;
     animation: none;
+  }
+
+  .gh-prism-diffstat > .gh-prism-pill > svg {
+    transition: none;
   }
 }

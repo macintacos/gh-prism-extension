@@ -42,7 +42,7 @@ function pill(doc: Document, { section, lines }: SectionLines): HTMLElement {
   const node = el(
     doc,
     "span",
-    "gh-prism-pill tw:relative tw:inline-flex tw:items-center tw:gap-1 tw:pr-2 tw:pl-1.5 tw:rounded-medium tw:bg-hue-tint tw:leading-5",
+    "gh-prism-pill tw:relative tw:inline-flex tw:items-center tw:gap-1 tw:px-2 tw:first:ps-0 tw:last:pe-0 tw:leading-5",
     sectionIcon(doc, section),
     ...counts(doc, lines),
     el(doc, "span", "sr-only", spoken),
@@ -112,7 +112,7 @@ function showCounter(
   const button = el(
     doc,
     "button",
-    "gh-prism-diffstat tw:relative tw:flex tw:items-center tw:gap-1 tw:p-0 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-default tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-focus-outline",
+    "gh-prism-diffstat tw:relative tw:flex tw:items-center tw:p-0 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-default tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-focus-outline",
   );
   button.type = "button";
   let native: Element | undefined;

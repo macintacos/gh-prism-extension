@@ -6,7 +6,7 @@
 /* v4's hover: applies only under (hover: hover); the sheets' :hover never did. */
 @custom-variant hover (&:hover);
 
-/* inline: each utility reads the Primer variable at the element, so --color-hue-tint follows
+/* inline: each utility reads the Primer variable at the element, so --color-hue-edge follows
    that element's --gh-prism-hue, and nothing lands on :root. */
 @theme inline {
   /* px, not rem: GitHub's root font size must not scale it. */
@@ -19,7 +19,6 @@
   --color-fg-muted: var(--fgColor-muted);
   --color-fg-success: var(--fgColor-success);
   --color-fg-danger: var(--fgColor-danger);
-  --color-hue-tint: color-mix(in srgb, var(--gh-prism-hue) 14%, var(--bgColor-default));
   /* A dark theme's border would brighten the edge, so it mixes into the darker inset there.
      light-dark() follows GitHub's theme, because GitHub sets color-scheme on the page. */
   --color-hue-edge: color-mix(

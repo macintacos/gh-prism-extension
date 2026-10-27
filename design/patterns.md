@@ -11,8 +11,9 @@ to `entrypoints/content/`.
 
 A section is its label, its 16px Octicon, and its hue, all from one `SECTION_CATALOG` row
 in `ui/section-catalog.ts`. Only the icon takes the hue. The label and its file counter
-stay in `--fgColor-default`. The header counter's pills draw from the same row, so a
-section looks the same in the header and in the sidebar.
+stay in `--fgColor-default`. The header counter's pills draw from the same row, but their
+icons stay in `--fgColor-muted` until the counter is hovered or focused, and short
+hairlines rule the pills apart. `exceptions.md` says why.
 
 The icon gives way to a chevron while the header is hovered or focused, and the chevron's
 turn shows whether the section is open. A folder row inside a section does the same with a

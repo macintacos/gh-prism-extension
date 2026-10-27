@@ -216,7 +216,7 @@ describe("the header's lines-changed counter", () => {
     expect(tipOf(counter())?.lastElementChild?.textContent).toBe("Click to split by section");
   });
 
-  it("tints each pill, and each row of the total's tooltip, with its section's hue", async () => {
+  it("marks each pill, and each row of the total's tooltip, with its section's hue", async () => {
     await landed(counted);
 
     const huesOf = (nodes: Iterable<HTMLElement>) =>

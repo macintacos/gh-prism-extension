@@ -36,3 +36,7 @@ the departure as intended.
   paints, except the file icons, is one Primer variable that GitHub themes. The edge needs
   a darker ground in a dark theme, because the border variable it mixes into in a light
   theme would brighten the section. `tokens.md` § Section edge has the recipe.
+- **Header icons: grey until hover, not in their section's hue.** `patterns.md` gives
+  every section's icon its hue. Beside GitHub's own header controls, hued icons pulled the
+  eye away from the review, so the header counter's icons stay `--fgColor-muted` until the
+  counter is hovered or focused. The sidebar's icons keep their hue.
