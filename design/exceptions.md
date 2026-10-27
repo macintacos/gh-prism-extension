@@ -40,3 +40,7 @@ the departure as intended.
   every section's icon its hue. Beside GitHub's own header controls, hued icons pulled the
   eye away from the review, so the header counter's icons stay `--fgColor-muted` until the
   counter is hovered or focused. The sidebar's icons keep their hue.
+- **Header hairlines: decoration, below the 3:1 floor.** The floor holds hairlines to 3:1.
+  The short rules between the header counter's pills only echo the spacing and icons that
+  already separate the sections, so they stay `--borderColor-default`. `decisions.md` has
+  the pick.

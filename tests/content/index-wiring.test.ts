@@ -87,7 +87,7 @@ describe("content script", () => {
     },
   );
 
-  it("opens on the right and mounts when reading the saved side fails", async () => {
+  it("opens on the right and the breakout and mounts when reading saved choices fails", async () => {
     const failure = new Error("context invalidated");
     vi.spyOn(fakeBrowser.storage.sync, "get").mockRejectedValue(failure);
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -100,6 +100,7 @@ describe("content script", () => {
 
     expect(sides).toEqual(["right"]);
     expect(showVisit).toHaveBeenCalledOnce();
+    expect(vi.mocked(showVisit).mock.calls[0]?.[2].diffstat.choice.view).toBe("breakout");
     expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
   });
 

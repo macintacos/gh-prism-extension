@@ -178,8 +178,10 @@ describe("the header's lines-changed counter", () => {
     const save = vi.fn();
     remountWith(() => Promise.resolve(counted), { choice: { view: "breakout" }, save });
     await afterDebounce();
+
     counter()?.click();
     counter()?.click();
+
     expect(save.mock.calls).toEqual([["total"], ["breakout"]]);
   });
 

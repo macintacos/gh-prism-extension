@@ -42,7 +42,7 @@ function pill(doc: Document, { section, lines }: SectionLines): HTMLElement {
   const node = el(
     doc,
     "span",
-    "gh-prism-pill tw:relative tw:inline-flex tw:items-center tw:gap-1 tw:px-2 tw:first:ps-0 tw:last:pe-0 tw:leading-5",
+    "gh-prism-pill tw:relative tw:inline-flex tw:items-center tw:gap-1 tw:not-first:ps-2 tw:not-last:pe-2 tw:leading-5",
     sectionIcon(doc, section),
     ...counts(doc, lines),
     el(doc, "span", "sr-only", spoken),
@@ -95,9 +95,10 @@ function breakdown(doc: Document, sections: readonly SectionLines[]): HTMLElemen
 /**
  * Stands in for `page`'s lines-changed counter until `signal` aborts: a pill per section with the
  * lines `landing` places there, or GitHub's total, as `choice` says. A click switches view,
- * records it in `choice`, and `save`s it. GitHub's counter stays in the page, hidden by the stylesheet while this
- * sits just before it. A pull request's counter can mount long after intent lands, and GitHub can
- * swap it for a skeleton again, so this follows it, stepping aside while there is none.
+ * records it in `choice`, and `save`s it. GitHub's counter stays in the page, hidden by the
+ * stylesheet while this sits just before it. A pull request's counter can mount long after intent
+ * lands, and GitHub can swap it for a skeleton again, so this follows it, stepping aside while
+ * there is none.
  */
 function showCounter(
   page: FilesPage,

@@ -68,7 +68,8 @@ Sizes, line heights, and weights are the `--text-body-*`, `--leading-body-*`, an
 ## Radius
 
 Sections and the controls inside them share Primer's medium radius,
-`--borderRadius-medium`, which GitHub's file cards beside the sidebar use too. Pills use
+`--borderRadius-medium`, which GitHub's file cards beside the sidebar use too. The
+sidebar's file-row decorations, such as the `Partial` pill, and section counters use
 `2em`, so they stay fully round. The Viewed box and the loading bar keep small fixed radii
 of their own, in `sidebar/section-tree.css` and `ui/loading-view.ts`, because they are too
 small for the medium radius. The skeleton lines in `diffs/order.css` and
