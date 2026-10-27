@@ -1,6 +1,7 @@
 /* GitHub hooks: #pr-file-tree, #diff_file_tree, ul[role="tree"], and the filter row's pr-lg-3.
    Every other rule selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
+@import "../ui/reveal.css";
 @source "./sections-view.ts";
 @source "../ui/line-counts.ts";
 @source "./whats-new.ts";

@@ -34,7 +34,8 @@ export function chainRule(rowPath: string, unitPaths: readonly string[], fit: Ch
   const units = hidden.map((path) => `${row} [data-item-flattened-subitem="${CSS.escape(path)}"]`);
   return (
     `${units.join(",")}{${HIDDEN}}` +
-    `${ellipsis}{position:static;visibility:visible}` +
+    // inherit, not visible, so the row's revealed full name can hide it too.
+    `${ellipsis}{position:static;visibility:inherit}` +
     (fit.first ? "" : `${ellipsis}>[data-item-flattened-separator]{${HIDDEN}}`)
   );
 }

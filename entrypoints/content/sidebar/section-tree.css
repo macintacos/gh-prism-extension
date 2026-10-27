@@ -2,6 +2,7 @@
    Chrome ignores @property in a shadow root, so no utility here may read a --tw-* variable:
    border, outline, shadow, ring, transform, gradient, leading, font-weight and tabular-nums. */
 @import "../ui/tailwind.css" prefix(tw);
+@import "../ui/reveal.css";
 @source "./section-tree.ts";
 
 /* Each host stays as tall as its rows, so the sidebar scrolls as one, and the library's viewport
@@ -144,16 +145,9 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
 }
 
 /* Hidden units stay laid out, never display: none, so the fit can still measure them. */
-[data-full-name],
 [data-item-flattened-ellipsis] {
   position: absolute;
   visibility: hidden;
-}
-
-[data-full-name] {
-  inset: 0;
-  overflow: hidden;
-  white-space: nowrap;
 }
 
 /* Kept spaces give a separator one width in and out of flow; collapsed, the `…`'s would shrink as

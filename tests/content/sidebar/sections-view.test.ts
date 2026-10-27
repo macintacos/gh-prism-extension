@@ -152,7 +152,9 @@ describe("showSections", () => {
     }
 
     expect(
-      [...document.querySelectorAll(".gh-prism-section-label")].map((label) => label.textContent),
+      [...document.querySelectorAll(".gh-prism-section-label")].map(
+        (label) => label.firstChild?.textContent,
+      ),
     ).toEqual(["Implementation", "Tests", "Docs & Comments", "Config", "Generated / lockfiles"]);
   });
 

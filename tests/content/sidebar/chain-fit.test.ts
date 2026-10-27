@@ -27,14 +27,14 @@ describe("chainRule", () => {
   it("hides the middle folders and shows the …", () => {
     expect(chainRule(row, units, { first: true, from: 3 })).toBe(
       `${unit("a/b/")},${unit("a/b/c/")}{position:absolute;visibility:hidden}` +
-        `${at} [data-item-flattened-ellipsis]{position:static;visibility:visible}`,
+        `${at} [data-item-flattened-ellipsis]{position:static;visibility:inherit}`,
     );
   });
 
   it("hides the first folder and the …'s separator", () => {
     expect(chainRule(row, units, { first: false, from: 3 })).toBe(
       `${unit("a/")},${unit("a/b/")},${unit("a/b/c/")}{position:absolute;visibility:hidden}` +
-        `${at} [data-item-flattened-ellipsis]{position:static;visibility:visible}` +
+        `${at} [data-item-flattened-ellipsis]{position:static;visibility:inherit}` +
         `${at} [data-item-flattened-ellipsis]>[data-item-flattened-separator]{position:absolute;visibility:hidden}`,
     );
   });

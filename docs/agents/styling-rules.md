@@ -28,6 +28,11 @@ markup a sheet targets are in [`github-rules.md`](github-rules.md).
 - **Put each feature's sheet beside its module, opening with an `@import` of
   `ui/tailwind.css` with `prefix(tw)`.** Each sheet carries its own copy of the utilities
   it uses.
+- **Put a partial that several features' sheets share in `ui/` beside its module, as plain
+  CSS with no Tailwind import of its own, and `@import` it right after `ui/tailwind.css`
+  in each sheet.** [`ui/reveal.css`](../../entrypoints/content/ui/reveal.css) is the
+  model: its selectors start at `:host` or `.gh-prism-sections`, so they match in a shadow
+  root and only gh-prism's own markup in the light DOM.
 - **`@source` every module whose classes land on elements the sheet styles.** Tailwind
   generates only the classes it finds in those sources. A module whose classes land in
   other sheets has no sheet of its own, so every caller's sheet `@source`s it:

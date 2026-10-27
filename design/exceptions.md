@@ -20,6 +20,9 @@ the departure as intended.
   same medium radius.
 - **Motion: a 240 ms decelerating open and a 160 ms close, not 240 ms `ease-out` both
   ways.** Reviewers fold sections often, and a close as slow as the open reads as lag.
+- **Motion: a truncated name's reveal loops, not a brief motion.** The default keeps
+  motion brief and never animates a repeated action. The scroll runs only while the
+  reviewer holds a row on hover or focus, which they do to read it.
 - **Key hints: in the tooltip, not on the control.** The default puts a keycap on every
   control. GitHub shows its own shortcuts in tooltips, and keycaps at rest would make the
   sidebar louder than the page around it.

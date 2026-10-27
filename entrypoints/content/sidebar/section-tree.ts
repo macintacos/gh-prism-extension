@@ -7,6 +7,7 @@ import {
   preparePresortedFileTreeInput,
 } from "@pierre/trees";
 import { el } from "../ui/dom";
+import { followReveals } from "../ui/reveal";
 import { chainRule, fitChain } from "./chain-fit";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./section-tree.css?inline";
@@ -115,6 +116,7 @@ export class SectionTree {
       );
       this.#followFocus(shadow);
       this.#followPointer(host, shadow);
+      followReveals(shadow, matchMedia("(prefers-reduced-motion: reduce)"));
       this.#refit.observe(shadow, { childList: true, subtree: true });
       this.#resized.observe(host);
     }

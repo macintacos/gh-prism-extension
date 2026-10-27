@@ -44,6 +44,11 @@ A folder chain short of room keeps its first folder and as many trailing folders
 around one `…`. With room for less, it shows `…` and the deepest folder alone. Only the
 deepest folder's name is ever cut, in the middle.
 
+A truncated name shows whole on hover and focus. A file row keeps its middle truncation at
+rest and scrolls only its file name; a folder chain scrolls its full path; a section
+header keeps its end ellipsis at rest and scrolls its label. Under reduced motion each
+shows its full name as a strip the reviewer scrolls by hand.
+
 ## Viewed
 
 A Viewed row dims everything but its checkbox, so the reviewer can still read the row and

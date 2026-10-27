@@ -94,10 +94,12 @@ Motion has no token source yet, so this table is the source until the scale land
 | State, opening | 240 ms, `cubic-bezier(0.16, 1, 0.3, 1)` | a section or block expanding, its chevron turning open |
 | State, closing | 160 ms, `ease-out` | a section or block collapsing, its chevron turning closed, a dismissal |
 | Spatial | 280 ms, `cubic-bezier(0.2, 0.7, 0.2, 1)` | the sidebar's slide, sections dropping in after loading |
+| Reveal | 500 ms wait, then a 150 ms `ease-out` fade-in; 1,000 ms holds at each end, legs at 60 px/s on `ease-in-out` | a truncated name on hover and focus (`ui/reveal.css`, `ui/reveal.ts`) |
 
 Under `prefers-reduced-motion: reduce`, every row drops to no motion. A stopped spinner
-keeps its open ring, so it still reads as working. `decisions.md` says why a close runs
-quicker than an open.
+keeps its open ring, so it still reads as working. A revealed name keeps its 500 ms wait,
+which isn't motion, and scrolls by hand. `decisions.md` says why a close runs quicker than
+an open.
 
 The closing row also sets the timer in `sidebar/whats-new.ts` that removes a dismissed
 what's-new block, so a change to that row's duration changes the timer too.
