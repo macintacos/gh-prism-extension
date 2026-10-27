@@ -82,8 +82,9 @@
   transition-timing-function: ease-out;
 }
 
-/* The notes' bottom edge fades while more sit below. A pane too short to scroll has an
-   inactive timeline, so the fade keeps its 0px initial value. */
+/* The notes' bottom edge fades while more sit below. The fade is the scroll left, up to the
+   32px the range and keyframe share. A pane too short to scroll has an inactive timeline, so
+   the fade keeps its 0px initial value. Reduced motion keeps it: it moves only with the scroll. */
 @property --gh-prism-notes-fade {
   syntax: "<length>";
   inherits: false;
