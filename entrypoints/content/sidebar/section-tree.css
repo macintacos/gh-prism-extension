@@ -285,6 +285,8 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
 [data-item-checkbox] {
   appearance: none;
   position: absolute;
+  /* Above @pierre/trees' focused (2) and selected (3) rows, which would cover it. */
+  z-index: 4;
   inset-inline-end: 8px;
   display: grid;
   place-content: center;

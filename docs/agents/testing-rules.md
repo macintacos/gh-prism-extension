@@ -44,7 +44,9 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
 - **Prove tree row layout in Chromium, not happy-dom.** happy-dom computes no style from
   the section tree's shadow-root sheets, even with `section-tree.css` in
   `test.css.include`. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `rowLayout` is the
-  pattern.
+  pattern. Test a control drawn over a row on GitHub's current file too, with a real
+  click: @pierre/trees stacks the focused and selected rows above their siblings, so
+  either can cover a control that works on every other row.
 - **Read a computed animation through `animation`, not `animationName`.** happy-dom
   computes the shorthand alone, so `animationName` reads `""` whatever the sheet says.
 - **Prove ordering inside one click dispatch in Chromium, not happy-dom.** happy-dom runs
