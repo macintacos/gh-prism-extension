@@ -102,7 +102,9 @@ hk, a git hook manager configured in [`hk.pkl`](../hk.pkl), runs two hooks:
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push and pull
 request, as two parallel jobs that each install the pinned tools and dependencies: `check`
 runs `mise run preflight`, and `e2e` runs `mise run e2e`. Both cache bun's package cache,
-and `e2e` also caches Playwright's browsers, each keyed on `bun.lock`.
+and `e2e` also caches Playwright's browsers, each keyed on `bun.lock`. `e2e` skips
+`playwright install-deps`: the runner image already has Chromium's system libraries, and
+that step's apt downloads sometimes stall for minutes.
 
 ## Releases
 
