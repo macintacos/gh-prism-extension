@@ -195,13 +195,7 @@ function sectionShell(
     chevron(doc),
   );
   const { label } = SECTION_CATALOG[key];
-  const name = el(
-    doc,
-    "span",
-    "gh-prism-section-label tw:relative tw:truncate",
-    label,
-    fullName(doc, label),
-  );
+  const name = el(doc, "span", "gh-prism-section-label tw:truncate", label, fullName(doc, label));
   const toggle = el(
     doc,
     "button",
@@ -255,6 +249,7 @@ const COMMENT_ICON =
  * does.
  */
 function commentLinesShell(doc: Document, lines: LineCounts | undefined) {
+  const label = "Implementation comments";
   const counter = counterPill(doc);
   const glyph = el(
     doc,
@@ -268,13 +263,7 @@ function commentLinesShell(doc: Document, lines: LineCounts | undefined) {
     "button",
     "gh-prism-comment-lines-toggle tw:flex tw:items-center tw:gap-2 tw:w-full tw:h-7 tw:py-0 tw:px-3 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-muted tw:[font:inherit] tw:text-start tw:cursor-pointer tw:hover:bg-[var(--control-transparent-bgColor-hover)] tw:focus-visible:outline-2 tw:focus-visible:-outline-offset-2 tw:focus-visible:outline-focus-outline",
     glyph,
-    el(
-      doc,
-      "span",
-      "tw:relative tw:truncate",
-      "Implementation comments",
-      fullName(doc, "Implementation comments"),
-    ),
+    el(doc, "span", "tw:truncate", label, fullName(doc, label)),
     counter,
   );
   if (lines) toggle.append(lineTotals(doc, lines));

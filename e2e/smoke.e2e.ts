@@ -1010,6 +1010,68 @@ test("a folder chain at 200% zoom keeps the same rules", async ({ context, page 
   await expectCollapsedChain(page);
 });
 
+test("a folder chain with room for only its deepest folder shows … and that folder", async ({
+  context,
+  page,
+}) => {
+  await servesChain(context, page);
+  await setTreeWidth(page, 190);
+
+  await expect.poll(() => chainLayout(page)).toEqual({ shown: ["…", "sentry-cli"], cut: [] });
+});
+
+test("a deepest folder too long for its row truncates in the middle", async ({ context, page }) => {
+  await servesChain(context, page);
+  await setTreeWidth(page, 140);
+
+  await expect
+    .poll(() => chainLayout(page))
+    .toEqual({ shown: ["…", "sentry-cli"], cut: ["sentry-cli"] });
+});
+
+test("a folder chain settles at every sidebar width", async ({ context, page }) => {
+  const chains = [
+    "alpha/bravo-charlie/delta/echo_foxtrot/golf-hotel-india",
+    "pkg/a/b/zzz-component",
+  ];
+  const rows = chains.map(
+    (chain, i) =>
+      `<li role="treeitem" id="${chain}/F${i}.md" aria-level="1" aria-label="F${i}.md" aria-selected="false"><a href="#diff-c4b${i}">F${i}.md</a></li>`,
+  );
+  await serve(
+    context,
+    PR_URL,
+    PR_BODY.replace(TREE_OPEN, `${TREE_OPEN}${CHAIN_ROW}${rows.join("")}`),
+  );
+  await page.goto(PR_URL);
+  await expect.poll(() => chainLayout(page)).not.toBeNull();
+
+  const unsettled = await page.evaluate(async () => {
+    const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+    const layout = () =>
+      [...document.querySelectorAll(".gh-prism-tree")]
+        .flatMap((tree) => [
+          ...(tree.shadowRoot?.querySelectorAll("[data-item-flattened-subitems] > *") ?? []),
+        ])
+        .map((unit) => getComputedStyle(unit).visibility)
+        .join();
+    const tree = document.getElementById("pr-file-tree");
+    if (!tree) throw new Error("no #pr-file-tree");
+    const widths = [];
+    for (let width = 220; width <= 370; width++) {
+      tree.style.width = `${width}px`;
+      await frame();
+      await frame();
+      const before = layout();
+      await frame();
+      if (layout() !== before) widths.push(width);
+    }
+    return widths;
+  });
+
+  expect(unsettled).toEqual([]);
+});
+
 const CHAIN_PATH = "managed/dot_config/opencode/skills/sentry-cli/";
 const CHAIN_NAME = "managed / dot_config / opencode / skills / sentry-cli";
 

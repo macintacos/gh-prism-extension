@@ -1,5 +1,6 @@
 /** Which folders a flattened chain shows at rest: the first unless `first` is false, a `…` when
- * anything hides, and every folder from index `from` to the deepest. */
+ * anything hides, and every folder from index `from` to the deepest. `{ first: true, from: 1 }`
+ * shows it whole. */
 export interface ChainFit {
   readonly first: boolean;
   readonly from: number;
@@ -24,7 +25,10 @@ export function fitChain(units: readonly number[], ellipsis: number, room: numbe
 // Hidden units stay laid out, so the next fit can still measure them.
 const HIDDEN = "position:absolute;visibility:hidden";
 
-/** The rule that shows `fit` in the row of `rowPath`, whose folders are `unitPaths`. */
+/**
+ * The rule that shows `fit` in the row of `rowPath`, whose folders are `unitPaths`; empty when
+ * nothing hides.
+ */
 export function chainRule(rowPath: string, unitPaths: readonly string[], fit: ChainFit): string {
   const row = `[data-type="item"][data-item-path="${CSS.escape(rowPath)}"]`;
   const hidden = unitPaths.slice(fit.first ? 1 : 0, fit.from);

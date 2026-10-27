@@ -1,10 +1,15 @@
-/* A truncated name's full-name copy, revealed over it while its button is hovered or focused.
-   reveal.ts marks the copy data-overflows and scrolls it; keep its timings in step with these.
-   Each selector starts at :host or .gh-prism-sections, so in the light DOM it matches only
-   gh-prism's own markup, and in a section tree's shadow root only that tree's rows. */
+/* No GitHub hooks: every rule selects only gh-prism's own classes.
+   A truncated name's full-name copy, revealed over it while its button is hovered or focused.
+   reveal.ts scrolls the copy past this end padding. Each selector starts at :host or
+   .gh-prism-sections, so in the light DOM it matches only gh-prism's own markup, and in a section
+   tree's shadow root only that tree's rows. */
 
-/* As wide as its host whatever its text, since SectionTree measures a chain's room by it. Hidden,
-   not removed, so it can be measured. */
+:host :has(> [data-full-name]),
+.gh-prism-sections :has(> [data-full-name]) {
+  position: relative;
+}
+
+/* Hidden, not removed, so reveal.ts can measure whether the name overflows. */
 :host [data-full-name],
 .gh-prism-sections [data-full-name] {
   position: absolute;

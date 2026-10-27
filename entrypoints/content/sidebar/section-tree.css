@@ -139,7 +139,6 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
    ellipsis, and only then its decoration; the library's flex gives the decoration only what the
    name leaves, clipping it mid-word. 999999 is the library's own weight for shrinking first. */
 [data-item-section="content"] {
-  position: relative;
   flex-shrink: 999999;
   min-width: 6ch;
 }

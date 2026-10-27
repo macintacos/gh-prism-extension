@@ -31,7 +31,8 @@ hover and focus, so a reviewer who never looks for it never sees it.
 - **Move only to confirm an action or show a state change.** Keep motion brief, never
   block input on it, and let a frequent action such as stepping through files with `j`
   land without a flourish. The one exception: a truncated name in the sidebar scrolls back
-  and forth after 500 ms of hover or focus, until the pointer or focus leaves.
+  and forth after a short hold of hover or focus (`tokens.md` § Motion), until the pointer
+  or focus leaves.
 - **Show the key a control takes in its tooltip, and never take a key GitHub binds on the
   page.** GitHub binds `?` to its shortcut list and `/` to search. gh-prism binds `j` and
   `k` to step through files in the sidebar's order.

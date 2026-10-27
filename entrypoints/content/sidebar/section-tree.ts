@@ -103,7 +103,10 @@ export class SectionTree {
     this.#chains = host.ownerDocument.createElement("style");
     const shadow = host.shadowRoot;
     // Both call back before paint, so a row the viewport mounts or a resize never paints unfitted.
-    this.#refit = new MutationObserver(() => this.#fitChains());
+    // Skips SectionTree's own <style> writes, #chains among them, so a fit never re-runs itself.
+    this.#refit = new MutationObserver((records) => {
+      if (records.some(({ target }) => !(target instanceof HTMLStyleElement))) this.#fitChains();
+    });
     this.#resized = new ResizeObserver(() => this.#fitChains());
     if (shadow) {
       shadow.append(
@@ -307,8 +310,8 @@ export class SectionTree {
   }
 
   /**
-   * Fits each rendered chain row to its row, measuring every row before writing the one rule, so
-   * layout runs once. Writes only on change, so the observers that call it settle.
+   * Fits each rendered folder chain to its row's room, measuring every row before writing the one
+   * rule so layout runs once. Writes only on change, so the observers that call it settle.
    */
   #fitChains(): void {
     const rows = this.#host.shadowRoot?.querySelectorAll<HTMLElement>(
@@ -446,11 +449,11 @@ const LIT = "--gh-prism-lit:1";
 function fittedChainRule(row: HTMLElement): string {
   const units = [...row.querySelectorAll<HTMLElement>("[data-item-flattened-subitem]")];
   const ellipsis = row.querySelector<HTMLElement>("[data-item-flattened-ellipsis]");
-  const room = row.querySelector("[data-full-name]")?.clientWidth;
+  const content = row.querySelector<HTMLElement>('[data-item-section="content"]');
   const path = row.dataset.itemPath;
-  if (!ellipsis || room === undefined || path === undefined) return "";
+  if (!ellipsis || !content || path === undefined) return "";
 
-  const fit = fitChain(units.map(naturalWidth), naturalWidth(ellipsis), room);
+  const fit = fitChain(units.map(naturalWidth), naturalWidth(ellipsis), contentWidth(content));
   return chainRule(
     path,
     units.map((unit) => unit.dataset.itemFlattenedSubitem ?? ""),
@@ -458,19 +461,34 @@ function fittedChainRule(row: HTMLElement): string {
   );
 }
 
+/** `element`'s content-box width in fractional px, the room its children lay out in. */
+function contentWidth(element: HTMLElement): number {
+  const { paddingLeft, paddingRight } = getComputedStyle(element);
+  return element.getBoundingClientRect().width - parseFloat(paddingLeft) - parseFloat(paddingRight);
+}
+
 /**
- * `unit`'s width with nothing in it cut: the deepest folder's middle truncation and the `…`'s
- * separator, which a fit may hide, count at their natural widths.
+ * `unit`'s width in fractional px with nothing in it cut, so it doesn't depend on the fit it
+ * feeds: a middle-truncated name counts at its text's width, and the `…`'s separator, which
+ * `chainRule` takes out of flow, at its own.
  */
 function naturalWidth(unit: HTMLElement): number {
   const separator = unit.querySelector<HTMLElement>("[data-item-flattened-separator]");
   const hiddenSeparator =
-    separator && getComputedStyle(separator).position === "absolute" ? separator.offsetWidth : 0;
+    separator && getComputedStyle(separator).position === "absolute"
+      ? separator.getBoundingClientRect().width
+      : 0;
   const cut = [...unit.querySelectorAll('[data-truncate-content="visible"]')].reduce(
-    (total, text) => total + text.scrollWidth - text.clientWidth,
+    (total, text) => total + textWidth(text) - text.getBoundingClientRect().width,
     0,
   );
-  return unit.offsetWidth + cut + hiddenSeparator;
+  return unit.getBoundingClientRect().width + cut + hiddenSeparator;
+}
+
+function textWidth(element: Element): number {
+  const range = element.ownerDocument.createRange();
+  range.selectNodeContents(element);
+  return range.getBoundingClientRect().width;
 }
 
 /** The directory `path` sits in, as `data-ancestor-path` spells it; undefined at top level. */

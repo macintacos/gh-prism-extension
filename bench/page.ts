@@ -161,14 +161,18 @@ function sectionTrees(count: number, hosts: "sidebar" | "fixed" = "sidebar") {
   };
 }
 
-/** Every tree's shadow-root style text, which changes when a chain row refits. */
+/** Every tree's chain-fit style text, which changes only when a chain row refits. */
 const treeStyles = () =>
   [...document.querySelectorAll(".gh-prism-tree")]
     .flatMap((host) => [...(host.shadowRoot?.querySelectorAll("style") ?? [])])
     .map((style) => style.textContent)
+    .filter((text) => text?.includes("[data-item-flattened"))
     .join("");
 
-/** Resolves after the current frame's rendering, observers included, has run. */
+/**
+ * Called from a requestAnimationFrame callback, resolves once that frame's rendering, observers
+ * included, has run.
+ */
 const afterFrame = () =>
   new Promise((resolve) => {
     const channel = new MessageChannel();

@@ -1,14 +1,20 @@
+/**
+ * Scrolls a truncated name's full-name copy and marks whether it overflows; reveal.css decides when
+ * the copy shows. The @pierre/trees patch emits the same copy in tree rows.
+ */
+
 import { el } from "./dom";
 
-/** A revealed name's average scroll speed and its pause at each end. reveal.css holds the
- * 500 ms wait and the 150 ms fade-in; keep the two files' timings together. */
+/** Average scroll speed, px/s, and the pause at each end, ms. The wait and fade-in live only in
+ * reveal.css: the scroll starts when the fade-in ends. */
 const SPEED = 60; // px/s
 const HOLD = 1000; // ms
 // Keep in sync with reveal.css's end padding, so the last letter scrolls clear of the fade.
 const END_PADDING = 12; // px
 
 /** `<span data-full-name aria-hidden="true"><span>{text}</span></span>`: the copy reveal.css
- * shows over a truncated label. The @pierre/trees patch emits the same shape in tree rows. */
+ * shows over a truncated label. Append it inside the element that truncates. The @pierre/trees
+ * patch emits the same shape in tree rows. */
 export function fullName(doc: Document, text: string): HTMLElement {
   const copy = el(doc, "span", "", el(doc, "span", "", text));
   copy.setAttribute("data-full-name", "");
