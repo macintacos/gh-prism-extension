@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { chainRule, fitChain } from "../../../entrypoints/content/sidebar/chain-fit";
 
-// managed, / dot_config, / opencode, / skills, / sentry-cli
+// managed, /dot_config, /opencode, /skills, /sentry-cli
 const SENTRY = [60, 80, 70, 50, 80];
 const ELLIPSIS = 20;
 

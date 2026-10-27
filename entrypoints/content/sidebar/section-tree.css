@@ -149,15 +149,19 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
   visibility: hidden;
 }
 
-/* Kept spaces give a separator one width in and out of flow; collapsed, the `…`'s would shrink as
-   the fit hides it, and the fit would flip with it. */
-[data-item-flattened-separator] {
-  white-space: pre;
-}
-
-/* The separators carry the spacing. */
+/* Separators carry their own spacing, below. */
 [data-item-flattened-subitems] {
   gap: 0;
+}
+
+/* Padding, not margin, so the chain fit's measured widths include it. */
+[data-item-flattened-separator] {
+  padding-inline: 2px;
+}
+
+/* Clicking a folder in a chain toggles the whole row, so no folder reads as its own link. */
+[data-item-flattened-subitem]:hover {
+  text-decoration: none;
 }
 
 /* A row, so the deepest folder's block-level truncation sits beside its separator. */

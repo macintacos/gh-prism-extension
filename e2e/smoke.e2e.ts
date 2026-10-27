@@ -1073,7 +1073,8 @@ test("a folder chain settles at every sidebar width", async ({ context, page }) 
 });
 
 const CHAIN_PATH = "managed/dot_config/opencode/skills/sentry-cli/";
-const CHAIN_NAME = "managed / dot_config / opencode / skills / sentry-cli";
+const CHAIN_FULL_NAME = "managed/dot_config/opencode/skills/sentry-cli";
+const CHAIN_ACCESSIBLE_NAME = "managed / dot_config / opencode / skills / sentry-cli";
 
 /**
  * Samples every frame, in the page and the trees' shadow roots, for each shown full-name copy:
@@ -1100,7 +1101,7 @@ const sampleReveals = (page: Page) =>
         const button = copy.closest("button");
         const readsOwnName =
           !button?.matches('[data-type="item"]') ||
-          button.getAttribute("aria-label")?.startsWith(text);
+          button.getAttribute("aria-label")?.replaceAll(" / ", "/").startsWith(text);
         if (!button?.matches(":hover, :focus-visible") || !readsOwnName) strays.push(text);
       }
       requestAnimationFrame(tick);
@@ -1158,13 +1159,18 @@ test("hovering a truncated row scrolls its full name, and leaving restores it", 
   await servesNarrowChain(context, page);
   const row = page.locator(`[data-item-path="${CHAIN_PATH}"]`);
 
-  await row.hover();
-  await expectScrollingReveal(page, row, CHAIN_NAME);
+  const folder = row.locator("[data-item-flattened-subitem]").last();
+  await folder.hover();
+  // Read before the reveal hides the folder and it stops matching :hover.
+  expect(
+    await folder.evaluate((el) => el.matches(":hover") && getComputedStyle(el).textDecorationLine),
+  ).toBe("none");
+  await expectScrollingReveal(page, row, CHAIN_FULL_NAME);
 
   await page.mouse.move(0, 0);
   await expect(revealOf(row)).resolves.toEqual({
     shown: false,
-    text: CHAIN_NAME,
+    text: CHAIN_FULL_NAME,
     atRestShown: true,
     animations: 0,
   });
@@ -1179,7 +1185,7 @@ test("keyboard focus reveals a truncated row's full name", async ({ context, pag
   await page.keyboard.press("ArrowUp");
 
   await expect(row).toBeFocused();
-  await expectScrollingReveal(page, row, CHAIN_NAME);
+  await expectScrollingReveal(page, row, CHAIN_FULL_NAME);
 });
 
 test("a truncated file row reveals its file name, not its path", async ({ context, page }) => {
@@ -1224,7 +1230,7 @@ test("a row stays clickable while its name scrolls", async ({ context, page }) =
   const row = page.locator(`[data-item-path="${CHAIN_PATH}"]`);
   const expandedBefore = await row.getAttribute("aria-expanded");
   await row.hover();
-  await expectScrollingReveal(page, row, CHAIN_NAME);
+  await expectScrollingReveal(page, row, CHAIN_FULL_NAME);
 
   await row.click();
 
@@ -1275,7 +1281,7 @@ test("under reduced motion a revealed name scrolls only by hand", async ({ conte
 test("a folder chain's accessible name is its full path, once", async ({ context, page }) => {
   await servesNarrowChain(context, page);
 
-  const row = page.getByRole("treeitem", { name: CHAIN_NAME, exact: true });
+  const row = page.getByRole("treeitem", { name: CHAIN_ACCESSIBLE_NAME, exact: true });
 
   await expect(row).toHaveCount(1);
   await expect(row.locator("[data-full-name]")).toHaveAttribute("aria-hidden", "true");

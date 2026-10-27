@@ -119,10 +119,10 @@ describe("showSections", () => {
     const deepest = units.pop();
     expect(units.map((unit) => unit.textContent)).toEqual([
       "managed",
-      " / …",
-      " / dot_config",
-      " / opencode",
-      " / skills",
+      "/…",
+      "/dot_config",
+      "/opencode",
+      "/skills",
     ]);
     expect(units[1]?.matches("[data-item-flattened-ellipsis][aria-hidden=true]")).toBe(true);
     expect(deepest?.getAttribute("data-item-flattened-subitem")).toMatch(/sentry-cli\/?$/);
@@ -132,7 +132,7 @@ describe("showSections", () => {
       ),
     ).toBe(true);
     expect(folder?.querySelector("[data-full-name][aria-hidden=true]")?.textContent).toBe(
-      "managed / dot_config / opencode / skills / sentry-cli",
+      "managed/dot_config/opencode/skills/sentry-cli",
     );
     expect(folder?.getAttribute("aria-label")).toBe(
       "managed / dot_config / opencode / skills / sentry-cli",

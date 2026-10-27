@@ -9,7 +9,7 @@ index 7d3b818c43a7621ab9170da32b180232ed3c9472..cbbc4abc3adb7eccc9d4c122e08e1e4b
 -			return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx("span", {
 +			const separator = index > 0 ? /* @__PURE__ */ jsx("span", {
 +				"data-item-flattened-separator": true,
-+				children: " / "
++				children: "/"
 +			}) : null;
 +			const name = !isLast ? segment.name : renameInput ?? /* @__PURE__ */ jsx(MiddleTruncate, {
 +				minimumLength: 5,
@@ -27,7 +27,7 @@ index 7d3b818c43a7621ab9170da32b180232ed3c9472..cbbc4abc3adb7eccc9d4c122e08e1e4b
 +				"aria-hidden": "true",
 +				children: [/* @__PURE__ */ jsx("span", {
 +					"data-item-flattened-separator": true,
-+					children: " / "
++					children: "/"
 +				}), "…"]
 +			}) : null] }, segment.path);
  		})
@@ -46,7 +46,7 @@ index 7d3b818c43a7621ab9170da32b180232ed3c9472..cbbc4abc3adb7eccc9d4c122e08e1e4b
 +			}), /* @__PURE__ */ jsx("span", {
 +				"data-full-name": true,
 +				"aria-hidden": "true",
-+				children: /* @__PURE__ */ jsx("span", { children: getFileTreeRowAriaLabel(row) })
++				children: /* @__PURE__ */ jsx("span", { children: row.flattenedSegments?.map((segment) => segment.name).join("/") || row.name })
 +			}, `full-name:${targetPath}`)]
  		}),
  		decorationLaneEnabled ? /* @__PURE__ */ jsx("div", {
