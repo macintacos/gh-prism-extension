@@ -551,6 +551,35 @@ test("ticking a row's box saves its file's Viewed state once", async ({ context,
   expect(saves.count).toBe(2);
 });
 
+test("ticking GitHub's current file's box saves its Viewed state", async ({ context, page }) => {
+  const saves = await routeFileReview(context, 200);
+  await serve(context, VIEWED_URL, VIEWED_BODY);
+  await page.goto(VIEWED_URL);
+  await expect(viewedBox(page, "lib.rs")).toBeVisible();
+  await copyGitHubToggles(page, { revert: true });
+  // Playwright retries a click whose target is moving, and the reveal moves every row.
+  await page.locator(".gh-prism-sections").evaluate(async (view) => {
+    await Promise.all(view.getAnimations({ subtree: true }).map(({ finished }) => finished));
+  });
+  // The fixture runs no GitHub script, so a row click alone never makes its file current.
+  await page.evaluate(() =>
+    document.getElementById("src/lib.rs")?.setAttribute("aria-current", "true"),
+  );
+  await expect(page.locator('[data-item-path="src/lib.rs"]')).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+
+  await viewedBox(page, "lib.rs").click({ timeout: 5_000 });
+
+  await expect(viewedBox(page, "lib.rs")).toBeChecked();
+  await expect(page.locator(`#${VIEWED_LIB_RS} button[aria-label$="Viewed"]`)).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect.poll(() => saves.count).toBe(1);
+});
+
 test("Alt-clicking a file's row marks it Viewed and back, and does nothing else", async ({
   context,
   page,
