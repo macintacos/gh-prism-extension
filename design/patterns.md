@@ -40,6 +40,10 @@ Only then does the row drop whole decoration parts, leading ones first, never cl
 mid-word. The row's title and accessible name still carry every part.
 `sidebar/section-tree.css` holds the layout.
 
+A folder chain short of room keeps its first folder and as many trailing folders as fit
+around one `…`. With room for less, it shows `…` and the deepest folder alone. Only the
+deepest folder's name is ever cut, in the middle.
+
 ## Viewed
 
 A Viewed row dims everything but its checkbox, so the reviewer can still read the row and

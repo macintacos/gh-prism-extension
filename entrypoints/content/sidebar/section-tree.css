@@ -156,13 +156,40 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
   white-space: nowrap;
 }
 
+/* Kept spaces give a separator one width in and out of flow; collapsed, the `…`'s would shrink as
+   the fit hides it, and the fit would flip with it. */
+[data-item-flattened-separator] {
+  white-space: pre;
+}
+
+/* The separators carry the spacing. */
+[data-item-flattened-subitems] {
+  gap: 0;
+}
+
+/* A row, so the deepest folder's block-level truncation sits beside its separator. */
 [data-item-flattened-subitem] {
+  display: flex;
   flex: none;
+}
+
+[data-item-flattened-subitem] > [data-truncate-group-container] {
+  min-width: 0;
 }
 
 [data-item-flattened-subitem]:last-child {
   flex: 0 1 auto;
   min-width: 0;
+}
+
+/* A folder row's name fills its free space whatever folders it shows, so that width is the room
+   SectionTree fits the chain to; a width that followed the fit would feed back on it. */
+[data-item-type="folder"] > [data-item-section="content"] {
+  flex: 1 1 0;
+}
+
+[data-item-type="folder"] > [data-item-section="decoration"] {
+  flex: none;
 }
 
 [data-item-section="decoration"] {

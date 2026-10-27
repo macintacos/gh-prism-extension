@@ -7,6 +7,7 @@ import {
   preparePresortedFileTreeInput,
 } from "@pierre/trees";
 import { el } from "../ui/dom";
+import { chainRule, fitChain } from "./chain-fit";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./section-tree.css?inline";
 
@@ -62,6 +63,9 @@ export class SectionTree {
   readonly #viewed: HTMLStyleElement;
   readonly #pointed: HTMLStyleElement;
   readonly #lastPieces: HTMLStyleElement;
+  readonly #chains: HTMLStyleElement;
+  readonly #refit: MutationObserver;
+  readonly #resized: ResizeObserver;
   #files: readonly TreeFile[];
   #byPath: ReadonlyMap<string, TreeFile>;
   #selected: string | undefined;
@@ -95,11 +99,24 @@ export class SectionTree {
     this.#viewed = host.ownerDocument.createElement("style");
     this.#pointed = host.ownerDocument.createElement("style");
     this.#lastPieces = host.ownerDocument.createElement("style");
+    this.#chains = host.ownerDocument.createElement("style");
     const shadow = host.shadowRoot;
+    // Both call back before paint, so a row the viewport mounts or a resize never paints unfitted.
+    this.#refit = new MutationObserver(() => this.#fitChains());
+    this.#resized = new ResizeObserver(() => this.#fitChains());
     if (shadow) {
-      shadow.append(this.#probe, this.#onScreen, this.#viewed, this.#pointed, this.#lastPieces);
+      shadow.append(
+        this.#probe,
+        this.#onScreen,
+        this.#viewed,
+        this.#pointed,
+        this.#lastPieces,
+        this.#chains,
+      );
       this.#followFocus(shadow);
       this.#followPointer(host, shadow);
+      this.#refit.observe(shadow, { childList: true, subtree: true });
+      this.#resized.observe(host);
     }
 
     this.#select(selected);
@@ -209,6 +226,8 @@ export class SectionTree {
 
   /** Removes the tree's rows and releases it. */
   cleanUp(): void {
+    this.#refit.disconnect();
+    this.#resized.disconnect();
     this.#tree.cleanUp();
   }
 
@@ -283,6 +302,18 @@ export class SectionTree {
       "--gh-prism-last:1",
     );
     if (this.#lastPieces.textContent !== rule) this.#lastPieces.textContent = rule;
+  }
+
+  /**
+   * Fits each rendered chain row to its row, measuring every row before writing the one rule, so
+   * layout runs once. Writes only on change, so the observers that call it settle.
+   */
+  #fitChains(): void {
+    const rows = this.#host.shadowRoot?.querySelectorAll<HTMLElement>(
+      '[data-type="item"]:has([data-item-flattened-subitems])',
+    );
+    const rule = [...(rows ?? [])].map(fittedChainRule).join("");
+    if (this.#chains.textContent !== rule) this.#chains.textContent = rule;
   }
 
   #decorationOf(path: string): RowDecoration | null {
@@ -408,6 +439,37 @@ const lastPiecesIn = (row: FileTreeVisibleRow, next: FileTreeVisibleRow | undefi
   row.ancestorPaths.slice(next?.depth ?? 0, row.depth).map((folder) => pieceIn(row.path, folder));
 
 const LIT = "--gh-prism-lit:1";
+
+/** The rule fitting chain `row` to its room, measured as it lays out now. */
+function fittedChainRule(row: HTMLElement): string {
+  const units = [...row.querySelectorAll<HTMLElement>("[data-item-flattened-subitem]")];
+  const ellipsis = row.querySelector<HTMLElement>("[data-item-flattened-ellipsis]");
+  const room = row.querySelector("[data-full-name]")?.clientWidth;
+  const path = row.dataset.itemPath;
+  if (!ellipsis || room === undefined || path === undefined) return "";
+
+  const fit = fitChain(units.map(naturalWidth), naturalWidth(ellipsis), room);
+  return chainRule(
+    path,
+    units.map((unit) => unit.dataset.itemFlattenedSubitem ?? ""),
+    fit,
+  );
+}
+
+/**
+ * `unit`'s width with nothing in it cut: the deepest folder's middle truncation and the `…`'s
+ * separator, which a fit may hide, count at their natural widths.
+ */
+function naturalWidth(unit: HTMLElement): number {
+  const separator = unit.querySelector<HTMLElement>("[data-item-flattened-separator]");
+  const hiddenSeparator =
+    separator && getComputedStyle(separator).position === "absolute" ? separator.offsetWidth : 0;
+  const cut = [...unit.querySelectorAll('[data-truncate-content="visible"]')].reduce(
+    (total, text) => total + text.scrollWidth - text.clientWidth,
+    0,
+  );
+  return unit.offsetWidth + cut + hiddenSeparator;
+}
 
 /** The directory `path` sits in, as `data-ancestor-path` spells it; undefined at top level. */
 function folderOf(path: string): string | undefined {

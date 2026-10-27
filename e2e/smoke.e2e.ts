@@ -27,6 +27,9 @@ const bulkRow = (n: number) => {
   const name = `file-${String(n).padStart(3, "0")}.rs`;
   return `<li role="treeitem" id="bulk/${name}" aria-level="1" aria-label="${name}" aria-selected="false"><a href="#${bulkDiff(n)}">${name}</a></li>`;
 };
+// gh-prism's tree flattens its folders into one chain row above the file.
+const CHAIN_FILE = "managed/dot_config/opencode/skills/sentry-cli/SKILL.md";
+const CHAIN_ROW = `<li role="treeitem" id="${CHAIN_FILE}" aria-level="1" aria-label="SKILL.md" aria-selected="false"><a href="#diff-c4a1">SKILL.md</a></li>`;
 // 300 more files under a new top-level bulk/, in a sidebar that scrolls within the 720 px viewport
 // as GitHub's pane does. No file is current, so the sidebar starts at its top rather than revealing one.
 const LARGE_PR_BODY = PR_BODY.replace(
@@ -910,6 +913,94 @@ test("a row too narrow for its name truncates the name, never its decoration", a
       ellipsis: true,
       statusInTree: true,
     });
+});
+
+/**
+ * The chain row above CHAIN_FILE: the units it shows, in order, as folder names and `…`, and
+ * which of those are cut; `null` until it renders.
+ */
+const chainLayout = (page: Page) =>
+  page.evaluate(() => {
+    const row = [...document.querySelectorAll(".gh-prism-tree")]
+      .flatMap((tree) => [...(tree.shadowRoot?.querySelectorAll('[data-type="item"]') ?? [])])
+      .find((item) => item.querySelector('[data-item-flattened-subitem$="sentry-cli/"]'));
+    const units = [...(row?.querySelectorAll("[data-item-flattened-subitems] > *") ?? [])].filter(
+      (unit) => getComputedStyle(unit).visibility === "visible",
+    );
+    if (!units.length) return null;
+    const nameOf = (unit: Element) =>
+      unit.getAttribute("data-item-flattened-subitem")?.split("/").at(-2) ?? "…";
+    const isCut = (unit: Element) =>
+      unit.scrollWidth > unit.clientWidth ||
+      [...unit.querySelectorAll("[data-truncate-marker]")].some(
+        (marker) => getComputedStyle(marker).opacity === "1",
+      );
+    return { shown: units.map(nameOf), cut: units.filter(isCut).map(nameOf) };
+  });
+
+const setTreeWidth = (page: Page, width: number) =>
+  page.evaluate((width) => {
+    const tree = document.getElementById("pr-file-tree");
+    if (!tree) throw new Error("no #pr-file-tree");
+    tree.style.width = `${width}px`;
+  }, width);
+
+const servesChain = async (context: BrowserContext, page: Page) => {
+  await serve(context, PR_URL, PR_BODY.replace(TREE_OPEN, `${TREE_OPEN}${CHAIN_ROW}`));
+  await page.goto(PR_URL);
+};
+
+const expectCollapsedChain = async (page: Page) => {
+  await setTreeWidth(page, 280);
+
+  await expect
+    .poll(async () => {
+      const layout = await chainLayout(page);
+      return {
+        first: layout?.shown[0],
+        last: layout?.shown.at(-1),
+        ellipses: layout?.shown.filter((name) => name === "…").length,
+        cut: layout?.cut,
+      };
+    })
+    .toEqual({ first: "managed", last: "sentry-cli", ellipses: 1, cut: [] });
+};
+
+test("a folder chain too long for its row keeps its first and deepest folders around one …", async ({
+  context,
+  page,
+}) => {
+  await servesChain(context, page);
+
+  await expectCollapsedChain(page);
+});
+
+test("a folder chain refits as the sidebar is resized", async ({ context, page }) => {
+  await servesChain(context, page);
+  await setTreeWidth(page, 280);
+  await expect.poll(() => chainLayout(page)).toMatchObject({ cut: [] });
+  const collapsed = await chainLayout(page);
+
+  await setTreeWidth(page, 900);
+  await expect
+    .poll(() => chainLayout(page))
+    .toEqual({
+      shown: ["managed", "dot_config", "opencode", "skills", "sentry-cli"],
+      cut: [],
+    });
+
+  await setTreeWidth(page, 280);
+  await expect.poll(() => chainLayout(page)).toEqual(collapsed);
+  expect(collapsed?.shown).toContain("…");
+});
+
+test("a folder chain at 200% zoom keeps the same rules", async ({ context, page }) => {
+  await page.addInitScript(() => {
+    document.documentElement.style.zoom = "2";
+  });
+  await servesChain(context, page);
+
+  await expectCollapsedChain(page);
 });
 
 // paths.ts, an Implementation file of tests/fixtures/commit-page.html, adds a comment line, so

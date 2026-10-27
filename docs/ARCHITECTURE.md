@@ -194,7 +194,10 @@ scrolls as one. The sections view calls each tree's `sync()` when the sidebar sc
 resizes, and `sync()` renders only the rows near the viewport. A tree far out of view
 renders none. Hovering or focusing a row lights its folder's whole hairline (a folder
 row's own) until the pointer leaves the tree, focus leaves it, or the page scrolls;
-`sections-view.ts` calls each tree's `clearPointed()` on a document scroll.
+`sections-view.ts` calls each tree's `clearPointed()` on a document scroll. Each tree fits
+every flattened folder chain to its row
+([`sidebar/chain-fit.ts`](../entrypoints/content/sidebar/chain-fit.ts)) with a per-path
+style rule, and refits whenever rows render or the host resizes.
 
 Docs & Comments ends with the comment-lines sub-section when an Implementation file has
 comment lines. It has its own header and tree inside Docs & Comments' collapsible region,
