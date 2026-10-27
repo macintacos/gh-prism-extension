@@ -51,7 +51,8 @@ These floors hold for every change, and no design choice trades them away:
   text and non-text UI, such as icons, hairlines, and the Viewed box, drop to 3:1.
 - Colour is never the only signal.
 - Targets are at least 24px, and focus is always visible.
-- Under reduced motion, nothing animates.
+- Under reduced motion, nothing moves on its own. An effect that only follows the
+  reviewer's scroll, such as the what's-new notes' fade, isn't motion and stays.
 - Text survives resizing to 200%.
 - Check against the Web Content Accessibility Guidelines (WCAG) 2.2, with APCA (the
   contrast model proposed for WCAG 3) as an advisory second read.

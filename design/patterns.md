@@ -53,6 +53,14 @@ header keeps its end ellipsis at rest and scrolls its label. Under reduced motio
 shows its full name as a strip the reviewer scrolls by hand. `ui/reveal.ts`'s `fullName()`
 builds the copy; `ui/reveal.css` and `ui/reveal.ts` show and scroll it.
 
+## Overflow edges
+
+Content its box cuts off fades out at the cut edge through an alpha `mask-image`, never a
+gradient painted in the ground's colour, so the fade works on any tint in either theme. A
+truncated name's revealed copy fades its end over 12px (`ui/reveal.css`). The what's-new
+notes fade their bottom 32px while more sit below, clearing as the reviewer scrolls to the
+end (`sidebar/sections-view.css`).
+
 ## Viewed
 
 A Viewed row dims everything but its checkbox, so the reviewer can still read the row and

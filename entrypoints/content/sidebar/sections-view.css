@@ -82,6 +82,34 @@
   transition-timing-function: ease-out;
 }
 
+/* The notes' bottom edge fades while more sit below. The fade is the scroll left, up to the
+   32px the range and keyframe share. A pane too short to scroll has an inactive timeline, so
+   the fade keeps its 0px initial value. Reduced motion keeps it: it moves only with the scroll. */
+@property --gh-prism-notes-fade {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+.gh-prism-whats-new-notes {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--gh-prism-notes-fade)), transparent);
+  /* Longhands only: the minifier folds a timeline into the shorthand, which Chrome rejects. */
+  animation-name: gh-prism-notes-fade;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+  animation-timeline: scroll(self);
+  animation-range: calc(100% - 32px) 100%;
+}
+
+@keyframes gh-prism-notes-fade {
+  from {
+    --gh-prism-notes-fade: 32px;
+  }
+  to {
+    --gh-prism-notes-fade: 0px;
+  }
+}
+
 /* Dismissed, until whats-new.ts removes it once this transition's duration has passed. */
 .gh-prism-whats-new {
   transition-property: height, margin-bottom, border-width, opacity, visibility;

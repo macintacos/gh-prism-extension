@@ -57,6 +57,10 @@ markup a sheet targets are in [`github-rules.md`](github-rules.md).
   `color-scheme` set in gh-prism's own sheets, never GitHub's, so the section edge would
   lose its theme. After using a feature newer than the target, check the built sheet in
   `.output/chrome-mv3/`.
+- **Set a scroll-driven animation through its longhands, never the `animation`
+  shorthand.** Lightning CSS folds an `animation-timeline` written after the shorthand
+  into it, and Chrome drops a shorthand that sets a timeline, so the animation never runs.
+  It leaves longhands apart.
 
 ## Overrides
 
