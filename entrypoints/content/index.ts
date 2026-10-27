@@ -25,8 +25,8 @@ import type { DiffstatChoice } from "./header/diffstat-view";
 import { showReportLink } from "./sidebar/report";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar/side";
 import type { WhatsNew } from "./sidebar/whats-new";
-import { showVisit } from "./visit/land";
-import { watchClassicPages, watchFilesPages } from "./visit/watch";
+import { showHeader, showVisit } from "./visit/land";
+import { watchClassicPages, watchFilesPages, watchHeaderPages } from "./visit/watch";
 
 const CACHED_DIFFS = 50;
 
@@ -34,7 +34,8 @@ const CACHED_DIFFS = 50;
  * On every Files view on github.com, shows the sidebar's sections, orders the diffs to match,
  * stands in for the diffstat, docks the sidebar on the saved side with a switch, adds a link to
  * report a miscategorized file, and, after an update, opens the sidebar with that release's
- * notes. On a pull request's classic Files changed page, explains why gh-prism is off there.
+ * notes. On a pull request's other tabs, stands in for the diffstat alone. On its classic Files
+ * changed page, explains why gh-prism is off there.
  */
 export default defineContentScript({
   // Every GitHub page: soft navigation reaches a pull request without re-injecting the script.
@@ -90,6 +91,17 @@ export default defineContentScript({
         },
         onMissing: () =>
           console.warn("gh-prism: Files changed tree not found; leaving GitHub's tree as is"),
+      },
+      ctx.signal,
+    );
+    watchHeaderPages(
+      window,
+      (pr, visit) => {
+        const intent = shareIntent((onProgress) =>
+          intentFor({ diff: pr, commitFiltered: false }, visit, sources, onProgress),
+        );
+        return (page, signal) =>
+          showHeader(page, signal, { intent, diffstat: { choice: diffstat, save: saveDiffstat } });
       },
       ctx.signal,
     );

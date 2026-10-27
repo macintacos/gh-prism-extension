@@ -100,7 +100,9 @@ gh-prism needs access to three hosts and to Chrome's extension storage, and noth
 - `https://github.com/*` serves the pull request or commit page, its diff, and file
   contents. A content script, which is code that runs inside matching pages, also runs
   here, so gh-prism catches GitHub's in-page navigation into a pull request or commit. It
-  acts only on Files changed and commit pages.
+  acts only on Files changed and commit pages, and on a pull request's Conversation,
+  Commits, and Checks tabs, where it reads the diff to split the header's lines-changed
+  counter by section.
 - `https://patch-diff.githubusercontent.com/*` is where GitHub redirects diff downloads.
 - `https://raw.githubusercontent.com/*` is where GitHub redirects raw-file downloads.
 - Extension storage holds the side you put the sidebar on, whether the header's

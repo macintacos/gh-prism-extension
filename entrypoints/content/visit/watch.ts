@@ -1,10 +1,23 @@
 /**
  * Follows Files view visits, and the pages each one renders, across GitHub's navigation; and
- * likewise a pull request's classic Files changed page.
+ * likewise a pull request's classic Files changed page, and its header on its other tabs.
  */
 
-import { type FilesRoute, isFilesPath, readFilesRoute } from "@/utils/github/files-route";
-import { type ClassicPage, type FilesPage, findClassicPage, findFilesPage } from "../files-page";
+import {
+  type FilesRoute,
+  isFilesPath,
+  readFilesRoute,
+  readHeaderRoute,
+} from "@/utils/github/files-route";
+import type { PrRef } from "@/utils/github/pr-ref";
+import {
+  type ClassicPage,
+  type FilesPage,
+  findClassicPage,
+  findFilesPage,
+  findHeaderPage,
+  type HeaderPage,
+} from "../files-page";
 
 // Long enough for popstate's ~200 ms early fire and a slow cold render.
 const SETTLE_MS = 10_000;
@@ -13,14 +26,14 @@ const SETTLE_MS = 10_000;
 export type OnPage<P = FilesPage> = (page: P, signal: AbortSignal) => void;
 
 /** The callbacks through which `watchFilesPages` reports visits and missing markup. */
-export interface FilesPageHandlers<P = FilesPage> {
+export interface FilesPageHandlers<P = FilesPage, R = FilesRoute> {
   /**
    * The Files changed tab's markup first appeared at `route`; `signal` aborts once the pathname
    * changes or leaves the tab. A hash change is not a new visit. Returns the handler for that
    * markup and each replacement GitHub renders during the visit, whose `signal` aborts once it is
    * replaced or removed.
    */
-  onVisit(route: FilesRoute, signal: AbortSignal): OnPage<P>;
+  onVisit(route: R, signal: AbortSignal): OnPage<P>;
   /**
    * The Files changed tab's markup never appeared. Fires at most once for each
    * `watchFilesPages` call.
@@ -28,21 +41,33 @@ export interface FilesPageHandlers<P = FilesPage> {
   onMissing(): void;
 }
 
-/** How `watchPages` finds one kind of page's markup, and whether a found render still shows. */
-interface PageFinder<P> {
+/**
+ * How `watchPages` reads the pathnames one kind of page shows on, finds its markup, and tells
+ * whether a found render still shows.
+ */
+interface PageFinder<P, R> {
+  route(pathname: string): R | undefined;
   find(doc: Document): P | undefined;
   showing(page: P): boolean;
 }
 
-const FILES_VIEW: PageFinder<FilesPage> = {
+const FILES_VIEW: PageFinder<FilesPage, FilesRoute> = {
+  route: readFilesRoute,
   find: findFilesPage,
   showing: ({ sidebar, tree, diffs }) =>
     sidebar.isConnected && tree.isConnected && diffs.isConnected,
 };
 
-const CLASSIC: PageFinder<ClassicPage> = {
+const CLASSIC: PageFinder<ClassicPage, FilesRoute> = {
+  route: readFilesRoute,
   find: findClassicPage,
   showing: ({ toolbar, reviewTools }) => toolbar.isConnected && reviewTools.isConnected,
+};
+
+const HEADER: PageFinder<HeaderPage, PrRef> = {
+  route: readHeaderRoute,
+  find: findHeaderPage,
+  showing: ({ slot }) => slot.isConnected,
 };
 
 /**
@@ -70,10 +95,21 @@ export const watchClassicPages = (
   signal: AbortSignal,
 ): void => watchPages(win, CLASSIC, { onVisit: () => onPage, onMissing: () => {} }, signal);
 
-function watchPages<P>(
+/**
+ * Calls `onVisit` for each visit to a pull request's Conversation, Commits, or Checks tab in
+ * `win`, as `watchFilesPages` follows the Files changed tab, until `signal` aborts. Each tab is
+ * its own visit, though GitHub keeps the header across them.
+ */
+export const watchHeaderPages = (
   win: Window,
-  { find, showing }: PageFinder<P>,
-  handlers: FilesPageHandlers<P>,
+  onVisit: (pr: PrRef, signal: AbortSignal) => OnPage<HeaderPage>,
+  signal: AbortSignal,
+): void => watchPages(win, HEADER, { onVisit, onMissing: () => {} }, signal);
+
+function watchPages<P, R>(
+  win: Window,
+  { route: routeOf, find, showing }: PageFinder<P, R>,
+  handlers: FilesPageHandlers<P, R>,
   signal: AbortSignal,
 ): void {
   let visit: { pathname: string; onPage: OnPage<P>; controller: AbortController } | undefined;
@@ -97,7 +133,7 @@ function watchPages<P>(
     if (visit && visit.pathname !== pathname) leave();
     if (shown && showing(shown.page)) return;
 
-    const route = readFilesRoute(pathname);
+    const route = routeOf(pathname);
     const page = route && find(win.document);
     drop();
     if (!route || !page) return;

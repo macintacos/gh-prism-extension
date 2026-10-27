@@ -22,8 +22,9 @@ commit's page. _Avoid_: files page, diff page
 **Page kind**: Which Files view shows the diff: a pull request's Files changed tab or a
 commit's page. _Avoid_: page type, view type
 
-**Visit**: One stay on a Files view's address. Changing the address ends it; changing only
-the hash does not.
+**Visit**: One stay on a Files view's address, or on a pull request's Conversation,
+Commits, or Checks tab, where only the diffstat shows. Changing the address ends it;
+changing only the hash does not.
 
 **Page**: One render of the Files view's markup during a visit. GitHub may replace it
 several times in one visit.

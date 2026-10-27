@@ -158,7 +158,9 @@ facts about GitHub that held when written, and ends with how to re-check them;
   counter.
 - **Expect the header to outlive the tab.** It belongs to the pull request's layout route,
   which Conversation, Commits, Checks, and Files changed share, so a soft navigation from
-  Conversation finds the counter already mounted.
+  Conversation finds the counter already mounted. gh-prism stands in for it on all four:
+  `findHeaderPage` finds the same `prPage.diffstatSlot` on the other three, whose route
+  data carries no diff pin, so their intent read always lists the files.
 - **Expect no counter when the diff changes no lines**, as with only renames or binary
   files, or when the diffstat request fails.
 - **Expect the counter elsewhere under GitHub's `overview` feature.** With route data's

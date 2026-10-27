@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
-import { findFilesPage } from "../../../entrypoints/content/files-page";
+import { findFilesPage, headerOf } from "../../../entrypoints/content/files-page";
 import {
   type DiffstatOptions,
   showDiffstat,
@@ -98,7 +98,7 @@ describe("the header's lines-changed counter", () => {
     if (!page) throw new Error("fixture lacks the Files changed markup");
     const controller = new AbortController();
 
-    showDiffstat(page, {
+    showDiffstat(headerOf(page), {
       choice: { view: "breakout" },
       save: () => {},
       signal: controller.signal,

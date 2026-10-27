@@ -16,6 +16,7 @@ import {
   loadViewedFixture,
   VIEWED_APP_TOML,
 } from "../fixtures/files-page";
+import { landedWith, whole } from "../fixtures/intent";
 
 // Only leaves are faked: intentFor needs a port fakeBrowser lacks; the views' DOM has own tests.
 vi.mock(import("../../utils/intent/read"), async (importOriginal) => ({
@@ -269,6 +270,55 @@ describe("content script", () => {
     await vi.advanceTimersByTimeAsync(20_000);
 
     expect(consoleWarn).toHaveBeenCalledOnce();
+  });
+
+  describe("on a pull request's Conversation tab", () => {
+    const counter = () => document.querySelector<HTMLElement>(".gh-prism-diffstat");
+    const landed = landedWith(
+      new Map([["README.md", whole("docs")]]),
+      new Map([["README.md", { added: 3, removed: 1 }]]),
+    );
+
+    beforeEach(() => {
+      history.replaceState(null, "", "/o/r/pull/3");
+      document.body.innerHTML =
+        '<div class="rightContentWrapper__x"><div class="d-flex">+3 -1</div></div>';
+    });
+
+    it.each<{ saved?: DiffstatView; opens: DiffstatView }>([
+      { opens: "breakout" },
+      { saved: "total", opens: "total" },
+    ])(
+      "stands in for the header counter on the $opens once intent lands (saved: $saved)",
+      async ({ saved, opens }) => {
+        if (saved !== undefined) await fakeBrowser.storage.sync.set({ diffstatView: saved });
+        vi.mocked(intentFor).mockResolvedValue(landed);
+
+        await run();
+        await afterMutations();
+
+        expect(intentFor).toHaveBeenCalledWith(
+          { diff: { kind: "pr", owner: "o", repo: "r", number: 3 }, commitFiltered: false },
+          expect.any(AbortSignal),
+          expect.anything(),
+          expect.any(Function),
+        );
+        expect(counter()?.dataset.view).toBe(opens);
+      },
+    );
+
+    it("stands in for nothing once the tab is left before intent lands", async () => {
+      const read = Promise.withResolvers<typeof landed>();
+      vi.mocked(intentFor).mockReturnValue(read.promise);
+      await run();
+
+      history.pushState(null, "", "/o/r/pull/3/changes");
+      document.dispatchEvent(new Event("soft-nav:end"));
+      read.resolve(landed);
+      await afterMutations();
+
+      expect(counter()).toBeNull();
+    });
   });
 
   describe("on a classic Files changed page", () => {

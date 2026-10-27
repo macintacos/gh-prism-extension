@@ -231,12 +231,35 @@ export function appendToDiffs(page: FilesPage, node: Element): void {
   else page.diffs.append(node);
 }
 
-const findDiffstatSlot = (page: FilesPage): Element | null =>
-  page.sidebar.ownerDocument.querySelector(page.kind.diffstatSlot);
+/** A page's header, which holds its lines-changed counter. */
+export interface Header {
+  readonly doc: Document;
+  readonly kind: Pick<PageKind, "diffstatSlot">;
+}
 
-/** The lines-changed counter in the page's header, or `undefined` while it's missing. */
-export function findDiffstat(page: FilesPage): Element | undefined {
-  return findDiffstatSlot(page)?.querySelector(":scope > .d-flex") ?? undefined;
+export const headerOf = (page: FilesPage): Header => ({
+  doc: page.sidebar.ownerDocument,
+  kind: page.kind,
+});
+
+/** A pull request's header on its Conversation, Commits, or Checks tab. */
+export interface HeaderPage extends Header {
+  /** The header's slot for its counter; GitHub replacing it makes a new page. */
+  readonly slot: Element;
+}
+
+/** The pull request header in `doc`, or `undefined` while its counter's slot is missing. */
+export function findHeaderPage(doc: Document): HeaderPage | undefined {
+  const slot = doc.querySelector(prPage.diffstatSlot);
+  return slot ? { doc, kind: prPage, slot } : undefined;
+}
+
+const findDiffstatSlot = ({ doc, kind }: Header): Element | null =>
+  doc.querySelector(kind.diffstatSlot);
+
+/** The lines-changed counter in the header, or `undefined` while it's missing. */
+export function findDiffstat(header: Header): Element | undefined {
+  return findDiffstatSlot(header)?.querySelector(":scope > .d-flex") ?? undefined;
 }
 
 /**
@@ -244,11 +267,11 @@ export function findDiffstat(page: FilesPage): Element | undefined {
  * replaces its skeleton, until `signal` aborts.
  */
 export function observeDiffstat(
-  page: FilesPage,
+  header: Header,
   onChange: () => void,
   { signal }: { signal: AbortSignal },
 ): void {
-  const slot = findDiffstatSlot(page);
+  const slot = findDiffstatSlot(header);
   if (!slot) return;
   const observer = new MutationObserver(onChange);
   observer.observe(slot, { childList: true });

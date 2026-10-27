@@ -1,12 +1,12 @@
 /**
- * Breaks the header's lines-changed counter, on a pull request or a commit, out by section once
+ * Breaks the header's lines-changed counter, on any tab of a pull request or a commit, out by section once
  * intent lands: a pill per section with the lines it adds and removes. A click switches between
  * that breakout and GitHub's own total.
  */
 
 import { type Landing, landingOf, type SectionLines, sum, totalsOf } from "@/utils/intent/landing";
 import type { DiffstatView } from "@/utils/prefs";
-import { type FilesPage, findDiffstat, observeDiffstat } from "../files-page";
+import { findDiffstat, type Header, observeDiffstat } from "../files-page";
 import { el } from "../ui/dom";
 import { count, counts } from "../ui/line-counts";
 import { markSection, SECTION_CATALOG, sectionIcon } from "../ui/section-catalog";
@@ -101,11 +101,11 @@ function breakdown(doc: Document, sections: readonly SectionLines[]): HTMLElemen
  * there is none.
  */
 function showCounter(
-  page: FilesPage,
+  header: Header,
   landing: Landing,
   { choice, save, signal }: DiffstatOptions & { readonly signal: AbortSignal },
 ): void {
-  const doc = page.sidebar.ownerDocument;
+  const { doc } = header;
   const sections = totalsOf(landing);
   const pills = sections.map((lines) => pill(doc, lines));
   const breakout = breakdown(doc, sections);
@@ -130,7 +130,7 @@ function showCounter(
   });
 
   const follow = () => {
-    native = findDiffstat(page);
+    native = findDiffstat(header);
     if (!native) button.remove();
     else if (button.nextElementSibling !== native) {
       native.before(button);
@@ -141,7 +141,7 @@ function showCounter(
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   follow();
   doc.head.append(style);
-  observeDiffstat(page, follow, { signal });
+  observeDiffstat(header, follow, { signal });
   signal.addEventListener("abort", () => {
     button.remove();
     style.remove();
@@ -153,12 +153,12 @@ function showCounter(
  * `signal` aborts. A path-only landing leaves GitHub's counter as is.
  */
 export function showDiffstat(
-  page: FilesPage,
+  header: Header,
   { choice, save, signal }: DiffstatOptions & { readonly signal: AbortSignal },
 ): LandingView {
   return {
     landed(result) {
-      if (result.ok) showCounter(page, landingOf(result), { choice, save, signal });
+      if (result.ok) showCounter(header, landingOf(result), { choice, save, signal });
     },
   };
 }

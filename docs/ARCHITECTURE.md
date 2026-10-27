@@ -23,8 +23,9 @@ runs on every github.com page at `document_start`, so its watcher is in place be
 GitHub first renders the page. It cannot match only Files view URLs, because of GitHub's
 soft navigation: GitHub swaps in a new page without loading a new document, so a script
 matched to pull request URLs would never be injected when you click through to one.
-Instead, it watches every page for a Files view to appear, and for a pull request's
-classic page, where it opens a dialog instead.
+Instead, it watches every page for a Files view to appear, for a pull request's other
+tabs, where it shows only the diffstat, and for a pull request's classic page, where it
+opens a dialog instead.
 
 ## Page kinds
 
@@ -65,7 +66,10 @@ follows it. A pathname change aborts the whole visit. A hash change, which every
 click makes, is not a new visit. When the window ends on a Files view path with no markup
 found, not even the classic page's, the watcher warns once and leaves GitHub's tree alone;
 the next wake still starts a new settle window. `watchClassicPages` follows the classic
-page the same way, through the same settle windows, and never warns.
+page the same way, through the same settle windows, and never warns. So does
+`watchHeaderPages`, for a pull request's Conversation, Commits, and Checks tabs
+(`readHeaderRoute`): its page is the header's counter slot (`findHeaderPage`), and each
+tab is its own visit, though GitHub keeps the header across them.
 
 ```mermaid
 stateDiagram-v2
@@ -89,7 +93,9 @@ and it re-lists the sections after each change to the tree. While a pull request
 layout has its "Files" overlay open, `land` also observes the overlay's copy of the tree
 and lists from it, telling each view through `shownIn` before it re-lists. One visit reads
 intent once: `index.ts` wraps the read in `shareIntent`, so every page of the visit joins
-the same read.
+the same read. A header tab's visit reads intent the same way, and `showHeader` mounts
+only the diffstat on each of its pages once the read lands, skipping a page dropped before
+then.
 
 ## The classic page notice
 

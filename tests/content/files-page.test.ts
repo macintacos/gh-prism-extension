@@ -12,9 +12,11 @@ import {
   findDiffstat,
   findFilesPage,
   findFilterOptions,
+  findHeaderPage,
   findOverlay,
   findTreeToggle,
   followOverlay,
+  headerOf,
   isPublicRepo,
   isSignedIn,
   mountedDiffs,
@@ -491,7 +493,7 @@ describe("the pull request kind", () => {
   };
 
   it("finds the header's lines-changed counter", () => {
-    expect(findDiffstat(foundPage())?.textContent).toContain("+1,604");
+    expect(findDiffstat(headerOf(foundPage()))?.textContent).toContain("+1,604");
   });
 
   it("finds the filter row's child holding the filter-options button", () => {
@@ -566,7 +568,7 @@ describe("the commit kind", () => {
   });
 
   it("finds the header's lines-changed counter", () => {
-    expect(findDiffstat(foundPage())?.textContent).toContain("+165");
+    expect(findDiffstat(headerOf(foundPage()))?.textContent).toContain("+165");
   });
 
   it("finds the filter row's child holding the filter-options button", () => {
@@ -841,5 +843,22 @@ describe("showsViewed", () => {
 
     expect(showsViewed(toggleIn(VIEWED_APP_TOML))).toBe(true);
     expect(showsViewed(toggleIn(VIEWED_LIB_RS))).toBe(false);
+  });
+});
+
+describe("findHeaderPage", () => {
+  it("finds a pull request's header and the counter in it", () => {
+    document.body.innerHTML =
+      '<div class="rightContentWrapper__x"><div class="d-flex">+36 -10</div></div>';
+    const page = findHeaderPage(document);
+
+    expect(page?.slot).toBe(document.querySelector(prPage.diffstatSlot));
+    expect(page && findDiffstat(page)?.textContent).toBe("+36 -10");
+  });
+
+  it("is undefined without the header's counter slot", () => {
+    document.body.innerHTML = "<main></main>";
+
+    expect(findHeaderPage(document)).toBeUndefined();
   });
 });

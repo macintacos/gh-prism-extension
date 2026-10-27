@@ -1,10 +1,11 @@
-import { type DiffRef, isCommitSha } from "./pr-ref";
+import { type DiffRef, isCommitSha, type PrRef } from "./pr-ref";
 
 // The classic page's `/files` and `/commits/<sha>`: GitHub redirects them to `/changes` and
 // `/changes/<sha>` wherever it shows the new page.
 const FILES_PATH =
   /^\/([^/]+)\/([^/]+)\/pull\/(\d+)\/(?:changes|files|commits(?=\/[0-9a-f]{7,40}\/?$))(?:\/([^/]*).*)?$/;
 const COMMIT_PATH = /^\/([^/]+)\/([^/]+)\/commit\/([^/]+)\/?$/;
+const HEADER_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:\/commits|\/checks)?\/?$/;
 
 /** The diff a Files changed URL names, and whether a commit or range narrows a pull request's. */
 export interface FilesRoute {
@@ -35,6 +36,16 @@ export function readFilesRoute(pathname: string): FilesRoute | undefined {
     diff: { kind: "commit", owner: commitOwner, repo: commitRepo, headSha },
     commitFiltered: false,
   };
+}
+
+/**
+ * The pull request whose Conversation, Commits, or Checks tab `pathname` is; `undefined`
+ * anywhere else, Files changed included.
+ */
+export function readHeaderRoute(pathname: string): PrRef | undefined {
+  const [, owner, repo, prNumber] = HEADER_PATH.exec(pathname) ?? [];
+  if (owner === undefined || repo === undefined || prNumber === undefined) return undefined;
+  return { kind: "pr", owner, repo, number: Number(prNumber) };
 }
 
 /**

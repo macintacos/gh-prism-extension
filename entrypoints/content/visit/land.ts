@@ -16,6 +16,8 @@ import {
   type ChangedFile,
   type FilesPage,
   followOverlay,
+  type Header,
+  headerOf,
   type NativeTree,
   observeTree,
   readChangedFiles,
@@ -118,6 +120,21 @@ export function land(
 }
 
 /** `read`'s result, or a path-only `failed` one, logged, when it rejects. */
+/**
+ * Once intent lands, stands in for `header`'s lines-changed counter as `diffstat` says, until
+ * `signal` aborts; a page dropped before then shows nothing.
+ */
+export function showHeader(
+  header: Header,
+  signal: AbortSignal,
+  { intent, diffstat }: { intent: PendingIntent; diffstat: DiffstatOptions },
+): void {
+  void orFailed(Promise.resolve(intent(() => {}))).then((landed) => {
+    // An aborted signal never fires `abort` again, so the counter would never come down.
+    if (!signal.aborted) showDiffstat(header, { ...diffstat, signal }).landed?.(landed);
+  });
+}
+
 const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
   read.catch((error: unknown): IntentResult => {
     console.error("gh-prism: reading intent failed", error);
@@ -146,7 +163,7 @@ export function showVisit(
     sidebar,
     showDiffOrder(page, signal),
     followFileKeys(page, signal),
-    showDiffstat(page, { ...diffstat, signal }),
+    showDiffstat(headerOf(page), { ...diffstat, signal }),
     followOnScreen(page, sidebar.onScreen, signal),
     followViewed(page, viewed, sidebar.viewed, signal),
   ];
