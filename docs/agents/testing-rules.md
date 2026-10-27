@@ -81,6 +81,13 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   so a click that comes too soon is intercepted and retried, with the same forced scroll.
   "ticking a box doesn't scroll the sidebar" polls the box's computed `pointer-events`
   first.
+- **Click a control drawn over a tree row on GitHub's current file too, with Playwright's
+  `click()`.** @pierre/trees stacks the focused and selected rows above their siblings, so
+  either can cover a control that works on every other row, and `dispatchEvent` skips the
+  hit test that would show it. A routed fixture runs no GitHub script, so make a file
+  current by setting `aria-current` on GitHub's tree item.
+  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "ticking GitHub's current file's box
+  saves its Viewed state" is the pattern.
 - **Keep each end-to-end test independent of the others.** `playwright.config.ts` sets
   `fullyParallel`, so the tests in one file run across workers in no fixed order. The
   `context` fixture gives each test its own browser profile.
