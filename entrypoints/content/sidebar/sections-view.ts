@@ -34,6 +34,7 @@ import { type LoadingView, loadingView } from "../ui/loading-view";
 import { followReveals, fullName } from "../ui/reveal";
 import { markSection, SECTION_CATALOG, sectionIcon } from "../ui/section-catalog";
 import type { FileSection, LandingView } from "../visit/land";
+import { openOwners } from "./owners-popover";
 import { SectionTree, type TreeFile } from "./section-tree";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./sections-view.css?inline";
@@ -63,7 +64,10 @@ interface SectionsView extends LandingView {
    * viewed, counts each listing's viewed files in its header.
    */
   viewed(paths: ReadonlySet<string>): void;
-  /** Shields the rows of every file in `byPath` with at least one code owner. */
+  /**
+   * Shields the rows of every file in `byPath` with at least one code owner; a shield's click
+   * lists them.
+   */
   owners(byPath: ReadonlyMap<string, FileOwners>): void;
 }
 
@@ -387,6 +391,15 @@ function clickedCheckbox(event: Event): ListedFile | undefined {
   return listing && path ? { listing, path } : undefined;
 }
 
+/** The code owners shield a click inside a tree landed on, its file, and its listing. */
+function clickedShield(event: Event): (ListedFile & { shield: HTMLElement }) | undefined {
+  const elements = event.composedPath().filter((node) => node instanceof HTMLElement);
+  const shield = elements.find((node) => node.matches("[data-item-shield]"));
+  const listing = listingOf(elements);
+  const path = shield?.dataset.itemShield;
+  return shield && listing && path ? { listing, path, shield } : undefined;
+}
+
 /**
  * Calls `onMove` whenever `view` may have moved against the viewport, until `signal` aborts: on a
  * scroll of anything holding it, a window resize, or a change in its own size.
@@ -443,6 +456,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
   let onScreen: ReadonlySet<string> = new Set();
   let viewed: ReadonlySet<string> = new Set();
   let offered = false;
+  let ownersByPath: ReadonlyMap<string, FileOwners> = new Map();
   let owned: ReadonlySet<string> = new Set();
   // The files whose box click is still settling; their boxes ignore clicks.
   const marking = new Set<string>();
@@ -646,6 +660,19 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
         return;
       }
 
+      const shield = clickedShield(event);
+      if (shield) {
+        event.preventDefault();
+        openOwners(shield.shield, {
+          name: shield.path.split("/").at(-1) ?? shield.path,
+          owners: ownersByPath.get(shield.path)?.owners ?? [],
+          root: view,
+          signal,
+          onEscape: () => shown.get(shield.listing)?.tree.focusRow(shield.path),
+        });
+        return;
+      }
+
       const file = clickedFile(event);
       if (file && isPlainLeftClick(event)) open(file);
     },
@@ -756,6 +783,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
       countHeaders();
     },
     owners(byPath) {
+      ownersByPath = byPath;
       owned = new Set([...byPath].flatMap(([path, { owners }]) => (owners.length ? [path] : [])));
       for (const { tree } of shown.values()) tree.showOwners(owned);
     },

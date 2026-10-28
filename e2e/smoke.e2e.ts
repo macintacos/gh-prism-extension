@@ -1628,11 +1628,12 @@ const FIXTURE_PATHS = [
   "README.md",
 ];
 
-const routeCodeOwners = async (context: BrowserContext) => {
+/** Answers the PR's code owners reads: each of `OWNED_PATHS` is owned by `owners`. */
+const routeCodeOwners = async (context: BrowserContext, owners = ["@o/team", "@octocat"]) => {
   const ownershipByPath = Object.fromEntries(
     FIXTURE_PATHS.map((path) => [
       path,
-      { owners: OWNED_PATHS.includes(path) ? ["@o/team", "@octocat"] : [], isOwnedByViewer: false },
+      { owners: OWNED_PATHS.includes(path) ? owners : [], isOwnedByViewer: false },
     ]),
   );
   await context.route("https://github.com/o/r/pull/1/page_data/codeowners", (route) =>
@@ -1709,4 +1710,62 @@ test("an owned file's row shows a shield in place of its icon while hovered or f
   await page.goto(COMMIT_URL);
   await expect(page.locator(".gh-prism-sections")).toHaveCount(1);
   await expect(page.locator("[data-item-shield]")).toHaveCount(0);
+});
+
+test("a shield lists its file's code owners in a popover until Escape returns to the row", async ({
+  context,
+  page,
+}) => {
+  await routeCodeOwners(context, ["@o/team", "@someone", "dev@example.com"]);
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+  const readme = treeRow(page, "README.md");
+  const readmeShield = shieldOf(page, "README.md");
+  const popover = page.locator(".gh-prism-owners");
+  await expect(readmeShield).toHaveCount(1);
+  const before = await page.evaluate(() => ({ scrollY: window.scrollY, hash: location.hash }));
+
+  await readme.hover();
+  await readmeShield.click();
+
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
+  const links = popover.locator("a");
+  await expect(links).toHaveCount(2);
+  expect(await links.evaluateAll((all) => all.map((link) => link.getAttribute("href")))).toEqual([
+    "https://github.com/orgs/o/teams/team",
+    "https://github.com/someone",
+  ]);
+  expect(await links.evaluateAll((all) => all.map((link) => link.getAttribute("target")))).toEqual([
+    "_blank",
+    "_blank",
+  ]);
+  await expect(popover.locator("li").nth(2)).toHaveText("dev@example.com");
+  await expect(popover.locator("li").nth(2).locator("a")).toHaveCount(0);
+  await expect(readme).not.toHaveAttribute("aria-selected", "true");
+  expect(await page.evaluate(() => ({ scrollY: window.scrollY, hash: location.hash }))).toEqual(
+    before,
+  );
+
+  await page.mouse.move(0, 0);
+  expect(await popover.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  await expect.poll(() => opacityOf(readmeShield)).toBe("1");
+  await expect.poll(() => opacityOf(rowIcon(page, "README.md"))).toBe("0");
+
+  await page.keyboard.press("Escape");
+  await expect(popover).toHaveCount(0);
+  expect(
+    await readme.evaluate((row) => (row.getRootNode() as ShadowRoot).activeElement === row),
+  ).toBe(true);
+
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("ArrowDown");
+  await expect(readme).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(readmeShield).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
+  expect(await popover.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+
+  await page.mouse.click(1, 1);
+  await expect(popover).toHaveCount(0);
 });

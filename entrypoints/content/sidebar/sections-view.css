@@ -5,6 +5,7 @@
 @source "./sections-view.ts";
 @source "../ui/line-counts.ts";
 @source "./whats-new.ts";
+@source "./owners-popover.ts";
 
 /* Hidden, not removed: the filter keeps editing these rows, and the view mirrors them. */
 :is(#pr-file-tree, #diff_file_tree):has(.gh-prism-sections) ul[role="tree"] {
@@ -205,7 +206,37 @@
   }
 }
 
+/* A shield's code owners, placed under it by owners-popover.ts. */
+.gh-prism-owners[popover] {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  max-width: 320px;
+  padding: var(--base-size-12);
+  color: var(--fgColor-default);
+  background-color: var(--overlay-bgColor);
+  border: var(--borderWidth-thin, 1px) solid var(--borderColor-default);
+  border-radius: var(--borderRadius-medium);
+  box-shadow: var(--shadow-floating-small);
+  overflow-wrap: anywhere;
+  transition:
+    opacity 240ms cubic-bezier(0.16, 1, 0.3, 1),
+    scale 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@starting-style {
+  .gh-prism-owners[popover]:popover-open {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+.gh-prism-owners a {
+  color: var(--fgColor-accent);
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .gh-prism-owners[popover],
   .gh-prism-skeleton > span,
   .gh-prism-sections[data-reveal] .gh-prism-section,
   .gh-prism-section-icon,

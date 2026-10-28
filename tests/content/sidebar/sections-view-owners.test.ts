@@ -7,6 +7,7 @@ import {
   COMMENT_LINES,
   clickAt,
   hostOf,
+  nativeLink,
   patchShadowActiveElement,
   press,
   renderSplit,
@@ -20,6 +21,7 @@ import {
   mountsVisit,
   rowsIn,
   sectionKeys,
+  view,
 } from "../../fixtures/visit";
 
 // Chrome content scripts run in an isolated world whose `customElements` is null, so every test
@@ -30,7 +32,18 @@ vi.hoisted(() => {
 
 patchShadowActiveElement();
 
-const { remountWith } = mountsVisit();
+// happy-dom has no Popover API: these stand in for the calls the popover makes, closing as a
+// browser does, with a `toggle` to `closed`.
+const shownPopovers = new WeakSet<HTMLElement>();
+HTMLElement.prototype.showPopover = function (this: HTMLElement) {
+  shownPopovers.add(this);
+};
+HTMLElement.prototype.hidePopover = function (this: HTMLElement) {
+  if (!shownPopovers.delete(this)) return;
+  this.dispatchEvent(Object.assign(new Event("toggle"), { newState: "closed" }));
+};
+
+const { remountWith, abort } = mountsVisit();
 
 /** A pull request whose `owned` paths each have `@o/team`, and whose `unowned` paths have none. */
 const ownersOf = (owned: readonly string[], unowned: readonly string[] = []): PrCodeOwners => ({
@@ -206,6 +219,108 @@ describe("showSections", () => {
       await landedOwned(ownersOf(["src/parser.rs"]));
 
       expect(shieldedIn("implementation")).toEqual(["src/parser.rs"]);
+    });
+  });
+
+  describe("the code owners popover", () => {
+    const tokensOf = (byPath: Readonly<Record<string, readonly string[]>>): PrCodeOwners => ({
+      byPath: new Map(
+        Object.entries(byPath).map(([path, tokens]) => [
+          path,
+          { owners: tokens.map(codeOwnerOf), ownedByViewer: false },
+        ]),
+      ),
+      reviewers: [],
+    });
+    const shieldOf = (listing: string, path: string) => {
+      const found = shieldsIn(listing).find((shield) => shield.dataset.itemShield === path);
+      if (!found) throw new Error(`${listing} has no shield for ${path}`);
+      return found;
+    };
+    const popovers = () => [...document.querySelectorAll<HTMLElement>(".gh-prism-owners")];
+
+    it("lists every owner, linking teams and users in a new tab", async () => {
+      await landedOwned(tokensOf({ "src/engine.rs": ["@o/team", "@someone", "dev@example.com"] }));
+
+      clickAt(shieldOf("implementation", "src/engine.rs"));
+
+      const [popover] = popovers();
+      expect(popovers()).toHaveLength(1);
+      expect(view()?.contains(popover ?? null)).toBe(true);
+      expect([...(popover?.querySelectorAll("li") ?? [])].map((item) => item.textContent)).toEqual([
+        "@o/team",
+        "@someone",
+        "dev@example.com",
+      ]);
+      const links = [...(popover?.querySelectorAll("a") ?? [])];
+      expect(links.map((link) => [link.href, link.target, link.rel])).toEqual([
+        ["https://github.com/orgs/o/teams/team", "_blank", "noopener noreferrer"],
+        ["https://github.com/someone", "_blank", "noopener noreferrer"],
+      ]);
+    });
+
+    it("shows an owner's token as text, never markup", async () => {
+      await landedOwned(tokensOf({ "src/engine.rs": ["@o/<img src=x>"] }));
+
+      clickAt(shieldOf("implementation", "src/engine.rs"));
+
+      expect(popovers()[0]?.querySelector("li")?.textContent).toBe("@o/<img src=x>");
+      expect(popovers()[0]?.querySelector("img")).toBeNull();
+    });
+
+    it("opens without revealing, selecting, or jumping to the file", async () => {
+      await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"] }));
+      const hash = location.hash;
+      const reveal = vi.spyOn(nativeLink("src/engine.rs"), "click");
+
+      clickAt(shieldOf("implementation", "src/engine.rs"));
+      await afterDebounce();
+
+      expect(reveal).not.toHaveBeenCalled();
+      expect(rowIn("implementation", "src/engine.rs").getAttribute("aria-selected")).not.toBe(
+        "true",
+      );
+      expect(location.hash).toBe(hash);
+    });
+
+    it("marks its shield expanded until it closes, and keeps one open at a time", async () => {
+      await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"], "src/parser.rs": ["@p"] }));
+      const engine = shieldOf("implementation", "src/engine.rs");
+
+      clickAt(engine);
+      expect(engine.getAttribute("aria-expanded")).toBe("true");
+
+      popovers()[0]?.hidePopover();
+      expect(popovers()).toEqual([]);
+      expect(engine.hasAttribute("aria-expanded")).toBe(false);
+
+      clickAt(engine);
+      popovers()[0]?.hidePopover();
+      clickAt(shieldOf("implementation", "src/parser.rs"));
+      expect(popovers()).toHaveLength(1);
+    });
+
+    it("closes on Escape and returns focus to the file's row", async () => {
+      await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"] }));
+      clickAt(shieldOf("implementation", "src/engine.rs"));
+      const [popover] = popovers();
+      if (!popover) throw new Error("no popover");
+
+      press(popover, "Escape");
+
+      expect(popovers()).toEqual([]);
+      expect(hostOf("implementation").shadowRoot?.activeElement).toBe(
+        rowIn("implementation", "src/engine.rs"),
+      );
+    });
+
+    it("goes when its page does", async () => {
+      await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"] }));
+      clickAt(shieldOf("implementation", "src/engine.rs"));
+
+      abort();
+
+      expect(popovers()).toEqual([]);
     });
   });
 });

@@ -110,7 +110,7 @@ export const clickAt = (target: Element, init: MouseEventInit = {}) => {
  * Presses `key` on `target` as a browser does: a button whose keydown goes unhandled clicks,
  * on keydown for Enter and on keyup for Space.
  */
-export function press(target: Element, key: "Enter" | " " | "End"): void {
+export function press(target: Element, key: "Enter" | " " | "End" | "Escape"): void {
   const init = { key, bubbles: true, cancelable: true, composed: true };
   const activates =
     target.dispatchEvent(new KeyboardEvent("keydown", init)) && target instanceof HTMLButtonElement;

@@ -206,6 +206,11 @@ export class SectionTree {
     );
   }
 
+  /** Focuses `path`'s row without scrolling, when the viewport has it mounted. */
+  focusRow(path: string): void {
+    this.#host.shadowRoot?.querySelector<HTMLElement>(rowOf(path))?.focus({ preventScroll: true });
+  }
+
   /**
    * Lights, for each of `paths`, its row's piece of its folder's hairline, or a top-level row's
    * edge, including rows the viewport mounts later, without selecting, focusing, or scrolling. A
@@ -246,7 +251,7 @@ export class SectionTree {
           ruleOf(
             [
               `${shown}>[data-item-section="icon"]>svg`,
-              `${rowOf(path)}:has(~${shield}:is(:hover,:focus-visible))>[data-item-section="icon"]>svg`,
+              `${rowOf(path)}:has(~${shield}:is(:hover,:focus-visible,[aria-expanded="true"]))>[data-item-section="icon"]>svg`,
             ],
             "opacity:0",
           )

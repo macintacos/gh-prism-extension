@@ -475,7 +475,7 @@ svg:not([data-icon-token]):has(> use[href="#gh-prism-java"]) {
   transition: opacity 150ms ease-out;
 }
 
-[data-item-shield]:is(:hover, :focus-visible) {
+[data-item-shield]:is(:hover, :focus-visible, [aria-expanded="true"]) {
   opacity: 1;
   pointer-events: auto;
 }
