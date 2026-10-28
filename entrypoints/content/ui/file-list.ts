@@ -48,7 +48,7 @@ function merged(folder: string, children: PathNode[]): PathNode {
     : { folder, children };
 }
 
-const LIST = "tw:m-0 tw:p-0 tw:list-none tw:flex tw:flex-col tw:gap-1";
+const LIST = "tw:mx-0 tw:mb-0 tw:py-0 tw:pr-0 tw:list-none tw:flex tw:flex-col tw:gap-1";
 
 /** `paths` as nested lists of muted folder paths and their files, `under` adding rows below each file's name. */
 export function fileList(
@@ -79,7 +79,7 @@ export function fileList(
   return el(
     doc,
     "ul",
-    `${LIST} tw:text-body-small tw:leading-body-small`,
+    `${LIST} tw:mt-0 tw:pl-0 tw:text-body-small tw:leading-body-small`,
     ...items(pathTree(paths)),
   );
 }
