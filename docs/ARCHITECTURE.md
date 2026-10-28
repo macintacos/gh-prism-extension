@@ -330,7 +330,9 @@ changed file opens nothing. It rides the header visit, so it runs only where
 the whole visit, because GitHub replaces the classic sidebar's nodes mid-visit. When to
 open and close it is `followHoverIntent` in
 [`ui/hover-intent.ts`](../entrypoints/content/ui/hover-intent.ts). The popup and the file
-shields' popover share one placer, [`ui/place.ts`](../entrypoints/content/ui/place.ts).
+and folder shields' popover share one placer,
+[`ui/place.ts`](../entrypoints/content/ui/place.ts): below, else above, else on the
+roomier side, capped so it never covers its anchor.
 
 The owner section is the third: it lists the reviewers who own a changed file (§ The owner
 section).

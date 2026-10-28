@@ -1999,6 +1999,35 @@ test("a folder shield's popover lists its files until Escape returns to the row"
   ).toBe(true);
 });
 
+test("a folder shield's popover too tall for either side of it pins without covering it", async ({
+  context,
+  page,
+}) => {
+  await openOwned(context, page, ["@o/team"]);
+  const shield = shieldOf(page, "src/generated/");
+  await treeRow(page, "src/generated/").hover();
+  await expect.poll(() => opacityOf(shield)).toBe("1");
+  const shieldBox = await shield.boundingBox();
+  if (!shieldBox) throw new Error("no folder shield box");
+  await page.setViewportSize({
+    width: page.viewportSize()?.width ?? 1280,
+    height: Math.ceil(shieldBox.y + shieldBox.height + 40),
+  });
+  await treeRow(page, "src/generated/").hover();
+  await page.addStyleTag({ content: ".gh-prism-owners li { min-height: 2000px; }" });
+
+  await shield.click();
+
+  const popover = page.locator(".gh-prism-owners:popover-open");
+  await expect(popover).toHaveCount(1);
+  expect(await popover.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  const box = await popover.boundingBox();
+  if (!box) throw new Error("no popover box");
+  const shieldNow = await shield.boundingBox();
+  if (!shieldNow) throw new Error("no folder shield box");
+  expect(box.y + box.height <= shieldNow.y || box.y >= shieldNow.y + shieldNow.height).toBe(true);
+});
+
 test("a code owner reviewer's shield opens their files, closing as the pointer leaves or on Escape", async ({
   context,
   page,
