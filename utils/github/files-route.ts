@@ -53,7 +53,7 @@ export const OWNER_PARAM = "gh-prism-owner";
 
 /**
  * The code owner `search` names in {@link OWNER_PARAM}, as a CODEOWNERS token: `@` is added
- * unless the value has one, so `org/team` reads as `@org/team`. `undefined` when absent or empty.
+ * unless the value holds one, as `@user` and an email do, so `org/team` reads as `@org/team`. `undefined` when absent or empty.
  */
 export function ownerOf(search: string): string | undefined {
   const owner = new URLSearchParams(search).get(OWNER_PARAM)?.trim();

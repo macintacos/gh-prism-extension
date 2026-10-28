@@ -7,6 +7,8 @@ import type { IntentResult, PendingIntent } from "../../utils/intent/read";
 import { byId, loadFixture } from "./files-page";
 import { landedWith } from "./intent";
 
+type VisitOptions = Parameters<typeof showVisit>[2];
+
 /** The sections view, or `null` while none is mounted. */
 export const view = () => document.querySelector<HTMLElement>(".gh-prism-sections");
 /** The sections view's progress bar, or `null` once intent has landed. */
@@ -58,18 +60,25 @@ export function mountsVisit() {
 
   /**
    * Replaces the mounted visit with one that waits on `intent`, in a tab whose header counter
-   * holds `diffstat`'s choice and saves through it.
+   * holds `diffstat`'s choice and saves through it, narrowed to `owner` by `codeOwners` if given.
    */
   const remountWith = (
     intent: PendingIntent = () => landedWith(),
     diffstat: DiffstatOptions = { choice: { view: "breakout" }, save: () => {} },
+    { owner, codeOwners }: Pick<VisitOptions, "owner" | "codeOwners"> = {},
   ): void => {
     controller.abort();
     controller = new AbortController();
 
     const page = findFilesPage(document);
     if (!page) throw new Error("fixture lacks the Files changed markup");
-    showVisit(page, controller.signal, { intent, diffstat, viewed: visitViewed(undefined) });
+    showVisit(page, controller.signal, {
+      intent,
+      diffstat,
+      viewed: visitViewed(undefined),
+      owner,
+      codeOwners,
+    });
   };
 
   beforeEach(() => {

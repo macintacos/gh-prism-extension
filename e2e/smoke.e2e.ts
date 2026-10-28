@@ -1548,21 +1548,6 @@ test("a commit's narrow layout keeps the side switch hidden", async ({ context, 
 
 // src/engine.rs's diff region in tests/fixtures/files-page.html.
 const ENGINE_DIFF = "diff-ff278ec599adfd033d35a083ebe8948db8bf177c9817dee8ddc4f3a9e3f5728e";
-const FIXTURE_PATHS = [
-  "config/app.toml",
-  "docs/guide.md",
-  "src/generated/schema.rs",
-  "src/engine.rs",
-  "src/helpers.rs",
-  "src/lib.rs",
-  "src/notes.rs",
-  "src/parser.rs",
-  "src/render.rs",
-  "tests/integration.rs",
-  "Cargo.lock",
-  "Cargo.toml",
-  "README.md",
-];
 const FIXTURE_OWNERS: Record<string, string[]> = {
   "src/lib.rs": ["@o/frontend"],
   "src/helpers.rs": ["@o/frontend"],
@@ -1572,9 +1557,9 @@ const FIXTURE_OWNERS: Record<string, string[]> = {
 /** Answers the code owners read for tests/fixtures/files-page.html; registered after the catch-all 404. */
 const routeCodeOwners = async (context: BrowserContext) => {
   const ownershipByPath = Object.fromEntries(
-    FIXTURE_PATHS.map((path) => [
+    Object.entries(FIXTURE_OWNERS).map(([path, owners]) => [
       path,
-      { isOwnedByViewer: false, owners: FIXTURE_OWNERS[path] ?? [] },
+      { isOwnedByViewer: false, owners },
     ]),
   );
   await context.route("**/page_data/codeowners", (route) =>

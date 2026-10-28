@@ -136,7 +136,10 @@ facts about GitHub that held when written, and ends with how to re-check them;
   40 files, and inspect the list's markup. Search the page's embedded data for
   `virtualizeDiffEntries`, and watch the network panel for `diff_entries` requests while
   scrolling. Read the mount-time scrolls from GitHub's bundle. Grep the bundle for
-  `"data-hotkey":"j"` and read the `isSingleFileMode` gate around it.
+  `"data-hotkey":"j"` and read the `isSingleFileMode` gate around it. On the code-owners
+  sandbox's PR #3, hide a row with `[data-path-digest=…] { display: none !important }` and
+  scroll the list for gaps; on PR #1, hide a region alone, then its entry, and measure the
+  gap each leaves.
 
 ## Sticky headers
 

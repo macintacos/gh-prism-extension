@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   codeOwnerOf,
   isOwner,
-  ownedBy,
+  ownerFilter,
   type PrCodeOwners,
   readCodeOwners,
 } from "../../../utils/github/code-owners";
@@ -342,7 +342,7 @@ describe("isOwner", () => {
   });
 });
 
-describe("ownedBy", () => {
+describe("ownerFilter", () => {
   const paths = [
     "web/app.ts",
     "docs/guide.md",
@@ -362,7 +362,7 @@ describe("ownedBy", () => {
     const owners = await read(sandbox, sandboxFetch());
     if (owners === undefined) throw new Error("the sandbox's read failed");
 
-    const keep = ownedBy(owners, token);
+    const keep = ownerFilter(owners, token);
 
     expect(paths.filter(keep)).toEqual(kept);
   });

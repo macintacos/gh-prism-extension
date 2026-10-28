@@ -33,7 +33,8 @@ import { watchClassicPages, watchFilesPages, watchHeaderPages } from "./visit/wa
 const CACHED_DIFFS = 50;
 
 /**
- * On every Files view on github.com, shows the sidebar's sections, orders the diffs to match,
+ * On every Files view on github.com, shows the sidebar's sections, narrowed on a pull request to
+ * the `gh-prism-owner` owner's files when set, orders the diffs to match,
  * stands in for the diffstat, docks the sidebar on the saved side with a switch, adds a link to
  * report a miscategorized file, and, after an update, opens the sidebar with that release's
  * notes. On a pull request's header tabs, stands in for the diffstat alone. On its classic Files
@@ -92,7 +93,7 @@ export default defineContentScript({
               diffstat,
               viewed,
               codeOwners,
-              owner: ownerOf(location.search),
+              owner: route.diff.kind === "pr" ? ownerOf(location.search) : undefined,
               whatsNew: whatsNewForPage?.(),
             });
             dockSidebar(page, signal, { choice: side, save: saveSide });

@@ -4,12 +4,13 @@
  * Each listed file's entry, the list child GitHub renders, deliberately gets an inline `order`
  * and `animation-delay`: that restyles the entry alone, where a `:has()` rule per file is matched
  * against every entry's subtree. React sets only the style keys it renders, so both survive its
- * re-renders; the view's removal strips them. GitHub's virtualized lists, which place each diff
- * absolutely, keep GitHub's order.
+ * re-renders; the view's removal strips them. A hidden file's entry gets a `data-gh-prism-hidden`
+ * attribute instead, so gh-prism never clears a style GitHub sets. GitHub's virtualized lists,
+ * which place each diff absolutely, keep GitHub's order.
  *
  * It also hides the diffs of the files gh-prism's owner filter leaves out: a rule on each one's
- * region and virtualized row, since those rows mount and unmount as you scroll, and an inline
- * style on a progressive list's entry, which closes its gap.
+ * region and virtualized row, since those rows mount and unmount as you scroll, and the attribute
+ * on a progressive list's entry, which closes its gap.
  */
 
 import { SECTIONS } from "@/utils/sections";
@@ -17,7 +18,6 @@ import {
   afterEntries,
   appendToDiffs,
   diffEntryOf,
-  diffSelector,
   type FilesPage,
   findDiffList,
   isDiffAnchor,
@@ -63,7 +63,11 @@ export function listRules(kind: PageKind): string {
   ].join("\n");
 }
 
-const SHEET = [css, ...PAGE_KINDS.map(listRules)].join("\n");
+const SHEET = [
+  css,
+  ...PAGE_KINDS.map(listRules),
+  "[data-gh-prism-hidden] { display: none !important; }",
+].join("\n");
 
 /** Each diff anchor `sections` list, in rank order, mapped to the first section that lists it. */
 function ranking(sections: readonly (readonly string[])[]): ReadonlyMap<string, number> {
@@ -86,14 +90,11 @@ function flushFirst(kind: PageKind, first: string | undefined): string {
   ].join("\n");
 }
 
-/**
- * A rule hiding the diff of each file in `hidden`; one malformed anchor would void the whole
- * selector list, so only well-formed ones count.
- */
-function hideRule(hidden: ReadonlySet<string>): string {
-  const anchors = [...hidden].filter(isDiffAnchor);
-  return anchors.length > 0
-    ? `${anchors.map(diffSelector).join(", ")} { display: none !important; }`
+/** A rule hiding the diff of each file in `hidden`, on a kind that hides any. */
+function hideRule(kind: PageKind, hidden: ReadonlySet<string>): string {
+  const selectors = kind.hiddenDiffSelectors;
+  return selectors && hidden.size > 0
+    ? `${[...hidden].map(selectors).join(", ")} { display: none !important; }`
     : "";
 }
 
@@ -104,8 +105,8 @@ function setStyle(entry: HTMLElement, property: string, value: string): void {
 
 /**
  * Gives `list`'s entries their place in `ranked`, inline, and strips it from every other child: a
- * file the filter hides, or a restored copy of a previous visit's entries. Hides the entry of
- * each file in `hidden`, so the list's row gap closes over it.
+ * file GitHub's filter hides, or a restored copy of a previous visit's entries. Marks the entry
+ * of each file in `hidden` hidden, and only those, so the list's row gap closes over it.
  */
 function placeEntries(
   page: FilesPage,
@@ -124,7 +125,7 @@ function placeEntries(
     const [order, delay] = placed.get(child) ?? ["", ""];
     setStyle(child, "order", order);
     setStyle(child, "animation-delay", delay);
-    setStyle(child, "display", hiddenEntries.has(child) ? "none" : "");
+    child.toggleAttribute("data-gh-prism-hidden", hiddenEntries.has(child));
   }
 }
 
@@ -144,7 +145,8 @@ function watchList(observer: MutationObserver, page: FilesPage, list: Element | 
 }
 
 /**
- * Keeps `page`'s listed entries where `ranked` places them, re-placing any GitHub adds or
+ * Keeps `page`'s listed entries where `ranked` places them, and `hidden`'s entries hidden,
+ * re-placing any GitHub adds or
  * replaces, and any list it mounts or swaps in, until `signal` aborts.
  */
 function entryPlacer(
@@ -233,10 +235,14 @@ function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
     },
     arrange(sections, hidden) {
       const ranked = reorderable(page) ? ranking(sections) : new Map<string, number>();
-      place(ranked, hidden);
+      // One malformed anchor would void the hide rule's whole selector list, or throw on a lookup.
+      const anchors = new Set([...hidden].filter(isDiffAnchor));
+      place(ranked, anchors);
 
       const [first] = ranked.keys();
-      const text = [flushFirst(page.kind, first), hideRule(hidden)].filter(Boolean).join("\n");
+      const text = [flushFirst(page.kind, first), hideRule(page.kind, anchors)]
+        .filter(Boolean)
+        .join("\n");
       if (rules.textContent !== text) rules.textContent = text;
     },
     reveal,

@@ -248,6 +248,15 @@ describe("content script", () => {
     ]);
   });
 
+  it("narrows no commit to an owner, whatever its URL names", async () => {
+    history.replaceState(null, "", "/o/r/commit/dd95cdc?gh-prism-owner=octocat");
+    loadCommitFixture();
+    await run();
+
+    expect(showVisit).toHaveBeenCalledOnce();
+    expect(vi.mocked(showVisit).mock.calls[0]?.[2].owner).toBeUndefined();
+  });
+
   it("narrows a page whose URL names no owner to no one", async () => {
     await run();
 
