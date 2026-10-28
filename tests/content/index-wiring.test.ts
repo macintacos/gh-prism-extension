@@ -6,10 +6,11 @@ import contentScript from "../../entrypoints/content";
 import { showOwnerSection } from "../../entrypoints/content/sidebar/owner-section";
 import { dockSidebar, type Side } from "../../entrypoints/content/sidebar/side";
 import { showHeaderTab, showVisit } from "../../entrypoints/content/visit/land";
-import { readCodeOwners } from "../../utils/github/code-owners";
+import { readCodeOwners, readPrReviewers } from "../../utils/github/code-owners";
 import { readFilesRoute } from "../../utils/github/files-route";
 import { intentFor } from "../../utils/intent/read";
 import { type DiffstatView, whatsNewSeen } from "../../utils/prefs";
+import { routedFetch } from "../fixtures/fetch";
 import {
   byId,
   loadClassicFixture,
@@ -28,6 +29,7 @@ vi.mock(import("../../utils/intent/read"), async (importOriginal) => ({
 vi.mock(import("../../utils/github/code-owners"), async (importOriginal) => ({
   ...(await importOriginal()),
   readCodeOwners: vi.fn(() => new Promise<never>(() => {})),
+  readPrReviewers: vi.fn(() => new Promise<never>(() => {})),
 }));
 vi.mock(import("../../entrypoints/content/visit/land"), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -74,6 +76,7 @@ afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
 });
 
 describe("content script", () => {
@@ -224,28 +227,66 @@ describe("content script", () => {
     ]);
   });
 
-  it("gives each page's owner section the visit's code owners", async () => {
+  it("gives each page's owner section the visit's code owners and PR reviewers", async () => {
     await run();
     const sidebar = byId("pr-file-tree");
     sidebar.replaceWith(sidebar.cloneNode(true));
     await afterMutations();
 
-    const read = vi.mocked(readCodeOwners).mock.results[0]?.value;
-    expect(
-      vi.mocked(showOwnerSection).mock.calls.map(([, , options]) => options.codeOwners),
-    ).toEqual([read, read]);
+    expect(readPrReviewers).toHaveBeenCalledExactlyOnceWith(
+      readFilesRoute(PR)?.diff,
+      expect.any(Function),
+      expect.any(AbortSignal),
+    );
+    const codeOwners = vi.mocked(readCodeOwners).mock.results[0]?.value;
+    const prReviewers = vi.mocked(readPrReviewers).mock.results[0]?.value;
+    const given = vi.mocked(showOwnerSection).mock.calls.map(([, , options]) => options);
+    expect(given).toHaveLength(2);
+    for (const options of given) {
+      expect(options.codeOwners).toBe(codeOwners);
+      expect(options.prReviewers).toBe(prReviewers);
+    }
   });
 
-  it("reads code owners afresh on the next visit", async () => {
+  it.each([
+    ["fails", () => Promise.resolve(new Response("", { status: 404 }))],
+    ["never answers", () => new Promise<Response>(() => {})],
+  ])("hands each page the code owners while merge_box %s", async (_, mergeBox) => {
+    const actual = await vi.importActual<typeof import("../../utils/github/code-owners")>(
+      "../../utils/github/code-owners",
+    );
+    vi.mocked(readCodeOwners).mockImplementation(actual.readCodeOwners);
+    vi.mocked(readPrReviewers).mockImplementation(actual.readPrReviewers);
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const ownershipByPath = { "src/lib.rs": { owners: ["@o/a"], isOwnedByViewer: true } };
+    vi.stubGlobal(
+      "fetch",
+      routedFetch({
+        "https://github.com/o/r/pull/1/page_data/codeowners": () =>
+          Promise.resolve(new Response(JSON.stringify({ ownershipByPath }))),
+        "https://github.com/o/r/pull/1/page_data/merge_box": mergeBox,
+      }),
+    );
+
+    await run();
+
+    const [, , visit] = vi.mocked(showVisit).mock.calls[0] ?? [];
+    const [, , section] = vi.mocked(showOwnerSection).mock.calls[0] ?? [];
+    await expect(visit?.codeOwners).resolves.toHaveProperty("size", 1);
+    await expect(section?.codeOwners).resolves.toHaveProperty("size", 1);
+  });
+
+  it("reads code owners and PR reviewers afresh on the next visit", async () => {
     await run();
     history.pushState(null, "", "/o/r/pull/2/changes");
     document.dispatchEvent(new Event("soft-nav:end"));
     await afterMutations();
 
+    const pr2 = readFilesRoute("/o/r/pull/2/changes")?.diff;
     expect(readCodeOwners).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(readCodeOwners).mock.calls[1]?.[0]).toEqual(
-      readFilesRoute("/o/r/pull/2/changes")?.diff,
-    );
+    expect(vi.mocked(readCodeOwners).mock.calls[1]?.[0]).toEqual(pr2);
+    expect(readPrReviewers).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(readPrReviewers).mock.calls[1]?.[0]).toEqual(pr2);
   });
 
   it("narrows each page to the owner its URL names, if any", async () => {
@@ -375,10 +416,11 @@ describe("content script", () => {
       );
     });
 
-    it("reads no code owners", async () => {
+    it("reads no code owners or PR reviewers", async () => {
       await run();
 
       expect(readCodeOwners).not.toHaveBeenCalled();
+      expect(readPrReviewers).not.toHaveBeenCalled();
     });
 
     it("shares the Files view's diffstat choice", async () => {

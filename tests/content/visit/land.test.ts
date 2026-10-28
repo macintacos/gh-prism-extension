@@ -345,15 +345,13 @@ describe("intent shared by each view of one visit", () => {
 describe("a visit narrowed to an owner", () => {
   const { remountWith } = mountsVisit();
   const allListed = () => sectionKeys().flatMap((key) => (key ? filesIn(key) : []));
-  const ownedBy = (paths: Record<string, string>): PrCodeOwners => ({
-    byPath: new Map(
+  const ownedBy = (paths: Record<string, string>): PrCodeOwners =>
+    new Map(
       Object.entries(paths).map(([path, token]) => [
         path,
         { owners: [{ token }], ownedByViewer: false },
       ]),
-    ),
-    reviewers: [],
-  });
+    );
   const narrowed = async (codeOwners?: Promise<PrCodeOwners | undefined>) => {
     remountWith(() => result, undefined, { owner: "@octocat", codeOwners });
     await afterDebounce();

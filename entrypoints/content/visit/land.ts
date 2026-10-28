@@ -188,10 +188,11 @@ const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
  * Mounts the sidebar, the diff order, the j/k file keys, the diffstat, and the on-screen and Viewed
  * trackers that feed the sidebar on one page of a visit, and lands `intent` on them in that order,
  * until `signal` aborts. `viewed` is the visit's Viewed state, shared by its pages. `codeOwners`
- * is the visit's code owners and reviewers, which can land after the sidebar draws or not at all,
- * and never rejects; the sidebar shows them once they land. `owner`, the code owner the page's URL
- * names, if any, holds the page pending until the code owners land, then narrows the sidebar and
- * the diffs to that owner's files; every file shows when they can't be read.
+ * is the visit's code owners, read apart from its PR reviewers, which can land after the sidebar
+ * draws or not at all, and never rejects; the sidebar shows them once they land. `owner`, the code
+ * owner the page's URL names, if any, holds the page pending until the code owners land, then
+ * narrows the sidebar and the diffs to that owner's files; every file shows when they can't be
+ * read.
  * `whatsNew`, when given, opens the sidebar with its block.
  */
 export function showVisit(
@@ -215,7 +216,7 @@ export function showVisit(
 ): void {
   const sidebar = showSections(page, signal);
   void codeOwners?.then((read) => {
-    if (read && !signal.aborted) sidebar.owners(read.byPath);
+    if (read && !signal.aborted) sidebar.owners(read);
   });
   if (whatsNew) sidebar.root.prepend(whatsNewBlock(page.sidebar.ownerDocument, whatsNew));
   const views = [

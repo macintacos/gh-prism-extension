@@ -17,29 +17,34 @@ import {
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./owner-section.css?inline";
 
-/** The visit's code owners, and how the section loads a pick. */
+/** The visit's code owners and PR reviewers, and how the section loads a pick. */
 export interface OwnerSectionOptions {
   /** The visit's code owners, read once per visit; never re-fetched here. */
   readonly codeOwners: Promise<PrCodeOwners | undefined>;
+  /**
+   * The visit's PR reviewers, read once per visit apart from the code owners; never re-fetched
+   * here. Without them the section offers only "Me".
+   */
+  readonly prReviewers: Promise<readonly string[] | undefined>;
   /** Loads `href` as a new page: the owner filter reads its owner once per page. */
   readonly navigate: (href: string) => void;
 }
 
 /**
  * Adds the "Only files owned by…" section to GitHub's file-tree filter menu each time it opens,
- * until `signal` aborts. Adds nothing when the code owners don't arrive, when nobody qualifies, or
- * when the menu's markup is unrecognized.
+ * until `signal` aborts, once both reads settle. Adds nothing when the code owners don't arrive,
+ * when nobody qualifies, or when the menu's markup is unrecognized.
  */
 export function showOwnerSection(
   page: FilesPage,
   signal: AbortSignal,
-  { codeOwners, navigate }: OwnerSectionOptions,
+  { codeOwners, prReviewers, navigate }: OwnerSectionOptions,
 ): void {
-  void codeOwners.then((read) => {
-    if (!read || read.byPath.size === 0 || signal.aborted) return;
+  void Promise.all([codeOwners, prReviewers]).then(([owners, allReviewers]) => {
+    if (!owners || owners.size === 0 || signal.aborted) return;
     const doc = page.sidebar.ownerDocument;
     const viewer = viewerLogin(doc);
-    const reviewers = owningReviewers(read, viewer);
+    const reviewers = owningReviewers(allReviewers ?? [], owners, viewer);
 
     const style = Object.assign(doc.createElement("style"), { textContent: css });
     doc.head.append(style);

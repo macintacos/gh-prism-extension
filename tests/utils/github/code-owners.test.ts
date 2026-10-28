@@ -6,6 +6,7 @@ import {
   owningReviewers,
   type PrCodeOwners,
   readCodeOwners,
+  readPrReviewers,
 } from "../../../utils/github/code-owners";
 import type { DiffRef } from "../../../utils/github/pr-ref";
 import nodeCodeowners from "../../fixtures/codeowners-node.json?raw";
@@ -64,159 +65,29 @@ function read(diff: DiffRef, fetchFn: typeof fetch): Promise<PrCodeOwners | unde
   return readCodeOwners(diff, fetchFn, new AbortController().signal);
 }
 
+function readReviewers(
+  diff: DiffRef,
+  fetchFn: typeof fetch,
+): Promise<readonly string[] | undefined> {
+  return readPrReviewers(diff, fetchFn, new AbortController().signal);
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("readCodeOwners", () => {
-  it("reads each changed file's owners and the reviewers of the sandbox PR", async () => {
-    const result = await read(sandbox, sandboxFetch());
-
-    expect(result?.byPath.size).toBe(6);
-    expect(result?.byPath.get("api/routes.ts")).toEqual({
-      owners: [
-        {
-          token: "@excessive-dev/platform",
-          url: "https://github.com/orgs/excessive-dev/teams/platform",
-        },
-        { token: "@sandbox-user", url: "https://github.com/sandbox-user" },
-      ],
-      ownedByViewer: true,
-    });
-    expect(result?.byPath.get("web/app.ts")?.owners.map((o) => o.token)).toEqual([
-      "@excessive-dev/frontend",
-    ]);
-    expect(result?.byPath.get("web/app.ts")?.ownedByViewer).toBe(true);
-    expect(result?.byPath.get("infra/deploy.yml")?.ownedByViewer).toBe(false);
-    expect(result?.byPath.get("README.md")).toEqual({ owners: [], ownedByViewer: false });
-    expect(result?.reviewers).toEqual(["@excessive-dev/frontend", "@excessive-dev/platform"]);
-  });
-
-  it("lists requested reviewers before those who reviewed", async () => {
-    const result = await read(
-      node,
-      nodeFetchWithReview(() => {}),
-    );
-
-    expect(result?.reviewers).toEqual(["@jasnell", "@aduh95", "@pimterry", "@richardlau"]);
-    expect(result?.byPath.get("test/cctest/test_node_crypto.cc")?.owners).toEqual([]);
-    expect(result?.byPath.get("src/crypto/crypto_util.cc")?.owners.map((o) => o.token)).toEqual([
-      "@nodejs/crypto",
-    ]);
-  });
-
-  it("reads a repository without CODEOWNERS as no owners", async () => {
-    const result = await read(sandbox, sandboxFetch(ok(noCodeowners)));
-
-    expect(result?.byPath.size).toBe(0);
-  });
-
-  it("requests each endpoint once with the XHR header and the visit's signal", async () => {
-    const fetchFn = sandboxFetch();
-    const signal = new AbortController().signal;
-
-    await readCodeOwners(sandbox, fetchFn, signal);
-
-    const init = { headers: { "X-Requested-With": "XMLHttpRequest" }, signal };
-    expect(fetchFn).toHaveBeenCalledTimes(2);
-    expect(fetchFn).toHaveBeenCalledWith(`${sandboxUrl}/codeowners`, init);
-    expect(fetchFn).toHaveBeenCalledWith(`${sandboxUrl}/merge_box`, init);
-  });
-
+describe.each([
+  { name: "readCodeOwners", readFrom: readCodeOwners },
+  { name: "readPrReviewers", readFrom: readPrReviewers },
+])("$name", ({ readFrom }) => {
   it("reads nothing for a commit", async () => {
     const fetchFn = sandboxFetch();
     const commit: DiffRef = { kind: "commit", owner: "o", repo: "r", headSha: "dd95cdc" };
 
-    const result = await read(commit, fetchFn);
+    const result = await readFrom(commit, fetchFn, new AbortController().signal);
 
     expect(result).toBeUndefined();
     expect(fetchFn).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    ["codeowners answers 404", () => sandboxFetch(notFound)],
-    ["merge_box answers 404", () => sandboxFetch(undefined, notFound)],
-    ["codeowners answers HTML", () => sandboxFetch(ok("<html>"))],
-    [
-      "an entry's owners is a string",
-      () =>
-        sandboxFetch(
-          editedCodeowners((entry) => {
-            entry.owners = "@a";
-          }),
-        ),
-    ],
-    [
-      "an entry lacks isOwnedByViewer",
-      () =>
-        sandboxFetch(
-          editedCodeowners((entry) => {
-            delete entry.isOwnedByViewer;
-          }),
-        ),
-    ],
-    [
-      "an owner is a number",
-      () =>
-        sandboxFetch(
-          editedCodeowners((entry) => {
-            entry.owners = [7];
-          }),
-        ),
-    ],
-    [
-      "pendingReviewRequests is missing",
-      () =>
-        sandboxFetch(
-          undefined,
-          editedMergeBox((pr) => {
-            delete pr.pendingReviewRequests;
-          }),
-        ),
-    ],
-    [
-      "ownershipByPath is an array",
-      () => sandboxFetch(ok(JSON.stringify({ ownershipByPath: [] }))),
-    ],
-    [
-      "latestOpinionatedReviews is missing",
-      () =>
-        sandboxFetch(
-          undefined,
-          editedMergeBox((pr) => {
-            delete pr.latestOpinionatedReviews;
-          }),
-        ),
-    ],
-    [
-      "a reviewer's login is a number",
-      () =>
-        sandboxFetch(
-          undefined,
-          editedMergeBox((pr) => {
-            pr.pendingReviewRequests = [{ reviewer: { login: 7 } }];
-          }),
-        ),
-    ],
-  ])("reads nothing and warns once when %s", async (_, fetchFn) => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-
-    const result = await read(sandbox, fetchFn());
-
-    expect(result).toBeUndefined();
-    expect(warn).toHaveBeenCalledOnce();
-  });
-
-  it("reads nothing and warns once when a review lacks onBehalfOf", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const fetchFn = nodeFetchWithReview((review) => {
-      delete review.onBehalfOf;
-    });
-
-    const result = await read(node, fetchFn);
-
-    expect(result).toBeUndefined();
-    expect(warn).toHaveBeenCalledOnce();
   });
 
   it("reads nothing and stays quiet once the visit aborts", async () => {
@@ -227,24 +98,188 @@ describe("readCodeOwners", () => {
       Promise.reject(init?.signal?.reason),
     );
 
-    const result = await readCodeOwners(sandbox, fetchFn, controller.signal);
+    const result = await readFrom(sandbox, fetchFn, controller.signal);
 
     expect(result).toBeUndefined();
     expect(warn).not.toHaveBeenCalled();
+  });
+});
+
+describe("readCodeOwners", () => {
+  it("reads each changed file's owners in the sandbox PR", async () => {
+    const result = await read(sandbox, sandboxFetch());
+
+    expect(result?.size).toBe(6);
+    expect(result?.get("api/routes.ts")).toEqual({
+      owners: [
+        {
+          token: "@excessive-dev/platform",
+          url: "https://github.com/orgs/excessive-dev/teams/platform",
+        },
+        { token: "@sandbox-user", url: "https://github.com/sandbox-user" },
+      ],
+      ownedByViewer: true,
+    });
+    expect(result?.get("web/app.ts")?.owners.map((o) => o.token)).toEqual([
+      "@excessive-dev/frontend",
+    ]);
+    expect(result?.get("web/app.ts")?.ownedByViewer).toBe(true);
+    expect(result?.get("infra/deploy.yml")?.ownedByViewer).toBe(false);
+    expect(result?.get("README.md")).toEqual({ owners: [], ownedByViewer: false });
+  });
+
+  it("reads a repository without CODEOWNERS as no owners", async () => {
+    const result = await read(sandbox, sandboxFetch(ok(noCodeowners)));
+
+    expect(result?.size).toBe(0);
+  });
+
+  it("requests codeowners once with the XHR header and the visit's signal", async () => {
+    const fetchFn = sandboxFetch();
+    const signal = new AbortController().signal;
+
+    await readCodeOwners(sandbox, fetchFn, signal);
+
+    expect(fetchFn).toHaveBeenCalledExactlyOnceWith(`${sandboxUrl}/codeowners`, {
+      headers: { "X-Requested-With": "XMLHttpRequest" },
+      signal,
+    });
+  });
+
+  it.each([
+    ["answers 404", notFound],
+    [
+      "answers an unexpected shape",
+      editedMergeBox((pr) => {
+        delete pr.pendingReviewRequests;
+      }),
+    ],
+    ["never answers", () => new Promise<Response>(() => {})],
+  ])("reads the owners, quietly, when merge_box %s", async (_, mergeBox) => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const result = await read(sandbox, sandboxFetch(undefined, mergeBox));
+
+    expect(result?.size).toBe(6);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["codeowners answers 404", notFound],
+    ["codeowners answers HTML", ok("<html>")],
+    [
+      "an entry's owners is a string",
+      editedCodeowners((entry) => {
+        entry.owners = "@a";
+      }),
+    ],
+    [
+      "an entry lacks isOwnedByViewer",
+      editedCodeowners((entry) => {
+        delete entry.isOwnedByViewer;
+      }),
+    ],
+    [
+      "an owner is a number",
+      editedCodeowners((entry) => {
+        entry.owners = [7];
+      }),
+    ],
+    ["ownershipByPath is an array", ok(JSON.stringify({ ownershipByPath: [] }))],
+  ])("reads nothing and warns once of the code owners when %s", async (_, codeowners) => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const result = await read(sandbox, sandboxFetch(codeowners));
+
+    expect(result).toBeUndefined();
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      expect.stringContaining("code owners"),
+      expect.any(Error),
+    );
+  });
+});
+
+describe("readPrReviewers", () => {
+  it("reads the sandbox PR's reviewers", async () => {
+    const result = await readReviewers(sandbox, sandboxFetch());
+
+    expect(result).toEqual(["@excessive-dev/frontend", "@excessive-dev/platform"]);
+  });
+
+  it("lists requested reviewers before those who reviewed", async () => {
+    const result = await readReviewers(
+      node,
+      nodeFetchWithReview(() => {}),
+    );
+
+    expect(result).toEqual(["@jasnell", "@aduh95", "@pimterry", "@richardlau"]);
+  });
+
+  it("requests merge_box once with the XHR header and the visit's signal", async () => {
+    const fetchFn = sandboxFetch();
+    const signal = new AbortController().signal;
+
+    await readPrReviewers(sandbox, fetchFn, signal);
+
+    expect(fetchFn).toHaveBeenCalledExactlyOnceWith(`${sandboxUrl}/merge_box`, {
+      headers: { "X-Requested-With": "XMLHttpRequest" },
+      signal,
+    });
+  });
+
+  it.each([
+    ["merge_box answers 404", notFound],
+    [
+      "pendingReviewRequests is missing",
+      editedMergeBox((pr) => {
+        delete pr.pendingReviewRequests;
+      }),
+    ],
+    [
+      "latestOpinionatedReviews is missing",
+      editedMergeBox((pr) => {
+        delete pr.latestOpinionatedReviews;
+      }),
+    ],
+    [
+      "a reviewer's login is a number",
+      editedMergeBox((pr) => {
+        pr.pendingReviewRequests = [{ reviewer: { login: 7 } }];
+      }),
+    ],
+  ])("reads nothing and warns once of the PR reviewers when %s", async (_, mergeBox) => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const result = await readReviewers(sandbox, sandboxFetch(undefined, mergeBox));
+
+    expect(result).toBeUndefined();
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      expect.stringContaining("PR reviewers"),
+      expect.any(Error),
+    );
+  });
+
+  it("reads nothing and warns once when a review lacks onBehalfOf", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchFn = nodeFetchWithReview((review) => {
+      delete review.onBehalfOf;
+    });
+
+    const result = await readReviewers(node, fetchFn);
+
+    expect(result).toBeUndefined();
+    expect(warn).toHaveBeenCalledOnce();
   });
 
   it("skips a deleted reviewer or review author", async () => {
     const mergeBox = JSON.parse(nodeMergeBox);
     mergeBox.pullRequest.pendingReviewRequests[0].reviewer = null;
     mergeBox.pullRequest.latestOpinionatedReviews[0].author = null;
-    const fetchFn = routedFetch({
-      [`${nodeUrl}/codeowners`]: ok(nodeCodeowners),
-      [`${nodeUrl}/merge_box`]: ok(JSON.stringify(mergeBox)),
-    });
+    const fetchFn = routedFetch({ [`${nodeUrl}/merge_box`]: ok(JSON.stringify(mergeBox)) });
 
-    const result = await read(node, fetchFn);
+    const result = await readReviewers(node, fetchFn);
 
-    expect(result?.reviewers).toEqual(["@aduh95", "@richardlau"]);
+    expect(result).toEqual(["@aduh95", "@richardlau"]);
   });
 
   it("counts a team a review was submitted on behalf of as a reviewer", async () => {
@@ -258,10 +293,11 @@ describe("readCodeOwners", () => {
       ];
     });
 
-    const result = await read(node, fetchFn);
+    const reviewers = await readReviewers(node, fetchFn);
+    const owners = await read(node, fetchFn);
 
-    const owner = result?.byPath.get("src/crypto/crypto_util.cc")?.owners[0];
-    expect(result?.reviewers).toContain("@nodejs/crypto");
+    const owner = owners?.get("src/crypto/crypto_util.cc")?.owners[0];
+    expect(reviewers).toContain("@nodejs/crypto");
     expect(owner && isOwner("@nodejs/crypto", owner)).toBe(true);
   });
 
@@ -270,9 +306,9 @@ describe("readCodeOwners", () => {
       review.onBehalfOf = [{ name: "crypto" }];
     });
 
-    const result = await read(node, fetchFn);
+    const result = await readReviewers(node, fetchFn);
 
-    expect(result?.reviewers).toEqual(["@jasnell", "@aduh95", "@pimterry", "@richardlau"]);
+    expect(result).toEqual(["@jasnell", "@aduh95", "@pimterry", "@richardlau"]);
   });
 
   it("skips an onBehalfOf entry whose login isn't org/slug", async () => {
@@ -280,9 +316,9 @@ describe("readCodeOwners", () => {
       review.onBehalfOf = [{ login: "crypto" }];
     });
 
-    const result = await read(node, fetchFn);
+    const result = await readReviewers(node, fetchFn);
 
-    expect(result?.reviewers).toEqual(["@jasnell", "@aduh95", "@pimterry", "@richardlau"]);
+    expect(result).toEqual(["@jasnell", "@aduh95", "@pimterry", "@richardlau"]);
   });
 
   it("counts an Enterprise Managed User's review", async () => {
@@ -290,9 +326,9 @@ describe("readCodeOwners", () => {
       review.author = { login: "mona-cat_octo" };
     });
 
-    const result = await read(node, fetchFn);
+    const result = await readReviewers(node, fetchFn);
 
-    expect(result?.reviewers).toContain("@mona-cat_octo");
+    expect(result).toContain("@mona-cat_octo");
   });
 
   it("lists a reviewer both requested and reviewing once, ignoring case", async () => {
@@ -300,9 +336,9 @@ describe("readCodeOwners", () => {
       review.author = { login: "Jasnell" };
     });
 
-    const result = await read(node, fetchFn);
+    const result = await readReviewers(node, fetchFn);
 
-    expect(result?.reviewers).toEqual(["@jasnell", "@aduh95", "@richardlau"]);
+    expect(result).toEqual(["@jasnell", "@aduh95", "@richardlau"]);
   });
 });
 
@@ -370,52 +406,53 @@ describe("ownerFilter", () => {
 });
 
 describe("owningReviewers", () => {
-  /** `PrCodeOwners` whose `byPath` maps each path to the owner tokens given. */
-  function ownedBy(reviewers: string[], byPath: Record<string, string[]>): PrCodeOwners {
-    return {
-      reviewers,
-      byPath: new Map(
-        Object.entries(byPath).map(([path, tokens]) => [
-          path,
-          { owners: tokens.map(codeOwnerOf), ownedByViewer: false },
-        ]),
-      ),
-    };
+  /** Code owners mapping each path to the owner tokens given. */
+  function ownedBy(byPath: Record<string, string[]>): PrCodeOwners {
+    return new Map(
+      Object.entries(byPath).map(([path, tokens]) => [
+        path,
+        { owners: tokens.map(codeOwnerOf), ownedByViewer: false },
+      ]),
+    );
   }
 
   it("keeps the sandbox's owning reviewers", async () => {
     const owners = await read(sandbox, sandboxFetch());
-    if (owners === undefined) throw new Error("the sandbox's read failed");
+    const reviewers = await readReviewers(sandbox, sandboxFetch());
+    if (owners === undefined || reviewers === undefined)
+      throw new Error("the sandbox's read failed");
 
-    expect(owningReviewers(owners, "sandbox-user")).toEqual([
+    expect(owningReviewers(reviewers, owners, "sandbox-user")).toEqual([
       "@excessive-dev/frontend",
       "@excessive-dev/platform",
     ]);
   });
 
   it("leaves out a reviewer who owns no changed path, keeping reviewer order", () => {
-    const owners = ownedBy(["@o/b", "@idle", "@o/a"], { "a.ts": ["@o/a"], "b.ts": ["@o/b"] });
+    const owners = ownedBy({ "a.ts": ["@o/a"], "b.ts": ["@o/b"] });
 
-    expect(owningReviewers(owners, undefined)).toEqual(["@o/b", "@o/a"]);
+    expect(owningReviewers(["@o/b", "@idle", "@o/a"], owners, undefined)).toEqual(["@o/b", "@o/a"]);
   });
 
   it.each(["sandbox-user", "Sandbox-User"])("leaves out the viewer %s", (viewer) => {
-    const owners = ownedBy(["@sandbox-user", "@o/a"], { "a.ts": ["@o/a", "@sandbox-user"] });
+    const owners = ownedBy({ "a.ts": ["@o/a", "@sandbox-user"] });
 
-    expect(owningReviewers(owners, viewer)).toEqual(["@o/a"]);
+    expect(owningReviewers(["@sandbox-user", "@o/a"], owners, viewer)).toEqual(["@o/a"]);
   });
 
   it("keeps the viewer's login when the viewer is unknown", () => {
-    const owners = ownedBy(["@sandbox-user"], { "a.ts": ["@sandbox-user"] });
+    const owners = ownedBy({ "a.ts": ["@sandbox-user"] });
 
-    expect(owningReviewers(owners, undefined)).toEqual(["@sandbox-user"]);
+    expect(owningReviewers(["@sandbox-user"], owners, undefined)).toEqual(["@sandbox-user"]);
   });
 
   it("keeps no reviewer in a repository without CODEOWNERS", async () => {
     const owners = await read(sandbox, sandboxFetch(ok(noCodeowners)));
-    if (owners === undefined) throw new Error("the sandbox's read failed");
+    const reviewers = await readReviewers(sandbox, sandboxFetch());
+    if (owners === undefined || reviewers === undefined)
+      throw new Error("the sandbox's read failed");
 
-    expect(owners.reviewers).not.toEqual([]);
-    expect(owningReviewers(owners, undefined)).toEqual([]);
+    expect(reviewers).not.toEqual([]);
+    expect(owningReviewers(reviewers, owners, undefined)).toEqual([]);
   });
 });
