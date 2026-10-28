@@ -1,7 +1,7 @@
 /**
- * Breaks the header's lines-changed counter, on any tab of a pull request or a commit, out by section once
- * intent lands: a pill per section with the lines it adds and removes. A click switches between
- * that breakout and GitHub's own total.
+ * Breaks the header's lines-changed counter out by section once intent lands, on a commit's page
+ * or any of a pull request's tabs: a pill per section with the lines it adds and removes. A click
+ * switches between that breakout and GitHub's own total.
  */
 
 import { type Landing, landingOf, type SectionLines, sum, totalsOf } from "@/utils/intent/landing";
@@ -14,12 +14,15 @@ import type { LandingView } from "../visit/land";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./diffstat-view.css?inline";
 
-/** Which view the header counter shows. One per tab, so the choice carries to the next page. */
+/**
+ * Which view the header counter shows. One per browser tab, shared by every page in it, so a
+ * switch carries to the next page.
+ */
 export interface DiffstatChoice {
   view: DiffstatView;
 }
 
-/** The tab's view choice for `showDiffstat` to apply, and how to persist a switch. */
+/** The browser tab's view choice for `showDiffstat` to apply, and how to persist a switch. */
 export interface DiffstatOptions {
   readonly choice: DiffstatChoice;
   /** Remembers a view the counter switched to. */
@@ -93,7 +96,7 @@ function breakdown(doc: Document, sections: readonly SectionLines[]): HTMLElemen
 }
 
 /**
- * Stands in for `page`'s lines-changed counter until `signal` aborts: a pill per section with the
+ * Stands in for `header`'s lines-changed counter until `signal` aborts: a pill per section with the
  * lines `landing` places there, or GitHub's total, as `choice` says. A click switches view,
  * records it in `choice`, and `save`s it. GitHub's counter stays in the page, hidden by the
  * stylesheet while this sits just before it. A pull request's counter can mount long after intent
@@ -155,7 +158,7 @@ function showCounter(
 export function showDiffstat(
   header: Header,
   { choice, save, signal }: DiffstatOptions & { readonly signal: AbortSignal },
-): LandingView {
+): Required<Pick<LandingView, "landed">> {
   return {
     landed(result) {
       if (result.ok) showCounter(header, landingOf(result), { choice, save, signal });

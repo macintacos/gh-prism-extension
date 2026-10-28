@@ -159,8 +159,12 @@ facts about GitHub that held when written, and ends with how to re-check them;
 - **Expect the header to outlive the tab.** It belongs to the pull request's layout route,
   which Conversation, Commits, Checks, and Files changed share, so a soft navigation from
   Conversation finds the counter already mounted. gh-prism stands in for it on all four:
-  `findHeaderPage` finds the same `prPage.diffstatSlot` on the other three, whose route
-  data carries no diff pin, so their intent read always lists the files.
+  `findHeaderPage` finds the same `prPage.diffstatSlot` on the three header tabs. Each
+  holds one `[class*="rightContentWrapper__"]` slot whose `:scope > .d-flex` child is the
+  counter; on Commits and Checks it mounts after a skeleton. Their route data has
+  `pullRequestsLayoutRoute.pullRequest.headSha` but no
+  `pullRequestsChangesRoute.diffContents`, so carries no diff pin, and their intent read
+  always lists the files (checked 2026-10-27).
 - **Expect no counter when the diff changes no lines**, as with only renames or binary
   files, or when the diffstat request fails.
 - **Expect the counter elsewhere under GitHub's `overview` feature.** With route data's
@@ -171,6 +175,9 @@ facts about GitHub that held when written, and ends with how to re-check them;
   `rightContentWrapper__` slot's child, then curl a public commit page and find its
   counter's "Lines changed" text. Grep the assets for `page_data/diffstat` and
   `PullRequestHeaderDiffStat`, as [§ Re-checking GitHub](#re-checking-github) describes.
+  Signed in, load `/pull/<n>`, `/pull/<n>/commits`, and `/pull/<n>/checks`. Find the
+  slot's counter on each, and confirm their embedded data has no
+  `pullRequestsChangesRoute.diffContents`.
 
 ## The filter row and repo visibility
 

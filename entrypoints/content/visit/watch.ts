@@ -1,13 +1,13 @@
 /**
  * Follows Files view visits, and the pages each one renders, across GitHub's navigation; and
- * likewise a pull request's classic Files changed page, and its header on its other tabs.
+ * likewise a pull request's classic Files changed page, and its header on its header tabs.
  */
 
 import {
   type FilesRoute,
   isFilesPath,
   readFilesRoute,
-  readHeaderRoute,
+  readHeaderTabPr,
 } from "@/utils/github/files-route";
 import type { PrRef } from "@/utils/github/pr-ref";
 import {
@@ -25,47 +25,52 @@ const SETTLE_MS = 10_000;
 /** What to do with each render of a page's markup during one visit. */
 export type OnPage<P = FilesPage> = (page: P, signal: AbortSignal) => void;
 
-/** The callbacks through which `watchFilesPages` reports visits and missing markup. */
-export interface FilesPageHandlers<P = FilesPage, R = FilesRoute> {
+/** The callbacks through which `watchPages` reports visits and missing markup. */
+interface PageHandlers<P, R> {
   /**
-   * The Files changed tab's markup first appeared at `route`; `signal` aborts once the pathname
-   * changes or leaves the tab. A hash change is not a new visit. Returns the handler for that
-   * markup and each replacement GitHub renders during the visit, whose `signal` aborts once it is
-   * replaced or removed.
+   * A page's markup first appeared at `route`; `signal` aborts once the visit ends. A hash change
+   * never ends it. Returns the handler for that markup and each replacement GitHub renders during
+   * the visit, whose `signal` aborts once it is replaced or removed.
    */
   onVisit(route: R, signal: AbortSignal): OnPage<P>;
-  /**
-   * The Files changed tab's markup never appeared. Fires at most once for each
-   * `watchFilesPages` call.
-   */
+  /** The page's markup never appeared. Fires at most once for each `watchPages` call. */
   onMissing(): void;
 }
 
 /**
+ * The callbacks through which `watchFilesPages` reports visits to the Files changed tab, each
+ * ending once the pathname changes, and that tab's markup never appearing.
+ */
+export type FilesPageHandlers = PageHandlers<FilesPage, FilesRoute>;
+
+/**
  * How `watchPages` reads the pathnames one kind of page shows on, finds its markup, and tells
- * whether a found render still shows.
+ * whether a found render still shows. Routes `visitOf` names alike share one visit; without it,
+ * each pathname is its own.
  */
 interface PageFinder<P, R> {
-  route(pathname: string): R | undefined;
+  routeOf(pathname: string): R | undefined;
+  visitOf?(route: R): string;
   find(doc: Document): P | undefined;
   showing(page: P): boolean;
 }
 
 const FILES_VIEW: PageFinder<FilesPage, FilesRoute> = {
-  route: readFilesRoute,
+  routeOf: readFilesRoute,
   find: findFilesPage,
   showing: ({ sidebar, tree, diffs }) =>
     sidebar.isConnected && tree.isConnected && diffs.isConnected,
 };
 
 const CLASSIC: PageFinder<ClassicPage, FilesRoute> = {
-  route: readFilesRoute,
+  routeOf: readFilesRoute,
   find: findClassicPage,
   showing: ({ toolbar, reviewTools }) => toolbar.isConnected && reviewTools.isConnected,
 };
 
 const HEADER: PageFinder<HeaderPage, PrRef> = {
-  route: readHeaderRoute,
+  routeOf: readHeaderTabPr,
+  visitOf: ({ owner, repo, number }) => `${owner}/${repo}#${number}`,
   find: findHeaderPage,
   showing: ({ slot }) => slot.isConnected,
 };
@@ -96,9 +101,9 @@ export const watchClassicPages = (
 ): void => watchPages(win, CLASSIC, { onVisit: () => onPage, onMissing: () => {} }, signal);
 
 /**
- * Calls `onVisit` for each visit to a pull request's Conversation, Commits, or Checks tab in
- * `win`, as `watchFilesPages` follows the Files changed tab, until `signal` aborts. Each tab is
- * its own visit, though GitHub keeps the header across them.
+ * Calls `onVisit` for each visit to a pull request's header tabs in `win`, as `watchFilesPages`
+ * follows the Files changed tab, until `signal` aborts. Moving between one pull request's header
+ * tabs keeps the visit, and its page while GitHub keeps the header's slot.
  */
 export const watchHeaderPages = (
   win: Window,
@@ -108,11 +113,11 @@ export const watchHeaderPages = (
 
 function watchPages<P, R>(
   win: Window,
-  { route: routeOf, find, showing }: PageFinder<P, R>,
-  handlers: FilesPageHandlers<P, R>,
+  { routeOf, visitOf, find, showing }: PageFinder<P, R>,
+  handlers: PageHandlers<P, R>,
   signal: AbortSignal,
 ): void {
-  let visit: { pathname: string; onPage: OnPage<P>; controller: AbortController } | undefined;
+  let visit: { key: string; onPage: OnPage<P>; controller: AbortController } | undefined;
   let shown: { page: P; controller: AbortController } | undefined;
   let timer: number | undefined;
   let missingReported = false;
@@ -130,17 +135,18 @@ function watchPages<P, R>(
 
   const sync = () => {
     const { pathname } = win.location;
-    if (visit && visit.pathname !== pathname) leave();
+    const route = routeOf(pathname);
+    const key = route && visitOf ? visitOf(route) : pathname;
+    if (visit && visit.key !== key) leave();
     if (shown && showing(shown.page)) return;
 
-    const route = routeOf(pathname);
     const page = route && find(win.document);
     drop();
     if (!route || !page) return;
 
     if (!visit) {
       const controller = new AbortController();
-      visit = { pathname, controller, onPage: handlers.onVisit(route, controller.signal) };
+      visit = { key, controller, onPage: handlers.onVisit(route, controller.signal) };
     }
     shown = { page, controller: new AbortController() };
     visit.onPage(page, shown.controller.signal);

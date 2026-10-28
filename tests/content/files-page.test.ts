@@ -42,6 +42,7 @@ import {
   loadClassicFixture,
   loadCommitFixture,
   loadFixture,
+  loadHeaderFixture,
   loadViewedCommitFilterFixture,
   loadViewedFixture,
   openOverlay,
@@ -848,8 +849,7 @@ describe("showsViewed", () => {
 
 describe("findHeaderPage", () => {
   it("finds a pull request's header and the counter in it", () => {
-    document.body.innerHTML =
-      '<div class="rightContentWrapper__x"><div class="d-flex">+36 -10</div></div>';
+    loadHeaderFixture();
     const page = findHeaderPage(document);
 
     expect(page?.slot).toBe(document.querySelector(prPage.diffstatSlot));

@@ -4,7 +4,7 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import contentScript from "../../entrypoints/content";
 import { dockSidebar, type Side } from "../../entrypoints/content/sidebar/side";
-import { showVisit } from "../../entrypoints/content/visit/land";
+import { showHeaderTab, showVisit } from "../../entrypoints/content/visit/land";
 import { readFilesRoute } from "../../utils/github/files-route";
 import { intentFor } from "../../utils/intent/read";
 import { type DiffstatView, whatsNewSeen } from "../../utils/prefs";
@@ -13,10 +13,10 @@ import {
   loadClassicFixture,
   loadCommitFixture,
   loadFixture,
+  loadHeaderFixture,
   loadViewedFixture,
   VIEWED_APP_TOML,
 } from "../fixtures/files-page";
-import { landedWith, whole } from "../fixtures/intent";
 
 // Only leaves are faked: intentFor needs a port fakeBrowser lacks; the views' DOM has own tests.
 vi.mock(import("../../utils/intent/read"), async (importOriginal) => ({
@@ -26,6 +26,7 @@ vi.mock(import("../../utils/intent/read"), async (importOriginal) => ({
 vi.mock(import("../../entrypoints/content/visit/land"), async (importOriginal) => ({
   ...(await importOriginal()),
   showVisit: vi.fn((_page, _signal, { intent }) => void intent(() => {})),
+  showHeaderTab: vi.fn((_page, _signal, { intent }) => void intent(() => {})),
 }));
 vi.mock(import("../../entrypoints/content/sidebar/side"), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -272,52 +273,34 @@ describe("content script", () => {
     expect(consoleWarn).toHaveBeenCalledOnce();
   });
 
-  describe("on a pull request's Conversation tab", () => {
-    const counter = () => document.querySelector<HTMLElement>(".gh-prism-diffstat");
-    const landed = landedWith(
-      new Map([["README.md", whole("docs")]]),
-      new Map([["README.md", { added: 3, removed: 1 }]]),
-    );
-
+  describe("on a pull request's header tab", () => {
     beforeEach(() => {
       history.replaceState(null, "", "/o/r/pull/3");
-      document.body.innerHTML =
-        '<div class="rightContentWrapper__x"><div class="d-flex">+3 -1</div></div>';
+      loadHeaderFixture();
     });
 
-    it.each<{ saved?: DiffstatView; opens: DiffstatView }>([
-      { opens: "breakout" },
-      { saved: "total", opens: "total" },
-    ])(
-      "stands in for the header counter on the $opens once intent lands (saved: $saved)",
-      async ({ saved, opens }) => {
-        if (saved !== undefined) await fakeBrowser.storage.sync.set({ diffstatView: saved });
-        vi.mocked(intentFor).mockResolvedValue(landed);
+    it("reads the whole pull request's intent", async () => {
+      await run();
 
-        await run();
-        await afterMutations();
+      expect(intentFor).toHaveBeenCalledWith(
+        { diff: { kind: "pr", owner: "o", repo: "r", number: 3 }, commitFiltered: false },
+        expect.any(AbortSignal),
+        expect.anything(),
+        expect.any(Function),
+      );
+    });
 
-        expect(intentFor).toHaveBeenCalledWith(
-          { diff: { kind: "pr", owner: "o", repo: "r", number: 3 }, commitFiltered: false },
-          expect.any(AbortSignal),
-          expect.anything(),
-          expect.any(Function),
-        );
-        expect(counter()?.dataset.view).toBe(opens);
-      },
-    );
-
-    it("stands in for nothing once the tab is left before intent lands", async () => {
-      const read = Promise.withResolvers<typeof landed>();
-      vi.mocked(intentFor).mockReturnValue(read.promise);
+    it("shares the Files view's diffstat choice", async () => {
       await run();
 
       history.pushState(null, "", "/o/r/pull/3/changes");
+      loadFixture();
       document.dispatchEvent(new Event("soft-nav:end"));
-      read.resolve(landed);
       await afterMutations();
 
-      expect(counter()).toBeNull();
+      expect(vi.mocked(showVisit).mock.calls[0]?.[2].diffstat).toBe(
+        vi.mocked(showHeaderTab).mock.calls[0]?.[2].diffstat,
+      );
     });
   });
 

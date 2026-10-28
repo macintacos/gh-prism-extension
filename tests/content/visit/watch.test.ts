@@ -14,6 +14,7 @@ import {
   loadClassicFixture,
   loadCommitFixture,
   loadFixture,
+  loadHeaderFixture,
 } from "../../fixtures/files-page";
 
 beforeEach(() => {
@@ -371,10 +372,6 @@ describe("watchHeaderPages", () => {
   let controller: AbortController;
   let visits: Visit[];
 
-  const loadHeader = () => {
-    document.body.innerHTML =
-      '<div class="rightContentWrapper__x"><div class="d-flex">+36 -10</div></div>';
-  };
   const watch = () =>
     watchHeaderPages(
       window,
@@ -394,7 +391,7 @@ describe("watchHeaderPages", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     history.replaceState(null, "", "/o/r/pull/3");
-    loadHeader();
+    loadHeaderFixture();
 
     controller = new AbortController();
     visits = [];
@@ -420,19 +417,32 @@ describe("watchHeaderPages", () => {
     expect(visits).toHaveLength(0);
   });
 
-  it("starts a new visit when GitHub switches tabs under the same header", async () => {
+  it("keeps the visit and its page when GitHub switches tabs under the same header", async () => {
     watch();
 
     await navigate("/o/r/pull/3/checks");
+    await navigate("/o/r/pull/3/commits");
 
-    expect(visits).toHaveLength(2);
-    expect(visits[0]?.signal.aborted).toBe(true);
-    expect(visits[1]?.pages).toHaveLength(1);
+    expect(visits).toHaveLength(1);
+    expect(visits[0]?.signal.aborted).toBe(false);
+    expect(visits[0]?.pages).toHaveLength(1);
+    expect(visits[0]?.pages[0]?.signal.aborted).toBe(false);
   });
+
+  it.each(["/o/r/pull/3/changes", "/o/r/pull/4"])(
+    "ends the visit on leaving for %s",
+    async (path) => {
+      watch();
+
+      await navigate(path);
+
+      expect(visits[0]?.signal.aborted).toBe(true);
+    },
+  );
 
   it("shows the header again when GitHub replaces its slot", async () => {
     watch();
-    loadHeader();
+    loadHeaderFixture();
     await vi.advanceTimersByTimeAsync(0);
 
     expect(visits).toHaveLength(1);

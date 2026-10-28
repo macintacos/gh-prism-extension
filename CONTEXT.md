@@ -16,18 +16,21 @@ _Avoid_: PR, when a commit is meant too
 **Diff pin**: The two commits a pull request's page says its diff runs between, its base
 and its head. A revisit with the same pin lands its intent without reading the diff.
 
-**Files view**: A page where gh-prism runs: a pull request's Files changed tab, or a
+**Files view**: A page that lists a diff's files: a pull request's Files changed tab, or a
 commit's page. _Avoid_: files page, diff page
+
+**Header tab**: A pull request's Conversation, Commits, or Checks tab. It shares the Files
+changed tab's header, so gh-prism shows only the diffstat there. _Avoid_: other tab
 
 **Page kind**: Which Files view shows the diff: a pull request's Files changed tab or a
 commit's page. _Avoid_: page type, view type
 
-**Visit**: One stay on a Files view's address, or on a pull request's Conversation,
-Commits, or Checks tab, where only the diffstat shows. Changing the address ends it;
-changing only the hash does not.
+**Visit**: One stay on a Files view's address, or on one pull request's header tabs.
+Changing the address ends it, except a move between those header tabs; changing only the
+hash never does.
 
-**Page**: One render of the Files view's markup during a visit. GitHub may replace it
-several times in one visit.
+**Page**: One render of a visit's markup: the Files view's, or a header tab's diffstat
+slot. GitHub may replace it several times in one visit.
 
 **Classic page**: A pull request's Files changed tab in GitHub's older form, at
 `/pull/<n>/files`, or `/pull/<n>/commits/<sha>` for one commit, which GitHub shows to a

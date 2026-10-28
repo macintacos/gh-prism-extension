@@ -1,7 +1,8 @@
 /**
  * The one script module that holds selectors into GitHub's Files view markup; the stylesheets list
  * theirs in a `GitHub hooks:` header. It holds a `PageKind` for a pull request's page and a
- * commit's, finds a Files view's page or a pull request's classic page, reads its rows, and
+ * commit's, finds a Files view's page, a pull request's classic page, or its header on its header
+ * tabs, reads its rows, and
  * follows a pull request's narrow-layout overlay; it holds no UI and imports nothing from WXT. The
  * pull request selectors come from EXC-1662's survey.
  */
@@ -231,18 +232,20 @@ export function appendToDiffs(page: FilesPage, node: Element): void {
   else page.diffs.append(node);
 }
 
-/** A page's header, which holds its lines-changed counter. */
+/** Where a page's diffstat sits: its document and the selector for the header's counter slot. */
 export interface Header {
   readonly doc: Document;
-  readonly kind: Pick<PageKind, "diffstatSlot">;
+  /** Selects the header's slot for its lines-changed counter. */
+  readonly diffstatSlot: string;
 }
 
+/** `page`'s header, for the diffstat to stand in on. */
 export const headerOf = (page: FilesPage): Header => ({
   doc: page.sidebar.ownerDocument,
-  kind: page.kind,
+  diffstatSlot: page.kind.diffstatSlot,
 });
 
-/** A pull request's header on its Conversation, Commits, or Checks tab. */
+/** A pull request's header on one of its header tabs. */
 export interface HeaderPage extends Header {
   /** The header's slot for its counter; GitHub replacing it makes a new page. */
   readonly slot: Element;
@@ -251,11 +254,11 @@ export interface HeaderPage extends Header {
 /** The pull request header in `doc`, or `undefined` while its counter's slot is missing. */
 export function findHeaderPage(doc: Document): HeaderPage | undefined {
   const slot = doc.querySelector(prPage.diffstatSlot);
-  return slot ? { doc, kind: prPage, slot } : undefined;
+  return slot ? { doc, diffstatSlot: prPage.diffstatSlot, slot } : undefined;
 }
 
-const findDiffstatSlot = ({ doc, kind }: Header): Element | null =>
-  doc.querySelector(kind.diffstatSlot);
+const findDiffstatSlot = ({ doc, diffstatSlot }: Header): Element | null =>
+  doc.querySelector(diffstatSlot);
 
 /** The lines-changed counter in the header, or `undefined` while it's missing. */
 export function findDiffstat(header: Header): Element | undefined {

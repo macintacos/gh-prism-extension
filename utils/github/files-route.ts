@@ -39,10 +39,10 @@ export function readFilesRoute(pathname: string): FilesRoute | undefined {
 }
 
 /**
- * The pull request whose Conversation, Commits, or Checks tab `pathname` is; `undefined`
+ * The pull request whose header tab (Conversation, Commits, or Checks) `pathname` is; `undefined`
  * anywhere else, Files changed included.
  */
-export function readHeaderRoute(pathname: string): PrRef | undefined {
+export function readHeaderTabPr(pathname: string): PrRef | undefined {
   const [, owner, repo, prNumber] = HEADER_PATH.exec(pathname) ?? [];
   if (owner === undefined || repo === undefined || prNumber === undefined) return undefined;
   return { kind: "pr", owner, repo, number: Number(prNumber) };

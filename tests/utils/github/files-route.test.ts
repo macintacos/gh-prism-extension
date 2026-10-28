@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isFilesPath, readFilesRoute, readHeaderRoute } from "../../../utils/github/files-route";
+import { isFilesPath, readFilesRoute, readHeaderTabPr } from "../../../utils/github/files-route";
 
 describe("isFilesPath", () => {
   it.each([
@@ -62,7 +62,7 @@ describe("readFilesRoute", () => {
     expect(readFilesRoute("/o/r/commit/dd95cd")).toBeUndefined());
 });
 
-describe("readHeaderRoute", () => {
+describe("readHeaderTabPr", () => {
   const pr = { kind: "pr", owner: "o", repo: "r", number: 3 };
 
   it.each([
@@ -72,7 +72,7 @@ describe("readHeaderRoute", () => {
     "/o/r/pull/3/commits/",
     "/o/r/pull/3/checks",
     "/o/r/pull/3/checks/",
-  ])("reads the pull request from %s", (path) => expect(readHeaderRoute(path)).toEqual(pr));
+  ])("reads the pull request from %s", (path) => expect(readHeaderTabPr(path)).toEqual(pr));
 
   it.each([
     "/o/r/pull/3/changes",
@@ -82,5 +82,5 @@ describe("readHeaderRoute", () => {
     "/o/r/pull/x",
     "/o/r/issues/3",
     "/o/r/commit/dd95cdc",
-  ])("is undefined for %s", (path) => expect(readHeaderRoute(path)).toBeUndefined());
+  ])("is undefined for %s", (path) => expect(readHeaderTabPr(path)).toBeUndefined());
 });

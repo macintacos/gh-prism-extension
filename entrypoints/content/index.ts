@@ -21,11 +21,11 @@ import {
 } from "@/utils/whats-new";
 import { type NoticeChoice, showClassicNotice } from "./classic/notice";
 import { visitViewed } from "./diffs/viewed";
-import type { DiffstatChoice } from "./header/diffstat-view";
+import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
 import { showReportLink } from "./sidebar/report";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar/side";
 import type { WhatsNew } from "./sidebar/whats-new";
-import { showHeader, showVisit } from "./visit/land";
+import { showHeaderTab, showVisit } from "./visit/land";
 import { watchClassicPages, watchFilesPages, watchHeaderPages } from "./visit/watch";
 
 const CACHED_DIFFS = 50;
@@ -34,7 +34,7 @@ const CACHED_DIFFS = 50;
  * On every Files view on github.com, shows the sidebar's sections, orders the diffs to match,
  * stands in for the diffstat, docks the sidebar on the saved side with a switch, adds a link to
  * report a miscategorized file, and, after an update, opens the sidebar with that release's
- * notes. On a pull request's other tabs, stands in for the diffstat alone. On its classic Files
+ * notes. On a pull request's header tabs, stands in for the diffstat alone. On its classic Files
  * changed page, explains why gh-prism is off there.
  */
 export default defineContentScript({
@@ -57,7 +57,11 @@ export default defineContentScript({
       release && followWhatsNew(release, ctx),
     ]);
     const side = sideChoiceOf(savedSide);
-    const diffstat = diffstatChoiceOf(savedDiffstat);
+    // Shared by every visit, so a switch on one tab or page carries to the next.
+    const diffstat = {
+      choice: diffstatChoiceOf(savedDiffstat),
+      save: saveDiffstat,
+    } satisfies DiffstatOptions;
     const notice: NoticeChoice = { dismissed };
     let fullLoad = true;
     // Registered before watchFilesPages, so the flag clears before a navigation's visit runs.
@@ -82,7 +86,7 @@ export default defineContentScript({
             showReportLink(page, signal, reportOptions);
             showVisit(page, signal, {
               intent,
-              diffstat: { choice: diffstat, save: saveDiffstat },
+              diffstat,
               viewed,
               whatsNew: whatsNewForPage?.(),
             });
@@ -100,8 +104,7 @@ export default defineContentScript({
         const intent = shareIntent((onProgress) =>
           intentFor({ diff: pr, commitFiltered: false }, visit, sources, onProgress),
         );
-        return (page, signal) =>
-          showHeader(page, signal, { intent, diffstat: { choice: diffstat, save: saveDiffstat } });
+        return (page, signal) => showHeaderTab(page, signal, { intent, diffstat });
       },
       ctx.signal,
     );

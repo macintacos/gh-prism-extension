@@ -1,5 +1,6 @@
 /**
- * Lands intent on each page of a Files view visit. Hands each step (pending, progress, landed, then
+ * Lands intent on each page of a Files view visit, and the diffstat alone on each page of a header
+ * tab's visit (`showHeaderTab`). Hands each step (pending, progress, landed, then
  * the sections) to every view in one order, and owns the only observers of the native tree and of
  * the narrow layout's overlay copy, re-listing the sections from whichever is shown after each
  * change to it. It reads intent once per page; the caller shares that read across a visit's pages
@@ -119,22 +120,23 @@ export function land(
   );
 }
 
-/** `read`'s result, or a path-only `failed` one, logged, when it rejects. */
 /**
- * Once intent lands, stands in for `header`'s lines-changed counter as `diffstat` says, until
- * `signal` aborts; a page dropped before then shows nothing.
+ * Mounts the diffstat on one page of a header tab's visit: once intent lands, stands in for
+ * `header`'s lines-changed counter as `diffstat` says, until `signal` aborts; a page dropped
+ * before then shows nothing.
  */
-export function showHeader(
+export function showHeaderTab(
   header: Header,
   signal: AbortSignal,
   { intent, diffstat }: { intent: PendingIntent; diffstat: DiffstatOptions },
 ): void {
   void orFailed(Promise.resolve(intent(() => {}))).then((landed) => {
     // An aborted signal never fires `abort` again, so the counter would never come down.
-    if (!signal.aborted) showDiffstat(header, { ...diffstat, signal }).landed?.(landed);
+    if (!signal.aborted) showDiffstat(header, { ...diffstat, signal }).landed(landed);
   });
 }
 
+/** `read`'s result, or a path-only `failed` one, logged, when it rejects. */
 const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
   read.catch((error: unknown): IntentResult => {
     console.error("gh-prism: reading intent failed", error);

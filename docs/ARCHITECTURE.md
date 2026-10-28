@@ -23,7 +23,7 @@ runs on every github.com page at `document_start`, so its watcher is in place be
 GitHub first renders the page. It cannot match only Files view URLs, because of GitHub's
 soft navigation: GitHub swaps in a new page without loading a new document, so a script
 matched to pull request URLs would never be injected when you click through to one.
-Instead, it watches every page for a Files view to appear, for a pull request's other
+Instead, it watches every page for a Files view to appear, for a pull request's header
 tabs, where it shows only the diffstat, and for a pull request's classic page, where it
 opens a dialog instead.
 
@@ -50,12 +50,16 @@ classic page's `/files` and `/commits/<sha>` too, which GitHub redirects to `/ch
 diffs and the toolbar's review tools. `isSignedIn` reads whether GitHub served the page to
 a signed-in viewer.
 
+`readHeaderTabPr` reads which pull request a header tab (Conversation, Commits, or Checks)
+belongs to, and `findHeaderPage` finds that tab's diffstat slot in the header.
+
 ## The visit lifecycle
 
 [`entrypoints/content/visit/watch.ts`](../entrypoints/content/visit/watch.ts) follows
-visits across GitHub's navigation. A visit is one stay on a Files view's pathname, and a
-page is one render of its markup. GitHub may replace the markup several times in one
-visit, so `watchFilesPages` reports each replacement as a new page.
+visits across GitHub's navigation. A visit is one stay on a Files view's pathname, or on
+one pull request's header tabs, and a page is one render of its markup. GitHub may replace
+the markup several times in one visit, so `watchFilesPages` reports each replacement as a
+new page.
 
 The watcher wakes on first load, on GitHub's `soft-nav:end` event, and on `popstate`. Each
 wake starts a 10-second settle window. During that window a mutation observer checks
@@ -67,9 +71,10 @@ click makes, is not a new visit. When the window ends on a Files view path with 
 found, not even the classic page's, the watcher warns once and leaves GitHub's tree alone;
 the next wake still starts a new settle window. `watchClassicPages` follows the classic
 page the same way, through the same settle windows, and never warns. So does
-`watchHeaderPages`, for a pull request's Conversation, Commits, and Checks tabs
-(`readHeaderRoute`): its page is the header's counter slot (`findHeaderPage`), and each
-tab is its own visit, though GitHub keeps the header across them.
+`watchHeaderPages`, for a pull request's header tabs: its page is the header's counter
+slot, and moving between one pull request's header tabs keeps the visit, so the mounted
+counter stays without a new read. Leaving for Files changed, another pull request, or
+anywhere else ends it.
 
 ```mermaid
 stateDiagram-v2
@@ -93,7 +98,7 @@ and it re-lists the sections after each change to the tree. While a pull request
 layout has its "Files" overlay open, `land` also observes the overlay's copy of the tree
 and lists from it, telling each view through `shownIn` before it re-lists. One visit reads
 intent once: `index.ts` wraps the read in `shareIntent`, so every page of the visit joins
-the same read. A header tab's visit reads intent the same way, and `showHeader` mounts
+the same read. A header tab's visit reads intent the same way, and `showHeaderTab` mounts
 only the diffstat on each of its pages once the read lands, skipping a page dropped before
 then.
 
@@ -277,7 +282,7 @@ entrypoints/
   background.ts          service worker: PR data port, cache clearing and what's-new mark on install
   content/
     index.ts             content script entry: wires the watchers, intent, and views
-    files-page.ts        every GitHub Files view selector; page kinds; the classic page
+    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, what's-new block, report link

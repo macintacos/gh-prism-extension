@@ -5,10 +5,10 @@ maintain its design direction.*
 
 `design/` holds gh-prism's design direction: how its UI looks, moves, and words things
 inside GitHub's pages. That UI is the sidebar, the header counter (the per-section
-breakout of the lines-changed count, on every tab of a pull request), and the dialog
-gh-prism opens on GitHub's classic Files changed page. [`CONTEXT.md`](../CONTEXT.md)
-defines the domain terms these files use, such as section, Viewed, and what's new. How a
-stylesheet is written, imported, and scoped is in
+breakout of the lines-changed count, on a commit's page and a pull request's tabs), and
+the dialog gh-prism opens on GitHub's classic Files changed page.
+[`CONTEXT.md`](../CONTEXT.md) defines the domain terms these files use, such as section,
+Viewed, and what's new. How a stylesheet is written, imported, and scoped is in
 [`docs/agents/styling-rules.md`](../docs/agents/styling-rules.md).
 
 ## Routing
