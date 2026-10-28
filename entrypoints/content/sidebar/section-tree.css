@@ -48,8 +48,8 @@
   color-scheme: inherit;
 }
 
-/* @pierre/trees colors icons by data-icon-token, which ECOSYSTEM_ICONS' remaps
-   (section-tree.ts) lack: each glyph it uses needs a rule here. */
+/* @pierre/trees colors icons by data-icon-token, which ECOSYSTEM_ICONS' remaps and
+   gh-prism's own glyphs (section-tree.ts) lack: each glyph they use needs a rule here. */
 svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-npm"]) {
   color: var(--trees-file-icon-color-npm);
 }
@@ -64,6 +64,9 @@ svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-ruby"]) {
 }
 svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-python"]) {
   color: var(--trees-file-icon-color-python);
+}
+svg:not([data-icon-token]):has(> use[href="#gh-prism-java"]) {
+  color: var(--trees-file-icon-color, var(--trees-icon-orange));
 }
 
 /* Names are code, set in its font; counts, markers and status letters are not. */
