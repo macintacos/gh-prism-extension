@@ -140,7 +140,7 @@ Expected code owners, from main's CODEOWNERS. The shield lists these owners in t
 - `infra/deploy.yml`: `@ORG/platform`.
 - `README.md`: no owner, so no shield.
 
-Requested: `@ORG/frontend`, whose only member is you, and `@ORG/platform`, which has no members.
+Requested: `@ORG/frontend`, whose only member is you. `@ORG/platform` owns files here but isn't requested.
 
 "Only files owned by…" lists:
 
