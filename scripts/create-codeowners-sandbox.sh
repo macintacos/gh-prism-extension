@@ -26,7 +26,7 @@ pr_exists() {
 }
 
 # Bodies write @ORG and @ME so their quoted heredocs keep backticks literal.
-fill() {
+fill_placeholders() {
 	local body=${1//@ORG/@$org}
 	printf '%s' "${body//@ME/@$me}"
 }
@@ -35,12 +35,12 @@ fill() {
 refresh_pr() {
 	local number
 	number=$(gh pr view "$1" -R "$repo" --json number --jq .number)
-	gh api -X PATCH "repos/$repo/pulls/$number" -f body="$(fill "$2")" >/dev/null
+	gh api -X PATCH "repos/$repo/pulls/$number" -f body="$(fill_placeholders "$2")" >/dev/null
 }
 
 open_pr() {
 	git push -q -u --force-with-lease origin "$1"
-	gh pr create -R "$repo" --base main --head "$1" --title "$2" --body "$(fill "$3")"
+	gh pr create -R "$repo" --base main --head "$1" --title "$2" --body "$(fill_placeholders "$3")"
 }
 
 module_file() {
