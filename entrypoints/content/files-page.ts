@@ -249,13 +249,16 @@ export function findFilterMenu(doc: Document): FilterMenu | undefined {
   )
     return undefined;
 
-  const owned = list.querySelector<HTMLElement>('[role="menuitemradio"][aria-keyshortcuts="o"]');
-  const ownedGroup = owned?.closest(MENU_GROUP);
-  if (owned && ownedGroup?.querySelectorAll('[role^="menuitem"]').length !== 1) return undefined;
+  const ownedItem = list.querySelector<HTMLElement>(
+    '[role="menuitemradio"][aria-keyshortcuts="o"]',
+  );
+  const ownedGroup = ownedItem?.closest(MENU_GROUP);
+  if (ownedItem && ownedGroup?.querySelectorAll('[role^="menuitem"]').length !== 1)
+    return undefined;
   return {
     list,
     divider,
-    ownedByYou: owned && ownedGroup ? { item: owned, group: ownedGroup } : undefined,
+    ownedByYou: ownedItem && ownedGroup ? { item: ownedItem, group: ownedGroup } : undefined,
     headedGroup: { group, heading, items },
     item,
   };

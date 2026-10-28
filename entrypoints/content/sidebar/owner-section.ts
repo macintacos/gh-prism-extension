@@ -71,12 +71,12 @@ function addSection(
   const { group: section, list } = copyMenuGroup(menu, "Only files owned by…");
   section.classList.add("gh-prism-owner-section");
 
-  const id = () => `gh-prism-owner-${list.children.length}`;
+  const nextId = () => `gh-prism-owner-${list.children.length}`;
   if (ownedByYou) {
     const checked = ownedByYou.item.getAttribute("aria-checked") === "true";
     list.append(
       entry(menu, {
-        id: id(),
+        id: nextId(),
         text: "Me",
         checked,
         pick: () => {
@@ -96,7 +96,7 @@ function addSection(
     // it.
     list.append(
       entry(menu, {
-        id: id(),
+        id: nextId(),
         text: token,
         checked,
         pick: () => navigate(withOwner(doc.location.href, checked ? undefined : token)),
@@ -141,15 +141,15 @@ function entry(menu: FilterMenu, { id, text, checked, pick }: EntryParts): HTMLE
   label.id = `${id}--label`;
   label.textContent = text;
 
-  const run = () => {
+  const pickAndClose = () => {
     pick();
     item.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
   };
-  item.addEventListener("click", run);
+  item.addEventListener("click", pickAndClose);
   item.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
-    run();
+    pickAndClose();
   });
   return item;
 }
