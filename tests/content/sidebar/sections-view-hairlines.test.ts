@@ -5,6 +5,7 @@ import {
   hostOf,
   lit,
   onScreen,
+  owned,
   patchShadowActiveElement,
   rowIn,
   viewed,
@@ -63,6 +64,14 @@ const boxOf = (listing: string, path: string) => {
   return box;
 };
 
+const shieldOf = (listing: string, path: string) => {
+  const shield = hostOf(listing).shadowRoot?.querySelector<HTMLElement>(
+    `[data-item-shield="${path}"]`,
+  );
+  if (!shield) throw new Error(`${listing} has no shield for ${path}`);
+  return shield;
+};
+
 describe("showSections", () => {
   describe("the folder hairlines", () => {
     it("end in each folder's last visible row", async () => {
@@ -117,6 +126,23 @@ describe("showSections", () => {
       viewed();
 
       pointAt(boxOf("implementation", "src/engine.rs"));
+
+      expect(allLit("implementation", "src/")).toBe(true);
+    });
+
+    it("light a hovered code owners shield's row's folder", () => {
+      owned("src/engine.rs");
+
+      pointAt(shieldOf("implementation", "src/engine.rs"));
+
+      expect(allLit("implementation", "src/")).toBe(true);
+    });
+
+    it("stay lit as focus moves from a row to its code owners shield", () => {
+      owned("src/engine.rs");
+      rowIn("implementation", "src/engine.rs").focus();
+
+      shieldOf("implementation", "src/engine.rs").focus();
 
       expect(allLit("implementation", "src/")).toBe(true);
     });

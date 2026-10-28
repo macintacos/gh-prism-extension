@@ -31,7 +31,10 @@ interface RowCheckbox {
   readonly title: string;
 }
 
-/** A row's code owners shield, as the @pierre/trees patch renders it: `label` is its name. */
+/**
+ * A row's code owners shield, as the @pierre/trees patch renders it: `label` is its accessible
+ * name.
+ */
 interface RowShield {
   readonly label: string;
 }
@@ -89,7 +92,7 @@ export class SectionTree {
   #focused: string | null | undefined;
   #hoverFolder: string | undefined;
   #focusFolder: string | undefined;
-  /** The path of the row or box focus last moved to within the tree. */
+  /** The path of the row, shield, or box focus last moved to within the tree. */
   #focusAt: string | undefined;
   #viewedPaths: ReadonlySet<string> | undefined;
   #marking: ReadonlySet<string> = new Set();
@@ -164,7 +167,10 @@ export class SectionTree {
     this.#byPath = byPath(files);
 
     const pathsChanged = changed(previous, files, ({ path }) => path);
-    if (pathsChanged) this.#resetPaths(previous);
+    if (pathsChanged) {
+      this.#writeOwners();
+      this.#resetPaths(previous);
+    }
     // A path or status change re-renders every row, decorations included.
     if (pathsChanged || changed(previous, files, ({ status }) => status)) {
       this.#tree.setGitStatus(gitStatusOf(files));
@@ -239,27 +245,21 @@ export class SectionTree {
 
   /**
    * Gives the file rows of `paths` a code owners shield, shown in place of the row's icon while
-   * the row is hovered or focused, by a style rule as re-renders keep it.
+   * its row is hovered or focused, through a style rule, which re-renders keep.
    */
   showOwners(paths: ReadonlySet<string>): void {
-    this.#owners.textContent = [...paths]
-      .map((path) => {
-        const shield = `[data-item-shield="${CSS.escape(path)}"]`;
-        const shown = `${rowOf(path)}:is(:hover,:focus-visible)`;
-        return (
-          ruleOf([`${shown}~${shield}`], "opacity:1;pointer-events:auto") +
-          ruleOf(
-            [
-              `${shown}>[data-item-section="icon"]>svg`,
-              `${rowOf(path)}:has(~${shield}:is(:hover,:focus-visible,[aria-expanded="true"]))>[data-item-section="icon"]>svg`,
-            ],
-            "opacity:0",
-          )
-        );
-      })
-      .join("");
     this.#ownedPaths = paths;
+    this.#writeOwners();
     this.#tree.render({ fileTreeContainer: this.#host });
+  }
+
+  // ponytail: the rules scale with the owned files per listing; write them only for the pointed
+  // and focused paths, as #showPointed does, if a huge PR with a catch-all CODEOWNERS line lags.
+  #writeOwners(): void {
+    this.#owners.textContent = [...this.#byPath.keys()]
+      .filter((path) => this.#ownedPaths.has(path))
+      .map(ownerRule)
+      .join("");
   }
 
   /** Shows the checkboxes of `paths` as pending. */
@@ -490,6 +490,29 @@ function ruleOf(selectors: readonly string[], declaration: string): string {
 
 const rowOf = (path: string) => `[data-type="item"][data-item-path="${CSS.escape(path)}"]`;
 
+const shieldOf = (path: string) => `[data-item-shield="${CSS.escape(path)}"]`;
+
+/**
+ * Shows `path`'s shield over its row's icon while the row is hovered or focused, and hides the
+ * icon while either is shown. Keep the shown states in sync with section-tree.css's
+ * `[data-item-shield]:is(…)`.
+ */
+function ownerRule(path: string): string {
+  const row = rowOf(path);
+  const shield = shieldOf(path);
+  const shown = `${row}:is(:hover,:focus-visible)`;
+  return (
+    ruleOf([`${shown}~${shield}`], "opacity:1;pointer-events:auto") +
+    ruleOf(
+      [
+        `${shown}>[data-item-section="icon"]>svg`,
+        `${row}:has(~${shield}:is(:hover,:focus-visible,[aria-expanded="true"]))>[data-item-section="icon"]>svg`,
+      ],
+      "opacity:0",
+    )
+  );
+}
+
 /** Every piece of `folder`'s hairline, by the hook @pierre/trees' own guide styles use. */
 const pieceOf = (folder: string) =>
   `[data-item-section="spacing-item"][data-ancestor-path="${CSS.escape(folder)}"]`;
@@ -561,13 +584,13 @@ function folderOf(path: string): string | undefined {
 
 const rowAt = (target: EventTarget | null) =>
   target instanceof Element
-    ? target.closest<HTMLElement>('[data-type="item"],[data-item-checkbox]')
+    ? target.closest<HTMLElement>('[data-type="item"],[data-item-checkbox],[data-item-shield]')
     : null;
 
-/** The path of the row or Viewed box `target` sits in. */
+/** The path of the row, code owners shield, or Viewed box `target` sits in. */
 function pathAt(target: EventTarget | null): string | undefined {
   const row = rowAt(target);
-  return row?.dataset.itemPath ?? row?.dataset.itemCheckbox;
+  return row?.dataset.itemPath ?? row?.dataset.itemCheckbox ?? row?.dataset.itemShield;
 }
 
 /**

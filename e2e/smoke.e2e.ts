@@ -538,12 +538,24 @@ test("every file row has a Viewed checkbox showing its file's state", async ({ c
   await expect(page.locator("[data-item-checkbox]")).toHaveCount(3);
 });
 
-test("ticking a row's box saves its file's Viewed state once", async ({ context, page }) => {
+/** Opens the Viewed fixture, whose toggles save through `POST <pull>/file_review`, and its saves. */
+const openViewed = async (context: BrowserContext, page: Page) => {
   const saves = await routeFileReview(context, 200);
   await serve(context, VIEWED_URL, VIEWED_BODY);
   await page.goto(VIEWED_URL);
   await expect(viewedBox(page, "lib.rs")).toBeVisible();
   await copyGitHubToggles(page, { revert: true });
+  return saves;
+};
+
+/** Waits out the sections' reveal, which moves every row. */
+const revealSettled = (page: Page) =>
+  page.locator(".gh-prism-sections").evaluate(async (view) => {
+    await Promise.all(view.getAnimations({ subtree: true }).map(({ finished }) => finished));
+  });
+
+test("ticking a row's box saves its file's Viewed state once", async ({ context, page }) => {
+  const saves = await openViewed(context, page);
 
   await viewedBox(page, "lib.rs").click();
   await expect(viewedBox(page, "lib.rs")).toBeChecked();
@@ -562,15 +574,9 @@ test("ticking a row's box saves its file's Viewed state once", async ({ context,
 });
 
 test("ticking GitHub's current file's box saves its Viewed state", async ({ context, page }) => {
-  const saves = await routeFileReview(context, 200);
-  await serve(context, VIEWED_URL, VIEWED_BODY);
-  await page.goto(VIEWED_URL);
-  await expect(viewedBox(page, "lib.rs")).toBeVisible();
-  await copyGitHubToggles(page, { revert: true });
-  // Playwright retries a click whose target is moving, and the reveal moves every row.
-  await page.locator(".gh-prism-sections").evaluate(async (view) => {
-    await Promise.all(view.getAnimations({ subtree: true }).map(({ finished }) => finished));
-  });
+  const saves = await openViewed(context, page);
+  // Playwright retries a click whose target is moving.
+  await revealSettled(page);
   // The fixture runs no GitHub script, so a row click alone never makes its file current.
   await page.evaluate(() =>
     document.getElementById("src/lib.rs")?.setAttribute("aria-current", "true"),
@@ -594,15 +600,9 @@ test("Alt-clicking a file's row marks it Viewed and back, and does nothing else"
   context,
   page,
 }) => {
-  const saves = await routeFileReview(context, 200);
-  await serve(context, VIEWED_URL, VIEWED_BODY);
-  await page.goto(VIEWED_URL);
-  await expect(viewedBox(page, "lib.rs")).toBeVisible();
-  await copyGitHubToggles(page, { revert: true });
-  // Playwright retries a click whose target is moving, and the reveal moves every row.
-  await page.locator(".gh-prism-sections").evaluate(async (view) => {
-    await Promise.all(view.getAnimations({ subtree: true }).map(({ finished }) => finished));
-  });
+  const saves = await openViewed(context, page);
+  // Playwright retries a click whose target is moving.
+  await revealSettled(page);
   const row = page.locator('[data-item-path="src/lib.rs"]');
   const toggle = page.locator(`#${VIEWED_LIB_RS} button[aria-label$="Viewed"]`);
   const downloads: string[] = [];
@@ -678,11 +678,7 @@ test("a box follows the header when GitHub keeps a rejected save's state", async
 });
 
 test("the keyboard reaches and ticks a row's Viewed box", async ({ context, page }) => {
-  await routeFileReview(context, 200);
-  await serve(context, VIEWED_URL, VIEWED_BODY);
-  await page.goto(VIEWED_URL);
-  await expect(viewedBox(page, "lib.rs")).toBeVisible();
-  await copyGitHubToggles(page, { revert: true });
+  await openViewed(context, page);
   const row = page.locator('[data-item-path="src/lib.rs"]');
 
   await row.focus();
@@ -731,10 +727,8 @@ test("ticking a box doesn't scroll the sidebar", async ({ context, page }) => {
   await serve(context, PR_URL, LARGE_VIEWED_BODY);
   await page.goto(PR_URL);
   await expect(page.locator('[data-item-checkbox="bulk/file-000.rs"]')).toBeVisible();
-  // Playwright scrolls a box it finds moving into view itself, and the reveal moves every box.
-  await page.locator(".gh-prism-sections").evaluate(async (view) => {
-    await Promise.all(view.getAnimations({ subtree: true }).map(({ finished }) => finished));
-  });
+  // Playwright scrolls a box it finds moving into view itself.
+  await revealSettled(page);
   // The tree's focused row stays its top one, which the reader never focused.
   await scrollSidebarToBulkRow(page, 150);
   const box = page.locator('[data-item-checkbox="bulk/file-150.rs"]');
@@ -1612,29 +1606,11 @@ test("an owner filter shows the diffs of that owner's files", async ({ context, 
 });
 
 const OWNED_PATHS = ["README.md", "src/engine.rs", "src/generated/schema.rs"];
-const FIXTURE_PATHS = [
-  "config/app.toml",
-  "docs/guide.md",
-  "src/generated/schema.rs",
-  "src/engine.rs",
-  "src/helpers.rs",
-  "src/lib.rs",
-  "src/notes.rs",
-  "src/parser.rs",
-  "src/render.rs",
-  "tests/integration.rs",
-  "Cargo.lock",
-  "Cargo.toml",
-  "README.md",
-];
 
 /** Answers the PR's code owners reads: each of `OWNED_PATHS` is owned by `owners`. */
 const routeCodeOwners = async (context: BrowserContext, owners = ["@o/team", "@octocat"]) => {
   const ownershipByPath = Object.fromEntries(
-    FIXTURE_PATHS.map((path) => [
-      path,
-      { owners: OWNED_PATHS.includes(path) ? owners : [], isOwnedByViewer: false },
-    ]),
+    OWNED_PATHS.map((path) => [path, { owners, isOwnedByViewer: false }]),
   );
   await context.route("https://github.com/o/r/pull/1/page_data/codeowners", (route) =>
     route.fulfill({ contentType: "application/json", body: JSON.stringify({ ownershipByPath }) }),
@@ -1654,6 +1630,14 @@ const treeRow = (page: Page, path: string) =>
 const rowIcon = (page: Page, path: string) =>
   treeRow(page, path).locator('[data-item-section="icon"] > svg');
 const shieldOf = (page: Page, path: string) => page.locator(`[data-item-shield="${path}"]`);
+/** Opens the PR with `OWNED_PATHS` owned by `owners`, once its shields have settled in. */
+const openOwned = async (context: BrowserContext, page: Page, owners?: string[]) => {
+  await routeCodeOwners(context, owners);
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+  await expect(shieldOf(page, "README.md")).toHaveCount(1);
+  await revealSettled(page);
+};
 const opacityOf = (locator: Locator) =>
   locator.evaluate((element) => getComputedStyle(element).opacity);
 
@@ -1668,9 +1652,7 @@ test("an owned file's row shows a shield in place of its icon while hovered or f
   const readme = treeRow(page, "README.md");
   const readmeShield = shieldOf(page, "README.md");
   await expect(readmeShield).toHaveCount(1);
-  await page.locator(".gh-prism-sections").evaluate(async (view) => {
-    await Promise.all(view.getAnimations({ subtree: true }).map(({ finished }) => finished));
-  });
+  await revealSettled(page);
 
   await readme.hover();
   await expect.poll(() => opacityOf(readmeShield)).toBe("1");
@@ -1716,19 +1698,35 @@ test("a shield lists its file's code owners in a popover until Escape returns to
   context,
   page,
 }) => {
-  await routeCodeOwners(context, ["@o/team", "@someone", "dev@example.com"]);
-  await serve(context, PR_URL, PR_BODY);
-  await page.goto(PR_URL);
+  await openOwned(context, page, ["@o/team", "@someone", "dev@example.com"]);
   const readme = treeRow(page, "README.md");
   const readmeShield = shieldOf(page, "README.md");
   const popover = page.locator(".gh-prism-owners");
-  await expect(readmeShield).toHaveCount(1);
   const before = await page.evaluate(() => ({ scrollY: window.scrollY, hash: location.hash }));
 
   await readme.hover();
   await readmeShield.click();
 
   await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
+  await popover.evaluate(async (element) => {
+    await Promise.all(element.getAnimations().map(({ finished }) => finished));
+  });
+  const shieldBox = await readmeShield.boundingBox();
+  const popoverBox = await popover.boundingBox();
+  if (!shieldBox || !popoverBox) throw new Error("no shield or popover box");
+  // Below the shield, or above it where the viewport has no room below.
+  expect(
+    Math.min(
+      Math.abs(popoverBox.y - (shieldBox.y + shieldBox.height)),
+      Math.abs(popoverBox.y + popoverBox.height - shieldBox.y),
+    ),
+  ).toBeLessThan(1);
+  expect(
+    await popover.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return [style.position, style.padding, style.borderTopStyle, style.maxHeight !== "none"];
+    }),
+  ).toEqual(["fixed", "12px", "solid", true]);
   const links = popover.locator("a");
   await expect(links).toHaveCount(2);
   expect(await links.evaluateAll((all) => all.map((link) => link.getAttribute("href")))).toEqual([
@@ -1768,4 +1766,34 @@ test("a shield lists its file's code owners in a popover until Escape returns to
 
   await page.mouse.click(1, 1);
   await expect(popover).toHaveCount(0);
+});
+
+test("a shield's click closes its open popover, and another shield's swaps it", async ({
+  context,
+  page,
+}) => {
+  await openOwned(context, page);
+  const readme = treeRow(page, "README.md");
+  const readmeShield = shieldOf(page, "README.md");
+  const popover = page.locator(".gh-prism-owners");
+
+  await readme.hover();
+  await readmeShield.click();
+  await expect(popover).toHaveCount(1);
+  await readmeShield.click();
+
+  await expect(popover).toHaveCount(0);
+  await expect(readmeShield).not.toHaveAttribute("aria-expanded");
+
+  await readmeShield.click();
+  await expect(popover).toHaveCount(1);
+  await treeRow(page, "src/engine.rs").hover();
+  await shieldOf(page, "src/engine.rs").click();
+
+  await expect(popover).toHaveCount(1);
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveAttribute(
+    "aria-label",
+    "Code owners of engine.rs",
+  );
+  await expect(readmeShield).not.toHaveAttribute("aria-expanded");
 });

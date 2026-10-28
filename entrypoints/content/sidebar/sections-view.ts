@@ -649,6 +649,17 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     scrolledTo = active;
   };
 
+  // The shield a press began on while its popover was open. The press light-dismisses the
+  // popover before its click arrives, so the click must close, not reopen.
+  let closesOwners: HTMLElement | undefined;
+  view.addEventListener(
+    "pointerdown",
+    (event) => {
+      const shield = clickedShield(event)?.shield;
+      closesOwners = shield?.getAttribute("aria-expanded") === "true" ? shield : undefined;
+    },
+    { capture: true, signal },
+  );
   view.addEventListener(
     "click",
     (event) => {
@@ -660,16 +671,19 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
         return;
       }
 
-      const shield = clickedShield(event);
-      if (shield) {
-        event.preventDefault();
-        openOwners(shield.shield, {
-          name: shield.path.split("/").at(-1) ?? shield.path,
-          owners: ownersByPath.get(shield.path)?.owners ?? [],
-          root: view,
-          signal,
-          onEscape: () => shown.get(shield.listing)?.tree.focusRow(shield.path),
-        });
+      const owned = clickedShield(event);
+      if (owned) {
+        const closing = closesOwners;
+        closesOwners = undefined;
+        if (owned.shield !== closing) {
+          openOwners(owned.shield, {
+            name: owned.path.slice(owned.path.lastIndexOf("/") + 1),
+            owners: ownersByPath.get(owned.path)?.owners ?? [],
+            root: view,
+            signal,
+            onEscape: () => shown.get(owned.listing)?.tree.focusRow(owned.path),
+          });
+        }
         return;
       }
 

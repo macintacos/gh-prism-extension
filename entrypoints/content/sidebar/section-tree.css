@@ -329,27 +329,32 @@ svg:not([data-icon-token]):has(> use[href="#gh-prism-java"]) {
   opacity: calc(1 - 0.45 * var(--gh-prism-viewed, 0));
 }
 
+/* What the patch's two row controls share, the Viewed box and the code owners shield. */
+[data-item-checkbox],
+[data-item-shield] {
+  appearance: none;
+  position: absolute;
+  /* Above @pierre/trees' focused (2) and selected (3) rows, which would cover it. */
+  z-index: 4;
+  display: grid;
+  place-content: center;
+  box-sizing: border-box;
+  background: transparent;
+  cursor: pointer;
+}
+
 /* The Viewed box the @pierre/trees patch renders after each file row, at that row's slot; the
    inline style sets its top. Outside the row's sections, so a Viewed row's dim leaves it crisp.
    Drawn, not native: an outline at rest, and once Viewed a fill in the section's hue with the
    check cut out of it in the section's tint. */
 [data-item-checkbox] {
-  appearance: none;
-  position: absolute;
-  /* Above @pierre/trees' focused (2) and selected (3) rows, which would cover it. */
-  z-index: 4;
   inset-inline-end: 8px;
-  display: grid;
-  place-content: center;
-  box-sizing: border-box;
   width: 14px;
   height: 14px;
   /* Centred in the row: (ROW_HEIGHT 28px in section-tree.ts − 14px) / 2. */
   margin: 7px 0 0;
   border: 1.5px solid var(--gh-prism-box-edge);
   border-radius: 4px;
-  background: transparent;
-  cursor: pointer;
   transition:
     background-color 120ms ease-out,
     border-color 120ms ease-out;
@@ -439,33 +444,28 @@ svg:not([data-icon-token]):has(> use[href="#gh-prism-java"]) {
   }
 }
 
+:host([data-gh-prism-checkboxes]) [data-item-type="file"] {
+  /* Room for the box: its width plus its inset on both sides. */
+  padding-inline-end: 30px;
+}
+
 /* The code owners shield the @pierre/trees patch renders after an owned row, at that row's slot;
    the inline style sets its top and --gh-prism-depth. It sits over the row's icon, hidden until
    SectionTree's per-path rule shows it for its hovered or focused row. Opacity, not visibility,
    so the focused row's shield stays reachable by Tab. */
 [data-item-shield] {
-  appearance: none;
-  position: absolute;
-  /* Above @pierre/trees' focused (2) and selected (3) rows, which would cover it. */
-  z-index: 4;
-  /* Centred over the 16px icon: the row's margin and padding, one level per depth, less half
-     the 8px the shield is wider than the icon. */
+  /* Centred over the icon: the row's margin and padding, one level per depth. */
   inset-inline-start: calc(
-    var(--trees-item-margin-x) + var(--trees-item-padding-x) - 4px + var(--gh-prism-depth, 0) *
-      (var(--trees-icon-width) + var(--trees-item-row-gap))
+    var(--trees-item-margin-x) + var(--trees-item-padding-x) +
+      (var(--trees-icon-width) - 24px) / 2 +
+      var(--gh-prism-depth, 0) * (var(--trees-icon-width) + var(--trees-item-row-gap))
   );
-  display: grid;
-  place-content: center;
-  box-sizing: border-box;
   width: 24px;
   height: 24px;
-  /* Centred in the row: (ROW_HEIGHT 28px in section-tree.ts − 24px) / 2. */
-  margin: 2px 0 0;
+  margin: calc((var(--trees-row-height) - 24px) / 2) 0 0;
   padding: 0;
   border: 0;
   border-radius: var(--borderRadius-medium);
-  background: transparent;
-  cursor: pointer;
   opacity: 0;
   pointer-events: none;
   transition: opacity 150ms ease-out;
@@ -475,6 +475,7 @@ svg:not([data-icon-token]):has(> use[href="#gh-prism-java"]) {
   transition: opacity 150ms ease-out;
 }
 
+/* Keep these states in sync with SectionTree's ownerRule. */
 [data-item-shield]:is(:hover, :focus-visible, [aria-expanded="true"]) {
   opacity: 1;
   pointer-events: auto;
@@ -505,11 +506,6 @@ svg:not([data-icon-token]):has(> use[href="#gh-prism-java"]) {
   [data-item-shield]::before {
     background: ButtonText;
   }
-}
-
-:host([data-gh-prism-checkboxes]) [data-item-type="file"] {
-  /* Room for the box: its width plus its inset on both sides. */
-  padding-inline-end: 30px;
 }
 
 @media (prefers-reduced-motion: reduce) {

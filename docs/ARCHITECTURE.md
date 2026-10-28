@@ -235,8 +235,9 @@ owned file's rows in every section, and the `@pierre/trees` patch draws a shield
 each, shown in place of the file icon while its row is hovered or focused. Clicking a
 shield opens a popover listing the file's owners, built by
 [`sidebar/owners-popover.ts`](../entrypoints/content/sidebar/owners-popover.ts) and
-removed when it closes. Nothing else reads ownership, so it never changes a file's section
-or the diffstat.
+removed, with its listeners, once it closes. A click on an open popover's own shield only
+closes it. Nothing else reads ownership, so it never changes a file's section or the
+diffstat.
 
 ## Section rows
 
@@ -337,7 +338,7 @@ entrypoints/
     files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
-    sidebar/             section trees, sidebar side switch, what's-new block, report link
+    sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
     header/              diffstat breakout
     ui/                  shared DOM helpers, loading view, Markdown subset, name reveal, Tailwind tokens
