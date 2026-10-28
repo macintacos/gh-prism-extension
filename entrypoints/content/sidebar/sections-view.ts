@@ -29,6 +29,7 @@ import {
   viewedToggleOf,
 } from "../files-page";
 import { el, icon } from "../ui/dom";
+import { type Card, followHoverIntent } from "../ui/hover-intent";
 import { lineTotals } from "../ui/line-counts";
 import { type LoadingView, loadingView } from "../ui/loading-view";
 import { followReveals, fullName } from "../ui/reveal";
@@ -391,6 +392,16 @@ function clickedCheckbox(event: Event): ListedFile | undefined {
   return listing && path ? { listing, path } : undefined;
 }
 
+/** The listing whose tree `shield` sits in. */
+function listingOfShield(shield: HTMLElement): ListingKey | undefined {
+  const root = shield.getRootNode();
+  const holder =
+    root instanceof ShadowRoot
+      ? root.host.closest<HTMLElement>(".gh-prism-comment-lines, .gh-prism-section")
+      : null;
+  return holder ? listingOf([holder]) : undefined;
+}
+
 /** The code owners shield a click inside a tree landed on, its file, and its listing. */
 function clickedShield(event: Event): (ListedFile & { shield: HTMLElement }) | undefined {
   const elements = event.composedPath().filter((node) => node instanceof HTMLElement);
@@ -621,6 +632,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     else if (previous) previous.after(root);
     else view.prepend(root);
     const tree = new SectionTree(host, files, active);
+    if (host.shadowRoot) hoverIntent.follow(host.shadowRoot);
     tree.showOnScreen(onScreen);
     if (offered) tree.showViewed(viewed);
     if (owned.size > 0) tree.showOwners(owned);
@@ -649,16 +661,43 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     scrolledTo = active;
   };
 
-  // The shield a press began on while its popover was open. The press light-dismisses the
+  let closeOwners = () => {};
+  const showOwners = (shield: HTMLElement): Card | undefined => {
+    const path = shield.dataset.itemShield;
+    const listing = listingOfShield(shield);
+    if (path === undefined || listing === undefined) return undefined;
+    closeOwners();
+    const card = openOwners(shield, {
+      name: path.slice(path.lastIndexOf("/") + 1),
+      owners: ownersByPath.get(path)?.owners ?? [],
+      root: view,
+      signal,
+      returnFocus: () => shown.get(listing)?.tree.focusRow(path),
+    });
+    closeOwners = card.close;
+    return card;
+  };
+  // The shield whose popover a click opened. A press on it closes the popover; a press on a shield
+  // whose popover hover or focus opened keeps it open, as a click's.
+  let pinned: HTMLElement | undefined;
+  const hoverIntent = followHoverIntent(doc, signal, {
+    triggerOf: (target) => target.closest<HTMLElement>("[data-item-shield]"),
+    show: (shield) => {
+      if (shield.getAttribute("aria-expanded") === "true") return undefined;
+      pinned = undefined;
+      return showOwners(shield);
+    },
+  });
+  // The shield a press began on while its pinned popover was open. The press light-dismisses the
   // popover before its click arrives, so that click must not reopen it. A keyboard click
   // (`detail` 0) has no press, so it always opens.
   let closingShield: HTMLElement | undefined;
-  let closeOwners = () => {};
   view.addEventListener(
     "pointerdown",
     (event) => {
       const shield = clickedShield(event)?.shield;
-      closingShield = shield?.getAttribute("aria-expanded") === "true" ? shield : undefined;
+      closingShield =
+        shield === pinned && shield?.getAttribute("aria-expanded") === "true" ? shield : undefined;
     },
     { capture: true, signal },
   );
@@ -678,13 +717,9 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
         const closing = event.detail > 0 ? closingShield : undefined;
         closingShield = undefined;
         if (shieldClick.shield !== closing) {
-          closeOwners = openOwners(shieldClick.shield, {
-            name: shieldClick.path.slice(shieldClick.path.lastIndexOf("/") + 1),
-            owners: ownersByPath.get(shieldClick.path)?.owners ?? [],
-            root: view,
-            signal,
-            onEscape: () => shown.get(shieldClick.listing)?.tree.focusRow(shieldClick.path),
-          });
+          // preventScroll: a scroll would close it.
+          showOwners(shieldClick.shield)?.element.focus({ preventScroll: true });
+          pinned = shieldClick.shield;
         }
         return;
       }

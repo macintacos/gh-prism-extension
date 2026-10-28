@@ -43,9 +43,11 @@ mid-word. The row's title and accessible name still carry every part.
 
 An owned file's icon gives way to a shield while its row is hovered or focused, as a
 folder's icon gives way to its chevron. The shield is Octicons `shield-lock`, muted at
-rest and `--fgColor-default` on hover. Clicking it, or Enter or Space on it, opens a
-popover listing the file's code owners. `sidebar/section-tree.css` swaps the icon for the
-shield; `sidebar/owners-popover.ts` builds the popover.
+rest and `--fgColor-default` on hover. Resting the pointer on it opens a popover listing
+the file's code owners, with the code owner's files popup's timing below, and so does
+focusing it. Clicking it, or Enter or Space on it, opens the popover and moves focus into
+it, where it stays until Escape or a click outside. `sidebar/section-tree.css` swaps the
+icon for the shield; `sidebar/owners-popover.ts` builds the popover.
 
 A folder chain short of room keeps its first folder and as many trailing folders as fit
 around one `…`. With room for less, it shows `…` and the deepest folder alone. Only the

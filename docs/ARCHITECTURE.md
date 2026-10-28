@@ -285,13 +285,18 @@ The sidebar's shields are another reader. `showVisit` in
 once they land, and drops them if the page has gone. `SectionTree` in
 [`sidebar/section-tree.ts`](../entrypoints/content/sidebar/section-tree.ts) marks each
 owned file's rows in every section, and the `@pierre/trees` patch draws a shield beside
-each, shown in place of the file icon while its row is hovered or focused. Clicking a
-shield opens a popover listing the file's owners, built by
+each, shown in place of the file icon while its row is hovered or focused. Resting the
+pointer on a shield for 200 ms, focusing it, or clicking it opens a popover listing the
+file's owners, built by
 [`sidebar/owners-popover.ts`](../entrypoints/content/sidebar/owners-popover.ts) and
-removed, with its listeners, once it closes. The sections view also closes it before
-moving into or out of the narrow layout's overlay, since a popover that leaves the
-document closes without a toggle event. A pointer click on an open popover's own shield
-only closes it. Showing a file's owners never changes its section or the diffstat.
+removed, with its listeners, once it closes. Hover and focus go through
+`followHoverIntent`, as the Conversation popup's do, following each tree's shadow root,
+because a move between a row and its shield never reaches the document. A popover that
+hover or focus opened closes as the pointer or focus leaves; a click keeps it open with
+focus inside. The sections view also closes it before moving into or out of the narrow
+layout's overlay, since a popover that leaves the document closes without a toggle event.
+A pointer click on the shield of a popover a click opened only closes it. Showing a file's
+owners never changes its section or the diffstat.
 
 On the Conversation tab, a code-owner shield beside a PR reviewer in a Reviewers list
 opens a popup listing the changed files that code owner owns, built by

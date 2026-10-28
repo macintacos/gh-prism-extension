@@ -48,7 +48,10 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   before `click`, so the hidden popover's `toggle` arrives after the same click re-opens
   it.
   [`sections-view-owners.test.ts`](../../tests/content/sidebar/sections-view-owners.test.ts)
-  stubs both at its top.
+  stubs both at its top. A stub also skips Chromium's focus return: `hidePopover()` on a
+  popover that holds focus moves focus back to the element that had it, such as the
+  popover's `source`, before the hide ends, and a `showPopover()` from that focus throws.
+  Prove a popover that opens on focus in Chromium.
 - **Prove tree row layout in Chromium, not happy-dom.** happy-dom computes no style from
   the section tree's shadow-root sheets, even with `section-tree.css` in
   `test.css.include`. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `rowLayout` is the

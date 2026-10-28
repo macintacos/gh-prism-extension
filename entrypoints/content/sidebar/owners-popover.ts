@@ -2,6 +2,7 @@
 
 import type { CodeOwner } from "@/utils/github/code-owners";
 import { el } from "../ui/dom";
+import type { Card } from "../ui/hover-intent";
 import { place } from "../ui/place";
 
 interface OwnersOptions {
@@ -12,20 +13,21 @@ interface OwnersOptions {
   readonly root: Element;
   /** The page's lifetime; the popover goes with it. */
   readonly signal: AbortSignal;
-  /** Called after Escape closes it, to return focus to the file's row. */
-  readonly onEscape: () => void;
+  /** Moves focus to the file's row, as Escape or a scroll closes the popover. */
+  readonly returnFocus: () => void;
 }
 
 /**
- * Opens a popover below `shield` listing `owners`, and moves focus into it. `shield` is marked
- * expanded while it is open. It closes on Escape (then calls `onEscape`), on a click outside it,
- * its own shield's included, on any scroll outside it, once `signal` aborts, or on a call of the
- * returned function. Closing removes it with its listeners and clears the shield's mark.
+ * Opens a popover below `shield` listing `owners`. `shield` is marked expanded while it is open.
+ * It closes on Escape inside it, calling `returnFocus` first, on a click outside it, its own
+ * shield's included, on any scroll outside it, calling `returnFocus` first while focus is inside
+ * it, once `signal` aborts, or on a call of the returned card's `close`. Closing removes it with
+ * its listeners and clears the shield's mark.
  */
 export function openOwners(
   shield: HTMLElement,
-  { name, owners, root, signal, onEscape }: OwnersOptions,
-): () => void {
+  { name, owners, root, signal, returnFocus }: OwnersOptions,
+): Card {
   const doc = shield.ownerDocument;
   const popover = el(
     doc,
@@ -57,6 +59,12 @@ export function openOwners(
     shield.removeAttribute("aria-expanded");
   };
   signal.addEventListener("abort", close, { signal: closed.signal });
+  // Focus leaves first: hiding a popover that holds focus hands it back to the shield, and the
+  // shield's focus would open the popover again mid-hide.
+  const dismiss = () => {
+    returnFocus();
+    popover.hidePopover();
+  };
   // beforetoggle, not toggle: the browser queues toggle, after a click may have opened the next.
   popover.addEventListener(
     "beforetoggle",
@@ -78,17 +86,15 @@ export function openOwners(
       if (event.key !== "Escape") return;
       // The browser's own Escape would return focus to the shield, not the row.
       event.preventDefault();
-      popover.hidePopover();
-      onEscape();
+      dismiss();
     },
     { signal: closed.signal },
   );
 
-  // source: Tab past its last link goes on from the shield, not from the end of the view.
+  // source: Tab from the shield enters it, and Tab past its last link goes on from the shield,
+  // not from the end of the view.
   popover.showPopover({ source: shield });
   place(popover, shield.getBoundingClientRect());
-  // preventScroll: a scroll would close it.
-  popover.focus({ preventScroll: true });
   // Preact leaves alone an attribute it never rendered, and a scroll closes the popover before
   // its row could virtualize away.
   shield.setAttribute("aria-expanded", "true");
@@ -96,11 +102,13 @@ export function openOwners(
   doc.addEventListener(
     "scroll",
     (event) => {
-      if (!(event.target instanceof Node && popover.contains(event.target))) popover.hidePopover();
+      if (event.target instanceof Node && popover.contains(event.target)) return;
+      if (popover.contains(doc.activeElement)) dismiss();
+      else popover.hidePopover();
     },
     { capture: true, signal: closed.signal },
   );
-  return close;
+  return { element: popover, close };
 }
 
 /** `owner`'s token, linking to its page in a new tab when it has one. */

@@ -1775,9 +1775,34 @@ test("a shield lists its file's code owners in a popover until Escape returns to
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Tab");
   await expect(readmeShield).toBeFocused();
+  // Focus opens it, and Tab from the shield walks its links, then goes on past them.
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
+  for (const link of await popover.locator("a").all()) {
+    await page.keyboard.press("Tab");
+    await expect(link).toBeFocused();
+  }
   await page.keyboard.press("Tab");
-  // Tab past the popover's last link goes on as Tab from its shield does.
   expect(pastPopover).toBe(await focusedControl(page));
+  await expect(popover).toHaveCount(0);
+});
+
+test("an owned file's shield opens its owners on hover, and closes as the pointer leaves", async ({
+  context,
+  page,
+}) => {
+  await openOwned(context, page);
+  const readmeShield = shieldOf(page, "README.md");
+  const popover = page.locator(".gh-prism-owners:popover-open");
+  await treeRow(page, "README.md").hover();
+
+  await readmeShield.hover();
+
+  await expect(popover).toHaveAttribute("aria-label", "Code owners of README.md");
+  expect(await popover.evaluate((element) => element.contains(document.activeElement))).toBe(false);
+  await popover.hover();
+  await expect(popover).toHaveCount(1);
+  await page.mouse.move(1, 1);
+  await expect(popover).toHaveCount(0);
 });
 
 /** The focused element, through shadow roots, as the start of its markup. */

@@ -63,7 +63,7 @@ export function followHoverIntent(
   const triggerAt = (target: EventTarget | null) =>
     target instanceof Element ? triggerOf(target) : null;
   const inOpenCard = (target: EventTarget | null) =>
-    !!open &&
+    !!open?.card.element.isConnected &&
     target instanceof Node &&
     (open.trigger.contains(target) || open.card.element.contains(target));
 
@@ -81,12 +81,12 @@ export function followHoverIntent(
     closeTimer = setTimeout(close, CLOSE_DELAY_MS);
   };
 
+  /** Shows `trigger`'s card after `delay` ms, or in this task when `delay` is 0. */
   const openAfter = (trigger: HTMLElement, delay: number) => {
     if (isOpen(trigger)) return;
     cancelOpen();
     const thisAttempt = attempt;
-    openTimer = setTimeout(async () => {
-      const card = await show(trigger);
+    const keep = (card: Card | undefined) => {
       if (thisAttempt !== attempt) {
         card?.close();
         return;
@@ -94,7 +94,17 @@ export function followHoverIntent(
       if (!card) return;
       close();
       open = { trigger, card };
-    }, delay);
+    };
+    // A card shown in this task is kept in it, so a focus move right after it can close it.
+    const openNow = () => {
+      const shown = show(trigger);
+      if (shown instanceof Promise) void shown.then(keep);
+      else keep(shown);
+    };
+    // In this task: a click's focus opens before its pointerup, so the click's light dismiss
+    // can't land first.
+    if (delay === 0) openNow();
+    else openTimer = setTimeout(openNow, delay);
   };
 
   signal.addEventListener("abort", () => {

@@ -6,6 +6,17 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-28: A file's code owners on hover
+
+- **Compared:** for the file sidebar's shield, opening its popover on a click only, and
+  opening it on hover and focus with the Conversation popup's timing. For a click on a
+  shield whose popover hover already opened: closing it, as a second click closes a
+  click-opened popover, and keeping it open with focus inside.
+- **Won:** hover and focus open it, and that click keeps it open, taking focus.
+- **Why:** one timing for both code-owner popups, so a reviewer who learns one knows the
+  other. A click right after the popover appears is a reach for its links, so closing it
+  then would undo what the reviewer asked for.
+
 ## 2026-10-28: A shield for every code owner reviewer
 
 - **Compared:** for a PR reviewer who owns files where GitHub draws no shield, as after a
