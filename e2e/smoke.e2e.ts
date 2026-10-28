@@ -1552,12 +1552,9 @@ const FIXTURE_OWNERS: Record<string, string[]> = {
  * Answers the code owners read for tests/fixtures/files-page.html; registered after the catch-all
  * 404.
  */
-const routeCodeOwners = async (context: BrowserContext) => {
+const routeCodeOwners = async (context: BrowserContext, ownership = FIXTURE_OWNERS) => {
   const ownershipByPath = Object.fromEntries(
-    Object.entries(FIXTURE_OWNERS).map(([path, owners]) => [
-      path,
-      { isOwnedByViewer: false, owners },
-    ]),
+    Object.entries(ownership).map(([path, owners]) => [path, { isOwnedByViewer: false, owners }]),
   );
   await context.route("**/page_data/codeowners", (route) =>
     route.fulfill({
@@ -1607,23 +1604,9 @@ test("an owner filter shows the diffs of that owner's files", async ({ context, 
 
 const OWNED_PATHS = ["README.md", "src/engine.rs", "src/generated/schema.rs"];
 
-/** Answers the PR's code owners reads: each of `OWNED_PATHS` is owned by `owners`. */
-const routeCodeOwners = async (context: BrowserContext, owners = ["@o/team", "@octocat"]) => {
-  const ownershipByPath = Object.fromEntries(
-    OWNED_PATHS.map((path) => [path, { owners, isOwnedByViewer: false }]),
-  );
-  await context.route("https://github.com/o/r/pull/1/page_data/codeowners", (route) =>
-    route.fulfill({ contentType: "application/json", body: JSON.stringify({ ownershipByPath }) }),
-  );
-  await context.route("https://github.com/o/r/pull/1/page_data/merge_box", (route) =>
-    route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        pullRequest: { pendingReviewRequests: [], latestOpinionatedReviews: [] },
-      }),
-    }),
-  );
-};
+/** Each of `OWNED_PATHS` owned by `owners`. */
+const ownedBy = (owners = ["@o/team", "@octocat"]) =>
+  Object.fromEntries(OWNED_PATHS.map((path) => [path, owners]));
 
 const treeRow = (page: Page, path: string) =>
   page.locator(`[data-type="item"][data-item-path="${path}"]`);
@@ -1632,7 +1615,7 @@ const rowIcon = (page: Page, path: string) =>
 const shieldOf = (page: Page, path: string) => page.locator(`[data-item-shield="${path}"]`);
 /** Opens the PR with `OWNED_PATHS` owned by `owners`, once its shields have settled in. */
 const openOwned = async (context: BrowserContext, page: Page, owners?: string[]) => {
-  await routeCodeOwners(context, owners);
+  await routeCodeOwners(context, ownedBy(owners));
   await serve(context, PR_URL, PR_BODY);
   await page.goto(PR_URL);
   await expect(shieldOf(page, "README.md")).toHaveCount(1);
@@ -1645,7 +1628,7 @@ test("an owned file's row shows a shield in place of its icon while hovered or f
   context,
   page,
 }) => {
-  await routeCodeOwners(context);
+  await routeCodeOwners(context, ownedBy());
   await serve(context, PR_URL, PR_BODY);
   await serve(context, COMMIT_URL, COMMIT_BODY);
   await page.goto(PR_URL);

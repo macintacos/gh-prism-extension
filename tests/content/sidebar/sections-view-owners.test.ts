@@ -86,8 +86,15 @@ const allShielded = () => sectionKeys().flatMap((section) => shieldedIn(section 
 
 /** Mounts a visit landing `result` whose code owners settle as `owners`, and lets both land. */
 async function landedOwned(owners: PrCodeOwners | undefined, result = landedWith()): Promise<void> {
-  remountWith(() => Promise.resolve(result), undefined, Promise.resolve(owners));
+  remountWith(() => Promise.resolve(result), undefined, { codeOwners: Promise.resolve(owners) });
   await afterDebounce();
+}
+
+/** Mounts a visit whose code owners stay pending until the returned function settles them. */
+function remountPending(): (owners: PrCodeOwners) => void {
+  let resolve: (owners: PrCodeOwners) => void = () => {};
+  remountWith(undefined, undefined, { codeOwners: new Promise((settle) => (resolve = settle)) });
+  return (owners) => resolve(owners);
 }
 
 describe("showSections", () => {
@@ -99,8 +106,7 @@ describe("showSections", () => {
     });
 
     it("appears when ownership resolves after the sections land", async () => {
-      let resolve: (owners: PrCodeOwners) => void = () => {};
-      remountWith(undefined, undefined, new Promise((settle) => (resolve = settle)));
+      const resolve = remountPending();
       await afterDebounce();
       expect(shieldedIn("implementation")).toEqual([]);
 
@@ -113,7 +119,9 @@ describe("showSections", () => {
     it("appears when ownership resolves before the sections land", async () => {
       let land: () => void = () => {};
       const intent = new Promise<void>((settle) => (land = settle)).then(() => landedWith());
-      remountWith(() => intent, undefined, Promise.resolve(ownersOf(["src/engine.rs"])));
+      remountWith(() => intent, undefined, {
+        codeOwners: Promise.resolve(ownersOf(["src/engine.rs"])),
+      });
       await afterDebounce();
 
       land();
@@ -135,8 +143,7 @@ describe("showSections", () => {
     });
 
     it("draws nothing once its page has gone", async () => {
-      let resolve: (owners: PrCodeOwners) => void = () => {};
-      remountWith(undefined, undefined, new Promise((settle) => (resolve = settle)));
+      const resolve = remountPending();
       await afterDebounce();
       const host = hostOf("implementation");
 
@@ -176,8 +183,7 @@ describe("showSections", () => {
 
     it("lands without moving a file, a count, a folder, or the sidebar's scroll", async () => {
       const { FileTree } = await import("@pierre/trees");
-      let resolve: (owners: PrCodeOwners) => void = () => {};
-      remountWith(undefined, undefined, new Promise((settle) => (resolve = settle)));
+      const resolve = remountPending();
       await afterDebounce();
       clickAt(rowIn("implementation", "src/generated/"));
       await afterDebounce();
