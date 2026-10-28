@@ -5,6 +5,7 @@ import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import contentScript from "../../entrypoints/content";
 import { dockSidebar, type Side } from "../../entrypoints/content/sidebar/side";
 import { showHeaderTab, showVisit } from "../../entrypoints/content/visit/land";
+import { readCodeOwners } from "../../utils/github/code-owners";
 import { readFilesRoute } from "../../utils/github/files-route";
 import { intentFor } from "../../utils/intent/read";
 import { type DiffstatView, whatsNewSeen } from "../../utils/prefs";
@@ -22,6 +23,10 @@ import {
 vi.mock(import("../../utils/intent/read"), async (importOriginal) => ({
   ...(await importOriginal()),
   intentFor: vi.fn(() => new Promise<never>(() => {})),
+}));
+vi.mock(import("../../utils/github/code-owners"), async (importOriginal) => ({
+  ...(await importOriginal()),
+  readCodeOwners: vi.fn(() => new Promise<never>(() => {})),
 }));
 vi.mock(import("../../entrypoints/content/visit/land"), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -195,6 +200,37 @@ describe("content script", () => {
     expect(vi.mocked(intentFor).mock.calls[1]?.[0]).toEqual(readFilesRoute("/o/r/pull/2/changes"));
   });
 
+  it("reads a pull request's code owners once per visit, shared by its pages", async () => {
+    await run();
+    const sidebar = byId("pr-file-tree");
+    sidebar.replaceWith(sidebar.cloneNode(true));
+    await afterMutations();
+
+    expect(readCodeOwners).toHaveBeenCalledOnce();
+    expect(readCodeOwners).toHaveBeenCalledWith(
+      readFilesRoute(PR)?.diff,
+      expect.any(Function),
+      expect.any(AbortSignal),
+    );
+    const read = vi.mocked(readCodeOwners).mock.results[0]?.value;
+    expect(vi.mocked(showVisit).mock.calls.map(([, , options]) => options.codeOwners)).toEqual([
+      read,
+      read,
+    ]);
+  });
+
+  it("reads code owners afresh on the next visit", async () => {
+    await run();
+    history.pushState(null, "", "/o/r/pull/2/changes");
+    document.dispatchEvent(new Event("soft-nav:end"));
+    await afterMutations();
+
+    expect(readCodeOwners).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(readCodeOwners).mock.calls[1]?.[0]).toEqual(
+      readFilesRoute("/o/r/pull/2/changes")?.diff,
+    );
+  });
+
   it("seeds Viewed state from embedded data on the first visit only", async () => {
     history.replaceState(null, "", "/macintacos/gh-prism-sandbox/pull/3/changes");
     loadViewedFixture();
@@ -288,6 +324,12 @@ describe("content script", () => {
         expect.anything(),
         expect.any(Function),
       );
+    });
+
+    it("reads no code owners", async () => {
+      await run();
+
+      expect(readCodeOwners).not.toHaveBeenCalled();
     });
 
     it("shares the Files view's diffstat choice", async () => {
