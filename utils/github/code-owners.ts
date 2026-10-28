@@ -39,9 +39,17 @@ export function codeOwnerOf(token: string): CodeOwner {
     : { token };
 }
 
-/** Whether `reviewer`'s token names `owner`: the same user or the same team, ignoring case. */
-export function isOwner(reviewer: string, owner: CodeOwner): boolean {
-  return reviewer.toLowerCase() === owner.token.toLowerCase();
+/** Whether `token` names `owner`: the same user or the same team, ignoring case. */
+export function isOwner(token: string, owner: CodeOwner): boolean {
+  return token.toLowerCase() === owner.token.toLowerCase();
+}
+
+/**
+ * Whether a changed file at `path` is `token`'s: one of its code owners in `read` is `token`,
+ * ignoring case. A path with no owners, or missing from `read`, is no one's.
+ */
+export function ownedBy(read: PrCodeOwners, token: string): (path: string) => boolean {
+  return (path) => read.byPath.get(path)?.owners.some((owner) => isOwner(token, owner)) ?? false;
 }
 
 /**

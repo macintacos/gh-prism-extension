@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   codeOwnerOf,
   isOwner,
+  ownedBy,
   type PrCodeOwners,
   readCodeOwners,
 } from "../../../utils/github/code-owners";
@@ -336,7 +337,33 @@ describe("isOwner", () => {
     ["@sandbox-user", "@excessive-dev/frontend"],
     ["@jasnell", "@nodejs/crypto"],
     ["@jasnell", "jasnell@example.com"],
-  ])("doesn't match %s to %s", (reviewer, owner) => {
-    expect(isOwner(reviewer, codeOwnerOf(owner))).toBe(false);
+  ])("doesn't match %s to %s", (token, owner) => {
+    expect(isOwner(token, codeOwnerOf(owner))).toBe(false);
+  });
+});
+
+describe("ownedBy", () => {
+  const paths = [
+    "web/app.ts",
+    "docs/guide.md",
+    "api/routes.ts",
+    "api/generated/client.ts",
+    "infra/deploy.yml",
+    "README.md",
+    "notes/absent.md",
+  ];
+
+  it.each([
+    ["@excessive-dev/frontend", ["web/app.ts", "api/generated/client.ts"]],
+    ["@excessive-dev/platform", ["api/routes.ts", "infra/deploy.yml"]],
+    ["@Sandbox-User", ["docs/guide.md", "api/routes.ts"]],
+    ["@nobody", []],
+  ])("keeps %s's files", async (token, kept) => {
+    const owners = await read(sandbox, sandboxFetch());
+    if (owners === undefined) throw new Error("the sandbox's read failed");
+
+    const keep = ownedBy(owners, token);
+
+    expect(paths.filter(keep)).toEqual(kept);
   });
 });
