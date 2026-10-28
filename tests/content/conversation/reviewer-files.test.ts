@@ -524,6 +524,8 @@ describe("showReviewerFiles", () => {
       const shield = ownShieldOf("@pimterry");
       expect(ownShields()).toEqual(["@pimterry"]);
       expect(shield.parentElement).toBe(rowOf("pimterry"));
+      // Its status link's flex order draws it after the shield, as with GitHub's own.
+      expect(shield.previousElementSibling?.id).toBe("review-status-pimterry");
       expect(shield.getAttribute("type")).toBe("button");
       expect(shield.getAttribute("aria-label")).toBe(
         "pimterry is a code owner through nodejs/crypto",
