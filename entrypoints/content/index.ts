@@ -128,7 +128,11 @@ export default defineContentScript({
           intentFor({ diff: pr, commitFiltered: false }, visit, sources, onProgress),
         );
         // Rides the header visit, so it runs only where findHeaderPage finds the counter's slot.
-        showReviewerFiles(document, visit, () => readCodeOwners(pr, fetch, visit));
+        showReviewerFiles(document, visit, async () => {
+          const codeOwners = readCodeOwners(pr, fetch, visit);
+          const prReviewers = readReviewersWithTeams(pr, codeOwners, visit);
+          return { codeOwners: await codeOwners, prReviewers: await prReviewers };
+        });
         return (page, signal) => showHeaderTab(page, signal, { intent, diffstat });
       },
       ctx.signal,

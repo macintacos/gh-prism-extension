@@ -1,9 +1,24 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { showReviewerFiles } from "../../../entrypoints/content/conversation/reviewer-files";
-import { codeOwnerOf, type PrCodeOwners } from "../../../utils/github/code-owners";
+import {
+  type Ownership,
+  showReviewerFiles,
+} from "../../../entrypoints/content/conversation/reviewer-files";
+import {
+  codeOwnerOf,
+  type PrCodeOwners,
+  type PrReviewer,
+  readCodeOwners,
+  readPrReviewers,
+} from "../../../utils/github/code-owners";
+import type { DiffRef } from "../../../utils/github/pr-ref";
+import nodeCodeowners from "../../fixtures/codeowners-node.json?raw";
 import sandboxCodeowners from "../../fixtures/codeowners-sandbox.json?raw";
+import nodeConversation from "../../fixtures/conversation-node.html?raw";
+import overviewConversation from "../../fixtures/conversation-overview.html?raw";
 import conversationFixture from "../../fixtures/conversation-page.html?raw";
+import { routedFetch } from "../../fixtures/fetch";
+import nodeReviewRequests from "../../fixtures/review-requests-node.json?raw";
 
 // Chrome content scripts run in an isolated world whose `customElements` is null.
 vi.hoisted(() => {
@@ -14,20 +29,101 @@ vi.hoisted(() => {
 HTMLElement.prototype.showPopover = () => {};
 HTMLElement.prototype.hidePopover = () => {};
 
-interface Ownership {
+interface RawOwnership {
   readonly owners: readonly string[];
   readonly isOwnedByViewer: boolean;
 }
 
 /** The sandbox pull request's code owners, with `edit` applied to the raw body first. */
-function sandboxOwners(edit: (byPath: Record<string, Ownership>) => void = () => {}): PrCodeOwners {
-  const byPath: Record<string, Ownership> = JSON.parse(sandboxCodeowners).ownershipByPath;
+function sandboxOwners(
+  edit: (byPath: Record<string, RawOwnership>) => void = () => {},
+): PrCodeOwners {
+  const byPath: Record<string, RawOwnership> = JSON.parse(sandboxCodeowners).ownershipByPath;
   edit(byPath);
   return new Map(
     Object.entries(byPath).map(([path, { owners, isOwnedByViewer }]) => [
       path,
       { owners: owners.map(codeOwnerOf), ownedByViewer: isOwnedByViewer },
     ]),
+  );
+}
+
+const SANDBOX_REVIEWERS: readonly PrReviewer[] = [
+  { token: "@excessive-dev/frontend", teams: [], codeOwner: true },
+  { token: "@excessive-dev/platform", teams: [], codeOwner: true },
+];
+
+type Json = Record<string, unknown>;
+const node: DiffRef = { kind: "pr", owner: "nodejs", repo: "node", number: 67056 };
+const NODE_CRYPTO = [
+  "src/crypto/crypto_context.cc",
+  "src/crypto/crypto_context.h",
+  "src/crypto/crypto_hash.cc",
+  "src/crypto/crypto_rsa.cc",
+  "src/crypto/crypto_tls.cc",
+  "src/crypto/crypto_util.cc",
+];
+
+interface NodeEdits {
+  readonly ownership?: (byPath: Record<string, RawOwnership>) => void;
+  readonly reviewRequests?: (body: {
+    pendingReviewRequests: Json[];
+    completedReviews: Json[];
+  }) => void;
+}
+
+/** nodejs/node#67056's code owners and PR reviewers, read from its captures after `edits`. */
+async function nodeOwnership({ ownership, reviewRequests }: NodeEdits = {}): Promise<Ownership> {
+  const codeowners = JSON.parse(nodeCodeowners);
+  ownership?.(codeowners.ownershipByPath);
+  const requests = JSON.parse(nodeReviewRequests);
+  reviewRequests?.(requests);
+  const fetchFn = routedFetch({
+    "https://github.com/nodejs/node/pull/67056/page_data/codeowners": () =>
+      Promise.resolve(new Response(JSON.stringify(codeowners))),
+    "https://github.com/nodejs/node/pull/67056/page_data/review_requests": () =>
+      Promise.resolve(new Response(JSON.stringify(requests))),
+  });
+  const { signal } = new AbortController();
+  return {
+    codeOwners: await readCodeOwners(node, fetchFn, signal),
+    prReviewers: await readPrReviewers(node, fetchFn, signal),
+  };
+}
+
+/** A team as review_requests names one. */
+const team = (displayLogin: string) => ({ displayLogin, name: "", reviewerType: "Team" });
+/** Assigns jasnell's pending request from nodejs/crypto, as team review assignment does. */
+const assignedFromCrypto = ({
+  pendingReviewRequests: [jasnell],
+}: {
+  pendingReviewRequests: Json[];
+}) =>
+  Object.assign(jasnell ?? {}, {
+    delegatedFromTeam: team("nodejs/crypto"),
+    isCodeOwner: true,
+    isCodeOwnerFromDelegation: true,
+  });
+/** Records pimterry's review as on behalf of nodejs/crypto. */
+const reviewedForCrypto = ({ completedReviews: [pimterry] }: { completedReviews: Json[] }) =>
+  Object.assign(pimterry ?? {}, { onBehalfOfTeams: [team("nodejs/crypto")] });
+
+/** Marks jasnell's pending request a code owner's, naming no team. */
+const markedCodeOwner = ({ pendingReviewRequests: [jasnell] }: { pendingReviewRequests: Json[] }) =>
+  Object.assign(jasnell ?? {}, { isCodeOwner: true });
+
+/** Gives jasnell's classic row GitHub's code-owner shield, then rests the pointer on it. */
+async function hoverJasnellsShield() {
+  addGitHubShield("jasnell");
+  await hoverOn(document.getElementById("codeowner-jasnell") as Element);
+}
+
+/** Gives `login`'s classic row GitHub's code-owner shield, shaped as it draws a team's. */
+function addGitHubShield(login: string) {
+  const row = document.querySelector(`[data-assignee-name="${login}"]`)?.parentElement;
+  row?.insertAdjacentHTML(
+    "beforeend",
+    `<button type="button" id="codeowner-${login}" class="mr-2 btn-link muted-icon"><span class="reviewers-status-icon"><svg class="octicon octicon-shield-lock"></svg></span></button>`,
   );
 }
 
@@ -45,12 +141,35 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function show(codeOwners: () => Promise<PrCodeOwners | undefined> = async () => sandboxOwners()) {
-  showReviewerFiles(document, controller.signal, codeOwners);
+function show(
+  read: () => Promise<Ownership> = async () => ({
+    codeOwners: sandboxOwners(),
+    prReviewers: SANDBOX_REVIEWERS,
+  }),
+) {
+  showReviewerFiles(document, controller.signal, read);
+}
+
+/** Shows the popups on nodejs/node#67056's `page`, read after `edits`, once its reads settle. */
+async function showNode(edits: NodeEdits = {}, page = nodeConversation) {
+  document.body.innerHTML = page;
+  const ownership = await nodeOwnership(edits);
+  show(async () => ownership);
+  await vi.advanceTimersByTimeAsync(0);
 }
 
 const shieldOf = (team: string) =>
   document.getElementById(`codeowner-excessive-dev/${team}`) as HTMLElement;
+/** gh-prism's shields, by the reviewer each marks. */
+const ownShields = () =>
+  [...document.querySelectorAll<HTMLElement>("button[data-gh-prism-owner]")].map(
+    (shield) => shield.dataset.ghPrismOwner,
+  );
+const ownShieldOf = (token: string) =>
+  document.querySelector<HTMLElement>(`button[data-gh-prism-owner="${token}"]`) as HTMLElement;
+/** The row a classic or overview reviewer's identity link sits in. */
+const rowOf = (login: string) =>
+  document.querySelector(`a[href="/${login}"]`)?.closest("li, div.d-flex") as HTMLElement;
 const popups = () => [...document.querySelectorAll<HTMLElement>(".gh-prism-reviewer-files")];
 const popup = () => document.querySelector<HTMLElement>(".gh-prism-reviewer-files");
 const listed = () => [...(popup()?.querySelectorAll("li") ?? [])].map((li) => li.textContent);
@@ -63,7 +182,11 @@ function pointerOut(target: Element, to: Element | null = document.body) {
 }
 
 async function hoverOpen(team: string) {
-  pointerOver(shieldOf(team));
+  await hoverOn(shieldOf(team));
+}
+
+async function hoverOn(shield: Element) {
+  pointerOver(shield);
   await vi.advanceTimersByTimeAsync(200);
 }
 
@@ -118,11 +241,12 @@ describe("showReviewerFiles", () => {
   });
 
   it("opens nothing for a shield whose reviewer owns no changed file", async () => {
-    show(async () =>
-      sandboxOwners((byPath) => {
+    show(async () => ({
+      codeOwners: sandboxOwners((byPath) => {
         for (const [path, entry] of Object.entries(byPath)) byPath[path] = { ...entry, owners: [] };
       }),
-    );
+      prReviewers: [],
+    }));
 
     await hoverOpen("frontend");
 
@@ -130,7 +254,7 @@ describe("showReviewerFiles", () => {
   });
 
   it("opens nothing when the code owners can't be read", async () => {
-    show(async () => undefined);
+    show(async () => ({ codeOwners: undefined, prReviewers: SANDBOX_REVIEWERS }));
 
     await hoverOpen("frontend");
 
@@ -234,11 +358,12 @@ describe("showReviewerFiles", () => {
 
   it("renders a path as text, never as markup", async () => {
     const path = "<img src=x onerror=alert(1)>.ts";
-    show(async () =>
-      sandboxOwners((byPath) => {
+    show(async () => ({
+      codeOwners: sandboxOwners((byPath) => {
         byPath[path] = { owners: ["@excessive-dev/frontend"], isOwnedByViewer: false };
       }),
-    );
+      prReviewers: SANDBOX_REVIEWERS,
+    }));
 
     await hoverOpen("frontend");
 
@@ -246,40 +371,45 @@ describe("showReviewerFiles", () => {
     expect(popup()?.querySelector("img")).toBeNull();
   });
 
-  it("reads the code owners once, as the first hover starts", async () => {
-    const codeOwners = vi.fn(async () => sandboxOwners());
-    show(codeOwners);
+  it("reads the code owners and PR reviewers once, as a Reviewers list first shows", async () => {
+    document.body.innerHTML = "";
+    const read = vi.fn(async () => ({
+      codeOwners: sandboxOwners(),
+      prReviewers: SANDBOX_REVIEWERS,
+    }));
+    show(read);
+    await vi.advanceTimersByTimeAsync(0);
+    const beforeList = read.mock.calls.length;
 
-    pointerOver(shieldOf("frontend"));
-    const atHover = codeOwners.mock.calls.length;
-    await vi.advanceTimersByTimeAsync(200);
-    pointerOut(shieldOf("frontend"));
-    await vi.advanceTimersByTimeAsync(150);
+    document.body.innerHTML = conversationFixture;
+    await vi.advanceTimersByTimeAsync(0);
+    await hoverOpen("frontend");
+    document.body.innerHTML = conversationFixture;
     await hoverOpen("platform");
 
-    expect(atHover).toBe(1);
-    expect(codeOwners).toHaveBeenCalledOnce();
+    expect(beforeList).toBe(0);
+    expect(read).toHaveBeenCalledOnce();
   });
 
   it("opens nothing when the pointer leaves while the code owners are still being read", async () => {
-    const read = Promise.withResolvers<PrCodeOwners | undefined>();
+    const read = Promise.withResolvers<Ownership>();
     show(() => read.promise);
 
     await hoverOpen("frontend");
     pointerOut(shieldOf("frontend"));
-    read.resolve(sandboxOwners());
+    read.resolve({ codeOwners: sandboxOwners(), prReviewers: SANDBOX_REVIEWERS });
     await vi.advanceTimersByTimeAsync(500);
 
     expect(popups()).toHaveLength(0);
   });
 
   it("opens nothing after Escape while the code owners are still being read", async () => {
-    const read = Promise.withResolvers<PrCodeOwners | undefined>();
+    const read = Promise.withResolvers<Ownership>();
     show(() => read.promise);
 
     await hoverOpen("frontend");
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-    read.resolve(sandboxOwners());
+    read.resolve({ codeOwners: sandboxOwners(), prReviewers: SANDBOX_REVIEWERS });
     await vi.advanceTimersByTimeAsync(500);
 
     expect(popups()).toHaveLength(0);
@@ -308,5 +438,143 @@ describe("showReviewerFiles", () => {
     await vi.advanceTimersByTimeAsync(50);
 
     expect(popups()).toHaveLength(1);
+  });
+  it("draws no second shield beside a reviewer GitHub shields", async () => {
+    show();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(ownShields()).toEqual([]);
+  });
+
+  describe("a user's code-owner shield", () => {
+    it("lists the files CODEOWNERS names the user for", async () => {
+      await showNode({
+        ownership: (byPath) => {
+          byPath["test/cctest/test_node_crypto.cc"] = {
+            owners: ["@jasnell"],
+            isOwnedByViewer: false,
+          };
+        },
+        reviewRequests: markedCodeOwner,
+      });
+
+      await hoverJasnellsShield();
+
+      expect(listed()).toEqual(["test/cctest/test_node_crypto.cc"]);
+      expect(popup()?.querySelector("a")).toBeNull();
+    });
+
+    it("lists the team's files, naming and linking the team, when assigned on its behalf", async () => {
+      await showNode({ reviewRequests: assignedFromCrypto });
+
+      await hoverJasnellsShield();
+
+      expect(listed().sort()).toEqual(NODE_CRYPTO);
+      const teamLink = popup()?.querySelector("a");
+      expect(teamLink?.textContent).toBe("@nodejs/crypto");
+      expect(teamLink?.href).toBe("https://github.com/orgs/nodejs/teams/crypto");
+      expect(popup()?.textContent).toContain("Through @nodejs/crypto");
+    });
+
+    it("says why it lists nothing when GitHub names no team", async () => {
+      await showNode({ reviewRequests: markedCodeOwner });
+
+      await hoverJasnellsShield();
+
+      expect(listed()).toEqual([]);
+      expect(popup()?.textContent).toBe(
+        "GitHub doesn't show you which team makes them a code owner, so their files aren't listed.",
+      );
+    });
+  });
+
+  describe("gh-prism's shield", () => {
+    it("marks a reviewer who reviewed for an owning team, beside GitHub's status icon", async () => {
+      await showNode({ reviewRequests: reviewedForCrypto });
+
+      const shield = ownShieldOf("@pimterry");
+      expect(ownShields()).toEqual(["@pimterry"]);
+      expect(shield.parentElement).toBe(rowOf("pimterry"));
+      expect(shield.getAttribute("type")).toBe("button");
+      expect(shield.getAttribute("aria-label")).toBe(
+        "pimterry is a code owner through nodejs/crypto",
+      );
+      expect(shield.querySelector("svg")).not.toBeNull();
+    });
+
+    it("opens the reviewer's files, naming the team, on hover", async () => {
+      await showNode({ reviewRequests: reviewedForCrypto });
+
+      await hoverOn(ownShieldOf("@pimterry"));
+
+      expect(listed().sort()).toEqual(NODE_CRYPTO);
+      expect(popup()?.textContent).toContain("Through @nodejs/crypto");
+      expect(ownShieldOf("@pimterry").getAttribute("aria-describedby")).toBe(
+        "gh-prism-reviewer-files",
+      );
+    });
+
+    it("marks only reviewers who own a changed file", async () => {
+      await showNode({ reviewRequests: reviewedForCrypto });
+
+      expect(ownShields()).not.toContain("@richardlau");
+      expect(ownShields()).not.toContain("@jasnell");
+    });
+
+    it("comes back once GitHub replaces the Reviewers list", async () => {
+      await showNode({ reviewRequests: reviewedForCrypto });
+
+      const form = document.querySelector("form") as HTMLFormElement;
+      form.replaceWith(form.cloneNode(true));
+      for (const shield of document.querySelectorAll("button[data-gh-prism-owner]"))
+        shield.remove();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(ownShields()).toEqual(["@pimterry"]);
+    });
+
+    it("goes once the signal aborts", async () => {
+      await showNode({ reviewRequests: reviewedForCrypto });
+
+      controller.abort();
+
+      expect(ownShields()).toEqual([]);
+    });
+  });
+
+  describe("in the PR overview's reviewer list", () => {
+    it("opens a user's files from GitHub's shield", async () => {
+      await showNode(
+        {
+          ownership: (byPath) => {
+            byPath["test/cctest/test_node_crypto.cc"] = {
+              owners: ["@jasnell"],
+              isOwnedByViewer: false,
+            };
+          },
+        },
+        overviewConversation,
+      );
+
+      await hoverOn(
+        document.querySelector('button[aria-label="jasnell is a code owner"]') as Element,
+      );
+
+      expect(listed()).toEqual(["test/cctest/test_node_crypto.cc"]);
+    });
+
+    it("puts gh-prism's shield in the icon column, before the status icon", async () => {
+      await showNode({ reviewRequests: reviewedForCrypto }, overviewConversation);
+
+      const icons = rowOf("pimterry").querySelector('[class*="indicators__"]');
+      expect(ownShields()).toEqual(["@pimterry"]);
+      expect([...(icons?.children ?? [])].map((child) => child.getAttribute("aria-label"))).toEqual(
+        [
+          "Re-request review from pimterry",
+          "pimterry is a code owner through nodejs/crypto",
+          "Approved these changes",
+        ],
+      );
+    });
   });
 });

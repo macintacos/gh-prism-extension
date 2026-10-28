@@ -129,22 +129,32 @@ popup below is the one such card.
 
 ## Code owner's files
 
-On a pull request's Conversation tab, the code-owner shield GitHub shows beside a team or
-person in the Reviewers sidebar who owns code in the pull request opens a popup listing
-the changed files that code owner owns. The avatar and name keep GitHub's own hovercard,
-so the two cards never share a trigger.
+On a pull request's Conversation tab, a code-owner shield beside a team or person in a
+Reviewers list opens a popup listing the changed files that code owner owns. The avatar
+and name keep GitHub's own hovercard, so the two cards never share a trigger.
 
+- **The shield:** GitHub's own, or gh-prism's beside a PR reviewer who owns a changed file
+  where GitHub draws none, as after a code owner reviews. gh-prism's is drawn as GitHub's
+  is in that list: Octicons `shield-lock` at 16px, muted, just before the status icon. In
+  the classic sidebar it takes GitHub's own `btn-link muted-icon` classes; in the overview
+  list, the look of Primer's small invisible `IconButton`. A 24px target surrounds the
+  16px glyph without moving it. Its accessible name says, in GitHub's words, "… is a code
+  owner", adding "through" and the team when only a team makes them one.
 - **Timing:** it opens 200 ms after the pointer rests on the shield, longer than GitHub's
   card takes to close, and at once when the shield takes keyboard focus. It closes 150 ms
   after the pointer leaves both shield and popup, so the pointer can cross into it.
   Escape, focus leaving the shield, and a scroll outside the popup close it at once. One
   is open at a time.
 - **Content:** the count line "Code owner of N files in this pull request", in GitHub's
-  own words from its user hovercard, then one row per file. Each row sets its path in
-  monospace with the directory muted. A long list scrolls inside the popup.
-- **The tooltip:** the shield's own GitHub tooltip ("… is a code owner") says less, so the
-  popup's stylesheet hides it while the popup is open. It stays the shield's accessible
-  name.
+  own words from its user hovercard. When teams make them an owner, a small muted line
+  under it says "Through" and names each team, linked to its team page, or "Directly and
+  through" when CODEOWNERS names them too. Then one row per file, its path in monospace
+  with the directory muted. A long list scrolls inside the popup.
+- **When GitHub hides the team:** a code owner GitHub marks without letting you see which
+  team makes them one gets one plain muted sentence instead of the list.
+- **The tooltip:** the classic shield's own GitHub tooltip ("… is a code owner") says
+  less, so the popup's stylesheet hides it while the popup is open. It stays the shield's
+  accessible name.
 
 It takes the hovercard form above on `--overlay-bgColor`, and matches GitHub's hovercard
 in size: 14px body text, 16px padding, and at most 360px wide.

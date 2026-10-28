@@ -8,6 +8,17 @@ html:has(.gh-prism-reviewer-files:popover-open) tool-tip[for^="codeowner-"] {
   display: none;
 }
 
+/* A 24px target around the 16px glyph, without moving it off GitHub's own shield's spot. */
+.gh-prism-reviewer-shield {
+  position: relative;
+}
+
+.gh-prism-reviewer-shield::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
 .gh-prism-reviewer-files[popover] {
   transition:
     opacity 240ms cubic-bezier(0.16, 1, 0.3, 1),

@@ -236,9 +236,8 @@ no host but github.com, and no cache, since a review submitted while the tab is 
 show on the next visit. `index.ts` starts two reads once per visit, `readCodeOwners` from
 `codeowners` and `readPrReviewers` from `review_requests`, and hands their promises to
 every page of that visit: `showVisit` and `showOwnerSection` take both. A commit page
-reads nothing. A pull request's header visit reads the code owners alone, once per visit,
-and only when you first hover or focus a code-owner shield in the Reviewers sidebar on the
-Conversation tab.
+reads nothing. A pull request's header visit reads both once per visit too, but only when
+a Reviewers list first shows on the Conversation tab.
 
 The code owners are each changed file's owners, in CODEOWNERS order, with whether you own
 the file. The PR reviewers are everyone requested to review, then everyone who submitted a
@@ -258,13 +257,13 @@ changed file that way also takes each owning team that lists them as a member:
 GitHub shows the viewer a team among the PR reviewers, because a viewer outside the
 organization sees none and gets 404 for every team. A large team lists only its first
 members. `index.ts` composes the two into the visit's PR reviewers, so every reader sees
-the same teams. `ownerFilter` holds the ownership rule, and the owner filter and the owner
-section both ask it, so picking a reviewer in the section keeps the files the section
-counted them for. Each read settles on its own: one that fails, or whose response misses a
-field it expects, resolves to `undefined` and logs one warning naming it, and the other
-read is unaffected. A failed PR reviewers read drops the owner section's reviewer entries
-and narrows the owner filter to the owner's own token. A repository without CODEOWNERS
-resolves to no owners.
+the same teams. `ownerFilter` holds the ownership rule, and the owner filter, the owner
+section, and the Conversation popup all ask it, so picking a reviewer in the section keeps
+the files their popup lists. Each read settles on its own: one that fails, or whose
+response misses a field it expects, resolves to `undefined` and logs one warning naming
+it, and the other read is unaffected. A failed PR reviewers read drops the owner section's
+reviewer entries and narrows the owner filter to the owner's own token. A repository
+without CODEOWNERS resolves to no owners.
 
 The owner filter is the first reader of the code owners. `index.ts` reads the
 `gh-prism-owner` query parameter on a pull request's pages with `ownerOf` in
@@ -294,16 +293,29 @@ moving into or out of the narrow layout's overlay, since a popover that leaves t
 document closes without a toggle event. A pointer click on an open popover's own shield
 only closes it. Showing a file's owners never changes its section or the diffstat.
 
-On the Conversation tab, GitHub marks each PR reviewer who owns a changed file with a
-code-owner shield in the Reviewers sidebar. Hovering or focusing that shield opens a popup
-listing the changed files that code owner owns, built by
+On the Conversation tab, a code-owner shield beside a PR reviewer in a Reviewers list
+opens a popup listing the changed files that code owner owns, built by
 [`conversation/reviewer-files.ts`](../entrypoints/content/conversation/reviewer-files.ts).
-The shield's id names the code owner's `@user` or `@org/team` token, and `ownerFilter` in
-`utils/github/code-owners.ts` matches it against each file's owners, as the owner filter
-does. When the code owner owns no changed file, nothing opens. It rides the header visit,
-so it runs only where `findHeaderPage` finds the counter's slot. The popup's listeners sit
-on the document for the whole visit, because GitHub replaces the sidebar's nodes
-mid-visit. The popup and the file shields' popover share one placer,
+GitHub draws two Reviewers lists: the classic sidebar, server-rendered in
+`#partial-discussion-sidebar`, and the React list of its pull request overview.
+`findReviewerRows` in [`files-page.ts`](../entrypoints/content/files-page.ts) finds each
+row's reviewer, GitHub's shield, and its column of status icons in either. GitHub shields
+a code owner's pending request only, so a code owner who has reviewed loses the shield.
+`followReviewerRows` reports the rows on each change to the page, and the popup adds
+gh-prism's own shield to every row whose PR reviewer owns a changed file, or whom GitHub
+marks a code owner, but has no shield. That shield is a button drawn as GitHub draws its
+own in that list, placed just before the row's last icon, the status icon, where GitHub
+puts its shield. A click on it does nothing yet. Hovering or focusing either shield opens
+the popup.
+
+The popup lists the files `ownerFilter` gives the shield's `@user` or `@org/team` token,
+counting the teams GitHub names for that reviewer, and names those teams, each linked to
+its team page. A code owner GitHub marks without naming a team, and whose own token owns
+nothing, gets one sentence saying GitHub hides the team. Any other code owner who owns no
+changed file opens nothing. It rides the header visit, so it runs only where
+`findHeaderPage` finds the counter's slot. The popup's listeners sit on the document for
+the whole visit, because GitHub replaces the classic sidebar's nodes mid-visit. The popup
+and the file shields' popover share one placer,
 [`ui/place.ts`](../entrypoints/content/ui/place.ts).
 
 The owner section is the third: it lists the reviewers who own a changed file (§ The owner
@@ -405,13 +417,13 @@ entrypoints/
   background.ts          service worker: PR data port, cache clearing and what's-new mark on install
   content/
     index.ts             content script entry: wires the watchers, intent, and views
-    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers sidebar's code-owner shield
+    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
     header/              diffstat breakout
-    conversation/        a code owner's files popup, from the Reviewers sidebar
+    conversation/        a code owner's files popup and gh-prism's reviewer shield, in the Reviewers lists
     ui/                  shared DOM helpers, popup placer, loading view, Markdown subset, name reveal, Tailwind tokens
 utils/
   github/                routes, diff parsing, the PR data port and source, code owners and reviewers

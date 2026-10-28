@@ -6,6 +6,22 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-28: A shield for every code owner reviewer
+
+- **Compared:** for a PR reviewer who owns files where GitHub draws no shield, as after a
+  code owner reviews: a shield drawn as GitHub's own, a mark of gh-prism's own beside the
+  name, and the popup opening from the name. For the teams that make a reviewer an owner:
+  one line under the count, a team label on each file row, and nothing. For a code owner
+  whose team GitHub hides: a sentence in the popup, and no popup.
+- **Won:** a shield drawn as GitHub's, in the same spot; one "Through @org/team" line,
+  each team linked; and one sentence saying GitHub hides the team.
+- **Why:** one trigger for every code owner keeps one gesture to learn, and a shield
+  matching GitHub's reads as the same fact GitHub states, that the reviewer is a code
+  owner. A mark of gh-prism's own would be a second symbol for it, and the name keeps
+  GitHub's hovercard. A single line names the team without repeating it on every row,
+  which is noise when one team owns them all. A shield that opens nothing reads as broken,
+  so the hidden team gets a plain sentence, as `brief.md` asks of a degraded state.
+
 ## 2026-10-28: A code owner's files, from their Reviewers sidebar shield
 
 - **Compared:** four triggers for the popup listing a code owner's files:

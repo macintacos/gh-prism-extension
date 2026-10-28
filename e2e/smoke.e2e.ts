@@ -1889,6 +1889,92 @@ test("a code owner reviewer's shield opens their files, closing as the pointer l
   expect(errors).toEqual([]);
 });
 
+const NODE_PR = "https://github.com/nodejs/node/pull/67056";
+const NODE_CRYPTO_FILES = [
+  "src/crypto/crypto_context.cc",
+  "src/crypto/crypto_context.h",
+  "src/crypto/crypto_hash.cc",
+  "src/crypto/crypto_rsa.cc",
+  "src/crypto/crypto_tls.cc",
+  "src/crypto/crypto_util.cc",
+];
+
+/**
+ * Serves nodejs/node#67056's Conversation tab with `edit` applied to its markup, and its code
+ * owners and review_requests, the latter with `editRequests` applied.
+ */
+const serveNodeConversation = async (
+  context: BrowserContext,
+  editRequests: (body: {
+    pendingReviewRequests: Record<string, unknown>[];
+    completedReviews: Record<string, unknown>[];
+  }) => void,
+  edit: (html: string) => string = (html) => html,
+) => {
+  await serve(context, NODE_PR, `<!doctype html>${edit(readFixture("conversation-node.html"))}`);
+  await context.route(`${NODE_PR}/page_data/codeowners`, (route) =>
+    route.fulfill({ contentType: "application/json", body: readFixture("codeowners-node.json") }),
+  );
+  const requests = JSON.parse(readFixture("review-requests-node.json"));
+  editRequests(requests);
+  await context.route(`${NODE_PR}/page_data/review_requests`, (route) =>
+    route.fulfill({ contentType: "application/json", body: JSON.stringify(requests) }),
+  );
+};
+const cryptoTeam = { displayLogin: "nodejs/crypto", name: "crypto", reviewerType: "Team" };
+
+test("a code owner who reviewed for a team keeps a shield that opens their team's files", async ({
+  context,
+  page,
+}) => {
+  await serveNodeConversation(context, ({ completedReviews: [pimterry] }) => {
+    Object.assign(pimterry ?? {}, { onBehalfOfTeams: [cryptoTeam] });
+  });
+  await page.goto(NODE_PR);
+  const shield = page.locator('button[data-gh-prism-owner="@pimterry"]');
+  const popup = page.locator(".gh-prism-reviewer-files");
+
+  await expect(shield).toHaveAccessibleName("pimterry is a code owner through nodejs/crypto");
+  await shield.hover();
+
+  await expect(popup).toContainText("Through @nodejs/crypto");
+  expect((await popup.locator("li").allTextContents()).sort()).toEqual(NODE_CRYPTO_FILES);
+  await expect(popup.getByRole("link", { name: "@nodejs/crypto" })).toHaveAttribute(
+    "href",
+    "https://github.com/orgs/nodejs/teams/crypto",
+  );
+});
+
+test("a user's code-owner shield lists their team's files when assigned on its behalf", async ({
+  context,
+  page,
+}) => {
+  await serveNodeConversation(
+    context,
+    ({ pendingReviewRequests: [jasnell] }) => {
+      Object.assign(jasnell ?? {}, {
+        delegatedFromTeam: cryptoTeam,
+        isCodeOwner: true,
+        isCodeOwnerFromDelegation: true,
+      });
+    },
+    // GitHub's user shield, shaped as it draws a team's, which a viewer outside nodejs never gets.
+    (html) =>
+      html.replace(
+        '</button><tool-tip id="tooltip-f3e317d4-edf8-45a1-8341-07956ffcced5"',
+        '</button><button type="button" id="codeowner-jasnell" class="mr-2 btn-link muted-icon"><span class="reviewers-status-icon">⛨</span></button><tool-tip id="tooltip-f3e317d4-edf8-45a1-8341-07956ffcced5"',
+      ),
+  );
+  await page.goto(NODE_PR);
+  const popup = page.locator(".gh-prism-reviewer-files");
+
+  await page.locator('[id="codeowner-jasnell"]').hover();
+
+  await expect(popup).toContainText("Through @nodejs/crypto");
+  expect((await popup.locator("li").allTextContents()).sort()).toEqual(NODE_CRYPTO_FILES);
+  await expect(page.locator("button[data-gh-prism-owner]")).toHaveCount(0);
+});
+
 test("Tab from a code owner's shield moves on through the sidebar while their long list shows", async ({
   context,
   page,

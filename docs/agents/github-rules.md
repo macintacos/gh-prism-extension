@@ -366,29 +366,52 @@ facts about GitHub that held when written, and ends with how to re-check them;
   [§ Re-checking GitHub](#re-checking-github) describes, to find the reviewer list that
   reads them.
 
-## The Reviewers sidebar
+## The Reviewers lists
 
-- **Expect the Reviewers sidebar to be replaced, not updated.** It is server-rendered
-  markup in `#partial-discussion-sidebar`, which GitHub swaps out on every soft navigation
-  back to Conversation and on its `reviewers_updated` socket event, so a listener bound to
-  its nodes goes stale. Listen on `document` and match the target with `closest()`
-  instead.
-- **Find a reviewer's code-owner shield as `button[id^="codeowner-"]`.** Its id names the
+GitHub draws a pull request's reviewers in one of two lists. The classic sidebar is
+server-rendered in `#partial-discussion-sidebar`. GitHub's pull request overview, which
+route data's `featureStates.overview` turns on, draws a React list instead. The overview
+read `"UNAVAILABLE"` on the code-owners sandbox and on nodejs/node for the saved account,
+so its facts below come from GitHub's bundle and a user's screenshot, not from a capture.
+
+- **Find a classic row as
+  `#partial-discussion-sidebar form[id^="pull-request-reviewers-form-"] .css-truncate > div`.**
+  Its first link goes to the reviewer: `/<login>`, or `/orgs/<org>/teams/<slug>` for a
+  team. Suggested reviewers, such as Copilot, share the list and link to `/apps/<slug>`.
+- **Expect the classic sidebar to be replaced, not updated.** GitHub swaps it out on every
+  soft navigation back to Conversation and on its `reviewers_updated` socket event, so a
+  listener bound to its nodes goes stale. Listen on `document` and match the target with
+  `closest()` instead.
+- **Find a classic code-owner shield as `button[id^="codeowner-"]`.** Its id names the
   reviewer: `codeowner-<org>/<slug>` for a team. A user's `codeowner-<login>` is inferred,
-  not observed, since the sandbox can't request a user who owns files.
-- **Expect the shield's `tool-tip` to name it.** A Primer
+  not observed, since the sandbox can't request a user who owns files. The button is
+  `mr-2 btn-link muted-icon` around `span.reviewers-status-icon` and a 16px
+  `octicon-shield-lock`, placed in the row after the status icon's `tool-tip`, which flex
+  order puts it before.
+- **Expect the classic shield's `tool-tip` to name it.** A Primer
   `<tool-tip for="codeowner-…" popover="manual">` reads "… is a code owner" and is the
   shield's accessible name through `aria-labelledby`.
 - **Expect GitHub's hovercard on the reviewer's `span[data-hovercard-url]`, never on the
   shield.** The span wraps the avatar and name; the shield sits outside it, after the
   status dot.
+- **Find an overview row as `[class*="reviewerList__"] li[class*="reviewerRow__"]`, and
+  its icons in `[class*="indicators__"]`.** Its identity link goes to the reviewer as a
+  classic row's does, though a team's link uses the team's name, which can differ from its
+  slug. The icons are Primer's small invisible `IconButton`s, labelled "Re-request review
+  from …" or "… is a code owner", and 16px `span[role="img"]` status icons, the status
+  last.
+- **Expect GitHub to shield only a pending code owner.** The overview draws its shield
+  from a pending request's `isCodeOwner`, and not for a request assigned from a team, so a
+  code owner who has reviewed has none. A user's screenshot of the overview shows this.
 - **Expect `page_data/codeowners` to answer from the Conversation page**, with the same
   JSON as from Files changed.
 - **Re-check:** signed in with the saved `storageState`, load the Conversation view of the
   code-owners sandbox's PR #1. Read `#partial-discussion-sidebar`'s Reviewers item, hover
   a team's name and its shield to see which opens the hovercard, and fetch
   `page_data/review_requests` and `page_data/codeowners`, with the `X-Requested-With`
-  header, from that page.
+  header, from that page. Grep GitHub's assets for `reviewerRow__` and `is a code owner`
+  for the overview's list, as [§ Re-checking GitHub](#re-checking-github) describes, and
+  read `featureStates.overview` from a pull request's route data.
 
 ## The narrow layout's overlay
 
