@@ -270,7 +270,7 @@ async function keepUnder(
 }
 
 /**
- * Where one Files view's files land: from `cache` when it holds this very diff, else read and
+ * Where a diff's files land: from `cache` when it holds this very diff, else read and
  * cached. The cache is checked by the page's pin first, and a pinned hit connects nothing. A read
  * that a file's passing problem cut short isn't cached. A commit-filtered route connects nothing;
  * otherwise the client is closed when `signal` aborts. Never rejects; once `signal` aborts it may

@@ -6,7 +6,13 @@ import { connectPrData } from "@/utils/github/pr-port";
 import { readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
 import { storedIntents } from "@/utils/intent/cache";
 import { type IntentSources, intentFor, shareIntent } from "@/utils/intent/read";
-import { classicNoticeDismissed, sidebarSide, whatsNewSeen } from "@/utils/prefs";
+import {
+  classicNoticeDismissed,
+  type DiffstatView,
+  diffstatView,
+  sidebarSide,
+  whatsNewSeen,
+} from "@/utils/prefs";
 import {
   dismissWhatsNew,
   type WhatsNewState,
@@ -15,12 +21,12 @@ import {
 } from "@/utils/whats-new";
 import { type NoticeChoice, showClassicNotice } from "./classic/notice";
 import { visitViewed } from "./diffs/viewed";
-import type { DiffstatChoice } from "./header/diffstat-view";
+import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
 import { showReportLink } from "./sidebar/report";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar/side";
 import type { WhatsNew } from "./sidebar/whats-new";
-import { showVisit } from "./visit/land";
-import { watchClassicPages, watchFilesPages } from "./visit/watch";
+import { showHeaderTab, showVisit } from "./visit/land";
+import { watchClassicPages, watchFilesPages, watchHeaderPages } from "./visit/watch";
 
 const CACHED_DIFFS = 50;
 
@@ -28,14 +34,14 @@ const CACHED_DIFFS = 50;
  * On every Files view on github.com, shows the sidebar's sections, orders the diffs to match,
  * stands in for the diffstat, docks the sidebar on the saved side with a switch, adds a link to
  * report a miscategorized file, and, after an update, opens the sidebar with that release's
- * notes. On a pull request's classic Files changed page, explains why gh-prism is off there.
+ * notes. On a pull request's header tabs, stands in for the diffstat alone. On its classic Files
+ * changed page, explains why gh-prism is off there.
  */
 export default defineContentScript({
   // Every GitHub page: soft navigation reaches a pull request without re-injecting the script.
   matches: ["https://github.com/*"],
   runAt: "document_start",
   async main(ctx) {
-    const diffstat: DiffstatChoice = { view: "breakout" };
     const version = browser.runtime.getManifest().version;
     const sources = {
       connect: connectPrData,
@@ -43,13 +49,19 @@ export default defineContentScript({
       pinOf: (diff) => readDiffPin(document, diff),
     } satisfies IntentSources;
     const release = releaseOf(import.meta.env.WXT_RELEASE_NOTES, version);
-    // Read before watching, so a saved side or dismissal never shows its default first.
-    const [savedSide, dismissed, whatsNewForPage] = await Promise.all([
+    // Read before watching, so a saved side, view, or dismissal never shows its default first.
+    const [savedSide, savedDiffstat, dismissed, whatsNewForPage] = await Promise.all([
       readSavedSide(),
+      readSavedDiffstat(),
       readNoticeDismissed(),
       release && followWhatsNew(release, ctx),
     ]);
     const side = sideChoiceOf(savedSide);
+    // Shared by every visit, so a switch on one tab or page carries to the next.
+    const diffstat = {
+      choice: diffstatChoiceOf(savedDiffstat),
+      save: saveDiffstat,
+    } satisfies DiffstatOptions;
     const notice: NoticeChoice = { dismissed };
     let fullLoad = true;
     // Registered before watchFilesPages, so the flag clears before a navigation's visit runs.
@@ -72,12 +84,27 @@ export default defineContentScript({
           };
           return (page, signal) => {
             showReportLink(page, signal, reportOptions);
-            showVisit(page, signal, { intent, diffstat, viewed, whatsNew: whatsNewForPage?.() });
+            showVisit(page, signal, {
+              intent,
+              diffstat,
+              viewed,
+              whatsNew: whatsNewForPage?.(),
+            });
             dockSidebar(page, signal, { choice: side, save: saveSide });
           };
         },
         onMissing: () =>
           console.warn("gh-prism: Files changed tree not found; leaving GitHub's tree as is"),
+      },
+      ctx.signal,
+    );
+    watchHeaderPages(
+      window,
+      (pr, visit) => {
+        const intent = shareIntent((onProgress) =>
+          intentFor({ diff: pr, commitFiltered: false }, visit, sources, onProgress),
+        );
+        return (page, signal) => showHeaderTab(page, signal, { intent, diffstat });
       },
       ctx.signal,
     );
@@ -106,6 +133,24 @@ const saveSide = (picked: Side) =>
   sidebarSide
     .setValue(picked)
     .catch((error: unknown) => console.error("gh-prism: saving the sidebar side failed", error));
+
+/** The stored diffstat view, unchecked, or the default when storage won't read. */
+const readSavedDiffstat = (): Promise<unknown> =>
+  diffstatView.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading the diffstat view failed", error);
+    return diffstatView.fallback;
+  });
+
+/** The view the header counter opens on: `saved`, when it names one, else the default. */
+function diffstatChoiceOf(saved: unknown): DiffstatChoice {
+  // `fallback` covers only a missing view; a corrupt one reads back as stored.
+  return { view: saved === "breakout" || saved === "total" ? saved : diffstatView.fallback };
+}
+
+const saveDiffstat = (view: DiffstatView) =>
+  diffstatView
+    .setValue(view)
+    .catch((error: unknown) => console.error("gh-prism: saving the diffstat view failed", error));
 
 /** Whether the user dismissed the classic page's notice; not, when storage won't read. */
 const readNoticeDismissed = (): Promise<boolean> =>

@@ -3,9 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type FilesPage,
   findFilesPage,
+  findHeaderPage,
   readChangedFiles,
 } from "../../../entrypoints/content/files-page";
-import { type FileSection, type LandingView, land } from "../../../entrypoints/content/visit/land";
+import {
+  type FileSection,
+  type LandingView,
+  land,
+  showHeaderTab,
+} from "../../../entrypoints/content/visit/land";
 import { landingOf, sectionsOf } from "../../../utils/intent/landing";
 import {
   type IntentProgress,
@@ -13,7 +19,13 @@ import {
   type PendingIntent,
   shareIntent,
 } from "../../../utils/intent/read";
-import { byId, closeOverlay, loadFixture, openOverlay } from "../../fixtures/files-page";
+import {
+  byId,
+  closeOverlay,
+  loadFixture,
+  loadHeaderFixture,
+  openOverlay,
+} from "../../fixtures/files-page";
 import { landedWith, pendingIntent, whole } from "../../fixtures/intent";
 import { afterDebounce, filesIn, mountsVisit, progressBar, view } from "../../fixtures/visit";
 
@@ -218,5 +230,65 @@ describe("intent shared by each view of one visit", () => {
     expect(view()?.hasAttribute("aria-busy")).toBe(false);
     expect(view()?.hasAttribute("data-reveal")).toBe(false);
     expect(filesIn("docs")).toContain("src/parser.rs");
+  });
+});
+
+describe("showHeaderTab", () => {
+  const landed = landedWith(
+    new Map([["src/lib.rs", whole("docs")]]),
+    new Map([["src/lib.rs", { added: 3, removed: 1 }]]),
+  );
+  const diffstat = { choice: { view: "breakout" as const }, save: () => {} };
+  const counter = () => document.querySelector(".gh-prism-diffstat");
+  const headerPage = () => {
+    const found = findHeaderPage(document);
+    if (!found) throw new Error("fixture lacks the header's counter slot");
+    return found;
+  };
+
+  beforeEach(() => loadHeaderFixture());
+
+  it("mounts the counter once intent lands, and at once on a page that replaces it after", async () => {
+    const pending = pendingIntent();
+    const intent = shareIntent(pending.intent);
+    showHeaderTab(headerPage(), controller.signal, { intent, diffstat });
+
+    pending.resolve(landed);
+    await vi.runAllTimersAsync();
+    expect(counter()).not.toBeNull();
+
+    controller.abort();
+    loadHeaderFixture();
+    const replaced = new AbortController();
+    showHeaderTab(headerPage(), replaced.signal, { intent, diffstat });
+    await vi.runAllTimersAsync();
+
+    expect(counter()?.isConnected).toBe(true);
+    replaced.abort();
+  });
+
+  it("mounts nothing on a page dropped before intent lands", async () => {
+    const pending = pendingIntent();
+    showHeaderTab(headerPage(), controller.signal, { intent: pending.intent, diffstat });
+
+    controller.abort();
+    pending.resolve(landed);
+    await vi.runAllTimersAsync();
+
+    expect(counter()).toBeNull();
+  });
+
+  it("logs a read that rejects and mounts nothing", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    showHeaderTab(headerPage(), controller.signal, {
+      intent: () => Promise.reject(new Error("offline")),
+      diffstat,
+    });
+
+    await vi.runAllTimersAsync();
+
+    expect(consoleError).toHaveBeenCalledOnce();
+    expect(counter()).toBeNull();
+    consoleError.mockRestore();
   });
 });

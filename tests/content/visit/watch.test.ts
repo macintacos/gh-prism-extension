@@ -1,14 +1,20 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ClassicPage, FilesPage } from "../../../entrypoints/content/files-page";
-import { watchClassicPages, watchFilesPages } from "../../../entrypoints/content/visit/watch";
+import type { ClassicPage, FilesPage, HeaderPage } from "../../../entrypoints/content/files-page";
+import {
+  watchClassicPages,
+  watchFilesPages,
+  watchHeaderPages,
+} from "../../../entrypoints/content/visit/watch";
 import type { FilesRoute } from "../../../utils/github/files-route";
+import type { PrRef } from "../../../utils/github/pr-ref";
 import {
   byId,
   diffList,
   loadClassicFixture,
   loadCommitFixture,
   loadFixture,
+  loadHeaderFixture,
 } from "../../fixtures/files-page";
 
 beforeEach(() => {
@@ -353,5 +359,94 @@ describe("watchClassicPages", () => {
 
     expect(pages).toHaveLength(1);
     expect(pages[0]?.signal.aborted).toBe(false);
+  });
+});
+
+describe("watchHeaderPages", () => {
+  interface Visit {
+    readonly pr: PrRef;
+    readonly signal: AbortSignal;
+    readonly pages: { page: HeaderPage; signal: AbortSignal }[];
+  }
+
+  let controller: AbortController;
+  let visits: Visit[];
+
+  const watch = () =>
+    watchHeaderPages(
+      window,
+      (pr, signal) => {
+        const visit: Visit = { pr, signal, pages: [] };
+        visits.push(visit);
+        return (page, pageSignal) => visit.pages.push({ page, signal: pageSignal });
+      },
+      controller.signal,
+    );
+  const navigate = async (path: string) => {
+    history.pushState(null, "", path);
+    document.dispatchEvent(new Event("soft-nav:end"));
+    await vi.advanceTimersByTimeAsync(0);
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    history.replaceState(null, "", "/o/r/pull/3");
+    loadHeaderFixture();
+
+    controller = new AbortController();
+    visits = [];
+  });
+
+  afterEach(() => {
+    controller.abort();
+    vi.useRealTimers();
+  });
+
+  it("shows a pull request tab's header with its pull request", () => {
+    watch();
+
+    expect(visits).toHaveLength(1);
+    expect(visits[0]?.pr).toEqual({ kind: "pr", owner: "o", repo: "r", number: 3 });
+    expect(visits[0]?.pages[0]?.page.slot.isConnected).toBe(true);
+  });
+
+  it("starts no visit on the Files changed tab", () => {
+    history.replaceState(null, "", "/o/r/pull/3/changes");
+    watch();
+
+    expect(visits).toHaveLength(0);
+  });
+
+  it("keeps the visit and its page when GitHub switches tabs under the same header", async () => {
+    watch();
+
+    await navigate("/o/r/pull/3/checks");
+    await navigate("/o/r/pull/3/commits");
+
+    expect(visits).toHaveLength(1);
+    expect(visits[0]?.signal.aborted).toBe(false);
+    expect(visits[0]?.pages).toHaveLength(1);
+    expect(visits[0]?.pages[0]?.signal.aborted).toBe(false);
+  });
+
+  it.each(["/o/r/pull/3/changes", "/o/r/pull/4"])(
+    "ends the visit on leaving for %s",
+    async (path) => {
+      watch();
+
+      await navigate(path);
+
+      expect(visits[0]?.signal.aborted).toBe(true);
+    },
+  );
+
+  it("shows the header again when GitHub replaces its slot", async () => {
+    watch();
+    loadHeaderFixture();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(visits).toHaveLength(1);
+    expect(visits[0]?.pages).toHaveLength(2);
+    expect(visits[0]?.pages[0]?.signal.aborted).toBe(true);
   });
 });

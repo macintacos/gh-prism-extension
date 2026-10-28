@@ -4,15 +4,16 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import contentScript from "../../entrypoints/content";
 import { dockSidebar, type Side } from "../../entrypoints/content/sidebar/side";
-import { showVisit } from "../../entrypoints/content/visit/land";
+import { showHeaderTab, showVisit } from "../../entrypoints/content/visit/land";
 import { readFilesRoute } from "../../utils/github/files-route";
 import { intentFor } from "../../utils/intent/read";
-import { whatsNewSeen } from "../../utils/prefs";
+import { type DiffstatView, whatsNewSeen } from "../../utils/prefs";
 import {
   byId,
   loadClassicFixture,
   loadCommitFixture,
   loadFixture,
+  loadHeaderFixture,
   loadViewedFixture,
   VIEWED_APP_TOML,
 } from "../fixtures/files-page";
@@ -25,6 +26,7 @@ vi.mock(import("../../utils/intent/read"), async (importOriginal) => ({
 vi.mock(import("../../entrypoints/content/visit/land"), async (importOriginal) => ({
   ...(await importOriginal()),
   showVisit: vi.fn((_page, _signal, { intent }) => void intent(() => {})),
+  showHeaderTab: vi.fn((_page, _signal, { intent }) => void intent(() => {})),
 }));
 vi.mock(import("../../entrypoints/content/sidebar/side"), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -87,7 +89,7 @@ describe("content script", () => {
     },
   );
 
-  it("opens on the right and mounts when reading the saved side fails", async () => {
+  it("opens on the right and the breakout and mounts when reading saved choices fails", async () => {
     const failure = new Error("context invalidated");
     vi.spyOn(fakeBrowser.storage.sync, "get").mockRejectedValue(failure);
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -100,6 +102,7 @@ describe("content script", () => {
 
     expect(sides).toEqual(["right"]);
     expect(showVisit).toHaveBeenCalledOnce();
+    expect(vi.mocked(showVisit).mock.calls[0]?.[2].diffstat.choice.view).toBe("breakout");
     expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
   });
 
@@ -120,6 +123,43 @@ describe("content script", () => {
     docked()[0]?.save("left");
 
     await vi.waitFor(() => expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure));
+  });
+
+  it.each<{ saved?: unknown; opens: DiffstatView }>([
+    { saved: "total", opens: "total" },
+    { saved: "sideways", opens: "breakout" },
+    { opens: "breakout" },
+  ])(
+    "opens the header counter on the $opens from the first page (saved: $saved)",
+    async ({ saved, opens }) => {
+      // Raw key on purpose, so the test outlives a move to typed storage items.
+      if (saved !== undefined) await fakeBrowser.storage.sync.set({ diffstatView: saved });
+      const views: DiffstatView[] = [];
+      vi.mocked(showVisit).mockImplementationOnce((_page, _signal, { diffstat }) => {
+        views.push(diffstat.choice.view);
+      });
+
+      await run();
+
+      expect(views).toEqual([opens]);
+    },
+  );
+
+  it("opens a commit, after a reload, on the view a pull request switched to", async () => {
+    await run();
+    vi.mocked(showVisit).mock.calls[0]?.[2].diffstat.save("total");
+    await vi.waitFor(async () =>
+      expect(await fakeBrowser.storage.sync.get("diffstatView")).toEqual({ diffstatView: "total" }),
+    );
+
+    controller.abort();
+    controller = new AbortController();
+    history.replaceState(null, "", "/o/r/commit/dd95cdc");
+    loadCommitFixture();
+    await run();
+
+    expect(showVisit).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(showVisit).mock.calls.at(-1)?.[2].diffstat.choice.view).toBe("total");
   });
 
   it("mounts every page of a visit on one shared diff read", async () => {
@@ -231,6 +271,37 @@ describe("content script", () => {
     await vi.advanceTimersByTimeAsync(20_000);
 
     expect(consoleWarn).toHaveBeenCalledOnce();
+  });
+
+  describe("on a pull request's header tab", () => {
+    beforeEach(() => {
+      history.replaceState(null, "", "/o/r/pull/3");
+      loadHeaderFixture();
+    });
+
+    it("reads the whole pull request's intent", async () => {
+      await run();
+
+      expect(intentFor).toHaveBeenCalledWith(
+        { diff: { kind: "pr", owner: "o", repo: "r", number: 3 }, commitFiltered: false },
+        expect.any(AbortSignal),
+        expect.anything(),
+        expect.any(Function),
+      );
+    });
+
+    it("shares the Files view's diffstat choice", async () => {
+      await run();
+
+      history.pushState(null, "", "/o/r/pull/3/changes");
+      loadFixture();
+      document.dispatchEvent(new Event("soft-nav:end"));
+      await afterMutations();
+
+      expect(vi.mocked(showVisit).mock.calls[0]?.[2].diffstat).toBe(
+        vi.mocked(showHeaderTab).mock.calls[0]?.[2].diffstat,
+      );
+    });
   });
 
   describe("on a classic Files changed page", () => {

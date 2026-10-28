@@ -177,7 +177,7 @@ describe("showSections", () => {
     const fresh = new AbortController();
     showVisit(page, fresh.signal, {
       intent: () => landedWith(),
-      diffstat: { view: "breakout" },
+      diffstat: { choice: { view: "breakout" }, save: () => {} },
       viewed: visitViewed(undefined),
     });
     expect(document.querySelectorAll(".gh-prism-sections")).toHaveLength(1);

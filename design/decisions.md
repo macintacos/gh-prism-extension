@@ -6,6 +6,20 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-27: A quieter header counter
+
+- **Compared:** the tinted pills as shipped, and six untinted rows beside GitHub's own
+  header controls, each in light and dark. Three kept each icon in its section's hue:
+  bare, ruled off by short hairlines, and with the counts muted until hover. Three greyed
+  the icons: bare, ruled, and taking each icon's hue back on hover.
+- **Won:** grey icons that take their section's hue while the counter is hovered or
+  focused, ruled off by short `--borderColor-default` hairlines. The pills lose their
+  tint, and the counts keep their green and red.
+- **Why:** beside GitHub's own controls, the tints and hued icons pulled the eye away from
+  the review. Hover and focus still tie each pill back to its sidebar section. The
+  hairline is decoration, because the spacing and icons already separate the sections, so
+  it stays as faint as the mockup rather than meeting the 3:1 floor for hairlines.
+
 ## 2026-10-26: Names too long for their row
 
 - **Compared:** three treatments, mocked on a chain of five flattened folders. The first

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, vi } from "vitest";
 import { visitViewed } from "../../entrypoints/content/diffs/viewed";
 import { findFilesPage } from "../../entrypoints/content/files-page";
-import type { DiffstatChoice } from "../../entrypoints/content/header/diffstat-view";
+import type { DiffstatOptions } from "../../entrypoints/content/header/diffstat-view";
 import { showVisit } from "../../entrypoints/content/visit/land";
 import type { IntentResult, PendingIntent } from "../../utils/intent/read";
 import { byId, loadFixture } from "./files-page";
@@ -58,11 +58,11 @@ export function mountsVisit() {
 
   /**
    * Replaces the mounted visit with one that waits on `intent`, in a tab whose header counter
-   * last chose `diffstat`.
+   * holds `diffstat`'s choice and saves through it.
    */
   const remountWith = (
     intent: PendingIntent = () => landedWith(),
-    diffstat: DiffstatChoice = { view: "breakout" },
+    diffstat: DiffstatOptions = { choice: { view: "breakout" }, save: () => {} },
   ): void => {
     controller.abort();
     controller = new AbortController();

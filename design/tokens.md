@@ -25,13 +25,12 @@ Each section's hue is the Primer foreground variable in its row of `SECTION_CATA
 `markSection` sets it on an element as `--gh-prism-hue`, and every colour tied to a
 section reads that property.
 
-A section's tint mixes its hue into `--bgColor-default`. Each tint's strength lives beside
-the rule that uses it:
-
-- `--gh-prism-tint` in
-  [`entrypoints/content/sidebar/sections-view.css`](../entrypoints/content/sidebar/sections-view.css)
-  colours the backgrounds of sections and of the what's-new block of release notes.
-- `--color-hue-tint` in `ui/tailwind.css` colours the header counter's pills.
+A section's tint mixes its hue into `--bgColor-default`. Its strength, `--gh-prism-tint`
+in
+[`entrypoints/content/sidebar/sections-view.css`](../entrypoints/content/sidebar/sections-view.css),
+colours the backgrounds of sections and of the what's-new block of release notes. The
+header counter paints no tint. Its pills' icons rest in `--fgColor-muted`, and
+`--borderColor-default` hairlines rule the pills apart, in `header/diffstat-view.css`.
 
 The Viewed box's edge and hover colours are in `sidebar/sections-view.css` too. They are
 mixed so the box holds 3:1 against every row background.
@@ -69,7 +68,8 @@ Sizes, line heights, and weights are the `--text-body-*`, `--leading-body-*`, an
 ## Radius
 
 Sections and the controls inside them share Primer's medium radius,
-`--borderRadius-medium`, which GitHub's file cards beside the sidebar use too. Pills use
+`--borderRadius-medium`, which GitHub's file cards beside the sidebar use too. The
+sidebar's file-row decorations, such as the `Partial` pill, and section counters use
 `2em`, so they stay fully round. The Viewed box and the loading bar keep small fixed radii
 of their own, in `sidebar/section-tree.css` and `ui/loading-view.ts`, because they are too
 small for the medium radius. The skeleton lines in `diffs/order.css` and

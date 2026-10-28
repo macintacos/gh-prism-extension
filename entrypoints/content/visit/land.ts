@@ -1,5 +1,6 @@
 /**
- * Lands intent on each page of a Files view visit. Hands each step (pending, progress, landed, then
+ * Lands intent on each page of a Files view visit, and the diffstat alone on each page of a header
+ * tab's visit (`showHeaderTab`). Hands each step (pending, progress, landed, then
  * the sections) to every view in one order, and owns the only observers of the native tree and of
  * the narrow layout's overlay copy, re-listing the sections from whichever is shown after each
  * change to it. It reads intent once per page; the caller shares that read across a visit's pages
@@ -16,11 +17,13 @@ import {
   type ChangedFile,
   type FilesPage,
   followOverlay,
+  type Header,
+  headerOf,
   type NativeTree,
   observeTree,
   readChangedFiles,
 } from "../files-page";
-import { type DiffstatChoice, showDiffstat } from "../header/diffstat-view";
+import { type DiffstatOptions, showDiffstat } from "../header/diffstat-view";
 import { showSections } from "../sidebar/sections-view";
 import { type WhatsNew, whatsNewBlock } from "../sidebar/whats-new";
 
@@ -117,6 +120,22 @@ export function land(
   );
 }
 
+/**
+ * Mounts the diffstat on one page of a header tab's visit: once intent lands, stands in for
+ * `header`'s lines-changed counter as `diffstat` says, until `signal` aborts; a page dropped
+ * before then shows nothing.
+ */
+export function showHeaderTab(
+  header: Header,
+  signal: AbortSignal,
+  { intent, diffstat }: { intent: PendingIntent; diffstat: DiffstatOptions },
+): void {
+  void orFailed(Promise.resolve(intent(() => {}))).then((landed) => {
+    // An aborted signal never fires `abort` again, so the counter would never come down.
+    if (!signal.aborted) showDiffstat(header, { ...diffstat, signal }).landed(landed);
+  });
+}
+
 /** `read`'s result, or a path-only `failed` one, logged, when it rejects. */
 const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
   read.catch((error: unknown): IntentResult => {
@@ -138,7 +157,7 @@ export function showVisit(
     diffstat,
     viewed,
     whatsNew,
-  }: { intent: PendingIntent; diffstat: DiffstatChoice; viewed: VisitViewed; whatsNew?: WhatsNew },
+  }: { intent: PendingIntent; diffstat: DiffstatOptions; viewed: VisitViewed; whatsNew?: WhatsNew },
 ): void {
   const sidebar = showSections(page, signal);
   if (whatsNew) sidebar.root.prepend(whatsNewBlock(page.sidebar.ownerDocument, whatsNew));
@@ -146,7 +165,7 @@ export function showVisit(
     sidebar,
     showDiffOrder(page, signal),
     followFileKeys(page, signal),
-    showDiffstat(page, { choice: diffstat, signal }),
+    showDiffstat(headerOf(page), { ...diffstat, signal }),
     followOnScreen(page, sidebar.onScreen, signal),
     followViewed(page, viewed, sidebar.viewed, signal),
   ];

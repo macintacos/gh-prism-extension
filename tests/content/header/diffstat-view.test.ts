@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
-import { findFilesPage } from "../../../entrypoints/content/files-page";
+import { findFilesPage, headerOf } from "../../../entrypoints/content/files-page";
 import {
-  type DiffstatChoice,
+  type DiffstatOptions,
   showDiffstat,
 } from "../../../entrypoints/content/header/diffstat-view";
 import type { FileLines, Placement } from "../../../utils/intent/read";
@@ -98,9 +98,11 @@ describe("the header's lines-changed counter", () => {
     if (!page) throw new Error("fixture lacks the Files changed markup");
     const controller = new AbortController();
 
-    showDiffstat(page, { choice: { view: "breakout" }, signal: controller.signal }).landed?.(
-      counted,
-    );
+    showDiffstat(headerOf(page), {
+      choice: { view: "breakout" },
+      save: () => {},
+      signal: controller.signal,
+    }).landed?.(counted);
     expect(pills()).not.toHaveLength(0);
     expect(sheetsStyling("gh-prism-pill")).toHaveLength(1);
     expect(sheetsStyling("gh-prism-tip")).toHaveLength(1);
@@ -160,16 +162,27 @@ describe("the header's lines-changed counter", () => {
   });
 
   it("opens the next page in the view the tab last chose", async () => {
-    const choice: DiffstatChoice = { view: "breakout" };
-    remountWith(() => Promise.resolve(counted), choice);
+    const diffstat: DiffstatOptions = { choice: { view: "breakout" }, save: () => {} };
+    remountWith(() => Promise.resolve(counted), diffstat);
     await afterDebounce();
     counter()?.click();
 
-    remountWith(() => Promise.resolve(counted), choice);
+    remountWith(() => Promise.resolve(counted), diffstat);
     await afterDebounce();
 
     expect(pills()).toEqual([]);
     expect(totalShown()).toEqual(["+1,604", "-177"]);
+  });
+
+  it("saves the view each click switches to", async () => {
+    const save = vi.fn();
+    remountWith(() => Promise.resolve(counted), { choice: { view: "breakout" }, save });
+    await afterDebounce();
+
+    counter()?.click();
+    counter()?.click();
+
+    expect(save.mock.calls).toEqual([["total"], ["breakout"]]);
   });
 
   it("titles each pill's tooltip with its section, over what lands there", async () => {
@@ -205,7 +218,7 @@ describe("the header's lines-changed counter", () => {
     expect(tipOf(counter())?.lastElementChild?.textContent).toBe("Click to split by section");
   });
 
-  it("tints each pill, and each row of the total's tooltip, with its section's hue", async () => {
+  it("marks each pill, and each row of the total's tooltip, with its section's hue", async () => {
     await landed(counted);
 
     const huesOf = (nodes: Iterable<HTMLElement>) =>

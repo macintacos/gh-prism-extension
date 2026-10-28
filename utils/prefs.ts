@@ -17,6 +17,17 @@ export type Side = "left" | "right";
  */
 export const sidebarSide = storage.defineItem<Side>("sync:sidebarSide", { fallback: "right" });
 
+/** Which view the header's lines-changed counter shows: a pill per section, or GitHub's total. */
+export type DiffstatView = "breakout" | "total";
+
+/**
+ * The view the user last switched the header counter to; Chrome sync carries it to their other
+ * computers when on.
+ */
+export const diffstatView = storage.defineItem<DiffstatView>("sync:diffstatView", {
+  fallback: "breakout",
+});
+
 /**
  * Whether the user dismissed the notice on GitHub's classic Files changed page; kept on this
  * computer only.

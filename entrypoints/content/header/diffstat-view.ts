@@ -1,11 +1,12 @@
 /**
- * Breaks the header's lines-changed counter, on a pull request or a commit, out by section once
- * intent lands: a pill per section with the lines it adds and removes. A click switches between
- * that breakout and GitHub's own total.
+ * Breaks the header's lines-changed counter out by section once intent lands, on a commit's page
+ * or any of a pull request's tabs: a pill per section with the lines it adds and removes. A click
+ * switches between that breakout and GitHub's own total.
  */
 
 import { type Landing, landingOf, type SectionLines, sum, totalsOf } from "@/utils/intent/landing";
-import { type FilesPage, findDiffstat, observeDiffstat } from "../files-page";
+import type { DiffstatView } from "@/utils/prefs";
+import { findDiffstat, type Header, observeDiffstat } from "../files-page";
 import { el } from "../ui/dom";
 import { count, counts } from "../ui/line-counts";
 import { markSection, SECTION_CATALOG, sectionIcon } from "../ui/section-catalog";
@@ -13,9 +14,19 @@ import type { LandingView } from "../visit/land";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./diffstat-view.css?inline";
 
-/** Which view the header counter shows. One per tab, so the choice carries to the next page. */
+/**
+ * Which view the header counter shows. One per browser tab, shared by every page in it, so a
+ * switch carries to the next page.
+ */
 export interface DiffstatChoice {
-  view: "breakout" | "total";
+  view: DiffstatView;
+}
+
+/** The browser tab's view choice for `showDiffstat` to apply, and how to persist a switch. */
+export interface DiffstatOptions {
+  readonly choice: DiffstatChoice;
+  /** Remembers a view the counter switched to. */
+  readonly save: (view: DiffstatView) => void;
 }
 
 const TIP =
@@ -34,7 +45,7 @@ function pill(doc: Document, { section, lines }: SectionLines): HTMLElement {
   const node = el(
     doc,
     "span",
-    "gh-prism-pill tw:relative tw:inline-flex tw:items-center tw:gap-1 tw:pr-2 tw:pl-1.5 tw:rounded-medium tw:bg-hue-tint tw:leading-5",
+    "gh-prism-pill tw:relative tw:inline-flex tw:items-center tw:gap-1 tw:not-first:ps-2 tw:not-last:pe-2 tw:leading-5",
     sectionIcon(doc, section),
     ...counts(doc, lines),
     el(doc, "span", "sr-only", spoken),
@@ -85,18 +96,19 @@ function breakdown(doc: Document, sections: readonly SectionLines[]): HTMLElemen
 }
 
 /**
- * Stands in for `page`'s lines-changed counter until `signal` aborts: a pill per section with the
- * lines `landing` places there, or GitHub's total, as `choice` says. A click switches view and
- * records it in `choice`. GitHub's counter stays in the page, hidden by the stylesheet while this
- * sits just before it. A pull request's counter can mount long after intent lands, and GitHub can
- * swap it for a skeleton again, so this follows it, stepping aside while there is none.
+ * Stands in for `header`'s lines-changed counter until `signal` aborts: a pill per section with the
+ * lines `landing` places there, or GitHub's total, as `choice` says. A click switches view,
+ * records it in `choice`, and `save`s it. GitHub's counter stays in the page, hidden by the
+ * stylesheet while this sits just before it. A pull request's counter can mount long after intent
+ * lands, and GitHub can swap it for a skeleton again, so this follows it, stepping aside while
+ * there is none.
  */
 function showCounter(
-  page: FilesPage,
+  header: Header,
   landing: Landing,
-  { choice, signal }: { choice: DiffstatChoice; signal: AbortSignal },
+  { choice, save, signal }: DiffstatOptions & { readonly signal: AbortSignal },
 ): void {
-  const doc = page.sidebar.ownerDocument;
+  const { doc } = header;
   const sections = totalsOf(landing);
   const pills = sections.map((lines) => pill(doc, lines));
   const breakout = breakdown(doc, sections);
@@ -104,7 +116,7 @@ function showCounter(
   const button = el(
     doc,
     "button",
-    "gh-prism-diffstat tw:relative tw:flex tw:items-center tw:gap-1 tw:p-0 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-default tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-focus-outline",
+    "gh-prism-diffstat tw:relative tw:flex tw:items-center tw:p-0 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-default tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-focus-outline",
   );
   button.type = "button";
   let native: Element | undefined;
@@ -116,11 +128,12 @@ function showCounter(
   };
   button.addEventListener("click", () => {
     choice.view = choice.view === "breakout" ? "total" : "breakout";
+    save(choice.view);
     if (native) render(native);
   });
 
   const follow = () => {
-    native = findDiffstat(page);
+    native = findDiffstat(header);
     if (!native) button.remove();
     else if (button.nextElementSibling !== native) {
       native.before(button);
@@ -131,7 +144,7 @@ function showCounter(
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   follow();
   doc.head.append(style);
-  observeDiffstat(page, follow, { signal });
+  observeDiffstat(header, follow, { signal });
   signal.addEventListener("abort", () => {
     button.remove();
     style.remove();
@@ -143,12 +156,12 @@ function showCounter(
  * `signal` aborts. A path-only landing leaves GitHub's counter as is.
  */
 export function showDiffstat(
-  page: FilesPage,
-  { choice, signal }: { choice: DiffstatChoice; signal: AbortSignal },
-): LandingView {
+  header: Header,
+  { choice, save, signal }: DiffstatOptions & { readonly signal: AbortSignal },
+): Required<Pick<LandingView, "landed">> {
   return {
     landed(result) {
-      if (result.ok) showCounter(page, landingOf(result), { choice, signal });
+      if (result.ok) showCounter(header, landingOf(result), { choice, save, signal });
     },
   };
 }

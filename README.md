@@ -100,16 +100,19 @@ gh-prism needs access to three hosts and to Chrome's extension storage, and noth
 - `https://github.com/*` serves the pull request or commit page, its diff, and file
   contents. A content script, which is code that runs inside matching pages, also runs
   here, so gh-prism catches GitHub's in-page navigation into a pull request or commit. It
-  acts only on Files changed and commit pages.
+  acts only on Files changed and commit pages, and on a pull request's Conversation,
+  Commits, and Checks tabs, where it reads the diff to split the header's lines-changed
+  counter by section.
 - `https://patch-diff.githubusercontent.com/*` is where GitHub redirects diff downloads.
 - `https://raw.githubusercontent.com/*` is where GitHub redirects raw-file downloads.
-- Extension storage holds the side you put the sidebar on, whether you closed the dialog
-  on the classic Files changed tab, which version's what's-new notes you dismissed or
-  first saw and when, and where gh-prism placed each file for the diffs it read most
-  recently. It keeps up to 50 placement entries, and a pull request's diff can take two:
-  one for the diff and one for the base and head commits it runs between. Chrome syncs the
-  side to your other computers when Chrome sync is on. The notice's dismissal, the
-  what's-new marks, and the placements stay on this computer.
+- Extension storage holds the side you put the sidebar on, whether the header's
+  lines-changed counter shows its breakout by section or GitHub's total, whether you
+  closed the dialog on the classic Files changed tab, which version's what's-new notes you
+  dismissed or first saw and when, and where gh-prism placed each file for the diffs it
+  read most recently. It keeps up to 50 placement entries, and a pull request's diff can
+  take two: one for the diff and one for the base and head commits it runs between. Chrome
+  syncs the side and the counter's view to your other computers when Chrome sync is on.
+  The notice's dismissal, the what's-new marks, and the placements stay on this computer.
 
 ## Troubleshooting
 

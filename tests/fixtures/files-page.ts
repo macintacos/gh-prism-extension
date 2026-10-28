@@ -77,6 +77,14 @@ export function loadClassicFixture(login: string): void {
   document.body.innerHTML = classicFixture;
 }
 
+/**
+ * Replaces `document.body` with a pull request header's counter slot as its header tabs show it,
+ * holding the counter `text`.
+ */
+export function loadHeaderFixture(text = "+36 -10"): void {
+  document.body.innerHTML = `<div class="rightContentWrapper__x"><div class="d-flex">${text}</div></div>`;
+}
+
 /** Replaces `document.body` with a single commit's markup. */
 export function loadCommitFixture(): void {
   document.body.innerHTML = commitFixture;
