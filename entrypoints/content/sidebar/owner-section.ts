@@ -1,9 +1,15 @@
 /**
  * Adds an "Only files owned by…" section to GitHub's file-tree filter menu: "Me", standing in for
- * GitHub's "Only files owned by you", then each reviewer who owns a changed file.
+ * GitHub's "Only files owned by you", then each reviewer who owns a changed file, directly or
+ * through a team they review for.
  */
 
-import { isOwner, owningReviewers, type PrCodeOwners } from "@/utils/github/code-owners";
+import {
+  isOwner,
+  owningReviewers,
+  type PrCodeOwners,
+  type PrReviewer,
+} from "@/utils/github/code-owners";
 import { ownerOf, withOwner, withViewerOwner } from "@/utils/github/files-route";
 import {
   copyMenuDivider,
@@ -25,7 +31,7 @@ export interface OwnerSectionOptions {
    * The visit's PR reviewers, read once per visit apart from the code owners; never re-fetched
    * here. Without them the section offers only "Me".
    */
-  readonly prReviewers: Promise<readonly string[] | undefined>;
+  readonly prReviewers: Promise<readonly PrReviewer[] | undefined>;
   /** Loads `href` as a new page: the owner filter reads its owner once per page. */
   readonly navigate: (href: string) => void;
 }

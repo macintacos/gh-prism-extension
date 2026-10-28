@@ -73,7 +73,7 @@ export function showReviewerFiles(
       if (thisAttempt !== attempt || !owners) return;
       // ponytail: exact-token match, so a user shielded only through a team lists nothing;
       // upgrade by resolving team membership.
-      const paths = [...owners.keys()].filter(ownerFilter(owners, shieldOwner(shield)));
+      const paths = [...owners.keys()].filter(ownerFilter(owners, shieldOwner(shield), []));
       if (paths.length === 0) return;
       close();
       open = show(shield, paths, close);

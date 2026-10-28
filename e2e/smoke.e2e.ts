@@ -1551,13 +1551,12 @@ const FIXTURE_OWNERS: Record<string, string[]> = {
 /**
  * Answers the code owners and PR reviewers reads for tests/fixtures/files-page.html; registered
  * after the catch-all 404. `ownership` maps each path to its CODEOWNERS tokens; it defaults to
- * `FIXTURE_OWNERS`. `mergeBoxStatus` is the status the PR reviewers read answers with, such as the
- * 404 GitHub sends signed out.
+ * `FIXTURE_OWNERS`. `reviewersStatus` is the status the PR reviewers read answers with.
  */
 const routeCodeOwners = async (
   context: BrowserContext,
   ownership = FIXTURE_OWNERS,
-  mergeBoxStatus = 200,
+  reviewersStatus = 200,
 ) => {
   const ownershipByPath = Object.fromEntries(
     Object.entries(ownership).map(([path, owners]) => [path, { isOwnedByViewer: false, owners }]),
@@ -1568,11 +1567,11 @@ const routeCodeOwners = async (
       body: JSON.stringify({ isEnabled: true, ownershipByPath }),
     }),
   );
-  await context.route("**/page_data/merge_box", (route) =>
+  await context.route("**/page_data/review_requests", (route) =>
     route.fulfill({
-      status: mergeBoxStatus,
+      status: reviewersStatus,
       contentType: "application/json",
-      body: readFixture("merge-box-sandbox.json"),
+      body: readFixture("review-requests-sandbox.json"),
     }),
   );
 };
@@ -1588,15 +1587,15 @@ const sidebarFiles = (page: Page) =>
       .filter((path) => !path.endsWith("/")),
   );
 
-for (const [when, mergeBoxStatus] of [
+for (const [when, reviewersStatus] of [
   ["", 200],
-  [" while merge_box fails", 404],
+  [" while review_requests fails", 404],
 ] as const) {
   test(`an owner filter lists only that owner's files and hides the others' diffs${when}`, async ({
     context,
     page,
   }) => {
-    await routeCodeOwners(context, FIXTURE_OWNERS, mergeBoxStatus);
+    await routeCodeOwners(context, FIXTURE_OWNERS, reviewersStatus);
     const url = `${PR_URL}?gh-prism-owner=o/frontend`;
     await serve(context, url, PR_BODY);
     await page.goto(url);

@@ -136,11 +136,11 @@ To check behavior live, build the extension and drive Playwright's bundled Chrom
   CSRF inputs, `csrf_tokens`, `nonce` values, `aliveChannel`, `data-hydro-*` and
   `octolytics` attributes, user ids, and JSON fields that identify the viewer. Keep
   per-file state such as `diffSummaries[].markedAsViewed`.
-- **Cut a `merge_box` capture down to `pullRequest.pendingReviewRequests` and
-  `pullRequest.latestOpinionatedReviews`, without `avatarUrl` or review `id`.** The rest
-  carries the viewer's commit emails and signed alive-channel tokens. Where the viewer's
-  login is data, as in a CODEOWNERS token, replace it with `sandbox-user`. Import a JSON
-  capture `?raw`, so each test parses its own copy to edit.
+- **Cut a `review_requests` capture down to `pendingReviewRequests` and
+  `completedReviews`, without `avatarUrl`, user or team `id`, or review `id`.** The rest
+  is Copilot's settings, with links to the viewer's own. Where the viewer's login is data,
+  as in a CODEOWNERS token, replace it with `sandbox-user`. Import a JSON capture `?raw`,
+  so each test parses its own copy to edit.
 - **Wrap the service worker's `fetch` to observe pull request data requests.** The
   background script calls the global `fetch` at request time, so wrapping `self.fetch`
   through `worker.evaluate` logs each request.

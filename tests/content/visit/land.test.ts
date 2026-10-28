@@ -14,7 +14,7 @@ import {
   type PathFilter,
   showHeaderTab,
 } from "../../../entrypoints/content/visit/land";
-import type { PrCodeOwners } from "../../../utils/github/code-owners";
+import type { PrCodeOwners, PrReviewer } from "../../../utils/github/code-owners";
 import { landingOf, sectionsOf } from "../../../utils/intent/landing";
 import {
   type IntentProgress,
@@ -352,17 +352,37 @@ describe("a visit narrowed to an owner", () => {
         { owners: [{ token }], ownedByViewer: false },
       ]),
     );
-  const narrowed = async (codeOwners?: Promise<PrCodeOwners | undefined>) => {
-    remountWith(() => result, undefined, { owner: "@octocat", codeOwners });
+  const narrowed = async (
+    codeOwners?: Promise<PrCodeOwners | undefined>,
+    prReviewers?: Promise<readonly PrReviewer[] | undefined>,
+  ) => {
+    remountWith(() => result, undefined, { owner: "@octocat", codeOwners, prReviewers });
     await afterDebounce();
     return allListed();
   };
+  const reviewingForCore: PrReviewer = { token: "@octocat", teams: ["@o/core"], codeOwner: false };
 
   it("lists only the owner's files once the code owners land", async () => {
     const listed = await narrowed(
       Promise.resolve(ownedBy({ "src/lib.rs": "@OctoCat", "src/engine.rs": "@hubot" })),
     );
     expect(listed).toEqual(["src/lib.rs"]);
+  });
+
+  it("lists the files of a team the owner reviews for too", async () => {
+    const listed = await narrowed(
+      Promise.resolve(ownedBy({ "src/lib.rs": "@o/core", "src/engine.rs": "@hubot" })),
+      Promise.resolve([reviewingForCore]),
+    );
+    expect(listed).toEqual(["src/lib.rs"]);
+  });
+
+  it("lists only the owner's own files when the PR reviewers can't be read", async () => {
+    const listed = await narrowed(
+      Promise.resolve(ownedBy({ "src/lib.rs": "@o/core", "src/engine.rs": "@octocat" })),
+      Promise.resolve(undefined),
+    );
+    expect(listed).toEqual(["src/engine.rs"]);
   });
 
   it("lists every file when the code owners can't be read", async () => {

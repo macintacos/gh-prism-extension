@@ -251,7 +251,7 @@ describe("content script", () => {
   it.each([
     ["fails", () => Promise.resolve(new Response("", { status: 404 }))],
     ["never answers", () => new Promise<Response>(() => {})],
-  ])("hands each page the code owners while merge_box %s", async (_, mergeBox) => {
+  ])("hands each page the code owners while review_requests %s", async (_, reviewRequests) => {
     const actual = await vi.importActual<typeof import("../../utils/github/code-owners")>(
       "../../utils/github/code-owners",
     );
@@ -264,7 +264,7 @@ describe("content script", () => {
       routedFetch({
         "https://github.com/o/r/pull/1/page_data/codeowners": () =>
           Promise.resolve(new Response(JSON.stringify({ ownershipByPath }))),
-        "https://github.com/o/r/pull/1/page_data/merge_box": mergeBox,
+        "https://github.com/o/r/pull/1/page_data/review_requests": reviewRequests,
       }),
     );
 

@@ -1,0 +1,46 @@
+{
+  "pendingReviewRequests": [
+    {
+      "reviewer": {
+        "displayLogin": "jasnell",
+        "name": "James M Snell",
+        "reviewerType": "User"
+      },
+      "createdAt": "2026-10-27T09:07:33-04:00"
+    },
+    {
+      "reviewer": {
+        "displayLogin": "aduh95",
+        "name": "Antoine du Hamel",
+        "reviewerType": "User"
+      },
+      "createdAt": "2026-10-27T09:07:33-04:00"
+    }
+  ],
+  "completedReviews": [
+    {
+      "reviewer": {
+        "displayLogin": "pimterry",
+        "name": "Tim Perry",
+        "reviewerType": "User"
+      },
+      "state": "REVIEW_STATE_APPROVED",
+      "headSha": "6efa3e1ff4fb4860d54028d79b0c6f427b02f634",
+      "submittedAt": "2026-10-27T10:37:14-04:00",
+      "hasWriteAccess": true,
+      "isQualifiedReviewer": true
+    },
+    {
+      "reviewer": {
+        "displayLogin": "richardlau",
+        "name": "Richard Lau",
+        "reviewerType": "User"
+      },
+      "state": "REVIEW_STATE_APPROVED",
+      "headSha": "6efa3e1ff4fb4860d54028d79b0c6f427b02f634",
+      "submittedAt": "2026-10-27T09:10:11-04:00",
+      "hasWriteAccess": true,
+      "isQualifiedReviewer": true
+    }
+  ]
+}

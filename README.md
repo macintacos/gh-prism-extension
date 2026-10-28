@@ -51,12 +51,13 @@ how to get the new tab. Once you close the dialog, it stays closed, and
   first see it.
 - Adding `gh-prism-owner=<owner>` to a pull request's Files changed URL, where the owner
   is a team such as `org/team` or a user's login, narrows the sidebar and the diffs to the
-  files whose CODEOWNERS rule names that owner. A user's filter doesn't include files they
-  own only through a team. It combines with GitHub's own filters, and removing it from the
-  URL shows every file again. You can also pick the owner from the
-  **Only files owned by…** section of the file tree's filter menu, which lists **Me** and
-  each reviewer who owns a changed file; picking a reviewer reloads the page narrowed to
-  their files.
+  files whose CODEOWNERS rule names that owner, or a team GitHub shows you the owner
+  reviewed or was assigned for. GitHub names that team only when you can see it, so a
+  user's filter leaves out files they own through a team you can't see. It combines with
+  GitHub's own filters, and removing it from the URL shows every file again. You can also
+  pick the owner from the **Only files owned by…** section of the file tree's filter menu,
+  which lists **Me** and each reviewer who owns a changed file; picking a reviewer reloads
+  the page narrowed to their files.
 - A **Report a miscategorized file** button beside the file tree's filter opens a new
   issue on gh-prism's repository with your gh-prism version filled in, and, on a public
   repository only, the diff's URL.

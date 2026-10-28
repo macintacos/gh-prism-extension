@@ -168,8 +168,10 @@ item, whose group the sheet hides as the section's next sibling. The hidden item
 the `disabled` attribute, because a hidden item traps Primer's arrow keys and its focus
 zone skips only disabled ones. "Me" shows only when GitHub's item does. The reviewers are
 `owningReviewers` in [`utils/github/code-owners.ts`](../utils/github/code-owners.ts):
-those who own a changed file, leaving out your own login. Without the PR reviewers the
-section offers "Me" alone; without the code owners it adds nothing.
+those who own a changed file, directly or through a team they review for, leaving out your
+own login. A reviewer stays after submitting a review, since `review_requests` lists
+reviews as well as requests. Without the PR reviewers the section offers "Me" alone;
+without the code owners it adds nothing.
 
 A reviewer pick loads the page, through `withOwner` in
 [`utils/github/files-route.ts`](../utils/github/files-route.ts), because the owner filter
@@ -226,45 +228,53 @@ and the clear also drops the retired `intent.v1` entries.
 ## Code owners and reviewers
 
 [`utils/github/code-owners.ts`](../utils/github/code-owners.ts) reads who owns each
-changed file and who reviews the pull request from the two endpoints GitHub's Files
-changed page reads, `/<owner>/<repo>/pull/<n>/page_data/codeowners` and
-`/<owner>/<repo>/pull/<n>/page_data/merge_box`. The content script fetches them itself,
-same-origin with your session, rather than through the service worker: they need no host
-but github.com, and no cache, since a review submitted while the tab is open must show on
-the next visit. `index.ts` starts two reads once per visit, `readCodeOwners` from
-`codeowners` and `readPrReviewers` from `merge_box`, and hands their promises to every
-page of that visit: `showVisit` takes the code owners alone, and `showOwnerSection` takes
-both. A commit page reads nothing. A pull request's header visit reads the code owners
-alone, once per visit, and only when you first hover or focus a code-owner shield in the
-Reviewers sidebar on the Conversation tab.
+changed file and who reviews the pull request from two endpoints GitHub's pull request
+pages read, `/<owner>/<repo>/pull/<n>/page_data/codeowners` and
+`/<owner>/<repo>/pull/<n>/page_data/review_requests`. The content script fetches them
+itself, same-origin with your session, rather than through the service worker: they need
+no host but github.com, and no cache, since a review submitted while the tab is open must
+show on the next visit. `index.ts` starts two reads once per visit, `readCodeOwners` from
+`codeowners` and `readPrReviewers` from `review_requests`, and hands their promises to
+every page of that visit: `showVisit` and `showOwnerSection` take both. A commit page
+reads nothing. A pull request's header visit reads the code owners alone, once per visit,
+and only when you first hover or focus a code-owner shield in the Reviewers sidebar on the
+Conversation tab.
 
 The code owners are each changed file's owners, in CODEOWNERS order, with whether you own
-the file. The PR reviewers are the `@user` and `@org/team` tokens of everyone requested to
-review or whose review GitHub's merge box lists, including a team a review was submitted
-on behalf of. The merge box leaves out a reviewer who only commented. An owner keeps its
-token as written and gets a link only when the token is a valid `@user` or `@org/team`;
-gh-prism builds the URL and never takes one from the response. A PR reviewer matches an
-owner when their tokens are equal, ignoring case, so a user doesn't match a file owned
-only through a team. Each read settles on its own: one that fails, or whose response
-misses a field it expects, resolves to `undefined` and logs one warning naming it, and the
-other read is unaffected. The shields and the owner filter therefore wait on the code
-owners alone, and a failed PR reviewers read only drops the owner section's reviewer
-entries. A repository without CODEOWNERS resolves to no owners.
+the file. The PR reviewers are everyone requested to review, then everyone who submitted a
+review, commenting included, each as an `@user` or `@org/team` token with the teams GitHub
+names them as reviewing for: those a review of theirs was on behalf of, and the team a
+pending request was assigned from. GitHub names a team only to a viewer who can see it, so
+a viewer outside the organization gets no teams. A reviewer also carries whether GitHub
+marks their pending request as a code owner's, which it can do without naming the team. An
+owner keeps its token as written and gets a link only when the token is a valid `@user` or
+`@org/team`; gh-prism builds the URL and never takes one from the response.
+
+A PR reviewer owns a file when its owners include the reviewer's token, or one of the
+teams GitHub names the reviewer as reviewing for, ignoring case. `ownerFilter` holds that
+rule, and the owner filter and the owner section both ask it, so picking a reviewer in the
+section keeps the files the section counted them for. A user who belongs to an owning team
+but reviews for none of them owns no file, because gh-prism reads no team membership. Each
+read settles on its own: one that fails, or whose response misses a field it expects,
+resolves to `undefined` and logs one warning naming it, and the other read is unaffected.
+A failed PR reviewers read drops the owner section's reviewer entries and narrows the
+owner filter to the owner's own token. A repository without CODEOWNERS resolves to no
+owners.
 
 The owner filter is the first reader of the code owners. `index.ts` reads the
 `gh-prism-owner` query parameter on a pull request's pages with `ownerOf` in
 [`utils/github/files-route.ts`](../utils/github/files-route.ts), and `showVisit` turns it
-and the visit's code owners into the filter `land` applies to the tree's files before
-sectioning them. A file is kept when its owners include the parameter's token, ignoring
-case. Every view therefore follows the narrowed listing as it follows GitHub's own
-filters, while section line totals and the diffstat keep counting the whole diff. `land`
-also hands the views the dropped files' diff anchors, kept for the whole page so a file
-stays hidden after its row leaves the tree, and `diffs/order.ts` hides their diffs: by a
-rule on each region and virtualized row (`#diff-…` and `data-path-digest`) that a pull
-request's `hiddenDiffSelectors` in `files-page.ts` scopes to the diff list, and by a
+and the visit's code owners and PR reviewers into the filter `land` applies to the tree's
+files before sectioning them. A file is kept when the parameter's token owns it, as above.
+Every view therefore follows the narrowed listing as it follows GitHub's own filters,
+while section line totals and the diffstat keep counting the whole diff. `land` also hands
+the views the dropped files' diff anchors, kept for the whole page so a file stays hidden
+after its row leaves the tree, and `diffs/order.ts` hides their diffs: by a rule on each
+region and virtualized row (`#diff-…` and `data-path-digest`) that a pull request's
+`hiddenDiffSelectors` in `files-page.ts` scopes to the diff list, and by a
 `data-gh-prism-hidden` attribute on a progressive list's entries, to close their gaps.
-With the parameter set, the page stays pending until the code owners land, and a failed
-code owners read keeps every file.
+With the parameter set, the page stays pending until both reads land, and a failed code
+owners read keeps every file.
 
 The sidebar's shields are another reader. `showVisit` in
 [`visit/land.ts`](../entrypoints/content/visit/land.ts) hands the owners to the sidebar

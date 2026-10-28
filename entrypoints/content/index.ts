@@ -102,6 +102,7 @@ export default defineContentScript({
               diffstat,
               viewed,
               codeOwners,
+              prReviewers,
               owner: route.diff.kind === "pr" ? ownerOf(location.search) : undefined,
               whatsNew: whatsNewForPage?.(),
             });

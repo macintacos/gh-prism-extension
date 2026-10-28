@@ -60,12 +60,17 @@ export function mountsVisit() {
 
   /**
    * Replaces the mounted visit with one that waits on `intent`, in a tab whose header counter
-   * holds `diffstat`'s choice and saves through it, narrowed to `owner` by `codeOwners` if given.
+   * holds `diffstat`'s choice and saves through it, narrowed to `owner` by `codeOwners` and
+   * `prReviewers` if given.
    */
   const remountWith = (
     intent: PendingIntent = () => landedWith(),
     diffstat: DiffstatOptions = { choice: { view: "breakout" }, save: () => {} },
-    { owner, codeOwners }: Pick<VisitOptions, "owner" | "codeOwners"> = {},
+    {
+      owner,
+      codeOwners,
+      prReviewers,
+    }: Pick<VisitOptions, "owner" | "codeOwners" | "prReviewers"> = {},
   ): void => {
     controller.abort();
     controller = new AbortController();
@@ -78,6 +83,7 @@ export function mountsVisit() {
       viewed: visitViewed(undefined),
       owner,
       codeOwners,
+      prReviewers,
     });
   };
 
