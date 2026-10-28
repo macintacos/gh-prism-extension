@@ -651,12 +651,12 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
 
   // The shield a press began on while its popover was open. The press light-dismisses the
   // popover before its click arrives, so the click must close, not reopen.
-  let closesOwners: HTMLElement | undefined;
+  let closingShield: HTMLElement | undefined;
   view.addEventListener(
     "pointerdown",
     (event) => {
       const shield = clickedShield(event)?.shield;
-      closesOwners = shield?.getAttribute("aria-expanded") === "true" ? shield : undefined;
+      closingShield = shield?.getAttribute("aria-expanded") === "true" ? shield : undefined;
     },
     { capture: true, signal },
   );
@@ -671,17 +671,17 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
         return;
       }
 
-      const owned = clickedShield(event);
-      if (owned) {
-        const closing = closesOwners;
-        closesOwners = undefined;
-        if (owned.shield !== closing) {
-          openOwners(owned.shield, {
-            name: owned.path.slice(owned.path.lastIndexOf("/") + 1),
-            owners: ownersByPath.get(owned.path)?.owners ?? [],
+      const shieldClick = clickedShield(event);
+      if (shieldClick) {
+        const closing = closingShield;
+        closingShield = undefined;
+        if (shieldClick.shield !== closing) {
+          openOwners(shieldClick.shield, {
+            name: shieldClick.path.slice(shieldClick.path.lastIndexOf("/") + 1),
+            owners: ownersByPath.get(shieldClick.path)?.owners ?? [],
             root: view,
             signal,
-            onEscape: () => shown.get(owned.listing)?.tree.focusRow(owned.path),
+            onEscape: () => shown.get(shieldClick.listing)?.tree.focusRow(shieldClick.path),
           });
         }
         return;
