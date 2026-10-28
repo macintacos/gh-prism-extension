@@ -344,6 +344,35 @@ describe("showReviewerFiles", () => {
     expect(popups()).toHaveLength(0);
   });
 
+  it("describes the shield again when focus reopens it after a scroll", async () => {
+    show();
+    const shield = shieldOf("frontend");
+    shield.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(0);
+    document.dispatchEvent(new Event("scroll"));
+
+    shield.dispatchEvent(
+      new FocusEvent("focusout", { bubbles: true, relatedTarget: document.body }),
+    );
+    shield.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(popups()).toHaveLength(1);
+    expect(shield.getAttribute("aria-describedby")).toBe("gh-prism-reviewer-files");
+  });
+
+  it("describes the shield again when the pointer reopens it after a scroll", async () => {
+    show();
+    await hoverOpen("frontend");
+    document.dispatchEvent(new Event("scroll"));
+
+    pointerOut(shieldOf("frontend"));
+    await hoverOpen("frontend");
+
+    expect(popups()).toHaveLength(1);
+    expect(shieldOf("frontend").getAttribute("aria-describedby")).toBe("gh-prism-reviewer-files");
+  });
+
   it("closes and removes its stylesheet once the signal aborts", async () => {
     show();
     await hoverOpen("frontend");

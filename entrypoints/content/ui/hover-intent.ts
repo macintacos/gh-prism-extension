@@ -73,7 +73,7 @@ export function followHoverIntent(
   };
   const close = () => {
     clearTimeout(closeTimer);
-    open?.card.close();
+    if (open?.card.element.isConnected) open.card.close();
     open = undefined;
   };
   const closeSoon = () => {

@@ -192,6 +192,7 @@ function show(shield: HTMLElement, owned: OwnedFiles): Card {
 
   const closed = new AbortController();
   const close = () => {
+    if (closed.signal.aborted) return;
     closed.abort();
     popover.remove();
     shield.removeAttribute("aria-describedby");
