@@ -13,16 +13,16 @@ interface OwnersOptions {
   readonly root: Element;
   /** The page's lifetime; the popover goes with it. */
   readonly signal: AbortSignal;
-  /** Moves focus to the file's row, as Escape or a scroll closes the popover. */
+  /** Moves focus to the file's row, as the popover closes while holding focus. */
   readonly returnFocus: () => void;
 }
 
 /**
  * Opens a popover below `shield` listing `owners`. `shield` is marked expanded while it is open.
- * It closes on Escape inside it, calling `returnFocus` first, on a click outside it, its own
- * shield's included, on any scroll outside it, calling `returnFocus` first while focus is inside
- * it, once `signal` aborts, or on a call of the returned card's `close`. Closing removes it with
- * its listeners and clears the shield's mark.
+ * It closes on Escape inside it, on a click outside it, its own shield's included, on any scroll
+ * outside it, once `signal` aborts, or on a call of the returned card's `close`. Closing removes
+ * it with its listeners and clears the shield's mark, and, unless a click closed it, hands focus
+ * it held to `returnFocus`.
  */
 export function openOwners(
   shield: HTMLElement,
@@ -55,8 +55,10 @@ export function openOwners(
   // The browser fires no toggle events when an open popover leaves the document.
   const close = () => {
     if (closed.signal.aborted) return;
+    const heldFocus = popover.contains(doc.activeElement);
     remove();
     shield.removeAttribute("aria-expanded");
+    if (heldFocus) returnFocus();
   };
   signal.addEventListener("abort", close, { signal: closed.signal });
   // Focus leaves first: hiding a popover that holds focus hands it back to the shield, and the

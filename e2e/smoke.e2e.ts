@@ -1805,6 +1805,48 @@ test("an owned file's shield opens its owners on hover, and closes as the pointe
   await expect(popover).toHaveCount(0);
 });
 
+/** Whether `row` is the focused element of its tree's shadow root. */
+const rowFocused = (row: Locator) =>
+  row.evaluate((element) => (element.getRootNode() as ShadowRoot).activeElement === element);
+
+test("a hover-opened owners popover holding focus hands it to its row as the pointer leaves", async ({
+  context,
+  page,
+}) => {
+  await openOwned(context, page);
+  const readme = treeRow(page, "README.md");
+  const popover = page.locator(".gh-prism-owners:popover-open");
+  await readme.hover();
+  await shieldOf(page, "README.md").hover();
+  await popover.hover();
+  await popover.locator("a").first().focus();
+
+  await page.mouse.move(1, 1);
+
+  await expect(popover).toHaveCount(0);
+  expect(await rowFocused(readme)).toBe(true);
+});
+
+test("a pinned owners popover holding focus hands it to its row as another shield's opens", async ({
+  context,
+  page,
+}) => {
+  await openOwned(context, page);
+  const readme = treeRow(page, "README.md");
+  await readme.hover();
+  await shieldOf(page, "README.md").click();
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
+
+  await treeRow(page, "src/engine.rs").hover();
+  await shieldOf(page, "src/engine.rs").hover();
+
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveAttribute(
+    "aria-label",
+    "Code owners of engine.rs",
+  );
+  expect(await rowFocused(readme)).toBe(true);
+});
+
 /** The focused element, through shadow roots, as the start of its markup. */
 const focusedControl = (page: Page) =>
   page.evaluate(() => {
