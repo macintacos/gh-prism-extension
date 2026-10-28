@@ -218,6 +218,13 @@ export function isPublicRepo(doc: Document, repo: { owner: string; repo: string 
 const VIRTUALIZED = '[data-index] [role="region"]';
 
 /**
+ * Selectors for the diff of the file whose diff anchor is `anchor`, in either kind of list: its
+ * region, and a virtualized list's row, whose `data-path-digest` is the anchor's digest.
+ */
+export const diffSelector = (anchor: string): string =>
+  `#${anchor}, [data-path-digest="${anchor.slice("diff-".length)}"]`;
+
+/**
  * Whether GitHub lays `page`'s diffs out in a way their order can follow; false while
  * virtualized.
  */

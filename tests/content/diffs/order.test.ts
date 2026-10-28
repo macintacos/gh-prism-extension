@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listRules, showDiffOrder } from "../../../entrypoints/content/diffs/order";
 import { commitPage, findFilesPage, prPage } from "../../../entrypoints/content/files-page";
 import { byId, loadCommitFixture } from "../../fixtures/files-page";
@@ -527,5 +527,70 @@ describe("a page kind's list rules", () => {
         reveal(entries),
       ].join("\n"),
     );
+  });
+});
+
+describe("the diffs of files the filter leaves out", () => {
+  let controller: AbortController;
+  let order: ReturnType<typeof showDiffOrder>;
+  const anchorOf = (path: string) =>
+    byId(path).querySelector("a")?.getAttribute("href")?.slice(1) ?? "";
+  const hideRules = () =>
+    [...document.head.querySelectorAll("style")]
+      .map(({ textContent }) => textContent ?? "")
+      .filter((text) => text.includes("data-path-digest"));
+
+  beforeEach(() => {
+    mountEveryDiff();
+    abort();
+    const page = findFilesPage(document);
+    if (!page) throw new Error("fixture lacks the Files changed markup");
+    controller = new AbortController();
+    order = showDiffOrder(page, controller.signal);
+  });
+  afterEach(() => controller.abort());
+
+  it("hide a left-out file's entry and only it", () => {
+    order.sections?.([], new Set([anchorOf("src/engine.rs")]));
+    expect(entryOf("src/engine.rs").style.display).toBe("none");
+    expect(entryOf("src/lib.rs").style.display).toBe("");
+  });
+
+  it("hide an entry GitHub adds later for a left-out file", async () => {
+    const old = entryOf("src/engine.rs");
+    old.remove();
+    order.sections?.([], new Set([anchorOf("src/engine.rs")]));
+    const entry = document.createElement("div");
+    entry.append(...old.children);
+    progressiveList()?.append(entry);
+    await Promise.resolve();
+
+    expect(entry.style.display).toBe("none");
+  });
+
+  it("show a file's entry again once the filter keeps it", () => {
+    order.sections?.([], new Set([anchorOf("src/engine.rs")]));
+    order.sections?.([], new Set());
+    expect(entryOf("src/engine.rs").style.display).toBe("");
+  });
+
+  it("leave no inline display on GitHub's entries once the view is gone", () => {
+    order.sections?.([], new Set([anchorOf("src/engine.rs")]));
+    controller.abort();
+    expect(entryOf("src/engine.rs").style.display).toBe("");
+  });
+
+  it("hide each left-out file's region and virtualized row by rule, skipping a malformed anchor", () => {
+    virtualize();
+    order.sections?.([], new Set(["diff-0a01", "diff-0a02", 'diff-x"]']));
+    expect(hideRules()).toEqual([
+      '#diff-0a01, [data-path-digest="0a01"], #diff-0a02, [data-path-digest="0a02"] { display: none !important; }',
+    ]);
+  });
+
+  it("drop the hiding rule once nothing is left out", () => {
+    order.sections?.([], new Set(["diff-0a01"]));
+    order.sections?.([], new Set());
+    expect(hideRules()).toEqual([]);
   });
 });
