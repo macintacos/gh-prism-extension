@@ -88,6 +88,23 @@ against the sidebar. It needs the `gh` CLI signed in. It skips the repository an
 pull request that already exists, so a rerun picks up where it left off. A pull request
 that failed midway is the exception: fix it by hand.
 
+`scripts/create-codeowners-sandbox.sh excessive-dev/gh-prism-codeowners-sandbox` creates
+the code-owners sandbox, a public repository under the `excessive-dev` organization. It is
+public and org-owned because team entries in CODEOWNERS only resolve in an organization's
+repository, and GitHub Free applies code owners only to public repositories. It has two
+teams with write access: `frontend`, whose only member is you, and `platform`, which has
+no members. The CODEOWNERS on `main` has a path for each case: one team, your account, a
+team and you, a later rule overriding an earlier one, and no owner. Three pull requests
+cover every case. One edits CODEOWNERS in its own diff, and one is large enough that
+GitHub loads its diffs lazily. Their bodies list each file's owners and what "Only files
+owned by…" should list. GitHub keeps a request to a team whose only member is the pull
+request's author. Commits use your GitHub noreply address. Creating the teams needs the
+`admin:org` scope, so run `gh auth refresh -s admin:org` first and drop it afterwards with
+`gh auth refresh -r admin:org`. Its pushes go through git, so a git credential helper
+without access to the organization makes them fail; `gh auth setup-git` fixes that. A
+rerun skips the repository, the teams, and each pull request that already exists, and
+brings each body up to date.
+
 ## Git hooks
 
 hk, a git hook manager configured in [`hk.pkl`](../hk.pkl), runs two hooks:
