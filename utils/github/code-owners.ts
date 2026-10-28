@@ -20,7 +20,8 @@ export interface FileOwners {
  */
 export type PrCodeOwners = ReadonlyMap<string, FileOwners>;
 
-const LOGIN = /^[A-Za-z0-9_-]{1,39}$/;
+/** A user's or organization's login, an Enterprise Managed User's `_` included. */
+export const LOGIN = /^[A-Za-z0-9_-]{1,39}$/;
 const TEAM_SLUG = /^[A-Za-z0-9_-]+$/;
 
 /** `token`, linked when it is a `@user` or `@org/team` with only the characters GitHub allows. */

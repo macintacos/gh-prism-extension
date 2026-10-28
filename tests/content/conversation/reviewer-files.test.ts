@@ -514,6 +514,22 @@ describe("showReviewerFiles", () => {
       );
     });
 
+    it("marks an Enterprise Managed User, whose login has an underscore", async () => {
+      await showNode(
+        {
+          reviewRequests: (body) => {
+            reviewedForCrypto(body);
+            Object.assign(body.completedReviews[0] ?? {}, {
+              reviewer: { displayLogin: "mona-cat_octo", reviewerType: "User" },
+            });
+          },
+        },
+        nodeConversation.replaceAll("pimterry", "mona-cat_octo"),
+      );
+
+      expect(ownShields()).toEqual(["@mona-cat_octo"]);
+    });
+
     it("marks only reviewers who own a changed file", async () => {
       await showNode({ reviewRequests: reviewedForCrypto });
 

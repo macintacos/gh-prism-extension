@@ -9,6 +9,8 @@
  * come from EXC-1662's survey.
  */
 
+import { LOGIN } from "@/utils/github/code-owners";
+
 /**
  * Where one kind of page, a pull request's or a commit's, keeps its Files changed markup. Callers
  * ask the page module's helpers rather than branching on a kind: a new kind is a new adapter, not
@@ -421,8 +423,8 @@ export function findReviewerRows(doc: Document): ReviewerRow[] {
 function linkedToken(row: Element): string | undefined {
   const href = row.querySelector("a[href]")?.getAttribute("href") ?? "";
   const { pathname } = new URL(href, "https://github.com");
-  const [, user] = /^\/([A-Za-z0-9-]+)$/.exec(pathname) ?? [];
-  if (user) return `@${user}`;
+  const user = pathname.slice(1);
+  if (LOGIN.test(user)) return `@${user}`;
   const [, org, team] = /^\/orgs\/([^/]+)\/teams\/([^/]+)$/.exec(pathname) ?? [];
   return org && team ? `@${org}/${team}` : undefined;
 }
