@@ -2167,6 +2167,97 @@ test("a scrolled code owner reviewer's card keeps its hint flush with its bottom
   await expect(card.locator(".gh-prism-owners-hint")).toBeVisible();
 });
 
+const DEEP_OWNED_PATHS = [
+  "server/src/main/java/dev/example/sandbox/owners/lookup/internal/service/svc/OwnerLookupService.java",
+  "server/src/test/java/dev/example/sandbox/owners/lookup/internal/service/svc/OwnerLookupServiceTest.java",
+  "server/src/unit/java/dev/example/sandbox/owners/lookup/internal/service/svc/OwnerLookupServiceUnitTest.java",
+];
+
+/** Serves the sandbox's PR #1 Conversation tab with its frontend team owning `DEEP_OWNED_PATHS`. */
+const serveDeepOwnedConversation = async (context: BrowserContext) => {
+  await serve(
+    context,
+    "https://github.com/o/r/pull/1",
+    `<!doctype html>${readFixture("conversation-page.html")}`,
+  );
+  await routeCodeOwners(
+    context,
+    Object.fromEntries(DEEP_OWNED_PATHS.map((path) => [path, ["@excessive-dev/frontend"]])),
+  );
+};
+
+test("a code owner's long folder paths break only after a slash, in a wider card", async ({
+  context,
+  page,
+}) => {
+  await serveDeepOwnedConversation(context);
+  await page.goto("https://github.com/o/r/pull/1");
+  const card = page.locator(".gh-prism-reviewer-files");
+
+  await page.locator('[id="codeowner-excessive-dev/frontend"]').hover();
+  await expect(card).toBeVisible();
+
+  const { boxSizing, width } = await card.evaluate((element) => ({
+    boxSizing: getComputedStyle(element).boxSizing,
+    width: element.getBoundingClientRect().width,
+  }));
+  expect(boxSizing).toBe("border-box");
+  expect(width).toBeGreaterThan(360);
+  expect(width).toBeLessThanOrEqual(440);
+  await expect(card.locator("ul > li > div").first()).toHaveText("server/src/");
+  const linesPerTextNode = await card.locator("li > div:has(+ ul)").evaluateAll((labels) =>
+    labels
+      .flatMap((label) => [...label.childNodes])
+      .filter((node) => node.nodeType === Node.TEXT_NODE)
+      .map((node) => {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        return range.getClientRects().length;
+      }),
+  );
+  expect(linesPerTextNode.length).toBeGreaterThan(0);
+  expect(linesPerTextNode.every((lines) => lines === 1)).toBe(true);
+});
+
+test("a code owner's files sit indented below their folder after another sheet mounts", async ({
+  context,
+  page,
+}) => {
+  await serveSandboxConversation(context);
+  await page.goto("https://github.com/o/r/pull/1");
+  // Every gh-prism sheet carries its own copy of the utilities it uses.
+  await page.addStyleTag({ content: ".tw\\:p-0 { padding: 0; } .tw\\:m-0 { margin: 0; }" });
+  const card = page.locator(".gh-prism-reviewer-files");
+
+  await page.locator('[id="codeowner-excessive-dev/frontend"]').hover();
+  await expect(card).toBeVisible();
+  await card.evaluate((element) =>
+    Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)),
+  );
+
+  const folder = await card.getByText("api/generated/", { exact: true }).boundingBox();
+  const file = await card.getByText("client.ts", { exact: true }).boundingBox();
+  expect((file?.x ?? 0) - (folder?.x ?? 0)).toBeGreaterThan(15);
+  expect((file?.y ?? 0) - ((folder?.y ?? 0) + (folder?.height ?? 0))).toBeGreaterThanOrEqual(4);
+});
+
+test("a code owner's files card stays inside a narrow viewport", async ({ context, page }) => {
+  await serveDeepOwnedConversation(context);
+  await page.setViewportSize({ width: 360, height: 640 });
+  await page.goto("https://github.com/o/r/pull/1");
+  const card = page.locator(".gh-prism-reviewer-files");
+
+  await page.locator('[id="codeowner-excessive-dev/frontend"]').hover();
+  await expect(card).toBeVisible();
+
+  const { left, right, innerWidth } = await card.evaluate((element) => ({
+    ...element.getBoundingClientRect().toJSON(),
+    innerWidth: window.innerWidth,
+  }));
+  expect(left).toBeGreaterThanOrEqual(8);
+  expect(right).toBeLessThanOrEqual(innerWidth - 8);
+});
+
 /** Serves the code-owners sandbox's PR #1 Conversation tab at `o/r#1`, with its code owners. */
 const serveSandboxConversation = async (context: BrowserContext) => {
   await serve(
@@ -2222,12 +2313,12 @@ for (const { how, open, leave } of [
 
 const NODE_PR = "https://github.com/nodejs/node/pull/67056";
 const NODE_CRYPTO_FILES = [
-  "src/crypto/crypto_context.cc",
-  "src/crypto/crypto_context.h",
-  "src/crypto/crypto_hash.cc",
-  "src/crypto/crypto_rsa.cc",
-  "src/crypto/crypto_tls.cc",
-  "src/crypto/crypto_util.cc",
+  "crypto_context.cc",
+  "crypto_context.h",
+  "crypto_hash.cc",
+  "crypto_rsa.cc",
+  "crypto_tls.cc",
+  "crypto_util.cc",
 ];
 
 /**
@@ -2269,7 +2360,8 @@ test("a code owner who reviewed for a team keeps a shield that opens their team'
   await shield.hover();
 
   await expect(popup).toContainText("Through @nodejs/crypto");
-  expect((await popup.locator("li").allTextContents()).sort()).toEqual(NODE_CRYPTO_FILES);
+  await expect(popup.locator("ul > li > div").first()).toHaveText("src/crypto/");
+  expect((await popup.locator("li li").allTextContents()).sort()).toEqual(NODE_CRYPTO_FILES);
   await expect(popup.getByRole("link", { name: "@nodejs/crypto" })).toHaveAttribute(
     "href",
     "https://github.com/orgs/nodejs/teams/crypto",
@@ -2347,7 +2439,8 @@ test("a user's code-owner shield lists their team's files when assigned on its b
   await page.locator('[id="codeowner-jasnell"]').hover();
 
   await expect(popup).toContainText("Through @nodejs/crypto");
-  expect((await popup.locator("li").allTextContents()).sort()).toEqual(NODE_CRYPTO_FILES);
+  await expect(popup.locator("ul > li > div").first()).toHaveText("src/crypto/");
+  expect((await popup.locator("li li").allTextContents()).sort()).toEqual(NODE_CRYPTO_FILES);
   await expect(page.locator("button[data-gh-prism-owner]")).toHaveCount(0);
 });
 
