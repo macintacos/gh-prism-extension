@@ -2030,11 +2030,14 @@ test("a folder shield's popover too tall for either side of it pins without cove
   await popover.evaluate((element) =>
     Promise.all(element.getAnimations().map((animation) => animation.finished)),
   );
-  const box = await popover.boundingBox();
-  if (!box) throw new Error("no popover box");
-  const shieldNow = await shield.boundingBox();
-  if (!shieldNow) throw new Error("no folder shield box");
-  expect(box.y + box.height <= shieldNow.y || box.y >= shieldNow.y + shieldNow.height).toBe(true);
+  const popoverBox = await popover.boundingBox();
+  if (!popoverBox) throw new Error("no popover box");
+  const shieldAfterResize = await shield.boundingBox();
+  if (!shieldAfterResize) throw new Error("no folder shield box");
+  expect(
+    popoverBox.y + popoverBox.height <= shieldAfterResize.y ||
+      popoverBox.y >= shieldAfterResize.y + shieldAfterResize.height,
+  ).toBe(true);
 });
 
 test("a code owner reviewer's shield opens their files, closing as the pointer leaves or on Escape", async ({

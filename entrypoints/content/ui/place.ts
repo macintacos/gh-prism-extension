@@ -19,8 +19,8 @@ export function place(popover: HTMLElement, anchor: DOMRect): void {
   if (room === undefined) return;
 
   // max-height bounds the content box, as no preflight sets box-sizing.
-  const chrome = height - parseFloat(view?.getComputedStyle(popover).height ?? "0");
-  popover.style.maxHeight = `${room - chrome}px`;
+  const paddingAndBorder = height - parseFloat(view?.getComputedStyle(popover).height ?? "0");
+  popover.style.maxHeight = `${room - paddingAndBorder}px`;
 }
 
 /**

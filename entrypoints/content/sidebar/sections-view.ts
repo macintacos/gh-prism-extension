@@ -677,9 +677,9 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     const card = path.endsWith("/")
       ? openFolderOwners(shield, {
           folder: path,
-          files: (shown.get(listing)?.tree.pathsUnder(path) ?? []).map((file) => ({
-            path: file,
-            owners: ownersByPath.get(file)?.owners ?? [],
+          files: (shown.get(listing)?.tree.pathsUnder(path) ?? []).map((filePath) => ({
+            path: filePath,
+            owners: ownersByPath.get(filePath)?.owners ?? [],
           })),
           ...popoverOptions,
         })

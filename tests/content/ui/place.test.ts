@@ -4,13 +4,13 @@ import { place } from "../../../entrypoints/content/ui/place";
 
 const MARGIN = 8;
 
-/** A popover whose padding and border add `chrome` to its content's height. */
-const popoverOf = (width: number, height: number, chrome = 0) => {
+/** A popover whose padding and border add `paddingAndBorder` to its content's height. */
+const popoverOf = (width: number, height: number, paddingAndBorder = 0) => {
   const popover = document.createElement("div");
   Object.defineProperty(popover, "offsetWidth", { value: width });
   Object.defineProperty(popover, "offsetHeight", { value: height });
   // happy-dom has no layout; its computed height is the inline one.
-  popover.style.height = `${height - chrome}px`;
+  popover.style.height = `${height - paddingAndBorder}px`;
   document.body.append(popover);
   return popover;
 };

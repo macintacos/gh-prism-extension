@@ -272,10 +272,10 @@ export class SectionTree {
    * paths change, before a render.
    */
   #writeOwners(): void {
-    const owned = this.#files.filter(({ path }) => this.#ownedPaths.has(path));
-    this.#ownedFolders = directoriesOf(owned);
+    const ownedFiles = this.#files.filter(({ path }) => this.#ownedPaths.has(path));
+    this.#ownedFolders = directoriesOf(ownedFiles);
     this.#owners.textContent = [
-      ...owned.map(({ path }) => ownerRule(path)),
+      ...ownedFiles.map(({ path }) => ownerRule(path)),
       ...[...this.#ownedFolders].map(folderOwnerRule),
     ].join("");
   }
