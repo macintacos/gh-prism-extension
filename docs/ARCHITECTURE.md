@@ -281,8 +281,10 @@ after its row leaves the tree, and `diffs/order.ts` hides their diffs: by a rule
 region and virtualized row (`#diff-…` and `data-path-digest`) that a pull request's
 `hiddenDiffSelectors` in `files-page.ts` scopes to the diff list, and by a
 `data-gh-prism-hidden` attribute on a progressive list's entries, to close their gaps.
-With the parameter set, the page stays pending until both reads land, and a failed code
-owners read keeps every file.
+With the parameter set, the page stays pending until the reads the filter needs land: the
+code owners for a team, and the PR reviewers too for a user. It waits 10 s at most, then
+treats a read still out as failed, so a failed code owners read keeps every file and a
+failed PR reviewers read keeps the user's own.
 
 The sidebar's shields are another reader. `showVisit` in
 [`visit/land.ts`](../entrypoints/content/visit/land.ts) hands the owners to the sidebar

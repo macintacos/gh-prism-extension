@@ -355,12 +355,15 @@ describe("a visit narrowed to an owner", () => {
   const narrowed = async (
     codeOwners?: Promise<PrCodeOwners | undefined>,
     prReviewers?: Promise<readonly PrReviewer[] | undefined>,
+    owner = "@octocat",
   ) => {
-    remountWith(() => result, undefined, { owner: "@octocat", codeOwners, prReviewers });
+    remountWith(() => result, undefined, { owner, codeOwners, prReviewers });
     await afterDebounce();
     return allListed();
   };
   const reviewingForCore: PrReviewer = { token: "@octocat", teams: ["@o/core"], codeOwner: false };
+  // Stands in for review_requests, or a team's members, never answering.
+  const neverRead = new Promise<never>(() => {});
 
   it("lists only the owner's files once the code owners land", async () => {
     const listed = await narrowed(
@@ -383,6 +386,33 @@ describe("a visit narrowed to an owner", () => {
       Promise.resolve(undefined),
     );
     expect(listed).toEqual(["src/engine.rs"]);
+  });
+
+  it("lists a team's files without waiting on the PR reviewers", async () => {
+    const listed = await narrowed(
+      Promise.resolve(ownedBy({ "src/lib.rs": "@o/core", "src/engine.rs": "@octocat" })),
+      neverRead,
+      "@o/core",
+    );
+    expect(listed).toEqual(["src/lib.rs"]);
+  });
+
+  it("lists only a user's own files once the PR reviewers have kept it waiting 10 s", async () => {
+    const before = await narrowed(
+      Promise.resolve(ownedBy({ "src/lib.rs": "@o/core", "src/engine.rs": "@octocat" })),
+      neverRead,
+    );
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(before).toEqual([]);
+    expect(allListed()).toEqual(["src/engine.rs"]);
+  });
+
+  it("lists every file once the code owners have kept it waiting 10 s", async () => {
+    await narrowed(neverRead, Promise.resolve([]));
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(allListed()).toHaveLength(readChangedFiles(document.body).length);
   });
 
   it("lists every file when the code owners can't be read", async () => {
