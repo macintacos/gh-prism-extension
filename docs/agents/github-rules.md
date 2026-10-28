@@ -389,6 +389,21 @@ Below 1012px, a pull request's tree toggle opens the file tree as a "Files" over
   `storageState`, install `pushState`/`replaceState` wrappers and a `soft-nav:end`
   listener, then pick "Only files owned by you" and toggle an extension. Count the tree
   rows and diff entries, and read the header counter.
+- **Expect the filter-options menu to mount in `#__primerPortalRoot__` on each open and
+  unmount on close.** Its `ul[role="menu"]` is labelled by the filter row's button, and
+  its ids regenerate on every open, so match on `data-component` and roles, never ids.
+- **Expect GitHub's owned-by group, and the divider before it, only when you own a changed
+  file.** It is absent when you own none, and in a repository without CODEOWNERS.
+- **Expect items appended to the menu to join Primer's arrow-key cycle.** Enter, Space,
+  and click on one reach only its own listeners: Primer neither picks nor closes. An
+  `Escape` keydown dispatched on it closes the menu and returns focus to the trigger.
+- **Disable a hidden menu item, don't only hide it.** A `display:none` item traps the
+  arrow keys; Primer's focus zone skips an item only once it carries `disabled`.
+  `.click()` on a hidden, disabled item still picks it as GitHub does.
+- **Re-check:** on the code-owners sandbox's PR #1, signed in, open the filter menu and
+  read its markup under `#__primerPortalRoot__`; with gh-prism loaded, arrow through every
+  item both ways and pick "Me" and a reviewer with Enter. Repeat on a pull request where
+  the account owns no file.
 
 ## Re-checking GitHub
 

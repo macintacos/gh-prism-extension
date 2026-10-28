@@ -6,6 +6,18 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-28: Only files owned by… in GitHub's filter menu
+
+- **Compared:** building the section from gh-prism's own classes against copying GitHub's
+  menu markup and checkmark; moving GitHub's "Only files owned by you" into the section
+  against standing in for it; and entries with file counts against entries without.
+- **Won:** copies of GitHub's own group and item, keeping its checkmark; a "Me" copy that
+  forwards its pick to GitHub's hidden item; and entries without counts.
+- **Why:** Primer's hashed classes exist only in GitHub's page, so a copy looks native in
+  light and dark where a rebuild would drift. Moving a node React owns breaks its next
+  render, and forwarding the click sets exactly what GitHub's item sets. GitHub draws its
+  counts differently per group, and the sidebar's sections already count files.
+
 ## 2026-10-28: A file's code owners
 
 - **Compared:** a CSS-only swap opened by a new row key; a shield inside the row's icon

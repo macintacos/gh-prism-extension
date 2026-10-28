@@ -144,6 +144,37 @@ selected and the extension version prefilled. It prefills the diff's URL only wh
 the page's `<head>` that the route's own repo is public; otherwise it leaves the URL out,
 so a private diff's address never reaches a public issue.
 
+## The owner section
+
+`showOwnerSection` in
+[`entrypoints/content/sidebar/owner-section.ts`](../entrypoints/content/sidebar/owner-section.ts)
+adds an "Only files owned by…" group to GitHub's file-tree filter menu on each page of a
+pull request, from the visit's code owners (see § Code owners and reviewers). GitHub
+renders that menu in a portal only while it is open, so `followFilterMenu` in
+[`files-page.ts`](../entrypoints/content/files-page.ts) watches `body` with an undebounced
+`MutationObserver`, like `followOverlay`, and reports each open with a signal that aborts
+when it closes. The section is added again on every open, before the menu first paints.
+`findFilterMenu` recognizes the menu only by its labelling button inside the filter row
+and the groups, divider, and items the section copies; anything else, and gh-prism leaves
+the menu alone.
+
+The entries are copies of GitHub's own group and first item (`copyMenuGroup`,
+`copyMenuItem`), so Primer's hover, focus, and checkmark stay native. "Me" stands in for
+GitHub's "Only files owned by you" rather than moving it, since React owns that node: a
+pick on "Me" forwards a `.click()` to GitHub's item, which the sheet hides as the
+section's next sibling. The hidden item also gets the `disabled` attribute, because a
+hidden item traps Primer's arrow keys and its focus zone skips only disabled ones. "Me"
+shows only when GitHub's item does. The reviewers are `owningReviewers` in
+[`utils/github/code-owners.ts`](../utils/github/code-owners.ts): those who own a changed
+file, leaving out your own login.
+
+A reviewer pick loads the page, through `withOwner` in
+[`utils/github/files-route.ts`](../utils/github/files-route.ts), because the owner filter
+is read once per page and `land` never un-hides a file. "Me" picked while a gh-prism owner
+is on loads `withViewerOwner`'s URL for the same reason. Each entry closes the menu by
+dispatching `Escape` on itself, since Primer neither picks nor closes for an item it
+didn't render.
+
 ## Intent and its cache
 
 gh-prism lists each changed file in one of five sections, such as Implementation or Tests.
@@ -339,7 +370,7 @@ entrypoints/
     files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
-    sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link
+    sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
     header/              diffstat breakout
     ui/                  shared DOM helpers, loading view, Markdown subset, name reveal, Tailwind tokens
