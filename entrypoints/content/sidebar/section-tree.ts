@@ -97,6 +97,7 @@ export class SectionTree {
   #viewedPaths: ReadonlySet<string> | undefined;
   #marking: ReadonlySet<string> = new Set();
   #ownedPaths: ReadonlySet<string> = new Set();
+  #ownedFolders: ReadonlySet<string> = new Set();
   readonly #altKey: string;
 
   /** Renders `files` into `host`, with `selected` selected if listed. */
@@ -244,8 +245,9 @@ export class SectionTree {
   }
 
   /**
-   * Gives the file rows of `paths` a code owners shield, shown in place of the row's icon while
-   * its row is hovered or focused, through a style rule, which re-renders keep.
+   * Gives the file rows of `paths` a code owners shield over their icon, and every folder row
+   * above one a shield at its end, each shown while its row is hovered or focused, through a
+   * style rule, which re-renders keep.
    */
   showOwners(paths: ReadonlySet<string>): void {
     this.#ownedPaths = paths;
@@ -256,10 +258,12 @@ export class SectionTree {
   // ponytail: the rules scale with the owned files per listing; write them only for the pointed
   // and focused paths, as #showPointed does, if a huge PR with a catch-all CODEOWNERS line lags.
   #writeOwners(): void {
-    this.#owners.textContent = [...this.#byPath.keys()]
-      .filter((path) => this.#ownedPaths.has(path))
-      .map(ownerRule)
-      .join("");
+    const owned = this.#files.filter(({ path }) => this.#ownedPaths.has(path));
+    this.#ownedFolders = directoriesOf(owned);
+    this.#owners.textContent = [
+      ...owned.map(({ path }) => ownerRule(path)),
+      ...[...this.#ownedFolders].map(folderOwnerRule),
+    ].join("");
   }
 
   /** Shows the checkboxes of `paths` as pending. */
@@ -371,6 +375,8 @@ export class SectionTree {
   }
 
   #decorationOf(path: string): RowDecoration | null {
+    if (path.endsWith("/"))
+      return this.#ownedFolders.has(path) ? { text: "", shield: SHIELD } : null;
     const file = this.#byPath.get(path);
     const decoration = file?.decoration ?? null;
     const shielded = this.#ownedPaths.has(path);
@@ -510,6 +516,17 @@ function ownerRule(path: string): string {
       ],
       "opacity:0",
     )
+  );
+}
+
+/** Shows folder `path`'s shield at its row's end while the row is hovered or focused, keeping room for it. */
+function folderOwnerRule(path: string): string {
+  const row = rowOf(path);
+  return (
+    ruleOf(
+      [`${row}:is(:hover,:focus-visible)~${shieldOf(path)}`],
+      "opacity:1;pointer-events:auto",
+    ) + ruleOf([row], "padding-inline-end:30px")
   );
 }
 

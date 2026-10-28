@@ -101,7 +101,7 @@ describe("showSections", () => {
     it("gives an owned file's row one shield and an unowned file's none", async () => {
       await landedOwned(ownersOf(["src/engine.rs"], ["src/parser.rs"]));
 
-      expect(shieldedIn("implementation")).toEqual(["src/engine.rs"]);
+      expect(shieldedIn("implementation")).toEqual(["src/", "src/engine.rs"]);
     });
 
     it("appears when ownership resolves after the sections land", async () => {
@@ -112,7 +112,7 @@ describe("showSections", () => {
       resolve(ownersOf(["src/engine.rs"]));
       await afterDebounce();
 
-      expect(shieldedIn("implementation")).toEqual(["src/engine.rs"]);
+      expect(shieldedIn("implementation")).toEqual(["src/", "src/engine.rs"]);
     });
 
     it("appears when ownership resolves before the sections land", async () => {
@@ -126,7 +126,7 @@ describe("showSections", () => {
       land();
       await afterDebounce();
 
-      expect(shieldedIn("implementation")).toEqual(["src/engine.rs"]);
+      expect(shieldedIn("implementation")).toEqual(["src/", "src/engine.rs"]);
     });
 
     it("draws nothing for a commit or a failed read", async () => {
@@ -157,15 +157,15 @@ describe("showSections", () => {
     it("shields a split file's row in every section", async () => {
       await landedOwned(ownersOf(["src/render.rs"]), renderSplit([{ first: 2, last: 8 }]));
 
-      expect(shieldedIn("implementation")).toEqual(["src/render.rs"]);
-      expect(shieldedIn("docs")).toEqual(["src/render.rs"]);
+      expect(shieldedIn("implementation")).toEqual(["src/", "src/render.rs"]);
+      expect(shieldedIn("docs")).toEqual(["src/", "src/render.rs"]);
     });
 
     it("shields a file's comment-lines entry too", async () => {
       await landedOwned(ownersOf(["src/engine.rs"]), withCommentLines());
 
-      expect(shieldedIn("implementation")).toEqual(["src/engine.rs"]);
-      expect(shieldedIn(COMMENT_LINES)).toEqual(["src/engine.rs"]);
+      expect(shieldedIn("implementation")).toEqual(["src/", "src/engine.rs"]);
+      expect(shieldedIn(COMMENT_LINES)).toEqual(["src/", "src/engine.rs"]);
     });
 
     it("appears in a section built after ownership landed", async () => {
@@ -177,7 +177,7 @@ describe("showSections", () => {
       addNativeFile("docs/intro.md", "config/app.toml");
       await afterDebounce();
 
-      expect(shieldedIn("docs")).toEqual(["docs/intro.md"]);
+      expect(shieldedIn("docs")).toEqual(["docs/", "docs/intro.md"]);
     });
 
     it("lands without moving a file, a count, a folder, or the sidebar's scroll", async () => {
@@ -194,6 +194,7 @@ describe("showSections", () => {
         counter: document.querySelector(".gh-prism-diffstat")?.textContent,
         scrollTop: sidebar.scrollTop,
         folder: rowIn("implementation", "src/generated/").getAttribute("aria-expanded"),
+        folderName: rowIn("implementation", "src/generated/").getAttribute("aria-label"),
       });
       const before = snapshot();
       const resetPaths = vi.spyOn(FileTree.prototype, "resetPaths");
@@ -201,7 +202,7 @@ describe("showSections", () => {
       resolve(ownersOf(["src/engine.rs", "src/generated/schema.rs", "README.md"]));
       await afterDebounce();
 
-      expect(shieldedIn("implementation")).toEqual(["src/engine.rs"]);
+      expect(shieldedIn("implementation")).toEqual(["src/", "src/generated/", "src/engine.rs"]);
       expect(snapshot()).toEqual(before);
       expect(before.folder).toBe("false");
       expect(resetPaths).not.toHaveBeenCalled();
@@ -212,7 +213,7 @@ describe("showSections", () => {
       await landedOwned(ownersOf(["src/engine.rs"]));
 
       expect(hostOf("implementation").shadowRoot?.querySelector("[data-item-checkbox]")).toBeNull();
-      expect(shieldedIn("implementation")).toEqual(["src/engine.rs"]);
+      expect(shieldedIn("implementation")).toEqual(["src/", "src/engine.rs"]);
     });
 
     it("puts only the focused row's shield in the tab order", async () => {
@@ -243,7 +244,7 @@ describe("showSections", () => {
     it("writes a listing's reveal rules for its own owned files only", async () => {
       await landedOwned(ownersOf(["src/engine.rs", "README.md"]));
 
-      expect(revealedIn("implementation")).toEqual(["src/engine.rs"]);
+      expect(revealedIn("implementation")).toEqual(["src/engine.rs", "src/"]);
     });
 
     it("writes the reveal rule of an owned file added to a listing", async () => {
@@ -252,7 +253,7 @@ describe("showSections", () => {
       addNativeFile("src/added.rs", "src/engine.rs");
       await afterDebounce();
 
-      expect(revealedIn("implementation")).toEqual(["src/added.rs"]);
+      expect(revealedIn("implementation")).toEqual(["src/added.rs", "src/"]);
     });
 
     it("shields only the rows an owner filter keeps", async () => {
@@ -264,8 +265,8 @@ describe("showSections", () => {
       });
       await afterDebounce();
 
-      expect(revealedIn("implementation")).toEqual(["src/lib.rs"]);
-      expect(shieldedIn("implementation")).toEqual(["src/lib.rs"]);
+      expect(revealedIn("implementation")).toEqual(["src/lib.rs", "src/"]);
+      expect(shieldedIn("implementation")).toEqual(["src/", "src/lib.rs"]);
     });
 
     it("shows only the next pull request's owners after moving to it", async () => {
@@ -273,7 +274,69 @@ describe("showSections", () => {
 
       await landedOwned(ownersOf(["src/parser.rs"]));
 
-      expect(shieldedIn("implementation")).toEqual(["src/parser.rs"]);
+      expect(shieldedIn("implementation")).toEqual(["src/", "src/parser.rs"]);
+    });
+
+    describe("a folder's shield", () => {
+      it("is one button on the row of a folder holding an owned file", async () => {
+        await landedOwned(ownersOf(["src/engine.rs"]));
+
+        const shields = shieldsIn("implementation").filter(
+          (shield) => shield.dataset.itemShield === "src/",
+        );
+        expect(shields).toHaveLength(1);
+        expect(shields[0]?.tagName).toBe("BUTTON");
+      });
+
+      it("shows on every folder row above an owned file", async () => {
+        await landedOwned(ownersOf(["src/generated/schema.rs"]));
+
+        expect(shieldedIn("implementation")).toEqual([
+          "src/",
+          "src/generated/",
+          "src/generated/schema.rs",
+        ]);
+      });
+
+      it("is missing from a folder whose files have no owners", async () => {
+        await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"], "config/app.toml": [] }));
+
+        expect(shieldedIn("config")).toEqual([]);
+      });
+
+      it("covers a flattened chain's deepest folder", async () => {
+        addNativeFile("a/b/c/file.rs", "src/engine.rs");
+        await landedOwned(ownersOf(["a/b/c/file.rs"]));
+
+        expect(shieldedIn("implementation")).toContain("a/b/c/");
+        expect(shieldedIn("implementation")).not.toContain("a/");
+      });
+
+      it("keeps room on its row for the shield", async () => {
+        await landedOwned(ownersOf(["src/engine.rs"]));
+
+        const rules = [...(hostOf("implementation").shadowRoot?.querySelectorAll("style") ?? [])]
+          .map((style) => style.textContent ?? "")
+          .join("");
+        expect(revealedIn("implementation")).toContain("src/");
+        expect(rules).toContain(
+          String.raw`[data-type="item"][data-item-path="src\/"]{padding-inline-end:30px}`,
+        );
+      });
+
+      it("is in the tab order only on the focused folder row", async () => {
+        await landedOwned(ownersOf(["src/generated/schema.rs"]));
+        const rows = rowsIn("implementation");
+
+        rows[0]?.focus();
+        await afterDebounce();
+
+        expect(
+          shieldsIn("implementation")
+            .filter((shield) => shield.tabIndex === 0)
+            .map((shield) => shield.dataset.itemShield),
+        ).toEqual(["src/"]);
+      });
     });
   });
 

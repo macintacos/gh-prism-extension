@@ -450,7 +450,7 @@ svg:not([data-icon-token]):has(> use[href="#gh-prism-java"]) {
 }
 
 /* The code owners shield the @pierre/trees patch renders after an owned row, at that row's slot;
-   the inline style sets its top and --gh-prism-depth. It sits over the row's icon, hidden until
+   the inline style sets its top and --gh-prism-depth. A file's sits over the row's icon, hidden until
    SectionTree's per-path rule shows it for its hovered or focused row. Opacity, not visibility,
    so the focused row's shield stays reachable by Tab. */
 [data-item-shield] {
@@ -471,6 +471,13 @@ svg:not([data-icon-token]):has(> use[href="#gh-prism-java"]) {
   opacity: 0;
   pointer-events: none;
   transition: opacity 150ms ease-out;
+}
+
+/* A folder's shield sits at its row's end, centred on the file rows' Viewed box column, since the
+   folder's icon gives way to its chevron. SectionTree's folder rule keeps room for it. */
+[data-item-shield$="/"] {
+  inset-inline-start: auto;
+  inset-inline-end: 3px;
 }
 
 [data-item-type="file"] > [data-item-section="icon"] > svg {
@@ -499,7 +506,7 @@ svg:not([data-icon-token]):has(> use[href="#gh-prism-java"]) {
 }
 
 /* Inset, like the row's own ring (@pierre/trees' --trees-focus-ring-offset is -1px), since the
-   shield covers the row's icon rather than sitting beside it as the box does. */
+   shield sits inside its row rather than beside it as the box does. */
 [data-item-shield]:focus-visible {
   outline: 2px solid var(--focus-outlineColor);
   outline-offset: -2px;

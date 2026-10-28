@@ -666,6 +666,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     const path = shield.dataset.itemShield;
     const listing = listingOfShield(shield);
     if (path === undefined || listing === undefined) return undefined;
+    if (path.endsWith("/")) return undefined;
     closeOwners();
     const card = openOwners(shield, {
       name: path.slice(path.lastIndexOf("/") + 1),
