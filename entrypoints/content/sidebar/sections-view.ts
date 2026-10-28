@@ -650,8 +650,10 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
   };
 
   // The shield a press began on while its popover was open. The press light-dismisses the
-  // popover before its click arrives, so the click must close, not reopen.
+  // popover before its click arrives, so that click must not reopen it. A keyboard click
+  // (`detail` 0) has no press, so it always opens.
   let closingShield: HTMLElement | undefined;
+  let closeOwners = () => {};
   view.addEventListener(
     "pointerdown",
     (event) => {
@@ -673,10 +675,10 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
 
       const shieldClick = clickedShield(event);
       if (shieldClick) {
-        const closing = closingShield;
+        const closing = event.detail > 0 ? closingShield : undefined;
         closingShield = undefined;
         if (shieldClick.shield !== closing) {
-          openOwners(shieldClick.shield, {
+          closeOwners = openOwners(shieldClick.shield, {
             name: shieldClick.path.slice(shieldClick.path.lastIndexOf("/") + 1),
             owners: ownersByPath.get(shieldClick.path)?.owners ?? [],
             root: view,
@@ -778,6 +780,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     sections: render,
     shownIn(native) {
       source = native;
+      closeOwners();
       view.removeAttribute("data-reveal");
       native.tree.before(view);
       // A fresh scroll container doesn't carry the old one's position.

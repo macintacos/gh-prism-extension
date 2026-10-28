@@ -8,6 +8,7 @@ import {
   owned,
   patchShadowActiveElement,
   rowIn,
+  shieldOf,
   viewed,
 } from "../../fixtures/sections-view";
 import { addNativeFile, afterDebounce, mountsVisit } from "../../fixtures/visit";
@@ -62,14 +63,6 @@ const boxOf = (listing: string, path: string) => {
   );
   if (!box) throw new Error(`${listing} has no checkbox for ${path}`);
   return box;
-};
-
-const shieldOf = (listing: string, path: string) => {
-  const shield = hostOf(listing).shadowRoot?.querySelector<HTMLElement>(
-    `[data-item-shield="${path}"]`,
-  );
-  if (!shield) throw new Error(`${listing} has no shield for ${path}`);
-  return shield;
 };
 
 describe("showSections", () => {

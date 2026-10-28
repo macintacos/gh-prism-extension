@@ -214,8 +214,8 @@ export function showVisit(
   },
 ): void {
   const sidebar = showSections(page, signal);
-  void codeOwners?.then((owners) => {
-    if (owners && !signal.aborted) sidebar.owners(owners.byPath);
+  void codeOwners?.then((read) => {
+    if (read && !signal.aborted) sidebar.owners(read.byPath);
   });
   if (whatsNew) sidebar.root.prepend(whatsNewBlock(page.sidebar.ownerDocument, whatsNew));
   const views = [

@@ -86,6 +86,14 @@ export function rowIn(listing: string, path: string): HTMLElement {
   return found;
 }
 
+export function shieldOf(listing: string, path: string): HTMLElement {
+  const shield = hostOf(listing).shadowRoot?.querySelector<HTMLElement>(
+    `[data-item-shield="${path}"]`,
+  );
+  if (!shield) throw new Error(`${listing} has no shield for ${path}`);
+  return shield;
+}
+
 export const partsOf = (listing: string, path: string) => [
   ...rowIn(listing, path).querySelectorAll<HTMLElement>(
     '[data-item-section="decoration"] > span > span',

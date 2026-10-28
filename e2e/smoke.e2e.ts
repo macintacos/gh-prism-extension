@@ -1550,7 +1550,7 @@ const FIXTURE_OWNERS: Record<string, string[]> = {
 
 /**
  * Answers the code owners read for tests/fixtures/files-page.html; registered after the catch-all
- * 404.
+ * 404. `ownership` maps each path to its CODEOWNERS tokens; it defaults to `FIXTURE_OWNERS`.
  */
 const routeCodeOwners = async (context: BrowserContext, ownership = FIXTURE_OWNERS) => {
   const ownershipByPath = Object.fromEntries(
@@ -1602,7 +1602,15 @@ test("an owner filter shows the diffs of that owner's files", async ({ context, 
   await expect(page.locator(`#${ENGINE_DIFF}`).locator("..")).not.toHaveCSS("display", "none");
 });
 
-const OWNED_PATHS = ["README.md", "src/engine.rs", "src/generated/schema.rs"];
+// A sibling at each level keeps the tree from flattening the folders, so the file sits at depth 5.
+const DEEP_FILE = "src/generated/x/y/z/deep.rs";
+const DEEP_ROWS = ["src/generated/x/x.rs", "src/generated/x/y/y.rs", DEEP_FILE]
+  .map((path, n) => {
+    const name = path.slice(path.lastIndexOf("/") + 1);
+    return `<li role="treeitem" id="${path}" aria-level="1" aria-label="${name}" aria-selected="false"><a href="#diff-dee${n}">${name}</a></li>`;
+  })
+  .join("");
+const OWNED_PATHS = ["README.md", "src/engine.rs", "src/generated/schema.rs", DEEP_FILE];
 
 /** Each of `OWNED_PATHS` owned by `owners`. */
 const ownedBy = (owners = ["@o/team", "@octocat"]) =>
@@ -1616,7 +1624,7 @@ const shieldOf = (page: Page, path: string) => page.locator(`[data-item-shield="
 /** Opens the PR with `OWNED_PATHS` owned by `owners`, once its shields have settled in. */
 const openOwned = async (context: BrowserContext, page: Page, owners?: string[]) => {
   await routeCodeOwners(context, ownedBy(owners));
-  await serve(context, PR_URL, PR_BODY);
+  await serve(context, PR_URL, PR_BODY.replace(TREE_OPEN, `${TREE_OPEN}${DEEP_ROWS}`));
   await page.goto(PR_URL);
   await expect(shieldOf(page, "README.md")).toHaveCount(1);
   await revealSettled(page);
@@ -1628,14 +1636,10 @@ test("an owned file's row shows a shield in place of its icon while hovered or f
   context,
   page,
 }) => {
-  await routeCodeOwners(context, ownedBy());
-  await serve(context, PR_URL, PR_BODY);
   await serve(context, COMMIT_URL, COMMIT_BODY);
-  await page.goto(PR_URL);
+  await openOwned(context, page);
   const readme = treeRow(page, "README.md");
   const readmeShield = shieldOf(page, "README.md");
-  await expect(readmeShield).toHaveCount(1);
-  await revealSettled(page);
 
   await readme.hover();
   await expect.poll(() => opacityOf(readmeShield)).toBe("1");
@@ -1656,7 +1660,7 @@ test("an owned file's row shows a shield in place of its icon while hovered or f
     const shield = await shieldOf(page, path).boundingBox();
     if (!icon || !shield) throw new Error(`${path} has no icon or shield box`);
     expect(Math.abs(shield.x + shield.width / 2 - (icon.x + icon.width / 2))).toBeLessThanOrEqual(
-      1,
+      0.5,
     );
     expect(Math.abs(shield.y + shield.height / 2 - (icon.y + icon.height / 2))).toBeLessThanOrEqual(
       1,
@@ -1685,9 +1689,8 @@ test("a shield lists its file's code owners in a popover until Escape returns to
   const readme = treeRow(page, "README.md");
   const readmeShield = shieldOf(page, "README.md");
   const popover = page.locator(".gh-prism-owners");
-  const before = await page.evaluate(() => ({ scrollY: window.scrollY, hash: location.hash }));
-
   await readme.hover();
+  const before = await page.evaluate(() => ({ scrollY: window.scrollY, hash: location.hash }));
   await readmeShield.click();
 
   await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
@@ -1707,9 +1710,9 @@ test("a shield lists its file's code owners in a popover until Escape returns to
   expect(
     await popover.evaluate((element) => {
       const style = getComputedStyle(element);
-      return [style.position, style.padding, style.borderTopStyle, style.maxHeight !== "none"];
+      return [style.position, style.padding, style.maxHeight !== "none"];
     }),
-  ).toEqual(["fixed", "12px", "solid", true]);
+  ).toEqual(["fixed", "12px", true]);
   const links = popover.locator("a");
   await expect(links).toHaveCount(2);
   expect(await links.evaluateAll((all) => all.map((link) => link.getAttribute("href")))).toEqual([
@@ -1747,8 +1750,63 @@ test("a shield lists its file's code owners in a popover until Escape returns to
   await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
   expect(await popover.evaluate((element) => element.contains(document.activeElement))).toBe(true);
 
+  await popover.locator("a").last().focus();
+  await page.keyboard.press("Tab");
+  const pastPopover = await focusedControl(page);
   await page.mouse.click(1, 1);
   await expect(popover).toHaveCount(0);
+  await readme.focus();
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Tab");
+  await expect(readmeShield).toBeFocused();
+  await page.keyboard.press("Tab");
+  // Tab past the popover's last link goes on as Tab from its shield does.
+  expect(pastPopover).toBe(await focusedControl(page));
+});
+
+/** The focused element, through shadow roots, as the start of its markup. */
+const focusedControl = (page: Page) =>
+  page.evaluate(() => {
+    let focused = document.activeElement;
+    while (focused?.shadowRoot?.activeElement) focused = focused.shadowRoot.activeElement;
+    return focused?.outerHTML.slice(0, 120);
+  });
+
+test("a shield's popover in the overlay closes as the overlay does, leaving its shield usable", async ({
+  context,
+  page,
+}) => {
+  await page.setViewportSize(NARROW);
+  await openOwned(context, page);
+  await openOverlay(page);
+  const readmeShield = overlay(page).locator('[data-item-shield="README.md"]');
+  await treeRow(page, "README.md").hover();
+  await readmeShield.click();
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
+
+  await closeOverlay(page);
+
+  await expect(page.locator(".gh-prism-owners")).toHaveCount(0);
+  await expect(shieldOf(page, "README.md")).not.toHaveAttribute("aria-expanded");
+  await treeRow(page, "README.md").hover();
+  await shieldOf(page, "README.md").click();
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
+});
+
+test("a hovered shield keeps its glyph in forced colours", async ({ context, page }) => {
+  await page.emulateMedia({ forcedColors: "active" });
+  await openOwned(context, page);
+  const glyph = () =>
+    shieldOf(page, "README.md").evaluate(
+      (shield) => getComputedStyle(shield, "::before").backgroundColor,
+    );
+  const atRest = await glyph();
+
+  await treeRow(page, "README.md").hover();
+  await shieldOf(page, "README.md").hover();
+
+  await expect.poll(glyph).toBe(atRest);
 });
 
 test("a shield's click closes its open popover, and another shield's swaps it", async ({

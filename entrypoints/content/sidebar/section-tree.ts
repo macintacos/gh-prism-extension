@@ -298,7 +298,7 @@ export class SectionTree {
         this.#focusFolder = folderAt(event.target);
         this.#showPointed();
       }
-      // A checkbox taking focus must not scroll the sidebar to the tree's last focused row.
+      // A box or shield taking focus must not scroll the sidebar to the tree's last focused row.
       if (!(event.target instanceof Element && event.target.matches('[data-type="item"]'))) return;
       const path = this.#tree.getFocusedPath();
       if (path === this.#focused) return;

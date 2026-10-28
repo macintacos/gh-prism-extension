@@ -235,8 +235,10 @@ owned file's rows in every section, and the `@pierre/trees` patch draws a shield
 each, shown in place of the file icon while its row is hovered or focused. Clicking a
 shield opens a popover listing the file's owners, built by
 [`sidebar/owners-popover.ts`](../entrypoints/content/sidebar/owners-popover.ts) and
-removed, with its listeners, once it closes. A click on an open popover's own shield only
-closes it. Showing a file's owners never changes its section or the diffstat.
+removed, with its listeners, once it closes. The sections view also closes it before
+moving into or out of the narrow layout's overlay, since a popover that leaves the
+document closes without a toggle event. A pointer click on an open popover's own shield
+only closes it. Showing a file's owners never changes its section or the diffstat.
 
 ## Section rows
 

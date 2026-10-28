@@ -454,11 +454,13 @@ svg:not([data-icon-token]):has(> use[href="#gh-prism-java"]) {
    SectionTree's per-path rule shows it for its hovered or focused row. Opacity, not visibility,
    so the focused row's shield stays reachable by Tab. */
 [data-item-shield] {
-  /* Centred over the icon: the row's margin and padding, one level per depth. */
+  /* Centred over the icon. One indent level is what @pierre/trees' spacing-item adds:
+     its 1px border and margin-right (level-gap − 1px), plus a sibling's margin-left. */
   inset-inline-start: calc(
     var(--trees-item-margin-x) + var(--trees-item-padding-x) +
       (var(--trees-icon-width) - 24px) / 2 +
-      var(--gh-prism-depth, 0) * (var(--trees-icon-width) + var(--trees-item-row-gap))
+      var(--gh-prism-depth, 0) *
+        (var(--trees-level-gap) + var(--trees-item-row-gap) + var(--trees-icon-width) / 2 - 0.5px)
   );
   width: 24px;
   height: 24px;
@@ -496,6 +498,8 @@ svg:not([data-icon-token]):has(> use[href="#gh-prism-java"]) {
   background: var(--fgColor-default);
 }
 
+/* Inset, like the row's own ring (@pierre/trees' --trees-focus-ring-offset is -1px), since the
+   shield covers the row's icon rather than sitting beside it as the box does. */
 [data-item-shield]:focus-visible {
   outline: 2px solid var(--focus-outlineColor);
   outline-offset: -2px;
@@ -503,7 +507,8 @@ svg:not([data-icon-token]):has(> use[href="#gh-prism-java"]) {
 
 /* Forced colors drop the mask's fill colour; the glyph takes the system's button text. */
 @media (forced-colors: active) {
-  [data-item-shield]::before {
+  [data-item-shield]::before,
+  [data-item-shield]:hover::before {
     background: ButtonText;
   }
 }

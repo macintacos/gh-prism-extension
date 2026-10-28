@@ -1,5 +1,5 @@
 diff --git a/dist/render/FileTreeView.js b/dist/render/FileTreeView.js
-index 7d3b818c43a7621ab9170da32b180232ed3c9472..9d21e841f7b403695572fcb9d93c16abb9698e19 100644
+index 7d3b818c43a7621ab9170da32b180232ed3c9472..45594ea233b56e0550b36af3d01b7975f106cbcd 100644
 --- a/dist/render/FileTreeView.js
 +++ b/dist/render/FileTreeView.js
 @@ -25,11 +25,27 @@ function formatFlattenedSegments(row, renameInput = null, dragTargetFlattenedSeg
@@ -77,6 +77,8 @@ index 7d3b818c43a7621ab9170da32b180232ed3c9472..9d21e841f7b403695572fcb9d93c16ab
 +		return checkbox ? [renderRowCheckbox(frame, row, checkbox, slotIndex)] : [];
 +	})];
 +}
++// ponytail: parked (scrolled-out focused) rows get no box or shield, so focus on either whose
++// row virtualizes out drops to the body; render them for the parked row if that matters.
 +// No data-item-path: the tree's focusin reads it to track its focused row.
 +function renderRowShield(frame, row, shield, slotIndex) {
 +	return jsx("button", {
@@ -88,8 +90,6 @@ index 7d3b818c43a7621ab9170da32b180232ed3c9472..9d21e841f7b403695572fcb9d93c16ab
 +		style: { top: `${slotIndex * frame.itemHeight}px`, "--gh-prism-depth": row.depth }
 +	}, `shield:${getFileTreeRowPath(row)}`);
 +}
-+// ponytail: parked (scrolled-out focused) rows get no box or shield, so focus on either whose
-+// row virtualizes out drops to the body; render them for the parked row if that matters.
 +function renderRowCheckbox(frame, row, checkbox, slotIndex) {
 +	return jsx("input", {
 +		type: "checkbox",

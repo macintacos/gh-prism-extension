@@ -108,6 +108,13 @@ name, as a keycap in the style of Primer's keybinding hint, and the control sets
 `aria-keyshortcuts`, so assistive technology announces the key. Touch devices have no
 hover, so they never show the keycap.
 
+## Floating surfaces
+
+A surface that floats over the page sits on `--overlay-bgColor`, falling back to
+`--bgColor-default`, inside the default border, with the medium radius and
+`--shadow-floating-small`. The header counter's tip in `header/diffstat-view.ts` and the
+code owners popover in `sidebar/owners-popover.ts` share it, class for class.
+
 ## Loading
 
 The loading view appears only after 150 ms, as `brief.md` says. It shows the spectrum as a

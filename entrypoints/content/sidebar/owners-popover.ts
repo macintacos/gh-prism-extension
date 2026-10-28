@@ -18,18 +18,18 @@ interface OwnersOptions {
 /**
  * Opens a popover below `shield` listing `owners`, and moves focus into it. `shield` is marked
  * expanded while it is open. It closes on Escape (then calls `onEscape`), on a click outside it,
- * its own shield's included, on any scroll outside it, or once `signal` aborts, and is removed
- * once closed.
+ * its own shield's included, on any scroll outside it, once `signal` aborts, or on a call of the
+ * returned function. Closing removes it with its listeners and clears the shield's mark.
  */
 export function openOwners(
   shield: HTMLElement,
   { name, owners, root, signal, onEscape }: OwnersOptions,
-): void {
+): () => void {
   const doc = shield.ownerDocument;
   const popover = el(
     doc,
     "div",
-    "gh-prism-owners tw:inset-auto tw:m-0 tw:max-w-[320px] tw:max-h-[calc(100vh-16px)] tw:overflow-y-auto tw:p-3 tw:text-body-small tw:leading-body-small tw:text-fg-default tw:bg-[var(--overlay-bgColor)] tw:border tw:border-solid tw:border-border-default tw:rounded-medium tw:shadow-[var(--shadow-floating-small)] tw:wrap-anywhere",
+    "gh-prism-owners tw:inset-auto tw:m-0 tw:max-w-[320px] tw:max-h-[calc(100vh-16px)] tw:overflow-y-auto tw:p-3 tw:text-body-small tw:leading-body-small tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:border tw:border-border-default tw:rounded-medium tw:[box-shadow:var(--shadow-floating-small)] tw:wrap-anywhere",
     el(doc, "h2", "tw:mt-0 tw:mb-2 tw:text-body-small tw:font-semibold", "Code owners"),
     el(
       doc,
@@ -45,7 +45,17 @@ export function openOwners(
   root.append(popover);
 
   const closed = new AbortController();
-  signal.addEventListener("abort", () => closed.abort(), { signal: closed.signal });
+  const remove = () => {
+    closed.abort();
+    popover.remove();
+  };
+  // The browser fires no toggle events when an open popover leaves the document.
+  const close = () => {
+    if (closed.signal.aborted) return;
+    remove();
+    shield.removeAttribute("aria-expanded");
+  };
+  signal.addEventListener("abort", close, { signal: closed.signal });
   // beforetoggle, not toggle: the browser queues toggle, after a click may have opened the next.
   popover.addEventListener(
     "beforetoggle",
@@ -57,9 +67,7 @@ export function openOwners(
   popover.addEventListener(
     "toggle",
     (event) => {
-      if (event.newState !== "closed") return;
-      closed.abort();
-      popover.remove();
+      if (event.newState === "closed") remove();
     },
     { signal: closed.signal },
   );
@@ -75,7 +83,8 @@ export function openOwners(
     { signal: closed.signal },
   );
 
-  popover.showPopover();
+  // source: Tab past its last link goes on from the shield, not from the end of the view.
+  popover.showPopover({ source: shield });
   place(popover, shield.getBoundingClientRect());
   // preventScroll: a scroll would close it.
   popover.focus({ preventScroll: true });
@@ -90,6 +99,7 @@ export function openOwners(
     },
     { capture: true, signal: closed.signal },
   );
+  return close;
 }
 
 /** `owner`'s token, linking to its page in a new tab when it has one. */
@@ -102,6 +112,7 @@ function ownerOf(doc: Document, { token, url }: CodeOwner): Node | string {
   return link;
 }
 
+// Keep the popover's tw:max-h at 100vh minus twice this.
 const VIEWPORT_MARGIN = 8;
 
 /** Puts `popover` below `anchor`, start-aligned, or above it when there's no room below. */

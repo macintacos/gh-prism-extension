@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
 import { codeOwnerOf, type PrCodeOwners } from "../../../utils/github/code-owners";
-import { byId } from "../../fixtures/files-page";
+import { byId, openOverlay } from "../../fixtures/files-page";
 import { landedWith } from "../../fixtures/intent";
 import {
   COMMENT_LINES,
@@ -12,6 +12,7 @@ import {
   press,
   renderSplit,
   rowIn,
+  shieldOf,
   withCommentLines,
 } from "../../fixtures/sections-view";
 import {
@@ -256,6 +257,19 @@ describe("showSections", () => {
       expect(revealedIn("implementation")).toEqual(["src/added.rs"]);
     });
 
+    it("shields only the rows an owner filter keeps", async () => {
+      remountWith(() => Promise.resolve(landedWith()), undefined, {
+        owner: "@o/frontend",
+        codeOwners: Promise.resolve(
+          tokensOf({ "src/lib.rs": ["@o/frontend"], "src/engine.rs": ["@o/platform"] }),
+        ),
+      });
+      await afterDebounce();
+
+      expect(revealedIn("implementation")).toEqual(["src/lib.rs"]);
+      expect(shieldedIn("implementation")).toEqual(["src/lib.rs"]);
+    });
+
     it("shows only the next pull request's owners after moving to it", async () => {
       await landedOwned(ownersOf(["src/engine.rs"]));
 
@@ -266,17 +280,12 @@ describe("showSections", () => {
   });
 
   describe("the code owners popover", () => {
-    const shieldOf = (listing: string, path: string) => {
-      const found = shieldsIn(listing).find((shield) => shield.dataset.itemShield === path);
-      if (!found) throw new Error(`${listing} has no shield for ${path}`);
-      return found;
-    };
     const popovers = () => [...document.querySelectorAll<HTMLElement>(".gh-prism-owners")];
     /** Presses and clicks `shield`, light-dismissing the open popover between, as a browser does. */
     const pressAt = (shield: HTMLElement) => {
       shield.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true }));
       for (const popover of popovers()) popover.hidePopover();
-      clickAt(shield);
+      clickAt(shield, { detail: 1 });
     };
 
     it("lists every owner, linking teams and users in a new tab", async () => {
@@ -366,6 +375,30 @@ describe("showSections", () => {
       clickAt(engine);
 
       expect(popovers()).toHaveLength(1);
+    });
+
+    it("opens on a keyboard click of its shield after a press that ended elsewhere", async () => {
+      await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"] }));
+      const engine = shieldOf("implementation", "src/engine.rs");
+      clickAt(engine);
+      engine.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true }));
+      for (const popover of popovers()) popover.hidePopover();
+
+      clickAt(engine);
+
+      expect(popovers()).toHaveLength(1);
+    });
+
+    it("closes, clearing its shield, when the view moves into the overlay", async () => {
+      await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"] }));
+      const engine = shieldOf("implementation", "src/engine.rs");
+      clickAt(engine);
+
+      openOverlay();
+      await afterDebounce();
+
+      expect(popovers()).toEqual([]);
+      expect(engine.hasAttribute("aria-expanded")).toBe(false);
     });
 
     it("closes on a scroll outside it", async () => {
