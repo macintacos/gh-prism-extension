@@ -122,6 +122,34 @@ would add a second edge, so such an overlay clears it with `tw:[border:0]`. The 
 owners popover does, and so does the classic notice in `classic/notice.ts`, which keeps
 its own radius.
 
+A hover card whose trigger sits next to one of GitHub's hovercard triggers takes GitHub's
+hovercard form instead: the 1px `--borderColor-default` border, the medium radius, and no
+shadow. The rule above holds, because that border is its one edge. The reviewer files
+popup below is the one such card.
+
+## Reviewer files
+
+On a pull request's Conversation tab, a reviewer's code-owner shield, the shield icon
+GitHub shows beside a reviewer who owns code in the pull request, opens a popup listing
+the changed files that reviewer owns. The reviewer's avatar and name keep GitHub's own
+hovercard, so the two cards never share a trigger.
+
+- **Timing:** it opens 200 ms after the pointer rests on the shield, longer than GitHub's
+  card takes to close, and at once when the shield takes keyboard focus. It closes 150 ms
+  after the pointer leaves both shield and popup, so the pointer can cross into it.
+  Escape, focus leaving the shield, and a scroll outside the popup close it at once. One
+  is open at a time.
+- **Content:** the count line "Code owner of N files in this pull request", in GitHub's
+  own words from its user hovercard, then one row per file. Each row sets its path in
+  monospace with the directory muted. A long list scrolls inside the popup.
+- **The tooltip:** the shield's own GitHub tooltip ("… is a code owner") says less, so the
+  popup's stylesheet hides it while the popup is open. It stays the shield's accessible
+  name.
+
+It takes the hovercard form above on `--overlay-bgColor`, and matches GitHub's hovercard
+in size: 14px body text, 16px padding, and at most 360px wide.
+`conversation/reviewer-files.ts` and `conversation/reviewer-files.css` hold it.
+
 ## Loading
 
 The loading view appears only after 150 ms, as `brief.md` says. It shows the spectrum as a

@@ -1,0 +1,28 @@
+/* GitHub hooks: the code-owner shield's tool-tip[for^="codeowner-"]. Every other rule selects only
+   gh-prism's own classes. */
+@import "../ui/tailwind.css" prefix(tw);
+@source "./reviewer-files.ts";
+
+/* The popup says more than the shield's tooltip, which stays its accessible name. */
+html:has(.gh-prism-reviewer-files:popover-open) tool-tip[for^="codeowner-"] {
+  display: none;
+}
+
+.gh-prism-reviewer-files[popover] {
+  transition:
+    opacity 240ms cubic-bezier(0.16, 1, 0.3, 1),
+    scale 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@starting-style {
+  .gh-prism-reviewer-files[popover]:popover-open {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-prism-reviewer-files[popover] {
+    transition: none;
+  }
+}
