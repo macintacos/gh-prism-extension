@@ -34,43 +34,43 @@ export function showReviewerFiles(
   signal: AbortSignal,
   readOwners: () => Promise<PrCodeOwners | undefined>,
 ): void {
-  let owners: Promise<PrCodeOwners | undefined> | undefined;
-  const codeOwners = () => (owners ??= readOwners());
+  let ownersRead: Promise<PrCodeOwners | undefined> | undefined;
+  const readOwnersOnce = () => (ownersRead ??= readOwners());
   let open: OpenPopup | undefined;
-  let opening: ReturnType<typeof setTimeout> | undefined;
-  let closing: ReturnType<typeof setTimeout> | undefined;
+  let openTimer: ReturnType<typeof setTimeout> | undefined;
+  let closeTimer: ReturnType<typeof setTimeout> | undefined;
   // Bumped by every open or cancel, so a read that settles late opens nothing stale.
   let attempt = 0;
 
   const shieldAt = (target: EventTarget | null) =>
     target instanceof Element ? reviewerShieldOf(target) : null;
-  const inOpen = (target: EventTarget | null) =>
+  const inOpenPopup = (target: EventTarget | null) =>
     !!open &&
     target instanceof Node &&
     (open.shield.contains(target) || open.popover.contains(target));
 
   const cancelOpen = () => {
-    clearTimeout(opening);
+    clearTimeout(openTimer);
     attempt++;
   };
   const close = () => {
-    clearTimeout(closing);
+    clearTimeout(closeTimer);
     open?.dispose();
     open = undefined;
   };
   const closeSoon = () => {
-    clearTimeout(closing);
-    closing = setTimeout(close, CLOSE_DELAY_MS);
+    clearTimeout(closeTimer);
+    closeTimer = setTimeout(close, CLOSE_DELAY_MS);
   };
 
   const openAfter = (shield: HTMLElement, delay: number) => {
     if (open?.shield === shield) return;
     cancelOpen();
-    const mine = attempt;
-    const read = codeOwners();
-    opening = setTimeout(async () => {
+    const thisAttempt = attempt;
+    const read = readOwnersOnce();
+    openTimer = setTimeout(async () => {
       const owners = await read;
-      if (mine !== attempt || !owners) return;
+      if (thisAttempt !== attempt || !owners) return;
       // ponytail: exact-token match, so a user shielded only through a team lists nothing;
       // upgrade by resolving team membership.
       const paths = [...owners.keys()].filter(ownerFilter(owners, shieldOwner(shield)));
@@ -91,8 +91,8 @@ export function showReviewerFiles(
   doc.addEventListener(
     "pointerover",
     ({ target, relatedTarget }) => {
-      if (inOpen(target)) {
-        clearTimeout(closing);
+      if (inOpenPopup(target)) {
+        clearTimeout(closeTimer);
         return;
       }
       const shield = shieldAt(target);
@@ -107,7 +107,7 @@ export function showReviewerFiles(
       const shield = shieldAt(target);
       if (shield && !(relatedTarget instanceof Node && shield.contains(relatedTarget)))
         cancelOpen();
-      if (inOpen(target) && !inOpen(relatedTarget)) closeSoon();
+      if (inOpenPopup(target) && !inOpenPopup(relatedTarget)) closeSoon();
     },
     { signal },
   );
@@ -187,8 +187,8 @@ function show(shield: HTMLElement, paths: readonly string[], close: () => void):
 
 /** `path` as a muted directory and its file name. */
 function pathParts(doc: Document, path: string): (Node | string)[] {
-  const cut = path.lastIndexOf("/") + 1;
-  return cut === 0
+  const nameStart = path.lastIndexOf("/") + 1;
+  return nameStart === 0
     ? [path]
-    : [el(doc, "span", "tw:text-fg-muted", path.slice(0, cut)), path.slice(cut)];
+    : [el(doc, "span", "tw:text-fg-muted", path.slice(0, nameStart)), path.slice(nameStart)];
 }

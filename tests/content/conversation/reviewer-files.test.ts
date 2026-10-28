@@ -73,10 +73,10 @@ describe("showReviewerFiles", () => {
 
     pointerOver(shieldOf("frontend"));
     await vi.advanceTimersByTimeAsync(199);
-    const early = popups().length;
+    const popupsBeforeDelay = popups().length;
     await vi.advanceTimersByTimeAsync(1);
 
-    expect(early).toBe(0);
+    expect(popupsBeforeDelay).toBe(0);
     expect(popups()).toHaveLength(1);
     expect(listed()).toEqual(["api/generated/client.ts", "web/app.ts"]);
     expect(popup()?.textContent).toContain("Code owner of 2 files in this pull request");
@@ -180,10 +180,10 @@ describe("showReviewerFiles", () => {
 
     pointerOut(shieldOf("frontend"));
     await vi.advanceTimersByTimeAsync(149);
-    const during = popups().length;
+    const popupsDuringGrace = popups().length;
     await vi.advanceTimersByTimeAsync(1);
 
-    expect(during).toBe(1);
+    expect(popupsDuringGrace).toBe(1);
     expect(popups()).toHaveLength(0);
   });
 
@@ -223,11 +223,11 @@ describe("showReviewerFiles", () => {
   it("closes and removes its stylesheet once the signal aborts", async () => {
     show();
     await hoverOpen("frontend");
-    const sheets = document.head.querySelectorAll("style").length;
+    const stylesBeforeAbort = document.head.querySelectorAll("style").length;
 
     controller.abort();
 
-    expect(sheets).toBe(1);
+    expect(stylesBeforeAbort).toBe(1);
     expect(popups()).toHaveLength(0);
     expect(document.head.querySelectorAll("style")).toHaveLength(0);
   });
