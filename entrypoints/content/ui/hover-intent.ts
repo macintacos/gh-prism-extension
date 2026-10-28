@@ -57,6 +57,9 @@ export function followHoverIntent(
   let closeTimer: ReturnType<typeof setTimeout> | undefined;
   // Bumped by every open or cancel, so a card that settles late shows nothing stale.
   let attempt = 0;
+  // The card focus left for a shadow host. The document's focusout names only the host, so the
+  // focusin that follows, which a followed shadow root hears first, says whether it left.
+  let leaving: Card | undefined;
 
   const isOpen = (trigger: HTMLElement) =>
     open?.trigger === trigger && open.card.element.isConnected;
@@ -141,6 +144,8 @@ export function followHoverIntent(
     root.addEventListener(
       "focusin",
       ({ target }) => {
+        if (leaving && leaving === open?.card && !inOpenCard(target)) close();
+        leaving = undefined;
         const trigger = triggerAt(target);
         if (trigger) openAfter(trigger, 0);
       },
@@ -150,7 +155,10 @@ export function followHoverIntent(
       "focusout",
       (event) => {
         if (triggerAt(event.target)) cancelOpen();
-        if (inOpenCard(event.target) && !inOpenCard(relatedOf(event))) close();
+        const related = relatedOf(event);
+        if (!inOpenCard(event.target) || inOpenCard(related)) return;
+        if (related instanceof Element && related.shadowRoot) leaving = open?.card;
+        else close();
       },
       { signal },
     );

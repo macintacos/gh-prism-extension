@@ -1847,6 +1847,31 @@ test("a pinned owners popover holding focus hands it to its row as another shiel
   expect(await rowFocused(readme)).toBe(true);
 });
 
+test("Shift+Tab from an owners popover back to its shield keeps the same popover open", async ({
+  context,
+  page,
+}) => {
+  await openOwned(context, page);
+  const readme = treeRow(page, "README.md");
+  const readmeShield = shieldOf(page, "README.md");
+  const popover = page.locator(".gh-prism-owners");
+  await readme.hover();
+  await readme.focus();
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Tab");
+  await expect(readmeShield).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(popover.locator("a").first()).toBeFocused();
+  await popover.evaluate((element) => element.setAttribute("data-before", ""));
+
+  await page.keyboard.press("Shift+Tab");
+
+  await expect(readmeShield).toBeFocused();
+  await expect(popover).toHaveCount(1);
+  await expect(page.locator(".gh-prism-owners[data-before]:popover-open")).toHaveCount(1);
+});
+
 /** The focused element, through shadow roots, as the start of its markup. */
 const focusedControl = (page: Page) =>
   page.evaluate(() => {
