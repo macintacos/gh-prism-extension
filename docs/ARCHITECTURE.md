@@ -212,6 +212,18 @@ only through a team. Either read failing, or either response missing a field it 
 resolves to `undefined`, never part of the result; a repository without CODEOWNERS
 resolves to no owners.
 
+The owner filter is the first reader of the code owners. `index.ts` reads the
+`gh-prism-owner` query parameter on every page with `ownerOf` in
+[`utils/github/files-route.ts`](../utils/github/files-route.ts), and `showVisit` turns it
+and the visit's code owners into the filter `land` applies to the tree's files before
+sectioning them. A file is kept when its owners include the parameter's token, ignoring
+case. Every view therefore follows the narrowed listing as it follows GitHub's own
+filters, while section line totals and the diffstat keep counting the whole diff. `land`
+also hands the views the dropped files' diff anchors, and `diffs/order.ts` hides their
+diffs: by a rule on each region and virtualized row (`#diff-…` and `data-path-digest`),
+and inline on a progressive list's entries, to close their gaps. With the parameter set,
+the page stays pending until the code owners land, and a failed read keeps every file.
+
 ## Section rows
 
 [`entrypoints/content/sidebar/sections-view.ts`](../entrypoints/content/sidebar/sections-view.ts)

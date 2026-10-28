@@ -44,6 +44,10 @@ how to get the new tab. Once you close the dialog, it stays closed, and
 - After an update, the sidebar opens with a collapsed **What's new in vX.Y.Z** block of
   that version's release notes. It goes away when you dismiss it, or 3 days after you
   first see it.
+- Adding `?gh-prism-owner=<owner>` to a pull request's Files changed URL, where the owner
+  is a team such as `org/team` or a user's login, narrows the sidebar and the diffs to the
+  files that owner owns in CODEOWNERS. It combines with GitHub's own filters, and removing
+  it from the URL shows every file again.
 - A **Report a miscategorized file** button beside the file tree's filter opens a new
   issue on gh-prism's repository with your gh-prism version filled in, and, on a public
   repository only, the diff's URL.
