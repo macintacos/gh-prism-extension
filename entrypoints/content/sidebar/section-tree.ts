@@ -36,8 +36,9 @@ type RowDecoration = FileTreeRowDecoration & { readonly checkbox?: RowCheckbox }
 
 const ROW_HEIGHT = 28;
 
-// Two-tone like the library's file glyphs. section-tree.css shows the open shape on expanded rows.
-const FOLDER_SPRITE = `<svg data-icon-sprite aria-hidden="true" width="0" height="0">
+// Two-tone like the library's file glyphs. section-tree.css shows the folder's open shape on
+// expanded rows.
+const ICON_SPRITE = `<svg data-icon-sprite aria-hidden="true" width="0" height="0">
   <symbol id="gh-prism-folder" viewBox="0 0 16 16">
     <g class="gh-prism-folder-closed">
       <path fill="currentColor" opacity=".4" d="M1 4.5A2.5 2.5 0 0 1 3.5 2h2.38a1.5 1.5 0 0 1 1.2.6L8 3.75h4.5A2.5 2.5 0 0 1 15 6.25v5.25a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 1 11.5z"/>
@@ -47,6 +48,10 @@ const FOLDER_SPRITE = `<svg data-icon-sprite aria-hidden="true" width="0" height
       <path fill="currentColor" opacity=".4" d="M1 4.5A2.5 2.5 0 0 1 3.5 2h2.38a1.5 1.5 0 0 1 1.2.6L8 3.75h4A2 2 0 0 1 14 5.75v.75H4.7a2.5 2.5 0 0 0-2.36 1.67L1 12z"/>
       <path fill="currentColor" d="M3.4 8.6A1.75 1.75 0 0 1 5.05 7.5h9.7a.75.75 0 0 1 .7 1l-1.9 4.5a1.75 1.75 0 0 1-1.65 1H2.1a.75.75 0 0 1-.7-1z"/>
     </g>
+  </symbol>
+  <symbol id="gh-prism-java" viewBox="0 0 16 16">
+    <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".4" d="M5 1.25c-1 1 1 2 0 3.5M8.5 1.25c-1 1 1 2 0 3.5"/>
+    <path fill="currentColor" d="M1.5 6.25h10.5v4.25a4 4 0 0 1-4 4h-2.5a4 4 0 0 1-4-4zM12 7.25h.5a2.5 2.5 0 0 1 0 5h-1.6a4 4 0 0 0 .7-1.5h.9a1 1 0 0 0 0-2H12z"/>
   </symbol>
 </svg>`;
 
@@ -398,6 +403,12 @@ const ECOSYSTEM_ICONS = {
   "uv.lock": "file-tree-builtin-python",
 };
 
+/**
+ * Languages the complete set draws as a plain file, drawn with gh-prism's own glyph from
+ * ICON_SPRITE. A glyph new to this map needs a color rule in section-tree.css.
+ */
+const LANGUAGE_ICONS = { java: "gh-prism-java" };
+
 /** A tree of `files`, every directory open, that asks `decorationOf` for each row's decoration. */
 function fileTreeOf(
   files: readonly TreeFile[],
@@ -410,7 +421,8 @@ function fileTreeOf(
       // Explicit: any custom icon field makes the set default to "none".
       set: "complete",
       byFileName: ECOSYSTEM_ICONS,
-      spriteSheet: FOLDER_SPRITE,
+      byFileExtension: LANGUAGE_ICONS,
+      spriteSheet: ICON_SPRITE,
       remap: { "file-tree-icon-chevron": "gh-prism-folder" },
     },
     initialExpansion: "open",

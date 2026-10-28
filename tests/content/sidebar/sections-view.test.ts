@@ -273,6 +273,20 @@ describe("showSections", () => {
     expect(symbol?.id).toBe("file-tree-builtin-rust");
   });
 
+  it("draws a Java file with gh-prism's Java icon", async () => {
+    addNativeFile("src/Main.java", "src/lib.rs");
+    await afterDebounce();
+
+    const use = rowIn("implementation", "src/Main.java").querySelector(
+      '[data-item-section="icon"] use',
+    );
+    const symbol = treeHost("implementation").shadowRoot?.querySelector(
+      `symbol${use?.getAttribute("href")}`,
+    );
+
+    expect(symbol?.id).toBe("gh-prism-java");
+  });
+
   describe("a section's header", () => {
     const expanded = (section: string) => sectionToggle(section).getAttribute("aria-expanded");
 
