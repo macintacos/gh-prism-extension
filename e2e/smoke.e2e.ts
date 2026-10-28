@@ -1965,10 +1965,16 @@ test("an owned folder's row shows a shield at its end and keeps its chevron", as
   const rowBox = await folder.boundingBox();
   const shieldBox = await shield.boundingBox();
   if (!rowBox || !shieldBox) throw new Error("no folder row or shield box");
-  // The fixture shows no Viewed boxes, whose centre sits 15px from a row's end.
+  // The file rows' Viewed box column centres 15px from a row's end; this fixture has no boxes, so
+  // measure from the row.
   expect(
     Math.abs(shieldBox.x + shieldBox.width / 2 - (rowBox.x + rowBox.width - 15)),
   ).toBeLessThanOrEqual(2);
+  expect(
+    await folder.evaluate((row) =>
+      Math.max(...[...row.children].map((section) => section.getBoundingClientRect().right)),
+    ),
+  ).toBeLessThanOrEqual(shieldBox.x);
   await expect(shieldOf(page, "src/")).toHaveCount(1);
   await expect(shieldOf(page, "config/")).toHaveCount(0);
   for (const path of ["src/generated/x/", "src/generated/x/y/", "src/generated/x/y/z/"])
@@ -2021,6 +2027,9 @@ test("a folder shield's popover too tall for either side of it pins without cove
   const popover = page.locator(".gh-prism-owners:popover-open");
   await expect(popover).toHaveCount(1);
   expect(await popover.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  await popover.evaluate((element) =>
+    Promise.all(element.getAnimations().map((animation) => animation.finished)),
+  );
   const box = await popover.boundingBox();
   if (!box) throw new Error("no popover box");
   const shieldNow = await shield.boundingBox();

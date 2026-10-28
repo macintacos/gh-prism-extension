@@ -42,8 +42,9 @@ how to get the new tab. Once you close the dialog, it stays closed, and
 - It marks a file Viewed on GitHub when you tick the checkbox on its row, or when you
   Alt-click the row (Option-click on macOS). Doing either again marks it not viewed.
 - On a pull request, hovering or focusing a file's row shows a shield when the file has
-  code owners. Hovering, focusing, or clicking the shield lists them, each team or user
-  linked to their GitHub page.
+  code owners, and a folder's row shows one when a file below it does. Hovering, focusing,
+  or clicking a file's shield lists its owners, each team or user linked to their GitHub
+  page; a folder's lists every file below it, each owned one with its owners.
 - On a pull request's Conversation tab, hovering or focusing the code-owner shield beside
   a team or person in the Reviewers list lists the changed files that code owner owns.
   When a team makes them a code owner, the list names that team. gh-prism adds the shield

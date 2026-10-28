@@ -47,6 +47,10 @@ type RowDecoration = FileTreeRowDecoration & {
 
 const SHIELD: RowShield = { label: "Code owners" };
 
+// text: "" satisfies the decoration type for a row with nothing else to show; the library then
+// renders an empty decoration lane.
+const SHIELDED_FOLDER: RowDecoration = { text: "", shield: SHIELD };
+
 const ROW_HEIGHT = 28;
 
 // Two-tone like the library's file glyphs. section-tree.css shows the folder's open shape on
@@ -220,7 +224,7 @@ export class SectionTree {
 
   /** The paths this tree lists under `folder` (`a/b/`), in its order. */
   pathsUnder(folder: string): string[] {
-    return this.#files.flatMap(({ path }) => (path.startsWith(folder) ? [path] : []));
+    return this.#files.map(({ path }) => path).filter((path) => path.startsWith(folder));
   }
 
   /**
@@ -260,8 +264,13 @@ export class SectionTree {
     this.#tree.render({ fileTreeContainer: this.#host });
   }
 
-  // ponytail: the rules scale with the owned files per listing; write them only for the pointed
-  // and focused paths, as #showPointed does, if a huge PR with a catch-all CODEOWNERS line lags.
+  // ponytail: the rules scale with the owned files per listing; write the reveal rules only for
+  // the pointed and focused paths, as #showPointed does, if a huge PR with a catch-all CODEOWNERS
+  // line lags. Every shielded folder keeps its --gh-prism-shielded flag.
+  /**
+   * Derives the shielded folders and writes the reveal rules; run it whenever the files or owned
+   * paths change, before a render.
+   */
   #writeOwners(): void {
     const owned = this.#files.filter(({ path }) => this.#ownedPaths.has(path));
     this.#ownedFolders = directoriesOf(owned);
@@ -380,15 +389,12 @@ export class SectionTree {
   }
 
   #decorationOf(path: string): RowDecoration | null {
-    if (path.endsWith("/"))
-      return this.#ownedFolders.has(path) ? { text: "", shield: SHIELD } : null;
+    if (path.endsWith("/")) return this.#ownedFolders.has(path) ? SHIELDED_FOLDER : null;
     const file = this.#byPath.get(path);
     const decoration = file?.decoration ?? null;
     const shielded = this.#ownedPaths.has(path);
     if (!file || (!this.#viewedPaths && !shielded)) return decoration;
     return {
-      // text: "" satisfies the decoration type for a row with nothing else to show; the library
-      // then renders an empty decoration lane.
       text: "",
       ...decoration,
       ...(this.#viewedPaths && { checkbox: this.#checkboxOf(path, this.#viewedPaths) }),
@@ -524,14 +530,17 @@ function ownerRule(path: string): string {
   );
 }
 
-/** Shows folder `path`'s shield at its row's end while the row is hovered or focused, keeping room for it. */
+/**
+ * Shows folder `path`'s shield while its row is hovered or focused, and flags the row for
+ * section-tree.css's folder shield room rule.
+ */
 function folderOwnerRule(path: string): string {
   const row = rowOf(path);
   return (
     ruleOf(
       [`${row}:is(:hover,:focus-visible)~${shieldOf(path)}`],
       "opacity:1;pointer-events:auto",
-    ) + ruleOf([row], "padding-inline-end:30px")
+    ) + ruleOf([row], "--gh-prism-shielded:1")
   );
 }
 

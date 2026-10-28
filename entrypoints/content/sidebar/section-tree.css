@@ -449,10 +449,18 @@ svg:not([data-icon-token]):has(> use[href="#gh-prism-java"]) {
   padding-inline-end: 30px;
 }
 
-/* The code owners shield the @pierre/trees patch renders after an owned row, at that row's slot;
-   the inline style sets its top and --gh-prism-depth. A file's sits over the row's icon, hidden until
-   SectionTree's per-path rule shows it for its hovered or focused row. Opacity, not visibility,
-   so the focused row's shield stays reachable by Tab. */
+/* Room for a folder's shield: its 24px plus its 3px inset on both sides. SectionTree sets
+   --gh-prism-shielded on a folder holding an owned file; max() keeps @pierre/trees' own padding
+   on every other folder row. */
+:host [data-type="item"][data-item-type="folder"] {
+  padding-inline-end: max(var(--trees-item-padding-x), var(--gh-prism-shielded, 0) * 30px);
+}
+
+/* The code owners shield the @pierre/trees patch renders after a shielded row, at that row's
+   slot; the inline style sets its top and --gh-prism-depth. It stays hidden until SectionTree's
+   per-path rule shows it for its hovered or focused row: a file's over the row's icon, a
+   folder's at the row's end. Opacity, not visibility, so the focused row's shield stays
+   reachable by Tab. */
 [data-item-shield] {
   /* Centred over the icon. One indent level is what @pierre/trees' spacing-item adds:
      its 1px border and margin-right (level-gap − 1px), plus a sibling's margin-left. */
@@ -474,9 +482,10 @@ svg:not([data-icon-token]):has(> use[href="#gh-prism-java"]) {
 }
 
 /* A folder's shield sits at its row's end, centred on the file rows' Viewed box column, since the
-   folder's icon gives way to its chevron. SectionTree's folder rule keeps room for it. */
+   folder's icon gives way to its chevron. A folder's path ends in "/". */
 [data-item-shield$="/"] {
   inset-inline-start: auto;
+  /* The Viewed box's centre (8px + 14px / 2) less half the shield's 24px. */
   inset-inline-end: 3px;
 }
 

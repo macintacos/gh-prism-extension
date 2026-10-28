@@ -666,23 +666,29 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     const path = shield.dataset.itemShield;
     const listing = listingOfShield(shield);
     if (path === undefined || listing === undefined) return undefined;
+
     closeOwners();
-    const tree = shown.get(listing)?.tree;
-    const common = { root: view, signal, returnFocus: () => tree?.focusRow(path) };
+
+    const popoverOptions = {
+      root: view,
+      signal,
+      returnFocus: () => shown.get(listing)?.tree.focusRow(path),
+    };
     const card = path.endsWith("/")
       ? openFolderOwners(shield, {
           folder: path,
-          files: (tree?.pathsUnder(path) ?? []).map((file) => ({
+          files: (shown.get(listing)?.tree.pathsUnder(path) ?? []).map((file) => ({
             path: file,
             owners: ownersByPath.get(file)?.owners ?? [],
           })),
-          ...common,
+          ...popoverOptions,
         })
       : openOwners(shield, {
           name: path.slice(path.lastIndexOf("/") + 1),
           owners: ownersByPath.get(path)?.owners ?? [],
-          ...common,
+          ...popoverOptions,
         });
+
     closeOwners = card.close;
     return card;
   };

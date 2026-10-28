@@ -312,18 +312,6 @@ describe("showSections", () => {
         expect(shieldedIn("implementation")).not.toContain("a/");
       });
 
-      it("keeps room on its row for the shield", async () => {
-        await landedOwned(ownersOf(["src/engine.rs"]));
-
-        const rules = [...(hostOf("implementation").shadowRoot?.querySelectorAll("style") ?? [])]
-          .map((style) => style.textContent ?? "")
-          .join("");
-        expect(revealedIn("implementation")).toContain("src/");
-        expect(rules).toContain(
-          String.raw`[data-type="item"][data-item-path="src\/"]{padding-inline-end:30px}`,
-        );
-      });
-
       it("is in the tab order only on the focused folder row", async () => {
         await landedOwned(ownersOf(["src/generated/schema.rs"]));
         const rows = rowsIn("implementation");
