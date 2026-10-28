@@ -48,8 +48,9 @@
   color-scheme: inherit;
 }
 
-/* @pierre/trees colors icons by data-icon-token, which ECOSYSTEM_ICONS' remaps and
-   gh-prism's own glyphs (section-tree.ts) lack: each glyph they use needs a rule here. */
+/* @pierre/trees colors icons by data-icon-token, which ECOSYSTEM_ICONS' remaps and the file
+   glyphs gh-prism draws (section-tree.ts) lack: each needs a color rule here. The library has
+   no Java color, so that rule builds one the way the library builds its own. */
 svg:not([data-icon-token]):has(> use[href="#file-tree-builtin-npm"]) {
   color: var(--trees-file-icon-color-npm);
 }

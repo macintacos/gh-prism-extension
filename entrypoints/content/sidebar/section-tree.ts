@@ -36,9 +36,9 @@ type RowDecoration = FileTreeRowDecoration & { readonly checkbox?: RowCheckbox }
 
 const ROW_HEIGHT = 28;
 
-// Two-tone like the library's file glyphs.
+// Two-tone like the library's file glyphs. section-tree.css shows the folder's open shape on
+// expanded rows.
 const ICON_SPRITE = `<svg data-icon-sprite aria-hidden="true" width="0" height="0">
-  <!-- section-tree.css shows the open shape on expanded rows. -->
   <symbol id="gh-prism-folder" viewBox="0 0 16 16">
     <g class="gh-prism-folder-closed">
       <path fill="currentColor" opacity=".4" d="M1 4.5A2.5 2.5 0 0 1 3.5 2h2.38a1.5 1.5 0 0 1 1.2.6L8 3.75h4.5A2.5 2.5 0 0 1 15 6.25v5.25a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 1 11.5z"/>
@@ -403,6 +403,12 @@ const ECOSYSTEM_ICONS = {
   "uv.lock": "file-tree-builtin-python",
 };
 
+/**
+ * Languages the complete set draws as a plain file, drawn with gh-prism's own glyph from
+ * ICON_SPRITE. A glyph new to this map needs a color rule in section-tree.css.
+ */
+const LANGUAGE_ICONS = { java: "gh-prism-java" };
+
 /** A tree of `files`, every directory open, that asks `decorationOf` for each row's decoration. */
 function fileTreeOf(
   files: readonly TreeFile[],
@@ -415,7 +421,7 @@ function fileTreeOf(
       // Explicit: any custom icon field makes the set default to "none".
       set: "complete",
       byFileName: ECOSYSTEM_ICONS,
-      byFileExtension: { java: "gh-prism-java" },
+      byFileExtension: LANGUAGE_ICONS,
       spriteSheet: ICON_SPRITE,
       remap: { "file-tree-icon-chevron": "gh-prism-folder" },
     },
