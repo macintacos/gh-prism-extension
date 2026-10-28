@@ -188,6 +188,27 @@ shape takes a new prefix, so an older entry never validates. The service worker 
 cache on install, update, and dev reload, because a new build may place files differently,
 and the clear also drops the retired `intent.v1` entries.
 
+## Code owners and reviewers
+
+[`utils/github/code-owners.ts`](../utils/github/code-owners.ts) reads who owns each
+changed file and who reviews the pull request from the two endpoints GitHub's Files
+changed page reads, `/<owner>/<repo>/pull/<n>/page_data/codeowners` and
+`/<owner>/<repo>/pull/<n>/page_data/merge_box`. The content script fetches them itself,
+same-origin with your session, rather than through the service worker: they need no host
+but github.com, and no cache, since a review submitted while the tab is open must show on
+the next visit. `index.ts` calls `readCodeOwners` once per visit and hands the promise to
+`showVisit` for every page of that visit; a commit page and a pull request's header tabs
+read nothing.
+
+The result is each changed file's owners, in CODEOWNERS order, with whether you own the
+file, and the `@user` and `@org/team` tokens of everyone requested to review or who has
+reviewed. An owner keeps its token as written and gets a link only when the token is a
+valid `@user` or `@org/team`; gh-prism builds the URL and never takes one from the
+response. A reviewer matches an owner when their tokens are equal, ignoring case, so a
+user doesn't match a file owned only through a team. Either read failing, or either
+response missing a field it expects, resolves to `undefined`, never part of the result; a
+repository without CODEOWNERS resolves to no owners.
+
 ## Section rows
 
 [`entrypoints/content/sidebar/sections-view.ts`](../entrypoints/content/sidebar/sections-view.ts)
@@ -290,7 +311,7 @@ entrypoints/
     header/              diffstat breakout
     ui/                  shared DOM helpers, loading view, Markdown subset, name reveal, Tailwind tokens
 utils/
-  github/                routes, diff parsing, the PR data port and source
+  github/                routes, diff parsing, the PR data port and source, code owners and reviewers
   intent/                reading, caching, and landing intent
   hunk-rules/            the docstring and inline-test rules
   sections.ts            path rules for the five sections

@@ -206,13 +206,13 @@ facts about GitHub that held when written, and ends with how to re-check them;
   tree link are both `diff-<pathDigest>`.
 - **Trust route data only on the visit a full load started.** The embedded script reflects
   the last full load only, and only until the first toggle; a soft navigation never
-  replaces it. gh-prism makes no network requests of its own, so it seeds from route data
-  only on the visit the full load started, before GitHub's first navigation
-  (`soft-nav:end` or `popstate`), and only when that data names the visit's pull request;
-  any visit after a navigation reads headers alone, even the content script's first. A
-  re-request of the page's path with `accept: application/json` would return the same key
-  path, fresh (verified from the page's main world only). Read
-  `user.shouldShowViewedFilesCount` from the same route data as the seed.
+  replaces it. gh-prism doesn't re-request route data, so it seeds from route data only on
+  the visit the full load started, before GitHub's first navigation (`soft-nav:end` or
+  `popstate`), and only when that data names the visit's pull request; any visit after a
+  navigation reads headers alone, even the content script's first. A re-request of the
+  page's path with `accept: application/json` would return the same key path, fresh
+  (verified from the page's main world only). Read `user.shouldShowViewedFilesCount` from
+  the same route data as the seed.
 - **Follow toggles through the header's button, not the tree or `diff_entries`.** Tree
   rows carry no Viewed mark, and `diff_entries` batches carry no Viewed field. A header
   exists only for a mounted diff, so it gives no coverage, but it tracks every toggle.
@@ -300,6 +300,43 @@ facts about GitHub that held when written, and ends with how to re-check them;
   with REST `base.sha` from `gh api repos/<o>/<r>/pulls/<n> --jq .base.sha`. For the
   signed-out data, load the pull request signed out and search its embedded data for a
   base SHA.
+
+## Code owners and reviewers
+
+- **Send `X-Requested-With: XMLHttpRequest` to read `page_data/codeowners` and
+  `page_data/merge_box` as JSON.** Without it, or with `Accept: application/json` alone,
+  both answer 406 with HTML.
+- **`page_data/codeowners` lists every changed path.** `ownershipByPath` maps each path to
+  `owners`, CODEOWNERS tokens in the rule's order, and `isOwnedByViewer`, true through a
+  team you belong to. A path no rule matches has `owners: []`. Owners come from the base
+  branch's CODEOWNERS, not the pull request's. On the code-owners sandbox's 152-file PR #3
+  it lists all 152 paths, including one behind "Load Diff", with no paging. A repository
+  without CODEOWNERS answers `isEnabled: false` and an empty `ownershipByPath`. It answers
+  signed out on a public repository.
+- **`page_data/merge_box` needs a signed-in session**, answering 404 signed out even on a
+  public pull request. `pullRequest.pendingReviewRequests[].reviewer` has `login` and
+  `type` (`USER` or `TEAM`), and a team's `login` is `org/slug`.
+  `pullRequest.latestOpinionatedReviews[]` has `author.login`, `onBehalfOf`, and `state`.
+- **`latestOpinionatedReviews` leaves out comment-only reviews.** On
+  [nodejs/node#66895](https://github.com/nodejs/node/pull/66895), two reviewers who only
+  commented are missing, so gh-prism can't list a reviewer who only commented.
+- **`onBehalfOf`'s element shape is unverified.** It was empty on every review checked,
+  about 460 public pull requests across five repositories; GitHub likely shows it only to
+  viewers who can see the team. gh-prism reads an element as a team by its `login`, as
+  `pendingReviewRequests` names one, and skips one without it.
+- **Re-check:** compare
+
+  ```sh
+  curl -s -H 'X-Requested-With: XMLHttpRequest' \
+    https://github.com/excessive-dev/gh-prism-codeowners-sandbox/pull/3/page_data/codeowners \
+    | jq '.ownershipByPath | length'
+  ```
+
+  against
+  `gh api repos/excessive-dev/gh-prism-codeowners-sandbox/pulls/3 --jq .changed_files`,
+  and run the same curl without the header for the 406. Signed in with the saved
+  `storageState`, fetch `merge_box` from a pull request's page and compare
+  `latestOpinionatedReviews` with `gh api repos/<owner>/<repo>/pulls/<n>/reviews`.
 
 ## The narrow layout's overlay
 
