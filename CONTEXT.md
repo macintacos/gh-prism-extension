@@ -110,8 +110,9 @@ own ownership is meant
 
 **PR reviewer**: An account requested to review a pull request, or that submitted a review
 of it, commenting included. Someone who only commented outside a review isn't one. A PR
-reviewer owns the changed files whose code owners name them or a team GitHub says they
-review for. _Avoid_: reviewer alone, which names the person reading the diff
+reviewer owns the changed files whose code owners name them, a team GitHub says they
+review for, or a team whose members GitHub lists them among. _Avoid_: reviewer alone,
+which names the person reading the diff
 
 **Owner filter**: gh-prism's narrowing of a pull request's files, in the sidebar and the
 diff list, to the files one code owner owns, set by the `gh-prism-owner` query parameter,

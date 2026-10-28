@@ -250,20 +250,24 @@ owner keeps its token as written and gets a link only when the token is a valid 
 `@org/team`; gh-prism builds the URL and never takes one from the response.
 
 A PR reviewer owns a file when its owners include the reviewer's token, or one of the
-teams GitHub names the reviewer as reviewing for, ignoring case. A user who owns no
-changed file that way also takes each owning team that lists them as a member:
-`withMemberTeams` reads each team among the changed files' owners once, through
-`readTeamMembers`, from the JSON GitHub's team mentions read. It reads members only when
-GitHub shows the viewer a team among the PR reviewers, because a viewer outside the
-organization sees none and gets 404 for every team. A large team lists only its first
-members. `index.ts` composes the two into the visit's PR reviewers, so every reader sees
-the same teams. `ownerFilter` holds the ownership rule, and the owner filter, the owner
-section, and the Conversation popup all ask it, so picking a reviewer in the section keeps
-the files their popup lists. Each read settles on its own: one that fails, or whose
-response misses a field it expects, resolves to `undefined` and logs one warning naming
-it, and the other read is unaffected. A failed PR reviewers read drops the owner section's
-reviewer entries and narrows the owner filter to the owner's own token. A repository
-without CODEOWNERS resolves to no owners.
+teams GitHub names the reviewer as reviewing for, ignoring case. `ownerFilter` holds that
+rule, and the owner filter, the owner section, and the Conversation popup all ask it, so
+picking a reviewer in the section keeps the files their popup lists.
+
+A user who owns no changed file that way may still belong to an owning team.
+`withMemberTeams` adds each owning team that lists them as a member to the teams they
+review for. It reads each team among the changed files' owners once, through
+`readTeamMembers`, from the JSON GitHub's team mentions read, and GitHub returns only a
+large team's first members. It reads members only when GitHub shows the viewer a team
+among the PR reviewers, because a viewer outside the organization sees none and gets 404
+for every team. `index.ts` runs it on the PR reviewers once both reads land, and hands
+every reader the result, so every reader sees the same teams.
+
+Each read settles on its own: one that fails, or whose response misses a field it expects,
+resolves to `undefined` and logs one warning naming it, and the other read is unaffected.
+A failed PR reviewers read drops the owner section's reviewer entries and narrows the
+owner filter to the owner's own token. A repository without CODEOWNERS resolves to no
+owners.
 
 The owner filter is the first reader of the code owners. `index.ts` reads the
 `gh-prism-owner` query parameter on a pull request's pages with `ownerOf` in
@@ -310,8 +314,9 @@ a code owner's pending request only, so a code owner who has reviewed loses the 
 gh-prism's own shield to every row whose PR reviewer owns a changed file, or whom GitHub
 marks a code owner, but has no shield. That shield is a button drawn as GitHub draws its
 own in that list, placed just before the row's last icon, the status icon, where GitHub
-puts its shield. A click on it does nothing yet. Hovering or focusing either shield opens
-the popup.
+puts its shield. Hovering or focusing either shield opens the popup. A click on either
+changes nothing: GitHub's shield has no action of its own, and gh-prism's leaves its click
+free.
 
 The popup lists the files `ownerFilter` gives the shield's `@user` or `@org/team` token,
 counting the teams GitHub names for that reviewer, and names those teams, each linked to

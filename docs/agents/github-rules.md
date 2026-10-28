@@ -327,7 +327,8 @@ facts about GitHub that held when written, and ends with how to re-check them;
   the source of GitHub's React reviewer list, and it answers signed out on a public
   repository, where `merge_box` answers 404. It lists reviews that only commented, which
   `merge_box`'s `latestOpinionatedReviews` leaves out. Its `isCodeOwner` is `true` for the
-  sandbox PR #1's two shielded teams, where `merge_box`'s is `false`.
+  two shielded teams on PR #1 of `excessive-dev/gh-prism-codeowners-sandbox`, where
+  `merge_box`'s is `false`.
 - **Expect two lists, each left out when empty.** `pendingReviewRequests[]` has `reviewer`
   and `isCodeOwner`; `completedReviews[]` has `reviewer` and `state`, such as
   `REVIEW_STATE_APPROVED` or `REVIEW_STATE_COMMENTED`. A `reviewer` has `displayLogin` and
@@ -372,7 +373,8 @@ GitHub draws a pull request's reviewers in one of two lists. The classic sidebar
 server-rendered in `#partial-discussion-sidebar`. GitHub's pull request overview, which
 route data's `featureStates.overview` turns on, draws a React list instead. The overview
 read `"UNAVAILABLE"` on the code-owners sandbox and on nodejs/node for the saved account,
-so its facts below come from GitHub's bundle and a user's screenshot, not from a capture.
+so its facts below come from GitHub's bundle and from a maintainer's screenshot of a work
+pull request, taken 2026-10-28, not from a capture.
 
 - **Find a classic row as
   `#partial-discussion-sidebar form[id^="pull-request-reviewers-form-"] .css-truncate > div`.**
@@ -402,7 +404,8 @@ so its facts below come from GitHub's bundle and a user's screenshot, not from a
   last.
 - **Expect GitHub to shield only a pending code owner.** The overview draws its shield
   from a pending request's `isCodeOwner`, and not for a request assigned from a team, so a
-  code owner who has reviewed has none. A user's screenshot of the overview shows this.
+  code owner who has reviewed has none. The maintainer's screenshot shows reviewed code
+  owners with only the re-request and status icons, and a pending one with the shield.
 - **Expect `page_data/codeowners` to answer from the Conversation page**, with the same
   JSON as from Files changed.
 - **Re-check:** signed in with the saved `storageState`, load the Conversation view of the

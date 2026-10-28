@@ -48,10 +48,10 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   before `click`, so the hidden popover's `toggle` arrives after the same click re-opens
   it.
   [`sections-view-owners.test.ts`](../../tests/content/sidebar/sections-view-owners.test.ts)
-  stubs both at its top. A stub also skips Chromium's focus return: `hidePopover()` on a
-  popover that holds focus moves focus back to the element that had it, such as the
-  popover's `source`, before the hide ends, and a `showPopover()` from that focus throws.
-  Prove a popover that opens on focus in Chromium.
+  stubs both at its top. Prove a popover that opens on focus in Chromium too: a stub skips
+  Chromium's focus return, where `hidePopover()` on a popover that holds focus moves focus
+  back to the element that had it, such as the popover's `source`, before the hide ends,
+  and a `showPopover()` from that focus throws.
 - **Prove tree row layout in Chromium, not happy-dom.** happy-dom computes no style from
   the section tree's shadow-root sheets, even with `section-tree.css` in
   `test.css.include`. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `rowLayout` is the
@@ -141,9 +141,9 @@ To check behavior live, build the extension and drive Playwright's bundled Chrom
   per-file state such as `diffSummaries[].markedAsViewed`.
 - **Cut a `review_requests` capture down to `pendingReviewRequests` and
   `completedReviews`, without `avatarUrl`, user or team `id`, or review `id`.** The rest
-  is Copilot's settings, with links to the viewer's own. Where the viewer's login is data,
-  as in a CODEOWNERS token, replace it with `sandbox-user`. Import a JSON capture `?raw`,
-  so each test parses its own copy to edit.
+  is Copilot's settings, with links to the viewer's own Copilot settings. Where the
+  viewer's login is data, as in a CODEOWNERS token, replace it with `sandbox-user`. Import
+  a JSON capture `?raw`, so each test parses its own copy to edit.
 - **Wrap the service worker's `fetch` to observe pull request data requests.** The
   background script calls the global `fetch` at request time, so wrapping `self.fetch`
   through `worker.evaluate` logs each request.

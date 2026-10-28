@@ -31,7 +31,8 @@ at the top, dated.
   owner. A mark of gh-prism's own would be a second symbol for it, and the name keeps
   GitHub's hovercard. A single line names the team without repeating it on every row,
   which is noise when one team owns them all. A shield that opens nothing reads as broken,
-  so the hidden team gets a plain sentence, as `brief.md` asks of a degraded state.
+  so the hidden team gets a plain sentence, as [`brief.md`](brief.md) asks of a degraded
+  state.
 
 ## 2026-10-28: A code owner's files, from their Reviewers sidebar shield
 

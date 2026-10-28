@@ -45,10 +45,9 @@ how to get the new tab. Once you close the dialog, it stays closed, and
   code owners. Hovering, focusing, or clicking the shield lists them, each team or user
   linked to their GitHub page.
 - On a pull request's Conversation tab, hovering or focusing the code-owner shield beside
-  a team or person in the Reviewers list lists the changed files that code owner owns,
-  naming the team that makes them one when it isn't CODEOWNERS naming them directly.
-  gh-prism adds the shield where GitHub draws none, such as beside a code owner who has
-  reviewed.
+  a team or person in the Reviewers list lists the changed files that code owner owns.
+  When a team makes them a code owner, the list names that team. gh-prism adds the shield
+  where GitHub draws none, such as beside a code owner who has reviewed.
 - After an update, the sidebar opens with a collapsed **What's new in vX.Y.Z** block of
   that version's release notes. It goes away when you dismiss it, or 3 days after you
   first see it.
@@ -121,7 +120,7 @@ gh-prism needs access to three hosts and to Chrome's extension storage, and noth
   pages, and on a pull request's Conversation, Commits, and Checks tabs, where it reads
   the diff to split the header's lines-changed counter by section, and, on Conversation,
   the code owners and reviewers to list a code owner's files. It reads an owning team's
-  members only when GitHub shows you that organization's teams.
+  members only when GitHub shows you a team among the pull request's reviewers.
 - `https://patch-diff.githubusercontent.com/*` is where GitHub redirects diff downloads.
 - `https://raw.githubusercontent.com/*` is where GitHub redirects raw-file downloads.
 - Extension storage holds the side you put the sidebar on, whether the header's
