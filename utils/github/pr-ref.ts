@@ -41,7 +41,8 @@ export function isCommitSha(value: unknown): value is string {
   return typeof value === "string" && /^[0-9a-f]{7,40}$/.test(value);
 }
 
-function at(value: unknown, ...keys: string[]): unknown {
+/** The value at `keys` inside untrusted JSON; `undefined` past any non-object. */
+export function at(value: unknown, ...keys: string[]): unknown {
   let current = value;
   for (const key of keys) {
     if (typeof current !== "object" || current === null) return undefined;

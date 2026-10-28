@@ -1,0 +1,42 @@
+{
+  "isEnabled": true,
+  "isViewerOneOfMultipleCodeowners": true,
+  "ownershipByPath": {
+    "api/generated/client.ts": {
+      "isOwnedByViewer": true,
+      "owners": ["@excessive-dev/frontend"],
+      "ruleLineNumber": 6,
+      "ruleUrl": "/excessive-dev/gh-prism-codeowners-sandbox/blob/main/.github/CODEOWNERS#L6"
+    },
+    "infra/deploy.yml": {
+      "isOwnedByViewer": false,
+      "owners": ["@excessive-dev/platform"],
+      "ruleLineNumber": 5,
+      "ruleUrl": "/excessive-dev/gh-prism-codeowners-sandbox/blob/main/.github/CODEOWNERS#L5"
+    },
+    "api/routes.ts": {
+      "isOwnedByViewer": true,
+      "owners": ["@excessive-dev/platform", "@sandbox-user"],
+      "ruleLineNumber": 4,
+      "ruleUrl": "/excessive-dev/gh-prism-codeowners-sandbox/blob/main/.github/CODEOWNERS#L4"
+    },
+    "docs/guide.md": {
+      "isOwnedByViewer": true,
+      "owners": ["@sandbox-user"],
+      "ruleLineNumber": 3,
+      "ruleUrl": "/excessive-dev/gh-prism-codeowners-sandbox/blob/main/.github/CODEOWNERS#L3"
+    },
+    "web/app.ts": {
+      "isOwnedByViewer": true,
+      "owners": ["@excessive-dev/frontend"],
+      "ruleLineNumber": 2,
+      "ruleUrl": "/excessive-dev/gh-prism-codeowners-sandbox/blob/main/.github/CODEOWNERS#L2"
+    },
+    "README.md": {
+      "isOwnedByViewer": false,
+      "owners": [],
+      "ruleLineNumber": null,
+      "ruleUrl": null
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "pullRequest": {
+    "pendingReviewRequests": [
+      {
+        "reviewer": {
+          "login": "jasnell",
+          "name": "jasnell",
+          "url": "https://github.com/jasnell",
+          "type": "USER"
+        },
+        "isCodeOwner": false
+      },
+      {
+        "reviewer": {
+          "login": "aduh95",
+          "name": "aduh95",
+          "url": "https://github.com/aduh95",
+          "type": "USER"
+        },
+        "isCodeOwner": false
+      }
+    ],
+    "latestOpinionatedReviews": [
+      {
+        "authorCanPushToRepository": true,
+        "author": {
+          "login": "pimterry",
+          "name": "pimterry",
+          "url": "https://github.com/pimterry"
+        },
+        "onBehalfOf": [],
+        "state": "APPROVED"
+      },
+      {
+        "authorCanPushToRepository": true,
+        "author": {
+          "login": "richardlau",
+          "name": "richardlau",
+          "url": "https://github.com/richardlau"
+        },
+        "onBehalfOf": [],
+        "state": "APPROVED"
+      }
+    ]
+  }
+}
