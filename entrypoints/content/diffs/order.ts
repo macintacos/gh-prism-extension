@@ -146,8 +146,8 @@ function watchList(observer: MutationObserver, page: FilesPage, list: Element | 
 
 /**
  * Keeps `page`'s listed entries where `ranked` places them, and `hidden`'s entries hidden,
- * re-placing any GitHub adds or
- * replaces, and any list it mounts or swaps in, until `signal` aborts.
+ * re-placing any GitHub adds or replaces, and any list it mounts or swaps in, until `signal`
+ * aborts.
  */
 function entryPlacer(
   page: FilesPage,

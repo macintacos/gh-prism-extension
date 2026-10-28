@@ -1554,7 +1554,10 @@ const FIXTURE_OWNERS: Record<string, string[]> = {
   "src/engine.rs": ["@o/platform"],
 };
 
-/** Answers the code owners read for tests/fixtures/files-page.html; registered after the catch-all 404. */
+/**
+ * Answers the code owners read for tests/fixtures/files-page.html; registered after the catch-all
+ * 404.
+ */
 const routeCodeOwners = async (context: BrowserContext) => {
   const ownershipByPath = Object.fromEntries(
     Object.entries(FIXTURE_OWNERS).map(([path, owners]) => [
