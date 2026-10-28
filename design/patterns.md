@@ -111,9 +111,16 @@ hover, so they never show the keycap.
 ## Floating surfaces
 
 A surface that floats over the page sits on `--overlay-bgColor`, falling back to
-`--bgColor-default`, inside the default border, with the medium radius and
-`--shadow-floating-small`. The header counter's tip in `header/diffstat-view.ts` and the
-code owners popover in `sidebar/owners-popover.ts` share it, class for class.
+`--bgColor-default`, with the medium radius and `--shadow-floating-small`. The header
+counter's tip in `header/diffstat-view.ts` and the code owners popover in
+`sidebar/owners-popover.ts` share it, class for class.
+
+A floating surface draws one 1px edge, never two. An overlay draws no border of its own,
+because `--shadow-floating-small` opens with a 1px ring that draws its edge, as in
+Primer's ActionMenu. Browsers give `[popover]` and `<dialog>` a default border, which
+would add a second edge, so such an overlay clears it with `tw:[border:0]`. The code
+owners popover does, and so does the classic notice in `classic/notice.ts`, which keeps
+its own radius.
 
 ## Loading
 
