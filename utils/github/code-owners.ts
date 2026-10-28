@@ -104,17 +104,17 @@ function reviewersFrom(json: unknown): string[] | undefined {
   const reviews = at(json, "pullRequest", "latestOpinionatedReviews");
   if (!Array.isArray(requests) || !Array.isArray(reviews)) return undefined;
 
-  const logins: unknown[] = requests.map((request) => at(request, "reviewer"));
+  const accounts: unknown[] = requests.map((request) => at(request, "reviewer"));
   for (const review of reviews) {
     const onBehalfOf = at(review, "onBehalfOf");
     if (!Array.isArray(onBehalfOf)) return undefined;
     // Unobserved shape: read an element as `pendingReviewRequests` names a team, `org/slug`; skip the rest.
     const teams = onBehalfOf.filter((team) => String(at(team, "login")).includes("/"));
-    logins.push(at(review, "author"), ...teams);
+    accounts.push(at(review, "author"), ...teams);
   }
 
   const reviewers = new Map<string, string>();
-  for (const account of logins) {
+  for (const account of accounts) {
     if (account === null) continue;
     const login = at(account, "login");
     if (typeof login !== "string") return undefined;
