@@ -254,14 +254,14 @@ teams GitHub names the reviewer as reviewing for, ignoring case. `ownerFilter` h
 rule, and the owner filter, the owner section, and the Conversation popup all ask it, so
 picking a reviewer in the section keeps the files their popup lists.
 
-A user who owns no changed file that way may still belong to an owning team.
-`withMemberTeams` adds each owning team that lists them as a member to the teams they
-review for. It reads each team among the changed files' owners once, through
-`readTeamMembers`, from the JSON GitHub's team mentions read, and GitHub returns only a
-large team's first members. It reads members only when GitHub shows the viewer a team
-among the PR reviewers, because a viewer outside the organization sees none and gets 404
-for every team. `index.ts` runs it on the PR reviewers once both reads land, and hands
-every reader the result, so every reader sees the same teams.
+A user may also belong to an owning team, whatever they own directly. `withMemberTeams`
+adds each owning team that lists them as a member, and that GitHub doesn't already name
+for them, to the teams they review for. It reads each team among the changed files' owners
+once, through `readTeamMembers`, from the JSON GitHub's team mentions read, and GitHub
+returns only a large team's first members. It reads members only when GitHub shows the
+viewer a team among the PR reviewers, because a viewer outside the organization sees none
+and gets 404 for every team. `index.ts` runs it on the PR reviewers once both reads land,
+and hands every reader the result, so every reader sees the same teams.
 
 Each read settles on its own: one that fails, or whose response misses a field it expects,
 resolves to `undefined` and logs one warning naming it, and the other read is unaffected.

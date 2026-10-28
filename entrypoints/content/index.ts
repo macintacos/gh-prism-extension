@@ -146,8 +146,8 @@ export default defineContentScript({
 });
 
 /**
- * `diff`'s PR reviewers, each who owns no changed file yet with the owning teams in `codeOwners`
- * that list them as members, read until `signal` aborts.
+ * `diff`'s PR reviewers, each with the owning teams in `codeOwners` that list them as members,
+ * read until `signal` aborts.
  */
 async function readReviewersWithTeams(
   diff: DiffRef,

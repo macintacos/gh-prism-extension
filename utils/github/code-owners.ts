@@ -95,23 +95,20 @@ export function owningReviewers(
 }
 
 /**
- * `reviewers`, giving each `@user` who owns no changed file in `codeOwners` yet, through their
- * token or named teams, every team owning a changed file whose members `readMembers` lists them
- * among, ignoring case. Asks each owning team once, and only when GitHub shows the viewer a team
- * among `reviewers`, which it does only to a viewer who can see the organization's teams.
+ * `reviewers`, giving each `@user` every team owning a changed file in `codeOwners` whose members
+ * `readMembers` lists them among, ignoring case, that they don't already name. Asks each owning
+ * team once, and only when GitHub shows the viewer a team among `reviewers`, which it does only to
+ * a viewer who can see the organization's teams.
  */
 export async function withMemberTeams(
   reviewers: readonly PrReviewer[],
   codeOwners: PrCodeOwners,
   readMembers: (team: string) => Promise<readonly string[] | undefined>,
 ): Promise<readonly PrReviewer[]> {
-  const paths = [...codeOwners.keys()];
-  const ownsNothing = ({ token }: PrReviewer) =>
-    !token.includes("/") && !paths.some(ownerFilter(codeOwners, token, reviewers));
   const seesTeams = reviewers.some(
     ({ token, teams, codeOwner }) => token.includes("/") || teams.length > 0 || codeOwner,
   );
-  if (!seesTeams || !reviewers.some(ownsNothing)) return reviewers;
+  if (!seesTeams) return reviewers;
 
   const teams = new Map<string, string>();
   for (const { owners } of codeOwners.values())
@@ -122,9 +119,10 @@ export async function withMemberTeams(
   );
 
   return reviewers.map((reviewer) => {
-    if (!ownsNothing(reviewer)) return reviewer;
-    const joined = membersOf.filter(({ members }) =>
-      members.some((login) => isOwner(reviewer.token, { token: `@${login}` })),
+    const joined = membersOf.filter(
+      ({ team, members }) =>
+        !reviewer.teams.some((named) => isOwner(named, { token: team })) &&
+        members.some((login) => isOwner(reviewer.token, { token: `@${login}` })),
     );
     return { ...reviewer, teams: [...reviewer.teams, ...joined.map(({ team }) => team)] };
   });

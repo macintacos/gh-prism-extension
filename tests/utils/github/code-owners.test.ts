@@ -498,16 +498,37 @@ describe("withMemberTeams", () => {
     ]);
   });
 
-  it("asks each owning team once, and asks nothing for a reviewer who owns files", async () => {
-    const reviewers = [
-      reviewer("@ada", { codeOwner: true }),
-      reviewer("@grace", { codeOwner: true }),
-      reviewer("@linus"),
-    ];
+  it("adds each owning team that lists a reviewer who owns files directly", async () => {
+    const reviewers = [reviewer("@ada", { codeOwner: true })];
 
-    await withMemberTeams(reviewers, owners, readMembers);
+    const result = await withMemberTeams(reviewers, owners, async (team) =>
+      team === "@o/frontend" ? ["ada"] : [],
+    );
 
-    expect(readMembers.mock.calls.map(([team]) => team).sort()).toEqual([
+    expect(result).toEqual([reviewer("@ada", { codeOwner: true, teams: ["@o/frontend"] })]);
+  });
+
+  it("names a team a reviewer already reviews for once, ignoring case", async () => {
+    const reviewers = [reviewer("@grace", { teams: ["@O/Frontend"] })];
+
+    const result = await withMemberTeams(reviewers, owners, readMembers);
+
+    expect(result).toEqual(reviewers);
+  });
+
+  it("asks each owning team once, ignoring case", async () => {
+    const sharedTeams: PrCodeOwners = new Map([
+      ...owners,
+      [
+        "web/index.ts",
+        { owners: [codeOwnerOf("@o/frontend"), codeOwnerOf("@o/platform")], ownedByViewer: false },
+      ],
+      ["web/style.css", { owners: [codeOwnerOf("@O/Frontend")], ownedByViewer: false }],
+    ]);
+
+    await withMemberTeams([reviewer("@grace", { codeOwner: true })], sharedTeams, readMembers);
+
+    expect(readMembers.mock.calls.map(([team]) => team.toLowerCase()).sort()).toEqual([
       "@o/frontend",
       "@o/platform",
     ]);
