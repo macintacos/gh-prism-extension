@@ -218,6 +218,11 @@ export class SectionTree {
     this.#host.shadowRoot?.querySelector<HTMLElement>(rowOf(path))?.focus({ preventScroll: true });
   }
 
+  /** The paths this tree lists under `folder` (`a/b/`), in its order. */
+  pathsUnder(folder: string): string[] {
+    return this.#files.flatMap(({ path }) => (path.startsWith(folder) ? [path] : []));
+  }
+
   /**
    * Lights, for each of `paths`, its row's piece of its folder's hairline, or a top-level row's
    * edge, including rows the viewport mounts later, without selecting, focusing, or scrolling. A

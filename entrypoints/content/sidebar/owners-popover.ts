@@ -1,20 +1,33 @@
-/** The popover a code owners shield opens, listing its file's owners; it exists only while open. */
+/**
+ * The popover a code owners shield opens, listing a file's owners, or a folder's files and theirs;
+ * it exists only while open.
+ */
 
 import type { CodeOwner } from "@/utils/github/code-owners";
 import { el } from "../ui/dom";
 import type { Card } from "../ui/hover-intent";
 import { place } from "../ui/place";
 
-interface OwnersOptions {
-  /** The file's base name, for the popover's accessible name. */
-  readonly name: string;
-  readonly owners: readonly CodeOwner[];
+interface PopoverOptions {
   /** Where the popover mounts: the sections view's root, which styles it. */
   readonly root: Element;
   /** The page's lifetime; the popover goes with it. */
   readonly signal: AbortSignal;
-  /** Moves focus to the file's row, as the popover closes while holding focus. */
+  /** Moves focus to the shield's row, as the popover closes while holding focus. */
   readonly returnFocus: () => void;
+}
+
+interface OwnersOptions extends PopoverOptions {
+  /** The file's base name, for the popover's accessible name. */
+  readonly name: string;
+  readonly owners: readonly CodeOwner[];
+}
+
+interface FolderOwnersOptions extends PopoverOptions {
+  /** The folder's path, ending in `/`. */
+  readonly folder: string;
+  /** The files listed under `folder`, in order, each with its owners, if any. */
+  readonly files: readonly { readonly path: string; readonly owners: readonly CodeOwner[] }[];
 }
 
 /**
@@ -24,9 +37,65 @@ interface OwnersOptions {
  * it with its listeners and clears the shield's mark, and, unless a click closed it, hands focus
  * it held to `returnFocus`.
  */
-export function openOwners(
+export function openOwners(shield: HTMLElement, { name, owners, ...options }: OwnersOptions): Card {
+  const doc = shield.ownerDocument;
+  return openPopover(
+    shield,
+    `Code owners of ${name}`,
+    el(
+      doc,
+      "ul",
+      "tw:m-0 tw:p-0 tw:list-none tw:flex tw:flex-col tw:gap-1",
+      ...owners.map((owner) => el(doc, "li", "", ownerOf(doc, owner))),
+    ),
+    options,
+  );
+}
+
+/**
+ * Opens a popover below `shield` listing `files` by their paths relative to `folder`, each owned
+ * one with its owners. It behaves as `openOwners`' does.
+ */
+export function openFolderOwners(
   shield: HTMLElement,
-  { name, owners, root, signal, returnFocus }: OwnersOptions,
+  { folder, files, ...options }: FolderOwnersOptions,
+): Card {
+  const doc = shield.ownerDocument;
+  return openPopover(
+    shield,
+    `Code owners of files in ${folder.slice(0, -1)}`,
+    el(
+      doc,
+      "ul",
+      "tw:m-0 tw:p-0 tw:list-none tw:flex tw:flex-col tw:gap-2",
+      ...files.map(({ path, owners }) =>
+        el(
+          doc,
+          "li",
+          "",
+          el(doc, "div", "tw:font-mono", ...pathParts(doc, path.slice(folder.length))),
+          ...(owners.length > 0
+            ? [
+                el(
+                  doc,
+                  "div",
+                  "tw:text-body-small tw:leading-body-small",
+                  ...owners.flatMap((owner, i) => [i > 0 ? ", " : "", ownerOf(doc, owner)]),
+                ),
+              ]
+            : []),
+        ),
+      ),
+    ),
+    options,
+  );
+}
+
+function openPopover(
+  shield: HTMLElement,
+  label: string,
+  list: HTMLElement,
+  { root, signal, returnFocus }: PopoverOptions,
 ): Card {
   const doc = shield.ownerDocument;
   const popover = el(
@@ -34,16 +103,11 @@ export function openOwners(
     "div",
     "gh-prism-owners tw:inset-auto tw:m-0 tw:max-w-[320px] tw:max-h-[calc(100vh-16px)] tw:overflow-y-auto tw:p-3 tw:text-body-small tw:leading-body-small tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:rounded-medium tw:[border:0] tw:[box-shadow:var(--shadow-floating-small)] tw:wrap-anywhere",
     el(doc, "h2", "tw:mt-0 tw:mb-2 tw:text-body-small tw:font-semibold", "Code owners"),
-    el(
-      doc,
-      "ul",
-      "tw:m-0 tw:p-0 tw:list-none tw:flex tw:flex-col tw:gap-1",
-      ...owners.map((owner) => el(doc, "li", "", ownerOf(doc, owner))),
-    ),
+    list,
   );
   popover.popover = "auto";
   popover.setAttribute("role", "dialog");
-  popover.setAttribute("aria-label", `Code owners of ${name}`);
+  popover.setAttribute("aria-label", label);
   popover.tabIndex = -1;
   root.append(popover);
 
@@ -121,4 +185,13 @@ function ownerOf(doc: Document, { token, url }: CodeOwner): Node | string {
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   return link;
+}
+
+// ponytail: copied from conversation/reviewer-files.ts; EXC-2111's file tree replaces both.
+/** `path` with its directory muted, so its name stands out. */
+function pathParts(doc: Document, path: string): (Node | string)[] {
+  const nameStart = path.lastIndexOf("/") + 1;
+  return nameStart === 0
+    ? [path]
+    : [el(doc, "span", "tw:text-fg-muted", path.slice(0, nameStart)), path.slice(nameStart)];
 }

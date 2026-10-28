@@ -35,7 +35,7 @@ import { type LoadingView, loadingView } from "../ui/loading-view";
 import { followReveals, fullName } from "../ui/reveal";
 import { markSection, SECTION_CATALOG, sectionIcon } from "../ui/section-catalog";
 import type { FileSection, LandingView } from "../visit/land";
-import { openOwners } from "./owners-popover";
+import { openFolderOwners, openOwners } from "./owners-popover";
 import { SectionTree, type TreeFile } from "./section-tree";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./sections-view.css?inline";
@@ -666,15 +666,23 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     const path = shield.dataset.itemShield;
     const listing = listingOfShield(shield);
     if (path === undefined || listing === undefined) return undefined;
-    if (path.endsWith("/")) return undefined;
     closeOwners();
-    const card = openOwners(shield, {
-      name: path.slice(path.lastIndexOf("/") + 1),
-      owners: ownersByPath.get(path)?.owners ?? [],
-      root: view,
-      signal,
-      returnFocus: () => shown.get(listing)?.tree.focusRow(path),
-    });
+    const tree = shown.get(listing)?.tree;
+    const common = { root: view, signal, returnFocus: () => tree?.focusRow(path) };
+    const card = path.endsWith("/")
+      ? openFolderOwners(shield, {
+          folder: path,
+          files: (tree?.pathsUnder(path) ?? []).map((file) => ({
+            path: file,
+            owners: ownersByPath.get(file)?.owners ?? [],
+          })),
+          ...common,
+        })
+      : openOwners(shield, {
+          name: path.slice(path.lastIndexOf("/") + 1),
+          owners: ownersByPath.get(path)?.owners ?? [],
+          ...common,
+        });
     closeOwners = card.close;
     return card;
   };

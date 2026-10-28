@@ -10,13 +10,16 @@ at the top, dated.
 
 - **Compared:** for a folder's shield, the spot over its icon, as a file's, and its row's
   end. For a flattened chain's shield, the path of its first folder and of its deepest.
-- **Won:** the row's end, centred on the file rows' Viewed box column; and the deepest
-  folder.
+  For its popover, the folder's own files against every file under it, and owned files
+  only against every file.
+- **Won:** the row's end, centred on the file rows' Viewed box column; the deepest folder;
+  and every file under the folder, each with its owners or alone.
 - **Why:** a folder's icon gives way to its chevron, so a shield there would hide the
   open-or-closed cue, and a reviewer resting on the chevron to fold the folder would open
   a popover and pin it instead. A chain flattens only when each folder holds nothing but
   the next, so its deepest folder holds the same files, and the tree already hands every
-  hook that path.
+  hook that path. A folder's shield shows for any owned file below it, so its popover
+  lists nested files too, and the issue asks for the whole folder, so unowned files stay.
 
 ## 2026-10-28: A file's code owners on hover
 

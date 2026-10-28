@@ -594,6 +594,146 @@ describe("showSections", () => {
       });
     });
 
+    describe("a folder's popover", () => {
+      const owned = () =>
+        landedOwned(
+          tokensOf({
+            "src/engine.rs": ["@o/team"],
+            "src/generated/schema.rs": ["@o/other"],
+            "src/lib.rs": [],
+          }),
+        );
+      const items = (popover: HTMLElement | undefined) =>
+        [...(popover?.querySelectorAll("li") ?? [])].map((item) => item.textContent);
+      const src = () => shieldOf("implementation", "src/");
+      const LISTED_UNDER_SRC = [
+        "generated/schema.rs@o/other",
+        "engine.rs@o/team",
+        "helpers.rs",
+        "lib.rs",
+        "notes.rs",
+        "parser.rs",
+        "render.rs",
+      ];
+
+      it("lists every file the section shows under the folder, with its owners", async () => {
+        await owned();
+
+        clickAt(src());
+
+        const [popover] = popovers();
+        expect(popovers()).toHaveLength(1);
+        expect(popover?.getAttribute("aria-label")).toBe("Code owners of files in src");
+        expect(items(popover)).toEqual(LISTED_UNDER_SRC);
+        const links = [...(popover?.querySelectorAll("a") ?? [])];
+        expect(links.map((link) => [link.href, link.target, link.rel])).toEqual([
+          ["https://github.com/orgs/o/teams/other", "_blank", "noopener noreferrer"],
+          ["https://github.com/orgs/o/teams/team", "_blank", "noopener noreferrer"],
+        ]);
+      });
+
+      it("shows paths and tokens as text, never markup", async () => {
+        addNativeFile("src/<img src=x>.rs", "src/engine.rs");
+        await landedOwned(tokensOf({ "src/<img src=x>.rs": ["@o/<b>x</b>"] }));
+
+        clickAt(src());
+
+        expect(items(popovers()[0])).toContain("<img src=x>.rs@o/<b>x</b>");
+        expect(popovers()[0]?.querySelector("img, b")).toBeNull();
+      });
+
+      it("lists a flattened chain's files relative to its deepest folder", async () => {
+        addNativeFile("a/b/c/file.rs", "src/engine.rs");
+        await landedOwned(ownersOf(["a/b/c/file.rs"]));
+
+        clickAt(shieldOf("implementation", "a/b/c/"));
+
+        expect(items(popovers()[0])).toEqual(["file.rs@o/team"]);
+      });
+
+      it("opens without toggling, selecting, or revealing its folder", async () => {
+        await owned();
+        const hash = location.hash;
+        const selected = () =>
+          rowsIn("implementation")
+            .filter((row) => row.getAttribute("aria-selected") === "true")
+            .map((row) => row.dataset.itemPath);
+        const before = selected();
+        const expanded = rowIn("implementation", "src/").getAttribute("aria-expanded");
+
+        clickAt(src());
+        press(src(), "Enter");
+        press(src(), " ");
+        await afterDebounce();
+
+        expect(rowIn("implementation", "src/").getAttribute("aria-expanded")).toBe(expanded);
+        expect(selected()).toEqual(before);
+        expect(location.hash).toBe(hash);
+      });
+
+      it("opens once the pointer rests on its shield and closes once it leaves", async () => {
+        await owned();
+        const over = (type: "pointerover" | "pointerout") =>
+          src().dispatchEvent(
+            new PointerEvent(type, {
+              bubbles: true,
+              composed: true,
+              relatedTarget: rowIn("implementation", "src/"),
+            }),
+          );
+
+        over("pointerover");
+        await vi.advanceTimersByTimeAsync(199);
+        const beforeDelay = popovers().length;
+        await vi.advanceTimersByTimeAsync(1);
+        const opened = popovers().length;
+        over("pointerout");
+        await vi.advanceTimersByTimeAsync(150);
+
+        expect([beforeDelay, opened]).toEqual([0, 1]);
+        expect(popovers()).toEqual([]);
+      });
+
+      it("opens at once when its shield takes focus", async () => {
+        await owned();
+
+        src().dispatchEvent(new FocusEvent("focusin", { bubbles: true, composed: true }));
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(popovers()).toHaveLength(1);
+      });
+
+      it("takes focus on a click and returns it to the folder's row on Escape", async () => {
+        await owned();
+        clickAt(src());
+        const [popover] = popovers();
+        if (!popover) throw new Error("no popover");
+        const focusedInside = popover.contains(document.activeElement);
+
+        press(popover, "Escape");
+
+        expect(focusedInside).toBe(true);
+        expect(popovers()).toEqual([]);
+        expect(hostOf("implementation").shadowRoot?.activeElement).toBe(
+          rowIn("implementation", "src/"),
+        );
+      });
+
+      it("closes a file's popover as it opens, and the reverse", async () => {
+        await owned();
+
+        clickAt(shieldOf("implementation", "src/engine.rs"));
+        clickAt(src());
+        const afterFolder = popovers().map((popover) => popover.getAttribute("aria-label"));
+        clickAt(shieldOf("implementation", "src/engine.rs"));
+
+        expect(afterFolder).toEqual(["Code owners of files in src"]);
+        expect(popovers().map((popover) => popover.getAttribute("aria-label"))).toEqual([
+          "Code owners of engine.rs",
+        ]);
+      });
+    });
+
     it("goes when its page does", async () => {
       await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"] }));
       clickAt(shieldOf("implementation", "src/engine.rs"));

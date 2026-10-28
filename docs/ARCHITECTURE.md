@@ -293,7 +293,8 @@ once they land, and drops them if the page has gone. `SectionTree` in
 owned file's rows in every section and every folder row above one, and the `@pierre/trees`
 patch draws a shield beside each: a file's in place of its icon, a folder's at its row's
 end, while the row is hovered or focused. Resting the pointer on a shield for 200 ms,
-focusing it, or clicking it opens a popover listing the file's owners, built by
+focusing it, or clicking it opens a popover listing the file's owners or, for a folder,
+each file the section shows under it with that file's owners, built by
 [`sidebar/owners-popover.ts`](../entrypoints/content/sidebar/owners-popover.ts) and
 removed, with its listeners, once it closes. Hover and focus go through
 `followHoverIntent`, as the Conversation popup's do, following each tree's shadow root,
