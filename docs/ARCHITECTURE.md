@@ -153,20 +153,22 @@ pull request, from the visit's code owners (see § Code owners and reviewers). G
 renders that menu in a portal only while it is open, so `followFilterMenu` in
 [`files-page.ts`](../entrypoints/content/files-page.ts) watches `body` with an undebounced
 `MutationObserver`, like `followOverlay`, and reports each open with a signal that aborts
-when it closes. The section is added again on every open, before the menu first paints.
+when it closes. It reports the menu again when GitHub replaces its list or mounts its
+owned-by item into an open menu, so "Me" joins late. The section is added again on every
+report, before the menu first paints, and not at all in a repository without CODEOWNERS.
 `findFilterMenu` recognizes the menu only by its labelling button inside the filter row
 and the groups, divider, and items the section copies; anything else, and gh-prism leaves
 the menu alone.
 
-The entries are copies of GitHub's own group and first item (`copyMenuGroup`,
-`copyMenuItem`), so Primer's hover, focus, and checkmark stay native. "Me" stands in for
-GitHub's "Only files owned by you" rather than moving it, since React owns that node: a
-pick on "Me" forwards a `.click()` to GitHub's item, which the sheet hides as the
-section's next sibling. The hidden item also gets the `disabled` attribute, because a
-hidden item traps Primer's arrow keys and its focus zone skips only disabled ones. "Me"
-shows only when GitHub's item does. The reviewers are `owningReviewers` in
-[`utils/github/code-owners.ts`](../utils/github/code-owners.ts): those who own a changed
-file, leaving out your own login.
+The entries are copies of GitHub's own divider, group, and first item (`copyMenuDivider`,
+`copyMenuGroup`, `copyMenuItem`, all in `files-page.ts`), so Primer's hover, focus, and
+checkmark stay native. "Me" stands in for GitHub's "Only files owned by you" rather than
+moving it, since React owns that node: a pick on "Me" forwards a `.click()` to GitHub's
+item, whose group the sheet hides as the section's next sibling. The hidden item also gets
+the `disabled` attribute, because a hidden item traps Primer's arrow keys and its focus
+zone skips only disabled ones. "Me" shows only when GitHub's item does. The reviewers are
+`owningReviewers` in [`utils/github/code-owners.ts`](../utils/github/code-owners.ts):
+those who own a changed file, leaving out your own login.
 
 A reviewer pick loads the page, through `withOwner` in
 [`utils/github/files-route.ts`](../utils/github/files-route.ts), because the owner filter
@@ -229,8 +231,8 @@ changed page reads, `/<owner>/<repo>/pull/<n>/page_data/codeowners` and
 same-origin with your session, rather than through the service worker: they need no host
 but github.com, and no cache, since a review submitted while the tab is open must show on
 the next visit. `index.ts` calls `readCodeOwners` once per visit and hands the promise to
-`showVisit` for every page of that visit; a commit page and a pull request's header tabs
-read nothing.
+`showVisit` and `showOwnerSection` for every page of that visit; a commit page and a pull
+request's header tabs read nothing.
 
 The result is each changed file's owners, in CODEOWNERS order, with whether you own the
 file, and the `@user` and `@org/team` tokens of the PR reviewers: everyone requested to
@@ -258,7 +260,7 @@ request's `hiddenDiffSelectors` in `files-page.ts` scopes to the diff list, and 
 With the parameter set, the page stays pending until the code owners land, and a failed
 read keeps every file.
 
-The sidebar's shields are the other reader. `showVisit` in
+The sidebar's shields are another reader. `showVisit` in
 [`visit/land.ts`](../entrypoints/content/visit/land.ts) hands the owners to the sidebar
 once they land, and drops them if the page has gone. `SectionTree` in
 [`sidebar/section-tree.ts`](../entrypoints/content/sidebar/section-tree.ts) marks each
@@ -270,6 +272,9 @@ removed, with its listeners, once it closes. The sections view also closes it be
 moving into or out of the narrow layout's overlay, since a popover that leaves the
 document closes without a toggle event. A pointer click on an open popover's own shield
 only closes it. Showing a file's owners never changes its section or the diffstat.
+
+The owner section is the third: it lists the reviewers who own a changed file (§ The owner
+section).
 
 ## Section rows
 
@@ -367,7 +372,7 @@ entrypoints/
   background.ts          service worker: PR data port, cache clearing and what's-new mark on install
   content/
     index.ts             content script entry: wires the watchers, intent, and views
-    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot
+    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section

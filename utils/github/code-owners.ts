@@ -55,7 +55,8 @@ export function ownerFilter(codeOwners: PrCodeOwners, token: string): (path: str
 
 /**
  * The reviewers in `codeOwners` who own at least one changed file, in reviewer order, leaving out
- * `viewer`'s own login, since GitHub's "Only files owned by you" stands for the viewer.
+ * `viewer`'s own `@login`, since GitHub's "Only files owned by you" stands for the viewer; a team
+ * the viewer belongs to stays, since its files differ from the viewer's.
  */
 export function owningReviewers(codeOwners: PrCodeOwners, viewer: string | undefined): string[] {
   const paths = [...codeOwners.byPath.keys()];

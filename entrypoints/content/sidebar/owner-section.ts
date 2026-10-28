@@ -6,6 +6,7 @@
 import { isOwner, owningReviewers, type PrCodeOwners } from "@/utils/github/code-owners";
 import { ownerOf, withOwner, withViewerOwner } from "@/utils/github/files-route";
 import {
+  copyMenuDivider,
   copyMenuGroup,
   copyMenuItem,
   type FilesPage,
@@ -26,9 +27,8 @@ export interface OwnerSectionOptions {
 
 /**
  * Adds the "Only files owned by…" section to GitHub's file-tree filter menu each time it opens,
- * until `signal` aborts: "Me", standing in for GitHub's "Only files owned by you", then each
- * reviewer who owns a changed file. Adds nothing when the code owners don't arrive, when nobody
- * qualifies, or when the menu's markup is unrecognized.
+ * until `signal` aborts. Adds nothing when the code owners don't arrive, when nobody qualifies, or
+ * when the menu's markup is unrecognized.
  */
 export function showOwnerSection(
   page: FilesPage,
@@ -36,7 +36,7 @@ export function showOwnerSection(
   { codeOwners, navigate }: OwnerSectionOptions,
 ): void {
   void codeOwners.then((read) => {
-    if (!read || signal.aborted) return;
+    if (!read || read.byPath.size === 0 || signal.aborted) return;
     const doc = page.sidebar.ownerDocument;
     const viewer = viewerLogin(doc);
     const reviewers = owningReviewers(read, viewer);
@@ -46,7 +46,7 @@ export function showOwnerSection(
     signal.addEventListener("abort", () => style.remove());
 
     followFilterMenu(
-      page,
+      doc,
       (menu, closed) => addSection(doc, menu, closed, { reviewers, viewer, navigate }),
       { signal },
     );
@@ -71,33 +71,51 @@ function addSection(
   const { group: section, list } = copyMenuGroup(menu, "Only files owned by…");
   section.classList.add("gh-prism-owner-section");
 
+  const id = () => `gh-prism-owner-${list.children.length}`;
   if (ownedByYou) {
     const checked = ownedByYou.item.getAttribute("aria-checked") === "true";
     list.append(
-      entry(menu, list.children.length, "Me", checked, () => {
-        if (viewer !== undefined && owner !== undefined)
-          navigate(withViewerOwner(doc.location.href, viewer));
-        else ownedByYou.item.click();
+      entry(menu, {
+        id: id(),
+        text: "Me",
+        checked,
+        pick: () => {
+          // A forwarded click would keep the owner's files hidden: the owner filter only ever
+          // hides more.
+          if (viewer !== undefined && owner !== undefined)
+            navigate(withViewerOwner(doc.location.href, viewer));
+          else ownedByYou.item.click();
+        },
       }),
     );
   }
   for (const token of reviewers) {
     const checked = owner !== undefined && isOwner(token, { token: owner });
     // ponytail: a pick reloads the page, since the owner filter reads its owner once per page and
-    // never un-hides; re-read the owner on an in-page URL change in watch.ts and land.ts to skip it.
+    // never un-hides; re-read the owner on an in-page URL change in watch.ts and land.ts to skip
+    // it.
     list.append(
-      entry(menu, list.children.length, token, checked, () =>
-        navigate(withOwner(doc.location.href, checked ? undefined : token)),
-      ),
+      entry(menu, {
+        id: id(),
+        text: token,
+        checked,
+        pick: () => navigate(withOwner(doc.location.href, checked ? undefined : token)),
+      }),
     );
   }
 
-  const dividerCopy = ownedByYou ? undefined : (menu.divider.cloneNode(true) as Element);
+  let dividerCopy: Element | undefined;
   if (ownedByYou) {
     ownedByYou.group.before(section);
-    // Primer's focus zone skips only disabled items; a hidden one traps the arrow keys.
+    // Primer's focus zone skips only disabled items; a hidden one traps the arrow keys. React
+    // renders no `disabled` here, so it never fights this, and the node unmounts on close.
     ownedByYou.item.setAttribute("disabled", "");
-  } else if (dividerCopy) menu.divider.after(section, dividerCopy);
+  } else {
+    // Where GitHub puts its owned-by group, and the divider that follows it.
+    dividerCopy = copyMenuDivider(menu);
+    menu.divider.after(section, dividerCopy);
+  }
+
   closed.addEventListener("abort", () => {
     section.remove();
     dividerCopy?.remove();
@@ -105,16 +123,16 @@ function addSection(
   });
 }
 
+interface EntryParts {
+  readonly id: string;
+  readonly text: string;
+  readonly checked: boolean;
+  readonly pick: () => void;
+}
+
 /** A menu entry labelled `text` that runs `pick` on click, Enter, or Space, then closes the menu. */
-function entry(
-  menu: FilterMenu,
-  n: number,
-  text: string,
-  checked: boolean,
-  pick: () => void,
-): HTMLElement {
+function entry(menu: FilterMenu, { id, text, checked, pick }: EntryParts): HTMLElement {
   const { item, label } = copyMenuItem(menu);
-  const id = `gh-prism-owner-${n}`;
   item.id = id;
   item.setAttribute("role", "menuitemradio");
   item.setAttribute("tabindex", "-1");

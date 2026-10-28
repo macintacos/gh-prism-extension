@@ -3,7 +3,7 @@
 @import "../ui/tailwind.css" prefix(tw);
 @source "./owner-section.ts";
 
-/* GitHub's item, while "Me" stands in for it. */
+/* GitHub's owned-by group, while "Me" stands in for its item. */
 .gh-prism-owner-section + [data-component="ActionList.Group"] {
   display: none !important;
 }

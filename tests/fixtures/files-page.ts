@@ -81,6 +81,22 @@ export function openFilterMenu(kind: "owner" | "notOwner"): HTMLElement {
   return list;
 }
 
+/**
+ * Adds GitHub's owned-by group, and the divider after it, behind the first divider of an open
+ * `notOwner` menu, as GitHub does once its code-owners read lands.
+ */
+export function addOwnedByGroup(list: Element): void {
+  const template = document.createElement("template");
+  template.innerHTML = filterMenuFixture;
+  const group = template.content
+    .querySelector('[aria-keyshortcuts="o"]')
+    ?.closest('[data-component="ActionList.Group"]');
+  const divider = group?.nextElementSibling;
+  const first = list.querySelector('[data-component="ActionList.Divider"]');
+  if (!group || !divider || !first) throw new Error("fixture has no owned-by group");
+  first.after(group, divider);
+}
+
 /** Closes the menu `openFilterMenu` opened, as Primer unmounts it. */
 export function closeFilterMenu(): void {
   document.getElementById("__primerPortalRoot__")?.remove();

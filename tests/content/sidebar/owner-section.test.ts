@@ -2,7 +2,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { showOwnerSection } from "../../../entrypoints/content/sidebar/owner-section";
 import type { FileOwners, PrCodeOwners } from "../../../utils/github/code-owners";
-import { closeFilterMenu, foundPage, loadFixture, openFilterMenu } from "../../fixtures/files-page";
+import {
+  addOwnedByGroup,
+  closeFilterMenu,
+  foundPage,
+  loadFixture,
+  openFilterMenu,
+} from "../../fixtures/files-page";
 
 const PR = "/excessive-dev/gh-prism-codeowners-sandbox/pull/1/changes";
 const FRONTEND = "@excessive-dev/frontend";
@@ -107,6 +113,28 @@ describe("showOwnerSection", () => {
       "ActionList.Divider",
     );
     expect(entries().map((item) => item.textContent?.trim())).toEqual([FRONTEND, PLATFORM]);
+  });
+
+  it("stands in for GitHub's owned-by group once it appears in the open menu", async () => {
+    const list = openFilterMenu("notOwner");
+    await show();
+
+    addOwnedByGroup(list);
+    await flush();
+
+    expect(section()?.nextElementSibling).toBe(githubGroup());
+    expect(entries().map((item) => item.textContent?.trim())).toEqual(["Me", FRONTEND, PLATFORM]);
+    expect(getComputedStyle(githubGroup() as HTMLElement).display).toBe("none");
+    expect(githubItem().hasAttribute("disabled")).toBe(true);
+    expect(list.querySelectorAll('[data-component="ActionList.Divider"]')).toHaveLength(2);
+  });
+
+  it("adds no style when the pull request has no CODEOWNERS", async () => {
+    openFilterMenu("notOwner");
+
+    await show({ byPath: new Map(), reviewers: [] });
+
+    expect(document.head.querySelector("style")).toBeNull();
   });
 
   it("adds the section again, once, each time the menu reopens", async () => {

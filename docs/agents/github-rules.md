@@ -389,11 +389,17 @@ Below 1012px, a pull request's tree toggle opens the file tree as a "Files" over
   `storageState`, install `pushState`/`replaceState` wrappers and a `soft-nav:end`
   listener, then pick "Only files owned by you" and toggle an extension. Count the tree
   rows and diff entries, and read the header counter.
+
+## The filter-options menu
+
 - **Expect the filter-options menu to mount in `#__primerPortalRoot__` on each open and
   unmount on close.** Its `ul[role="menu"]` is labelled by the filter row's button, and
   its ids regenerate on every open, so match on `data-component` and roles, never ids.
 - **Expect GitHub's owned-by group, and the divider before it, only when you own a changed
-  file.** It is absent when you own none, and in a repository without CODEOWNERS.
+  file.** It is absent when you own none, and in a repository without CODEOWNERS. GitHub
+  mounts it only once its own code-owners read lands, so a menu opened right after load
+  lacks it: a capture waits for `[aria-keyshortcuts="o"]`, not `networkidle`, which never
+  settles on GitHub.
 - **Expect items appended to the menu to join Primer's arrow-key cycle.** Enter, Space,
   and click on one reach only its own listeners: Primer neither picks nor closes. An
   `Escape` keydown dispatched on it closes the menu and returns focus to the trigger.
