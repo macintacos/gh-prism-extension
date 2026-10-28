@@ -21,6 +21,7 @@ import {
   shieldOwner,
 } from "../files-page";
 import { el, icon } from "../ui/dom";
+import { fileList } from "../ui/file-list";
 import { type Card, followHoverIntent } from "../ui/hover-intent";
 import { detailsHint, openOwnersDialog, ownerLink } from "../ui/owners-dialog";
 import { place } from "../ui/place";
@@ -222,7 +223,7 @@ function show(shield: HTMLElement, owned: OwnedFiles): Card {
   const popover = el(
     doc,
     "div",
-    "gh-prism-reviewer-files tw:inset-auto tw:m-0 tw:w-max tw:max-w-[360px] tw:max-h-[min(320px,calc(100vh-16px))] tw:overflow-y-auto tw:pt-4 tw:px-4 tw:pb-0 tw:text-body-medium tw:leading-body-medium tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:border tw:border-border-default tw:rounded-medium tw:wrap-anywhere",
+    "gh-prism-reviewer-files tw:inset-auto tw:m-0 tw:w-max tw:max-w-[min(440px,calc(100vw-16px))] tw:box-border tw:max-h-[min(320px,calc(100vh-16px))] tw:overflow-y-auto tw:pt-4 tw:px-4 tw:pb-0 tw:text-body-medium tw:leading-body-medium tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:border tw:border-border-default tw:rounded-medium tw:wrap-anywhere",
     ...popupBody(doc, owned),
     detailsHint(doc, "medium"),
   );
@@ -287,19 +288,6 @@ function popupBody(doc: Document, { paths, teams, direct }: OwnedFiles): Node[] 
           ),
         ]
       : []),
-    el(
-      doc,
-      "ul",
-      "tw:m-0 tw:p-0 tw:list-none tw:flex tw:flex-col tw:gap-1 tw:text-body-small tw:leading-body-small tw:font-mono",
-      ...paths.map((path) => el(doc, "li", "", ...pathParts(doc, path))),
-    ),
+    fileList(doc, paths),
   ];
-}
-
-/** `path` as a muted directory and its file name. */
-function pathParts(doc: Document, path: string): (Node | string)[] {
-  const nameStart = path.lastIndexOf("/") + 1;
-  return nameStart === 0
-    ? [path]
-    : [el(doc, "span", "tw:text-fg-muted", path.slice(0, nameStart)), path.slice(nameStart)];
 }

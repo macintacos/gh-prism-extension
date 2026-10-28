@@ -3,6 +3,7 @@
 @import "../ui/tailwind.css" prefix(tw);
 @source "./reviewer-files.ts";
 @source "../ui/owners-dialog.ts";
+@source "../ui/file-list.ts";
 
 /* The popup says more than the shield's tooltip, which stays its accessible name. */
 html:has(.gh-prism-reviewer-files:popover-open) tool-tip[for^="codeowner-"] {
