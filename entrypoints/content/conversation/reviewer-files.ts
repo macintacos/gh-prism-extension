@@ -1,7 +1,7 @@
 /**
  * The popup a code-owner shield in a pull request's Reviewers list opens on the Conversation tab,
- * listing that code owner's files, and the shield gh-prism adds beside a PR reviewer who owns
- * files where GitHub draws none.
+ * listing that code owner's files, the code owner details dialog its click opens, and the shield
+ * gh-prism adds beside a PR reviewer who owns files where GitHub draws none.
  */
 
 import {
@@ -10,6 +10,7 @@ import {
   type PrCodeOwners,
   type PrReviewer,
   reviewerOf,
+  type TeamMembersOf,
 } from "@/utils/github/code-owners";
 import {
   findReviewerRows,
@@ -21,6 +22,7 @@ import {
 } from "../files-page";
 import { el, icon } from "../ui/dom";
 import { type Card, followHoverIntent } from "../ui/hover-intent";
+import { detailsHint, openOwnersDialog, ownerLink } from "../ui/owners-dialog";
 import { place } from "../ui/place";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./reviewer-files.css?inline";
@@ -43,12 +45,14 @@ export interface Ownership {
  * owns no changed file, unless GitHub marks them one: then it says GitHub hides the team. Tab
  * from the shield enters the popup. Closes 150 ms after the pointer leaves shield and popup, and
  * at once on Escape, focus leaving both, or a scroll outside it, moving focus it held to the
- * shield. Calls `read` at most once, when a Reviewers list first shows.
+ * shield. A click on the shield opens the code owner details dialog instead, excerpting owning
+ * teams' members through `teamMembers`. Calls `read` at most once, when a Reviewers list first
+ * shows.
  */
 export function showReviewerFiles(
   doc: Document,
   signal: AbortSignal,
-  read: () => Promise<Ownership>,
+  { read, teamMembers }: { read: () => Promise<Ownership>; teamMembers: TeamMembersOf },
 ): void {
   let ownership: Ownership | undefined;
   let reading: Promise<Ownership> | undefined;
@@ -73,13 +77,39 @@ export function showReviewerFiles(
     { signal },
   );
 
+  const shieldAt = (target: Element) =>
+    target.closest<HTMLElement>(OWN_SHIELD) ?? reviewerShieldOf(target);
+  let closeCard = () => {};
   followHoverIntent(doc, signal, {
-    triggerOf: (target) => target.closest<HTMLElement>(OWN_SHIELD) ?? reviewerShieldOf(target),
+    triggerOf: shieldAt,
     show: async (shield) => {
       const owned = ownedFiles(await readOnce(), ownerOf(shield));
-      return owned && show(shield, owned);
+      const card = owned && show(shield, owned);
+      if (card) closeCard = card.close;
+      return card;
     },
   });
+
+  doc.addEventListener(
+    "click",
+    async ({ target }) => {
+      const shield = target instanceof Element ? shieldAt(target) : null;
+      if (!shield) return;
+      const token = ownerOf(shield);
+      const owned = ownedFiles(await readOnce(), token);
+      if (signal.aborted || !owned) return;
+      closeCard();
+      openOwnersDialog(doc, {
+        title: token,
+        summary: popupBody(doc, owned),
+        teams: token.includes("/") ? [token] : owned.teams,
+        members: teamMembers,
+        returnFocus: () => shield.focus({ preventScroll: true }),
+        signal,
+      });
+    },
+    { signal },
+  );
 }
 
 /** The token of the code owner `shield` marks: gh-prism's own, or GitHub's. */
@@ -184,8 +214,15 @@ function show(shield: HTMLElement, owned: OwnedFiles): Card {
   const popover = el(
     doc,
     "div",
-    "gh-prism-reviewer-files tw:inset-auto tw:m-0 tw:w-max tw:max-w-[360px] tw:max-h-[min(320px,calc(100vh-16px))] tw:overflow-y-auto tw:p-4 tw:text-body-medium tw:leading-body-medium tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:border tw:border-border-default tw:rounded-medium tw:wrap-anywhere",
+    "gh-prism-reviewer-files tw:inset-auto tw:m-0 tw:w-max tw:max-w-[360px] tw:max-h-[min(320px,calc(100vh-16px))] tw:overflow-y-auto tw:pt-4 tw:px-4 tw:text-body-medium tw:leading-body-medium tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:border tw:border-border-default tw:rounded-medium tw:wrap-anywhere",
     ...popupBody(doc, owned),
+    // Sticky, and the popup keeps no bottom padding, so a long list scrolls under the hint.
+    el(
+      doc,
+      "div",
+      "tw:sticky tw:bottom-0 tw:-mx-4 tw:mt-4 tw:px-4 tw:py-2 tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:0_-1px_0_var(--borderColor-default)]",
+      detailsHint(doc),
+    ),
   );
   popover.id = ID;
   popover.popover = "manual";
@@ -231,7 +268,10 @@ function popupBody(doc: Document, { paths, teams, direct }: OwnedFiles): Node[] 
     ];
 
   const files = paths.length === 1 ? "1 file" : `${paths.length} files`;
-  const through = teams.flatMap((team, i) => [i > 0 ? ", " : "", teamLink(doc, team)]);
+  const through = teams.flatMap((team, i) => [
+    i > 0 ? ", " : "",
+    ownerLink(doc, codeOwnerOf(team)),
+  ]);
   return [
     el(doc, "p", "tw:mt-0 tw:mb-2 tw:font-semibold", `Code owner of ${files} in this pull request`),
     ...(teams.length > 0
@@ -252,17 +292,6 @@ function popupBody(doc: Document, { paths, teams, direct }: OwnedFiles): Node[] 
       ...paths.map((path) => el(doc, "li", "", ...pathParts(doc, path))),
     ),
   ];
-}
-
-/** `team`'s token, linking to its team page in a new tab when it has one. */
-function teamLink(doc: Document, team: string): Node | string {
-  const { url } = codeOwnerOf(team);
-  if (!url) return team;
-  const link = el(doc, "a", "tw:text-[color:var(--fgColor-accent)]", team);
-  link.href = url;
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-  return link;
 }
 
 /** `path` as a muted directory and its file name. */

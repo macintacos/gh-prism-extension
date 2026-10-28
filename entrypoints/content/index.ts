@@ -135,13 +135,16 @@ export default defineContentScript({
         );
         const teamMembers = teamMembersReader(fetch, visit);
         // Rides the header visit, so it runs only where findHeaderPage finds the counter's slot.
-        showReviewerFiles(document, visit, async () => {
-          const codeOwners = readCodeOwners(pr, fetch, visit);
-          const prReviewers = readReviewersWithTeams(pr, codeOwners, {
-            teamMembers,
-            signal: visit,
-          });
-          return { codeOwners: await codeOwners, prReviewers: await prReviewers };
+        showReviewerFiles(document, visit, {
+          read: async () => {
+            const codeOwners = readCodeOwners(pr, fetch, visit);
+            const prReviewers = readReviewersWithTeams(pr, codeOwners, {
+              teamMembers,
+              signal: visit,
+            });
+            return { codeOwners: await codeOwners, prReviewers: await prReviewers };
+          },
+          teamMembers,
         });
         return (page, signal) => showHeaderTab(page, signal, { intent, diffstat });
       },

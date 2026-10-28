@@ -330,8 +330,10 @@ gh-prism's own shield to every row whose PR reviewer owns a changed file, or who
 marks a code owner, but has no shield, and takes it away from a row where GitHub later
 draws its own. That shield is a button drawn as GitHub draws its own in that list, placed
 just before the row's last icon, the status icon, where GitHub puts its shield. Hovering
-or focusing either shield opens the popup. A click on either changes nothing: GitHub's
-shield has no action of its own, and gh-prism's leaves its click free.
+or focusing either shield opens the popup. A click on either closes the popup and opens
+the code owner details dialog from `ui/owners-dialog.ts`. One click listener on the
+document serves both shields, because GitHub replaces the classic sidebar's nodes
+mid-visit, and a listener on a shield would go with them.
 
 The popup lists the files `ownerFilter` gives the shield's `@user` or `@org/team` token,
 counting the teams GitHub names for that reviewer, and names those teams, each linked to

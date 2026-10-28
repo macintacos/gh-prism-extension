@@ -164,6 +164,13 @@ and name keep GitHub's own hovercard, so the two cards never share a trigger.
   under it says "Through" and names each team, linked to its team page, or "Directly and
   through" when CODEOWNERS names them too. Then one row per file, its path in monospace
   with the directory muted. A long list scrolls inside the popup.
+- **The hint:** like a file row's code owners popover (§ File rows), the popup ends in a
+  footer that stays put while the list scrolls: below a hairline, "Click the shield for
+  details" in small muted text.
+- **The click:** clicking the shield, or Enter or Space on it, closes the popup and opens
+  the code owner details dialog (§ Dialogs), headed by the code owner's `@user` or
+  `@org/team` name. Closing the dialog returns focus to the shield. Focus opens the popup
+  just as hover does, so the popup shows again.
 - **When GitHub hides the team:** a code owner GitHub marks without letting you see which
   team makes them one gets one plain muted sentence instead of the list.
 - **The tooltip:** the classic shield's own GitHub tooltip ("… is a code owner") says
