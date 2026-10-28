@@ -92,6 +92,11 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   so a click that comes too soon is intercepted and retried, with the same forced scroll.
   "ticking a box doesn't scroll the sidebar" polls the box's computed `pointer-events`
   first.
+- **Hover a tree row before a test tabs to its code owners shield.** A focus that scrolls
+  the window delivers the scroll event a frame later, after the focus has opened the
+  shield's popover, and the popover closes on any scroll outside it.
+  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "Shift+Tab from an owners popover back to
+  its shield keeps the same popover open" is the pattern.
 - **Click a control drawn over a tree row on GitHub's current file too, with Playwright's
   `click()`.** @pierre/trees stacks the focused and selected rows above their siblings, so
   either can cover a control that works on every other row, and `dispatchEvent` skips the
