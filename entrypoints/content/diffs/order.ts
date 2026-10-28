@@ -92,9 +92,9 @@ function flushFirst(kind: PageKind, first: string | undefined): string {
 
 /** A rule hiding the diff of each file in `hidden`, on a kind that hides any. */
 function hideRule(kind: PageKind, hidden: ReadonlySet<string>): string {
-  const selectors = kind.hiddenDiffSelectors;
-  return selectors && hidden.size > 0
-    ? `${[...hidden].map(selectors).join(", ")} { display: none !important; }`
+  const selectorsOf = kind.hiddenDiffSelectors;
+  return selectorsOf && hidden.size > 0
+    ? `${[...hidden].map(selectorsOf).join(", ")} { display: none !important; }`
     : "";
 }
 

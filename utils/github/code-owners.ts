@@ -45,11 +45,12 @@ export function isOwner(token: string, owner: CodeOwner): boolean {
 }
 
 /**
- * A filter keeping the changed files one of whose code owners in `read` is `token`, ignoring case;
- * a path with no owners, or missing from `read`, is dropped.
+ * A filter keeping the changed files one of whose code owners in `codeOwners` is `token`, ignoring
+ * case; a path with no owners, or missing from `codeOwners`, is dropped.
  */
-export function ownerFilter(read: PrCodeOwners, token: string): (path: string) => boolean {
-  return (path) => read.byPath.get(path)?.owners.some((owner) => isOwner(token, owner)) ?? false;
+export function ownerFilter(codeOwners: PrCodeOwners, token: string): (path: string) => boolean {
+  return (path) =>
+    codeOwners.byPath.get(path)?.owners.some((owner) => isOwner(token, owner)) ?? false;
 }
 
 /**
