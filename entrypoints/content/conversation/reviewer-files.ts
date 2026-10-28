@@ -138,11 +138,14 @@ const SHIELD_LOCK =
 
 /**
  * Adds gh-prism's shield to each of `rows` whose PR reviewer has something to show in `ownership`
- * and no shield yet, just before the row's last icon, where GitHub puts its own.
+ * and no shield yet, just before the row's last icon, where GitHub puts its own, and removes it
+ * from a row where GitHub has since drawn its own.
  */
 function addShields(rows: readonly ReviewerRow[], ownership: Ownership): void {
   for (const { kind, token, shield, icons } of rows) {
-    if (shield || icons.querySelector(OWN_SHIELD)) continue;
+    const own = icons.querySelector(OWN_SHIELD);
+    if (shield) own?.remove();
+    if (shield || own) continue;
     const owned = ownedFiles(ownership, token);
     if (!owned || !reviewerOf(ownership.prReviewers ?? [], token)) continue;
     const added = shieldFor(icons.ownerDocument, kind, token, owned);

@@ -314,11 +314,11 @@ row's reviewer, GitHub's shield, and its column of status icons in either. GitHu
 a code owner's pending request only, so a code owner who has reviewed loses the shield.
 `followReviewerRows` reports the rows on each change to the page, and the popup adds
 gh-prism's own shield to every row whose PR reviewer owns a changed file, or whom GitHub
-marks a code owner, but has no shield. That shield is a button drawn as GitHub draws its
-own in that list, placed just before the row's last icon, the status icon, where GitHub
-puts its shield. Hovering or focusing either shield opens the popup. A click on either
-changes nothing: GitHub's shield has no action of its own, and gh-prism's leaves its click
-free.
+marks a code owner, but has no shield, and takes it away from a row where GitHub later
+draws its own. That shield is a button drawn as GitHub draws its own in that list, placed
+just before the row's last icon, the status icon, where GitHub puts its shield. Hovering
+or focusing either shield opens the popup. A click on either changes nothing: GitHub's
+shield has no action of its own, and gh-prism's leaves its click free.
 
 The popup lists the files `ownerFilter` gives the shield's `@user` or `@org/team` token,
 counting the teams GitHub names for that reviewer, and names those teams, each linked to

@@ -610,6 +610,45 @@ describe("showReviewerFiles", () => {
       expect(listed()).toEqual(["test/cctest/test_node_crypto.cc"]);
     });
 
+    /** Edits making pimterry, who has reviewed, a code owner of a file in their own name. */
+    const pimterryOwnsDirectly: NodeEdits = {
+      ownership: (byPath) => {
+        byPath["test/cctest/test_node_crypto.cc"] = {
+          owners: ["@pimterry"],
+          isOwnedByViewer: false,
+        };
+      },
+    };
+
+    it("keeps gh-prism's shield, named as GitHub names its own, for a direct code owner", async () => {
+      await showNode(pimterryOwnsDirectly, overviewConversation);
+
+      rowOf("pimterry").append(document.createComment("re-render"));
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(ownShieldOf("@pimterry").getAttribute("aria-label")).toBe("pimterry is a code owner");
+    });
+
+    it.each([
+      ["a direct code owner", pimterryOwnsDirectly],
+      ["a team's code owner", { reviewRequests: reviewedForCrypto }],
+    ])("removes gh-prism's shield once GitHub draws its own for %s", async (_, edits) => {
+      await showNode(edits, overviewConversation);
+
+      rowOf("pimterry")
+        .querySelector('[role="img"]')
+        ?.insertAdjacentHTML(
+          "beforebegin",
+          '<button type="button" aria-label="pimterry is a code owner"></button>',
+        );
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(ownShields()).toEqual([]);
+      expect(
+        rowOf("pimterry").querySelectorAll("button[aria-label$=' is a code owner']"),
+      ).toHaveLength(1);
+    });
+
     it("puts gh-prism's shield in the icon column, before the status icon", async () => {
       await showNode({ reviewRequests: reviewedForCrypto }, overviewConversation);
 

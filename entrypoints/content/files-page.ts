@@ -392,7 +392,8 @@ const REVIEWER_LISTS: readonly ReviewerList[] = [
     kind: "overview",
     row: '[class*="reviewerList__"] li[class*="reviewerRow__"]',
     icons: '[class*="indicators__"]',
-    shield: `button[aria-label$="${SHIELD_LABEL}"]`,
+    // gh-prism's own shield takes GitHub's label; keep in sync with reviewer-files' OWN_SHIELD.
+    shield: `button[aria-label$="${SHIELD_LABEL}"]:not([data-gh-prism-owner])`,
   },
 ];
 
