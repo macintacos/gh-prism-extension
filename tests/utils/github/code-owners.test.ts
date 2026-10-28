@@ -62,6 +62,22 @@ function nodeFetchWith(
 const nodeFetchWithReview = (edit: (review: Json) => void) =>
   nodeFetchWith(({ completedReviews }) => edit(completedReviews[0] ?? {}));
 
+/** Node's code owners and PR reviewers, read through `fetchFn`; throws if either read fails. */
+async function readNode(fetchFn: typeof fetch) {
+  const owners = await read(node, fetchFn);
+  const reviewers = await readReviewers(node, fetchFn);
+  if (owners === undefined || reviewers === undefined) throw new Error("node's read failed");
+  return { owners, reviewers };
+}
+
+/** Node's code owners and PR reviewers, with pimterry's review on behalf of nodejs/crypto. */
+const readNodeReviewedForCrypto = () =>
+  readNode(
+    nodeFetchWithReview((review) => {
+      review.onBehalfOfTeams = [team("nodejs/crypto")];
+    }),
+  );
+
 /** A team as review_requests names one, `org/slug`. */
 const team = (displayLogin: string) => ({ displayLogin, name: "", reviewerType: "Team" });
 
@@ -578,12 +594,7 @@ describe("ownerFilter", () => {
   });
 
   it("keeps the files of the teams a reviewer reviewed for, and only those", async () => {
-    const fetchFn = nodeFetchWithReview((review) => {
-      review.onBehalfOfTeams = [team("nodejs/crypto")];
-    });
-    const owners = await read(node, fetchFn);
-    const reviewers = await readReviewers(node, fetchFn);
-    if (owners === undefined || reviewers === undefined) throw new Error("node's read failed");
+    const { owners, reviewers } = await readNodeReviewedForCrypto();
 
     const keep = ownerFilter(owners, "@PimTerry", reviewers);
 
@@ -598,10 +609,7 @@ describe("ownerFilter", () => {
   });
 
   it("keeps no files of a reviewer who reviewed for no team", async () => {
-    const fetchFn = nodeFetchWith(() => {});
-    const owners = await read(node, fetchFn);
-    const reviewers = await readReviewers(node, fetchFn);
-    if (owners === undefined || reviewers === undefined) throw new Error("node's read failed");
+    const { owners, reviewers } = await readNode(nodeFetchWith(() => {}));
 
     const keep = ownerFilter(owners, "@pimterry", reviewers);
 
@@ -637,12 +645,7 @@ describe("owningReviewers", () => {
   });
 
   it("keeps a reviewer who owns files only through a team they reviewed for", async () => {
-    const fetchFn = nodeFetchWithReview((review) => {
-      review.onBehalfOfTeams = [team("nodejs/crypto")];
-    });
-    const owners = await read(node, fetchFn);
-    const reviewers = await readReviewers(node, fetchFn);
-    if (owners === undefined || reviewers === undefined) throw new Error("node's read failed");
+    const { owners, reviewers } = await readNodeReviewedForCrypto();
 
     expect(owningReviewers(reviewers, owners, undefined)).toEqual(["@pimterry"]);
   });
