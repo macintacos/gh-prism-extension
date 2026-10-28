@@ -1854,3 +1854,38 @@ test("a shield's click closes its open popover, and another shield's swaps it", 
   );
   await expect(readmeShield).not.toHaveAttribute("aria-expanded");
 });
+
+test("a code owner reviewer's shield opens their files, closing as the pointer leaves or on Escape", async ({
+  context,
+  page,
+}) => {
+  const errors: Error[] = [];
+  page.on("pageerror", (error) => errors.push(error));
+  await serve(
+    context,
+    "https://github.com/o/r/pull/1",
+    `<!doctype html>${readFixture("conversation-page.html")}`,
+  );
+  await context.route("https://github.com/o/r/pull/1/page_data/codeowners", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: readFixture("codeowners-sandbox.json"),
+    }),
+  );
+  await page.goto("https://github.com/o/r/pull/1");
+  const shield = page.locator('[id="codeowner-excessive-dev/frontend"]');
+  const popup = page.locator(".gh-prism-reviewer-files");
+
+  await shield.hover();
+  await expect(popup).toContainText("api/generated/client.ts");
+  await expect(popup).toContainText("web/app.ts");
+
+  await page.getByRole("link", { name: "frontend", exact: true }).hover();
+  await expect(popup).toBeHidden();
+
+  await shield.focus();
+  await expect(popup).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(popup).toBeHidden();
+  expect(errors).toEqual([]);
+});

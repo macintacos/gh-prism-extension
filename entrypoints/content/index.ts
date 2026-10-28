@@ -2,7 +2,7 @@ import { browser } from "wxt/browser";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { storage } from "wxt/utils/storage";
-import { readCodeOwners, readPrReviewers } from "@/utils/github/code-owners";
+import { type PrCodeOwners, readCodeOwners, readPrReviewers } from "@/utils/github/code-owners";
 import { ownerOf } from "@/utils/github/files-route";
 import { connectPrData } from "@/utils/github/pr-port";
 import { readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
@@ -22,6 +22,7 @@ import {
   whatsNewStateOf,
 } from "@/utils/whats-new";
 import { type NoticeChoice, showClassicNotice } from "./classic/notice";
+import { showReviewerFiles } from "./conversation/reviewer-files";
 import { visitViewed } from "./diffs/viewed";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
 import { showOwnerSection } from "./sidebar/owner-section";
@@ -39,7 +40,8 @@ const CACHED_DIFFS = 50;
  * diffstat, docks the sidebar on the saved side with a switch, adds a link to report a
  * miscategorized file, adds an "Only files owned by…" section to GitHub's filter menu, and, after
  * an update, opens the sidebar with that release's notes. On a pull request's header tabs, stands
- * in for the diffstat alone. On its classic Files changed page, explains why gh-prism is off
+ * in for the diffstat, and on Conversation lists a code-owner reviewer's files from their shield.
+ * On its classic Files changed page, explains why gh-prism is off
  * there.
  */
 export default defineContentScript({
@@ -118,6 +120,8 @@ export default defineContentScript({
         const intent = shareIntent((onProgress) =>
           intentFor({ diff: pr, commitFiltered: false }, visit, sources, onProgress),
         );
+        let codeOwners: Promise<PrCodeOwners | undefined> | undefined;
+        showReviewerFiles(document, visit, () => (codeOwners ??= readCodeOwners(pr, fetch, visit)));
         return (page, signal) => showHeaderTab(page, signal, { intent, diffstat });
       },
       ctx.signal,

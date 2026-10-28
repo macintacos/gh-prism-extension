@@ -20,7 +20,7 @@ and its head. A revisit with the same pin lands its intent without reading the d
 commit's page. _Avoid_: files page, diff page
 
 **Header tab**: A pull request's Conversation, Commits, or Checks tab. It shares the Files
-changed tab's header, so gh-prism shows only the diffstat there. _Avoid_: other tab
+changed tab's header, so gh-prism shows the diffstat there. _Avoid_: other tab
 
 **Page kind**: Which Files view shows the diff: a pull request's Files changed tab or a
 commit's page. _Avoid_: page type, view type

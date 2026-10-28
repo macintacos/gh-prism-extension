@@ -44,6 +44,8 @@ how to get the new tab. Once you close the dialog, it stays closed, and
 - On a pull request, hovering or focusing a file's row shows a shield when the file has
   code owners. Clicking the shield lists them, each team or user linked to their GitHub
   page.
+- On a pull request's Conversation tab, hovering or focusing the code-owner shield GitHub
+  shows beside a reviewer lists the changed files that reviewer owns.
 - After an update, the sidebar opens with a collapsed **What's new in vX.Y.Z** block of
   that version's release notes. It goes away when you dismiss it, or 3 days after you
   first see it.

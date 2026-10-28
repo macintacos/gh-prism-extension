@@ -423,6 +423,53 @@ describe("content script", () => {
       expect(readPrReviewers).not.toHaveBeenCalled();
     });
 
+    describe("with a reviewer's code-owner shield", () => {
+      const focusShield = () => {
+        document.body.insertAdjacentHTML(
+          "beforeend",
+          '<div id="partial-discussion-sidebar"><button id="codeowner-o/team"></button></div>',
+        );
+        const shield = byId("codeowner-o/team");
+        shield.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+        shield.remove();
+        byId("partial-discussion-sidebar").remove();
+      };
+
+      it("reads the pull request's code owners once per visit, on the first hover", async () => {
+        await run();
+
+        focusShield();
+        focusShield();
+
+        expect(readCodeOwners).toHaveBeenCalledOnce();
+        expect(readCodeOwners).toHaveBeenCalledWith(
+          { kind: "pr", owner: "o", repo: "r", number: 3 },
+          fetch,
+          expect.any(AbortSignal),
+        );
+        expect(vi.mocked(readCodeOwners).mock.calls[0]?.[2].aborted).toBe(false);
+        expect(readPrReviewers).not.toHaveBeenCalled();
+      });
+
+      it("reads again on a fresh visit's first hover", async () => {
+        await run();
+        focusShield();
+
+        history.pushState(null, "", "/o/r/pull/3/changes");
+        loadFixture();
+        document.dispatchEvent(new Event("soft-nav:end"));
+        await afterMutations();
+        history.pushState(null, "", "/o/r/pull/3");
+        loadHeaderFixture();
+        document.dispatchEvent(new Event("soft-nav:end"));
+        await afterMutations();
+        vi.mocked(readCodeOwners).mockClear();
+        focusShield();
+
+        expect(readCodeOwners).toHaveBeenCalledOnce();
+      });
+    });
+
     it("shares the Files view's diffstat choice", async () => {
       await run();
 

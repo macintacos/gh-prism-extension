@@ -234,7 +234,9 @@ but github.com, and no cache, since a review submitted while the tab is open mus
 the next visit. `index.ts` starts two reads once per visit, `readCodeOwners` from
 `codeowners` and `readPrReviewers` from `merge_box`, and hands their promises to every
 page of that visit: `showVisit` takes the code owners alone, and `showOwnerSection` takes
-both. A commit page and a pull request's header tabs read nothing.
+both. A commit page reads nothing. A pull request's header visit reads the code owners
+alone, once per visit, and only when you first hover or focus a reviewer's code-owner
+shield on the Conversation tab.
 
 The code owners are each changed file's owners, in CODEOWNERS order, with whether you own
 the file. The PR reviewers are the `@user` and `@org/team` tokens of everyone requested to
@@ -276,6 +278,17 @@ removed, with its listeners, once it closes. The sections view also closes it be
 moving into or out of the narrow layout's overlay, since a popover that leaves the
 document closes without a toggle event. A pointer click on an open popover's own shield
 only closes it. Showing a file's owners never changes its section or the diffstat.
+
+On the Conversation tab, GitHub marks each reviewer who owns a changed file with a
+code-owner shield in the Reviewers sidebar. Hovering or focusing that shield opens a popup
+listing the changed files the reviewer owns, built by
+[`conversation/reviewer-files.ts`](../entrypoints/content/conversation/reviewer-files.ts).
+The shield's id names the reviewer's `@user` or `@org/team` token, and `ownerFilter` in
+`utils/github/code-owners.ts` matches it against each file's owners, as the owner filter
+does. When the reviewer owns no changed file, nothing opens. The popup's listeners sit on
+the document for the whole visit, because GitHub replaces the sidebar's nodes mid-visit.
+The popup and the file shields' popover share one placer,
+[`ui/place.ts`](../entrypoints/content/ui/place.ts).
 
 The owner section is the third: it lists the reviewers who own a changed file (§ The owner
 section).
@@ -382,7 +395,8 @@ entrypoints/
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
     header/              diffstat breakout
-    ui/                  shared DOM helpers, loading view, Markdown subset, name reveal, Tailwind tokens
+    conversation/        a code-owner reviewer's files popup
+    ui/                  shared DOM helpers, popup placer, loading view, Markdown subset, name reveal, Tailwind tokens
 utils/
   github/                routes, diff parsing, the PR data port and source, code owners and reviewers
   intent/                reading, caching, and landing intent
