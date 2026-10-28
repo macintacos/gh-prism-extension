@@ -54,7 +54,8 @@ export function describeListing(doc: Document, listing: ShieldListing) {
 
 /** Opens the popover listing `listing`. */
 // ponytail: builds every file under a folder on each open, thousands of nodes at GitHub's
-// 3,000-file cap; cap the list with a "+N more" line, or virtualize it with `@pierre/trees`, if that hitches.
+// 3,000-file cap; cap the list with a "+N more" line,
+// or virtualize it with `@pierre/trees`, if that hitches.
 export function openListing(
   shield: HTMLElement,
   listing: ShieldListing,
@@ -74,10 +75,27 @@ function ownersList(doc: Document, owners: readonly CodeOwner[]): HTMLElement {
   );
 }
 
-/** `files` by their paths relative to `folder`, each owned one with its owners. */
+/**
+ * `files` grouped under their folders relative to `folder`, each owned one with its owners below
+ * its name.
+ */
 function folderList(doc: Document, folder: string, files: readonly FileOwnersAt[]): HTMLElement {
-  const owners = new Map(files.map(({ path, owners }) => [path.slice(folder.length), owners]));
-  return fileList(doc, [...owners.keys()], (path) => ownerLine(doc, owners.get(path) ?? []));
+  const ownersOf = new Map(files.map(({ path, owners }) => [path.slice(folder.length), owners]));
+  return fileList(doc, [...ownersOf.keys()], (path) => ownerLine(doc, ownersOf.get(path) ?? []));
+}
+
+/** `owners` comma-separated on one line, or nothing when there are none. */
+function ownerLine(doc: Document, owners: readonly CodeOwner[]): HTMLElement[] {
+  return owners.length > 0
+    ? [
+        el(
+          doc,
+          "div",
+          "",
+          ...owners.flatMap((owner, i) => [i > 0 ? ", " : "", ownerLink(doc, owner)]),
+        ),
+      ]
+    : [];
 }
 
 /** `label` is the popover's accessible name; `body` goes below its heading. */
@@ -166,18 +184,4 @@ function openPopover(
     { capture: true, signal: closed.signal },
   );
   return { element: popover, close };
-}
-
-/** `owners` comma-separated on one line, or nothing when there are none. */
-function ownerLine(doc: Document, owners: readonly CodeOwner[]): HTMLElement[] {
-  return owners.length > 0
-    ? [
-        el(
-          doc,
-          "div",
-          "",
-          ...owners.flatMap((owner, i) => [i > 0 ? ", " : "", ownerLink(doc, owner)]),
-        ),
-      ]
-    : [];
 }

@@ -346,7 +346,9 @@ open and close it is `followHoverIntent` in
 [`ui/hover-intent.ts`](../entrypoints/content/ui/hover-intent.ts). The popup and the file
 and folder shields' popover share one placer,
 [`ui/place.ts`](../entrypoints/content/ui/place.ts): below, else above, else on the
-roomier side, capped so it never covers its anchor.
+roomier side, capped so it never covers its anchor. They also share one file list,
+[`ui/file-list.ts`](../entrypoints/content/ui/file-list.ts), which groups their files
+under folders as the sidebar's tree flattens them.
 
 The owner section is the third: it lists the reviewers who own a changed file (§ The owner
 section).

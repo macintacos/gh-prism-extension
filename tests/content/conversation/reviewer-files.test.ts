@@ -199,7 +199,10 @@ const rowOf = (login: string) =>
 const popups = () => [...document.querySelectorAll<HTMLElement>(".gh-prism-reviewer-files")];
 const popup = () => document.querySelector<HTMLElement>(".gh-prism-reviewer-files");
 const listed = () => outline(popup()?.querySelector("ul"));
-const cryptoListing = ["src/crypto/", ...NODE_CRYPTO.map((path) => `  ${path.slice(11)}`)];
+const cryptoListing = [
+  "src/crypto/",
+  ...NODE_CRYPTO.map((path) => `  ${path.replace(/^src\/crypto\//, "")}`),
+];
 const sortedAfterFolder = ([folder, ...files]: string[]) => [folder, ...files.sort()];
 
 function pointerOver(target: Element, from: Element | null = null) {

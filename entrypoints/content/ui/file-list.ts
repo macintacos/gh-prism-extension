@@ -5,7 +5,10 @@
 
 import { el } from "./dom";
 
-/** A folder, named by its path with a trailing slash, or a file, named by its base name. */
+/**
+ * A folder, named by its path below its parent folder (one or more segments, each ending in
+ * "/"), or a file, named by its base name and keeping its full path.
+ */
 export type PathNode =
   | { readonly folder: string; readonly children: readonly PathNode[] }
   | { readonly name: string; readonly path: string };
@@ -19,20 +22,25 @@ type Draft = Map<string, Draft | string>;
  */
 export function pathTree(paths: readonly string[]): PathNode[] {
   const root: Draft = new Map();
+
   for (const path of paths) {
     const segments = path.split("/");
     const name = segments.pop() ?? path;
-    const folder = segments.reduce<Draft>((parent, segment) => {
-      const key = `${segment}/`;
-      const child = parent.get(key);
-      if (child instanceof Map) return child;
-      const made: Draft = new Map();
-      parent.set(key, made);
-      return made;
-    }, root);
+    const folder = segments.reduce(subfolder, root);
     folder.set(name, path);
   }
+
   return nodesOf(root);
+}
+
+/** `parent`'s folder named `segment`, made if it has none yet. */
+function subfolder(parent: Draft, segment: string): Draft {
+  const key = `${segment}/`;
+  const child = parent.get(key);
+  if (child instanceof Map) return child;
+  const made: Draft = new Map();
+  parent.set(key, made);
+  return made;
 }
 
 function nodesOf(draft: Draft): PathNode[] {
@@ -48,38 +56,46 @@ function merged(folder: string, children: PathNode[]): PathNode {
     : { folder, children };
 }
 
-const LIST = "tw:mx-0 tw:mb-0 tw:py-0 tw:pr-0 tw:list-none tw:flex tw:flex-col tw:gap-1";
-
-/** `paths` as nested lists of muted folder paths and their files, `under` adding rows below each file's name. */
+/**
+ * `paths` as nested lists of muted folder paths and their files' names. `under` gets each
+ * file's path exactly as given in `paths` and returns rows to show below its name.
+ */
 export function fileList(
   doc: Document,
   paths: readonly string[],
   under: (path: string) => readonly Node[] = () => [],
 ): HTMLUListElement {
-  const items = (nodes: readonly PathNode[]): HTMLLIElement[] =>
-    nodes.map((node) =>
-      "folder" in node
-        ? el(
+  const item = (node: PathNode): HTMLLIElement =>
+    "folder" in node
+      ? el(
+          doc,
+          "li",
+          "",
+          folderLabel(doc, node.folder),
+          el(
             doc,
-            "li",
-            "",
-            el(
-              doc,
-              "div",
-              "tw:font-mono tw:text-fg-muted",
-              ...(node.folder.match(/[^/]*\//g) ?? []).flatMap((segment) => [
-                segment,
-                doc.createElement("wbr"),
-              ]),
-            ),
-            el(doc, "ul", `${LIST} tw:pl-4 tw:mt-1`, ...items(node.children)),
-          )
-        : el(doc, "li", "", el(doc, "div", "tw:font-mono", node.name), ...under(node.path)),
-    );
+            "ul",
+            "tw:mt-1 tw:mb-0 tw:mx-0 tw:py-0 tw:pl-4 tw:pr-0 tw:list-none tw:flex tw:flex-col tw:gap-1",
+            ...node.children.map(item),
+          ),
+        )
+      : el(doc, "li", "", el(doc, "div", "tw:font-mono", node.name), ...under(node.path));
+
   return el(
     doc,
     "ul",
-    `${LIST} tw:mt-0 tw:pl-0 tw:text-body-small tw:leading-body-small`,
-    ...items(pathTree(paths)),
+    "tw:m-0 tw:p-0 tw:list-none tw:flex tw:flex-col tw:gap-1 tw:text-body-small tw:leading-body-small",
+    ...pathTree(paths).map(item),
+  );
+}
+
+/** `folder` in muted monospace, able to break only after each slash. */
+function folderLabel(doc: Document, folder: string): HTMLElement {
+  const segments = folder.match(/[^/]*\//g) ?? [];
+  return el(
+    doc,
+    "div",
+    "tw:font-mono tw:text-fg-muted",
+    ...segments.flatMap((segment) => [segment, doc.createElement("wbr")]),
   );
 }

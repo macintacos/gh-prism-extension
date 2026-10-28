@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
-import { fileList, pathTree } from "@/entrypoints/content/ui/file-list";
+import { fileList, pathTree } from "../../../entrypoints/content/ui/file-list";
 import { outline } from "../../fixtures/file-list";
 
 describe("pathTree", () => {

@@ -55,11 +55,11 @@ A folder holding an owned file shows the same shield while its row is hovered or
 at its row's end, centred on the file rows' Viewed box column, because its icon already
 gives way to its chevron. A flattened chain's shield stands for its deepest folder, which
 holds the same files. `sidebar/section-tree.css` places it. Its popover lists every file
-the section shows under that folder, nested ones included, grouped under their folders
-relative to the folder, as the code owner's files popup groups them (§ Code owner's
-files), with an owned file's code owners under its name. A file with none shows its name
-alone. The popover is at most 400px wide. It ends in the same hint, and a click on the
-shield opens the code owner details dialog too. `sidebar/owners-popover.ts` builds it.
+the section shows under that folder, nested ones included, as a tree relative to it,
+grouped as the code owner's files popup groups them (§ Code owner's files), with an owned
+file's code owners under its name. A file with none shows its name alone. The popover is
+at most 400px wide. It ends in the same hint, and a click on the shield opens the code
+owner details dialog too. `sidebar/owners-popover.ts` builds it.
 
 A folder chain short of room keeps its first folder and as many trailing folders as fit
 around one `…`. With room for less, it shows `…` and the deepest folder alone. Only the
@@ -165,8 +165,10 @@ and name keep GitHub's own hovercard, so the two cards never share a trigger.
   under it says "Through" and names each team, linked to its team page, or "Directly and
   through" when CODEOWNERS names them too. Then the files, grouped under their folders,
   with a folder that holds only another folder merged into it, as the sidebar's tree
-  flattens them. Each folder's path is in muted monospace and breaks only after a slash.
-  Its files sit indented below it in monospace. A long list scrolls inside the popup.
+  flattens them. Each folder's path is in muted monospace and breaks only after a slash,
+  unless one folder name alone is wider than the popup. Its files sit indented below it in
+  monospace. `ui/file-list.ts` builds this tree for the popup, the folder popover (§ File
+  rows), and through them the details dialog. A long list scrolls inside the popup.
 - **The hint:** like a file row's code owners popover (§ File rows), the popup ends in a
   footer that stays put while the list scrolls: below a hairline, "Click the shield for
   details" in small muted text.

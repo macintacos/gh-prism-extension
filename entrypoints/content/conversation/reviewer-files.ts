@@ -256,8 +256,8 @@ function show(shield: HTMLElement, owned: OwnedFiles): Card {
 }
 
 /**
- * The popup's content: the count, the teams that make them an owner, and one row per file; or why
- * there is none.
+ * The popup's content: the count, the teams that make them an owner, and the files grouped under
+ * their folders; or why there are none.
  */
 function popupBody(doc: Document, { paths, teams, direct }: OwnedFiles): Node[] {
   if (paths.length === 0)

@@ -1725,9 +1725,9 @@ test("a shield lists its file's code owners in a popover, and Tab walks its link
   expect(
     await popover.evaluate((element) => {
       const style = getComputedStyle(element);
-      return [style.position, style.padding, style.maxHeight !== "none"];
+      return [style.position, style.padding, style.maxHeight !== "none", style.boxSizing];
     }),
-  ).toEqual(["fixed", "12px 12px 0px", true]);
+  ).toEqual(["fixed", "12px 12px 0px", true, "border-box"]);
   const links = popover.locator("a");
   await expect(links).toHaveCount(2);
   expect(await links.evaluateAll((all) => all.map((link) => link.getAttribute("href")))).toEqual([
@@ -2196,6 +2196,9 @@ test("a code owner's long folder paths break only after a slash, in a wider card
 
   await page.locator('[id="codeowner-excessive-dev/frontend"]').hover();
   await expect(card).toBeVisible();
+  await card.evaluate((element) =>
+    Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)),
+  );
 
   const { boxSizing, width } = await card.evaluate((element) => ({
     boxSizing: getComputedStyle(element).boxSizing,
@@ -2217,6 +2220,10 @@ test("a code owner's long folder paths break only after a slash, in a wider card
   );
   expect(linesPerTextNode.length).toBeGreaterThan(0);
   expect(linesPerTextNode.every((lines) => lines === 1)).toBe(true);
+  const labelHeights = await card
+    .locator("li > div:has(+ ul)")
+    .evaluateAll((labels) => labels.map((label) => label.getBoundingClientRect().height));
+  expect(Math.max(...labelHeights)).toBeGreaterThan(Math.min(...labelHeights) * 1.5);
 });
 
 test("a code owner's files sit indented below their folder after another sheet mounts", async ({
@@ -2225,12 +2232,13 @@ test("a code owner's files sit indented below their folder after another sheet m
 }) => {
   await serveSandboxConversation(context);
   await page.goto("https://github.com/o/r/pull/1");
-  // Every gh-prism sheet carries its own copy of the utilities it uses.
-  await page.addStyleTag({ content: ".tw\\:p-0 { padding: 0; } .tw\\:m-0 { margin: 0; }" });
   const card = page.locator(".gh-prism-reviewer-files");
 
   await page.locator('[id="codeowner-excessive-dev/frontend"]').hover();
   await expect(card).toBeVisible();
+  // Stands in for a later-mounted gh-prism sheet's copy of the shorthand resets, which beats an
+  // earlier sheet's longhands.
+  await page.addStyleTag({ content: ".tw\\:p-0 { padding: 0; } .tw\\:m-0 { margin: 0; }" });
   await card.evaluate((element) =>
     Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)),
   );
@@ -2249,6 +2257,9 @@ test("a code owner's files card stays inside a narrow viewport", async ({ contex
 
   await page.locator('[id="codeowner-excessive-dev/frontend"]').hover();
   await expect(card).toBeVisible();
+  await card.evaluate((element) =>
+    Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)),
+  );
 
   const { left, right, innerWidth } = await card.evaluate((element) => ({
     ...element.getBoundingClientRect().toJSON(),
