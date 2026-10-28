@@ -50,9 +50,9 @@ function nodesOf(draft: Draft): PathNode[] {
 }
 
 function merged(folder: string, children: PathNode[]): PathNode {
-  const [only] = children;
-  return children.length === 1 && only && "folder" in only
-    ? { folder: folder + only.folder, children: only.children }
+  const [onlyChild] = children;
+  return children.length === 1 && onlyChild && "folder" in onlyChild
+    ? { folder: folder + onlyChild.folder, children: onlyChild.children }
     : { folder, children };
 }
 
