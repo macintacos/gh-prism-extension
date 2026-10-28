@@ -6,11 +6,11 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
-## 2026-10-28: A reviewer's files, from their code-owner shield
+## 2026-10-28: A code owner's files, from their Reviewers sidebar shield
 
-- **Compared:** four triggers for the popup listing a reviewer's files:
-  - the reviewer's code-owner shield, the shield icon GitHub shows beside a reviewer who
-    owns code in the pull request;
+- **Compared:** four triggers for the popup listing a code owner's files:
+  - the code-owner shield, the shield icon GitHub shows beside a team or person in the
+    Reviewers sidebar who owns code in the pull request;
   - the name or avatar, replacing GitHub's card with gh-prism's on shielded rows;
   - the name, appending the list into GitHub's card, which grows the card away from the
     arrow GitHub placed it by;
@@ -21,12 +21,13 @@ at the top, dated.
   `details-menu` dropdown draws a 1px `--borderColor-default` border and that full shadow,
   so its edge doubles. The hovercard draws the 1px border and no shadow.
 - **Won:** the shield as the trigger. One edge won for every floating surface: overlays
-  take the ActionMenu's ring, and the reviewer files popup takes the hovercard's border.
+  take the ActionMenu's ring, and the code owner's files popup takes the hovercard's
+  border.
 - **Why:** the shield has only a tooltip, so gh-prism's card never shares a trigger with
-  GitHub's. A reviewer without a shield gets no popup. Each surface gets one edge because
-  two read as about 2px in dark mode. The popup opens one row away from where GitHub's
-  hovercard opens, so it takes that card's 1px `--borderColor-default` border rather than
-  a shadow.
+  GitHub's. A PR reviewer without a shield gets no popup. Each surface gets one edge
+  because two read as about 2px in dark mode. The popup opens one row away from where
+  GitHub's hovercard opens, so it takes that card's 1px `--borderColor-default` border
+  rather than a shadow.
 
 ## 2026-10-28: Only files owned by… in GitHub's filter menu
 

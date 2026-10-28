@@ -37,5 +37,6 @@
   --font-weight-normal: var(--base-text-weight-normal);
   --font-weight-medium: var(--base-text-weight-medium);
   --font-weight-semibold: var(--base-text-weight-semibold);
+  --font-mono: var(--fontStack-monospace);
   --color-focus-outline: var(--focus-outlineColor);
 }

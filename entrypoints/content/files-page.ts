@@ -3,7 +3,8 @@
  * theirs in a `GitHub hooks:` header. It holds a `PageKind` for a pull request's page and a
  * commit's, finds a Files view's page, a pull request's classic page, or its header on its header
  * tabs, reads its rows, follows a pull request's narrow-layout overlay and the file-tree filter
- * menu, and copies that menu's group, divider, and item for gh-prism's entries, so the selectors
+ * menu, finds a pull request's Reviewers sidebar shields, and copies that menu's group, divider,
+ * and item for gh-prism's entries, so the selectors
  * stay in this seam; it builds no UI of its own and imports nothing from WXT. The pull request
  * selectors come from EXC-1662's survey.
  */
@@ -364,11 +365,17 @@ export const isSignedIn = (doc: Document): boolean => viewerLogin(doc) !== undef
 export const viewerLogin = (doc: Document): string | undefined =>
   doc.head.querySelector('meta[name="user-login"]')?.getAttribute("content") || undefined;
 
-/** A requested reviewer's code-owner shield in a pull request's Conversation sidebar; its id names the reviewer. */
-export const REVIEWER_SHIELD = '#partial-discussion-sidebar button[id^="codeowner-"]';
+const SHIELD_ID = "codeowner-";
 
-/** The code owner token (`@login`, `@org/team`) of the reviewer `shield` marks. */
-export const shieldOwner = (shield: Element): string => `@${shield.id.slice("codeowner-".length)}`;
+/**
+ * The code-owner shield `target` sits in, beside a PR reviewer in a pull request's Reviewers
+ * sidebar, or `null`.
+ */
+export const reviewerShieldOf = (target: Element): HTMLElement | null =>
+  target.closest<HTMLElement>(`#partial-discussion-sidebar button[id^="${SHIELD_ID}"]`);
+
+/** The code owner token (`@login`, `@org/team`) that `shield` marks. */
+export const shieldOwner = (shield: Element): string => `@${shield.id.slice(SHIELD_ID.length)}`;
 
 /** Whether `doc` shows `repo` as public; false when private, internal, or unconfirmed. */
 export function isPublicRepo(doc: Document, repo: { owner: string; repo: string }): boolean {

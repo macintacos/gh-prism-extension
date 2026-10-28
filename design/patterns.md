@@ -110,7 +110,7 @@ hover, so they never show the keycap.
 
 ## Floating surfaces
 
-A surface that floats over the page sits on `--overlay-bgColor`, falling back to
+An overlay that floats over the page sits on `--overlay-bgColor`, falling back to
 `--bgColor-default`, with the medium radius and `--shadow-floating-small`. The header
 counter's tip in `header/diffstat-view.ts` and the code owners popover in
 `sidebar/owners-popover.ts` share it, class for class.
@@ -124,15 +124,15 @@ its own radius.
 
 A hover card whose trigger sits next to one of GitHub's hovercard triggers takes GitHub's
 hovercard form instead: the 1px `--borderColor-default` border, the medium radius, and no
-shadow. The rule above holds, because that border is its one edge. The reviewer files
+shadow. The rule above holds, because that border is its one edge. The code owner's files
 popup below is the one such card.
 
-## Reviewer files
+## Code owner's files
 
-On a pull request's Conversation tab, a reviewer's code-owner shield, the shield icon
-GitHub shows beside a reviewer who owns code in the pull request, opens a popup listing
-the changed files that reviewer owns. The reviewer's avatar and name keep GitHub's own
-hovercard, so the two cards never share a trigger.
+On a pull request's Conversation tab, the code-owner shield GitHub shows beside a team or
+person in the Reviewers sidebar who owns code in the pull request opens a popup listing
+the changed files that code owner owns. The avatar and name keep GitHub's own hovercard,
+so the two cards never share a trigger.
 
 - **Timing:** it opens 200 ms after the pointer rests on the shield, longer than GitHub's
   card takes to close, and at once when the shield takes keyboard focus. It closes 150 ms

@@ -28,10 +28,10 @@ import {
   observeTree,
   observeViewed,
   prPage,
-  REVIEWER_SHIELD,
   readChangedFiles,
   readViewed,
   reorderable,
+  reviewerShieldOf,
   shieldOwner,
   showsViewed,
   treeToggleButtonOf,
@@ -269,13 +269,14 @@ describe("viewerLogin", () => {
   });
 });
 
-describe("REVIEWER_SHIELD", () => {
+describe("reviewerShieldOf", () => {
   beforeEach(() => {
     document.body.innerHTML = conversationFixture;
   });
 
-  it("finds each shielded reviewer's code-owner shield, and no other sidebar button", () => {
-    const shields = [...document.querySelectorAll(REVIEWER_SHIELD)];
+  it("finds each code-owner shield in the Reviewers sidebar, and no other sidebar button", () => {
+    const buttons = document.querySelectorAll("#partial-discussion-sidebar button");
+    const shields = [...buttons].map(reviewerShieldOf).filter((shield) => shield !== null);
     expect(shields.map(shieldOwner)).toEqual([
       "@excessive-dev/frontend",
       "@excessive-dev/platform",

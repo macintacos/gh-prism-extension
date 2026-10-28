@@ -1889,3 +1889,44 @@ test("a code owner reviewer's shield opens their files, closing as the pointer l
   await expect(popup).toBeHidden();
   expect(errors).toEqual([]);
 });
+
+test("Tab from a code owner's shield moves on through the sidebar while their long list shows", async ({
+  context,
+  page,
+}) => {
+  await serve(
+    context,
+    "https://github.com/o/r/pull/1",
+    `<!doctype html>${readFixture("conversation-page.html")}`,
+  );
+  const ownershipByPath = Object.fromEntries(
+    Array.from({ length: 24 }, (_, i) => [
+      `web/components/file-${i}.ts`,
+      { isOwnedByViewer: false, owners: ["@excessive-dev/frontend"] },
+    ]),
+  );
+  await context.route("https://github.com/o/r/pull/1/page_data/codeowners", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ isEnabled: true, ownershipByPath }),
+    }),
+  );
+  await page.goto("https://github.com/o/r/pull/1");
+  const shield = page.locator('[id="codeowner-excessive-dev/frontend"]');
+
+  // Refocus until the content script, which may attach after load, sees the focus.
+  await expect(async () => {
+    await shield.blur();
+    await shield.focus();
+    await expect(page.locator(".gh-prism-reviewer-files")).toBeVisible({ timeout: 1000 });
+  }).toPass();
+  await page.keyboard.press("Tab");
+
+  expect(
+    await page.evaluate(
+      () =>
+        document.activeElement !== document.body &&
+        !!document.activeElement?.closest("#partial-discussion-sidebar"),
+    ),
+  ).toBe(true);
+});

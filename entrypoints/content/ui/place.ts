@@ -1,7 +1,10 @@
-// Keep a placed popover's tw:max-h at 100vh minus twice this.
 const VIEWPORT_MARGIN = 8;
 
-/** Puts `popover` below `anchor`, start-aligned, or above it when there's no room below. */
+/**
+ * Puts `popover` below `anchor`, start-aligned, or above it when there's no room below, 8px inside
+ * the viewport. `popover`'s max height must leave that margin (`calc(100vh-16px)` or less), or
+ * its top is placed off-screen.
+ */
 export function place(popover: HTMLElement, anchor: DOMRect): void {
   const view = popover.ownerDocument.defaultView;
   // offset*, not getBoundingClientRect: the entrance transition is still scaling it.

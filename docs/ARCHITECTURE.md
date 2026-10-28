@@ -25,8 +25,8 @@ GitHub first renders the page. It cannot match only Files view URLs, because of 
 soft navigation: GitHub swaps in a new page without loading a new document, so a script
 matched to pull request URLs would never be injected when you click through to one.
 Instead, it watches every page for a Files view to appear, for a pull request's header
-tabs, where it shows only the diffstat, and for a pull request's classic page, where it
-opens a dialog instead.
+tabs, where it shows the diffstat and, on Conversation, a code owner's files, and for a
+pull request's classic page, where it opens a dialog instead.
 
 ## Page kinds
 
@@ -235,8 +235,8 @@ the next visit. `index.ts` starts two reads once per visit, `readCodeOwners` fro
 `codeowners` and `readPrReviewers` from `merge_box`, and hands their promises to every
 page of that visit: `showVisit` takes the code owners alone, and `showOwnerSection` takes
 both. A commit page reads nothing. A pull request's header visit reads the code owners
-alone, once per visit, and only when you first hover or focus a reviewer's code-owner
-shield on the Conversation tab.
+alone, once per visit, and only when you first hover or focus a code-owner shield in the
+Reviewers sidebar on the Conversation tab.
 
 The code owners are each changed file's owners, in CODEOWNERS order, with whether you own
 the file. The PR reviewers are the `@user` and `@org/team` tokens of everyone requested to
@@ -279,15 +279,16 @@ moving into or out of the narrow layout's overlay, since a popover that leaves t
 document closes without a toggle event. A pointer click on an open popover's own shield
 only closes it. Showing a file's owners never changes its section or the diffstat.
 
-On the Conversation tab, GitHub marks each reviewer who owns a changed file with a
+On the Conversation tab, GitHub marks each PR reviewer who owns a changed file with a
 code-owner shield in the Reviewers sidebar. Hovering or focusing that shield opens a popup
-listing the changed files the reviewer owns, built by
+listing the changed files that code owner owns, built by
 [`conversation/reviewer-files.ts`](../entrypoints/content/conversation/reviewer-files.ts).
-The shield's id names the reviewer's `@user` or `@org/team` token, and `ownerFilter` in
+The shield's id names the code owner's `@user` or `@org/team` token, and `ownerFilter` in
 `utils/github/code-owners.ts` matches it against each file's owners, as the owner filter
-does. When the reviewer owns no changed file, nothing opens. The popup's listeners sit on
-the document for the whole visit, because GitHub replaces the sidebar's nodes mid-visit.
-The popup and the file shields' popover share one placer,
+does. When the code owner owns no changed file, nothing opens. It rides the header visit,
+so it runs only where `findHeaderPage` finds the counter's slot. The popup's listeners sit
+on the document for the whole visit, because GitHub replaces the sidebar's nodes
+mid-visit. The popup and the file shields' popover share one placer,
 [`ui/place.ts`](../entrypoints/content/ui/place.ts).
 
 The owner section is the third: it lists the reviewers who own a changed file (§ The owner
@@ -389,13 +390,13 @@ entrypoints/
   background.ts          service worker: PR data port, cache clearing and what's-new mark on install
   content/
     index.ts             content script entry: wires the watchers, intent, and views
-    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu
+    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers sidebar's code-owner shield
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
     header/              diffstat breakout
-    conversation/        a code-owner reviewer's files popup
+    conversation/        a code owner's files popup, from the Reviewers sidebar
     ui/                  shared DOM helpers, popup placer, loading view, Markdown subset, name reveal, Tailwind tokens
 utils/
   github/                routes, diff parsing, the PR data port and source, code owners and reviewers

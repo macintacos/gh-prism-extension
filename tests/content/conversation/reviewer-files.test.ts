@@ -169,7 +169,6 @@ describe("showReviewerFiles", () => {
     shieldOf("frontend").dispatchEvent(
       new FocusEvent("focusout", { bubbles: true, relatedTarget: document.body }),
     );
-    await vi.advanceTimersByTimeAsync(150);
 
     expect(popups()).toHaveLength(0);
     expect(shieldOf("frontend").hasAttribute("aria-describedby")).toBe(false);
@@ -247,7 +246,7 @@ describe("showReviewerFiles", () => {
     expect(popup()?.querySelector("img")).toBeNull();
   });
 
-  it("starts reading the code owners as the hover starts, on every open", async () => {
+  it("reads the code owners once, as the first hover starts", async () => {
     const codeOwners = vi.fn(async () => sandboxOwners());
     show(codeOwners);
 
@@ -256,9 +255,58 @@ describe("showReviewerFiles", () => {
     await vi.advanceTimersByTimeAsync(200);
     pointerOut(shieldOf("frontend"));
     await vi.advanceTimersByTimeAsync(150);
-    await hoverOpen("frontend");
+    await hoverOpen("platform");
 
     expect(atHover).toBe(1);
-    expect(codeOwners).toHaveBeenCalledTimes(2);
+    expect(codeOwners).toHaveBeenCalledOnce();
+  });
+
+  it("opens nothing when the pointer leaves while the code owners are still being read", async () => {
+    const read = Promise.withResolvers<PrCodeOwners | undefined>();
+    show(() => read.promise);
+
+    await hoverOpen("frontend");
+    pointerOut(shieldOf("frontend"));
+    read.resolve(sandboxOwners());
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(popups()).toHaveLength(0);
+  });
+
+  it("opens nothing after Escape while the code owners are still being read", async () => {
+    const read = Promise.withResolvers<PrCodeOwners | undefined>();
+    show(() => read.promise);
+
+    await hoverOpen("frontend");
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    read.resolve(sandboxOwners());
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(popups()).toHaveLength(0);
+  });
+
+  it("keeps the open popup when its shield takes focus", async () => {
+    show();
+    await hoverOpen("frontend");
+    const open = popup();
+
+    shieldOf("frontend").dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(popups()).toHaveLength(1);
+    expect(popup()).toBe(open);
+  });
+
+  it("times the hover from entering the shield, not from crossing its inner parts", async () => {
+    show();
+    const shield = shieldOf("frontend");
+    const icon = shield.querySelector("span") as Element;
+
+    pointerOver(shield);
+    await vi.advanceTimersByTimeAsync(150);
+    pointerOver(icon, shield);
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(popups()).toHaveLength(1);
   });
 });
