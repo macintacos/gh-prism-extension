@@ -4,11 +4,13 @@ import {
   isOwner,
   ownerFilter,
   owningReviewers,
+  owningTeams,
   type PrCodeOwners,
   type PrReviewer,
   readCodeOwners,
   readPrReviewers,
   readTeamMembers,
+  teamMembersReader,
   withMemberTeams,
 } from "../../../utils/github/code-owners";
 import type { DiffRef } from "../../../utils/github/pr-ref";
@@ -434,11 +436,19 @@ describe("readTeamMembers", () => {
 
     const result = await readTeamMembers("@excessive-dev/frontend", fetchFn, signal);
 
-    expect(result).toEqual(["sandbox-user"]);
+    expect(result).toEqual({ total: 1, members: ["sandbox-user"] });
     expect(fetchFn).toHaveBeenCalledExactlyOnceWith(frontendUrl, {
       headers: { Accept: "application/json" },
       signal,
     });
+  });
+
+  it("counts the listed members when the answer gives no total", async () => {
+    const fetchFn = routedFetch({ [frontendUrl]: ok(JSON.stringify({ members: ["a", "b"] })) });
+
+    const result = await readMembers(fetchFn);
+
+    expect(result).toEqual({ total: 2, members: ["a", "b"] });
   });
 
   it("reads nothing, quietly, from a team the viewer can't see", async () => {
@@ -467,6 +477,49 @@ describe("readTeamMembers", () => {
 
     expect(result).toBeUndefined();
     expect(fetchFn).not.toHaveBeenCalled();
+  });
+});
+
+describe("teamMembersReader", () => {
+  const teamUrl = (slug: string) => `https://github.com/orgs/o/teams/${slug}/members`;
+
+  it("reads a team once however its token is cased", async () => {
+    const fetchFn = vi.fn(async () => new Response(sandboxTeamMembers));
+    const members = teamMembersReader(fetchFn, new AbortController().signal);
+
+    const [first, second] = await Promise.all([members("@O/Team"), members("@o/team")]);
+
+    expect(second).toBe(first);
+    expect(fetchFn).toHaveBeenCalledOnce();
+  });
+
+  it("reads each different team once", async () => {
+    const fetchFn = routedFetch({
+      [teamUrl("a")]: ok(sandboxTeamMembers),
+      [teamUrl("b")]: ok(sandboxTeamMembers),
+    });
+    const members = teamMembersReader(fetchFn, new AbortController().signal);
+
+    await Promise.all([members("@o/a"), members("@o/b"), members("@o/a")]);
+
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads with the visit's signal", async () => {
+    const fetchFn = routedFetch({ [teamUrl("a")]: ok(sandboxTeamMembers) });
+    const signal = new AbortController().signal;
+
+    await teamMembersReader(fetchFn, signal)("@o/a");
+
+    expect(fetchFn).toHaveBeenCalledWith(teamUrl("a"), expect.objectContaining({ signal }));
+  });
+});
+
+describe("owningTeams", () => {
+  it("lists each team among the owners once, first seen first", () => {
+    const owners = ["@octocat", "@o/a", "@O/A", "@o/b", "dev@example.com"].map(codeOwnerOf);
+
+    expect(owningTeams(owners)).toEqual(["@o/a", "@o/b"]);
   });
 });
 
