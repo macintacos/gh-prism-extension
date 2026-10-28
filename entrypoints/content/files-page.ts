@@ -4,9 +4,8 @@
  * commit's, finds a Files view's page, a pull request's classic page, or its header on its header
  * tabs, reads its rows, follows a pull request's narrow-layout overlay and the file-tree filter
  * menu, finds a pull request's Reviewers sidebar shields, and copies that menu's group, divider,
- * and item for gh-prism's entries, so the selectors
- * stay in this seam; it builds no UI of its own and imports nothing from WXT. The pull request
- * selectors come from EXC-1662's survey.
+ * and item for gh-prism's entries, so the selectors stay in this seam; it builds no UI of its own
+ * and imports nothing from WXT. The pull request selectors come from EXC-1662's survey.
  */
 
 /**
