@@ -1797,16 +1797,16 @@ test("a shield's popover in the overlay closes as the overlay does, leaving its 
 test("a hovered shield keeps its glyph in forced colours", async ({ context, page }) => {
   await page.emulateMedia({ forcedColors: "active" });
   await openOwned(context, page);
-  const glyph = () =>
+  const glyphColor = () =>
     shieldOf(page, "README.md").evaluate(
       (shield) => getComputedStyle(shield, "::before").backgroundColor,
     );
-  const atRest = await glyph();
+  const atRest = await glyphColor();
 
   await treeRow(page, "README.md").hover();
   await shieldOf(page, "README.md").hover();
 
-  await expect.poll(glyph).toBe(atRest);
+  await expect.poll(glyphColor).toBe(atRest);
 });
 
 test("a shield's click closes its open popover, and another shield's swaps it", async ({
