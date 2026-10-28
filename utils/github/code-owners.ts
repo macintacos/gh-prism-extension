@@ -19,14 +19,14 @@ export interface PrCodeOwners {
   /** Empty in a repository without CODEOWNERS; a path missing from it has no owners. */
   byPath: ReadonlyMap<string, FileOwners>;
   /**
-   * The `@user` and `@org/team` tokens of everyone requested to review or who has reviewed, each
-   * once. GitHub lists only approving and change-requesting reviews, so a reviewer who only
-   * commented is missing.
+   * The `@user` and `@org/team` tokens of requested reviewers, then reviewers, in GitHub's order,
+   * each once; a team counts when a review lists it in `onBehalfOf`. GitHub's merge box leaves out
+   * reviews that only commented, so a reviewer who only commented is missing.
    */
   reviewers: readonly string[];
 }
 
-const LOGIN = /^[A-Za-z0-9-]{1,39}$/;
+const LOGIN = /^[A-Za-z0-9_-]{1,39}$/;
 const TEAM_SLUG = /^[A-Za-z0-9_-]+$/;
 
 /** `token`, linked when it is a `@user` or `@org/team` with only the characters GitHub allows. */
@@ -47,7 +47,7 @@ export function isOwner(reviewer: string, owner: CodeOwner): boolean {
 /**
  * A pull request's code owners and reviewers, from the `page_data` endpoints its Files changed
  * page reads, one request each; `undefined` for a commit, or once either read fails or answers an
- * unexpected shape.
+ * unexpected shape. Never rejects; logs one warning on a failed read unless `signal` aborted.
  */
 export async function readCodeOwners(
   diff: DiffRef,
@@ -58,12 +58,14 @@ export async function readCodeOwners(
   const base = `https://github.com/${diff.owner}/${diff.repo}/pull/${diff.number}/page_data`;
 
   try {
-    const [codeowners, mergeBox] = await Promise.all(
-      ["codeowners", "merge_box"].map((name) => pageData(`${base}/${name}`, fetchFn, signal)),
-    );
+    const [codeowners, mergeBox] = await Promise.all([
+      pageData(`${base}/codeowners`, fetchFn, signal),
+      pageData(`${base}/merge_box`, fetchFn, signal),
+    ]);
     const byPath = byPathFrom(codeowners);
+    if (byPath === undefined) throw new Error(`${base}/codeowners answered an unexpected shape`);
     const reviewers = reviewersFrom(mergeBox);
-    if (byPath === undefined || reviewers === undefined) throw new Error("unexpected shape");
+    if (reviewers === undefined) throw new Error(`${base}/merge_box answered an unexpected shape`);
     return { byPath, reviewers };
   } catch (error) {
     if (!signal.aborted) console.warn("gh-prism: couldn't read code owners; showing none", error);
@@ -106,8 +108,8 @@ function reviewersFrom(json: unknown): string[] | undefined {
   for (const review of reviews) {
     const onBehalfOf = at(review, "onBehalfOf");
     if (!Array.isArray(onBehalfOf)) return undefined;
-    // The elements' shape is unobserved: read like `pendingReviewRequests`' teams, skip the rest.
-    const teams = onBehalfOf.filter((team) => typeof at(team, "login") === "string");
+    // Unobserved shape: read an element as `pendingReviewRequests` names a team, `org/slug`; skip the rest.
+    const teams = onBehalfOf.filter((team) => String(at(team, "login")).includes("/"));
     logins.push(at(review, "author"), ...teams);
   }
 

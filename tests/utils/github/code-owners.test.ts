@@ -173,6 +173,20 @@ describe("readCodeOwners", () => {
         ),
     ],
     [
+      "ownershipByPath is an array",
+      () => sandboxFetch(ok(JSON.stringify({ ownershipByPath: [] }))),
+    ],
+    [
+      "latestOpinionatedReviews is missing",
+      () =>
+        sandboxFetch(
+          undefined,
+          editedMergeBox((pr) => {
+            delete pr.latestOpinionatedReviews;
+          }),
+        ),
+    ],
+    [
       "a reviewer's login is a number",
       () =>
         sandboxFetch(
@@ -259,6 +273,26 @@ describe("readCodeOwners", () => {
     expect(result?.reviewers).toEqual(["@jasnell", "@aduh95", "@pimterry", "@richardlau"]);
   });
 
+  it("skips an onBehalfOf entry whose login isn't org/slug", async () => {
+    const fetchFn = nodeFetchWithReview((review) => {
+      review.onBehalfOf = [{ login: "crypto" }];
+    });
+
+    const result = await read(node, fetchFn);
+
+    expect(result?.reviewers).toEqual(["@jasnell", "@aduh95", "@pimterry", "@richardlau"]);
+  });
+
+  it("counts an Enterprise Managed User's review", async () => {
+    const fetchFn = nodeFetchWithReview((review) => {
+      review.author = { login: "mona-cat_octo" };
+    });
+
+    const result = await read(node, fetchFn);
+
+    expect(result?.reviewers).toContain("@mona-cat_octo");
+  });
+
   it("lists a reviewer both requested and reviewing once, ignoring case", async () => {
     const fetchFn = nodeFetchWithReview((review) => {
       review.author = { login: "Jasnell" };
@@ -275,6 +309,7 @@ describe("codeOwnerOf", () => {
     ["@octocat", "https://github.com/octocat"],
     ["@github/docs-team", "https://github.com/orgs/github/teams/docs-team"],
     ["@org/team_name", "https://github.com/orgs/org/teams/team_name"],
+    ["@mona-cat_octo", "https://github.com/mona-cat_octo"],
   ])("links %s", (token, url) => {
     expect(codeOwnerOf(token)).toEqual({ token, url });
   });
@@ -285,7 +320,6 @@ describe("codeOwnerOf", () => {
     "@a/b/c",
     "@octo cat",
     "@org/te am",
-    "@my_org",
     "@org/<script>",
     `@${"a".repeat(40)}`,
   ])("leaves %s unlinked", (token) => {

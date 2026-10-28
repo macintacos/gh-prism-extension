@@ -323,7 +323,7 @@ facts about GitHub that held when written, and ends with how to re-check them;
 - **`onBehalfOf`'s element shape is unverified.** It was empty on every review checked,
   about 460 public pull requests across five repositories; GitHub likely shows it only to
   viewers who can see the team. gh-prism reads an element as a team by its `login`, as
-  `pendingReviewRequests` names one, and skips one without it.
+  `pendingReviewRequests` names one, and skips any element whose `login` isn't `org/slug`.
 - **Re-check:** compare
 
   ```sh

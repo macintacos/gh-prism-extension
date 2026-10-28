@@ -5,8 +5,9 @@ it.*
 
 gh-prism is a Chrome extension built with WXT, a framework for browser extensions. It has
 two parts: a service worker that fetches pull request data, and a content script that
-reshapes GitHub's Files view. Each section below names the module behind its claims, so
-you can read the code next. Terms such as visit, page, intent, and landing are defined in
+reshapes GitHub's Files view and reads a pull request's code owners and reviewers itself.
+Each section below names the module behind its claims, so you can read the code next.
+Terms such as visit, page, intent, and landing are defined in
 [`CONTEXT.md`](../CONTEXT.md).
 
 ## Overview
@@ -201,13 +202,15 @@ the next visit. `index.ts` calls `readCodeOwners` once per visit and hands the p
 read nothing.
 
 The result is each changed file's owners, in CODEOWNERS order, with whether you own the
-file, and the `@user` and `@org/team` tokens of everyone requested to review or who has
-reviewed. An owner keeps its token as written and gets a link only when the token is a
-valid `@user` or `@org/team`; gh-prism builds the URL and never takes one from the
-response. A reviewer matches an owner when their tokens are equal, ignoring case, so a
-user doesn't match a file owned only through a team. Either read failing, or either
-response missing a field it expects, resolves to `undefined`, never part of the result; a
-repository without CODEOWNERS resolves to no owners.
+file, and the `@user` and `@org/team` tokens of the PR reviewers: everyone requested to
+review or whose review GitHub's merge box lists, including a team a review was submitted
+on behalf of. The merge box leaves out a reviewer who only commented. An owner keeps its
+token as written and gets a link only when the token is a valid `@user` or `@org/team`;
+gh-prism builds the URL and never takes one from the response. A PR reviewer matches an
+owner when their tokens are equal, ignoring case, so a user doesn't match a file owned
+only through a team. Either read failing, or either response missing a field it expects,
+resolves to `undefined`, never part of the result; a repository without CODEOWNERS
+resolves to no owners.
 
 ## Section rows
 
