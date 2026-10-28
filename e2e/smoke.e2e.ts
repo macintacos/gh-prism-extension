@@ -2023,6 +2023,30 @@ test("a code owner who reviewed for a team keeps a shield that opens their team'
   );
 });
 
+test("Tab from a code owner reviewer's shield reaches their card's team link, and Escape returns to the shield", async ({
+  context,
+  page,
+}) => {
+  await serveNodeConversation(context, ({ completedReviews: [pimterry] }) => {
+    Object.assign(pimterry ?? {}, { onBehalfOfTeams: [cryptoTeam] });
+  });
+  await page.goto(NODE_PR);
+  const shield = page.locator('button[data-gh-prism-owner="@pimterry"]');
+  const popup = page.locator(".gh-prism-reviewer-files");
+  await expect(async () => {
+    await shield.blur();
+    await shield.focus();
+    await expect(popup).toBeVisible({ timeout: 1000 });
+  }).toPass();
+
+  await page.keyboard.press("Tab");
+
+  await expect(popup.getByRole("link", { name: "@nodejs/crypto" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(popup).toHaveCount(0);
+  await expect(shield).toBeFocused();
+});
+
 test("a user's code-owner shield lists their team's files when assigned on its behalf", async ({
   context,
   page,
@@ -2053,7 +2077,7 @@ test("a user's code-owner shield lists their team's files when assigned on its b
   await expect(page.locator("button[data-gh-prism-owner]")).toHaveCount(0);
 });
 
-test("Tab from a code owner's shield moves on through the sidebar while their long list shows", async ({
+test("Tab from a code owner's shield enters their long list, then moves on through the sidebar", async ({
   context,
   page,
 }) => {
@@ -2084,7 +2108,10 @@ test("Tab from a code owner's shield moves on through the sidebar while their lo
     await expect(page.locator(".gh-prism-reviewer-files")).toBeVisible({ timeout: 1000 });
   }).toPass();
   await page.keyboard.press("Tab");
+  await expect(page.locator(".gh-prism-reviewer-files")).toBeFocused();
+  await page.keyboard.press("Tab");
 
+  await expect(page.locator(".gh-prism-reviewer-files")).toHaveCount(0);
   expect(
     await page.evaluate(
       () =>

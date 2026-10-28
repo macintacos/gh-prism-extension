@@ -40,9 +40,10 @@ export interface Ownership {
  * code owner owns, and describes the shield with it. Opens from GitHub's shield, or from the one
  * this adds beside each PR reviewer who owns a changed file, or whom GitHub marks a code owner,
  * where GitHub draws none. Mounts a stylesheet in `doc`'s head. Opens nothing for a code owner who
- * owns no changed file, unless GitHub marks them one: then it says GitHub hides the team. Closes
- * 150 ms after the pointer leaves shield and popup, and at once on Escape, focus leaving the
- * shield, or a scroll outside it. Calls `read` at most once, when a Reviewers list first shows.
+ * owns no changed file, unless GitHub marks them one: then it says GitHub hides the team. Tab
+ * from the shield enters the popup. Closes 150 ms after the pointer leaves shield and popup, and
+ * at once on Escape, focus leaving both, or a scroll outside it, moving focus it held to the
+ * shield. Calls `read` at most once, when a Reviewers list first shows.
  */
 export function showReviewerFiles(
   doc: Document,
@@ -186,13 +187,16 @@ function show(shield: HTMLElement, owned: OwnedFiles): Card {
   popover.id = ID;
   popover.popover = "manual";
   doc.body.append(popover);
-  popover.showPopover();
+  // source: Tab from the shield enters it, and Tab past its end goes on from the shield.
+  popover.showPopover({ source: shield });
   place(popover, shield.getBoundingClientRect());
   shield.setAttribute("aria-describedby", ID);
 
   const closed = new AbortController();
   const close = () => {
     if (closed.signal.aborted) return;
+    // Removed while it holds focus, it would drop focus to the body.
+    if (popover.contains(doc.activeElement)) shield.focus({ preventScroll: true });
     closed.abort();
     popover.remove();
     shield.removeAttribute("aria-describedby");

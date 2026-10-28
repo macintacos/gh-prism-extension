@@ -144,9 +144,10 @@ and name keep GitHub's own hovercard, so the two cards never share a trigger.
   owner", adding "through" and the team when only a team makes them one.
 - **Timing:** it opens 200 ms after the pointer rests on the shield, longer than GitHub's
   card takes to close, and at once when the shield takes keyboard focus. It closes 150 ms
-  after the pointer leaves both shield and popup, so the pointer can cross into it.
-  Escape, focus leaving the shield, and a scroll outside the popup close it at once. One
-  is open at a time.
+  after the pointer leaves both shield and popup, so the pointer can cross into it. Tab
+  from the shield moves into it, so its team links work from the keyboard. Escape, focus
+  leaving both, and a scroll outside the popup close it at once, handing focus it held
+  back to the shield. One is open at a time.
 - **Content:** the count line "Code owner of N files in this pull request", in GitHub's
   own words from its user hovercard. When teams make them an owner, a small muted line
   under it says "Through" and names each team, linked to its team page, or "Directly and
