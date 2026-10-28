@@ -62,7 +62,10 @@ describe("followViewed", () => {
 
   const shown = () => show.mock.lastCall?.[0];
   const follow = (seed: ViewedSeed | undefined, viewed = visitViewed(seed)) => {
-    followViewed(foundPage(), viewed, show, controller.signal).sections?.(treeSections());
+    followViewed(foundPage(), viewed, show, controller.signal).sections?.(
+      treeSections(),
+      new Set(),
+    );
     return viewed;
   };
 

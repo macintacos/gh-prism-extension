@@ -88,7 +88,7 @@ describe("followOnScreen", () => {
     controller = new AbortController();
     show = vi.fn();
 
-    followOnScreen(foundPage(), show, controller.signal).sections?.(treeSections());
+    followOnScreen(foundPage(), show, controller.signal).sections?.(treeSections(), new Set());
   });
 
   afterEach(() => {
@@ -109,7 +109,7 @@ describe("followOnScreen", () => {
     FakeObserver.latest.fire([[regions[0] as Element, true]]);
     expect(early).not.toHaveBeenCalled();
 
-    view.sections?.(treeSections());
+    view.sections?.(treeSections(), new Set());
 
     expect(early).toHaveBeenLastCalledWith(new Set(["src/engine.rs"]));
   });

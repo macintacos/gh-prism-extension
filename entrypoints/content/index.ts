@@ -3,6 +3,7 @@ import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { storage } from "wxt/utils/storage";
 import { readCodeOwners } from "@/utils/github/code-owners";
+import { ownerOf } from "@/utils/github/files-route";
 import { connectPrData } from "@/utils/github/pr-port";
 import { readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
 import { storedIntents } from "@/utils/intent/cache";
@@ -91,6 +92,7 @@ export default defineContentScript({
               diffstat,
               viewed,
               codeOwners,
+              owner: ownerOf(location.search),
               whatsNew: whatsNewForPage?.(),
             });
             dockSidebar(page, signal, { choice: side, save: saveSide });
