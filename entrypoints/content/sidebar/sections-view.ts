@@ -8,6 +8,7 @@
  */
 
 import type { FileTreeRowDecoration } from "@pierre/trees";
+import type { FileOwners } from "@/utils/github/code-owners";
 import type { LineCounts } from "@/utils/github/pr-diff";
 import {
   type CommentLines,
@@ -62,6 +63,8 @@ interface SectionsView extends LandingView {
    * viewed, counts each listing's viewed files in its header.
    */
   viewed(paths: ReadonlySet<string>): void;
+  /** Shields the rows of every file in `byPath` with at least one code owner. */
+  owners(byPath: ReadonlyMap<string, FileOwners>): void;
 }
 
 interface ShownListing {
@@ -440,6 +443,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
   let onScreen: ReadonlySet<string> = new Set();
   let viewed: ReadonlySet<string> = new Set();
   let offered = false;
+  let owned: ReadonlySet<string> = new Set();
   // The files whose box click is still settling; their boxes ignore clicks.
   const marking = new Set<string>();
   let latestListings: readonly Listing[] = [];
@@ -605,6 +609,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     const tree = new SectionTree(host, files, active);
     tree.showOnScreen(onScreen);
     if (offered) tree.showViewed(viewed);
+    if (owned.size > 0) tree.showOwners(owned);
     if (marking.size > 0) tree.showMarking(new Set(marking));
     return { root, counter, host, tree };
   };
@@ -749,6 +754,10 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
       offered = true;
       for (const { tree } of shown.values()) tree.showViewed(paths);
       countHeaders();
+    },
+    owners(byPath) {
+      owned = new Set([...byPath].flatMap(([path, { owners }]) => (owners.length ? [path] : [])));
+      for (const { tree } of shown.values()) tree.showOwners(owned);
     },
   };
 }

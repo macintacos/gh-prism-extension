@@ -1610,3 +1610,103 @@ test("an owner filter shows the diffs of that owner's files", async ({ context, 
   await expect.poll(() => sidebarFiles(page)).toEqual(["src/engine.rs"]);
   await expect(page.locator(`#${ENGINE_DIFF}`).locator("..")).not.toHaveCSS("display", "none");
 });
+
+const OWNED_PATHS = ["README.md", "src/engine.rs", "src/generated/schema.rs"];
+const FIXTURE_PATHS = [
+  "config/app.toml",
+  "docs/guide.md",
+  "src/generated/schema.rs",
+  "src/engine.rs",
+  "src/helpers.rs",
+  "src/lib.rs",
+  "src/notes.rs",
+  "src/parser.rs",
+  "src/render.rs",
+  "tests/integration.rs",
+  "Cargo.lock",
+  "Cargo.toml",
+  "README.md",
+];
+
+const routeCodeOwners = async (context: BrowserContext) => {
+  const ownershipByPath = Object.fromEntries(
+    FIXTURE_PATHS.map((path) => [
+      path,
+      { owners: OWNED_PATHS.includes(path) ? ["@o/team", "@octocat"] : [], isOwnedByViewer: false },
+    ]),
+  );
+  await context.route("https://github.com/o/r/pull/1/page_data/codeowners", (route) =>
+    route.fulfill({ contentType: "application/json", body: JSON.stringify({ ownershipByPath }) }),
+  );
+  await context.route("https://github.com/o/r/pull/1/page_data/merge_box", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        pullRequest: { pendingReviewRequests: [], latestOpinionatedReviews: [] },
+      }),
+    }),
+  );
+};
+
+const treeRow = (page: Page, path: string) =>
+  page.locator(`[data-type="item"][data-item-path="${path}"]`);
+const rowIcon = (page: Page, path: string) =>
+  treeRow(page, path).locator('[data-item-section="icon"] > svg');
+const shieldOf = (page: Page, path: string) => page.locator(`[data-item-shield="${path}"]`);
+const opacityOf = (locator: Locator) =>
+  locator.evaluate((element) => getComputedStyle(element).opacity);
+
+test("an owned file's row shows a shield in place of its icon while hovered or focused", async ({
+  context,
+  page,
+}) => {
+  await routeCodeOwners(context);
+  await serve(context, PR_URL, PR_BODY);
+  await serve(context, COMMIT_URL, COMMIT_BODY);
+  await page.goto(PR_URL);
+  const readme = treeRow(page, "README.md");
+  const readmeShield = shieldOf(page, "README.md");
+  await expect(readmeShield).toHaveCount(1);
+  await page.locator(".gh-prism-sections").evaluate(async (view) => {
+    await Promise.all(view.getAnimations({ subtree: true }).map(({ finished }) => finished));
+  });
+
+  await readme.hover();
+  await expect.poll(() => opacityOf(readmeShield)).toBe("1");
+  await expect.poll(() => opacityOf(rowIcon(page, "README.md"))).toBe("0");
+  await readmeShield.hover();
+  await expect.poll(() => opacityOf(readmeShield)).toBe("1");
+  await expect.poll(() => opacityOf(rowIcon(page, "README.md"))).toBe("0");
+  await page.mouse.move(0, 0);
+  await expect.poll(() => opacityOf(readmeShield)).toBe("0");
+  await expect.poll(() => opacityOf(rowIcon(page, "README.md"))).toBe("1");
+
+  await treeRow(page, "docs/guide.md").hover();
+  await expect(shieldOf(page, "docs/guide.md")).toHaveCount(0);
+  await expect.poll(() => opacityOf(rowIcon(page, "docs/guide.md"))).toBe("1");
+
+  for (const path of OWNED_PATHS) {
+    const icon = await treeRow(page, path).locator('[data-item-section="icon"]').boundingBox();
+    const shield = await shieldOf(page, path).boundingBox();
+    if (!icon || !shield) throw new Error(`${path} has no icon or shield box`);
+    expect(Math.abs(shield.x + shield.width / 2 - (icon.x + icon.width / 2))).toBeLessThanOrEqual(
+      1,
+    );
+    expect(Math.abs(shield.y + shield.height / 2 - (icon.y + icon.height / 2))).toBeLessThanOrEqual(
+      1,
+    );
+  }
+
+  await page.mouse.move(0, 0);
+  await readme.focus();
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("ArrowDown");
+  await expect(readme).toBeFocused();
+  await expect.poll(() => opacityOf(readmeShield)).toBe("1");
+  await page.keyboard.press("Tab");
+  await expect(readmeShield).toBeFocused();
+
+  await page.goto(COMMIT_URL);
+  await expect(page.locator(".gh-prism-sections")).toHaveCount(1);
+  await expect(page.locator("[data-item-shield]")).toHaveCount(0);
+});

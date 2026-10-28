@@ -31,8 +31,18 @@ interface RowCheckbox {
   readonly title: string;
 }
 
-// gh-prism's @pierre/trees patch is the only reader of `checkbox`.
-type RowDecoration = FileTreeRowDecoration & { readonly checkbox?: RowCheckbox };
+/** A row's code owners shield, as the @pierre/trees patch renders it: `label` is its name. */
+interface RowShield {
+  readonly label: string;
+}
+
+// gh-prism's @pierre/trees patch is the only reader of `checkbox` and `shield`.
+type RowDecoration = FileTreeRowDecoration & {
+  readonly checkbox?: RowCheckbox;
+  readonly shield?: RowShield;
+};
+
+const SHIELD: RowShield = { label: "Code owners" };
 
 const ROW_HEIGHT = 28;
 
@@ -67,6 +77,7 @@ export class SectionTree {
   readonly #probe: HTMLElement;
   readonly #onScreen: HTMLStyleElement;
   readonly #viewed: HTMLStyleElement;
+  readonly #owners: HTMLStyleElement;
   readonly #pointed: HTMLStyleElement;
   readonly #lastPieces: HTMLStyleElement;
   readonly #chains: HTMLStyleElement;
@@ -82,6 +93,7 @@ export class SectionTree {
   #focusAt: string | undefined;
   #viewedPaths: ReadonlySet<string> | undefined;
   #marking: ReadonlySet<string> = new Set();
+  #ownedPaths: ReadonlySet<string> = new Set();
   readonly #altKey: string;
 
   /** Renders `files` into `host`, with `selected` selected if listed. */
@@ -103,6 +115,7 @@ export class SectionTree {
     this.#probe.style.height = `${ROW_HEIGHT}px`;
     this.#onScreen = host.ownerDocument.createElement("style");
     this.#viewed = host.ownerDocument.createElement("style");
+    this.#owners = host.ownerDocument.createElement("style");
     this.#pointed = host.ownerDocument.createElement("style");
     this.#lastPieces = host.ownerDocument.createElement("style");
     this.#chains = host.ownerDocument.createElement("style");
@@ -118,6 +131,7 @@ export class SectionTree {
         this.#probe,
         this.#onScreen,
         this.#viewed,
+        this.#owners,
         this.#pointed,
         this.#lastPieces,
         this.#chains,
@@ -215,6 +229,31 @@ export class SectionTree {
     this.#viewed.textContent = ruleOf([...paths].map(rowOf), "--gh-prism-viewed:1");
     this.#viewedPaths = paths;
     this.#host.setAttribute("data-gh-prism-checkboxes", "");
+    this.#tree.render({ fileTreeContainer: this.#host });
+  }
+
+  /**
+   * Gives the file rows of `paths` a code owners shield, shown in place of the row's icon while
+   * the row is hovered or focused, by a style rule as re-renders keep it.
+   */
+  showOwners(paths: ReadonlySet<string>): void {
+    this.#owners.textContent = [...paths]
+      .map((path) => {
+        const shield = `[data-item-shield="${CSS.escape(path)}"]`;
+        const shown = `${rowOf(path)}:is(:hover,:focus-visible)`;
+        return (
+          ruleOf([`${shown}~${shield}`], "opacity:1;pointer-events:auto") +
+          ruleOf(
+            [
+              `${shown}>[data-item-section="icon"]>svg`,
+              `${rowOf(path)}:has(~${shield}:is(:hover,:focus-visible))>[data-item-section="icon"]>svg`,
+            ],
+            "opacity:0",
+          )
+        );
+      })
+      .join("");
+    this.#ownedPaths = paths;
     this.#tree.render({ fileTreeContainer: this.#host });
   }
 
@@ -329,20 +368,26 @@ export class SectionTree {
   #decorationOf(path: string): RowDecoration | null {
     const file = this.#byPath.get(path);
     const decoration = file?.decoration ?? null;
-    if (!this.#viewedPaths || !file) return decoration;
-    const checked = this.#viewedPaths.has(path);
+    const shielded = this.#ownedPaths.has(path);
+    if (!file || (!this.#viewedPaths && !shielded)) return decoration;
     return {
       // text: "" satisfies the decoration type for a row with nothing else to show; the library
       // then renders an empty decoration lane.
       text: "",
       ...decoration,
-      checkbox: {
-        checked,
-        busy: this.#marking.has(path),
-        label: `Viewed: ${path.slice(path.lastIndexOf("/") + 1)}`,
-        // sections-view.ts makes an Alt-click on the row do what a click here does.
-        title: `${checked ? "Mark as not viewed" : "Mark as viewed"} (or ${this.#altKey}-click the row)`,
-      },
+      ...(this.#viewedPaths && { checkbox: this.#checkboxOf(path, this.#viewedPaths) }),
+      ...(shielded && { shield: SHIELD }),
+    };
+  }
+
+  #checkboxOf(path: string, viewedPaths: ReadonlySet<string>): RowCheckbox {
+    const checked = viewedPaths.has(path);
+    return {
+      checked,
+      busy: this.#marking.has(path),
+      label: `Viewed: ${path.slice(path.lastIndexOf("/") + 1)}`,
+      // sections-view.ts makes an Alt-click on the row do what a click here does.
+      title: `${checked ? "Mark as not viewed" : "Mark as viewed"} (or ${this.#altKey}-click the row)`,
     };
   }
 
