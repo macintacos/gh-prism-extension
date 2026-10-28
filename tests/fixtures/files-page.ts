@@ -3,6 +3,8 @@ import { findFilesPage, readChangedFiles } from "../../entrypoints/content/files
 import classicFixture from "./classic-files-page.html?raw";
 import commitFixture from "./commit-page.html?raw";
 import fixture from "./files-page.html?raw";
+import filterMenuFixture from "./filter-menu.html?raw";
+import filterMenuNotOwnerFixture from "./filter-menu-not-owner.html?raw";
 import overlayFixture from "./pr-overlay.html?raw";
 import viewedCommitFilterFixture from "./viewed-commit-filter-page.html?raw";
 import viewedFixture from "./viewed-files-page.html?raw";
@@ -58,6 +60,29 @@ export function openOverlay(): HTMLElement {
 
 /** Closes the overlay `openOverlay` opened. */
 export function closeOverlay(): void {
+  document.getElementById("__primerPortalRoot__")?.remove();
+}
+
+/**
+ * Opens GitHub's filter menu ahead of the page, as Primer's portal precedes it: `owner` when you
+ * own a changed file, `notOwner` when you don't. Ties the fixture's filter-options button to the
+ * menu, as GitHub does on open, and returns the menu's `ul[role="menu"]`.
+ */
+export function openFilterMenu(kind: "owner" | "notOwner"): HTMLElement {
+  const template = document.createElement("template");
+  template.innerHTML = kind === "owner" ? filterMenuFixture : filterMenuNotOwnerFixture;
+  const portal = template.content.querySelector("#__primerPortalRoot__");
+  const list = portal?.querySelector<HTMLElement>('ul[role="menu"]');
+  const button = document.querySelector('#diff-file-tree-filter button[aria-haspopup="true"]');
+  const labelledBy = list?.getAttribute("aria-labelledby");
+  if (!portal || !list || !button || !labelledBy) throw new Error("fixture has no filter menu");
+  button.id = labelledBy;
+  document.body.prepend(portal);
+  return list;
+}
+
+/** Closes the menu `openFilterMenu` opened, as Primer unmounts it. */
+export function closeFilterMenu(): void {
   document.getElementById("__primerPortalRoot__")?.remove();
 }
 

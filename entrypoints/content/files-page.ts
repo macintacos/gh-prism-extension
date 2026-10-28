@@ -191,6 +191,122 @@ export function followOverlay(
   reportIfChanged();
 }
 
+/** GitHub's file-tree filter menu while open: the parts the owner section copies or stands in for. */
+export interface FilterMenu {
+  /** The menu's `ul[role="menu"]`. */
+  readonly list: Element;
+  /** The menu's first divider. */
+  readonly divider: Element;
+  /** GitHub's "Only files owned by you" and the group that holds it alone; absent when you own no changed file. */
+  readonly ownedByYou: { readonly item: HTMLElement; readonly group: Element } | undefined;
+  /** A group with a heading, to copy. */
+  readonly headedGroup: Element;
+  /** An item, to copy. */
+  readonly item: Element;
+}
+
+const MENU_GROUP = '[data-component="ActionList.Group"]';
+
+/** The open filter-options menu in `doc`, or `undefined` when it's closed or its markup is unrecognized. */
+export function findFilterMenu(doc: Document): FilterMenu | undefined {
+  const list = doc.querySelector('#__primerPortalRoot__ ul[role="menu"]');
+  const labelledBy = list?.getAttribute("aria-labelledby");
+  if (!list || !labelledBy || !doc.getElementById(labelledBy)?.closest("#diff-file-tree-filter"))
+    return undefined;
+  const divider = list.querySelector('[data-component="ActionList.Divider"]');
+  const headedGroup = list
+    .querySelector('[data-component="GroupHeadingWrap"]')
+    ?.closest(MENU_GROUP);
+  const item = list.querySelector('[data-component="ActionList.Item"]');
+  if (
+    !divider ||
+    !headedGroup?.querySelector('ul[role="group"]') ||
+    !item?.querySelector('[data-component="ActionList.Selection"]') ||
+    !item.querySelector('[data-component="ActionList.Item.Label"]')
+  )
+    return undefined;
+  const owned = list.querySelector<HTMLElement>('[role="menuitemradio"][aria-keyshortcuts="o"]');
+  const group = owned?.closest(MENU_GROUP);
+  const menu = { list, divider, ownedByYou: undefined, headedGroup, item };
+  if (!owned) return menu;
+  if (group?.querySelectorAll('[role^="menuitem"]').length !== 1) return undefined;
+  return { ...menu, ownedByYou: { item: owned, group } };
+}
+
+/**
+ * Calls `onOpen` with the filter-options menu each time it opens (and one already open), with a
+ * signal that aborts once it closes, until `signal` aborts. Undebounced, like `followOverlay`, so
+ * the owner section is in place before the menu first paints.
+ */
+export function followFilterMenu(
+  page: FilesPage,
+  onOpen: (menu: FilterMenu, closed: AbortSignal) => void,
+  { signal }: { signal: AbortSignal },
+): void {
+  const doc = page.sidebar.ownerDocument;
+  let shown: Element | undefined;
+  let closed: AbortController | undefined;
+  const reportIfChanged = () => {
+    const menu = findFilterMenu(doc);
+    if (menu?.list === shown) return;
+    closed?.abort();
+    shown = menu?.list;
+    closed = menu && new AbortController();
+    if (menu && closed) onOpen(menu, closed.signal);
+  };
+
+  // ponytail: one querySelector per mutation batch on the whole document; observe only the portal
+  // root if it shows up in a profile.
+  const observer = new MutationObserver(reportIfChanged);
+  observer.observe(doc.body, { childList: true, subtree: true });
+  signal.addEventListener("abort", () => {
+    observer.disconnect();
+    closed?.abort();
+  });
+  reportIfChanged();
+}
+
+const cloneOf = <T extends Element>(el: T, deep: boolean): T => {
+  const copy = el.cloneNode(deep);
+  if (!(copy instanceof Element)) throw new Error("clone is not an element");
+  return copy as T;
+};
+
+/** An empty copy of `menu`'s headed group, headed `heading`: the group, and the list its items go in. */
+export function copyMenuGroup(
+  menu: FilterMenu,
+  heading: string,
+): { group: HTMLElement; list: HTMLElement } {
+  const group = cloneOf(menu.headedGroup as HTMLElement, false);
+  const wrap = menu.headedGroup.querySelector('[data-component="GroupHeadingWrap"]');
+  const items = menu.headedGroup.querySelector<HTMLElement>('ul[role="group"]');
+  if (!wrap || !items) throw new Error("filter menu's headed group lost its heading or list");
+  const headingCopy = cloneOf(wrap, true);
+  const span = headingCopy.querySelector("span") ?? headingCopy;
+  span.removeAttribute("id");
+  span.textContent = heading;
+  const list = cloneOf(items, false);
+  list.setAttribute("aria-label", heading);
+  group.append(headingCopy, list);
+  return { group, list };
+}
+
+/**
+ * A copy of `menu`'s item with its checkmark kept, and no id, label text, trailing visual, checked
+ * state, or key: the item, and the label to fill.
+ */
+export function copyMenuItem(menu: FilterMenu): { item: HTMLElement; label: HTMLElement } {
+  const item = cloneOf(menu.item as HTMLElement, true);
+  for (const attr of ["id", "aria-labelledby", "aria-keyshortcuts", "aria-checked", "tabindex"])
+    item.removeAttribute(attr);
+  for (const trailing of item.querySelectorAll('[data-component="ActionList.TrailingVisual"]'))
+    trailing.remove();
+  const label = item.querySelector<HTMLElement>('[data-component="ActionList.Item.Label"]');
+  if (!label) throw new Error("filter menu's item lost its label");
+  label.replaceChildren();
+  return { item, label };
+}
+
 /** A pull request's classic Files changed page, which gh-prism leaves alone. */
 export interface ClassicPage {
   /** GitHub's toolbar above the diffs. */
@@ -207,8 +323,11 @@ export function findClassicPage(root: ParentNode): ClassicPage | undefined {
 }
 
 /** Whether GitHub served `doc` to a signed-in viewer: it names the viewer's login. */
-export const isSignedIn = (doc: Document): boolean =>
-  Boolean(doc.head.querySelector('meta[name="user-login"]')?.getAttribute("content"));
+export const isSignedIn = (doc: Document): boolean => viewerLogin(doc) !== undefined;
+
+/** The signed-in viewer's login, or `undefined` when signed out. */
+export const viewerLogin = (doc: Document): string | undefined =>
+  doc.head.querySelector('meta[name="user-login"]')?.getAttribute("content") || undefined;
 
 /** Whether `doc` shows `repo` as public; false when private, internal, or unconfirmed. */
 export function isPublicRepo(doc: Document, repo: { owner: string; repo: string }): boolean {

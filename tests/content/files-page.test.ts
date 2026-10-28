@@ -1,9 +1,11 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { FilesPage, NativeTree } from "../../entrypoints/content/files-page";
+import type { FilesPage, FilterMenu, NativeTree } from "../../entrypoints/content/files-page";
 import {
   appendToDiffs,
   commitPage,
+  copyMenuGroup,
+  copyMenuItem,
   coveredTop,
   diffEntryOf,
   findClassicPage,
@@ -11,10 +13,12 @@ import {
   findDiffList,
   findDiffstat,
   findFilesPage,
+  findFilterMenu,
   findFilterOptions,
   findHeaderPage,
   findOverlay,
   findTreeToggle,
+  followFilterMenu,
   followOverlay,
   headerOf,
   isPublicRepo,
@@ -31,9 +35,11 @@ import {
   treeToggleButtonOf,
   viewedOffered,
   viewedToggleOf,
+  viewerLogin,
 } from "../../entrypoints/content/files-page";
 import {
   byId,
+  closeFilterMenu,
   closeOverlay,
   diffList,
   foundPage,
@@ -45,6 +51,7 @@ import {
   loadHeaderFixture,
   loadViewedCommitFilterFixture,
   loadViewedFixture,
+  openFilterMenu,
   openOverlay,
   VIEWED_APP_TOML,
   VIEWED_CARGO_LOCK,
@@ -245,6 +252,150 @@ describe("isSignedIn", () => {
   ])("is $signedIn when GitHub names the viewer '$login'", ({ login, signedIn }) => {
     loadClassicFixture(login);
     expect(isSignedIn(document)).toBe(signedIn);
+  });
+});
+
+describe("viewerLogin", () => {
+  it.each([
+    { login: "", expected: undefined },
+    { login: "octocat", expected: "octocat" },
+  ])("is $expected when GitHub names the viewer '$login'", ({ login, expected }) => {
+    loadClassicFixture(login);
+    expect(viewerLogin(document)).toBe(expected);
+  });
+});
+
+describe("findFilterMenu", () => {
+  const ownedItem = (list: Element) =>
+    list.querySelector('[role="menuitemradio"][aria-keyshortcuts="o"]');
+
+  it("finds the menu with GitHub's owned-by item when you own a file", () => {
+    const list = openFilterMenu("owner");
+    const item = ownedItem(list);
+    expect(findFilterMenu(document)).toEqual({
+      list,
+      divider: list.querySelector('[data-component="ActionList.Divider"]'),
+      ownedByYou: { item, group: item?.closest('[data-component="ActionList.Group"]') },
+      headedGroup: list
+        .querySelector('[data-component="GroupHeadingWrap"]')
+        ?.closest('[data-component="ActionList.Group"]'),
+      item: list.querySelector('[data-component="ActionList.Item"]'),
+    });
+  });
+
+  it("finds the menu without an owned-by item when you own no file", () => {
+    const list = openFilterMenu("notOwner");
+    const menu = findFilterMenu(document);
+    expect(menu?.list).toBe(list);
+    expect(menu?.ownedByYou).toBeUndefined();
+  });
+
+  it("is undefined with no menu open", () => {
+    expect(findFilterMenu(document)).toBeUndefined();
+  });
+
+  it("is undefined when the menu belongs to no filter-row button", () => {
+    openFilterMenu("owner").setAttribute("aria-labelledby", "elsewhere");
+    expect(findFilterMenu(document)).toBeUndefined();
+  });
+
+  it("is undefined when the owned-by group holds another item", () => {
+    const item = ownedItem(openFilterMenu("owner"));
+    item?.after(document.createElement("li"));
+    item?.nextElementSibling?.setAttribute("role", "menuitemcheckbox");
+    expect(findFilterMenu(document)).toBeUndefined();
+  });
+
+  it.each([
+    ["divider", '[data-component="ActionList.Divider"]'],
+    ["heading", '[data-component="GroupHeadingWrap"]'],
+  ])("is undefined without a %s", (_, part) => {
+    for (const el of openFilterMenu("owner").querySelectorAll(part)) el.remove();
+    expect(findFilterMenu(document)).toBeUndefined();
+  });
+});
+
+describe("followFilterMenu", () => {
+  let controller: AbortController;
+  const onOpen = vi.fn<(menu: FilterMenu, closed: AbortSignal) => void>();
+
+  beforeEach(() => {
+    controller = new AbortController();
+    onOpen.mockReset();
+  });
+
+  afterEach(() => controller.abort());
+
+  const flush = () => Promise.resolve();
+  const follow = () => followFilterMenu(foundPage(), onOpen, { signal: controller.signal });
+
+  it("reports a menu already open", () => {
+    const list = openFilterMenu("owner");
+    follow();
+    expect(onOpen).toHaveBeenCalledOnce();
+    expect(onOpen.mock.calls[0]?.[0].list).toBe(list);
+  });
+
+  it("reports a menu as it opens", async () => {
+    follow();
+    const list = openFilterMenu("notOwner");
+    await flush();
+    expect(onOpen.mock.calls[0]?.[0].list).toBe(list);
+  });
+
+  it("aborts closed once the menu closes, and reports it again on reopen", async () => {
+    follow();
+    openFilterMenu("owner");
+    await flush();
+    closeFilterMenu();
+    await flush();
+    expect(onOpen.mock.calls[0]?.[1].aborted).toBe(true);
+    openFilterMenu("owner");
+    await flush();
+    expect(onOpen).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops reporting once its signal aborts", async () => {
+    follow();
+    controller.abort();
+    openFilterMenu("owner");
+    await flush();
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+});
+
+describe("copyMenuGroup and copyMenuItem", () => {
+  const openMenu = (): FilterMenu => {
+    openFilterMenu("owner");
+    const menu = findFilterMenu(document);
+    if (!menu) throw new Error("fixture menu is unrecognized");
+    return menu;
+  };
+
+  it("copyMenuGroup yields an empty headed group", () => {
+    const menu = openMenu();
+    const before = menu.list.outerHTML;
+    const { group, list } = copyMenuGroup(menu, "Owners");
+    expect(group.dataset.component).toBe("ActionList.Group");
+    expect(group.querySelector('[data-component="GroupHeadingWrap"]')?.textContent).toBe("Owners");
+    expect(group.querySelector('ul[role="group"]')).toBe(list);
+    expect(list.getAttribute("aria-label")).toBe("Owners");
+    expect(list.children).toHaveLength(0);
+    expect(menu.list.outerHTML).toBe(before);
+  });
+
+  it("copyMenuItem yields a blank item that keeps GitHub's checkmark", () => {
+    const menu = openMenu();
+    const before = menu.list.outerHTML;
+    const { item, label } = copyMenuItem(menu);
+    expect(item.tagName).toBe("LI");
+    for (const attr of ["id", "aria-keyshortcuts", "aria-checked"]) {
+      expect(item.hasAttribute(attr)).toBe(false);
+    }
+    expect(label.textContent).toBe("");
+    expect(item.querySelector('[data-component="ActionList.Selection"] svg')).not.toBeNull();
+    expect(item.querySelector('[data-component="ActionList.TrailingVisual"]')).toBeNull();
+    expect(menu.list.outerHTML).toBe(before);
   });
 });
 
