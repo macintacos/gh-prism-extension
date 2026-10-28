@@ -1696,7 +1696,7 @@ test("an owned file's row shows a shield in place of its icon while hovered or f
   await expect(page.locator("[data-item-shield]")).toHaveCount(0);
 });
 
-test("a shield lists its file's code owners in a popover until Escape returns to the row", async ({
+test("a shield lists its file's code owners in a popover, and Tab walks its links", async ({
   context,
   page,
 }) => {
@@ -1890,7 +1890,7 @@ const hintFooterGapMidway = (scroller: Locator) =>
     await Promise.all(element.getAnimations().map(({ finished }) => finished));
     if (element.scrollHeight <= element.clientHeight) throw new Error("the list doesn't overflow");
     element.scrollTop = (element.scrollHeight - element.clientHeight) / 2;
-    const footer = element.querySelector(".gh-prism-owners-hint")?.parentElement;
+    const footer = element.querySelector(".gh-prism-owners-hint");
     if (!footer) throw new Error("no hint");
     // Not clientHeight, which rounds to a whole pixel.
     const innerBottom =
@@ -1930,6 +1930,32 @@ test("a shield's click swaps its hover popover for the code owner details dialog
   await expect(dialog).toBeVisible();
   await page.mouse.click(4, 4);
   await expect(dialog).toHaveCount(0);
+});
+
+test("Enter on a focused shield opens its details, and Escape returns to the row", async ({
+  context,
+  page,
+}) => {
+  await openOwned(context, page);
+  const readme = treeRow(page, "README.md");
+  const dialog = page.getByRole("dialog", { name: "Code owners of README.md" });
+  await readme.hover();
+  await readme.focus();
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Tab");
+  await expect(shieldOf(page, "README.md")).toBeFocused();
+
+  await page.keyboard.press("Enter");
+
+  await expect(dialog).toBeVisible();
+  expect(await dialog.evaluate((element) => element.matches(":modal"))).toBe(true);
+  await page.mouse.move(1, 1);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  expect(await rowFocused(readme)).toBe(true);
+  await page.waitForTimeout(500);
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(0);
 });
 
 test("a folder shield's click opens the code owner details of its files", async ({

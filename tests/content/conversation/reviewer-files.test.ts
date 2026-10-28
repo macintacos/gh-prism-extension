@@ -25,7 +25,10 @@ import sandboxMembers from "../../fixtures/team-members-sandbox.json?raw";
 
 // Chrome content scripts run in an isolated world whose `customElements` is null.
 vi.hoisted(() => {
-  Object.defineProperty(window, "customElements", { configurable: true, value: null });
+  Object.defineProperty(window, "customElements", {
+    configurable: true,
+    value: null,
+  });
 });
 
 // happy-dom has no Popover API.
@@ -57,7 +60,12 @@ const SANDBOX_REVIEWERS: readonly PrReviewer[] = [
 ];
 
 type Json = Record<string, unknown>;
-const node: DiffRef = { kind: "pr", owner: "nodejs", repo: "node", number: 67056 };
+const node: DiffRef = {
+  kind: "pr",
+  owner: "nodejs",
+  repo: "node",
+  number: 67056,
+};
 const NODE_CRYPTO = [
   "src/crypto/crypto_context.cc",
   "src/crypto/crypto_context.h",
@@ -95,7 +103,11 @@ async function nodeOwnership({ ownership, reviewRequests }: NodeEdits = {}): Pro
 }
 
 /** A team as review_requests names one. */
-const team = (displayLogin: string) => ({ displayLogin, name: "", reviewerType: "Team" });
+const team = (displayLogin: string) => ({
+  displayLogin,
+  name: "",
+  reviewerType: "Team",
+});
 /** Assigns jasnell's pending request from nodejs/crypto, as team review assignment does. */
 const assignedFromCrypto = ({
   pendingReviewRequests: [jasnell],
@@ -267,7 +279,10 @@ describe("showReviewerFiles", () => {
   });
 
   it("opens nothing when the code owners can't be read", async () => {
-    show(async () => ({ codeOwners: undefined, prReviewers: SANDBOX_REVIEWERS }));
+    show(async () => ({
+      codeOwners: undefined,
+      prReviewers: SANDBOX_REVIEWERS,
+    }));
 
     await hoverOpen("frontend");
 
@@ -304,7 +319,10 @@ describe("showReviewerFiles", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     shieldOf("frontend").dispatchEvent(
-      new FocusEvent("focusout", { bubbles: true, relatedTarget: document.body }),
+      new FocusEvent("focusout", {
+        bubbles: true,
+        relatedTarget: document.body,
+      }),
     );
 
     expect(popups()).toHaveLength(0);
@@ -365,7 +383,10 @@ describe("showReviewerFiles", () => {
     document.dispatchEvent(new Event("scroll"));
 
     shield.dispatchEvent(
-      new FocusEvent("focusout", { bubbles: true, relatedTarget: document.body }),
+      new FocusEvent("focusout", {
+        bubbles: true,
+        relatedTarget: document.body,
+      }),
     );
     shield.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
     await vi.advanceTimersByTimeAsync(0);
@@ -402,7 +423,10 @@ describe("showReviewerFiles", () => {
     const path = "<img src=x onerror=alert(1)>.ts";
     show(async () => ({
       codeOwners: sandboxOwners((byPath) => {
-        byPath[path] = { owners: ["@excessive-dev/frontend"], isOwnedByViewer: false };
+        byPath[path] = {
+          owners: ["@excessive-dev/frontend"],
+          isOwnedByViewer: false,
+        };
       }),
       prReviewers: SANDBOX_REVIEWERS,
     }));
@@ -439,7 +463,10 @@ describe("showReviewerFiles", () => {
 
     await hoverOpen("frontend");
     pointerOut(shieldOf("frontend"));
-    read.resolve({ codeOwners: sandboxOwners(), prReviewers: SANDBOX_REVIEWERS });
+    read.resolve({
+      codeOwners: sandboxOwners(),
+      prReviewers: SANDBOX_REVIEWERS,
+    });
     await vi.advanceTimersByTimeAsync(500);
 
     expect(popups()).toHaveLength(0);
@@ -451,7 +478,10 @@ describe("showReviewerFiles", () => {
 
     await hoverOpen("frontend");
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-    read.resolve({ codeOwners: sandboxOwners(), prReviewers: SANDBOX_REVIEWERS });
+    read.resolve({
+      codeOwners: sandboxOwners(),
+      prReviewers: SANDBOX_REVIEWERS,
+    });
     await vi.advanceTimersByTimeAsync(500);
 
     expect(popups()).toHaveLength(0);
@@ -568,6 +598,19 @@ describe("showReviewerFiles", () => {
 
       expect(dialog()).not.toBeNull();
       expect(membersFetch.mock.calls.filter(([url]) => url === FRONTEND_MEMBERS)).toHaveLength(1);
+    });
+
+    it("opens one dialog, the last-clicked shield's, for clicks before the read settles", async () => {
+      let settle = (_: Ownership) => {};
+      show(() => new Promise((resolve) => (settle = resolve)));
+
+      await clickOn(shieldOf("frontend"));
+      await clickOn(shieldOf("platform"));
+      settle({ codeOwners: sandboxOwners(), prReviewers: SANDBOX_REVIEWERS });
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(document.querySelectorAll("dialog.gh-prism-owners-dialog")).toHaveLength(1);
+      expect(dialogName()).toBe("@excessive-dev/platform");
     });
 
     it("names the team a reviewer owns files through, and says when its members are hidden", async () => {

@@ -1,10 +1,17 @@
 /**
  * The code owner details dialog a click on a code owners shield opens: the shield's own listing,
  * then an excerpt of each owning team's members. It exists only while open, and mounts in the
- * page's body so a shield in a shadow root and one in the light DOM share it.
+ * page's body so a shield in a shadow root and one in the light DOM share it. It also holds
+ * `ownerLink`, the token link every code-owner surface shares, and the hover popups' hint that
+ * points here.
  */
 
-import { type CodeOwner, codeOwnerOf, type TeamMembersOf } from "@/utils/github/code-owners";
+import {
+  type CodeOwner,
+  codeOwnerOf,
+  type TeamMembers,
+  type TeamMembersOf,
+} from "@/utils/github/code-owners";
 import { el, icon, X_ICON } from "./dom";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./owners-dialog.css?inline";
@@ -17,7 +24,8 @@ export interface OwnersDialogOptions {
   readonly summary: readonly Node[];
   /** The `@org/team` tokens whose members it excerpts, in order. */
   readonly teams: readonly string[];
-  readonly members: TeamMembersOf;
+  /** Reads each of `teams`' members; never rejects. */
+  readonly teamMembers: TeamMembersOf;
   /** Where focus goes once it closes. */
   readonly returnFocus: () => void;
   /** The page's lifetime; the dialog goes with it. */
@@ -26,20 +34,17 @@ export interface OwnersDialogOptions {
 
 const TITLE_ID = "gh-prism-owners-dialog-title";
 
-const LINK = "tw:text-[color:var(--fgColor-accent)]";
-
 /** Opens the code owner details dialog over `doc`, until it closes or `signal` aborts. */
 export function openOwnersDialog(
   doc: Document,
-  { title, summary, teams, members, returnFocus, signal }: OwnersDialogOptions,
+  { title, summary, teams, teamMembers, returnFocus, signal }: OwnersDialogOptions,
 ): void {
   const style = Object.assign(doc.createElement("style"), { textContent: css });
-  const dialog = ownersDialog(
-    doc,
+  const dialog = ownersDialog(doc, {
     title,
     summary,
-    teams.map((team) => teamBlock(doc, team, members(team))),
-  );
+    teams: teams.map((team) => teamBlock(doc, team, teamMembers(team))),
+  });
 
   const closed = new AbortController();
   const remove = () => {
@@ -64,22 +69,38 @@ export function ownerLink(doc: Document, { token, url }: CodeOwner): Node | stri
   return newTabLink(doc, token, url);
 }
 
-/** The hover popups' hint that a click on their shield opens the dialog. */
-export function detailsHint(doc: Document): HTMLElement {
+// Each matches its popup's own padding; the popup keeps no bottom padding, so a long list
+// scrolls under the footer.
+const HINT_FOOTER = {
+  small:
+    "gh-prism-owners-hint tw:sticky tw:bottom-0 tw:-mx-3 tw:mt-3 tw:px-3 tw:py-2 tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:0_-1px_0_var(--borderColor-default)]",
+  medium:
+    "gh-prism-owners-hint tw:sticky tw:bottom-0 tw:-mx-4 tw:mt-4 tw:px-4 tw:py-2 tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:0_-1px_0_var(--borderColor-default)]",
+} as const;
+
+/** The footer a hover popup ends in, hinting that a click on its shield opens the dialog. */
+export function detailsHint(doc: Document, inset: keyof typeof HINT_FOOTER): HTMLElement {
   return el(
     doc,
-    "p",
-    "gh-prism-owners-hint tw:m-0 tw:text-body-small tw:leading-body-small tw:text-fg-muted",
-    "Click the shield for details",
+    "div",
+    HINT_FOOTER[inset],
+    el(
+      doc,
+      "p",
+      "tw:m-0 tw:text-body-small tw:leading-body-small tw:text-fg-muted",
+      "Click the shield for details",
+    ),
   );
 }
 
 /** Primer's Dialog, `title` over `summary` and `teams`, closing on Esc or a click outside it. */
 function ownersDialog(
   doc: Document,
-  title: string,
-  summary: readonly Node[],
-  teams: readonly HTMLElement[],
+  {
+    title,
+    summary,
+    teams,
+  }: { title: string; summary: readonly Node[]; teams: readonly HTMLElement[] },
 ): HTMLDialogElement {
   const heading = el(
     doc,
@@ -130,10 +151,12 @@ function ownersDialog(
   return dialog;
 }
 
-const MEMBER_CAP = 15;
-
 /** `team`'s linked token over its `members`' excerpt, which fills once the read settles. */
-function teamBlock(doc: Document, team: string, members: ReturnType<TeamMembersOf>): HTMLElement {
+function teamBlock(
+  doc: Document,
+  team: string,
+  members: Promise<TeamMembers | undefined>,
+): HTMLElement {
   const owner = codeOwnerOf(team);
   const block = el(
     doc,
@@ -145,11 +168,13 @@ function teamBlock(doc: Document, team: string, members: ReturnType<TeamMembersO
   return block;
 }
 
+const MEMBER_CAP = 15;
+
 /** The first members `read` lists, linked, then `teamUrl` for the rest; or why there are none. */
 function excerpt(
   doc: Document,
   teamUrl: string | undefined,
-  read: Awaited<ReturnType<TeamMembersOf>>,
+  read: TeamMembers | undefined,
 ): Node[] {
   const muted = (text: string) => el(doc, "p", "tw:m-0 tw:text-fg-muted", text);
   if (!read) return [muted("GitHub doesn't show you this team's members.")];
@@ -169,8 +194,9 @@ function excerpt(
     : [list];
 }
 
+/** `text` linking to `url` in a new tab, with no opener. */
 function newTabLink(doc: Document, text: string, url: string): HTMLAnchorElement {
-  const link = el(doc, "a", LINK, text);
+  const link = el(doc, "a", "tw:text-[color:var(--fgColor-accent)]", text);
   link.href = url;
   link.target = "_blank";
   link.rel = "noopener noreferrer";

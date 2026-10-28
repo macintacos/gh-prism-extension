@@ -132,8 +132,8 @@ A floating surface draws one 1px edge, never two. An overlay draws no border of 
 because `--shadow-floating-small` opens with a 1px ring that draws its edge, as in
 Primer's ActionMenu. Browsers give `[popover]` and `<dialog>` a default border, which
 would add a second edge, so such an overlay clears it with `tw:[border:0]`. The code
-owners popover does, and so does the classic notice in `classic/notice.ts`, which keeps
-its own radius.
+owners popover does, and so do the classic notice in `classic/notice.ts` and the code
+owner details dialog in `ui/owners-dialog.ts`. Those two keep their own radius.
 
 A hover card whose trigger sits next to one of GitHub's hovercard triggers takes GitHub's
 hovercard form instead: the 1px `--borderColor-default` border, the medium radius, and no
@@ -214,7 +214,7 @@ The classic-page dialog is a native `<dialog>`. It enters with Primer's scale-an
 while the spectrum sweeps across its top edge, and its backdrop is Primer's
 `--overlay-backdrop-bgColor`. `classic/notice.ts` and `classic/notice.css` hold it.
 
-The code owner details dialog reuses that dialog's shell, its header, ✕ button, entrance,
+The code owner details dialog copies that dialog's shell, its header, ✕ button, entrance,
 and backdrop, but has no spectrum and no footer buttons. ✕, Escape, and a click outside
 close it. Under its heading, it repeats what the shield's popover lists, built by the same
 code. Then each owning team gets a block below a hairline: its `@org/team` name linked to

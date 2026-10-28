@@ -90,20 +90,26 @@ export function showReviewerFiles(
     },
   });
 
+  // On the document: GitHub replaces the classic sidebar's nodes mid-visit.
+  let clicks = 0;
   doc.addEventListener(
     "click",
     async ({ target }) => {
       const shield = target instanceof Element ? shieldAt(target) : null;
       if (!shield) return;
+      const thisClick = ++clicks;
+
       const token = ownerOf(shield);
       const owned = ownedFiles(await readOnce(), token);
-      if (signal.aborted || !owned) return;
+      if (signal.aborted || thisClick !== clicks || !owned) return;
+
       closeCard();
       openOwnersDialog(doc, {
         title: token,
         summary: popupBody(doc, owned),
         teams: token.includes("/") ? [token] : owned.teams,
-        members: teamMembers,
+        teamMembers,
+        // Focus back on the shield opens its card again, as focus does anywhere here.
         returnFocus: () => shield.focus({ preventScroll: true }),
         signal,
       });
@@ -193,7 +199,9 @@ function shieldFor(
   { teams, direct }: OwnedFiles,
 ): HTMLButtonElement {
   const { classes, wrap } = SHIELD_LOOKS[kind];
-  const glyph = icon(doc, SHIELD_LOCK, { class: "octicon octicon-shield-lock" });
+  const glyph = icon(doc, SHIELD_LOCK, {
+    class: "octicon octicon-shield-lock",
+  });
   const shield = el(doc, "button", classes, wrap ? el(doc, "span", wrap, glyph) : glyph);
   shield.type = "button";
   shield.dataset.ghPrismOwner = token;
@@ -216,13 +224,7 @@ function show(shield: HTMLElement, owned: OwnedFiles): Card {
     "div",
     "gh-prism-reviewer-files tw:inset-auto tw:m-0 tw:w-max tw:max-w-[360px] tw:max-h-[min(320px,calc(100vh-16px))] tw:overflow-y-auto tw:pt-4 tw:px-4 tw:pb-0 tw:text-body-medium tw:leading-body-medium tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:border tw:border-border-default tw:rounded-medium tw:wrap-anywhere",
     ...popupBody(doc, owned),
-    // Sticky, and the popup keeps no bottom padding, so a long list scrolls under the hint.
-    el(
-      doc,
-      "div",
-      "tw:sticky tw:bottom-0 tw:-mx-4 tw:mt-4 tw:px-4 tw:py-2 tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:0_-1px_0_var(--borderColor-default)]",
-      detailsHint(doc),
-    ),
+    detailsHint(doc, "medium"),
   );
   popover.id = ID;
   popover.popover = "manual";

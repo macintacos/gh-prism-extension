@@ -110,12 +110,9 @@ export async function withMemberTeams(
   );
   if (!seesTeams) return reviewers;
 
-  const teams = new Map<string, string>();
-  for (const { owners } of codeOwners.values())
-    for (const { token, url } of owners)
-      if (token.includes("/") && url) teams.set(token.toLowerCase(), token);
+  const teams = owningTeams([...codeOwners.values()].flatMap(({ owners }) => owners));
   const membersOf = await Promise.all(
-    [...teams.values()].map(async (team) => ({ team, members: (await readMembers(team)) ?? [] })),
+    teams.map(async (team) => ({ team, members: (await readMembers(team)) ?? [] })),
   );
 
   return reviewers.map((reviewer) => {
@@ -134,7 +131,7 @@ export interface TeamMembers {
   readonly members: readonly string[];
 }
 
-/** Reads an `@org/team` token's members. */
+/** Reads an `@org/team` token's members; `undefined` when they can't be read. Never rejects. */
 export type TeamMembersOf = (team: string) => Promise<TeamMembers | undefined>;
 
 /**
@@ -170,7 +167,7 @@ export async function readTeamMembers(
 
 /**
  * `readTeamMembers` through `fetchFn` until `signal` aborts, asking each team at most once,
- * ignoring case.
+ * ignoring case. A read that fails stays failed for the visit.
  */
 export function teamMembersReader(fetchFn: typeof fetch, signal: AbortSignal): TeamMembersOf {
   const reads = new Map<string, Promise<TeamMembers | undefined>>();

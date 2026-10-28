@@ -8,12 +8,7 @@
  */
 
 import type { FileTreeRowDecoration } from "@pierre/trees";
-import {
-  type CodeOwner,
-  type FileOwners,
-  owningTeams,
-  type TeamMembersOf,
-} from "@/utils/github/code-owners";
+import type { FileOwners, TeamMembersOf } from "@/utils/github/code-owners";
 import type { LineCounts } from "@/utils/github/pr-diff";
 import {
   type CommentLines,
@@ -41,7 +36,7 @@ import { openOwnersDialog } from "../ui/owners-dialog";
 import { followReveals, fullName } from "../ui/reveal";
 import { markSection, SECTION_CATALOG, sectionIcon } from "../ui/section-catalog";
 import type { FileSection, LandingView } from "../visit/land";
-import { folderList, openFolderOwners, openOwners, ownersList } from "./owners-popover";
+import { describeListing, openListing, type ShieldListing } from "./owners-popover";
 import { SectionTree, type TreeFile } from "./section-tree";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./sections-view.css?inline";
@@ -73,10 +68,9 @@ interface SectionsView extends LandingView {
   viewed(paths: ReadonlySet<string>): void;
   /**
    * Shields the rows of every file in `byPath` with at least one code owner; a shield's hover or
-   * focus lists them, and its click opens the code owner details dialog, excerpting owning teams'
-   * members through `teamMembers`.
+   * focus lists them, and its click opens the code owner details dialog.
    */
-  owners(byPath: ReadonlyMap<string, FileOwners>, teamMembers: TeamMembersOf): void;
+  owners(byPath: ReadonlyMap<string, FileOwners>): void;
 }
 
 interface ShownListing {
@@ -409,16 +403,6 @@ function listingOfShield(shield: HTMLElement): ListingKey | undefined {
   return holder ? listingOf([holder]) : undefined;
 }
 
-/** What a folder's shield lists, its files with their owners, or a file's, its owners. */
-type ShieldListing =
-  | { readonly folder: string; readonly files: readonly FileOwnersAt[] }
-  | { readonly name: string; readonly owners: readonly CodeOwner[] };
-
-interface FileOwnersAt {
-  readonly path: string;
-  readonly owners: readonly CodeOwner[];
-}
-
 /** The code owners shield a click inside a tree landed on, its file, and its listing. */
 function clickedShield(event: Event): (ListedFile & { shield: HTMLElement }) | undefined {
   const elements = event.composedPath().filter((node) => node instanceof HTMLElement);
@@ -456,7 +440,11 @@ function followViewport(view: HTMLElement, onMove: () => void, signal: AbortSign
  * land in, with the lines each share adds and removes. All of it anchors below a leading
  * what's-new block when the nav holds one.
  */
-export function showSections(page: FilesPage, signal: AbortSignal): SectionsView {
+export function showSections(
+  page: FilesPage,
+  signal: AbortSignal,
+  teamMembers: TeamMembersOf,
+): SectionsView {
   const doc = page.sidebar.ownerDocument;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   const view = el(
@@ -485,7 +473,6 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
   let viewed: ReadonlySet<string> = new Set();
   let offered = false;
   let ownersByPath: ReadonlyMap<string, FileOwners> = new Map();
-  let teamMembers: TeamMembersOf = async () => undefined;
   let owned: ReadonlySet<string> = new Set();
   // The files whose box click is still settling; their boxes ignore clicks.
   const marking = new Set<string>();
@@ -680,7 +667,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
   };
 
   /** What `shield`'s popover and dialog list, and how to focus its row. */
-  const shieldOwners = (shield: HTMLElement) => {
+  const shieldListing = (shield: HTMLElement) => {
     const path = shield.dataset.itemShield;
     const listing = listingOfShield(shield);
     if (path === undefined || listing === undefined) return undefined;
@@ -702,48 +689,32 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
   };
   let closeOwners = () => {};
   const showOwners = (shield: HTMLElement): Card | undefined => {
-    const owners = shieldOwners(shield);
-    if (!owners) return undefined;
+    const details = shieldListing(shield);
+    if (!details) return undefined;
 
     closeOwners();
 
-    const { listed, focusRow } = owners;
-    const popoverOptions = { root: view, signal, returnFocus: focusRow };
-    const card =
-      "folder" in listed
-        ? openFolderOwners(shield, { ...listed, ...popoverOptions })
-        : openOwners(shield, { ...listed, ...popoverOptions });
-
+    const { listed, focusRow } = details;
+    const card = openListing(shield, listed, { root: view, signal, returnFocus: focusRow });
     closeOwners = card.close;
     return card;
   };
   // Focus moves to the row first: the dialog hands focus back to what had it, and the shield's
   // focus would open its popover again.
   const openDetails = (shield: HTMLElement) => {
-    const owners = shieldOwners(shield);
-    if (!owners) return;
+    const details = shieldListing(shield);
+    if (!details) return;
 
-    const { listed, focusRow } = owners;
+    const { listed, focusRow } = details;
     closeOwners();
     focusRow();
 
-    const [title, summary, teams] =
-      "folder" in listed
-        ? [
-            `Code owners of files in ${listed.folder.slice(0, -1)}`,
-            folderList(doc, listed.folder, listed.files),
-            owningTeams(listed.files.flatMap((file) => file.owners)),
-          ]
-        : [
-            `Code owners of ${listed.name}`,
-            ownersList(doc, listed.owners),
-            owningTeams(listed.owners),
-          ];
+    const { title, list, teams } = describeListing(doc, listed);
     openOwnersDialog(doc, {
       title,
-      summary: [summary],
+      summary: [list],
       teams,
-      members: teamMembers,
+      teamMembers,
       returnFocus: focusRow,
       signal,
     });
@@ -882,9 +853,8 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
       for (const { tree } of shown.values()) tree.showViewed(paths);
       countHeaders();
     },
-    owners(byPath, readMembers) {
+    owners(byPath) {
       ownersByPath = byPath;
-      teamMembers = readMembers;
       owned = new Set([...byPath].flatMap(([path, { owners }]) => (owners.length ? [path] : [])));
       for (const { tree } of shown.values()) tree.showOwners(owned);
     },

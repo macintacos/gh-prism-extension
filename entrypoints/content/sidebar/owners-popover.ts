@@ -8,11 +8,24 @@
  * unless a click closed it, hands focus it held to `returnFocus`.
  */
 
-import type { CodeOwner } from "@/utils/github/code-owners";
+import { type CodeOwner, owningTeams } from "@/utils/github/code-owners";
 import { el } from "../ui/dom";
 import type { Card } from "../ui/hover-intent";
 import { detailsHint, ownerLink } from "../ui/owners-dialog";
 import { place } from "../ui/place";
+
+export interface FileOwnersAt {
+  readonly path: string;
+  readonly owners: readonly CodeOwner[];
+}
+
+/**
+ * What a shield lists: a folder's files, its path ending in `/` and its files by full path in the
+ * tree's order, or a file's owners under its base name.
+ */
+export type ShieldListing =
+  | { readonly folder: string; readonly files: readonly FileOwnersAt[] }
+  | { readonly name: string; readonly owners: readonly CodeOwner[] };
 
 interface PopoverOptions {
   /** Where the popover mounts: the sections view's root, which styles it. */
@@ -23,31 +36,35 @@ interface PopoverOptions {
   readonly returnFocus: () => void;
 }
 
-interface OwnersOptions extends PopoverOptions {
-  /** The file's base name, for the popover's accessible name. */
-  readonly name: string;
-  readonly owners: readonly CodeOwner[];
+/** What `listed` shows: its name, its list, and the teams among its owners. */
+export function describeListing(doc: Document, listed: ShieldListing) {
+  return "folder" in listed
+    ? {
+        title: `Code owners of files in ${listed.folder.slice(0, -1)}`,
+        list: folderList(doc, listed.folder, listed.files),
+        teams: owningTeams(listed.files.flatMap(({ owners }) => owners)),
+      }
+    : {
+        title: `Code owners of ${listed.name}`,
+        list: ownersList(doc, listed.owners),
+        teams: owningTeams(listed.owners),
+      };
 }
 
-interface FolderOwnersOptions extends PopoverOptions {
-  /** The folder's path, ending in `/`. */
-  readonly folder: string;
-  /** Every file under `folder`, by full path in the tree's order, each with its owners, if any. */
-  readonly files: readonly { readonly path: string; readonly owners: readonly CodeOwner[] }[];
-}
-
-/** Opens the popover listing a file's `owners`. */
-export function openOwners(shield: HTMLElement, { name, owners, ...options }: OwnersOptions): Card {
-  return openPopover(
-    shield,
-    `Code owners of ${name}`,
-    ownersList(shield.ownerDocument, owners),
-    options,
-  );
+/** Opens the popover listing `listed`. */
+// ponytail: builds every file under a folder on each open, thousands of nodes at GitHub's
+// 3,000-file cap; cap the list with a "+N more" line, or swap in a file tree, if that hitches.
+export function openListing(
+  shield: HTMLElement,
+  listed: ShieldListing,
+  options: PopoverOptions,
+): Card {
+  const { title, list } = describeListing(shield.ownerDocument, listed);
+  return openPopover(shield, title, list, options);
 }
 
 /** `owners`, one per line. */
-export function ownersList(doc: Document, owners: readonly CodeOwner[]): HTMLElement {
+function ownersList(doc: Document, owners: readonly CodeOwner[]): HTMLElement {
   return el(
     doc,
     "ul",
@@ -57,34 +74,12 @@ export function ownersList(doc: Document, owners: readonly CodeOwner[]): HTMLEle
 }
 
 /** `files` by their paths relative to `folder`, each owned one with its owners. */
-export function folderList(
-  doc: Document,
-  folder: string,
-  files: FolderOwnersOptions["files"],
-): HTMLElement {
+function folderList(doc: Document, folder: string, files: readonly FileOwnersAt[]): HTMLElement {
   return el(
     doc,
     "ul",
     "tw:m-0 tw:p-0 tw:list-none tw:flex tw:flex-col tw:gap-2",
     ...files.map(({ path, owners }) => fileItem(doc, path.slice(folder.length), owners)),
-  );
-}
-
-/**
- * Opens the popover listing `files` by their paths relative to `folder`, each owned one with its
- * owners.
- */
-// ponytail: builds every file under the folder on each open, thousands of nodes at GitHub's
-// 3,000-file cap; cap the list with a "+N more" line, or swap in a file tree, if that hitches.
-export function openFolderOwners(
-  shield: HTMLElement,
-  { folder, files, ...options }: FolderOwnersOptions,
-): Card {
-  return openPopover(
-    shield,
-    `Code owners of files in ${folder.slice(0, -1)}`,
-    folderList(shield.ownerDocument, folder, files),
-    options,
   );
 }
 
@@ -102,13 +97,7 @@ function openPopover(
     "gh-prism-owners tw:inset-auto tw:m-0 tw:max-w-[320px] tw:max-h-[calc(100vh-16px)] tw:overflow-y-auto tw:pt-3 tw:px-3 tw:pb-0 tw:text-body-small tw:leading-body-small tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:rounded-medium tw:[border:0] tw:[box-shadow:var(--shadow-floating-small)] tw:wrap-anywhere",
     el(doc, "h2", "tw:mt-0 tw:mb-2 tw:text-body-small tw:font-semibold", "Code owners"),
     body,
-    // Sticky, and the popover keeps no bottom padding, so a long list scrolls under the hint.
-    el(
-      doc,
-      "div",
-      "tw:sticky tw:bottom-0 tw:-mx-3 tw:mt-3 tw:px-3 tw:py-2 tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:0_-1px_0_var(--borderColor-default)]",
-      detailsHint(doc),
-    ),
+    detailsHint(doc, "small"),
   );
   popover.popover = "auto";
   popover.setAttribute("role", "dialog");

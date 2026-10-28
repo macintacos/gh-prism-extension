@@ -45,7 +45,6 @@ export const owned = (...paths: string[]): void => {
     new Map(
       paths.map((path) => [path, { owners: [codeOwnerOf("@o/team")], ownedByViewer: false }]),
     ),
-    async () => undefined,
   );
 };
 

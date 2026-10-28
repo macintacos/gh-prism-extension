@@ -587,6 +587,21 @@ describe("withMemberTeams", () => {
     ]);
   });
 
+  it("names a team listed in two spellings by the first one", async () => {
+    const twoSpellings: PrCodeOwners = new Map([
+      ["web/app.ts", { owners: [codeOwnerOf("@o/frontend")], ownedByViewer: false }],
+      ["web/style.css", { owners: [codeOwnerOf("@O/Frontend")], ownedByViewer: false }],
+    ]);
+
+    const result = await withMemberTeams(
+      [reviewer("@grace", { codeOwner: true })],
+      twoSpellings,
+      readMembers,
+    );
+
+    expect(result).toEqual([reviewer("@grace", { codeOwner: true, teams: ["@o/frontend"] })]);
+  });
+
   it("asks nothing when GitHub shows the viewer no team among the PR reviewers", async () => {
     const reviewers = [reviewer("@grace"), reviewer("@linus")];
 

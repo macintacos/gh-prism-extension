@@ -226,9 +226,9 @@ export function showVisit(
     whatsNew?: WhatsNew;
   },
 ): void {
-  const sidebar = showSections(page, signal);
+  const sidebar = showSections(page, signal, teamMembers);
   void codeOwners?.then((read) => {
-    if (read && !signal.aborted) sidebar.owners(read, teamMembers);
+    if (read && !signal.aborted) sidebar.owners(read);
   });
   if (whatsNew) sidebar.root.prepend(whatsNewBlock(page.sidebar.ownerDocument, whatsNew));
   const views = [

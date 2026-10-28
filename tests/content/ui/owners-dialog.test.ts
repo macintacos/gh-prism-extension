@@ -23,7 +23,7 @@ function open(
     title: "Code owners of engine.rs",
     summary,
     teams,
-    members,
+    teamMembers: members,
     returnFocus,
     signal: controller.signal,
   });
@@ -95,7 +95,9 @@ describe("openOwnersDialog", () => {
   });
 
   it("shows team tokens and logins as text, never markup", async () => {
-    open(answering({ total: 1, members: ["<b>x</b>"] }), { teams: ["@o/<b>t</b>"] });
+    open(answering({ total: 1, members: ["<b>x</b>"] }), {
+      teams: ["@o/<b>t</b>"],
+    });
     await vi.waitFor(() => expect(dialog()?.textContent).toContain("@<b>x</b>"));
 
     expect(dialog()?.textContent).toContain("@o/<b>t</b>");
