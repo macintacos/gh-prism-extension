@@ -163,9 +163,10 @@ Two dependencies carry local patches in [`patches/`](../patches/), which Bun app
 install through `patchedDependencies` in [`package.json`](../package.json):
 
 - `@pierre/trees` adds a row decoration's title to the row's accessible label, and renders
-  a checkbox beside a row whose decoration asks for one. It also renders a flattened row's
-  folders as whole units around a hidden `…`, and gives every row an `aria-hidden` copy of
-  its full name.
+  a checkbox beside a row whose decoration asks for one, and a code-owner shield over the
+  icon of a row whose decoration asks for one. It also renders a flattened row's folders
+  as whole units around a hidden `…`, and gives every row an `aria-hidden` copy of its
+  full name.
 - `wxt` escapes the entrypoint path in a regular expression, so a checkout whose path
   holds a character such as `+` still builds.
 

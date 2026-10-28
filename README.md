@@ -41,6 +41,9 @@ how to get the new tab. Once you close the dialog, it stays closed, and
   (`N/M`). It follows GitHub's Viewed toggle.
 - It marks a file Viewed on GitHub when you tick the checkbox on its row, or when you
   Alt-click the row (Option-click on macOS). Doing either again marks it not viewed.
+- On a pull request, hovering or focusing a file's row shows a shield when the file has
+  code owners. Clicking the shield lists them, each team or user linked to their GitHub
+  page.
 - After an update, the sidebar opens with a collapsed **What's new in vX.Y.Z** block of
   that version's release notes. It goes away when you dismiss it, or 3 days after you
   first see it.

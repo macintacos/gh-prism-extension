@@ -6,6 +6,17 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-28: A file's code owners
+
+- **Compared:** a CSS-only swap opened by a new row key; a shield inside the row's icon
+  cell; a separate shield button beside the row; Octicons `shield` against `shield-lock`;
+  and a closing transition against closing at once.
+- **Won:** the separate button, `shield-lock`, and closing at once.
+- **Why:** the button is a real, valid tab stop that Enter and Space open with no new key,
+  where a control inside the row's `<button role="treeitem">` is invalid. `shield-lock` is
+  the glyph GitHub's own file header shows for CODEOWNERS. A popover that exists only
+  while open has nothing left to animate out.
+
 ## 2026-10-27: A quieter header counter
 
 - **Compared:** the tinted pills as shipped, and six untinted rows beside GitHub's own

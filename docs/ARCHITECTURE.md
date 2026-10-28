@@ -227,6 +227,17 @@ request's `hiddenDiffSelectors` in `files-page.ts` scopes to the diff list, and 
 With the parameter set, the page stays pending until the code owners land, and a failed
 read keeps every file.
 
+The sidebar is the only reader. `showVisit` in
+[`visit/land.ts`](../entrypoints/content/visit/land.ts) hands the owners to the sidebar
+once they land, and drops them if the page has gone. `SectionTree` in
+[`sidebar/section-tree.ts`](../entrypoints/content/sidebar/section-tree.ts) marks each
+owned file's rows in every section, and the `@pierre/trees` patch draws a shield beside
+each, shown in place of the file icon while its row is hovered or focused. Clicking a
+shield opens a popover listing the file's owners, built by
+[`sidebar/owners-popover.ts`](../entrypoints/content/sidebar/owners-popover.ts) and
+removed when it closes. Nothing else reads ownership, so it never changes a file's section
+or the diffstat.
+
 ## Section rows
 
 [`entrypoints/content/sidebar/sections-view.ts`](../entrypoints/content/sidebar/sections-view.ts)
