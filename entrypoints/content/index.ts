@@ -2,10 +2,17 @@ import { browser } from "wxt/browser";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { storage } from "wxt/utils/storage";
-import { readCodeOwners, readPrReviewers } from "@/utils/github/code-owners";
+import {
+  type PrCodeOwners,
+  type PrReviewer,
+  readCodeOwners,
+  readPrReviewers,
+  readTeamMembers,
+  withMemberTeams,
+} from "@/utils/github/code-owners";
 import { ownerOf } from "@/utils/github/files-route";
 import { connectPrData } from "@/utils/github/pr-port";
-import { readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
+import { type DiffRef, readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
 import { storedIntents } from "@/utils/intent/cache";
 import { type IntentSources, intentFor, shareIntent } from "@/utils/intent/read";
 import {
@@ -81,7 +88,7 @@ export default defineContentScript({
         onVisit: (route, visit) => {
           const intent = shareIntent((onProgress) => intentFor(route, visit, sources, onProgress));
           const codeOwners = readCodeOwners(route.diff, fetch, visit);
-          const prReviewers = readPrReviewers(route.diff, fetch, visit);
+          const prReviewers = readReviewersWithTeams(route.diff, codeOwners, visit);
           // Route data is fresh only until GitHub's first navigation.
           const viewed = visitViewed(fullLoad ? readViewedSeed(document, route.diff) : undefined);
           fullLoad = false;
@@ -133,6 +140,20 @@ export default defineContentScript({
     );
   },
 });
+
+/**
+ * `diff`'s PR reviewers, each who owns no changed file yet with the owning teams in `codeOwners`
+ * that list them as members, read until `signal` aborts.
+ */
+async function readReviewersWithTeams(
+  diff: DiffRef,
+  codeOwners: Promise<PrCodeOwners | undefined>,
+  signal: AbortSignal,
+): Promise<readonly PrReviewer[] | undefined> {
+  const [reviewers, owners] = await Promise.all([readPrReviewers(diff, fetch, signal), codeOwners]);
+  if (!reviewers || !owners) return reviewers;
+  return withMemberTeams(reviewers, owners, (team) => readTeamMembers(team, fetch, signal));
+}
 
 /** The stored sidebar side, unchecked, or the default when storage won't read. */
 const readSavedSide = (): Promise<unknown> =>

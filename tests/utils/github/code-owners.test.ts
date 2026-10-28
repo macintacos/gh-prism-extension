@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   codeOwnerOf,
   isOwner,
@@ -8,6 +8,8 @@ import {
   type PrReviewer,
   readCodeOwners,
   readPrReviewers,
+  readTeamMembers,
+  withMemberTeams,
 } from "../../../utils/github/code-owners";
 import type { DiffRef } from "../../../utils/github/pr-ref";
 import nodeCodeowners from "../../fixtures/codeowners-node.json?raw";
@@ -16,6 +18,7 @@ import sandboxCodeowners from "../../fixtures/codeowners-sandbox.json?raw";
 import { routedFetch } from "../../fixtures/fetch";
 import nodeReviewRequests from "../../fixtures/review-requests-node.json?raw";
 import sandboxReviewRequests from "../../fixtures/review-requests-sandbox.json?raw";
+import sandboxTeamMembers from "../../fixtures/team-members-sandbox.json?raw";
 
 const sandbox: DiffRef = {
   kind: "pr",
@@ -401,6 +404,114 @@ describe("readPrReviewers", () => {
       teams: ["@nodejs/crypto", "@nodejs/security-wg"],
       codeOwner: true,
     });
+  });
+});
+
+describe("readTeamMembers", () => {
+  const frontendUrl = "https://github.com/orgs/excessive-dev/teams/frontend/members";
+  const readMembers = (fetchFn: typeof fetch) =>
+    readTeamMembers("@excessive-dev/frontend", fetchFn, new AbortController().signal);
+
+  it("reads a team's members as JSON with the visit's signal", async () => {
+    const fetchFn = routedFetch({ [frontendUrl]: ok(sandboxTeamMembers) });
+    const signal = new AbortController().signal;
+
+    const result = await readTeamMembers("@excessive-dev/frontend", fetchFn, signal);
+
+    expect(result).toEqual(["sandbox-user"]);
+    expect(fetchFn).toHaveBeenCalledExactlyOnceWith(frontendUrl, {
+      headers: { Accept: "application/json" },
+      signal,
+    });
+  });
+
+  it("reads nothing, quietly, from a team the viewer can't see", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const result = await readMembers(routedFetch({ [frontendUrl]: notFound }));
+
+    expect(result).toBeUndefined();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("reads nothing and warns once when members isn't a list of logins", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchFn = routedFetch({ [frontendUrl]: ok(JSON.stringify({ members: [7] })) });
+
+    const result = await readMembers(fetchFn);
+
+    expect(result).toBeUndefined();
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
+  it("reads nothing for a token that isn't a team", async () => {
+    const fetchFn = routedFetch({});
+
+    const result = await readTeamMembers("@octocat", fetchFn, new AbortController().signal);
+
+    expect(result).toBeUndefined();
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+});
+
+describe("withMemberTeams", () => {
+  const owners: PrCodeOwners = new Map([
+    ["web/app.ts", { owners: [codeOwnerOf("@o/frontend")], ownedByViewer: false }],
+    ["infra/main.tf", { owners: [codeOwnerOf("@o/platform")], ownedByViewer: false }],
+    ["docs/guide.md", { owners: [codeOwnerOf("@ada")], ownedByViewer: false }],
+  ]);
+  const reviewer = (token: string, extra: Partial<PrReviewer> = {}): PrReviewer => ({
+    token,
+    teams: [],
+    codeOwner: false,
+    ...extra,
+  });
+  /** Members by team: `@o/frontend` lists `@Grace`, every other team no one. */
+  const readMembers = vi.fn(async (team: string) => (team === "@o/frontend" ? ["Grace"] : []));
+
+  beforeEach(() => readMembers.mockClear());
+
+  it("adds each owning team that lists a reviewer who owns nothing yet", async () => {
+    const reviewers = [reviewer("@o/platform"), reviewer("@grace", { codeOwner: true })];
+
+    const result = await withMemberTeams(reviewers, owners, readMembers);
+
+    expect(result).toEqual([
+      reviewer("@o/platform"),
+      reviewer("@grace", { codeOwner: true, teams: ["@o/frontend"] }),
+    ]);
+  });
+
+  it("asks each owning team once, and asks nothing for a reviewer who owns files", async () => {
+    const reviewers = [
+      reviewer("@ada", { codeOwner: true }),
+      reviewer("@grace", { codeOwner: true }),
+      reviewer("@linus"),
+    ];
+
+    await withMemberTeams(reviewers, owners, readMembers);
+
+    expect(readMembers.mock.calls.map(([team]) => team).sort()).toEqual([
+      "@o/frontend",
+      "@o/platform",
+    ]);
+  });
+
+  it("asks nothing when GitHub shows the viewer no team among the PR reviewers", async () => {
+    const reviewers = [reviewer("@grace"), reviewer("@linus")];
+
+    const result = await withMemberTeams(reviewers, owners, readMembers);
+
+    expect(result).toEqual(reviewers);
+    expect(readMembers).not.toHaveBeenCalled();
+  });
+
+  it("adds nothing from a team whose members can't be read", async () => {
+    const reviewers = [reviewer("@grace", { codeOwner: true })];
+
+    const result = await withMemberTeams(reviewers, owners, async () => undefined);
+
+    expect(result).toEqual(reviewers);
   });
 });
 

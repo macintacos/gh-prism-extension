@@ -251,15 +251,20 @@ owner keeps its token as written and gets a link only when the token is a valid 
 `@org/team`; gh-prism builds the URL and never takes one from the response.
 
 A PR reviewer owns a file when its owners include the reviewer's token, or one of the
-teams GitHub names the reviewer as reviewing for, ignoring case. `ownerFilter` holds that
-rule, and the owner filter and the owner section both ask it, so picking a reviewer in the
-section keeps the files the section counted them for. A user who belongs to an owning team
-but reviews for none of them owns no file, because gh-prism reads no team membership. Each
-read settles on its own: one that fails, or whose response misses a field it expects,
-resolves to `undefined` and logs one warning naming it, and the other read is unaffected.
-A failed PR reviewers read drops the owner section's reviewer entries and narrows the
-owner filter to the owner's own token. A repository without CODEOWNERS resolves to no
-owners.
+teams GitHub names the reviewer as reviewing for, ignoring case. A user who owns no
+changed file that way also takes each owning team that lists them as a member:
+`withMemberTeams` reads each team among the changed files' owners once, through
+`readTeamMembers`, from the JSON GitHub's team mentions read. It reads members only when
+GitHub shows the viewer a team among the PR reviewers, because a viewer outside the
+organization sees none and gets 404 for every team. A large team lists only its first
+members. `index.ts` composes the two into the visit's PR reviewers, so every reader sees
+the same teams. `ownerFilter` holds the ownership rule, and the owner filter and the owner
+section both ask it, so picking a reviewer in the section keeps the files the section
+counted them for. Each read settles on its own: one that fails, or whose response misses a
+field it expects, resolves to `undefined` and logs one warning naming it, and the other
+read is unaffected. A failed PR reviewers read drops the owner section's reviewer entries
+and narrows the owner filter to the owner's own token. A repository without CODEOWNERS
+resolves to no owners.
 
 The owner filter is the first reader of the code owners. `index.ts` reads the
 `gh-prism-owner` query parameter on a pull request's pages with `ownerOf` in

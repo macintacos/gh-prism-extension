@@ -239,13 +239,43 @@ describe("content script", () => {
       expect.any(AbortSignal),
     );
     const codeOwners = vi.mocked(readCodeOwners).mock.results[0]?.value;
-    const prReviewers = vi.mocked(readPrReviewers).mock.results[0]?.value;
     const given = vi.mocked(showOwnerSection).mock.calls.map(([, , options]) => options);
     expect(given).toHaveLength(2);
     for (const options of given) {
       expect(options.codeOwners).toBe(codeOwners);
-      expect(options.prReviewers).toBe(prReviewers);
+      expect(options.prReviewers).toBe(given[0]?.prReviewers);
     }
+  });
+
+  it("hands each page the PR reviewers with the owning teams a code owner among them is in", async () => {
+    const actual = await vi.importActual<typeof import("../../utils/github/code-owners")>(
+      "../../utils/github/code-owners",
+    );
+    vi.mocked(readCodeOwners).mockImplementation(actual.readCodeOwners);
+    vi.mocked(readPrReviewers).mockImplementation(actual.readPrReviewers);
+    const ownershipByPath = { "src/lib.rs": { owners: ["@o/core"], isOwnedByViewer: false } };
+    const pendingReviewRequests = [
+      { reviewer: { displayLogin: "grace", reviewerType: "User" }, isCodeOwner: true },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      routedFetch({
+        "https://github.com/o/r/pull/1/page_data/codeowners": () =>
+          Promise.resolve(new Response(JSON.stringify({ ownershipByPath }))),
+        "https://github.com/o/r/pull/1/page_data/review_requests": () =>
+          Promise.resolve(new Response(JSON.stringify({ pendingReviewRequests }))),
+        "https://github.com/orgs/o/teams/core/members": () =>
+          Promise.resolve(new Response(JSON.stringify({ total: 1, members: ["grace"] }))),
+      }),
+    );
+
+    await run();
+
+    const [, , visit] = vi.mocked(showVisit).mock.calls[0] ?? [];
+    const [, , section] = vi.mocked(showOwnerSection).mock.calls[0] ?? [];
+    const withTeams = [{ token: "@grace", teams: ["@o/core"], codeOwner: true }];
+    await expect(visit?.prReviewers).resolves.toEqual(withTeams);
+    await expect(section?.prReviewers).resolves.toEqual(withTeams);
   });
 
   it.each([

@@ -343,9 +343,12 @@ facts about GitHub that held when written, and ends with how to re-check them;
   `pendingReviewRequests[].delegatedFromTeam`, the team a request was assigned from,
   `isCodeOwnerFromDelegation`, and `completedReviews[].onBehalfOfTeams[]`, the teams a
   review was on behalf of. Each team has the `reviewer` shape.
-- **Don't expect team membership.** `/orgs/<org>/teams/<slug>/members` and the team's
-  `/hovercard` answer 404 to a viewer outside the organization, and a user's hovercard
-  names organizations, not teams. `isOwnedByViewer` covers only you.
+- **Read a team's members from `/orgs/<org>/teams/<slug>/members` with
+  `Accept: application/json`.** It answers `{"total": N, "members": [logins]}`, the JSON
+  GitHub's team-mention tooltips read; with `X-Requested-With` alone it answers HTML. A
+  team bigger than its list shows the rest as "N more" in GitHub's own tooltip, so the
+  list holds only the first members. A viewer outside the organization gets 404, from the
+  team's `/hovercard` too, and a user's hovercard names organizations, not teams.
 - **Re-check:** compare
 
   ```sh

@@ -94,6 +94,70 @@ export function owningReviewers(
 }
 
 /**
+ * `reviewers`, giving each `@user` who owns no changed file in `codeOwners` yet, through their
+ * token or named teams, every team owning a changed file whose members `readMembers` lists them
+ * among, ignoring case. Asks each owning team once, and only when GitHub shows the viewer a team
+ * among `reviewers`, which it does only to a viewer who can see the organization's teams.
+ */
+export async function withMemberTeams(
+  reviewers: readonly PrReviewer[],
+  codeOwners: PrCodeOwners,
+  readMembers: (team: string) => Promise<readonly string[] | undefined>,
+): Promise<readonly PrReviewer[]> {
+  const paths = [...codeOwners.keys()];
+  const ownsNothing = ({ token }: PrReviewer) =>
+    !token.includes("/") && !paths.some(ownerFilter(codeOwners, token, reviewers));
+  const seesTeams = reviewers.some(
+    ({ token, teams, codeOwner }) => token.includes("/") || teams.length > 0 || codeOwner,
+  );
+  if (!seesTeams || !reviewers.some(ownsNothing)) return reviewers;
+
+  const teams = new Map<string, string>();
+  for (const { owners } of codeOwners.values())
+    for (const { token, url } of owners)
+      if (token.includes("/") && url) teams.set(token.toLowerCase(), token);
+  const membersOf = await Promise.all(
+    [...teams.values()].map(async (team) => ({ team, members: (await readMembers(team)) ?? [] })),
+  );
+
+  return reviewers.map((reviewer) => {
+    if (!ownsNothing(reviewer)) return reviewer;
+    const joined = membersOf.filter(({ members }) =>
+      members.some((login) => isOwner(reviewer.token, { token: `@${login}` })),
+    );
+    return { ...reviewer, teams: [...reviewer.teams, ...joined.map(({ team }) => team)] };
+  });
+}
+
+/**
+ * The logins `team`, an `@org/team` token, lists as members, from the endpoint GitHub's team
+ * mentions read, in one request. GitHub lists a large team's first members only. `undefined` for
+ * any other token, for a team the viewer can't see, or once the read fails; logs one warning on
+ * an unexpected shape unless `signal` aborted.
+ */
+export async function readTeamMembers(
+  team: string,
+  fetchFn: typeof fetch,
+  signal: AbortSignal,
+): Promise<readonly string[] | undefined> {
+  const page = codeOwnerOf(team).url;
+  if (!team.includes("/") || !page) return undefined;
+  const url = `${page}/members`;
+
+  try {
+    // Without this header it answers with the members page's HTML.
+    const response = await fetchFn(url, { headers: { Accept: "application/json" }, signal });
+    if (!response.ok) return undefined;
+    const members = at(await response.json(), "members");
+    if (!isStrings(members)) throw new Error(`${url} answered an unexpected shape`);
+    return members;
+  } catch (error) {
+    if (!signal.aborted) console.warn(`gh-prism: couldn't read ${team}'s members`, error);
+    return undefined;
+  }
+}
+
+/**
  * A pull request's code owners, from the `page_data/codeowners` endpoint its Files changed page
  * reads, in one request; `undefined` for a commit, or once the read fails or answers an unexpected
  * shape. Never rejects; logs one warning on a failed read unless `signal` aborted.
