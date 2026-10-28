@@ -1914,6 +1914,59 @@ test("a code owner reviewer's shield opens their files, closing as the pointer l
   expect(errors).toEqual([]);
 });
 
+/** Serves the code-owners sandbox's PR #1 Conversation tab at `o/r#1`, with its code owners. */
+const serveSandboxConversation = async (context: BrowserContext) => {
+  await serve(
+    context,
+    "https://github.com/o/r/pull/1",
+    `<!doctype html>${readFixture("conversation-page.html")}`,
+  );
+  await context.route("https://github.com/o/r/pull/1/page_data/codeowners", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: readFixture("codeowners-sandbox.json"),
+    }),
+  );
+};
+/** Replaces the classic Reviewers list with a copy, as GitHub's `reviewers_updated` does. */
+const replaceReviewers = (page: Page) =>
+  page
+    .locator('form[id^="pull-request-reviewers-form-"]')
+    .evaluate((form) => form.replaceWith(form.cloneNode(true)));
+
+for (const { how, open, leave } of [
+  {
+    how: "hovered card closes once the pointer moves on",
+    open: (shield: Locator) => shield.hover(),
+    leave: (page: Page) => page.mouse.move(1, 1),
+  },
+  {
+    how: "focused card closes",
+    open: (shield: Locator) => shield.focus(),
+    leave: async () => {},
+  },
+]) {
+  test(`a code owner reviewer's ${how} after GitHub replaces the Reviewers list`, async ({
+    context,
+    page,
+  }) => {
+    await serveSandboxConversation(context);
+    await page.goto("https://github.com/o/r/pull/1");
+    const shield = page.locator('[id="codeowner-excessive-dev/frontend"]');
+    const popup = page.locator(".gh-prism-reviewer-files");
+    await expect(async () => {
+      await shield.blur();
+      await open(shield);
+      await expect(popup).toBeVisible({ timeout: 1000 });
+    }).toPass();
+
+    await replaceReviewers(page);
+    await leave(page);
+
+    await expect(popup).toHaveCount(0);
+  });
+}
+
 const NODE_PR = "https://github.com/nodejs/node/pull/67056";
 const NODE_CRYPTO_FILES = [
   "src/crypto/crypto_context.cc",

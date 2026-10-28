@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { followHoverIntent } from "../../../entrypoints/content/ui/hover-intent";
 
 let controller: AbortController;
@@ -11,6 +11,7 @@ beforeEach(() => {
 
 afterEach(() => {
   controller.abort();
+  vi.useRealTimers();
 });
 
 /**
@@ -39,8 +40,27 @@ function follow(): HTMLElement[] {
 const button = (id: string) => document.getElementById(id) as HTMLElement;
 const focusIn = (target: Element) =>
   target.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+const pointerOver = (target: Element) =>
+  target.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
 
 describe("followHoverIntent", () => {
+  it("closes a card whose trigger left the document 150 ms after the pointer moves on", async () => {
+    vi.useFakeTimers();
+    const closed = follow();
+    pointerOver(button("a"));
+    await vi.advanceTimersByTimeAsync(200);
+    button("a").remove();
+
+    pointerOver(document.body);
+    await vi.advanceTimersByTimeAsync(149);
+    const openDuringGrace = document.querySelectorAll("div").length;
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(openDuringGrace).toBe(1);
+    expect(document.querySelectorAll("div")).toHaveLength(0);
+    expect(closed.map(({ id }) => id)).toEqual(["a"]);
+  });
+
   it("leaves alone a card that closed itself when the next one opens", () => {
     const closed = follow();
     focusIn(button("a"));

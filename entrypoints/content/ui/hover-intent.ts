@@ -122,6 +122,8 @@ export function followHoverIntent(
           clearTimeout(closeTimer);
           return;
         }
+        // A trigger the page replaced under the pointer gets no pointerout.
+        if (open && !open.trigger.isConnected) closeSoon();
         const trigger = triggerAt(event.target);
         if (trigger && !within(trigger, relatedOf(event))) openAfter(trigger, OPEN_DELAY_MS);
       },
