@@ -75,7 +75,7 @@ chain refits included. `--entry-size n` sets how many elements each synthetic di
 has, its wrapper included; the default is 95. The benchmark lives in `bench/` and runs
 outside CI, Vitest, and Playwright.
 
-## A sandbox repository
+## Sandbox repositories
 
 `scripts/create-sandbox.sh <owner>/<repo>` creates a private repository under an account
 you control, with nine open pull requests. Small, large, and complicated survey GitHub's
@@ -98,11 +98,13 @@ team and you, a later rule overriding an earlier one, and no owner. Three pull r
 cover every case. One edits CODEOWNERS in its own diff, and one is large enough that
 GitHub loads its diffs lazily. Their bodies list each file's owners and what "Only files
 owned by…" should list. GitHub keeps a request to a team whose only member is the pull
-request's author. Commits use your GitHub noreply address. Creating the teams needs the
-`admin:org` scope, so run `gh auth refresh -s admin:org` first and drop it afterwards with
-`gh auth refresh -r admin:org`. Its pushes go through git, so a git credential helper
-without access to the organization makes them fail; `gh auth setup-git` fixes that. A
-rerun skips the repository, the teams, and each pull request that already exists, and
+request's author, so on your own pull requests `frontend` still shows as requested.
+
+Commits use your GitHub noreply address. Creating the teams needs the `admin:org` scope,
+so run `gh auth refresh -s admin:org` first and drop it afterwards with
+`gh auth refresh -r admin:org`. The script pushes through git, so a git credential helper
+without access to the organization makes the pushes fail; `gh auth setup-git` fixes that.
+A rerun skips the repository, the teams, and each pull request that already exists, and
 brings each body up to date.
 
 ## Git hooks

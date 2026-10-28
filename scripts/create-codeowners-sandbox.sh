@@ -31,6 +31,7 @@ fill() {
 	printf '%s' "${body//@ME/@$me}"
 }
 
+# REST rather than gh pr edit, which depends on gh's GraphQL project lookups.
 refresh_pr() {
 	local number
 	number=$(gh pr view "$1" -R "$repo" --json number --jq .number)
@@ -53,21 +54,23 @@ module_file() {
 	}'
 }
 
-ensure_team() {
-	gh api "orgs/$org/teams/$1" >/dev/null 2>&1 && return 1
-	gh api -X POST "orgs/$org/teams" -f name="$1" -f privacy=closed >/dev/null
+team_exists() {
+	gh api "orgs/$org/teams/$1" >/dev/null 2>&1
 }
 
 setup_teams() {
-	ensure_team frontend || true
-	# GitHub makes the creator a maintainer; leaving platform gives the sandbox files owned, but not by you.
-	if ensure_team platform; then
-		gh api -X DELETE "orgs/$org/teams/platform/memberships/$me" >/dev/null
-	fi
 	local team
 	for team in frontend platform; do
+		# A code-owner team must be visible (closed; the API defaults to secret) and have write access.
+		if ! team_exists "$team"; then
+			gh api -X POST "orgs/$org/teams" -f name="$team" -f privacy=closed >/dev/null
+		fi
 		gh api -X PUT "orgs/$org/teams/$team/repos/$repo" -f permission=push >/dev/null
 	done
+	# GitHub makes a team's creator its maintainer; platform stays memberless so some files are owned, but not by you.
+	if gh api "orgs/$org/teams/platform/memberships/$me" >/dev/null 2>&1; then
+		gh api -X DELETE "orgs/$org/teams/platform/memberships/$me" >/dev/null
+	fi
 }
 
 seed_main() {
@@ -140,7 +143,7 @@ Expected code owners, from main's CODEOWNERS. The shield lists these owners in t
 - `infra/deploy.yml`: `@ORG/platform`.
 - `README.md`: no owner, so no shield.
 
-Requested: `@ORG/frontend`, whose only member is you. `@ORG/platform` owns files here but isn't requested.
+Requested: `@ORG/frontend`, whose only member is you, and `@ORG/platform`, which has no members.
 
 "Only files owned by…" lists:
 
@@ -161,10 +164,7 @@ EOF
 	echo 'region: test-1' >>infra/deploy.yml
 	echo 'Nothing here is real.' >>README.md
 	commit "Touch every ownership case"
-	local url
-	url=$(open_pr every-owner "Touch every ownership case" "$body")
-	gh api -X POST "repos/$repo/pulls/${url##*/}/requested_reviewers" -f 'team_reviewers[]=frontend' >/dev/null ||
-		echo "warning: GitHub refused to request $org/frontend on every-owner" >&2
+	open_pr every-owner "Touch every ownership case" "$body" >/dev/null
 }
 
 codeowners_edit_pr() {
@@ -185,7 +185,7 @@ Requested: `@ORG/platform`.
 - Me: `docs/guide.md`.
 - `@ORG/platform`: `infra/deploy.yml`.
 
-Me keeps the same files as an owner filter set to `@ME`.
+Here Me and an owner filter set to `@ME` list the same files, since no file is owned through `@ORG/frontend`.
 EOF
 	)
 	if pr_exists codeowners-edit; then
@@ -193,7 +193,7 @@ EOF
 		return
 	fi
 	git checkout -q -B codeowners-edit main
-	echo "/notes/          @${org}/frontend" >>.github/CODEOWNERS
+	printf '/notes/          @%s/frontend\n' "$org" >>.github/CODEOWNERS
 	mkdir -p notes
 	printf '# To do\n\n- Write the release notes.\n' >notes/todo.md
 	echo 'See notes/ for open tasks.' >>docs/guide.md
@@ -229,17 +229,10 @@ EOF
 	fi
 	git checkout -q -B large-change main
 	mkdir -p web/src/modules api/modules infra/modules
-	local n
-	for n in $(seq -w 1 50); do
-		module_file "$n" >"web/src/modules/module-0$n.ts"
-	done
-	for n in $(seq 51 99); do
-		module_file "0$n" >"api/modules/module-0$n.ts"
-	done
-	module_file 100 >api/modules/module-100.ts
-	for n in $(seq 101 150); do
-		module_file "$n" >"infra/modules/module-$n.ts"
-	done
+	local id
+	for id in $(seq -f '%03g' 1 50); do module_file "$id" >"web/src/modules/module-$id.ts"; done
+	for id in $(seq -f '%03g' 51 100); do module_file "$id" >"api/modules/module-$id.ts"; done
+	for id in $(seq -f '%03g' 101 150); do module_file "$id" >"infra/modules/module-$id.ts"; done
 	{
 		echo 'export const catalog = ['
 		# 3,000 lines with the brackets.
@@ -251,18 +244,20 @@ EOF
 	open_pr large-change "Add the generated module catalog" "$body" >/dev/null
 }
 
+gh api "orgs/$org" >/dev/null # fails unless $org is an organization
 gh repo view "$repo" >/dev/null 2>&1 ||
 	gh repo create "$repo" --public --description "Fake fixture repo for gh-prism's code-owners checks"
 setup_teams
 
 clone_dir=$(mktemp -d)
+trap 'rm -rf -- "$clone_dir"' EXIT
 gh repo clone "$repo" "$clone_dir" -- -q
 cd "$clone_dir"
 git config user.name "$me"
 user_id=$(gh api user --jq .id)
 git config user.email "$user_id+$me@users.noreply.github.com"
 
-# Call order fixes the PR numbers (#1 every-owner, #2 codeowners-edit, #3 large-change).
+# Call order fixes the PR numbers (#1 every-owner, #2 codeowners-edit, #3 large-change) that hand checks cite.
 seed_main
 every_owner_pr
 codeowners_edit_pr
