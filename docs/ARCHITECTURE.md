@@ -314,9 +314,10 @@ its team page. A code owner GitHub marks without naming a team, and whose own to
 nothing, gets one sentence saying GitHub hides the team. Any other code owner who owns no
 changed file opens nothing. It rides the header visit, so it runs only where
 `findHeaderPage` finds the counter's slot. The popup's listeners sit on the document for
-the whole visit, because GitHub replaces the classic sidebar's nodes mid-visit. The popup
-and the file shields' popover share one placer,
-[`ui/place.ts`](../entrypoints/content/ui/place.ts).
+the whole visit, because GitHub replaces the classic sidebar's nodes mid-visit. When to
+open and close it is `followHoverIntent` in
+[`ui/hover-intent.ts`](../entrypoints/content/ui/hover-intent.ts). The popup and the file
+shields' popover share one placer, [`ui/place.ts`](../entrypoints/content/ui/place.ts).
 
 The owner section is the third: it lists the reviewers who own a changed file (§ The owner
 section).
@@ -424,7 +425,7 @@ entrypoints/
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
     header/              diffstat breakout
     conversation/        a code owner's files popup and gh-prism's reviewer shield, in the Reviewers lists
-    ui/                  shared DOM helpers, popup placer, loading view, Markdown subset, name reveal, Tailwind tokens
+    ui/                  shared DOM helpers, popup placer, hover intent, loading view, Markdown subset, name reveal, Tailwind tokens
 utils/
   github/                routes, diff parsing, the PR data port and source, code owners and reviewers
   intent/                reading, caching, and landing intent

@@ -20,29 +20,18 @@ import {
   shieldOwner,
 } from "../files-page";
 import { el, icon } from "../ui/dom";
+import { type Card, followHoverIntent } from "../ui/hover-intent";
 import { place } from "../ui/place";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./reviewer-files.css?inline";
 
 const ID = "gh-prism-reviewer-files";
 const OWN_SHIELD = "button[data-gh-prism-owner]";
-// GitHub's hovercard closes 110–130 ms after the pointer leaves; wait longer, so the two never show
-// together.
-const OPEN_DELAY_MS = 200;
-// Time to carry the pointer from the shield into the popup.
-const CLOSE_DELAY_MS = 150;
 
 /** The visit's code owners and PR reviewers, each `undefined` when its read failed. */
 export interface Ownership {
   readonly codeOwners: PrCodeOwners | undefined;
   readonly prReviewers: readonly PrReviewer[] | undefined;
-}
-
-interface OpenPopup {
-  readonly shield: HTMLElement;
-  readonly popover: HTMLElement;
-  /** Removes the popup, its listeners, and the shield's description. */
-  readonly dispose: () => void;
 }
 
 /**
@@ -63,53 +52,10 @@ export function showReviewerFiles(
   let ownership: Ownership | undefined;
   let reading: Promise<Ownership> | undefined;
   const readOnce = () => (reading ??= read().then((settled) => (ownership = settled)));
-  let open: OpenPopup | undefined;
-  let openTimer: ReturnType<typeof setTimeout> | undefined;
-  let closeTimer: ReturnType<typeof setTimeout> | undefined;
-  // Bumped by every open or cancel, so a read that settles late opens nothing stale.
-  let attempt = 0;
-
-  const shieldAt = (target: EventTarget | null) =>
-    target instanceof Element
-      ? (target.closest<HTMLElement>(OWN_SHIELD) ?? reviewerShieldOf(target))
-      : null;
-  const inOpenPopup = (target: EventTarget | null) =>
-    !!open &&
-    target instanceof Node &&
-    (open.shield.contains(target) || open.popover.contains(target));
-
-  const cancelOpen = () => {
-    clearTimeout(openTimer);
-    attempt++;
-  };
-  const close = () => {
-    clearTimeout(closeTimer);
-    open?.dispose();
-    open = undefined;
-  };
-  const closeSoon = () => {
-    clearTimeout(closeTimer);
-    closeTimer = setTimeout(close, CLOSE_DELAY_MS);
-  };
-
-  const openAfter = (shield: HTMLElement, delay: number) => {
-    if (open?.shield === shield) return;
-    cancelOpen();
-    const thisAttempt = attempt;
-    const reads = readOnce();
-    openTimer = setTimeout(async () => {
-      const owned = ownedFiles(await reads, ownerOf(shield));
-      if (thisAttempt !== attempt || !owned) return;
-      close();
-      open = show(shield, owned, close);
-    }, delay);
-  };
 
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   doc.head.append(style);
   signal.addEventListener("abort", () => {
-    cancelOpen();
-    close();
     style.remove();
     for (const shield of doc.querySelectorAll(OWN_SHIELD)) shield.remove();
   });
@@ -126,55 +72,13 @@ export function showReviewerFiles(
     { signal },
   );
 
-  doc.addEventListener(
-    "pointerover",
-    ({ target, relatedTarget }) => {
-      if (inOpenPopup(target)) {
-        clearTimeout(closeTimer);
-        return;
-      }
-      const shield = shieldAt(target);
-      if (shield && !(relatedTarget instanceof Node && shield.contains(relatedTarget)))
-        openAfter(shield, OPEN_DELAY_MS);
+  followHoverIntent(doc, signal, {
+    triggerOf: (target) => target.closest<HTMLElement>(OWN_SHIELD) ?? reviewerShieldOf(target),
+    show: async (shield) => {
+      const owned = ownedFiles(await readOnce(), ownerOf(shield));
+      return owned && show(shield, owned);
     },
-    { signal },
-  );
-  doc.addEventListener(
-    "pointerout",
-    ({ target, relatedTarget }) => {
-      const shield = shieldAt(target);
-      if (shield && !(relatedTarget instanceof Node && shield.contains(relatedTarget)))
-        cancelOpen();
-      if (inOpenPopup(target) && !inOpenPopup(relatedTarget)) closeSoon();
-    },
-    { signal },
-  );
-  doc.addEventListener(
-    "focusin",
-    ({ target }) => {
-      const shield = shieldAt(target);
-      if (shield) openAfter(shield, 0);
-    },
-    { signal },
-  );
-  doc.addEventListener(
-    "focusout",
-    ({ target }) => {
-      if (!shieldAt(target)) return;
-      cancelOpen();
-      if (open?.shield === target) close();
-    },
-    { signal },
-  );
-  doc.addEventListener(
-    "keydown",
-    (event) => {
-      if (event.key !== "Escape") return;
-      cancelOpen();
-      close();
-    },
-    { signal },
-  );
+  });
 }
 
 /** The token of the code owner `shield` marks: gh-prism's own, or GitHub's. */
@@ -269,9 +173,9 @@ const bare = (token: string) => token.replace(/^@/, "");
 
 /**
  * Shows the popup listing `owned` below `shield` and names it as `shield`'s description, closing
- * through `close` on a scroll outside it.
+ * it on a scroll outside it.
  */
-function show(shield: HTMLElement, owned: OwnedFiles, close: () => void): OpenPopup {
+function show(shield: HTMLElement, owned: OwnedFiles): Card {
   const doc = shield.ownerDocument;
   const popover = el(
     doc,
@@ -287,6 +191,11 @@ function show(shield: HTMLElement, owned: OwnedFiles, close: () => void): OpenPo
   shield.setAttribute("aria-describedby", ID);
 
   const closed = new AbortController();
+  const close = () => {
+    closed.abort();
+    popover.remove();
+    shield.removeAttribute("aria-describedby");
+  };
   // Capture: scroll events don't bubble.
   doc.addEventListener(
     "scroll",
@@ -295,15 +204,7 @@ function show(shield: HTMLElement, owned: OwnedFiles, close: () => void): OpenPo
     },
     { capture: true, signal: closed.signal },
   );
-  return {
-    shield,
-    popover,
-    dispose: () => {
-      closed.abort();
-      popover.remove();
-      shield.removeAttribute("aria-describedby");
-    },
-  };
+  return { element: popover, close };
 }
 
 /**
