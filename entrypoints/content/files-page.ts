@@ -364,6 +364,12 @@ export const isSignedIn = (doc: Document): boolean => viewerLogin(doc) !== undef
 export const viewerLogin = (doc: Document): string | undefined =>
   doc.head.querySelector('meta[name="user-login"]')?.getAttribute("content") || undefined;
 
+/** A requested reviewer's code-owner shield in a pull request's Conversation sidebar; its id names the reviewer. */
+export const REVIEWER_SHIELD = '#partial-discussion-sidebar button[id^="codeowner-"]';
+
+/** The code owner token (`@login`, `@org/team`) of the reviewer `shield` marks. */
+export const shieldOwner = (shield: Element): string => `@${shield.id.slice("codeowner-".length)}`;
+
 /** Whether `doc` shows `repo` as public; false when private, internal, or unconfirmed. */
 export function isPublicRepo(doc: Document, repo: { owner: string; repo: string }): boolean {
   const meta = (name: string) =>

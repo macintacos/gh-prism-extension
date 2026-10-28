@@ -348,6 +348,31 @@ facts about GitHub that held when written, and ends with how to re-check them;
   `storageState`, fetch `merge_box` from a pull request's page and compare
   `latestOpinionatedReviews` with `gh api repos/<owner>/<repo>/pulls/<n>/reviews`.
 
+## The Reviewers sidebar
+
+- **Expect the Reviewers sidebar to be replaced, not updated.** It is server-rendered
+  markup in `#partial-discussion-sidebar`, which GitHub swaps out on every soft navigation
+  back to Conversation and on its `reviewers_updated` socket event, so a listener bound to
+  its nodes goes stale. Listen on `document` and match the target with `closest()`
+  instead.
+- **Find a reviewer's code-owner shield as `button[id^="codeowner-"]`.** Its id names the
+  reviewer: `codeowner-<org>/<slug>` for a team. A user's `codeowner-<login>` is inferred,
+  not observed, since the sandbox can't request a user who owns files.
+- **Expect the shield's `tool-tip` to name it.** A Primer
+  `<tool-tip for="codeowner-…" popover="manual">` reads "… is a code owner" and is the
+  shield's accessible name through `aria-labelledby`.
+- **Expect GitHub's hovercard on the reviewer's `span[data-hovercard-url]`, never on the
+  shield.** The span wraps the avatar and name; the shield sits outside it, after the
+  status dot.
+- **Don't read code ownership from `merge_box`.** Its `isCodeOwner` is `false` for both
+  shielded teams on the sandbox's PR #1.
+- **Expect `page_data/codeowners` to answer from the Conversation page**, with the same
+  JSON as from Files changed.
+- **Re-check:** signed in with the saved `storageState`, load the Conversation view of the
+  code-owners sandbox's PR #1. Read `#partial-discussion-sidebar`'s Reviewers item, hover
+  a team's name and its shield to see which opens the hovercard, and fetch `merge_box` and
+  `page_data/codeowners`, with the `X-Requested-With` header, from that page.
+
 ## The narrow layout's overlay
 
 Below 1012px, a pull request's tree toggle opens the file tree as a "Files" overlay.
