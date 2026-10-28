@@ -45,9 +45,11 @@ An owned file's icon gives way to a shield while its row is hovered or focused, 
 folder's icon gives way to its chevron. The shield is Octicons `shield-lock`, muted at
 rest and `--fgColor-default` on hover. Resting the pointer on it opens a popover listing
 the file's code owners, with the code owner's files popup's timing below, and so does
-focusing it. Clicking it, or Enter or Space on it, opens the popover and moves focus into
-it, where it stays until Escape or a click outside. `sidebar/section-tree.css` swaps the
-icon for the shield; `sidebar/owners-popover.ts` builds the popover.
+focusing it. The popover ends in a footer that stays put while the list scrolls. Below a
+hairline, the footer holds one small muted sentence, "Click the shield for details".
+Clicking the shield, or Enter or Space on it, closes the popover and opens the code owner
+details dialog (§ Dialogs). `sidebar/section-tree.css` swaps the icon for the shield;
+`sidebar/owners-popover.ts` builds the popover.
 
 A folder holding an owned file shows the same shield while its row is hovered or focused,
 at its row's end, centred on the file rows' Viewed box column, because its icon already
@@ -55,7 +57,8 @@ gives way to its chevron. A flattened chain's shield stands for its deepest fold
 holds the same files. `sidebar/section-tree.css` places it. Its popover lists every file
 the section shows under that folder, nested ones included, each as a path relative to the
 folder in monospace with its directory muted, with an owned file's code owners under it. A
-file with none shows its path alone. `sidebar/owners-popover.ts` builds it.
+file with none shows its path alone. It ends in the same hint, and a click on the shield
+opens the code owner details dialog too. `sidebar/owners-popover.ts` builds it.
 
 A folder chain short of room keeps its first folder and as many trailing folders as fit
 around one `…`. With room for less, it shows `…` and the deepest folder alone. Only the
@@ -203,3 +206,12 @@ the reviewer can change it, how. `sidebar/sections-view.ts` holds them.
 The classic-page dialog is a native `<dialog>`. It enters with Primer's scale-and-fade,
 while the spectrum sweeps across its top edge, and its backdrop is Primer's
 `--overlay-backdrop-bgColor`. `classic/notice.ts` and `classic/notice.css` hold it.
+
+The code owner details dialog reuses that dialog's shell, its header, ✕ button, entrance,
+and backdrop, but has no spectrum and no footer buttons. ✕, Escape, and a click outside
+close it. Under its heading, it repeats what the shield's popover lists, built by the same
+code. Then each owning team gets a block below a hairline: its `@org/team` name linked to
+its team page, then at most 15 members as `@login` links. A team with more members ends in
+a "See all N members" link to its team page. A team the viewer can't see reads "GitHub
+doesn't show you this team's members.", and an empty one reads "This team has no members."
+`ui/owners-dialog.ts` and `ui/owners-dialog.css` hold it.

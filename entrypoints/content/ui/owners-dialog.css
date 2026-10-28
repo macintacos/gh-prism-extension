@@ -1,0 +1,38 @@
+/* No GitHub hooks: every rule selects only gh-prism's own classes. */
+@import "./tailwind.css" prefix(tw);
+@source "./owners-dialog.ts";
+@source "../sidebar/owners-popover.ts";
+@source "../conversation/reviewer-files.ts";
+
+.gh-prism-owners-dialog::backdrop {
+  background-color: var(--overlay-backdrop-bgColor);
+}
+
+/* Primer's dialog entrance. */
+.gh-prism-owners-dialog[open] {
+  animation: gh-prism-owners-dialog-in 200ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.gh-prism-owners-dialog[open]::backdrop {
+  animation: gh-prism-owners-dialog-fade 200ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+@keyframes gh-prism-owners-dialog-in {
+  from {
+    opacity: 0;
+    scale: 0.5;
+  }
+}
+
+@keyframes gh-prism-owners-dialog-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-prism-owners-dialog[open],
+  .gh-prism-owners-dialog[open]::backdrop {
+    animation: none;
+  }
+}

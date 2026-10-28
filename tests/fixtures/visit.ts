@@ -61,7 +61,7 @@ export function mountsVisit() {
   /**
    * Replaces the mounted visit with one that waits on `intent`, in a tab whose header counter
    * holds `diffstat`'s choice and saves through it, narrowed to `owner` by `codeOwners` and
-   * `prReviewers` if given.
+   * `prReviewers` if given, reading teams' members through `teamMembers`.
    */
   const remountWith = (
     intent: PendingIntent = () => landedWith(),
@@ -70,7 +70,9 @@ export function mountsVisit() {
       owner,
       codeOwners,
       prReviewers,
-    }: Pick<VisitOptions, "owner" | "codeOwners" | "prReviewers"> = {},
+      teamMembers = async () => undefined,
+    }: Pick<VisitOptions, "owner" | "codeOwners" | "prReviewers"> &
+      Partial<Pick<VisitOptions, "teamMembers">> = {},
   ): void => {
     controller.abort();
     controller = new AbortController();
@@ -84,6 +86,7 @@ export function mountsVisit() {
       owner,
       codeOwners,
       prReviewers,
+      teamMembers,
     });
   };
 

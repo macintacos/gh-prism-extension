@@ -179,6 +179,7 @@ describe("showSections", () => {
       intent: () => landedWith(),
       diffstat: { choice: { view: "breakout" }, save: () => {} },
       viewed: visitViewed(undefined),
+      teamMembers: async () => undefined,
     });
     expect(document.querySelectorAll(".gh-prism-sections")).toHaveLength(1);
 

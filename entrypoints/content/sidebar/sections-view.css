@@ -6,6 +6,7 @@
 @source "../ui/line-counts.ts";
 @source "./whats-new.ts";
 @source "./owners-popover.ts";
+@source "../ui/owners-dialog.ts";
 
 /* Hidden, not removed: the filter keeps editing these rows, and the view mirrors them. */
 :is(#pr-file-tree, #diff_file_tree):has(.gh-prism-sections) ul[role="tree"] {

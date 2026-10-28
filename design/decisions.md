@@ -6,6 +6,24 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-28: Code owner details in a dialog
+
+- **Compared:**
+  - a shield's click: opening a dialog, or keeping the popover open with a "More" link;
+  - the dialog's mount: the page's body with its own stylesheet, or the sections view;
+  - the members listed per team: 10, 15, or 20;
+  - the popover's hint: a header line or a footer that stays put while the list scrolls,
+    reading "Click the shield for details" or "Click for more".
+- **Won:** a dialog, mounted in the page's body, listing 15 members, with the hint in a
+  footer below a hairline reading "Click the shield for details".
+- **Why:** the issue asks for the shield's click itself to open the details. A "More" link
+  would add a second step: a click that pins the popover, then a click on the link. A
+  dialog in the body serves a shield in the sidebar's shadow root and one on the
+  Conversation tab alike, so neither needs a second mount. 15 sits in the middle of the
+  requested 10 to 20. The footer keeps the heading and list where they were and stays
+  visible over a long folder list. "Click the shield" names what to click, since the
+  pointer may already have moved into the popover.
+
 ## 2026-10-28: A folder's code owners
 
 - **Compared:** for a folder's shield, the spot over its icon, as a file's, and its row's

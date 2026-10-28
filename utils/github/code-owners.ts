@@ -168,7 +168,10 @@ export async function readTeamMembers(
   }
 }
 
-/** `readTeamMembers` through `fetchFn` until `signal` aborts, asking each team at most once, ignoring case. */
+/**
+ * `readTeamMembers` through `fetchFn` until `signal` aborts, asking each team at most once,
+ * ignoring case.
+ */
 export function teamMembersReader(fetchFn: typeof fetch, signal: AbortSignal): TeamMembersOf {
   const reads = new Map<string, Promise<TeamMembers | undefined>>();
   return (team) => {

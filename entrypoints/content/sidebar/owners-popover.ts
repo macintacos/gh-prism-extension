@@ -1,16 +1,17 @@
 /**
- * The popover a code owners shield opens, listing a file's owners, or a folder's files and theirs;
- * it exists only while open.
+ * The popover a code owners shield opens on hover or focus, listing a file's owners, or a folder's
+ * files and theirs; it exists only while open.
  *
  * It sits beside its shield, which is marked expanded while it is open. It closes on Escape inside
- * it, on a click outside it, its own shield's included, on any scroll outside it, once `signal`
- * aborts, or on a call of the returned card's `close`. Closing removes it with its listeners and
- * clears the shield's mark, and, unless a click closed it, hands focus it held to `returnFocus`.
+ * it, on a click outside it, on any scroll outside it, once `signal` aborts, or on a call of the
+ * returned card's `close`. Closing removes it with its listeners and clears the shield's mark, and,
+ * unless a click closed it, hands focus it held to `returnFocus`.
  */
 
 import type { CodeOwner } from "@/utils/github/code-owners";
 import { el } from "../ui/dom";
 import type { Card } from "../ui/hover-intent";
+import { detailsHint, ownerLink } from "../ui/owners-dialog";
 import { place } from "../ui/place";
 
 interface PopoverOptions {
@@ -37,17 +38,35 @@ interface FolderOwnersOptions extends PopoverOptions {
 
 /** Opens the popover listing a file's `owners`. */
 export function openOwners(shield: HTMLElement, { name, owners, ...options }: OwnersOptions): Card {
-  const doc = shield.ownerDocument;
   return openPopover(
     shield,
     `Code owners of ${name}`,
-    el(
-      doc,
-      "ul",
-      "tw:m-0 tw:p-0 tw:list-none tw:flex tw:flex-col tw:gap-1",
-      ...owners.map((owner) => el(doc, "li", "", ownerOf(doc, owner))),
-    ),
+    ownersList(shield.ownerDocument, owners),
     options,
+  );
+}
+
+/** `owners`, one per line. */
+export function ownersList(doc: Document, owners: readonly CodeOwner[]): HTMLElement {
+  return el(
+    doc,
+    "ul",
+    "tw:m-0 tw:p-0 tw:list-none tw:flex tw:flex-col tw:gap-1",
+    ...owners.map((owner) => el(doc, "li", "", ownerLink(doc, owner))),
+  );
+}
+
+/** `files` by their paths relative to `folder`, each owned one with its owners. */
+export function folderList(
+  doc: Document,
+  folder: string,
+  files: FolderOwnersOptions["files"],
+): HTMLElement {
+  return el(
+    doc,
+    "ul",
+    "tw:m-0 tw:p-0 tw:list-none tw:flex tw:flex-col tw:gap-2",
+    ...files.map(({ path, owners }) => fileItem(doc, path.slice(folder.length), owners)),
   );
 }
 
@@ -61,16 +80,10 @@ export function openFolderOwners(
   shield: HTMLElement,
   { folder, files, ...options }: FolderOwnersOptions,
 ): Card {
-  const doc = shield.ownerDocument;
   return openPopover(
     shield,
     `Code owners of files in ${folder.slice(0, -1)}`,
-    el(
-      doc,
-      "ul",
-      "tw:m-0 tw:p-0 tw:list-none tw:flex tw:flex-col tw:gap-2",
-      ...files.map(({ path, owners }) => fileItem(doc, path.slice(folder.length), owners)),
-    ),
+    folderList(shield.ownerDocument, folder, files),
     options,
   );
 }
@@ -86,9 +99,16 @@ function openPopover(
   const popover = el(
     doc,
     "div",
-    "gh-prism-owners tw:inset-auto tw:m-0 tw:max-w-[320px] tw:max-h-[calc(100vh-16px)] tw:overflow-y-auto tw:p-3 tw:text-body-small tw:leading-body-small tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:rounded-medium tw:[border:0] tw:[box-shadow:var(--shadow-floating-small)] tw:wrap-anywhere",
+    "gh-prism-owners tw:inset-auto tw:m-0 tw:max-w-[320px] tw:max-h-[calc(100vh-16px)] tw:overflow-y-auto tw:pt-3 tw:px-3 tw:text-body-small tw:leading-body-small tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:rounded-medium tw:[border:0] tw:[box-shadow:var(--shadow-floating-small)] tw:wrap-anywhere",
     el(doc, "h2", "tw:mt-0 tw:mb-2 tw:text-body-small tw:font-semibold", "Code owners"),
     body,
+    // Sticky, and the popover keeps no bottom padding, so a long list scrolls under the hint.
+    el(
+      doc,
+      "div",
+      "tw:sticky tw:bottom-0 tw:-mx-3 tw:mt-3 tw:px-3 tw:py-2 tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:0_-1px_0_var(--borderColor-default)]",
+      detailsHint(doc),
+    ),
   );
   popover.popover = "auto";
   popover.setAttribute("role", "dialog");
@@ -175,21 +195,11 @@ function fileItem(doc: Document, path: string, owners: readonly CodeOwner[]): HT
             doc,
             "div",
             "",
-            ...owners.flatMap((owner, i) => [i > 0 ? ", " : "", ownerOf(doc, owner)]),
+            ...owners.flatMap((owner, i) => [i > 0 ? ", " : "", ownerLink(doc, owner)]),
           ),
         ]
       : []),
   );
-}
-
-/** `owner`'s token, linking to its page in a new tab when it has one. */
-function ownerOf(doc: Document, { token, url }: CodeOwner): Node | string {
-  if (!url) return token;
-  const link = el(doc, "a", "tw:text-[color:var(--fgColor-accent)]", token);
-  link.href = url;
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-  return link;
 }
 
 // ponytail: copied from conversation/reviewer-files.ts; EXC-2111's file tree replaces both.
