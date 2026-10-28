@@ -454,7 +454,7 @@ entrypoints/
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
     header/              diffstat breakout
     conversation/        a code owner's files popup and gh-prism's reviewer shield, in the Reviewers lists
-    ui/                  shared DOM helpers, popup placer, hover intent, loading view, code owner details dialog, Markdown subset, name reveal, Tailwind tokens
+    ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, Markdown subset, name reveal, Tailwind tokens
 utils/
   github/                routes, diff parsing, the PR data port and source, code owners and reviewers
   intent/                reading, caching, and landing intent

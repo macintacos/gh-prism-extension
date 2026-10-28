@@ -55,10 +55,11 @@ A folder holding an owned file shows the same shield while its row is hovered or
 at its row's end, centred on the file rows' Viewed box column, because its icon already
 gives way to its chevron. A flattened chain's shield stands for its deepest folder, which
 holds the same files. `sidebar/section-tree.css` places it. Its popover lists every file
-the section shows under that folder, nested ones included, each as a path relative to the
-folder in monospace with its directory muted, with an owned file's code owners under it. A
-file with none shows its path alone. It ends in the same hint, and a click on the shield
-opens the code owner details dialog too. `sidebar/owners-popover.ts` builds it.
+the section shows under that folder, nested ones included, grouped under their folders
+relative to the folder, as the code owner's files popup groups them (§ Code owner's
+files), with an owned file's code owners under its name. A file with none shows its name
+alone. The popover is at most 400px wide. It ends in the same hint, and a click on the
+shield opens the code owner details dialog too. `sidebar/owners-popover.ts` builds it.
 
 A folder chain short of room keeps its first folder and as many trailing folders as fit
 around one `…`. With room for less, it shows `…` and the deepest folder alone. Only the
@@ -162,8 +163,10 @@ and name keep GitHub's own hovercard, so the two cards never share a trigger.
 - **Content:** the count line "Code owner of N files in this pull request", in GitHub's
   own words from its user hovercard. When teams make them an owner, a small muted line
   under it says "Through" and names each team, linked to its team page, or "Directly and
-  through" when CODEOWNERS names them too. Then one row per file, its path in monospace
-  with the directory muted. A long list scrolls inside the popup.
+  through" when CODEOWNERS names them too. Then the files, grouped under their folders,
+  with a folder that holds only another folder merged into it, as the sidebar's tree
+  flattens them. Each folder's path is in muted monospace and breaks only after a slash.
+  Its files sit indented below it in monospace. A long list scrolls inside the popup.
 - **The hint:** like a file row's code owners popover (§ File rows), the popup ends in a
   footer that stays put while the list scrolls: below a hairline, "Click the shield for
   details" in small muted text.
@@ -177,9 +180,11 @@ and name keep GitHub's own hovercard, so the two cards never share a trigger.
   less, so the popup's stylesheet hides it while the popup is open. It stays the shield's
   accessible name.
 
-It takes the hovercard form above on `--overlay-bgColor`, and matches GitHub's hovercard
-in size: 14px body text, 16px padding, and at most 360px wide.
-`conversation/reviewer-files.ts` and `conversation/reviewer-files.css` hold it.
+It takes the hovercard form above on `--overlay-bgColor`, with GitHub's hovercard's 14px
+body text and 16px padding. It is at most 440px wide, and never wider than the viewport
+less 8px a side. That is wider than GitHub's 360px hovercard, so a deep folder path fits
+on one line. `conversation/reviewer-files.ts` and `conversation/reviewer-files.css` hold
+it.
 
 ## Loading
 
