@@ -111,15 +111,15 @@ function ownersDialog(
   heading.id = TITLE_ID;
 
   // Primer's medium invisible IconButton.
-  const close = el(
+  const closeButton = el(
     doc,
     "button",
     "tw:shrink-0 tw:inline-grid tw:place-content-center tw:size-[var(--control-medium-size,32px)] tw:p-0 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-iconColor-rest)] tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:hover:text-[color:var(--button-invisible-iconColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
     icon(doc, X_ICON, {}),
   );
-  close.type = "button";
-  close.setAttribute("aria-label", "Close");
-  close.addEventListener("click", () => dialog.close());
+  closeButton.type = "button";
+  closeButton.setAttribute("aria-label", "Close");
+  closeButton.addEventListener("click", () => dialog.close());
 
   // No display utility on the dialog itself: it would show it closed.
   const dialog = el(
@@ -135,7 +135,7 @@ function ownersDialog(
         "div",
         "tw:flex tw:items-start tw:pt-[11px] tw:pb-2 tw:px-2 tw:[box-shadow:0_1px_0_var(--borderColor-default)]",
         heading,
-        close,
+        closeButton,
       ),
       el(
         doc,

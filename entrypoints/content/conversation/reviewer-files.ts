@@ -91,17 +91,17 @@ export function showReviewerFiles(
   });
 
   // On the document: GitHub replaces the classic sidebar's nodes mid-visit.
-  let clicks = 0;
+  let latestClick = 0;
   doc.addEventListener(
     "click",
     async ({ target }) => {
       const shield = target instanceof Element ? shieldAt(target) : null;
       if (!shield) return;
-      const thisClick = ++clicks;
+      const thisClick = ++latestClick;
 
       const token = ownerOf(shield);
       const owned = ownedFiles(await readOnce(), token);
-      if (signal.aborted || thisClick !== clicks || !owned) return;
+      if (signal.aborted || thisClick !== latestClick || !owned) return;
 
       closeCard();
       openOwnersDialog(doc, {

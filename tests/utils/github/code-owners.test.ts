@@ -485,9 +485,9 @@ describe("teamMembersReader", () => {
 
   it("reads a team once however its token is cased", async () => {
     const fetchFn = vi.fn(async () => new Response(sandboxTeamMembers));
-    const members = teamMembersReader(fetchFn, new AbortController().signal);
+    const teamMembers = teamMembersReader(fetchFn, new AbortController().signal);
 
-    const [first, second] = await Promise.all([members("@O/Team"), members("@o/team")]);
+    const [first, second] = await Promise.all([teamMembers("@O/Team"), teamMembers("@o/team")]);
 
     expect(second).toBe(first);
     expect(fetchFn).toHaveBeenCalledOnce();
@@ -498,9 +498,9 @@ describe("teamMembersReader", () => {
       [teamUrl("a")]: ok(sandboxTeamMembers),
       [teamUrl("b")]: ok(sandboxTeamMembers),
     });
-    const members = teamMembersReader(fetchFn, new AbortController().signal);
+    const teamMembers = teamMembersReader(fetchFn, new AbortController().signal);
 
-    await Promise.all([members("@o/a"), members("@o/b"), members("@o/a")]);
+    await Promise.all([teamMembers("@o/a"), teamMembers("@o/b"), teamMembers("@o/a")]);
 
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });

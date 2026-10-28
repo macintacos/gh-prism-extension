@@ -36,30 +36,30 @@ interface PopoverOptions {
   readonly returnFocus: () => void;
 }
 
-/** What `listed` shows: its name, its list, and the teams among its owners. */
-export function describeListing(doc: Document, listed: ShieldListing) {
-  return "folder" in listed
+/** What `listing` shows: its name, its list, and the teams among its owners. */
+export function describeListing(doc: Document, listing: ShieldListing) {
+  return "folder" in listing
     ? {
-        title: `Code owners of files in ${listed.folder.slice(0, -1)}`,
-        list: folderList(doc, listed.folder, listed.files),
-        teams: owningTeams(listed.files.flatMap(({ owners }) => owners)),
+        title: `Code owners of files in ${listing.folder.slice(0, -1)}`,
+        list: folderList(doc, listing.folder, listing.files),
+        teams: owningTeams(listing.files.flatMap(({ owners }) => owners)),
       }
     : {
-        title: `Code owners of ${listed.name}`,
-        list: ownersList(doc, listed.owners),
-        teams: owningTeams(listed.owners),
+        title: `Code owners of ${listing.name}`,
+        list: ownersList(doc, listing.owners),
+        teams: owningTeams(listing.owners),
       };
 }
 
-/** Opens the popover listing `listed`. */
+/** Opens the popover listing `listing`. */
 // ponytail: builds every file under a folder on each open, thousands of nodes at GitHub's
 // 3,000-file cap; cap the list with a "+N more" line, or swap in a file tree, if that hitches.
 export function openListing(
   shield: HTMLElement,
-  listed: ShieldListing,
+  listing: ShieldListing,
   options: PopoverOptions,
 ): Card {
-  const { title, list } = describeListing(shield.ownerDocument, listed);
+  const { title, list } = describeListing(shield.ownerDocument, listing);
   return openPopover(shield, title, list, options);
 }
 

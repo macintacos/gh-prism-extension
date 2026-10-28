@@ -10,9 +10,9 @@ const dialog = () => document.querySelector<HTMLDialogElement>("dialog.gh-prism-
 const links = () => [...(dialog()?.querySelectorAll("a") ?? [])];
 const memberLinks = () => links().filter((link) => link.textContent?.startsWith("@member-"));
 
-/** Opens the dialog excerpting `teams`, each team's members read through `members`. */
+/** Opens the dialog excerpting `teams`, each team's members read through `teamMembers`. */
 function open(
-  members: TeamMembersOf = async () => undefined,
+  teamMembers: TeamMembersOf = async () => undefined,
   {
     teams = ["@o/team"],
     summary = [document.createTextNode("summary")],
@@ -23,7 +23,7 @@ function open(
     title: "Code owners of engine.rs",
     summary,
     teams,
-    teamMembers: members,
+    teamMembers,
     returnFocus,
     signal: controller.signal,
   });
@@ -105,11 +105,11 @@ describe("openOwnersDialog", () => {
   });
 
   it("reads each team's members once, in order", () => {
-    const members = vi.fn(async () => undefined);
+    const teamMembers = vi.fn(async () => undefined);
 
-    open(members, { teams: ["@o/a", "@o/b"] });
+    open(teamMembers, { teams: ["@o/a", "@o/b"] });
 
-    expect(members.mock.calls).toEqual([["@o/a"], ["@o/b"]]);
+    expect(teamMembers.mock.calls).toEqual([["@o/a"], ["@o/b"]]);
   });
 
   it("goes, handing focus back, on its close button", () => {
