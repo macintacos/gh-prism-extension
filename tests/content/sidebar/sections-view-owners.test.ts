@@ -49,15 +49,13 @@ HTMLElement.prototype.hidePopover = function (this: HTMLElement) {
 const { remountWith, abort } = mountsVisit();
 
 /** A pull request whose paths each have the owners of the tokens `byPath` lists. */
-const tokensOf = (byPath: Readonly<Record<string, readonly string[]>>): PrCodeOwners => ({
-  byPath: new Map(
+const tokensOf = (byPath: Readonly<Record<string, readonly string[]>>): PrCodeOwners =>
+  new Map(
     Object.entries(byPath).map(([path, tokens]) => [
       path,
       { owners: tokens.map(codeOwnerOf), ownedByViewer: false },
     ]),
-  ),
-  reviewers: [],
-});
+  );
 
 /** A pull request whose `owned` paths each have `@o/team`, and whose `unowned` paths have none. */
 const ownersOf = (owned: readonly string[], unowned: readonly string[] = []): PrCodeOwners =>

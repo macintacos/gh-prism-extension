@@ -18,23 +18,30 @@ const owned = (...tokens: string[]): FileOwners => ({
   owners: tokens.map((token) => ({ token })),
   ownedByViewer: false,
 });
-const codeOwnersOf = (reviewers: string[]): PrCodeOwners => ({
-  byPath: new Map([
-    ["web/app.ts", owned(FRONTEND)],
-    ["infra/main.tf", owned(PLATFORM)],
-    ["docs/readme.md", owned("@sandbox-user")],
-  ]),
-  reviewers,
-});
-const SANDBOX = codeOwnersOf([FRONTEND, PLATFORM, "@nobody"]);
+const SANDBOX: PrCodeOwners = new Map([
+  ["web/app.ts", owned(FRONTEND)],
+  ["infra/main.tf", owned(PLATFORM)],
+  ["docs/readme.md", owned("@sandbox-user")],
+]);
 
 let controller: AbortController;
 const navigate = vi.fn<(href: string) => void>();
 
-/** Shows the section with `codeOwners`, then lets the read settle. */
-async function show(...codeOwners: [PrCodeOwners | undefined] | []) {
+interface Reads {
+  readonly codeOwners?: PrCodeOwners | undefined;
+  readonly prReviewers?: readonly string[] | undefined;
+}
+
+/** Shows the section with `reads` over the sandbox's, then lets the reads settle. */
+async function show(reads: Reads = {}) {
+  const { codeOwners, prReviewers } = {
+    codeOwners: SANDBOX,
+    prReviewers: [FRONTEND, PLATFORM, "@nobody"],
+    ...reads,
+  };
   showOwnerSection(foundPage(), controller.signal, {
-    codeOwners: Promise.resolve(codeOwners.length ? codeOwners[0] : SANDBOX),
+    codeOwners: Promise.resolve(codeOwners),
+    prReviewers: Promise.resolve(prReviewers),
     navigate,
   });
   await flush();
@@ -132,7 +139,7 @@ describe("showOwnerSection", () => {
   it("adds no style when the pull request has no CODEOWNERS", async () => {
     openFilterMenu("notOwner");
 
-    await show({ byPath: new Map(), reviewers: [] });
+    await show({ codeOwners: new Map(), prReviewers: [] });
 
     expect(document.head.querySelector("style")).toBeNull();
   });
@@ -237,22 +244,35 @@ describe("showOwnerSection", () => {
     expect(keys).toEqual(["Escape"]);
   });
 
+  it("offers only Me when the PR reviewers don't arrive", async () => {
+    openFilterMenu("owner");
+
+    await show({ prReviewers: undefined });
+
+    expect(entries().map((item) => item.textContent?.trim())).toEqual(["Me"]);
+  });
+
   it.each([
-    { case: "the code owners don't arrive", kind: "owner" as const, codeOwners: undefined },
+    {
+      case: "the code owners don't arrive",
+      kind: "owner" as const,
+      reads: { codeOwners: undefined },
+    },
+    {
+      case: "neither read arrives",
+      kind: "owner" as const,
+      reads: { codeOwners: undefined, prReviewers: undefined },
+    },
     {
       case: "no CODEOWNERS",
       kind: "notOwner" as const,
-      codeOwners: { byPath: new Map(), reviewers: [FRONTEND] },
+      reads: { codeOwners: new Map(), prReviewers: [FRONTEND] },
     },
-    {
-      case: "no owning reviewer",
-      kind: "notOwner" as const,
-      codeOwners: codeOwnersOf(["@nobody"]),
-    },
-  ])("adds nothing when $case", async ({ kind, codeOwners }) => {
+    { case: "no owning reviewer", kind: "notOwner" as const, reads: { prReviewers: ["@nobody"] } },
+  ])("adds nothing when $case", async ({ kind, reads }) => {
     openFilterMenu(kind);
 
-    await show(codeOwners);
+    await show(reads);
 
     expect(section()).toBeNull();
   });
@@ -271,7 +291,7 @@ describe("showOwnerSection", () => {
   it("gives you no entry of your own among the reviewers", async () => {
     openFilterMenu("owner");
 
-    await show(codeOwnersOf(["@sandbox-user", FRONTEND]));
+    await show({ prReviewers: ["@sandbox-user", FRONTEND] });
 
     expect(entries().map((item) => item.textContent?.trim())).toEqual(["Me", FRONTEND]);
   });

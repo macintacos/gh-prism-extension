@@ -2,7 +2,7 @@ import { browser } from "wxt/browser";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { storage } from "wxt/utils/storage";
-import { readCodeOwners } from "@/utils/github/code-owners";
+import { readCodeOwners, readPrReviewers } from "@/utils/github/code-owners";
 import { ownerOf } from "@/utils/github/files-route";
 import { connectPrData } from "@/utils/github/pr-port";
 import { readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
@@ -80,6 +80,7 @@ export default defineContentScript({
         onVisit: (route, visit) => {
           const intent = shareIntent((onProgress) => intentFor(route, visit, sources, onProgress));
           const codeOwners = readCodeOwners(route.diff, fetch, visit);
+          const prReviewers = readPrReviewers(route.diff, fetch, visit);
           // Route data is fresh only until GitHub's first navigation.
           const viewed = visitViewed(fullLoad ? readViewedSeed(document, route.diff) : undefined);
           fullLoad = false;
@@ -92,6 +93,7 @@ export default defineContentScript({
             showReportLink(page, signal, reportOptions);
             showOwnerSection(page, signal, {
               codeOwners,
+              prReviewers,
               navigate: (href) => location.assign(href),
             });
             showVisit(page, signal, {

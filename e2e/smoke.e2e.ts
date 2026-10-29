@@ -1549,10 +1549,16 @@ const FIXTURE_OWNERS: Record<string, string[]> = {
 };
 
 /**
- * Answers the code owners read for tests/fixtures/files-page.html; registered after the catch-all
- * 404. `ownership` maps each path to its CODEOWNERS tokens; it defaults to `FIXTURE_OWNERS`.
+ * Answers the code owners and PR reviewers reads for tests/fixtures/files-page.html; registered
+ * after the catch-all 404. `ownership` maps each path to its CODEOWNERS tokens; it defaults to
+ * `FIXTURE_OWNERS`. `mergeBoxStatus` is the status the PR reviewers read answers with, such as the
+ * 404 GitHub sends signed out.
  */
-const routeCodeOwners = async (context: BrowserContext, ownership = FIXTURE_OWNERS) => {
+const routeCodeOwners = async (
+  context: BrowserContext,
+  ownership = FIXTURE_OWNERS,
+  mergeBoxStatus = 200,
+) => {
   const ownershipByPath = Object.fromEntries(
     Object.entries(ownership).map(([path, owners]) => [path, { isOwnedByViewer: false, owners }]),
   );
@@ -1563,7 +1569,11 @@ const routeCodeOwners = async (context: BrowserContext, ownership = FIXTURE_OWNE
     }),
   );
   await context.route("**/page_data/merge_box", (route) =>
-    route.fulfill({ contentType: "application/json", body: readFixture("merge-box-sandbox.json") }),
+    route.fulfill({
+      status: mergeBoxStatus,
+      contentType: "application/json",
+      body: readFixture("merge-box-sandbox.json"),
+    }),
   );
 };
 
@@ -1578,19 +1588,25 @@ const sidebarFiles = (page: Page) =>
       .filter((path) => !path.endsWith("/")),
   );
 
-test("an owner filter lists only that owner's files and hides the others' diffs", async ({
-  context,
-  page,
-}) => {
-  await routeCodeOwners(context);
-  const url = `${PR_URL}?gh-prism-owner=o/frontend`;
-  await serve(context, url, PR_BODY);
-  await page.goto(url);
+for (const [when, mergeBoxStatus] of [
+  ["", 200],
+  [" while merge_box fails", 404],
+] as const) {
+  test(`an owner filter lists only that owner's files and hides the others' diffs${when}`, async ({
+    context,
+    page,
+  }) => {
+    await routeCodeOwners(context, FIXTURE_OWNERS, mergeBoxStatus);
+    const url = `${PR_URL}?gh-prism-owner=o/frontend`;
+    await serve(context, url, PR_BODY);
+    await page.goto(url);
 
-  await expect.poll(() => sidebarFiles(page)).toEqual(["src/helpers.rs", "src/lib.rs"]);
-  // The fixture's regions are empty, so visibility can't tell a hidden entry from a shown one.
-  await expect(page.locator(`#${ENGINE_DIFF}`).locator("..")).toHaveCSS("display", "none");
-});
+    await expect.poll(() => sidebarFiles(page)).toEqual(["src/helpers.rs", "src/lib.rs"]);
+    await expect(shieldOf(page, "src/lib.rs")).toHaveCount(1);
+    // The fixture's regions are empty, so visibility can't tell a hidden entry from a shown one.
+    await expect(page.locator(`#${ENGINE_DIFF}`).locator("..")).toHaveCSS("display", "none");
+  });
+}
 
 test("an owner filter shows the diffs of that owner's files", async ({ context, page }) => {
   await routeCodeOwners(context);

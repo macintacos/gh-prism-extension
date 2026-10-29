@@ -149,16 +149,16 @@ so a private diff's address never reaches a public issue.
 `showOwnerSection` in
 [`entrypoints/content/sidebar/owner-section.ts`](../entrypoints/content/sidebar/owner-section.ts)
 adds an "Only files owned by…" group to GitHub's file-tree filter menu on each page of a
-pull request, from the visit's code owners (see § Code owners and reviewers). GitHub
-renders that menu in a portal only while it is open, so `followFilterMenu` in
-[`files-page.ts`](../entrypoints/content/files-page.ts) watches `body` with an undebounced
-`MutationObserver`, like `followOverlay`, and reports each open with a signal that aborts
-when it closes. It reports the menu again when GitHub replaces its list or mounts its
-owned-by item into an open menu, so "Me" joins late. The section is added again on every
-report, before the menu first paints, and not at all in a repository without CODEOWNERS.
-`findFilterMenu` recognizes the menu only by its labelling button inside the filter row
-and the groups, divider, and items the section copies; anything else, and gh-prism leaves
-the menu alone.
+pull request, from the visit's code owners and PR reviewers (see § Code owners and
+reviewers). GitHub renders that menu in a portal only while it is open, so
+`followFilterMenu` in [`files-page.ts`](../entrypoints/content/files-page.ts) watches
+`body` with an undebounced `MutationObserver`, like `followOverlay`, and reports each open
+with a signal that aborts when it closes. It reports the menu again when GitHub replaces
+its list or mounts its owned-by item into an open menu, so "Me" joins late. The section is
+added again on every report, before the menu first paints, and not at all in a repository
+without CODEOWNERS. `findFilterMenu` recognizes the menu only by its labelling button
+inside the filter row and the groups, divider, and items the section copies; anything
+else, and gh-prism leaves the menu alone.
 
 The entries are copies of GitHub's own divider, group, and first item (`copyMenuDivider`,
 `copyMenuGroup`, `copyMenuItem`, all in `files-page.ts`), so Primer's hover, focus, and
@@ -168,7 +168,8 @@ item, whose group the sheet hides as the section's next sibling. The hidden item
 the `disabled` attribute, because a hidden item traps Primer's arrow keys and its focus
 zone skips only disabled ones. "Me" shows only when GitHub's item does. The reviewers are
 `owningReviewers` in [`utils/github/code-owners.ts`](../utils/github/code-owners.ts):
-those who own a changed file, leaving out your own login.
+those who own a changed file, leaving out your own login. Without the PR reviewers the
+section offers "Me" alone; without the code owners it adds nothing.
 
 A reviewer pick loads the page, through `withOwner` in
 [`utils/github/files-route.ts`](../utils/github/files-route.ts), because the owner filter
@@ -230,20 +231,23 @@ changed page reads, `/<owner>/<repo>/pull/<n>/page_data/codeowners` and
 `/<owner>/<repo>/pull/<n>/page_data/merge_box`. The content script fetches them itself,
 same-origin with your session, rather than through the service worker: they need no host
 but github.com, and no cache, since a review submitted while the tab is open must show on
-the next visit. `index.ts` calls `readCodeOwners` once per visit and hands the promise to
-`showVisit` and `showOwnerSection` for every page of that visit; a commit page and a pull
-request's header tabs read nothing.
+the next visit. `index.ts` starts two reads once per visit, `readCodeOwners` from
+`codeowners` and `readPrReviewers` from `merge_box`, and hands their promises to every
+page of that visit: `showVisit` takes the code owners alone, and `showOwnerSection` takes
+both. A commit page and a pull request's header tabs read nothing.
 
-The result is each changed file's owners, in CODEOWNERS order, with whether you own the
-file, and the `@user` and `@org/team` tokens of the PR reviewers: everyone requested to
+The code owners are each changed file's owners, in CODEOWNERS order, with whether you own
+the file. The PR reviewers are the `@user` and `@org/team` tokens of everyone requested to
 review or whose review GitHub's merge box lists, including a team a review was submitted
 on behalf of. The merge box leaves out a reviewer who only commented. An owner keeps its
 token as written and gets a link only when the token is a valid `@user` or `@org/team`;
 gh-prism builds the URL and never takes one from the response. A PR reviewer matches an
 owner when their tokens are equal, ignoring case, so a user doesn't match a file owned
-only through a team. Either read failing, or either response missing a field it expects,
-resolves to `undefined`, never part of the result; a repository without CODEOWNERS
-resolves to no owners.
+only through a team. Each read settles on its own: one that fails, or whose response
+misses a field it expects, resolves to `undefined` and logs one warning naming it, and the
+other read is unaffected. The shields and the owner filter therefore wait on the code
+owners alone, and a failed PR reviewers read only drops the owner section's reviewer
+entries. A repository without CODEOWNERS resolves to no owners.
 
 The owner filter is the first reader of the code owners. `index.ts` reads the
 `gh-prism-owner` query parameter on a pull request's pages with `ownerOf` in
@@ -258,7 +262,7 @@ rule on each region and virtualized row (`#diff-…` and `data-path-digest`) tha
 request's `hiddenDiffSelectors` in `files-page.ts` scopes to the diff list, and by a
 `data-gh-prism-hidden` attribute on a progressive list's entries, to close their gaps.
 With the parameter set, the page stays pending until the code owners land, and a failed
-read keeps every file.
+code owners read keeps every file.
 
 The sidebar's shields are another reader. `showVisit` in
 [`visit/land.ts`](../entrypoints/content/visit/land.ts) hands the owners to the sidebar
