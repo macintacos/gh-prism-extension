@@ -6,6 +6,26 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-28: The commit message's view switch
+
+- **Compared:**
+  - Primer's segmented control with both views named, as GitHub's file view shows Preview
+    and Code;
+  - Primer's toggle switch, labelled, with its On and Off;
+  - Primer's small invisible icon button, whose label and tooltip name the action, as the
+    side switch does;
+  - the switch in a row of its own above the message, or at the message's top-right
+    corner;
+  - a key for it.
+- **Won:** the icon button, with Octicons' Markdown mark, labelled "Show plain text" or
+  "Show rendered Markdown"; at the rendering's top-right corner, where it stays when
+  GitHub's box shows; no key.
+- **Why:** The brief keeps controls quiet at rest and puts their detail in a tooltip that
+  names the action. A segmented control is loud on every commit, and Preview and Code
+  describe a file, not a message. A toggle switch's On and Off don't say which view is on.
+  One button at one corner in both views lets a reader flip back without looking for it.
+  No control takes a key yet, and a reader flips this rarely.
+
 ## 2026-10-28: A commit's message as Markdown
 
 - **Compared:**

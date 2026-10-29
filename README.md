@@ -65,7 +65,8 @@ how to get the new tab. Once you close the dialog, it stays closed, and
   issue on gh-prism's repository with your gh-prism version filled in, and, on a public
   repository only, the diff's URL.
 - On a commit's page, it shows the commit message rendered as Markdown, like a README,
-  with GitHub's links, in place of GitHub's monospace box.
+  with GitHub's links, in place of GitHub's monospace box. A switch beside it shows
+  GitHub's box instead, and gh-prism opens every commit in the view you last picked.
 
 ## Install
 

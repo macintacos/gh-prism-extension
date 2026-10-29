@@ -171,8 +171,16 @@ and with its length squared after an unclosed `[`. `renderCommitMessage` estimat
 cost per paragraph and refuses a message past a budget, because a crafted message well
 under 50,000 characters would otherwise freeze the page for seconds.
 
+A switch at the rendering's top-right corner flips between it and GitHub's box and saves
+the pick as `commitMessageView` in [`utils/prefs.ts`](../utils/prefs.ts). `index.ts` reads
+it before watching, as it does the sidebar side and the counter's view, and hands every
+page the tab's one choice, so a commit opens in the view last picked. The view mounts with
+its `data-view` already set, so a reader who picked GitHub's box never sees the rendering
+first.
+
 gh-prism never edits GitHub's box: the view's sheet only hides it, and it shows again when
-the visit aborts or gh-prism can't render the message.
+the reader switches to it, when the visit aborts, or when gh-prism can't render the
+message.
 
 ## The owner section
 

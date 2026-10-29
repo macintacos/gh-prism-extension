@@ -114,7 +114,8 @@ these marks.
 A tooltip copies Primer's. It is an `::after` on the control that shows the control's
 `aria-label`, on `--tooltip-bgColor`, at the small body size, and it fades in over 120 ms
 on hover and focus. It opens toward the inside of the sidebar or the page, so it never
-clips at an edge. `sidebar/side.css` and `sidebar/report.css` hold the two in use.
+clips at an edge. `sidebar/side.css`, `sidebar/report.css`, and `commit/message-view.css`
+hold the three in use.
 
 No control takes a key yet, because `j` and `k` step through files without a control of
 their own. When a control does take one, its tooltip shows the key after the action's

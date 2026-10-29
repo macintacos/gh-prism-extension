@@ -13,7 +13,8 @@ import { watchFilesPages } from "../../../entrypoints/content/visit/watch";
 import type { CommitMessageView } from "../../../utils/prefs";
 import { loadCommitFixture, loadFixture } from "../../fixtures/files-page";
 
-const container = () => document.querySelector(".gh-prism-commit-message");
+const container = () => document.querySelector<HTMLElement>(".gh-prism-commit-message");
+const viewButton = () => document.querySelector<HTMLButtonElement>(".gh-prism-commit-view-switch");
 const sheets = () =>
   [...document.head.querySelectorAll("style")].filter((style) =>
     style.textContent?.includes("gh-prism-commit-message"),
@@ -96,6 +97,36 @@ describe("showCommitMessage", () => {
     expect(box().outerHTML).toBe(before);
   });
 
+  it("flips to GitHub's box, unchanged, and back, saving each pick", () => {
+    show();
+    runIdle();
+    const before = box().outerHTML;
+    const button = viewButton();
+    if (!button) throw new Error("no switch");
+    const body = container()?.querySelector(".gh-prism-commit-message-body");
+    if (!body) throw new Error("no body");
+    expect(button.parentElement).toBe(container());
+    expect(button.type).toBe("button");
+    expect(button.getAttribute("aria-label")).toBe("Show plain text");
+
+    button.click();
+
+    expect(shows(box())).toBe(true);
+    expect(shows(body)).toBe(false);
+    expect(button.getAttribute("aria-label")).toBe("Show rendered Markdown");
+    expect(choice.view).toBe("plaintext");
+    expect(save).toHaveBeenLastCalledWith("plaintext");
+    expect(box().outerHTML).toBe(before);
+    expect(viewButton()).toBe(button);
+
+    button.click();
+
+    // happy-dom keeps the box's computed style cached across its sibling's attribute change.
+    expect(container()?.dataset.view).toBe("rendered");
+    expect(shows(body)).toBe(true);
+    expect(save).toHaveBeenLastCalledWith("rendered");
+  });
+
   it("removes itself and its sheet on abort, showing GitHub's box again", () => {
     show();
     runIdle();
@@ -114,6 +145,7 @@ describe("showCommitMessage", () => {
     runIdle();
 
     expect(container()).toBeNull();
+    expect(viewButton()).toBeNull();
     expect(sheets()).toHaveLength(0);
     expect(shows(box())).toBe(true);
   });
@@ -137,25 +169,31 @@ describe("showCommitMessage", () => {
     expect(sheets()).toHaveLength(0);
   });
 
-  it("returns before the box when GitHub re-renders the card", async () => {
-    show();
-    runIdle();
-    container()?.remove();
-    await afterMutations();
+  it.each(["rendered", "plaintext"] as const)(
+    "returns before the box, switch and all, when GitHub re-renders the card in the %s view",
+    async (view) => {
+      choice.view = view;
+      show();
+      runIdle();
+      container()?.remove();
+      await afterMutations();
 
-    expect(box().previousElementSibling).toBe(container());
+      expect(box().previousElementSibling).toBe(container());
 
-    const clone = box().cloneNode(true) as Element;
-    box().replaceWith(clone);
-    await afterMutations();
+      const clone = box().cloneNode(true) as Element;
+      box().replaceWith(clone);
+      await afterMutations();
 
-    expect(clone.previousElementSibling).toBe(container());
+      expect(clone.previousElementSibling).toBe(container());
+      expect(viewButton()?.parentElement).toBe(container());
+      expect(shows(clone)).toBe(view === "plaintext");
 
-    clone.remove();
-    await afterMutations();
+      clone.remove();
+      await afterMutations();
 
-    expect(container()).toBeNull();
-  });
+      expect(container()).toBeNull();
+    },
+  );
 });
 
 describe("showCommitMessage across navigation", () => {
@@ -193,5 +231,25 @@ describe("showCommitMessage across navigation", () => {
     await navigate("/o/r/pull/1/changes", loadFixture);
     expect(container()).toBeNull();
     expect(sheets()).toHaveLength(0);
+  });
+
+  it("opens the next commit in the view the tab last picked", async () => {
+    watchFilesPages(
+      window,
+      {
+        onVisit: () => (page, signal) =>
+          showCommitMessage(page, signal, { afterSections: (task) => task(), choice, save }),
+        onMissing: () => {},
+      },
+      controller.signal,
+    );
+    await afterMutations();
+    viewButton()?.click();
+
+    await navigate("/o/r/commit/4f0a580", () => loadCommitFixture("mention"));
+
+    expect(container()?.dataset.view).toBe("plaintext");
+    expect(shows(box())).toBe(true);
+    expect(viewButton()?.getAttribute("aria-label")).toBe("Show rendered Markdown");
   });
 });

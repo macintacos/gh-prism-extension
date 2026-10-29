@@ -6,7 +6,7 @@
 
 import type { CommitMessageView } from "@/utils/prefs";
 import { type CommitMessage, type FilesPage, findCommitMessage } from "../files-page";
-import { el } from "../ui/dom";
+import { el, icon } from "../ui/dom";
 import { renderCommitMessage } from "./message";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./message-view.css?inline";
@@ -37,13 +37,13 @@ export interface CommitMessageChoice {
 export function showCommitMessage(
   page: FilesPage,
   signal: AbortSignal,
-  { afterSections, choice }: CommitMessageOptions,
+  { afterSections, choice, save }: CommitMessageOptions,
 ): void {
   afterSections(() => {
     const message = findCommitMessage(page);
     if (signal.aborted || !message) return;
     const nodes = renderedOrWarn(page.sidebar.ownerDocument, message);
-    if (nodes) standIn(page, message.box, nodes, signal, { choice });
+    if (nodes) standIn(page, message.box, nodes, signal, { choice, save });
   });
 }
 
@@ -66,7 +66,7 @@ function standIn(
   box: Element,
   nodes: Node[],
   signal: AbortSignal,
-  { choice }: Pick<CommitMessageOptions, "choice">,
+  { choice, save }: Pick<CommitMessageOptions, "choice" | "save">,
 ): void {
   const doc = page.sidebar.ownerDocument;
   const container = el(
@@ -80,7 +80,7 @@ function standIn(
       ...nodes,
     ),
   );
-  container.dataset.view = choice.view;
+  container.append(viewSwitch(doc, container, { choice, save }));
   const style = Object.assign(doc.createElement("style"), { textContent: css });
 
   const follow = () => {
@@ -98,4 +98,41 @@ function standIn(
     container.remove();
     style.remove();
   });
+}
+
+/** Octicons 19.15.0 (MIT, GitHub Inc.): markdown. */
+const MARKDOWN =
+  "M14.85 3c.63 0 1.15.52 1.14 1.15v7.7c0 .63-.51 1.15-1.15 1.15H1.15C.52 13 0 12.48 0 11.84V4.15C0 3.52.52 3 1.15 3ZM9 11V5H7L5.5 7 4 5H2v6h2V8l1.5 1.92L7 8v3Zm2.99.5L14.5 8H13V5h-2v3H9.5Z";
+
+const LABEL: Record<CommitMessageView, string> = {
+  rendered: "Show plain text",
+  plaintext: "Show rendered Markdown",
+};
+
+/** The switch between `container`'s rendering and GitHub's box, showing `choice`'s view. */
+function viewSwitch(
+  doc: Document,
+  container: HTMLElement,
+  { choice, save }: Pick<CommitMessageOptions, "choice" | "save">,
+): HTMLButtonElement {
+  // Primer's small invisible IconButton, as the side switch is.
+  const button = el(
+    doc,
+    "button",
+    "gh-prism-commit-view-switch tw:relative tw:grid tw:shrink-0 tw:place-content-center tw:size-[var(--control-small-size,28px)] tw:mt-2 tw:mr-2 tw:p-0 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-iconColor-rest)] tw:[font:inherit] tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:hover:text-[color:var(--button-invisible-iconColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
+    icon(doc, MARKDOWN, {}),
+  );
+  button.type = "button";
+  const showView = (view: CommitMessageView) => {
+    container.dataset.view = view;
+    button.setAttribute("aria-label", LABEL[view]);
+  };
+  button.addEventListener("click", () => {
+    choice.view = choice.view === "rendered" ? "plaintext" : "rendered";
+    showView(choice.view);
+    save(choice.view);
+  });
+
+  showView(choice.view);
+  return button;
 }

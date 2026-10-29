@@ -27,6 +27,7 @@ it("keeps GitHub's box and warns when the message fails to render", () => {
   if (!box) throw new Error("no message box");
   expect(getComputedStyle(box).display).not.toBe("none");
   expect(document.querySelector(".gh-prism-commit-message")).toBeNull();
+  expect(document.querySelector(".gh-prism-commit-view-switch")).toBeNull();
   expect(warn).toHaveBeenCalledOnce();
   expect(warn.mock.calls[0]?.[0]).toMatch(/^gh-prism: couldn't render the commit message/);
 });
