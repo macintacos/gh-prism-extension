@@ -49,6 +49,14 @@ focusing it. Clicking it, or Enter or Space on it, opens the popover and moves f
 it, where it stays until Escape or a click outside. `sidebar/section-tree.css` swaps the
 icon for the shield; `sidebar/owners-popover.ts` builds the popover.
 
+A folder holding an owned file shows the same shield while its row is hovered or focused,
+at its row's end, centred on the file rows' Viewed box column, because its icon already
+gives way to its chevron. A flattened chain's shield stands for its deepest folder, which
+holds the same files. `sidebar/section-tree.css` places it. Its popover lists every file
+the section shows under that folder, nested ones included, each as a path relative to the
+folder in monospace with its directory muted, with an owned file's code owners under it. A
+file with none shows its path alone. `sidebar/owners-popover.ts` builds it.
+
 A folder chain short of room keeps its first folder and as many trailing folders as fit
 around one `…`. With room for less, it shows `…` and the deepest folder alone. Only the
 deepest folder's name is ever cut, in the middle. `sidebar/chain-fit.ts` decides the fit;

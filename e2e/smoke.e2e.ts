@@ -1946,6 +1946,100 @@ test("a shield's click closes its open popover, and another shield's swaps it", 
   await expect(readmeShield).not.toHaveAttribute("aria-expanded");
 });
 
+test("an owned folder's row shows a shield at its end and keeps its chevron", async ({
+  context,
+  page,
+}) => {
+  await openOwned(context, page);
+  const folder = treeRow(page, "src/generated/");
+  const shield = shieldOf(page, "src/generated/");
+
+  await folder.hover();
+
+  await expect.poll(() => opacityOf(shield)).toBe("1");
+  expect(
+    await folder
+      .locator('[data-item-section="icon"]')
+      .evaluate((icon) => getComputedStyle(icon, "::after").opacity),
+  ).toBe("1");
+  const rowBox = await folder.boundingBox();
+  const shieldBox = await shield.boundingBox();
+  if (!rowBox || !shieldBox) throw new Error("no folder row or shield box");
+  // The file rows' Viewed box column centres 15px from a row's end; this fixture has no boxes, so
+  // measure from the row.
+  expect(
+    Math.abs(shieldBox.x + shieldBox.width / 2 - (rowBox.x + rowBox.width - 15)),
+  ).toBeLessThanOrEqual(2);
+  expect(
+    await folder.evaluate((row) =>
+      Math.max(...[...row.children].map((section) => section.getBoundingClientRect().right)),
+    ),
+  ).toBeLessThanOrEqual(shieldBox.x);
+  await expect(shieldOf(page, "src/")).toHaveCount(1);
+  await expect(shieldOf(page, "config/")).toHaveCount(0);
+  for (const path of ["src/generated/x/", "src/generated/x/y/", "src/generated/x/y/z/"])
+    await expect(shieldOf(page, path)).toHaveCount(1);
+});
+
+test("a folder shield's popover lists its files until Escape returns to the row", async ({
+  context,
+  page,
+}) => {
+  await openOwned(context, page, ["@o/team"]);
+  const folder = treeRow(page, "src/generated/");
+  const expanded = await folder.getAttribute("aria-expanded");
+  const popover = page.locator(".gh-prism-owners:popover-open");
+  await folder.hover();
+
+  await shieldOf(page, "src/generated/").click();
+
+  await expect(popover).toHaveAttribute("aria-label", "Code owners of files in src/generated");
+  await expect(popover.locator("li").filter({ hasText: "schema.rs" })).toContainText("o/team");
+  expect(await popover.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  await expect(folder).toHaveAttribute("aria-expanded", expanded ?? "");
+
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".gh-prism-owners")).toHaveCount(0);
+  expect(
+    await folder.evaluate((row) => (row.getRootNode() as ShadowRoot).activeElement === row),
+  ).toBe(true);
+});
+
+test("a folder shield's popover too tall for either side of it pins without covering it", async ({
+  context,
+  page,
+}) => {
+  await openOwned(context, page, ["@o/team"]);
+  const shield = shieldOf(page, "src/generated/");
+  await treeRow(page, "src/generated/").hover();
+  await expect.poll(() => opacityOf(shield)).toBe("1");
+  const shieldBox = await shield.boundingBox();
+  if (!shieldBox) throw new Error("no folder shield box");
+  await page.setViewportSize({
+    width: page.viewportSize()?.width ?? 1280,
+    height: Math.ceil(shieldBox.y + shieldBox.height + 40),
+  });
+  await treeRow(page, "src/generated/").hover();
+  await page.addStyleTag({ content: ".gh-prism-owners li { min-height: 2000px; }" });
+
+  await shield.click();
+
+  const popover = page.locator(".gh-prism-owners:popover-open");
+  await expect(popover).toHaveCount(1);
+  expect(await popover.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  await popover.evaluate((element) =>
+    Promise.all(element.getAnimations().map((animation) => animation.finished)),
+  );
+  const popoverBox = await popover.boundingBox();
+  if (!popoverBox) throw new Error("no popover box");
+  const shieldAfterResize = await shield.boundingBox();
+  if (!shieldAfterResize) throw new Error("no folder shield box");
+  expect(
+    popoverBox.y + popoverBox.height <= shieldAfterResize.y ||
+      popoverBox.y >= shieldAfterResize.y + shieldAfterResize.height,
+  ).toBe(true);
+});
+
 test("a code owner reviewer's shield opens their files, closing as the pointer leaves or on Escape", async ({
   context,
   page,

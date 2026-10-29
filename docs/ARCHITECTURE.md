@@ -290,10 +290,11 @@ The sidebar's shields are another reader. `showVisit` in
 [`visit/land.ts`](../entrypoints/content/visit/land.ts) hands the owners to the sidebar
 once they land, and drops them if the page has gone. `SectionTree` in
 [`sidebar/section-tree.ts`](../entrypoints/content/sidebar/section-tree.ts) marks each
-owned file's rows in every section, and the `@pierre/trees` patch draws a shield beside
-each, shown in place of the file icon while its row is hovered or focused. Resting the
-pointer on a shield for 200 ms, focusing it, or clicking it opens a popover listing the
-file's owners, built by
+owned file's rows in every section and every folder row above one, and the `@pierre/trees`
+patch draws a shield beside each: a file's in place of its icon, a folder's at its row's
+end, while the row is hovered or focused. Resting the pointer on a shield for 200 ms,
+focusing it, or clicking it opens a popover listing the file's owners or, for a folder,
+each file the section shows under it with that file's owners, built by
 [`sidebar/owners-popover.ts`](../entrypoints/content/sidebar/owners-popover.ts) and
 removed, with its listeners, once it closes. Hover and focus go through
 `followHoverIntent`, as the Conversation popup's do, following each tree's shadow root,
@@ -329,7 +330,9 @@ changed file opens nothing. It rides the header visit, so it runs only where
 the whole visit, because GitHub replaces the classic sidebar's nodes mid-visit. When to
 open and close it is `followHoverIntent` in
 [`ui/hover-intent.ts`](../entrypoints/content/ui/hover-intent.ts). The popup and the file
-shields' popover share one placer, [`ui/place.ts`](../entrypoints/content/ui/place.ts).
+and folder shields' popover share one placer,
+[`ui/place.ts`](../entrypoints/content/ui/place.ts): below, else above, else on the
+roomier side, capped so it never covers its anchor.
 
 The owner section is the third: it lists the reviewers who own a changed file (§ The owner
 section).
