@@ -55,7 +55,10 @@ export function showCommitMessage(
     if (signal.aborted || !message) return;
     const doc = page.sidebar.ownerDocument;
     const nodes = renderedOrWarn(doc, message);
-    if (nodes) standIn(page, message.box, messageView(doc, nodes, { choice, save }), signal);
+    if (nodes) {
+      const view = messageView(doc, nodes, { box: message.box, choice, save });
+      standIn(page, message.box, view, signal);
+    }
   });
 }
 
@@ -142,14 +145,14 @@ const LABEL: Record<CommitMessageView, string> = {
 };
 
 /**
- * `nodes` beside a switch to GitHub's box, returned with `data-view` already set to `choice.view`
- * so a plain-text reader never sees the rendering paint. Each click flips the view, records it in
- * `choice`, and `save`s it.
+ * `nodes` and a copy of `box`'s children, for the column's plain text, beside a switch to GitHub's
+ * box, returned with `data-view` already set to `choice.view` so a plain-text reader never sees
+ * the rendering paint. Each click flips the view, records it in `choice`, and `save`s it.
  */
 function messageView(
   doc: Document,
   nodes: Node[],
-  { choice, save }: Pick<CommitMessageOptions, "choice" | "save">,
+  { box, choice, save }: Pick<CommitMessageOptions, "choice" | "save"> & { box: Element },
 ): HTMLElement {
   const button = viewSwitch(doc);
   const container = el(
@@ -161,6 +164,13 @@ function messageView(
       "div",
       "gh-prism-commit-message-body markdown-body tw:flex-1 tw:min-w-0 tw:px-3 tw:py-2",
       ...nodes,
+    ),
+    // Copies the children, not the box: findCommitMessage matches the box's own class.
+    el(
+      doc,
+      "div",
+      "gh-prism-commit-message-plain tw:flex-1 tw:min-w-0 tw:px-3 tw:py-2",
+      ...[...box.childNodes].map((node) => node.cloneNode(true)),
     ),
     button,
   );

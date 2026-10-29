@@ -186,8 +186,11 @@ than GitHub makes them. The column takes the tree pane's geometry and sorts firs
 `order`, wherever the pane is docked. The window stays the scroller, so GitHub's sticky
 file headers and lazy diff loading are untouched. While the message is in the column, a
 hidden `span.gh-prism-commit-slot` stands just before GitHub's box and hides it in the
-message's place. A `matchMedia` listener moves the message back above the diffs when the
-window narrows, and a commit page with no row keeps it there at any width.
+message's place, in both views. The column's plaintext view shows
+`div.gh-prism-commit-message-plain` instead: copies of the box's children, taken when the
+message mounts, which GitHub's classes on them style as the box. A `matchMedia` listener
+moves the message back above the diffs when the window narrows, and a commit page with no
+row keeps it there at any width.
 
 gh-prism never edits GitHub's box: the view's sheet only hides it, and it shows again when
 the reader switches to it, when the visit aborts, or when gh-prism can't render the

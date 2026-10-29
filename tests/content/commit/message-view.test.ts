@@ -244,6 +244,43 @@ describe("showCommitMessage on a wide window", () => {
     expectInColumn();
   });
 
+  it("moves the view switch into the column with the message", () => {
+    show();
+    runIdle();
+
+    expect(column()?.querySelector(".gh-prism-commit-view-switch")).toBe(viewButton());
+  });
+
+  it("shows a copy of GitHub's box in the column's plaintext view", () => {
+    choice.view = "plaintext";
+    const real = box();
+
+    show();
+    runIdle();
+
+    const copy = column()?.querySelector(".gh-prism-commit-message-plain");
+    const body = column()?.querySelector(".gh-prism-commit-message-body");
+    if (!copy || !body) throw new Error("no copy or body");
+    expect(shows(copy)).toBe(true);
+    expect(copy.textContent).toBe(real.textContent);
+    expect(shows(body)).toBe(false);
+    expect(shows(real)).toBe(false);
+    expect(findCommitMessage(pageOf())?.box).toBe(real);
+  });
+
+  it("hides the copy and shows GitHub's box above the diffs in the plaintext view", () => {
+    setViewport(NARROW);
+    choice.view = "plaintext";
+
+    show();
+    runIdle();
+
+    const copy = container()?.querySelector(".gh-prism-commit-message-plain");
+    if (!copy) throw new Error("no copy");
+    expect(shows(copy)).toBe(false);
+    expect(shows(box())).toBe(true);
+  });
+
   it("keeps the message above the diffs when the layout row is missing", () => {
     const layoutRow = row();
     if (!layoutRow) throw new Error("no row");

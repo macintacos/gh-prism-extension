@@ -20,6 +20,15 @@
   display: none;
 }
 
+/* The copy of GitHub's box, which shows only in the column, where the box stays hidden. */
+.gh-prism-commit-message-plain {
+  display: none;
+}
+
+.gh-prism-commit-column .gh-prism-commit-message[data-view="plaintext"] > .gh-prism-commit-message-plain {
+  display: block;
+}
+
 /* Primer's tooltip, opening toward the page's middle. */
 .gh-prism-commit-view-switch::after {
   content: attr(aria-label);
