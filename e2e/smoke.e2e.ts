@@ -59,8 +59,8 @@ const scrollSidebarToBulkRow = (page: Page, n: number): Promise<void> =>
     // A bulk file's row follows bulk/, 28 px a row; 100 px of it shows below the top.
     sidebar.scrollTop = treeTop + (n + 1) * 28 - 100;
   }, n);
-// The wrapper supplies GitHub's layout container; the switch's container query needs ≥ 1012 px (default viewport: 1280).
-const COMMIT_BODY = `<!doctype html><div class="PageLayout-PageLayoutContent">${readFixture("commit-page.html")}</div>`;
+// The fixture's row is GitHub's layout container; the side switch's container query needs ≥ 1012 px (default viewport: 1280).
+const COMMIT_BODY = `<!doctype html>${readFixture("commit-page.html")}`;
 
 const test = base.extend<{ context: BrowserContext }>({
   // biome-ignore lint/correctness/noEmptyPattern: Playwright reads fixture dependencies from this pattern.
@@ -215,8 +215,7 @@ test("a commit's diff list skips a comment thread beside it", async ({ context, 
   expect(regionsPerList).toEqual([2]);
 });
 
-const commitBodyWith = (card: string) =>
-  `<!doctype html><div class="PageLayout-PageLayoutContent">${card}${readFixture("commit-page.html")}</div>`;
+const commitBodyWith = (card: string) => `<!doctype html>${card}${readFixture("commit-page.html")}`;
 const MESSAGE_BOX = '[class*="commitMessageContainer__"]';
 
 test("a commit's message renders as Markdown in GitHub's box's place, after the sidebar", async ({
@@ -253,20 +252,40 @@ test("a commit's message renders as Markdown in GitHub's box's place, after the 
   ]);
 });
 
-test("a commit message over the cap keeps GitHub's box", async ({ context, page }) => {
-  const card = `<div><div class="commitMessageContainer__x"><span><div>Long message</div></span><span class="extended-commit-description-container">${"word ".repeat(12_000)}</span></div></div>`;
-  await serve(context, COMMIT_URL, commitBodyWith(card));
-
+test("a commit's message moves into a column on a wide window and back above the diffs on a narrow one", async ({
+  context,
+  page,
+}) => {
+  await serve(context, COMMIT_URL, commitBodyWith(readFixture("commit-message-lists.html")));
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(COMMIT_URL);
-  await expect(page.locator(".gh-prism-section").first()).toBeVisible();
-  await page.evaluate(
-    () =>
-      new Promise((resolve) =>
-        requestIdleCallback(() => setTimeout(resolve, 0), { timeout: 2000 }),
-      ),
-  );
 
-  await expect(page.locator(".gh-prism-commit-message")).toHaveCount(0);
+  const message = page.locator(".gh-prism-commit-column > .gh-prism-commit-message");
+  await expect(message).toBeVisible();
+  await expect(page.locator(MESSAGE_BOX)).toBeHidden();
+  const column = page.locator(".gh-prism-commit-column");
+  await expect(column).toHaveCSS("order", "-1");
+  await expect(column).toHaveCSS("position", "sticky");
+
+  await page.setViewportSize({ width: 1200, height: 900 });
+  await expect(page.locator(".gh-prism-commit-column, .gh-prism-commit-slot")).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      (selector) =>
+        document
+          .querySelector(selector)
+          ?.previousElementSibling?.matches(".gh-prism-commit-message"),
+      MESSAGE_BOX,
+    ),
+  ).toBe(true);
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(message).toBeVisible();
+
+  await page.locator(".gh-prism-commit-view-switch").click();
+  await expect(page.locator(".gh-prism-commit-message-plain")).toBeVisible();
+  await expect(page.locator(MESSAGE_BOX)).toBeHidden();
+  await page.setViewportSize({ width: 1200, height: 900 });
   await expect(page.locator(MESSAGE_BOX)).toBeVisible();
 });
 
@@ -311,6 +330,29 @@ test("a commit's message switches to GitHub's box from the keyboard, and opens t
   await expect(page.locator(MESSAGE_BOX)).toBeHidden();
   await expect(toPlain).toBeFocused();
 });
+
+for (const width of [1280, 1440]) {
+  test(`a commit message over the cap keeps GitHub's box at ${width}px`, async ({
+    context,
+    page,
+  }) => {
+    const card = `<div><div class="commitMessageContainer__x"><span><div>Long message</div></span><span class="extended-commit-description-container">${"word ".repeat(12_000)}</span></div></div>`;
+    await serve(context, COMMIT_URL, commitBodyWith(card));
+    await page.setViewportSize({ width, height: 900 });
+
+    await page.goto(COMMIT_URL);
+    await expect(page.locator(".gh-prism-section").first()).toBeVisible();
+    await page.evaluate(
+      () =>
+        new Promise((resolve) =>
+          requestIdleCallback(() => setTimeout(resolve, 0), { timeout: 2000 }),
+        ),
+    );
+
+    await expect(page.locator(".gh-prism-commit-message, .gh-prism-commit-column")).toHaveCount(0);
+    await expect(page.locator(MESSAGE_BOX)).toBeVisible();
+  });
+}
 
 test("the side switch docks the sidebar on the other side and remembers it", async ({
   context,

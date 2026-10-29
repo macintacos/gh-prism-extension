@@ -102,6 +102,12 @@ facts about GitHub that held when written, and ends with how to re-check them;
   `[text](url)`, GitHub's `<a>` covers exactly the URL, and the `(` and `)` stay text
   outside it. A compare URL becomes an `a.commit-link` reading
   `owner/repo@<tt>sha...sha</tt>`, not the URL, with no hovercard.
+- **Expect the message's card in PageLayout's Header, above the flex row
+  `[class*="PageLayout-PageLayoutContent"]`.** The row holds the tree's pane wrapper
+  (`order` 1; gh-prism's right dock moves it to PageLayout's `--region-order-pane-end`, 3)
+  and the diffs' ContentWrapper (`order` 2). The pane wrapper is
+  `position: sticky; top: 0; height: 100vh`, and the window, not the row, scrolls.
+  `findCommitColumnRow` finds the row from the sidebar.
 - **Read the message from the box, not the embedded page data.** The data holds it only as
   HTML (`shortMessageMarkdown`, `bodyMessageHtml`), never as raw text.
 - **Rely on GitHub's `markdown-body` sheet.** It loads on commit pages, so a
@@ -116,7 +122,9 @@ facts about GitHub that held when written, and ends with how to re-check them;
   named in the `tests/fixtures/commit-message-*.html` header comments, and compare each
   page's message card with its fixture. Check a scratch `div.markdown-body`'s computed
   `font-size` reads `16px`, and that a scratch `ul.contains-task-list > li.task-list-item`
-  drops its bullet.
+  drops its bullet. On a public commit page at ≥ 1332px, read the computed `order` of
+  `[class*="PageLayout-PageLayoutContent"]`'s children, the pane wrapper's `position`,
+  `top`, and `height`, and confirm `document.scrollingElement` is what scrolls.
 
 ## Diff lists
 

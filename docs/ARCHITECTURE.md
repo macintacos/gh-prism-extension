@@ -178,9 +178,23 @@ page the tab's one choice, so a commit opens in the view last picked. The messag
 container mounts with its `data-view` already set, so a reader who picked GitHub's box
 never sees the rendering first.
 
+On a window at least 1332px wide, the view moves the message and its switch into
+`aside.gh-prism-commit-column`, a 320px sticky column it prepends to the flex row around
+the sidebar that `findCommitColumnRow` finds. GitHub docks its file tree beside the diffs
+from 1012px, and the column's width comes on top of that, so the diffs never get narrower
+than GitHub makes them. The column takes the tree pane's geometry and sorts first by
+`order`, wherever the pane is docked. The window stays the scroller, so GitHub's sticky
+file headers and lazy diff loading are untouched. While the message is in the column, a
+hidden `span.gh-prism-commit-slot` stands just before GitHub's box and hides it in the
+message's place, in both views. The column's plaintext view shows
+`div.gh-prism-commit-message-plain` instead: copies of the box's children, taken when the
+message mounts, laid out as the box is: a flex column, padded 8px 12px. A `matchMedia`
+listener moves the message back above the diffs when the window narrows, and a commit page
+with no row keeps it there at any width.
+
 gh-prism never edits GitHub's box: the view's sheet only hides it, and it shows again when
-the reader switches to it, when the visit aborts, or when gh-prism can't render the
-message.
+the reader switches to it above the diffs, when the visit aborts, or when gh-prism can't
+render the message.
 
 ## The owner section
 
@@ -487,8 +501,8 @@ entrypoints/
   background.ts          service worker: PR data port, cache clearing and what's-new mark on install
   content/
     index.ts             content script entry: wires the watchers, intent, and views
-    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; a commit's message box
-    commit/              a commit's message rendered as Markdown in GitHub's box's place, and its switch back to GitHub's box
+    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; a commit's message box and the row its message column joins
+    commit/              a commit's message rendered as Markdown in GitHub's box's place, or in a column beside the diffs, and its switch back to GitHub's box
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section

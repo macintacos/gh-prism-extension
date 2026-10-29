@@ -9,6 +9,7 @@ import {
   coveredTop,
   diffEntryOf,
   findClassicPage,
+  findCommitColumnRow,
   findCommitMessage,
   findDiff,
   findDiffList,
@@ -817,6 +818,23 @@ describe("the commit kind", () => {
     expect(findCommitMessage(foundPage())).toBeUndefined();
     document.body.insertAdjacentHTML("afterbegin", COMMIT_MESSAGES.sha);
     expect(findCommitMessage(foundPage())).toBeUndefined();
+  });
+
+  it("finds the row its message column joins", () => {
+    expect(findCommitColumnRow(foundPage())).toBe(
+      document.querySelector('[class*="PageLayout-PageLayoutContent"]'),
+    );
+  });
+
+  it("finds no row for a message column on a pull request's page", () => {
+    loadFixture();
+    expect(findCommitColumnRow(foundPage())).toBeUndefined();
+  });
+
+  it("finds no row for a message column while the page has none", () => {
+    const row = document.querySelector('[class*="PageLayout-PageLayoutContent"]');
+    row?.replaceWith(...row.childNodes);
+    expect(findCommitColumnRow(foundPage())).toBeUndefined();
   });
 
   it("finds the header's lines-changed counter", () => {

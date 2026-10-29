@@ -1,5 +1,7 @@
-/* GitHub hooks: the commit message box, the sibling after a rendered .gh-prism-commit-message.
-   Every other rule selects only gh-prism's own classes. */
+/* GitHub hooks: the commit message box, the sibling after a rendered .gh-prism-commit-message
+   or after .gh-prism-commit-slot; and [class*="PageLayout-PageLayoutContent"]'s flex row, whose
+   panes sort at order 1 or PageLayout's --region-order-pane-end, which the column's tw:-order-1
+   sorts before. Every other rule selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @source "./message-view.ts";
 
@@ -8,12 +10,30 @@
   display: none !important;
 }
 
-/* The rendering, while GitHub's box shows instead. */
+/* GitHub's box, while the message is in the column, in either view. */
+.gh-prism-commit-slot + * {
+  display: none !important;
+}
+
+/* The rendering, in the plaintext view. */
 .gh-prism-commit-message[data-view="plaintext"] > .gh-prism-commit-message-body {
   display: none;
 }
 
-/* Primer's tooltip, opening toward the page's middle. */
+/* The copy of GitHub's box, which shows only in the column, where the box stays hidden. */
+.gh-prism-commit-message-plain {
+  display: none;
+}
+
+/* Laid out as GitHub's box is, so its spans' margins and line heights apply. */
+.gh-prism-commit-column .gh-prism-commit-message[data-view="plaintext"] > .gh-prism-commit-message-plain {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 44px;
+}
+
+/* Primer's tooltip, opening inward from the message's end. */
 .gh-prism-commit-view-switch::after {
   content: attr(aria-label);
   position: absolute;

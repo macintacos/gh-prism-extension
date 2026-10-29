@@ -6,6 +6,38 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-28: A commit's message beside the diffs
+
+- **Compared:**
+  - a sticky flex child of GitHub's layout row, a fixed column with a margin on the row,
+    or two copies of the message toggled by CSS;
+  - hiding GitHub's box through a hidden slot before it, or through an attribute on
+    `<html>`;
+  - mounting the column at idle with the message, or reserving it at visit start;
+  - for the column's plain text, moving GitHub's box into it, or a copy of the box's
+    children.
+- **Won:** the sticky flex child, 320px wide, from a 1332px window, with GitHub's tree
+  pane's geometry (`position: sticky; top: 0; height: 100vh`), a `--borderColor-default`
+  hairline on its inline end, and `order: -1`; the slot; mounting at idle; the copy,
+  `div.gh-prism-commit-message-plain`, laid out as the box is: a flex column, padded 8px
+  12px.
+- **Why:** GitHub's tree pane is already a sticky, independently scrolling column in the
+  same row, so the message column copies it and the window stays the scroller, which keeps
+  GitHub's sticky file headers and lazy diff loading working. 320px is Primer's large pane
+  width: prose wants more measure than the tree's file names. GitHub docks the tree from
+  1012px, so 1012 + 320 keeps the diffs at least as wide as GitHub gives them. The column
+  starts below GitHub's header and sticks at the window's top once the header scrolls
+  away; from then on it ends at the window's bottom. Before that first scroll it shares
+  the pane's top and bottom edges, as the sidebar does, because capping it to the visible
+  height would need a scroll listener rewriting its height every frame. A fixed column
+  overlaps GitHub's header until the page scrolls, and its margin fights the pane's
+  geometry. Two copies would render the message twice and split any state between them.
+  The slot keeps every GitHub selector out of the sheet and sets no page-wide state to
+  clear on abort. Mounting at idle costs the diffs one reflow when the column arrives;
+  reserving an empty column at visit start is the upgrade path if that reads as a jump.
+  GitHub's box stays where React put it, since React owns it; the copy skips the box's own
+  class, which `findCommitMessage` matches.
+
 ## 2026-10-28: The commit message's view switch
 
 - **Compared:**
