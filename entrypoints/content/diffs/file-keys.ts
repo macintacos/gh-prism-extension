@@ -6,6 +6,7 @@
  */
 
 import { type FilesPage, reorderable } from "../files-page";
+import { isEditable } from "../ui/dom";
 import type { LandingView } from "../visit/land";
 import { revealDiff } from "./reveal";
 
@@ -13,10 +14,6 @@ const STEPS: ReadonlyMap<string, number> = new Map([
   ["j", 1],
   ["k", -1],
 ]);
-
-const isEditable = (target: EventTarget | null): boolean =>
-  target instanceof HTMLElement &&
-  (target.isContentEditable || target.matches("input, textarea, select"));
 
 /**
  * The link `step` files on from the one `hash` names, itself or through one of its lines, or the
