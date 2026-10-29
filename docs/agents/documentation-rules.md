@@ -24,7 +24,7 @@ digraph gh_prism_docs_router {
     "Which doc does the change affect?" -> "Edit AGENTS.md (and its CLAUDE.md shim)" [label="the code-change router: a rule file's edge, how to verify a change"];
     "Which doc does the change affect?" -> "Edit docs/README.md" [label="the router for docs/: which page answers a reader's question"];
     "Which doc does the change affect?" -> "Edit docs/ARCHITECTURE.md" [label="how gh-prism works: page kinds, the visit lifecycle, intent and its cache, section rows, diff order, styling, source layout"];
-    "Which doc does the change affect?" -> "Edit docs/DEVELOPMENT.md" [label="developing gh-prism: setup, the dev browser, the task catalog, tests, the benchmark, the sandbox repository, hooks, CI, patched dependencies"];
+    "Which doc does the change affect?" -> "Edit docs/DEVELOPMENT.md" [label="developing gh-prism: setup, the dev browser, the task catalog, tests, the benchmark, the sandbox repositories, hooks, CI, patched dependencies"];
     "Which doc does the change affect?" -> "Edit design/" [label="gh-prism's design direction: the brief, tokens, patterns, departures from the /taste defaults, dated design picks"];
     "Which doc does the change affect?" -> "Edit .claude/skills/release-gh-prism/SKILL.md" [label="the release skill: computing, confirming, and dispatching a release, the release notes"];
     "Which doc does the change affect?" -> "Edit a docs/agents/*-rules.md rule file" [label="a rule for a code area that AGENTS.md routes to"];

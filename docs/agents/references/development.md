@@ -3,8 +3,8 @@
 *Audience: coding agents and contributors editing gh-prism's development guide.*
 
 [`docs/DEVELOPMENT.md`](../../DEVELOPMENT.md) covers developing gh-prism past the first
-run: the dev browser, the task catalog, tests, the benchmark, the sandbox repository, git
-hooks, CI, and patched dependencies.
+run: the dev browser, the task catalog, tests, the benchmark, the sandbox repositories,
+git hooks, CI, and patched dependencies.
 
 When to edit it:
 
