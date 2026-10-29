@@ -9,6 +9,7 @@ import {
   coveredTop,
   diffEntryOf,
   findClassicPage,
+  findCommitMessage,
   findDiff,
   findDiffList,
   findDiffstat,
@@ -43,6 +44,7 @@ import conversationFixture from "../fixtures/conversation-page.html?raw";
 import {
   addOwnedByGroup,
   byId,
+  COMMIT_MESSAGES,
   closeFilterMenu,
   closeOverlay,
   diffList,
@@ -780,6 +782,41 @@ describe("the commit kind", () => {
       tree: document.querySelector('ul[role="tree"]'),
       diffs: diffs(),
     });
+  });
+
+  it.each([
+    ["lists", "feat: order the diffs like the sidebar"],
+    ["sha", 'Revert "Use internal Apple codesign action (#14437)"'],
+    ["mention", "Refactor CopilotReplacer logic based on PR feedback"],
+    ["links", "chore(deps): Bump the codeql-actions group with 2 updates"],
+  ] as const)("finds the %s message's box, title, and body", (card, title) => {
+    loadCommitFixture(card);
+    const box = document.querySelector('[class*="commitMessageContainer__"]');
+    expect(findCommitMessage(foundPage())).toEqual({
+      box,
+      title: box?.firstElementChild?.firstElementChild,
+      body: document.querySelector(".extended-commit-description-container"),
+    });
+    expect(findCommitMessage(foundPage())?.title.textContent).toBe(title);
+    expect(findCommitMessage(foundPage())?.body).not.toBeNull();
+  });
+
+  it("finds a subject-only message's title with no body", () => {
+    loadCommitFixture("subject");
+    const message = findCommitMessage(foundPage());
+    expect(message?.title.textContent).toBe("Replace msgpack with a minimal node ID encoder");
+    expect(message?.body).toBeNull();
+  });
+
+  it("finds no message box while the page has none", () => {
+    expect(findCommitMessage(foundPage())).toBeUndefined();
+  });
+
+  it("finds a message box only on a commit's page", () => {
+    loadFixture();
+    expect(findCommitMessage(foundPage())).toBeUndefined();
+    document.body.insertAdjacentHTML("afterbegin", COMMIT_MESSAGES.sha);
+    expect(findCommitMessage(foundPage())).toBeUndefined();
   });
 
   it("finds the header's lines-changed counter", () => {

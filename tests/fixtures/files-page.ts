@@ -1,6 +1,11 @@
 import { findFilesPage, readChangedFiles } from "../../entrypoints/content/files-page";
 // The `?raw` import is required: `readFileSync` throws under happy-dom.
 import classicFixture from "./classic-files-page.html?raw";
+import commitMessageLinks from "./commit-message-links.html?raw";
+import commitMessageLists from "./commit-message-lists.html?raw";
+import commitMessageMention from "./commit-message-mention.html?raw";
+import commitMessageSha from "./commit-message-sha.html?raw";
+import commitMessageSubject from "./commit-message-subject.html?raw";
 import commitFixture from "./commit-page.html?raw";
 import fixture from "./files-page.html?raw";
 import filterMenuFixture from "./filter-menu.html?raw";
@@ -126,9 +131,18 @@ export function loadHeaderFixture(text = "+36 -10"): void {
   document.body.innerHTML = `<div class="rightContentWrapper__x"><div class="d-flex">${text}</div></div>`;
 }
 
-/** Replaces `document.body` with a single commit's markup. */
-export function loadCommitFixture(): void {
-  document.body.innerHTML = commitFixture;
+/** GitHub's captured commit message cards, each holding the message box and its branch row. */
+export const COMMIT_MESSAGES = {
+  lists: commitMessageLists,
+  sha: commitMessageSha,
+  mention: commitMessageMention,
+  links: commitMessageLinks,
+  subject: commitMessageSubject,
+};
+
+/** Replaces `document.body` with a single commit's markup, led by the `message` card if given. */
+export function loadCommitFixture(message?: keyof typeof COMMIT_MESSAGES): void {
+  document.body.innerHTML = (message ? COMMIT_MESSAGES[message] : "") + commitFixture;
 }
 
 /** The pull request fixture's diff list; throws when the fixture lacks it. */

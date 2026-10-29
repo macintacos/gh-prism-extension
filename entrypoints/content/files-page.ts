@@ -2,7 +2,7 @@
  * The one script module that holds selectors into GitHub's Files view markup; the stylesheets list
  * theirs in a `GitHub hooks:` header. It holds a `PageKind` for a pull request's page and a
  * commit's, finds a Files view's page, a pull request's classic page, or its header on its header
- * tabs, reads its rows, follows a pull request's narrow-layout overlay and the file-tree filter
+ * tabs, finds a commit's message box, reads its rows, follows a pull request's narrow-layout overlay and the file-tree filter
  * menu, finds and follows the rows and code-owner shields of a pull request's Reviewers lists, and
  * copies that menu's group, divider, and item for gh-prism's entries, so the selectors stay in
  * this seam; it builds no UI of its own and imports nothing from WXT. The pull request selectors
@@ -28,6 +28,8 @@ export interface PageKind {
   readonly diffs: string;
   /** The header's slot for its lines-changed counter, which holds a skeleton while it loads. */
   readonly diffstatSlot: string;
+  /** Selects a commit's message box: its first child holds the title, its description span the body. */
+  readonly commitMessage?: string;
   /** A toolbar tree-toggle button; its parent wraps the toggle's buttons. */
   readonly treeToggle: string;
   /** The toggle buttons that collapse the tree in place, not the narrow layout's overlay toggle. */
@@ -97,6 +99,7 @@ export const commitPage = {
   sidebar: "#diff_file_tree",
   diffs: "#diff-content-parent",
   diffstatSlot: '[class*="commitFilesChangedContainer__"]',
+  commitMessage: '[class*="commitMessageContainer__"]',
   // A commit's sidebar carries a copy of the toolbar for the narrow layout.
   treeToggle: '#diff-content-parent [aria-controls="diff_file_tree"]',
   // `.d-md-none` marks the narrow layout's overlay toggle.
@@ -152,6 +155,24 @@ export function findFilesPage(root: ParentNode): FilesPage | undefined {
     if (sidebar && tree && diffs) return { kind, sidebar, tree, diffs };
   }
   return undefined;
+}
+
+/** A commit's message box, as `findCommitMessage` finds it. */
+export interface CommitMessage {
+  /** GitHub's box, which gh-prism hides but never changes. */
+  readonly box: Element;
+  readonly title: Element;
+  /** `null` for a message with only a subject line. */
+  readonly body: Element | null;
+}
+
+/** `page`'s commit message box, or `undefined` on a kind without one or while it's missing. */
+export function findCommitMessage(page: FilesPage): CommitMessage | undefined {
+  const { commitMessage } = page.kind;
+  const box = commitMessage ? page.sidebar.ownerDocument.querySelector(commitMessage) : null;
+  const title = box?.querySelector(":scope > span:first-child > div");
+  if (!box || !title) return undefined;
+  return { box, title, body: box.querySelector(":scope > .extended-commit-description-container") };
 }
 
 /** The narrow layout's overlay copy of `page`'s tree while it is open, else `undefined`. */
