@@ -1,9 +1,14 @@
-/* GitHub hooks: the commit message box, the sibling after .gh-prism-commit-message. Every
-   other rule selects only gh-prism's own classes. */
+/* GitHub hooks: the commit message box, the sibling after a rendered .gh-prism-commit-message.
+   Every other rule selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @source "./message-view.ts";
 
 /* GitHub's box, while the rendered message stands in for it. */
-.gh-prism-commit-message + * {
+.gh-prism-commit-message[data-view="rendered"] + * {
   display: none !important;
+}
+
+/* The rendering, while GitHub's box shows instead. */
+.gh-prism-commit-message[data-view="plaintext"] > .gh-prism-commit-message-body {
+  display: none;
 }

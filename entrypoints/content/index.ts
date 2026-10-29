@@ -22,7 +22,9 @@ import {
   shareIntent,
 } from "@/utils/intent/read";
 import {
+  type CommitMessageView,
   classicNoticeDismissed,
+  commitMessageView,
   type DiffstatView,
   diffstatView,
   sidebarSide,
@@ -35,7 +37,7 @@ import {
   whatsNewStateOf,
 } from "@/utils/whats-new";
 import { type NoticeChoice, showClassicNotice } from "./classic/notice";
-import { showCommitMessage } from "./commit/message-view";
+import { type CommitMessageChoice, showCommitMessage } from "./commit/message-view";
 import { showReviewerFiles } from "./conversation/reviewer-files";
 import { visitViewed } from "./diffs/viewed";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
@@ -70,13 +72,16 @@ export default defineContentScript({
     } satisfies IntentSources;
     const release = releaseOf(import.meta.env.WXT_RELEASE_NOTES, version);
     // Read before watching, so a saved side, view, or dismissal never shows its default first.
-    const [savedSide, savedDiffstat, dismissed, whatsNewForPage] = await Promise.all([
-      readSavedSide(),
-      readSavedDiffstat(),
-      readNoticeDismissed(),
-      release && followWhatsNew(release, ctx),
-    ]);
+    const [savedSide, savedDiffstat, savedCommitMessage, dismissed, whatsNewForPage] =
+      await Promise.all([
+        readSavedSide(),
+        readSavedDiffstat(),
+        readSavedCommitMessage(),
+        readNoticeDismissed(),
+        release && followWhatsNew(release, ctx),
+      ]);
     const side = sideChoiceOf(savedSide);
+    const commitMessage = commitMessageChoiceOf(savedCommitMessage);
     // Shared by every visit, so a switch on one tab or page carries to the next.
     const diffstat = {
       choice: diffstatChoiceOf(savedDiffstat),
@@ -125,7 +130,11 @@ export default defineContentScript({
               owner: route.diff.kind === "pr" ? ownerOf(location.search) : undefined,
               whatsNew: whatsNewForPage?.(),
             });
-            showCommitMessage(page, signal, { afterSections: afterLanding(intent) });
+            showCommitMessage(page, signal, {
+              afterSections: afterLanding(intent),
+              choice: commitMessage,
+              save: saveCommitMessage,
+            });
             dockSidebar(page, signal, { choice: side, save: saveSide });
           };
         },
@@ -231,6 +240,27 @@ const saveDiffstat = (view: DiffstatView) =>
   diffstatView
     .setValue(view)
     .catch((error: unknown) => console.error("gh-prism: saving the diffstat view failed", error));
+
+/** The stored commit message view, unchecked, or the default when storage won't read. */
+const readSavedCommitMessage = (): Promise<unknown> =>
+  commitMessageView.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading the commit message view failed", error);
+    return commitMessageView.fallback;
+  });
+
+/** The view a commit's message opens on: `saved`, when it names one, else the default. */
+function commitMessageChoiceOf(saved: unknown): CommitMessageChoice {
+  // `fallback` covers only a missing view; a corrupt one reads back as stored.
+  const known = saved === "rendered" || saved === "plaintext";
+  return { view: known ? saved : commitMessageView.fallback };
+}
+
+const saveCommitMessage = (view: CommitMessageView) =>
+  commitMessageView
+    .setValue(view)
+    .catch((error: unknown) =>
+      console.error("gh-prism: saving the commit message view failed", error),
+    );
 
 /** Whether the user dismissed the classic page's notice; not, when storage won't read. */
 const readNoticeDismissed = (): Promise<boolean> =>

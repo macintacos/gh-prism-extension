@@ -1,12 +1,16 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { showCommitMessage } from "../../../entrypoints/content/commit/message-view";
+import {
+  type CommitMessageChoice,
+  showCommitMessage,
+} from "../../../entrypoints/content/commit/message-view";
 import {
   type FilesPage,
   findCommitMessage,
   findFilesPage,
 } from "../../../entrypoints/content/files-page";
 import { watchFilesPages } from "../../../entrypoints/content/visit/watch";
+import type { CommitMessageView } from "../../../utils/prefs";
 import { loadCommitFixture, loadFixture } from "../../fixtures/files-page";
 
 const container = () => document.querySelector(".gh-prism-commit-message");
@@ -36,9 +40,13 @@ const afterSections = (task: () => void) => void tasks.push(task);
 const runIdle = () => {
   for (const task of tasks.splice(0)) task();
 };
-const show = () => showCommitMessage(pageOf(), controller.signal, { afterSections });
+let choice: CommitMessageChoice;
+let save: (view: CommitMessageView) => void;
+const show = () => showCommitMessage(pageOf(), controller.signal, { afterSections, choice, save });
 
 beforeEach(() => {
+  choice = { view: "rendered" };
+  save = vi.fn();
   vi.useFakeTimers();
   history.replaceState(null, "", "/o/r/commit/dd95cdc");
   loadCommitFixture("lists");
@@ -64,10 +72,27 @@ describe("showCommitMessage", () => {
     show();
     runIdle();
 
-    expect(box().previousElementSibling?.matches(".gh-prism-commit-message.markdown-body")).toBe(
-      true,
-    );
+    const shown = box().previousElementSibling as HTMLElement | null;
+    expect(shown?.matches(".gh-prism-commit-message")).toBe(true);
+    expect(shown?.querySelector(".gh-prism-commit-message-body.markdown-body")).not.toBeNull();
+    expect(shown?.dataset.view).toBe("rendered");
     expect(shows(box())).toBe(false);
+    expect(box().outerHTML).toBe(before);
+  });
+
+  it("opens on GitHub's box, unchanged, when the tab last picked plain text", () => {
+    choice.view = "plaintext";
+    const before = box().outerHTML;
+
+    show();
+    runIdle();
+
+    const shown = box().previousElementSibling;
+    expect(shown?.matches(".gh-prism-commit-message")).toBe(true);
+    expect(shows(box())).toBe(true);
+    const body = shown?.querySelector(".gh-prism-commit-message-body");
+    if (!body) throw new Error("no body");
+    expect(shows(body)).toBe(false);
     expect(box().outerHTML).toBe(before);
   });
 
@@ -153,7 +178,7 @@ describe("showCommitMessage across navigation", () => {
       window,
       {
         onVisit: () => (page, signal) =>
-          showCommitMessage(page, signal, { afterSections: (task) => task() }),
+          showCommitMessage(page, signal, { afterSections: (task) => task(), choice, save }),
         onMissing: () => {},
       },
       controller.signal,

@@ -28,6 +28,12 @@ export const diffstatView = storage.defineItem<DiffstatView>("sync:diffstatView"
   fallback: "breakout",
 });
 
+/** Which view a commit page's message opens on: rendered as Markdown, or GitHub's own box. */
+export type CommitMessageView = "rendered" | "plaintext";
+export const commitMessageView = storage.defineItem<CommitMessageView>("sync:commitMessageView", {
+  fallback: "rendered",
+});
+
 /**
  * Whether the user dismissed the notice on GitHub's classic Files changed page; kept on this
  * computer only.

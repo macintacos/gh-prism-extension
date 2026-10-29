@@ -10,7 +10,7 @@ import { showHeaderTab, showVisit } from "../../entrypoints/content/visit/land";
 import { readCodeOwners, readPrReviewers } from "../../utils/github/code-owners";
 import { readFilesRoute } from "../../utils/github/files-route";
 import { intentFor } from "../../utils/intent/read";
-import { type DiffstatView, whatsNewSeen } from "../../utils/prefs";
+import { type CommitMessageView, type DiffstatView, whatsNewSeen } from "../../utils/prefs";
 import { routedFetch } from "../fixtures/fetch";
 import {
   byId,
@@ -162,6 +162,61 @@ describe("content script", () => {
       expect(views).toEqual([opens]);
     },
   );
+
+  it.each<{ saved?: unknown; opens: CommitMessageView }>([
+    { saved: "plaintext", opens: "plaintext" },
+    { saved: "raw", opens: "rendered" },
+    { opens: "rendered" },
+  ])("opens a commit's message on the $opens view (saved: $saved)", async ({ saved, opens }) => {
+    // Raw key on purpose, so the test outlives a move to typed storage items.
+    if (saved !== undefined) await fakeBrowser.storage.sync.set({ commitMessageView: saved });
+    history.replaceState(null, "", "/o/r/commit/dd95cdc");
+    loadCommitFixture();
+
+    await run();
+
+    expect(vi.mocked(showCommitMessage).mock.calls[0]?.[2].choice.view).toBe(opens);
+  });
+
+  it("opens a commit's message rendered when reading the saved view fails", async () => {
+    const failure = new Error("context invalidated");
+    vi.spyOn(fakeBrowser.storage.sync, "get").mockRejectedValue(failure);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    history.replaceState(null, "", "/o/r/commit/dd95cdc");
+    loadCommitFixture();
+
+    await run();
+
+    expect(vi.mocked(showCommitMessage).mock.calls[0]?.[2].choice.view).toBe("rendered");
+    expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
+  });
+
+  it("saves the commit message view the user picks", async () => {
+    history.replaceState(null, "", "/o/r/commit/dd95cdc");
+    loadCommitFixture();
+
+    await run();
+    vi.mocked(showCommitMessage).mock.calls[0]?.[2].save("plaintext");
+
+    await vi.waitFor(async () =>
+      expect(await fakeBrowser.storage.sync.get("commitMessageView")).toEqual({
+        commitMessageView: "plaintext",
+      }),
+    );
+  });
+
+  it("logs a failed commit message view save instead of throwing it", async () => {
+    const failure = new Error("quota");
+    vi.spyOn(fakeBrowser.storage.sync, "set").mockRejectedValue(failure);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    history.replaceState(null, "", "/o/r/commit/dd95cdc");
+    loadCommitFixture();
+
+    await run();
+    vi.mocked(showCommitMessage).mock.calls[0]?.[2].save("plaintext");
+
+    await vi.waitFor(() => expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure));
+  });
 
   it("opens a commit, after a reload, on the view a pull request switched to", async () => {
     await run();

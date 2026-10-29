@@ -1,8 +1,10 @@
 /**
  * Shows a commit page's message rendered as GitHub-flavored Markdown in place of GitHub's
  * preformatted box, which stays in the page, hidden, so it shows again unchanged on abort.
+ * GitHub's box shows instead when the tab last picked plain text.
  */
 
+import type { CommitMessageView } from "@/utils/prefs";
 import { type CommitMessage, type FilesPage, findCommitMessage } from "../files-page";
 import { el } from "../ui/dom";
 import { renderCommitMessage } from "./message";
@@ -15,6 +17,17 @@ export interface CommitMessageOptions {
    * and then once the browser is idle, so the message never holds up the sidebar or the diffs.
    */
   readonly afterSections: (task: () => void) => void;
+  readonly choice: CommitMessageChoice;
+  /** Remembers a view the switch picked. */
+  readonly save: (view: CommitMessageView) => void;
+}
+
+/**
+ * Which view a commit's message shows; one per browser tab, shared by every page in it, so a
+ * switch carries to the next commit.
+ */
+export interface CommitMessageChoice {
+  view: CommitMessageView;
 }
 
 /**
@@ -24,13 +37,13 @@ export interface CommitMessageOptions {
 export function showCommitMessage(
   page: FilesPage,
   signal: AbortSignal,
-  { afterSections }: CommitMessageOptions,
+  { afterSections, choice }: CommitMessageOptions,
 ): void {
   afterSections(() => {
     const message = findCommitMessage(page);
     if (signal.aborted || !message) return;
     const nodes = renderedOrWarn(page.sidebar.ownerDocument, message);
-    if (nodes) standIn(page, message.box, nodes, signal);
+    if (nodes) standIn(page, message.box, nodes, signal, { choice });
   });
 }
 
@@ -48,14 +61,26 @@ function renderedOrWarn(doc: Document, message: CommitMessage): Node[] | undefin
  * Mounts `nodes` just before `page`'s message box, following GitHub's re-renders of it, until
  * `signal` aborts.
  */
-function standIn(page: FilesPage, box: Element, nodes: Node[], signal: AbortSignal): void {
+function standIn(
+  page: FilesPage,
+  box: Element,
+  nodes: Node[],
+  signal: AbortSignal,
+  { choice }: Pick<CommitMessageOptions, "choice">,
+): void {
   const doc = page.sidebar.ownerDocument;
   const container = el(
     doc,
     "div",
-    "gh-prism-commit-message markdown-body tw:px-3 tw:py-2",
-    ...nodes,
+    "gh-prism-commit-message tw:flex tw:items-start tw:justify-end",
+    el(
+      doc,
+      "div",
+      "gh-prism-commit-message-body markdown-body tw:flex-1 tw:min-w-0 tw:px-3 tw:py-2",
+      ...nodes,
+    ),
   );
+  container.dataset.view = choice.view;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
 
   const follow = () => {
