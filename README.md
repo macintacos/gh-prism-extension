@@ -70,11 +70,11 @@ how to get the new tab. Once you close the dialog, it stays closed, and
   to make it wider or narrower. A switch beside it shows the message's plain text instead,
   and gh-prism opens every commit in the view you last picked. A hide button beside the
   switch hides the message on that commit only, until you show it again.
-- On a commit's page, **Previous** and **Next** beside the commit's SHA step to its parent
-  and to the commit that follows it. Next goes to the earliest commit on the default
+- On a commit's page, **Older** and **Newer** beside the commit's SHA step to its parent
+  and to the commit that follows it. Newer goes to the earliest commit on the default
   branch built on this one. For a commit only on another branch, it goes to the next newer
-  commit in that branch's history. After you step back with Previous, Next returns to the
-  commit you came from, until you reload the tab. A button that has nowhere to go stays
+  commit in that branch's history. After you step back with Older, Newer returns to the
+  commit you came from, until you reload the tab. A link that has nowhere to go stays
   greyed out, and hovering or focusing it says why.
 
 ## Install

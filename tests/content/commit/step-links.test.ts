@@ -33,7 +33,7 @@ beforeEach(() => {
 });
 
 describe("showStepLinks", () => {
-  it("adds Previous and Next after GitHub's copy button, in the row naming the parent", () => {
+  it("adds Older and Newer after GitHub's copy button, in the row naming the parent", () => {
     show(new Promise(() => {}));
 
     const steps = parentsRow()?.lastElementChild;
@@ -44,15 +44,15 @@ describe("showStepLinks", () => {
     );
   });
 
-  it("links Previous to the commit's first parent, named by its short SHA", () => {
+  it("links Older to the commit's first parent, named by its short SHA", () => {
     show(new Promise(() => {}));
 
     expect(previous()?.getAttribute("href")).toBe(`/cli/cli/commit/${PARENT}`);
-    expect(previous()?.getAttribute("aria-label")).toMatch(/^Previous commit\b.*\b9eb4db2$/);
+    expect(previous()?.getAttribute("aria-label")).toMatch(/^Older commit\b.*\b9eb4db2$/);
     expect(sawParent).toHaveBeenCalledWith(PARENT);
   });
 
-  it("holds Previous off on a root commit, saying it is the first", () => {
+  it("holds Older off on a root commit, saying it is the first", () => {
     const row = parentsRow();
     if (!row) throw new Error("fixture has no parents row");
     row.innerHTML = '0 parents <!-- --> commit <span class="fgColor-default">553c207</span>';
@@ -60,11 +60,11 @@ describe("showStepLinks", () => {
     show(new Promise(() => {}));
 
     expect(heldOff(previous())).toBe(true);
-    expect(previous()?.getAttribute("aria-label")).toMatch(/^Previous commit\b.*\bfirst\b/);
+    expect(previous()?.getAttribute("aria-label")).toMatch(/^Older commit\b.*\bfirst\b/);
     expect(sawParent).not.toHaveBeenCalled();
   });
 
-  it("holds Next off while its read is out, then links it to the commit that follows", async () => {
+  it("holds Newer off while its read is out, then links it to the commit that follows", async () => {
     let land: (next: NextCommit) => void = () => {};
     show(new Promise((resolve) => (land = resolve)));
 
@@ -77,26 +77,26 @@ describe("showStepLinks", () => {
     expect(next()?.getAttribute("href")).toBe(
       "/cli/cli/commit/0cf1092493af067646fc5f3db9421c6a6ec9c938",
     );
-    expect(next()?.getAttribute("aria-label")).toMatch(/^Next commit\b.*\b0cf1092$/);
+    expect(next()?.getAttribute("aria-label")).toMatch(/^Newer commit\b.*\b0cf1092$/);
   });
 
-  it("holds Next off at a branch's newest commit, naming the branch", async () => {
+  it("holds Newer off at a branch's newest commit, naming the branch", async () => {
     show(Promise.resolve({ kind: "newest", branch: "attester/multi-tenant" }));
     await settled();
 
     expect(heldOff(next())).toBe(true);
-    expect(next()?.getAttribute("aria-label")).toMatch(/^Next commit\b.*attester\/multi-tenant/);
+    expect(next()?.getAttribute("aria-label")).toMatch(/^Newer commit\b.*attester\/multi-tenant/);
   });
 
   it.each([
     ["nothing is found", { kind: "unknown" } as const],
     ["the read fails", undefined],
-  ])("holds Next off when %s", async (_, read) => {
+  ])("holds Newer off when %s", async (_, read) => {
     show(Promise.resolve(read));
     await settled();
 
     expect(heldOff(next())).toBe(true);
-    expect(next()?.getAttribute("aria-label")).toMatch(/^Next commit\b/);
+    expect(next()?.getAttribute("aria-label")).toMatch(/^Newer commit\b/);
   });
 
   it("takes the links away once the visit aborts, before a late read lands", async () => {

@@ -1,6 +1,6 @@
 /**
- * Adds Previous and Next links to a commit page's row naming its parent and SHA. Previous goes to
- * the first parent, which the row names; Next waits on a read of what follows, held off until it
+ * Adds Older and Newer links to a commit page's row naming its parent and SHA. Older goes to
+ * the first parent, which the row names; Newer waits on a read of what follows, held off until it
  * lands, so both links hold their place from the visit's start.
  */
 
@@ -30,9 +30,9 @@ const CHEVRON_RIGHT =
   "M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z";
 
 /**
- * Adds Previous and Next after the copy button in `page`'s commit header row, until `signal`
- * aborts. Previous links to the commit's first parent, which `sawParent` hears, or is held off on a
- * root commit; Next is held off until `next` lands, then links to the commit that follows or says
+ * Adds Older and Newer after the copy button in `page`'s commit header row, until `signal`
+ * aborts. Older links to the commit's first parent, which `sawParent` hears, or is held off on a
+ * root commit; Newer is held off until `next` lands, then links to the commit that follows or says
  * why there is none. Adds nothing on a page without the row.
  */
 export function showStepLinks(
@@ -45,13 +45,8 @@ export function showStepLinks(
   const doc = page.sidebar.ownerDocument;
   const pathOf = (sha: string) => `/${commit.owner}/${commit.repo}/commit/${sha}`;
 
-  const previous = stepLink(
-    doc,
-    "gh-prism-commit-previous",
-    icon(doc, CHEVRON_LEFT, {}),
-    "Previous",
-  );
-  const following = stepLink(doc, "gh-prism-commit-next", "Next", icon(doc, CHEVRON_RIGHT, {}));
+  const previous = stepLink(doc, "gh-prism-commit-previous", icon(doc, CHEVRON_LEFT, {}), "Older");
+  const following = stepLink(doc, "gh-prism-commit-next", "Newer", icon(doc, CHEVRON_RIGHT, {}));
   const steps = el(
     doc,
     "span",
@@ -62,14 +57,14 @@ export function showStepLinks(
   const style = Object.assign(doc.createElement("style"), { textContent: css });
 
   if (header.parent) {
-    point(previous, "Previous", pathOf(header.parent), header.parent);
+    point(previous, "Older", pathOf(header.parent), header.parent);
     sawParent(header.parent);
-  } else holdOff(previous, "Previous", "none, this is the first commit");
-  holdOff(following, "Next", "looking it up");
+  } else holdOff(previous, "Older", "none, this is the first commit");
+  holdOff(following, "Newer", "looking it up");
   void next.then((found) => {
     if (signal.aborted) return;
-    if (found?.kind === "commit") point(following, "Next", pathOf(found.sha), found.sha);
-    else holdOff(following, "Next", reasonFor(found));
+    if (found?.kind === "commit") point(following, "Newer", pathOf(found.sha), found.sha);
+    else holdOff(following, "Newer", reasonFor(found));
   });
 
   header.row.append(steps);

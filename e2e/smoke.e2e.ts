@@ -490,7 +490,7 @@ test("a subject-only commit keeps GitHub's box, with no column or switch", async
   await expect(page.locator(MESSAGE_BOX)).toBeVisible();
 });
 
-test("a commit's Previous and Next hold their place from its first frame, and step to its parent and back", async ({
+test("a commit's Older and Newer hold their place from its first frame, and step to its parent and back", async ({
   context,
   page,
 }) => {
@@ -498,7 +498,7 @@ test("a commit's Previous and Next hold their place from its first frame, and st
   const parentUrl = "https://github.com/o/r/commit/9f707bc6d2d249be450352203059fb2a22bce9dd";
   await serve(context, COMMIT_URL, commitBodyWith(readFixture("commit-message-lists.html")));
   await serve(context, parentUrl, commitBodyWith(readFixture("commit-message-mention.html")));
-  // Holds the sections back, so a read of Next that doesn't wait for them shows.
+  // Holds the sections back, so a read of Newer that doesn't wait for them shows.
   await context.route(`${COMMIT_URL}.diff`, async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 900));
     await route.fulfill({ status: 404 });
@@ -529,7 +529,7 @@ test("a commit's Previous and Next hold their place from its first frame, and st
     },
   );
   await page.setViewportSize({ width: 1440, height: 900 });
-  // Records, every frame from the links' first, where they sit and where Next goes.
+  // Records, every frame from the links' first, where they sit and where Newer goes.
   await page.addInitScript(() => {
     const frames: { at: string; next: string | null }[] = [];
     Object.assign(window, { stepFrames: frames });
@@ -544,8 +544,8 @@ test("a commit's Previous and Next hold their place from its first frame, and st
     };
     requestAnimationFrame(sample);
   });
-  const previous = page.getByRole("link", { name: /^Previous commit/ });
-  const next = page.getByRole("link", { name: /^Next commit/ });
+  const previous = page.getByRole("link", { name: /^Older commit/ });
+  const next = page.getByRole("link", { name: /^Newer commit/ });
 
   loadedAt = Date.now();
   await page.goto(COMMIT_URL);

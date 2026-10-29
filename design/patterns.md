@@ -135,9 +135,9 @@ the state. Focus stays on it across the flip. It holds one Octicon in both state
   the button that shows the message again take the same form. `commit/message-view.ts`
   builds all three.
 
-The Previous and Next links beside a commit's SHA take that form too, as links, with
-Next's chevron after its label. Their tooltip names the commit each goes to, which the
-label doesn't. A link with nowhere to go keeps its place, greyed out as Primer's disabled
+The Older and Newer links beside a commit's SHA take that form too, as links, with Newer's
+chevron after its label. Their tooltip names the commit each goes to, which the label
+doesn't. A link with nowhere to go keeps its place, greyed out as Primer's disabled
 Button, and its tooltip says why. `commit/step-links.ts` builds them.
 
 ## Floating surfaces

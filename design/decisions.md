@@ -6,7 +6,7 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
-## 2026-10-29: Previous and Next on a commit's page
+## 2026-10-29: Older and Newer on a commit's page
 
 - **Compared:**
   - for where they sit, the end of the commit card's row naming its parents and SHA, after
@@ -17,31 +17,33 @@ at the top, dated.
     request's commit;
   - for a link with nowhere to go, hiding it, or holding it in place, greyed out, with a
     reason;
-  - for what Next means, the next commit along the default branch's first parents; the
+  - for what Newer means, the next commit along the default branch's first parents; the
     commit GitHub's commits list shows just above this one; or the earliest commit with
     this one as a parent.
 - **Won:**
-  - Two links after the copy button: "Previous", led by Octicons `chevron-left`, and
-    "Next", followed by `chevron-right`, styled as Primer's small invisible Button.
-  - Each link is named "Previous commit: <short SHA>" or "Next commit: <short SHA>", and
+  - Two links after the copy button: "Older", led by Octicons `chevron-left`, and "Newer",
+    followed by `chevron-right`, styled as Primer's small invisible Button.
+  - Each link is named "Older commit: <short SHA>" or "Newer commit: <short SHA>", and
     Primer's tooltip shows that name on hover and focus.
   - A link with nowhere to go keeps its place without an `href`. It is `aria-disabled`,
     still focusable, and its tooltip says why: the first commit, the newest on a named
-    branch, or none found, which a failed read shows too. Next reads "looking it up" in
+    branch, or none found, which a failed read shows too. Newer reads "looking it up" in
     the same state while its read is out.
-  - Next is the earliest commit on the default branch with this one as a parent. When
+  - Newer is the earliest commit on the default branch with this one as a parent. When
     search finds none, it is the commit listed just above this one on the first branch
-    GitHub names as holding it. After Previous, Next is the child the reader stepped back
+    GitHub names as holding it. After Older, Newer is the child the reader stepped back
     from.
 - **Why:**
-  - The row names the parent Previous goes to and the SHA both links step from. It shows
+  - The links first read "Previous" and "Next", which left unclear which way in time each
+    goes. "Older" and "Newer" name the direction.
+  - The row names the parent Older goes to and the SHA both links step from. It shows
     whether the message is in the column, above the diffs, hidden, or in GitHub's box, so
     the links never move with the message's controls. The title's row sits apart from the
     parent it would go to, and the diffs' toolbar would need a new GitHub selector.
   - The row's own copy button is an invisible IconButton, so invisible Buttons sit level
     with it, as the message's labelled controls do. A bordered group would outweigh the
     row's muted text.
-  - A link that appears or vanishes as Next resolves moves the row, and the maintainer
+  - A link that appears or vanishes as Newer resolves moves the row, and the maintainer
     dislikes controls appearing and disappearing. Held in place, it keeps the row still
     and says why it goes nowhere. It stays focusable, as Primer's inactive buttons do, so
     a keyboard reaches the reason.
@@ -54,11 +56,11 @@ at the top, dated.
     child. It serves only where search finds nothing: off the default branch, where a
     branch's history is mostly a line, and at the default branch's newest commits.
   - A commit can have several children: cli/cli@9eb4db2 is the parent of both a pull
-    request's commit and the merge that took it in. No single Next undoes every Previous,
-    so the tab remembers the child the reader came from.
-- **Known limits:** The commits list stands in for search only on its newest page, so Next
-  finds none for a commit past a branch's newest 35 when search doesn't cover it: off the
-  default branch, or on it before search indexes a push.
+    request's commit and the merge that took it in. No single Newer undoes every Older, so
+    the tab remembers the child the reader came from.
+- **Known limits:** The commits list stands in for search only on its newest page, so
+  Newer finds none for a commit past a branch's newest 35 when search doesn't cover it:
+  off the default branch, or on it before search indexes a push.
 
 ## 2026-10-29: Labelled controls for a commit's message
 
