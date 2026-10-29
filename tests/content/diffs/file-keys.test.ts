@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { linkTo } from "../../fixtures/files-page";
-import { mountsVisit } from "../../fixtures/visit";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { showStepLinks } from "../../../entrypoints/content/commit/step-links";
+import { foundPage, linkTo, loadCommitFixture } from "../../fixtures/files-page";
+import { afterDebounce, mountsVisit } from "../../fixtures/visit";
 
 // Chrome content scripts run in an isolated world whose `customElements` is null, so every test
 // here mounts the view that way. Hoisted above the imports, which load @pierre/trees.
@@ -11,9 +12,13 @@ vi.hoisted(() => {
 
 const { remountWith } = mountsVisit();
 
-/** Presses `key` on `target`, as a reviewer does. */
-function press(key: string, target: Element = document.body): KeyboardEvent {
-  const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+/** Presses `key` on `target` with `init`'s modifiers, as a reviewer does. */
+function press(
+  key: string,
+  target: Element = document.body,
+  init: KeyboardEventInit = {},
+): KeyboardEvent {
+  const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
   target.dispatchEvent(event);
   return event;
 }
@@ -99,5 +104,33 @@ describe("j and k", () => {
 
     expect(event.defaultPrevented).toBe(false);
     expect(clicked()).toEqual([]);
+  });
+
+  it("leave Shift+J and Shift+K to a commit's Older and Newer, which leave j and k alone", async () => {
+    loadCommitFixture("sha");
+    remountWith();
+    const steps = new AbortController();
+    onTestFinished(() => steps.abort());
+    showStepLinks(foundPage(), steps.signal, {
+      commit: { kind: "commit", owner: "cli", repo: "cli", headSha: "189706b" },
+      next: Promise.resolve({ kind: "commit", sha: "0cf1092493af067646fc5f3db9421c6a6ec9c938" }),
+      sawParent: () => {},
+    });
+    await afterDebounce();
+    const followed = () => vi.mocked(HTMLAnchorElement.prototype.click).mock.contexts;
+
+    press("J", document.body, { shiftKey: true });
+    press("K", document.body, { shiftKey: true });
+
+    expect(followed()).toEqual([
+      document.querySelector(".gh-prism-commit-previous"),
+      document.querySelector(".gh-prism-commit-next"),
+    ]);
+    expect(location.hash).toBe("");
+
+    press("j");
+
+    expect(followed()).toHaveLength(2);
+    expect(location.hash).toMatch(/^#diff-/);
   });
 });

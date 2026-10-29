@@ -32,6 +32,11 @@
     visibility 120ms;
 }
 
+/* A held-off link's key does nothing, so only a link that goes somewhere names it. */
+.gh-prism-commit-step[href]::after {
+  content: attr(aria-label) " (" attr(aria-keyshortcuts) ")";
+}
+
 .gh-prism-commit-step:is(:hover, :focus-visible)::after {
   opacity: 1;
   visibility: visible;
@@ -40,5 +45,12 @@
 @media (prefers-reduced-motion: reduce) {
   .gh-prism-commit-step::after {
     transition: none;
+  }
+}
+
+/* A touch screen has no keyboard to press the key on. */
+@media (hover: none) and (pointer: coarse) {
+  .gh-prism-commit-key {
+    display: none;
   }
 }

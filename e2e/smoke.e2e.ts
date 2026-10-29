@@ -573,6 +573,51 @@ test("a commit's Older and Newer hold their place from its first frame, and step
   await expect(page).toHaveURL(COMMIT_URL);
 });
 
+test("Shift+J steps a commit to its parent and Shift+K back, while a text field types them", async ({
+  context,
+  page,
+}) => {
+  // commit-message-lists.html's card names this first parent.
+  const parentUrl = "https://github.com/o/r/commit/9f707bc6d2d249be450352203059fb2a22bce9dd";
+  await serve(context, COMMIT_URL, commitBodyWith(readFixture("commit-message-lists.html")));
+  await serve(context, parentUrl, commitBodyWith(readFixture("commit-message-mention.html")));
+  // A routed page loads in full, so the parent's Newer comes from search, not the tab's memory.
+  await context.route(
+    (url) => url.pathname === "/search",
+    (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          payload: { blackbirdSearchRoute: { results: [{ sha: COMMIT_URL.split("/").at(-1) }] } },
+        }),
+      }),
+  );
+  // A routed page has no charset, so the label's ellipsis decodes as Windows-1252.
+  const filter = page.getByRole("textbox", { name: /^Filter files/ });
+  const previous = page.getByRole("link", { name: /^Older commit/ });
+  const next = page.getByRole("link", { name: /^Newer commit/ });
+
+  await page.goto(COMMIT_URL);
+  await expect(previous).toHaveAttribute("href", /9f707bc/);
+  await filter.press("Shift+J");
+
+  await expect(filter).toHaveValue("J");
+  await expect(page).toHaveURL(COMMIT_URL);
+  expect(await previous.evaluate((link) => getComputedStyle(link, "::after").content)).toContain(
+    "Shift+J",
+  );
+
+  await filter.blur();
+  await page.keyboard.press("Shift+J");
+
+  await expect(page).toHaveURL(parentUrl);
+  await expect(next).toHaveAttribute("href", new URL(COMMIT_URL).pathname);
+
+  await page.keyboard.press("Shift+K");
+
+  await expect(page).toHaveURL(COMMIT_URL);
+});
+
 test("a commit's message column resizes from its edge by mouse and keyboard, and keeps its width after a reload", async ({
   context,
   page,

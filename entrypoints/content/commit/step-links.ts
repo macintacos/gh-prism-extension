@@ -1,13 +1,13 @@
 /**
- * Adds Older and Newer links to a commit page's row naming its parent and SHA. Older goes to
- * the first parent, which the row names; Newer waits on a read of what follows, held off until it
- * lands, so both links hold their place from the visit's start.
+ * Adds Older and Newer links to a commit page's row naming its parent and SHA, which Shift+J and
+ * Shift+K follow. Older goes to the first parent, which the row names; Newer waits on a read of
+ * what follows, held off until it lands, so both links hold their place from the visit's start.
  */
 
 import type { NextCommit } from "@/utils/github/next-commit";
 import type { CommitHead } from "@/utils/github/pr-ref";
 import { type FilesPage, findCommitHeader } from "../files-page";
-import { el, icon } from "../ui/dom";
+import { el, icon, isEditable } from "../ui/dom";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./step-links.css?inline";
 
@@ -30,10 +30,11 @@ const CHEVRON_RIGHT =
   "M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z";
 
 /**
- * Adds Older and Newer after the copy button in `page`'s commit header row, until `signal`
- * aborts. Older links to the commit's first parent, which `sawParent` hears, or is held off on a
- * root commit; Newer is held off until `next` lands, then links to the commit that follows or says
- * why there is none. Adds nothing on a page without the row.
+ * Adds Older and Newer after the copy button in `page`'s commit header row, with Shift+J and
+ * Shift+K following them, until `signal` aborts. Older links to the commit's first parent, which
+ * `sawParent` hears, or is held off on a root commit; Newer is held off until `next` lands, then
+ * links to the commit that follows or says why there is none. Adds nothing on a page without the
+ * row.
  */
 export function showStepLinks(
   page: FilesPage,
@@ -45,8 +46,21 @@ export function showStepLinks(
   const doc = page.sidebar.ownerDocument;
   const pathOf = (sha: string) => `/${commit.owner}/${commit.repo}/commit/${sha}`;
 
-  const previous = stepLink(doc, "gh-prism-commit-previous", icon(doc, CHEVRON_LEFT, {}), "Older");
-  const following = stepLink(doc, "gh-prism-commit-next", "Newer", icon(doc, CHEVRON_RIGHT, {}));
+  // j moves down a list, and older commits sit lower in one.
+  const previous = stepLink(
+    doc,
+    "gh-prism-commit-previous",
+    "J",
+    icon(doc, CHEVRON_LEFT, {}),
+    "Older",
+  );
+  const following = stepLink(
+    doc,
+    "gh-prism-commit-next",
+    "K",
+    "Newer",
+    icon(doc, CHEVRON_RIGHT, {}),
+  );
   const steps = el(
     doc,
     "span",
@@ -67,6 +81,7 @@ export function showStepLinks(
     else holdOff(following, "Newer", reasonFor(found));
   });
 
+  followStepKeys(doc, signal, [previous, following]);
   header.row.append(steps);
   doc.head.append(style);
   signal.addEventListener("abort", () => {
@@ -79,16 +94,53 @@ export function showStepLinks(
 const reasonFor = (found: Exclude<NextCommit, { kind: "commit" }> | undefined): string =>
   found?.kind === "newest" ? `none, this is the newest on ${found.branch}` : "none found";
 
-/** Primer's small invisible Button, as a link holding `content`, an icon and its label. */
-function stepLink(doc: Document, name: string, ...content: (Node | string)[]): HTMLAnchorElement {
+/**
+ * Primer's small invisible Button, as a link holding `content`, an icon and its label, then a
+ * keycap for Shift and `key`.
+ */
+function stepLink(
+  doc: Document,
+  name: string,
+  key: string,
+  ...content: (Node | string)[]
+): HTMLAnchorElement {
+  // GitHub's monospace stack draws ⇧ at half the letter's height; its sans stack, at full height.
+  const shift = el(doc, "span", "tw:[font-family:var(--fontStack-sansSerif)]", "⇧");
+  // GitHub's own kbd rule, which Markdown's <kbd> takes too, draws the keycap.
+  const keycap = el(doc, "kbd", "gh-prism-commit-key tw:text-inherit", shift, key);
+  keycap.setAttribute("aria-hidden", "true");
   const link = el(
     doc,
     "a",
     "gh-prism-commit-step tw:relative tw:inline-flex tw:items-center tw:gap-1 tw:h-[var(--control-small-size,28px)] tw:px-2 tw:rounded-medium tw:text-[color:var(--button-invisible-fgColor-rest)] tw:[font-family:var(--fontStack-sansSerif)] tw:text-body-small tw:font-medium tw:no-underline tw:hover:no-underline tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
     ...content,
+    keycap,
   );
   link.classList.add(name);
+  link.setAttribute("aria-keyshortcuts", `Shift+${key}`);
   return link;
+}
+
+/**
+ * Has each of `links` followed, as a click does, by the key its `aria-keyshortcuts` names, until
+ * `signal` aborts. Leaves alone a held-off link, a key typed into a field, a key pressed with
+ * another modifier, and a held key's repeats.
+ */
+function followStepKeys(
+  doc: Document,
+  signal: AbortSignal,
+  links: readonly HTMLAnchorElement[],
+): void {
+  const onKey = (event: KeyboardEvent) => {
+    if (!event.shiftKey || event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
+    const shortcut = `Shift+${event.key}`;
+    const link = links.find((step) => step.getAttribute("aria-keyshortcuts") === shortcut);
+    if (!link?.hasAttribute("href") || isEditable(event.target)) return;
+    event.preventDefault();
+    link.click();
+  };
+
+  doc.addEventListener("keydown", onKey, { capture: true, signal });
 }
 
 /** Links `link` to `path`, naming where it goes by `sha`'s short form. */

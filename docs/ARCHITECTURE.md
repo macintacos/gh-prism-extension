@@ -276,6 +276,17 @@ itself as the child of the parent its row names, and a visit to that parent take
 from the map with no request. So Older then Newer returns to where the reader started, for
 as long as the tab's content script runs; a full reload clears the map.
 
+Shift+J follows Older and Shift+K follows Newer. Each link names its key in
+`aria-keyshortcuts` and shows it as a keycap that GitHub's own `kbd` rule draws.
+`showStepLinks` listens for `keydown` on the document, in the capture phase as the `j` and
+`k` file keys do, until the visit aborts. It clicks the link whose `aria-keyshortcuts`
+matches the key, so GitHub's router follows it as it follows a click. It ignores a key
+pressed in a text field, which `isEditable` in
+[`ui/dom.ts`](../entrypoints/content/ui/dom.ts) detects for both the step links and the
+file keys. It also ignores a key pressed with Alt, Ctrl, or Meta, a held key's repeats, a
+capital letter typed without Shift, and a held-off link. The file keys compare `event.key`
+to lowercase `j` and `k`, so the two bindings never take the same key.
+
 ## The owner section
 
 `showOwnerSection` in

@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { showStepLinks } from "../../../entrypoints/content/commit/step-links";
 import type { NextCommit } from "../../../utils/github/next-commit";
 import type { CommitHead } from "../../../utils/github/pr-ref";
@@ -31,6 +31,8 @@ beforeEach(() => {
   sawParent = vi.fn();
   loadCommitFixture("sha");
 });
+
+afterEach(() => controller.abort());
 
 describe("showStepLinks", () => {
   it("adds Older and Newer after GitHub's copy button, in the row naming the parent", () => {
@@ -118,5 +120,116 @@ describe("showStepLinks", () => {
 
     expect(previous()).toBeNull();
     expect(next()).toBeNull();
+  });
+
+  it.each([
+    ["Older", previous, "Shift+J", "⇧J"],
+    ["Newer", next, "Shift+K", "⇧K"],
+  ])(
+    "shows %s's shortcut as a keycap after its label, hidden from assistive technology, which hears the shortcut instead",
+    (_, link, shortcut, keycap) => {
+      show(new Promise(() => {}));
+
+      expect(link()?.getAttribute("aria-keyshortcuts")).toBe(shortcut);
+      const key = link()?.querySelector("kbd");
+      expect(key?.textContent).toBe(keycap);
+      expect(key?.getAttribute("aria-hidden")).toBe("true");
+      expect(key?.parentElement?.lastElementChild).toBe(key);
+    },
+  );
+});
+
+/** Presses `key` on `target` with `init`'s modifiers, as a reader does. */
+function press(key: string, init: KeyboardEventInit = {}, target: Element = document.body) {
+  const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
+  target.dispatchEvent(event);
+  return event;
+}
+
+describe("Shift+J and Shift+K", () => {
+  let clicked: () => unknown[];
+
+  beforeEach(() => {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    clicked = () => click.mock.contexts;
+
+    return () => click.mockRestore();
+  });
+
+  it("follow Older with Shift+J, as a click does", () => {
+    show(new Promise(() => {}));
+
+    const event = press("J", { shiftKey: true });
+
+    expect(clicked()).toEqual([previous()]);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("follow Newer with Shift+K once it links to the commit that follows", async () => {
+    show(Promise.resolve({ kind: "commit", sha: "0cf1092493af067646fc5f3db9421c6a6ec9c938" }));
+    await settled();
+
+    press("K", { shiftKey: true });
+
+    expect(clicked()).toEqual([next()]);
+  });
+
+  it("do nothing while the link is held off", () => {
+    show(new Promise(() => {}));
+
+    const event = press("K", { shiftKey: true });
+
+    expect(clicked()).toEqual([]);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it.each([
+    ["an input", () => document.createElement("input")],
+    ["a textarea", () => document.createElement("textarea")],
+    [
+      "a contenteditable",
+      () => Object.assign(document.createElement("div"), { contentEditable: "true" }),
+    ],
+  ])("leave the key to %s, which types it", (_, create) => {
+    show(new Promise(() => {}));
+    const field = document.body.appendChild(create());
+
+    const event = press("J", { shiftKey: true }, field);
+
+    expect(clicked()).toEqual([]);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it.each(["altKey", "ctrlKey", "metaKey"])("ignore Shift+J with %s held", (modifier) => {
+    show(new Promise(() => {}));
+
+    press("J", { shiftKey: true, [modifier]: true });
+
+    expect(clicked()).toEqual([]);
+  });
+
+  it("ignore a held key's repeats, so holding it steps only once", () => {
+    show(new Promise(() => {}));
+
+    press("J", { shiftKey: true, repeat: true });
+
+    expect(clicked()).toEqual([]);
+  });
+
+  it("ignore J typed without Shift, as under Caps Lock", () => {
+    show(new Promise(() => {}));
+
+    press("J");
+
+    expect(clicked()).toEqual([]);
+  });
+
+  it("leave the keys alone once the visit aborts", () => {
+    show(new Promise(() => {}));
+
+    controller.abort();
+    press("J", { shiftKey: true });
+
+    expect(clicked()).toEqual([]);
   });
 });

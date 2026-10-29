@@ -75,7 +75,8 @@ how to get the new tab. Once you close the dialog, it stays closed, and
   branch built on this one. For a commit only on another branch, it goes to the next newer
   commit in that branch's history. After you step back with Older, Newer returns to the
   commit you came from, until you reload the tab. A link that has nowhere to go stays
-  greyed out, and hovering or focusing it says why.
+  greyed out, and hovering or focusing it says why. Press Shift+J for Older and Shift+K
+  for Newer, unless you're typing in a text field; each link shows its key.
 
 ## Install
 

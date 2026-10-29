@@ -6,6 +6,58 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-29: Shift+J and Shift+K for Older and Newer, with keycaps at rest
+
+- **Compared:**
+  - for the keys, Shift+J for Older and Shift+K for Newer, or the reverse;
+  - for where the key shows, in the tooltip alone, as every other control does, or as a
+    keycap on the link at rest too;
+  - for the keycap's text, "⇧J" or "Shift J"; and for the ⇧, the text glyph, set in the
+    keycap's monospace or in GitHub's sans stack, or an Octicon;
+  - for the keycap's look, Primer's KeybindingHint or GitHub's Markdown `<kbd>`, drawn by
+    GitHub's own `kbd` rule or by a copy of it in gh-prism's sheet;
+  - for where the keycap sits, last in each link, or between Newer's label and its
+    chevron;
+  - for how a tooltip names the key, in words, or with the glyph.
+- **Won:**
+  - Shift+J follows Older and Shift+K follows Newer, as a click does, so GitHub's router
+    takes the step as a soft navigation.
+  - Each link shows its key as a keycap at rest, last in the link: "‹ Older ⇧J" and "Newer
+    › ⇧K".
+  - The keycap is a `<kbd>` that GitHub's own `kbd` rule draws, the rule Markdown's
+    `<kbd>` renders with. gh-prism sets only its colour, to the link's, and sets its ⇧ in
+    GitHub's sans stack.
+  - The tooltip names the key in words, "(Shift+J)", and only on a link that goes
+    somewhere.
+  - The keys do nothing in a text field, with Alt, Ctrl, or Meta held, on a held key's
+    repeats, on a capital J or K typed without Shift, or on a held-off link.
+- **Why:**
+  - `j` moves down a list, and older commits sit lower in `git log` and in GitHub's
+    commits list. gh-prism's own `j` steps down the sidebar too.
+  - Bare `j` and `k` already step through files. GitHub binds `p` to the parent commit and
+    `o` to a merge's other parent on this page. Checked on a live commit page with
+    gh-prism off, GitHub binds neither Shift+J nor Shift+K, and the Refined GitHub browser
+    extension doesn't either.
+  - The maintainer asked for three things: keys a reader sees without hovering, the shift
+    symbol instead of the word so the keycap stays compact, and the look of Markdown's
+    `<kbd>`.
+  - GitHub's `kbd` rule already styles every `<kbd>` on the page, Markdown's included, so
+    a copy would repeat it and could drift from it. Taking the link's colour dims the
+    keycap with a held-off link. At rest that colour matches the `kbd` rule's to within a
+    shade.
+  - GitHub's monospace stack has no ⇧, so the browser draws it from a fallback face at
+    half the letter's height. GitHub's sans stack draws it at the letter's height, as
+    GitHub's own keybinding hints do. Octicons has no shift icon.
+  - Last in the link, one rule places both keycaps, and Newer's chevron stays beside its
+    label. Inside the link, the keycap shares the link's target and its dim.
+  - The tooltip's words spell out the ⇧ for a reader who doesn't know the glyph. A
+    held-off link's key does nothing, so its tooltip doesn't offer it.
+  - A capital J without Shift comes from Caps Lock, not from a reader asking to step, and
+    a held key would race through history.
+- **Known limits:** The keycap's look depends on GitHub's `kbd` rule. Without it, the key
+  shows as plain monospace text. Its edge is below the 3:1 floor, which `exceptions.md`
+  records.
+
 ## 2026-10-29: Older and Newer on a commit's page
 
 - **Compared:**
