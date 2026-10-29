@@ -172,8 +172,8 @@ export interface CommitMessage {
 
 /** `page`'s commit message box, or `undefined` on a kind without one or while it's missing. */
 export function findCommitMessage(page: FilesPage): CommitMessage | undefined {
-  const { commitMessage } = page.kind;
-  const box = commitMessage ? page.sidebar.ownerDocument.querySelector(commitMessage) : null;
+  const { commitMessage: selector } = page.kind;
+  const box = selector ? page.sidebar.ownerDocument.querySelector(selector) : null;
   const title = box?.querySelector(":scope > span:first-child > div");
   if (!box || !title) return undefined;
   return { box, title, body: box.querySelector(":scope > .extended-commit-description-container") };

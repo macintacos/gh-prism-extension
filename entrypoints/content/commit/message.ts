@@ -143,14 +143,14 @@ const write = (context: Context, mode: Mode, value: string): Content =>
 /** Text with each placeholder as a copy of GitHub's link. */
 function linked({ links }: Context, value: string): Content {
   const content: Content = [];
-  let last = 0;
+  let textStart = 0;
   for (const match of value.matchAll(PLACEHOLDER)) {
-    content.push(value.slice(last, match.index));
+    content.push(value.slice(textStart, match.index));
     const link = links[Number(match[1])];
     if (link) content.push(link.cloneNode(true));
-    last = match.index + match[0].length;
+    textStart = match.index + match[0].length;
   }
-  content.push(value.slice(last));
+  content.push(value.slice(textStart));
   return content.filter((part) => part !== "");
 }
 
@@ -193,16 +193,16 @@ function itemOf(context: Context, item: ListItem, loose: boolean, mode: Mode): H
   );
   if (item.checked == null) return el(doc, "li", "", ...content);
 
-  const box = el(doc, "input", "task-list-item-checkbox");
-  box.type = "checkbox";
-  box.disabled = true;
-  box.checked = item.checked;
+  const checkbox = el(doc, "input", "task-list-item-checkbox");
+  checkbox.type = "checkbox";
+  checkbox.disabled = true;
+  checkbox.checked = item.checked;
   const [first] = content;
   if (loose && first instanceof Element && first.localName === "p") {
-    first.prepend(box, " ");
+    first.prepend(checkbox, " ");
     return el(doc, "li", "task-list-item", ...content);
   }
-  return el(doc, "li", "task-list-item", box, " ", ...content);
+  return el(doc, "li", "task-list-item", checkbox, " ", ...content);
 }
 
 function listOf(context: Context, node: List, mode: Mode): HTMLElement {

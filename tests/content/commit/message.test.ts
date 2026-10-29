@@ -229,8 +229,8 @@ describe("renderCommitMessage", () => {
     const issue = issueLink() as HTMLAnchorElement;
     const root = render(bodyOf(issue, ` see ${forged} and [x](${forged})`));
 
-    const githubs = [...root.querySelectorAll("a")].filter((a) => a.href === issue.href);
-    expect(githubs.map((a) => a.textContent)).toEqual([issue.textContent]);
+    const githubLinks = [...root.querySelectorAll("a")].filter((a) => a.href === issue.href);
+    expect(githubLinks.map((a) => a.textContent)).toEqual([issue.textContent]);
   });
 
   it("keeps a footnote's reference and definition as text", () => {

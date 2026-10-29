@@ -59,9 +59,9 @@ function standIn(page: FilesPage, box: Element, nodes: Node[], signal: AbortSign
   const style = Object.assign(doc.createElement("style"), { textContent: css });
 
   const follow = () => {
-    const current = findCommitMessage(page)?.box;
-    if (!current) container.remove();
-    else if (container.nextElementSibling !== current) current.before(container);
+    const currentBox = findCommitMessage(page)?.box;
+    if (!currentBox) container.remove();
+    else if (container.nextElementSibling !== currentBox) currentBox.before(container);
   };
 
   follow();
