@@ -1,8 +1,56 @@
 #!/usr/bin/env bash
 #MISE description="Build the extension and open it in the dedicated dev Chrome profile, reloading on change"
+#USAGE flag "-y --yes" help="Close a Chrome that already holds the dev profile without asking"
 
 set -euo pipefail
 
-# A fresh clone may skip setup; postinstall (wxt prepare) generates .wxt/.
-bun install
-bun run dev
+# Keep in sync with chromeProfile in wxt.config.ts.
+profile="$HOME/.local/share/gh-prism-extension/chrome-profile"
+
+# The browser process holding the dev profile, if any; its helper processes carry --type=.
+profile_holder() {
+	local listing rc=0
+	listing=$(pgrep -lf -- "--user-data-dir=$profile( |\$)") || rc=$?
+	# pgrep exits 1 when nothing matches.
+	((rc <= 1)) || return "$rc"
+	awk 'NF && !/ --type=/ { print $1; exit }' <<<"$listing"
+}
+
+# A second Chrome on a held profile hands off to the first and exits, which web-ext reports only as
+# "CDP connection closed before response to Extensions.loadUnpacked".
+free_profile() {
+	local pid answer
+	pid=$(profile_holder)
+	[[ -n $pid ]] || return 0
+
+	printf '%s\n' "! The dev profile is already open in Chrome (pid $pid), and Chrome won't open a profile twice." >&2
+	echo "  It's another \`mise run dev\`, or a dev window an earlier run left open." >&2
+	if [[ ${usage_yes:-false} != true ]]; then
+		if [[ ! -t 0 ]]; then
+			echo "Quit that Chrome and run \`mise run dev\` again, or run \`mise run dev --yes\` to close it." >&2
+			exit 1
+		fi
+		read -r -p "Close that Chrome and continue? [y/N] " answer || exit 1
+		[[ $answer == [yY]* ]] || exit 1
+	fi
+
+	kill "$pid" || :
+	for _ in {1..50}; do
+		if ! kill -0 "$pid" 2>/dev/null; then
+			printf '%s\n' "Closed Chrome (pid $pid)." >&2
+			return 0
+		fi
+		sleep 0.2
+	done
+	printf '%s\n' "Chrome (pid $pid) is still running. Quit it, then run \`mise run dev\` again." >&2
+	exit 1
+}
+
+main() {
+	free_profile
+	# A fresh clone may skip setup; postinstall (wxt prepare) generates .wxt/.
+	bun install
+	bun run dev
+}
+
+main "$@"

@@ -6,6 +6,7 @@ import { defineConfig } from "wxt";
 
 // Outside the repo so the GitHub login survives `wxt clean` and is shared by every worktree, so only one
 // `mise run dev` can hold it at a time. web-ext passes --use-mock-keychain: its cookies are not Keychain-protected.
+// Keep in sync with .mise/tasks/dev, which closes a Chrome already holding it.
 const chromeProfile = join(homedir(), ".local/share/gh-prism-extension/chrome-profile");
 
 export default defineConfig({

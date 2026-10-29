@@ -28,6 +28,12 @@ changes. Chrome runs on a dedicated profile at
 GitHub sign-in survives `wxt clean` and is shared by every worktree. Because every
 worktree uses the same profile, only one dev session runs at a time.
 
+If another Chrome already has the dev profile open, `mise run dev` names its process ID
+and offers to close it before it builds, because Chrome won't open a profile twice. That
+Chrome is either another dev session or a dev window an earlier `mise run dev` left open.
+`mise run dev --yes` closes it without asking. Without a terminal to ask in, the task
+exits instead, unless you pass `--yes`.
+
 To preview the sidebar's what's-new block, pass release notes into the build:
 `WXT_RELEASE_NOTES="$(cat notes.md)" mise run dev`. A fresh install, a dismissal, or a
 3-day-old first view hides it. If it doesn't show, run
@@ -42,7 +48,7 @@ then reload a Files view.
 | Task | What it does |
 | --- | --- |
 | `mise run setup` | Installs the pinned tools and dependencies, and registers the git hooks. |
-| `mise run dev` | Builds the extension and opens it in the dev profile, reloading on change. |
+| `mise run dev [--yes]` | Builds the extension and opens it in the dev profile, reloading on change; `--yes` closes a Chrome already using that profile without asking. |
 | `mise run build` | Builds the extension into `.output/chrome-mv3`, ready for Chrome's **Load unpacked**. |
 | `mise run test [filter] [-w]` | Runs Vitest, only on test files whose path contains `filter`; `-w` reruns on change. |
 | `mise run e2e` | Builds the extension and runs the Playwright smoke suite against it. |
