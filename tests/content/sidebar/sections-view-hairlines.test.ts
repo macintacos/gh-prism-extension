@@ -5,8 +5,10 @@ import {
   hostOf,
   lit,
   onScreen,
+  owned,
   patchShadowActiveElement,
   rowIn,
+  shieldOf,
   viewed,
 } from "../../fixtures/sections-view";
 import { addNativeFile, afterDebounce, mountsVisit } from "../../fixtures/visit";
@@ -117,6 +119,23 @@ describe("showSections", () => {
       viewed();
 
       pointAt(boxOf("implementation", "src/engine.rs"));
+
+      expect(allLit("implementation", "src/")).toBe(true);
+    });
+
+    it("light a hovered code owners shield's row's folder", () => {
+      owned("src/engine.rs");
+
+      pointAt(shieldOf("implementation", "src/engine.rs"));
+
+      expect(allLit("implementation", "src/")).toBe(true);
+    });
+
+    it("stay lit as focus moves from a row to its code owners shield", () => {
+      owned("src/engine.rs");
+      rowIn("implementation", "src/engine.rs").focus();
+
+      shieldOf("implementation", "src/engine.rs").focus();
 
       expect(allLit("implementation", "src/")).toBe(true);
     });

@@ -41,6 +41,14 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   `closedby`, and its `close()` fires `close` at once, where a browser queues it.
   [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s classic Files changed test checks
   `:modal` and closes the dialog by its backdrop.
+- **Stub `showPopover` and `hidePopover` before a test opens a popover, and prove light
+  dismiss, Escape, one open at a time, and `toggle` ordering in Chromium.** happy-dom has
+  no Popover API, and a stub's `toggle` fires at once, where a browser queues it. In
+  Chromium a click on an open popover's own control runs light dismiss on `pointerup`,
+  before `click`, so the hidden popover's `toggle` arrives after the same click re-opens
+  it.
+  [`sections-view-owners.test.ts`](../../tests/content/sidebar/sections-view-owners.test.ts)
+  stubs both at its top.
 - **Prove tree row layout in Chromium, not happy-dom.** happy-dom computes no style from
   the section tree's shadow-root sheets, even with `section-tree.css` in
   `test.css.include`. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `rowLayout` is the

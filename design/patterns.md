@@ -41,6 +41,12 @@ Only then does the row drop whole decoration parts, leading ones first, never cl
 mid-word. The row's title and accessible name still carry every part.
 `sidebar/section-tree.css` holds the layout.
 
+An owned file's icon gives way to a shield while its row is hovered or focused, as a
+folder's icon gives way to its chevron. The shield is Octicons `shield-lock`, muted at
+rest and `--fgColor-default` on hover. Clicking it, or Enter or Space on it, opens a
+popover listing the file's code owners. `sidebar/section-tree.css` swaps the icon for the
+shield; `sidebar/owners-popover.ts` builds the popover.
+
 A folder chain short of room keeps its first folder and as many trailing folders as fit
 around one `…`. With room for less, it shows `…` and the deepest folder alone. Only the
 deepest folder's name is ever cut, in the middle. `sidebar/chain-fit.ts` decides the fit;
@@ -101,6 +107,13 @@ their own. When a control does take one, its tooltip shows the key after the act
 name, as a keycap in the style of Primer's keybinding hint, and the control sets
 `aria-keyshortcuts`, so assistive technology announces the key. Touch devices have no
 hover, so they never show the keycap.
+
+## Floating surfaces
+
+A surface that floats over the page sits on `--overlay-bgColor`, falling back to
+`--bgColor-default`, inside the default border, with the medium radius and
+`--shadow-floating-small`. The header counter's tip in `header/diffstat-view.ts` and the
+code owners popover in `sidebar/owners-popover.ts` share it, class for class.
 
 ## Loading
 

@@ -227,6 +227,19 @@ request's `hiddenDiffSelectors` in `files-page.ts` scopes to the diff list, and 
 With the parameter set, the page stays pending until the code owners land, and a failed
 read keeps every file.
 
+The sidebar's shields are the other reader. `showVisit` in
+[`visit/land.ts`](../entrypoints/content/visit/land.ts) hands the owners to the sidebar
+once they land, and drops them if the page has gone. `SectionTree` in
+[`sidebar/section-tree.ts`](../entrypoints/content/sidebar/section-tree.ts) marks each
+owned file's rows in every section, and the `@pierre/trees` patch draws a shield beside
+each, shown in place of the file icon while its row is hovered or focused. Clicking a
+shield opens a popover listing the file's owners, built by
+[`sidebar/owners-popover.ts`](../entrypoints/content/sidebar/owners-popover.ts) and
+removed, with its listeners, once it closes. The sections view also closes it before
+moving into or out of the narrow layout's overlay, since a popover that leaves the
+document closes without a toggle event. A pointer click on an open popover's own shield
+only closes it. Showing a file's owners never changes its section or the diffstat.
+
 ## Section rows
 
 [`entrypoints/content/sidebar/sections-view.ts`](../entrypoints/content/sidebar/sections-view.ts)
@@ -326,7 +339,7 @@ entrypoints/
     files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
-    sidebar/             section trees, sidebar side switch, what's-new block, report link
+    sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
     header/              diffstat breakout
     ui/                  shared DOM helpers, loading view, Markdown subset, name reveal, Tailwind tokens

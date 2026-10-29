@@ -31,8 +31,21 @@ interface RowCheckbox {
   readonly title: string;
 }
 
-// gh-prism's @pierre/trees patch is the only reader of `checkbox`.
-type RowDecoration = FileTreeRowDecoration & { readonly checkbox?: RowCheckbox };
+/**
+ * A row's code owners shield, as the @pierre/trees patch renders it: `label` is its accessible
+ * name.
+ */
+interface RowShield {
+  readonly label: string;
+}
+
+// gh-prism's @pierre/trees patch is the only reader of `checkbox` and `shield`.
+type RowDecoration = FileTreeRowDecoration & {
+  readonly checkbox?: RowCheckbox;
+  readonly shield?: RowShield;
+};
+
+const SHIELD: RowShield = { label: "Code owners" };
 
 const ROW_HEIGHT = 28;
 
@@ -67,6 +80,7 @@ export class SectionTree {
   readonly #probe: HTMLElement;
   readonly #onScreen: HTMLStyleElement;
   readonly #viewed: HTMLStyleElement;
+  readonly #owners: HTMLStyleElement;
   readonly #pointed: HTMLStyleElement;
   readonly #lastPieces: HTMLStyleElement;
   readonly #chains: HTMLStyleElement;
@@ -78,10 +92,11 @@ export class SectionTree {
   #focused: string | null | undefined;
   #hoverFolder: string | undefined;
   #focusFolder: string | undefined;
-  /** The path of the row or box focus last moved to within the tree. */
+  /** The path of the row, shield, or box focus last moved to within the tree. */
   #focusAt: string | undefined;
   #viewedPaths: ReadonlySet<string> | undefined;
   #marking: ReadonlySet<string> = new Set();
+  #ownedPaths: ReadonlySet<string> = new Set();
   readonly #altKey: string;
 
   /** Renders `files` into `host`, with `selected` selected if listed. */
@@ -103,6 +118,7 @@ export class SectionTree {
     this.#probe.style.height = `${ROW_HEIGHT}px`;
     this.#onScreen = host.ownerDocument.createElement("style");
     this.#viewed = host.ownerDocument.createElement("style");
+    this.#owners = host.ownerDocument.createElement("style");
     this.#pointed = host.ownerDocument.createElement("style");
     this.#lastPieces = host.ownerDocument.createElement("style");
     this.#chains = host.ownerDocument.createElement("style");
@@ -118,6 +134,7 @@ export class SectionTree {
         this.#probe,
         this.#onScreen,
         this.#viewed,
+        this.#owners,
         this.#pointed,
         this.#lastPieces,
         this.#chains,
@@ -150,7 +167,10 @@ export class SectionTree {
     this.#byPath = byPath(files);
 
     const pathsChanged = changed(previous, files, ({ path }) => path);
-    if (pathsChanged) this.#resetPaths(previous);
+    if (pathsChanged) {
+      this.#writeOwners();
+      this.#resetPaths(previous);
+    }
     // A path or status change re-renders every row, decorations included.
     if (pathsChanged || changed(previous, files, ({ status }) => status)) {
       this.#tree.setGitStatus(gitStatusOf(files));
@@ -192,6 +212,11 @@ export class SectionTree {
     );
   }
 
+  /** Focuses `path`'s row without scrolling, when the viewport has it mounted. */
+  focusRow(path: string): void {
+    this.#host.shadowRoot?.querySelector<HTMLElement>(rowOf(path))?.focus({ preventScroll: true });
+  }
+
   /**
    * Lights, for each of `paths`, its row's piece of its folder's hairline, or a top-level row's
    * edge, including rows the viewport mounts later, without selecting, focusing, or scrolling. A
@@ -216,6 +241,25 @@ export class SectionTree {
     this.#viewedPaths = paths;
     this.#host.setAttribute("data-gh-prism-checkboxes", "");
     this.#tree.render({ fileTreeContainer: this.#host });
+  }
+
+  /**
+   * Gives the file rows of `paths` a code owners shield, shown in place of the row's icon while
+   * its row is hovered or focused, through a style rule, which re-renders keep.
+   */
+  showOwners(paths: ReadonlySet<string>): void {
+    this.#ownedPaths = paths;
+    this.#writeOwners();
+    this.#tree.render({ fileTreeContainer: this.#host });
+  }
+
+  // ponytail: the rules scale with the owned files per listing; write them only for the pointed
+  // and focused paths, as #showPointed does, if a huge PR with a catch-all CODEOWNERS line lags.
+  #writeOwners(): void {
+    this.#owners.textContent = [...this.#byPath.keys()]
+      .filter((path) => this.#ownedPaths.has(path))
+      .map(ownerRule)
+      .join("");
   }
 
   /** Shows the checkboxes of `paths` as pending. */
@@ -254,7 +298,7 @@ export class SectionTree {
         this.#focusFolder = folderAt(event.target);
         this.#showPointed();
       }
-      // A checkbox taking focus must not scroll the sidebar to the tree's last focused row.
+      // A box or shield taking focus must not scroll the sidebar to the tree's last focused row.
       if (!(event.target instanceof Element && event.target.matches('[data-type="item"]'))) return;
       const path = this.#tree.getFocusedPath();
       if (path === this.#focused) return;
@@ -329,20 +373,26 @@ export class SectionTree {
   #decorationOf(path: string): RowDecoration | null {
     const file = this.#byPath.get(path);
     const decoration = file?.decoration ?? null;
-    if (!this.#viewedPaths || !file) return decoration;
-    const checked = this.#viewedPaths.has(path);
+    const shielded = this.#ownedPaths.has(path);
+    if (!file || (!this.#viewedPaths && !shielded)) return decoration;
     return {
       // text: "" satisfies the decoration type for a row with nothing else to show; the library
       // then renders an empty decoration lane.
       text: "",
       ...decoration,
-      checkbox: {
-        checked,
-        busy: this.#marking.has(path),
-        label: `Viewed: ${path.slice(path.lastIndexOf("/") + 1)}`,
-        // sections-view.ts makes an Alt-click on the row do what a click here does.
-        title: `${checked ? "Mark as not viewed" : "Mark as viewed"} (or ${this.#altKey}-click the row)`,
-      },
+      ...(this.#viewedPaths && { checkbox: this.#checkboxOf(path, this.#viewedPaths) }),
+      ...(shielded && { shield: SHIELD }),
+    };
+  }
+
+  #checkboxOf(path: string, viewedPaths: ReadonlySet<string>): RowCheckbox {
+    const checked = viewedPaths.has(path);
+    return {
+      checked,
+      busy: this.#marking.has(path),
+      label: `Viewed: ${path.slice(path.lastIndexOf("/") + 1)}`,
+      // sections-view.ts makes an Alt-click on the row do what a click here does.
+      title: `${checked ? "Mark as not viewed" : "Mark as viewed"} (or ${this.#altKey}-click the row)`,
     };
   }
 
@@ -440,6 +490,29 @@ function ruleOf(selectors: readonly string[], declaration: string): string {
 
 const rowOf = (path: string) => `[data-type="item"][data-item-path="${CSS.escape(path)}"]`;
 
+const shieldOf = (path: string) => `[data-item-shield="${CSS.escape(path)}"]`;
+
+/**
+ * Shows `path`'s shield over its row's icon while the row is hovered or focused, and hides the
+ * icon while either is shown. Keep the shown states in sync with section-tree.css's
+ * `[data-item-shield]:is(…)`.
+ */
+function ownerRule(path: string): string {
+  const row = rowOf(path);
+  const shield = shieldOf(path);
+  const shown = `${row}:is(:hover,:focus-visible)`;
+  return (
+    ruleOf([`${shown}~${shield}`], "opacity:1;pointer-events:auto") +
+    ruleOf(
+      [
+        `${shown}>[data-item-section="icon"]>svg`,
+        `${row}:has(~${shield}:is(:hover,:focus-visible,[aria-expanded="true"]))>[data-item-section="icon"]>svg`,
+      ],
+      "opacity:0",
+    )
+  );
+}
+
 /** Every piece of `folder`'s hairline, by the hook @pierre/trees' own guide styles use. */
 const pieceOf = (folder: string) =>
   `[data-item-section="spacing-item"][data-ancestor-path="${CSS.escape(folder)}"]`;
@@ -511,13 +584,13 @@ function folderOf(path: string): string | undefined {
 
 const rowAt = (target: EventTarget | null) =>
   target instanceof Element
-    ? target.closest<HTMLElement>('[data-type="item"],[data-item-checkbox]')
+    ? target.closest<HTMLElement>('[data-type="item"],[data-item-checkbox],[data-item-shield]')
     : null;
 
-/** The path of the row or Viewed box `target` sits in. */
+/** The path of the row, code owners shield, or Viewed box `target` sits in. */
 function pathAt(target: EventTarget | null): string | undefined {
   const row = rowAt(target);
-  return row?.dataset.itemPath ?? row?.dataset.itemCheckbox;
+  return row?.dataset.itemPath ?? row?.dataset.itemCheckbox ?? row?.dataset.itemShield;
 }
 
 /**

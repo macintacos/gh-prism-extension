@@ -329,27 +329,32 @@ svg:not([data-icon-token]):has(> use[href="#gh-prism-java"]) {
   opacity: calc(1 - 0.45 * var(--gh-prism-viewed, 0));
 }
 
+/* What the patch's two row controls share, the Viewed box and the code owners shield. */
+[data-item-checkbox],
+[data-item-shield] {
+  appearance: none;
+  position: absolute;
+  /* Above @pierre/trees' focused (2) and selected (3) rows, which would cover it. */
+  z-index: 4;
+  display: grid;
+  place-content: center;
+  box-sizing: border-box;
+  background: transparent;
+  cursor: pointer;
+}
+
 /* The Viewed box the @pierre/trees patch renders after each file row, at that row's slot; the
    inline style sets its top. Outside the row's sections, so a Viewed row's dim leaves it crisp.
    Drawn, not native: an outline at rest, and once Viewed a fill in the section's hue with the
    check cut out of it in the section's tint. */
 [data-item-checkbox] {
-  appearance: none;
-  position: absolute;
-  /* Above @pierre/trees' focused (2) and selected (3) rows, which would cover it. */
-  z-index: 4;
   inset-inline-end: 8px;
-  display: grid;
-  place-content: center;
-  box-sizing: border-box;
   width: 14px;
   height: 14px;
   /* Centred in the row: (ROW_HEIGHT 28px in section-tree.ts − 14px) / 2. */
   margin: 7px 0 0;
   border: 1.5px solid var(--gh-prism-box-edge);
   border-radius: 4px;
-  background: transparent;
-  cursor: pointer;
   transition:
     background-color 120ms ease-out,
     border-color 120ms ease-out;
@@ -444,6 +449,70 @@ svg:not([data-icon-token]):has(> use[href="#gh-prism-java"]) {
   padding-inline-end: 30px;
 }
 
+/* The code owners shield the @pierre/trees patch renders after an owned row, at that row's slot;
+   the inline style sets its top and --gh-prism-depth. It sits over the row's icon, hidden until
+   SectionTree's per-path rule shows it for its hovered or focused row. Opacity, not visibility,
+   so the focused row's shield stays reachable by Tab. */
+[data-item-shield] {
+  /* Centred over the icon. One indent level is what @pierre/trees' spacing-item adds:
+     its 1px border and margin-right (level-gap − 1px), plus a sibling's margin-left. */
+  inset-inline-start: calc(
+    var(--trees-item-margin-x) + var(--trees-item-padding-x) +
+      (var(--trees-icon-width) - 24px) / 2 +
+      var(--gh-prism-depth, 0) *
+        (var(--trees-level-gap) + var(--trees-item-row-gap) + var(--trees-icon-width) / 2 - 0.5px)
+  );
+  width: 24px;
+  height: 24px;
+  margin: calc((var(--trees-row-height) - 24px) / 2) 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--borderRadius-medium);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease-out;
+}
+
+[data-item-type="file"] > [data-item-section="icon"] > svg {
+  transition: opacity 150ms ease-out;
+}
+
+/* Keep these states in sync with SectionTree's ownerRule. */
+[data-item-shield]:is(:hover, :focus-visible, [aria-expanded="true"]) {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Octicons shield-lock-16 (MIT, GitHub Inc.), 19.15.0. */
+[data-item-shield]::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  background: var(--fgColor-muted);
+  mask:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m8.533.133 5.25 1.68A1.75 1.75 0 0 1 15 3.48V7c0 1.566-.32 3.182-1.303 4.682-.983 1.498-2.585 2.813-5.032 3.855a1.697 1.697 0 0 1-1.33 0c-2.447-1.042-4.049-2.357-5.032-3.855C1.32 10.182 1 8.566 1 7V3.48a1.75 1.75 0 0 1 1.217-1.667l5.25-1.68a1.748 1.748 0 0 1 1.066 0Zm-.61 1.429.001.001-5.25 1.68a.251.251 0 0 0-.174.237V7c0 1.36.275 2.666 1.057 3.859.784 1.194 2.121 2.342 4.366 3.298a.196.196 0 0 0 .154 0c2.245-.957 3.582-2.103 4.366-3.297C13.225 9.666 13.5 8.358 13.5 7V3.48a.25.25 0 0 0-.174-.238l-5.25-1.68a.25.25 0 0 0-.153 0ZM9.5 6.5c0 .536-.286 1.032-.75 1.3v2.45a.75.75 0 0 1-1.5 0V7.8A1.5 1.5 0 1 1 9.5 6.5Z'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+[data-item-shield]:hover::before {
+  background: var(--fgColor-default);
+}
+
+/* Inset, like the row's own ring (@pierre/trees' --trees-focus-ring-offset is -1px), since the
+   shield covers the row's icon rather than sitting beside it as the box does. */
+[data-item-shield]:focus-visible {
+  outline: 2px solid var(--focus-outlineColor);
+  outline-offset: -2px;
+}
+
+/* Forced colors drop the mask's fill colour; the glyph takes the system's button text. */
+@media (forced-colors: active) {
+  [data-item-shield]::before,
+  [data-item-shield]:hover::before {
+    background: ButtonText;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-icon-name="file-tree-icon-chevron"],
   [data-item-type="folder"] > [data-item-section="icon"]::after {
@@ -451,7 +520,9 @@ svg:not([data-icon-token]):has(> use[href="#gh-prism-java"]) {
   }
 
   [data-item-checkbox],
-  [data-item-checkbox]::before {
+  [data-item-checkbox]::before,
+  [data-item-shield],
+  [data-item-type="file"] > [data-item-section="icon"] > svg {
     transition: none;
   }
 

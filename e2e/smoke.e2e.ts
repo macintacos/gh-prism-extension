@@ -538,12 +538,24 @@ test("every file row has a Viewed checkbox showing its file's state", async ({ c
   await expect(page.locator("[data-item-checkbox]")).toHaveCount(3);
 });
 
-test("ticking a row's box saves its file's Viewed state once", async ({ context, page }) => {
+/** Opens the Viewed fixture, whose toggles save through `POST <pull>/file_review`, and its saves. */
+const openViewed = async (context: BrowserContext, page: Page) => {
   const saves = await routeFileReview(context, 200);
   await serve(context, VIEWED_URL, VIEWED_BODY);
   await page.goto(VIEWED_URL);
   await expect(viewedBox(page, "lib.rs")).toBeVisible();
   await copyGitHubToggles(page, { revert: true });
+  return saves;
+};
+
+/** Waits out the sections' reveal, which moves every row. */
+const revealSettled = (page: Page) =>
+  page.locator(".gh-prism-sections").evaluate(async (view) => {
+    await Promise.all(view.getAnimations({ subtree: true }).map(({ finished }) => finished));
+  });
+
+test("ticking a row's box saves its file's Viewed state once", async ({ context, page }) => {
+  const saves = await openViewed(context, page);
 
   await viewedBox(page, "lib.rs").click();
   await expect(viewedBox(page, "lib.rs")).toBeChecked();
@@ -562,15 +574,9 @@ test("ticking a row's box saves its file's Viewed state once", async ({ context,
 });
 
 test("ticking GitHub's current file's box saves its Viewed state", async ({ context, page }) => {
-  const saves = await routeFileReview(context, 200);
-  await serve(context, VIEWED_URL, VIEWED_BODY);
-  await page.goto(VIEWED_URL);
-  await expect(viewedBox(page, "lib.rs")).toBeVisible();
-  await copyGitHubToggles(page, { revert: true });
-  // Playwright retries a click whose target is moving, and the reveal moves every row.
-  await page.locator(".gh-prism-sections").evaluate(async (view) => {
-    await Promise.all(view.getAnimations({ subtree: true }).map(({ finished }) => finished));
-  });
+  const saves = await openViewed(context, page);
+  // Playwright retries a click whose target is moving.
+  await revealSettled(page);
   // The fixture runs no GitHub script, so a row click alone never makes its file current.
   await page.evaluate(() =>
     document.getElementById("src/lib.rs")?.setAttribute("aria-current", "true"),
@@ -594,15 +600,9 @@ test("Alt-clicking a file's row marks it Viewed and back, and does nothing else"
   context,
   page,
 }) => {
-  const saves = await routeFileReview(context, 200);
-  await serve(context, VIEWED_URL, VIEWED_BODY);
-  await page.goto(VIEWED_URL);
-  await expect(viewedBox(page, "lib.rs")).toBeVisible();
-  await copyGitHubToggles(page, { revert: true });
-  // Playwright retries a click whose target is moving, and the reveal moves every row.
-  await page.locator(".gh-prism-sections").evaluate(async (view) => {
-    await Promise.all(view.getAnimations({ subtree: true }).map(({ finished }) => finished));
-  });
+  const saves = await openViewed(context, page);
+  // Playwright retries a click whose target is moving.
+  await revealSettled(page);
   const row = page.locator('[data-item-path="src/lib.rs"]');
   const toggle = page.locator(`#${VIEWED_LIB_RS} button[aria-label$="Viewed"]`);
   const downloads: string[] = [];
@@ -678,11 +678,7 @@ test("a box follows the header when GitHub keeps a rejected save's state", async
 });
 
 test("the keyboard reaches and ticks a row's Viewed box", async ({ context, page }) => {
-  await routeFileReview(context, 200);
-  await serve(context, VIEWED_URL, VIEWED_BODY);
-  await page.goto(VIEWED_URL);
-  await expect(viewedBox(page, "lib.rs")).toBeVisible();
-  await copyGitHubToggles(page, { revert: true });
+  await openViewed(context, page);
   const row = page.locator('[data-item-path="src/lib.rs"]');
 
   await row.focus();
@@ -731,10 +727,8 @@ test("ticking a box doesn't scroll the sidebar", async ({ context, page }) => {
   await serve(context, PR_URL, LARGE_VIEWED_BODY);
   await page.goto(PR_URL);
   await expect(page.locator('[data-item-checkbox="bulk/file-000.rs"]')).toBeVisible();
-  // Playwright scrolls a box it finds moving into view itself, and the reveal moves every box.
-  await page.locator(".gh-prism-sections").evaluate(async (view) => {
-    await Promise.all(view.getAnimations({ subtree: true }).map(({ finished }) => finished));
-  });
+  // Playwright scrolls a box it finds moving into view itself.
+  await revealSettled(page);
   // The tree's focused row stays its top one, which the reader never focused.
   await scrollSidebarToBulkRow(page, 150);
   const box = page.locator('[data-item-checkbox="bulk/file-150.rs"]');
@@ -1556,14 +1550,11 @@ const FIXTURE_OWNERS: Record<string, string[]> = {
 
 /**
  * Answers the code owners read for tests/fixtures/files-page.html; registered after the catch-all
- * 404.
+ * 404. `ownership` maps each path to its CODEOWNERS tokens; it defaults to `FIXTURE_OWNERS`.
  */
-const routeCodeOwners = async (context: BrowserContext) => {
+const routeCodeOwners = async (context: BrowserContext, ownership = FIXTURE_OWNERS) => {
   const ownershipByPath = Object.fromEntries(
-    Object.entries(FIXTURE_OWNERS).map(([path, owners]) => [
-      path,
-      { isOwnedByViewer: false, owners },
-    ]),
+    Object.entries(ownership).map(([path, owners]) => [path, { isOwnedByViewer: false, owners }]),
   );
   await context.route("**/page_data/codeowners", (route) =>
     route.fulfill({
@@ -1609,4 +1600,241 @@ test("an owner filter shows the diffs of that owner's files", async ({ context, 
 
   await expect.poll(() => sidebarFiles(page)).toEqual(["src/engine.rs"]);
   await expect(page.locator(`#${ENGINE_DIFF}`).locator("..")).not.toHaveCSS("display", "none");
+});
+
+// A sibling at each level keeps the tree from flattening the folders, so the file sits at depth 5.
+const DEEP_FILE = "src/generated/x/y/z/deep.rs";
+const DEEP_ROWS = ["src/generated/x/x.rs", "src/generated/x/y/y.rs", DEEP_FILE]
+  .map((path, n) => {
+    const name = path.slice(path.lastIndexOf("/") + 1);
+    return `<li role="treeitem" id="${path}" aria-level="1" aria-label="${name}" aria-selected="false"><a href="#diff-dee${n}">${name}</a></li>`;
+  })
+  .join("");
+const OWNED_PATHS = ["README.md", "src/engine.rs", "src/generated/schema.rs", DEEP_FILE];
+
+/** Each of `OWNED_PATHS` owned by `owners`. */
+const ownedBy = (owners = ["@o/team", "@octocat"]) =>
+  Object.fromEntries(OWNED_PATHS.map((path) => [path, owners]));
+
+const treeRow = (page: Page, path: string) =>
+  page.locator(`[data-type="item"][data-item-path="${path}"]`);
+const rowIcon = (page: Page, path: string) =>
+  treeRow(page, path).locator('[data-item-section="icon"] > svg');
+const shieldOf = (page: Page, path: string) => page.locator(`[data-item-shield="${path}"]`);
+/** Opens the PR with `OWNED_PATHS` owned by `owners`, once its shields have settled in. */
+const openOwned = async (context: BrowserContext, page: Page, owners?: string[]) => {
+  await routeCodeOwners(context, ownedBy(owners));
+  await serve(context, PR_URL, PR_BODY.replace(TREE_OPEN, `${TREE_OPEN}${DEEP_ROWS}`));
+  await page.goto(PR_URL);
+  await expect(shieldOf(page, "README.md")).toHaveCount(1);
+  await revealSettled(page);
+};
+const opacityOf = (locator: Locator) =>
+  locator.evaluate((element) => getComputedStyle(element).opacity);
+
+test("an owned file's row shows a shield in place of its icon while hovered or focused", async ({
+  context,
+  page,
+}) => {
+  await serve(context, COMMIT_URL, COMMIT_BODY);
+  await openOwned(context, page);
+  const readme = treeRow(page, "README.md");
+  const readmeShield = shieldOf(page, "README.md");
+
+  await readme.hover();
+  await expect.poll(() => opacityOf(readmeShield)).toBe("1");
+  await expect.poll(() => opacityOf(rowIcon(page, "README.md"))).toBe("0");
+  await readmeShield.hover();
+  await expect.poll(() => opacityOf(readmeShield)).toBe("1");
+  await expect.poll(() => opacityOf(rowIcon(page, "README.md"))).toBe("0");
+  await page.mouse.move(0, 0);
+  await expect.poll(() => opacityOf(readmeShield)).toBe("0");
+  await expect.poll(() => opacityOf(rowIcon(page, "README.md"))).toBe("1");
+
+  await treeRow(page, "docs/guide.md").hover();
+  await expect(shieldOf(page, "docs/guide.md")).toHaveCount(0);
+  await expect.poll(() => opacityOf(rowIcon(page, "docs/guide.md"))).toBe("1");
+
+  for (const path of OWNED_PATHS) {
+    const icon = await treeRow(page, path).locator('[data-item-section="icon"]').boundingBox();
+    const shield = await shieldOf(page, path).boundingBox();
+    if (!icon || !shield) throw new Error(`${path} has no icon or shield box`);
+    expect(Math.abs(shield.x + shield.width / 2 - (icon.x + icon.width / 2))).toBeLessThanOrEqual(
+      0.5,
+    );
+    expect(Math.abs(shield.y + shield.height / 2 - (icon.y + icon.height / 2))).toBeLessThanOrEqual(
+      1,
+    );
+  }
+
+  await page.mouse.move(0, 0);
+  await readme.focus();
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("ArrowDown");
+  await expect(readme).toBeFocused();
+  await expect.poll(() => opacityOf(readmeShield)).toBe("1");
+  await page.keyboard.press("Tab");
+  await expect(readmeShield).toBeFocused();
+
+  await page.goto(COMMIT_URL);
+  await expect(page.locator(".gh-prism-sections")).toHaveCount(1);
+  await expect(page.locator("[data-item-shield]")).toHaveCount(0);
+});
+
+test("a shield lists its file's code owners in a popover until Escape returns to the row", async ({
+  context,
+  page,
+}) => {
+  await openOwned(context, page, ["@o/team", "@someone", "dev@example.com"]);
+  const readme = treeRow(page, "README.md");
+  const readmeShield = shieldOf(page, "README.md");
+  const popover = page.locator(".gh-prism-owners");
+  await readme.hover();
+  const before = await page.evaluate(() => ({ scrollY: window.scrollY, hash: location.hash }));
+  await readmeShield.click();
+
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
+  await popover.evaluate(async (element) => {
+    await Promise.all(element.getAnimations().map(({ finished }) => finished));
+  });
+  const shieldBox = await readmeShield.boundingBox();
+  const popoverBox = await popover.boundingBox();
+  if (!shieldBox || !popoverBox) throw new Error("no shield or popover box");
+  // Below the shield, or above it where the viewport has no room below.
+  expect(
+    Math.min(
+      Math.abs(popoverBox.y - (shieldBox.y + shieldBox.height)),
+      Math.abs(popoverBox.y + popoverBox.height - shieldBox.y),
+    ),
+  ).toBeLessThan(1);
+  expect(
+    await popover.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return [style.position, style.padding, style.maxHeight !== "none"];
+    }),
+  ).toEqual(["fixed", "12px", true]);
+  const links = popover.locator("a");
+  await expect(links).toHaveCount(2);
+  expect(await links.evaluateAll((all) => all.map((link) => link.getAttribute("href")))).toEqual([
+    "https://github.com/orgs/o/teams/team",
+    "https://github.com/someone",
+  ]);
+  expect(await links.evaluateAll((all) => all.map((link) => link.getAttribute("target")))).toEqual([
+    "_blank",
+    "_blank",
+  ]);
+  await expect(popover.locator("li").nth(2)).toHaveText("dev@example.com");
+  await expect(popover.locator("li").nth(2).locator("a")).toHaveCount(0);
+  await expect(readme).not.toHaveAttribute("aria-selected", "true");
+  expect(await page.evaluate(() => ({ scrollY: window.scrollY, hash: location.hash }))).toEqual(
+    before,
+  );
+
+  await page.mouse.move(0, 0);
+  expect(await popover.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  await expect.poll(() => opacityOf(readmeShield)).toBe("1");
+  await expect.poll(() => opacityOf(rowIcon(page, "README.md"))).toBe("0");
+
+  await page.keyboard.press("Escape");
+  await expect(popover).toHaveCount(0);
+  expect(
+    await readme.evaluate((row) => (row.getRootNode() as ShadowRoot).activeElement === row),
+  ).toBe(true);
+
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("ArrowDown");
+  await expect(readme).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(readmeShield).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
+  expect(await popover.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+
+  await popover.locator("a").last().focus();
+  await page.keyboard.press("Tab");
+  const pastPopover = await focusedControl(page);
+  await page.mouse.click(1, 1);
+  await expect(popover).toHaveCount(0);
+  await readme.focus();
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Tab");
+  await expect(readmeShield).toBeFocused();
+  await page.keyboard.press("Tab");
+  // Tab past the popover's last link goes on as Tab from its shield does.
+  expect(pastPopover).toBe(await focusedControl(page));
+});
+
+/** The focused element, through shadow roots, as the start of its markup. */
+const focusedControl = (page: Page) =>
+  page.evaluate(() => {
+    let focused = document.activeElement;
+    while (focused?.shadowRoot?.activeElement) focused = focused.shadowRoot.activeElement;
+    return focused?.outerHTML.slice(0, 120);
+  });
+
+test("a shield's popover in the overlay closes as the overlay does, leaving its shield usable", async ({
+  context,
+  page,
+}) => {
+  await page.setViewportSize(NARROW);
+  await openOwned(context, page);
+  await openOverlay(page);
+  const readmeShield = overlay(page).locator('[data-item-shield="README.md"]');
+  await treeRow(page, "README.md").hover();
+  await readmeShield.click();
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
+
+  await closeOverlay(page);
+
+  await expect(page.locator(".gh-prism-owners")).toHaveCount(0);
+  await expect(shieldOf(page, "README.md")).not.toHaveAttribute("aria-expanded");
+  await treeRow(page, "README.md").hover();
+  await shieldOf(page, "README.md").click();
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
+});
+
+test("a hovered shield keeps its glyph in forced colours", async ({ context, page }) => {
+  await page.emulateMedia({ forcedColors: "active" });
+  await openOwned(context, page);
+  const glyphColor = () =>
+    shieldOf(page, "README.md").evaluate(
+      (shield) => getComputedStyle(shield, "::before").backgroundColor,
+    );
+  const atRest = await glyphColor();
+
+  await treeRow(page, "README.md").hover();
+  await shieldOf(page, "README.md").hover();
+
+  await expect.poll(glyphColor).toBe(atRest);
+});
+
+test("a shield's click closes its open popover, and another shield's swaps it", async ({
+  context,
+  page,
+}) => {
+  await openOwned(context, page);
+  const readme = treeRow(page, "README.md");
+  const readmeShield = shieldOf(page, "README.md");
+  const popover = page.locator(".gh-prism-owners");
+
+  await readme.hover();
+  await readmeShield.click();
+  await expect(popover).toHaveCount(1);
+  await readmeShield.click();
+
+  await expect(popover).toHaveCount(0);
+  await expect(readmeShield).not.toHaveAttribute("aria-expanded");
+
+  await readmeShield.click();
+  await expect(popover).toHaveCount(1);
+  await treeRow(page, "src/engine.rs").hover();
+  await shieldOf(page, "src/engine.rs").click();
+
+  await expect(popover).toHaveCount(1);
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveAttribute(
+    "aria-label",
+    "Code owners of engine.rs",
+  );
+  await expect(readmeShield).not.toHaveAttribute("aria-expanded");
 });

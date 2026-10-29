@@ -8,6 +8,7 @@
  */
 
 import type { FileTreeRowDecoration } from "@pierre/trees";
+import type { FileOwners } from "@/utils/github/code-owners";
 import type { LineCounts } from "@/utils/github/pr-diff";
 import {
   type CommentLines,
@@ -33,6 +34,7 @@ import { type LoadingView, loadingView } from "../ui/loading-view";
 import { followReveals, fullName } from "../ui/reveal";
 import { markSection, SECTION_CATALOG, sectionIcon } from "../ui/section-catalog";
 import type { FileSection, LandingView } from "../visit/land";
+import { openOwners } from "./owners-popover";
 import { SectionTree, type TreeFile } from "./section-tree";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./sections-view.css?inline";
@@ -62,6 +64,11 @@ interface SectionsView extends LandingView {
    * viewed, counts each listing's viewed files in its header.
    */
   viewed(paths: ReadonlySet<string>): void;
+  /**
+   * Shields the rows of every file in `byPath` with at least one code owner; a shield's click
+   * lists them.
+   */
+  owners(byPath: ReadonlyMap<string, FileOwners>): void;
 }
 
 interface ShownListing {
@@ -384,6 +391,15 @@ function clickedCheckbox(event: Event): ListedFile | undefined {
   return listing && path ? { listing, path } : undefined;
 }
 
+/** The code owners shield a click inside a tree landed on, its file, and its listing. */
+function clickedShield(event: Event): (ListedFile & { shield: HTMLElement }) | undefined {
+  const elements = event.composedPath().filter((node) => node instanceof HTMLElement);
+  const shield = elements.find((node) => node.matches("[data-item-shield]"));
+  const listing = listingOf(elements);
+  const path = shield?.dataset.itemShield;
+  return shield && listing && path ? { listing, path, shield } : undefined;
+}
+
 /**
  * Calls `onMove` whenever `view` may have moved against the viewport, until `signal` aborts: on a
  * scroll of anything holding it, a window resize, or a change in its own size.
@@ -440,6 +456,8 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
   let onScreen: ReadonlySet<string> = new Set();
   let viewed: ReadonlySet<string> = new Set();
   let offered = false;
+  let ownersByPath: ReadonlyMap<string, FileOwners> = new Map();
+  let owned: ReadonlySet<string> = new Set();
   // The files whose box click is still settling; their boxes ignore clicks.
   const marking = new Set<string>();
   let latestListings: readonly Listing[] = [];
@@ -605,6 +623,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     const tree = new SectionTree(host, files, active);
     tree.showOnScreen(onScreen);
     if (offered) tree.showViewed(viewed);
+    if (owned.size > 0) tree.showOwners(owned);
     if (marking.size > 0) tree.showMarking(new Set(marking));
     return { root, counter, host, tree };
   };
@@ -630,6 +649,19 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     scrolledTo = active;
   };
 
+  // The shield a press began on while its popover was open. The press light-dismisses the
+  // popover before its click arrives, so that click must not reopen it. A keyboard click
+  // (`detail` 0) has no press, so it always opens.
+  let closingShield: HTMLElement | undefined;
+  let closeOwners = () => {};
+  view.addEventListener(
+    "pointerdown",
+    (event) => {
+      const shield = clickedShield(event)?.shield;
+      closingShield = shield?.getAttribute("aria-expanded") === "true" ? shield : undefined;
+    },
+    { capture: true, signal },
+  );
   view.addEventListener(
     "click",
     (event) => {
@@ -638,6 +670,22 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
         // The box shows only what GitHub's page shows, never the click.
         event.preventDefault();
         markFrom(event, box);
+        return;
+      }
+
+      const shieldClick = clickedShield(event);
+      if (shieldClick) {
+        const closing = event.detail > 0 ? closingShield : undefined;
+        closingShield = undefined;
+        if (shieldClick.shield !== closing) {
+          closeOwners = openOwners(shieldClick.shield, {
+            name: shieldClick.path.slice(shieldClick.path.lastIndexOf("/") + 1),
+            owners: ownersByPath.get(shieldClick.path)?.owners ?? [],
+            root: view,
+            signal,
+            onEscape: () => shown.get(shieldClick.listing)?.tree.focusRow(shieldClick.path),
+          });
+        }
         return;
       }
 
@@ -732,6 +780,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     sections: render,
     shownIn(native) {
       source = native;
+      closeOwners();
       view.removeAttribute("data-reveal");
       native.tree.before(view);
       // A fresh scroll container doesn't carry the old one's position.
@@ -749,6 +798,11 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
       offered = true;
       for (const { tree } of shown.values()) tree.showViewed(paths);
       countHeaders();
+    },
+    owners(byPath) {
+      ownersByPath = byPath;
+      owned = new Set([...byPath].flatMap(([path, { owners }]) => (owners.length ? [path] : [])));
+      for (const { tree } of shown.values()) tree.showOwners(owned);
     },
   };
 }

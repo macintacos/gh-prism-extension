@@ -1,5 +1,6 @@
 import { vi } from "vitest";
 import { showSections } from "../../entrypoints/content/sidebar/sections-view";
+import { codeOwnerOf } from "../../utils/github/code-owners";
 import type { IntentResult, Placement } from "../../utils/intent/read";
 import { byId } from "./files-page";
 import { landedWith } from "./intent";
@@ -34,6 +35,17 @@ export const viewed = (...paths: string[]) => {
   const sidebar = vi.mocked(showSections).mock.results.at(-1)?.value;
   if (!sidebar) throw new Error("no sidebar mounted");
   sidebar.viewed(new Set(paths));
+};
+
+/** Gives the mounted sidebar's `paths` a code owner each. The test file must mock `showSections`. */
+export const owned = (...paths: string[]): void => {
+  const sidebar = vi.mocked(showSections).mock.results.at(-1)?.value;
+  if (!sidebar) throw new Error("no sidebar mounted");
+  sidebar.owners(
+    new Map(
+      paths.map((path) => [path, { owners: [codeOwnerOf("@o/team")], ownedByViewer: false }]),
+    ),
+  );
 };
 
 /** Tells the mounted sidebar which files are on screen. The test file must mock `showSections`. */
@@ -74,6 +86,14 @@ export function rowIn(listing: string, path: string): HTMLElement {
   return found;
 }
 
+export function shieldOf(listing: string, path: string): HTMLElement {
+  const shield = hostOf(listing).shadowRoot?.querySelector<HTMLElement>(
+    `[data-item-shield="${path}"]`,
+  );
+  if (!shield) throw new Error(`${listing} has no shield for ${path}`);
+  return shield;
+}
+
 export const partsOf = (listing: string, path: string) => [
   ...rowIn(listing, path).querySelectorAll<HTMLElement>(
     '[data-item-section="decoration"] > span > span',
@@ -110,7 +130,7 @@ export const clickAt = (target: Element, init: MouseEventInit = {}) => {
  * Presses `key` on `target` as a browser does: a button whose keydown goes unhandled clicks,
  * on keydown for Enter and on keyup for Space.
  */
-export function press(target: Element, key: "Enter" | " " | "End"): void {
+export function press(target: Element, key: "Enter" | " " | "End" | "Escape"): void {
   const init = { key, bubbles: true, cancelable: true, composed: true };
   const activates =
     target.dispatchEvent(new KeyboardEvent("keydown", init)) && target instanceof HTMLButtonElement;
