@@ -465,9 +465,10 @@ describe("showCommitMessage's column", () => {
     expect([style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft]).toEqual([
       "24px",
       "24px",
-      "24px",
+      "0px",
       "24px",
     ]);
+    expect(style.height).toBe("calc(100% - 24px)");
   });
 
   it("moves the view switch into the column with the message", () => {
