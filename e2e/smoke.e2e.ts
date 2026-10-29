@@ -505,6 +505,17 @@ test("a commit's message column resizes from its edge by mouse and keyboard, and
   if (!edge) throw new Error("no separator box");
   const x = edge.x + edge.width / 2;
   const y = edge.y + 200;
+  // The target reaches outward past the column's edge, and leaves the scroll bar inside it alone.
+  const hits = (offset: number) =>
+    column.evaluate(
+      (aside, [dx, top]) => {
+        const point = aside.getBoundingClientRect().right + dx;
+        return aside.ownerDocument.elementFromPoint(point, top)?.getAttribute("role") ?? null;
+      },
+      [offset, y] as const,
+    );
+  expect(await hits(10)).toBe("separator");
+  expect(await hits(-8)).not.toBe("separator");
   await page.mouse.move(x, y);
   await expect(separator).toHaveCSS("cursor", "col-resize");
   await expect.poll(wash).toBe(1);

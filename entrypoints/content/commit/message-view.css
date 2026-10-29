@@ -1,8 +1,9 @@
 /* GitHub hooks: the commit message box, the sibling after a rendered .gh-prism-commit-message
    (other than the column's separator) or after .gh-prism-commit-slot; and
    [class*="PageLayout-PageLayoutContent"]'s flex row, whose panes sort at order 1 or
-   PageLayout's --region-order-pane-end, which the column's tw:-order-1 sorts before. Every other
-   rule selects only gh-prism's own classes. */
+   PageLayout's --region-order-pane-end, which the column's tw:-order-1 sorts before; and
+   .markdown-body's headings, which the body's heading rules outrank. Every other rule selects
+   only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @source "./message-view.ts";
 @source "./column-width.ts";
@@ -51,7 +52,7 @@
 /* In the column, a row of their own, level with the 32px fields GitHub's panes open with. */
 .gh-prism-commit-column .gh-prism-commit-controls {
   float: none;
-  height: var(--control-medium-size, 32px);
+  min-height: var(--control-medium-size, 32px);
   margin: 0 0 8px;
 }
 
@@ -83,12 +84,13 @@
 }
 
 /* Primer's pane divider: a 5px grip centred on the column's edge, washed on hover and while
-   dragged. */
+   dragged. Its 24px target reaches outward over the next pane's padding, clear of the message's
+   scroll bar. */
 .gh-prism-commit-column-separator {
   position: absolute;
   inset-block: 0;
-  inset-inline-end: -2px;
-  width: 5px;
+  inset-inline-end: -21px;
+  width: 24px;
   cursor: col-resize;
   touch-action: none;
   user-select: none;
@@ -97,10 +99,12 @@
 .gh-prism-commit-column-separator::before {
   content: "";
   position: absolute;
-  inset: 0;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 5px;
   background: var(--bgColor-neutral-muted);
   opacity: 0;
-  transition: opacity 150ms ease;
+  transition: opacity 150ms ease-out;
 }
 
 .gh-prism-commit-column-separator:hover::before,

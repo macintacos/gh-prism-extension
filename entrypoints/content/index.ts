@@ -292,10 +292,10 @@ const readSavedColumnWidth = (): Promise<unknown> =>
 function commitMessageChoiceOf(savedView: unknown, savedWidth: unknown): CommitMessageChoice {
   // `fallback` covers only a missing value; a corrupt one reads back as stored.
   const known = savedView === "rendered" || savedView === "plaintext";
-  const width = typeof savedWidth === "number" && Number.isFinite(savedWidth);
+  const knownWidth = typeof savedWidth === "number" && Number.isFinite(savedWidth);
   return {
     view: known ? savedView : commitMessageView.fallback,
-    width: width ? savedWidth : commitColumnWidth.fallback,
+    width: knownWidth ? savedWidth : commitColumnWidth.fallback,
   };
 }
 

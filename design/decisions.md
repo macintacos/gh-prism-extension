@@ -81,11 +81,12 @@ at the top, dated.
   - a 1332px breakpoint from the picked width, moving the column above the diffs whenever
     the window can't fit it, or a column that narrows with the window down to a minimum.
 - **Won:** a `role="separator"` on the column's inner edge with Primer's pane divider's
-  look and feel: a 5px grip centred on the 1px border, `col-resize`, a
-  `--bgColor-neutral-muted` wash fading in over 150 ms on hover and while dragged, and
-  arrow keys at 3px; the width in `local:commitColumnWidth`, 320px until set; held between
-  Primer's 256px pane minimum and the window's width past GitHub's 1012px docked layout;
-  above the diffs below 1268px.
+  look and feel: a visible 5px grip centred on the 1px border, in a 24px target reaching
+  outward over the next pane's padding, `col-resize`, a `--bgColor-neutral-muted` wash
+  fading in over 150 ms `ease-out` on hover and while dragged, and arrow keys at 3px; the
+  width in `local:commitColumnWidth`, 320px until set; held between Primer's 256px pane
+  minimum and the window's width past GitHub's 1012px docked layout; above the diffs below
+  1268px.
 - **Why:** The divider sits a tree's width from GitHub's own, so any other look or step
   would read as a different control. A separator names what the control does, where a
   slider reads as a value to pick; the window splitter pattern is the ARIA role for it. A

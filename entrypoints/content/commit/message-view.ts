@@ -73,9 +73,28 @@ export interface CommitMessageVisit {
 export function showCommitMessage(
   page: FilesPage,
   signal: AbortSignal,
-  { afterSections, choice, save, saveWidth, saveHidden, visit }: CommitMessageOptions,
+  options: CommitMessageOptions,
 ): void {
   const message = findCommitMessage(page);
+  if (message) {
+    standIn(page, message, signal, options);
+    return;
+  }
+  // GitHub may commit the card after the page; the skeleton's moment has passed by then.
+  options.afterSections(() => {
+    const late = findCommitMessage(page);
+    if (late && !signal.aborted) {
+      standIn(page, late, signal, { ...options, afterSections: (task) => task() });
+    }
+  });
+}
+
+function standIn(
+  page: FilesPage,
+  message: CommitMessage,
+  signal: AbortSignal,
+  { afterSections, choice, save, saveWidth, saveHidden, visit }: CommitMessageOptions,
+): void {
   // A subject line alone gains nothing from rendering.
   if (!message?.body || !withinCaps(message) || visit.rendered === "failed") return;
   const doc = page.sidebar.ownerDocument;
@@ -95,7 +114,7 @@ export function showCommitMessage(
   );
 
   const render = () => {
-    if (shown.aborted || visit.rendered) return;
+    if (shown.aborted || visit.rendered || visit.hidden) return;
     const nodes = renderedOrWarn(doc, findCommitMessage(page) ?? message);
     visit.rendered = nodes ?? "failed";
     if (nodes) view.fill(nodes, "revealed");
@@ -112,6 +131,7 @@ export function showCommitMessage(
     if (!hidden) render();
     if (hadFocus) arriving.focus({ preventScroll: true });
   };
+
   view.hide.addEventListener("click", () => setHidden(true));
   restore.button.addEventListener("click", () => setHidden(false));
 
@@ -216,6 +236,10 @@ function mountMessage(
 const MARKDOWN =
   "M14.85 3c.63 0 1.15.52 1.14 1.15v7.7c0 .63-.51 1.15-1.15 1.15H1.15C.52 13 0 12.48 0 11.84V4.15C0 3.52.52 3 1.15 3ZM9 11V5H7L5.5 7 4 5H2v6h2V8l1.5 1.92L7 8v3Zm2.99.5L14.5 8H13V5h-2v3H9.5Z";
 
+/** Octicons 19.15.0 (MIT, GitHub Inc.): eye-closed. */
+const EYE_CLOSED =
+  "M.143 2.31a.75.75 0 0 1 1.047-.167l14.5 10.5a.75.75 0 1 1-.88 1.214l-2.248-1.628C11.346 13.19 9.792 14 8 14c-1.981 0-3.67-.992-4.933-2.078C1.797 10.832.88 9.577.43 8.9a1.619 1.619 0 0 1 0-1.797c.353-.533.995-1.42 1.868-2.305L.31 3.357A.75.75 0 0 1 .143 2.31Zm1.536 5.622A.12.12 0 0 0 1.657 8c0 .021.006.045.022.068.412.621 1.242 1.75 2.366 2.717C5.175 11.758 6.527 12.5 8 12.5c1.195 0 2.31-.488 3.29-1.191L9.063 9.695A2 2 0 0 1 6.058 7.52L3.529 5.688a14.207 14.207 0 0 0-1.85 2.244ZM8 3.5c-.516 0-1.017.09-1.499.251a.75.75 0 1 1-.473-1.423A6.207 6.207 0 0 1 8 2c1.981 0 3.67.992 4.933 2.078 1.27 1.091 2.187 2.345 2.637 3.023a1.62 1.62 0 0 1 0 1.798c-.11.166-.248.365-.41.587a.75.75 0 1 1-1.21-.887c.148-.201.272-.382.371-.53a.119.119 0 0 0 0-.137c-.412-.621-1.242-1.75-2.366-2.717C10.825 4.242 9.473 3.5 8 3.5Z";
+
 const LABEL: Record<CommitMessageView, string> = {
   rendered: "Show plain text",
   plaintext: "Show Markdown",
@@ -282,12 +306,12 @@ function messageView(
   });
   const wait = (elapsed: number, lines: number) => {
     body.replaceChildren(skeleton(doc, elapsed, lines));
-    container.setAttribute("aria-busy", "true");
+    body.setAttribute("aria-busy", "true");
   };
   const fill = (nodes: Node[], entrance: "revealed" | "at once") => {
     const from = container.offsetHeight;
     body.replaceChildren(...nodes);
-    container.removeAttribute("aria-busy");
+    body.removeAttribute("aria-busy");
     const still = doc.defaultView?.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (entrance === "revealed" && !still) reveal(container, body, from);
   };
@@ -350,10 +374,6 @@ function textButton(doc: Document, name: string, ...content: (Node | string)[]):
 /** Octicons 19.15.0 (MIT, GitHub Inc.): eye. */
 const EYE =
   "M8 2c1.981 0 3.671.992 4.933 2.078 1.27 1.091 2.187 2.345 2.637 3.023a1.62 1.62 0 0 1 0 1.798c-.45.678-1.367 1.932-2.637 3.023C11.67 13.008 9.981 14 8 14c-1.981 0-3.671-.992-4.933-2.078C1.797 10.83.88 9.576.43 8.898a1.62 1.62 0 0 1 0-1.798c.45-.677 1.367-1.931 2.637-3.022C4.33 2.992 6.019 2 8 2ZM1.679 7.932a.12.12 0 0 0 0 .136c.411.622 1.241 1.75 2.366 2.717C5.176 11.758 6.527 12.5 8 12.5c1.473 0 2.825-.742 3.955-1.715 1.124-.967 1.954-2.096 2.366-2.717a.12.12 0 0 0 0-.136c-.412-.621-1.242-1.75-2.366-2.717C10.824 4.242 9.473 3.5 8 3.5c-1.473 0-2.825.742-3.955 1.715-1.124.967-1.954 2.096-2.366 2.717ZM8 10a2 2 0 1 1-.001-3.999A2 2 0 0 1 8 10Z";
-
-/** Octicons 19.15.0 (MIT, GitHub Inc.): eye-closed. */
-const EYE_CLOSED =
-  "M.143 2.31a.75.75 0 0 1 1.047-.167l14.5 10.5a.75.75 0 1 1-.88 1.214l-2.248-1.628C11.346 13.19 9.792 14 8 14c-1.981 0-3.67-.992-4.933-2.078C1.797 10.832.88 9.577.43 8.9a1.619 1.619 0 0 1 0-1.797c.353-.533.995-1.42 1.868-2.305L.31 3.357A.75.75 0 0 1 .143 2.31Zm1.536 5.622A.12.12 0 0 0 1.657 8c0 .021.006.045.022.068.412.621 1.242 1.75 2.366 2.717C5.175 11.758 6.527 12.5 8 12.5c1.195 0 2.31-.488 3.29-1.191L9.063 9.695A2 2 0 0 1 6.058 7.52L3.529 5.688a14.207 14.207 0 0 0-1.85 2.244ZM8 3.5c-.516 0-1.017.09-1.499.251a.75.75 0 1 1-.473-1.423A6.207 6.207 0 0 1 8 2c1.981 0 3.67.992 4.933 2.078 1.27 1.091 2.187 2.345 2.637 3.023a1.62 1.62 0 0 1 0 1.798c-.11.166-.248.365-.41.587a.75.75 0 1 1-1.21-.887c.148-.201.272-.382.371-.53a.119.119 0 0 0 0-.137c-.412-.621-1.242-1.75-2.366-2.717C10.825 4.242 9.473 3.5 8 3.5Z";
 
 /**
  * The row standing in GitHub's box's place while the message is hidden, holding Primer's small

@@ -87,12 +87,30 @@ describe("showCommitMessage", () => {
 
     const shown = box().previousElementSibling;
     expect(shown).toBe(container());
-    expect(shown?.getAttribute("aria-busy")).toBe("true");
+    expect(shown?.hasAttribute("aria-busy")).toBe(false);
+    expect(shown?.querySelector(".gh-prism-commit-message-body")?.getAttribute("aria-busy")).toBe(
+      "true",
+    );
     expect(shown?.querySelector(".gh-prism-commit-skeleton")).not.toBeNull();
     expect(shown?.querySelector("h1")).toBeNull();
     expect(shown?.contains(viewButton())).toBe(true);
     expect(shows(box())).toBe(false);
     expect(box().outerHTML).toBe(before);
+  });
+
+  it("renders a message whose box lands after the page, once the sections have drawn", () => {
+    const late = box();
+    const parent = late.parentElement;
+    const next = late.nextSibling;
+    late.remove();
+
+    show();
+    parent?.insertBefore(late, next);
+    runIdle();
+
+    expect(box().previousElementSibling).toBe(container());
+    expect(container()?.querySelector(".gh-prism-commit-message-body > h1")).not.toBeNull();
+    expect(shows(box())).toBe(false);
   });
 
   it("stands in for GitHub's box, unchanged, once idle", () => {
@@ -529,7 +547,9 @@ describe("showCommitMessage's column", () => {
     show();
 
     expectInColumn();
-    expect(container()?.getAttribute("aria-busy")).toBe("true");
+    expect(
+      container()?.querySelector(".gh-prism-commit-message-body")?.getAttribute("aria-busy"),
+    ).toBe("true");
   });
 
   it("drops the column for GitHub's box when the message nests too deep to render", () => {
@@ -695,6 +715,7 @@ describe("showCommitMessage's column width", () => {
     expect(saveWidth).not.toHaveBeenCalled();
 
     pointer("pointerup", 500);
+    pointer("lostpointercapture", 500);
     pointer("pointermove", 300);
 
     expect(widthOf()).toBe("388px");
@@ -702,6 +723,35 @@ describe("showCommitMessage's column width", () => {
     expect(saveWidth).toHaveBeenCalledOnce();
     expect(saveWidth).toHaveBeenCalledWith(388);
     expect(handle()?.hasAttribute("data-dragging")).toBe(false);
+  });
+
+  it("ends a drag whose pointer capture is lost without a release", () => {
+    show();
+
+    pointer("pointerdown", 320);
+    pointer("lostpointercapture", 350);
+    pointer("pointermove", 350);
+
+    expect(widthOf()).toBe("320px");
+    expect(handle()?.hasAttribute("data-dragging")).toBe(false);
+  });
+
+  it("leaves a modified arrow key to the browser", () => {
+    show();
+
+    const keys = ["altKey", "ctrlKey", "metaKey"].map(
+      (modifier) =>
+        new KeyboardEvent("keydown", {
+          key: "ArrowLeft",
+          bubbles: true,
+          cancelable: true,
+          [modifier]: true,
+        }),
+    );
+    for (const key of keys) handle()?.dispatchEvent(key);
+
+    expect(widthOf()).toBe("320px");
+    expect(keys.some((key) => key.defaultPrevented)).toBe(false);
   });
 
   it("ignores a key that isn't an arrow, and a drag by another button", () => {
@@ -779,6 +829,16 @@ describe("showCommitMessage's hide control", () => {
 
     expect(container()?.hasAttribute("aria-busy")).toBe(false);
     expect(container()?.querySelector(".gh-prism-commit-message-body > h1")).not.toBeNull();
+  });
+
+  it("renders nothing while hidden before the browser is idle", () => {
+    show();
+    hideButton()?.click();
+
+    runIdle();
+
+    expect(visit.rendered).toBeUndefined();
+    expect(restore()).not.toBeNull();
   });
 
   it("hands focus to the control that brings the message back, and back again", () => {

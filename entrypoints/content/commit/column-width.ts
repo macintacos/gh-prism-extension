@@ -62,11 +62,12 @@ export function columnSeparator(
 
   separator.addEventListener("keydown", (event) => {
     const step = KEY_STEPS[event.key];
-    if (step === undefined) return;
+    if (step === undefined || event.altKey || event.ctrlKey || event.metaKey) return;
     event.preventDefault();
     pick(heldWidth(choice.width, viewport()) + step * STEP);
     saveWidth(choice.width);
   });
+
   let drag: { readonly x: number; readonly width: number } | undefined;
   separator.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
@@ -78,14 +79,13 @@ export function columnSeparator(
   separator.addEventListener("pointermove", (event) => {
     if (drag) pick(drag.width + event.clientX - drag.x);
   });
-  const release = () => {
+  // Fires after pointerup and pointercancel, and when the separator leaves the page mid-drag.
+  separator.addEventListener("lostpointercapture", () => {
     if (!drag) return;
     drag = undefined;
     delete separator.dataset.dragging;
     saveWidth(choice.width);
-  };
-  separator.addEventListener("pointerup", release);
-  separator.addEventListener("pointercancel", release);
+  });
 
   return { separator, size };
 }
