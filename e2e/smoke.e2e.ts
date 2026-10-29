@@ -261,8 +261,11 @@ test("a commit's message moves into a column on a wide window and back above the
   await page.goto(COMMIT_URL);
 
   const message = page.locator(".gh-prism-commit-column > .gh-prism-commit-message");
-  await expect(message).toHaveCount(1);
+  await expect(message).toBeVisible();
   await expect(page.locator(MESSAGE_BOX)).toBeHidden();
+  const column = page.locator(".gh-prism-commit-column");
+  await expect(column).toHaveCSS("order", "-1");
+  await expect(column).toHaveCSS("position", "sticky");
 
   await page.setViewportSize({ width: 1200, height: 900 });
   await expect(page.locator(".gh-prism-commit-column, .gh-prism-commit-slot")).toHaveCount(0);
@@ -277,7 +280,7 @@ test("a commit's message moves into a column on a wide window and back above the
   ).toBe(true);
 
   await page.setViewportSize({ width: 1440, height: 900 });
-  await expect(message).toHaveCount(1);
+  await expect(message).toBeVisible();
 });
 
 test("a commit's message switches to GitHub's box from the keyboard, and opens there after a reload with no flash of the rendering", async ({

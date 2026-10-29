@@ -1,8 +1,8 @@
 /**
  * Shows a commit page's message rendered as GitHub-flavored Markdown in place of GitHub's
  * preformatted box, or in a sticky column beside the diffs on a wide window, with a switch back to
- * that box. The box stays in the page, hidden, so it shows
- * again unchanged on a switch or on abort.
+ * that box. GitHub's box stays in the page, hidden, so it shows again unchanged on a switch or on
+ * abort.
  */
 
 import type { CommitMessageView } from "@/utils/prefs";
@@ -88,39 +88,46 @@ function standIn(page: FilesPage, box: Element, container: HTMLElement, signal: 
   );
   column.setAttribute("aria-label", "Commit message");
   const wide = doc.defaultView?.matchMedia(COLUMN_QUERY);
+  // Found once: a new row comes with a new visit; till then, a detached one falls back.
   const row = findCommitColumnRow(page);
   const style = Object.assign(doc.createElement("style"), { textContent: css });
 
+  const unmount = () => {
+    container.remove();
+    slot.remove();
+    column.remove();
+  };
+  const intoColumn = (row: Element, currentBox: Element) => {
+    if (column.parentElement !== row) row.prepend(column);
+    if (container.parentElement !== column) column.append(container);
+    if (slot.nextElementSibling !== currentBox) currentBox.before(slot);
+  };
+  const aboveDiffs = (currentBox: Element) => {
+    column.remove();
+    slot.remove();
+    if (container.nextElementSibling !== currentBox) currentBox.before(container);
+  };
+
   const follow = () => {
     const currentBox = findCommitMessage(page)?.box;
-    if (!currentBox) {
-      container.remove();
-      slot.remove();
-      column.remove();
-    } else if (wide?.matches && row) {
-      if (column.parentElement !== row) row.prepend(column);
-      if (container.parentElement !== column) column.append(container);
-      if (slot.nextElementSibling !== currentBox) currentBox.before(slot);
-    } else {
-      column.remove();
-      slot.remove();
-      if (container.nextElementSibling !== currentBox) currentBox.before(container);
-    }
+    if (!currentBox) unmount();
+    else if (wide?.matches && row?.isConnected) intoColumn(row, currentBox);
+    else aboveDiffs(currentBox);
   };
 
   follow();
   doc.head.append(style);
+
   const observer = new MutationObserver(follow);
   if (box.parentNode) observer.observe(box.parentNode, { childList: true });
   if (row) observer.observe(row, { childList: true });
   wide?.addEventListener("change", follow);
+
   signal.addEventListener("abort", () => {
     observer.disconnect();
     // Removed by hand: happy-dom's MediaQueryList ignores a { signal } option.
     wide?.removeEventListener("change", follow);
-    container.remove();
-    slot.remove();
-    column.remove();
+    unmount();
     style.remove();
   });
 }

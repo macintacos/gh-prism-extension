@@ -499,7 +499,7 @@ entrypoints/
   content/
     index.ts             content script entry: wires the watchers, intent, and views
     files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; a commit's message box and the row its message column joins
-    commit/              a commit's message rendered as Markdown in GitHub's box's place, and its switch back to GitHub's box
+    commit/              a commit's message rendered as Markdown in GitHub's box's place, or in a column beside the diffs, and its switch back to GitHub's box
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section

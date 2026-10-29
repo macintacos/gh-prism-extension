@@ -186,10 +186,13 @@ export function findCommitMessage(page: FilesPage): CommitMessage | undefined {
   return { box, title, body: box.querySelector(":scope > .extended-commit-description-container") };
 }
 
-/** The row around `page`'s sidebar that a commit's message column joins, or `undefined`. */
+/**
+ * The row around `page`'s sidebar that a commit's message column joins, or `undefined` on a kind
+ * without one or while it's missing.
+ */
 export function findCommitColumnRow(page: FilesPage): Element | undefined {
   const { commitColumnRow: selector } = page.kind;
-  return (selector && page.sidebar.closest(selector)) || undefined;
+  return selector ? (page.sidebar.closest(selector) ?? undefined) : undefined;
 }
 
 /** The narrow layout's overlay copy of `page`'s tree while it is open, else `undefined`. */

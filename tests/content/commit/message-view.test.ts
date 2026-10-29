@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   type CommitMessageChoice,
   showCommitMessage,
@@ -198,8 +198,10 @@ describe("showCommitMessage", () => {
 
 const WIDE = { width: 1400, height: 768 };
 const NARROW = { width: 1200, height: 768 };
-const setViewport = (size: { width: number; height: number }) =>
-  (window as unknown as { happyDOM: { setViewport: (size: object) => void } }).happyDOM.setViewport(
+const DEFAULT = { width: 1024, height: 768 };
+type Size = { width: number; height: number };
+const setViewport = (size: Size) =>
+  (window as unknown as { happyDOM: { setViewport: (size: Size) => void } }).happyDOM.setViewport(
     size,
   );
 const column = () => document.querySelector(".gh-prism-commit-column");
@@ -207,7 +209,7 @@ const row = () => document.querySelector('[class*="PageLayout-PageLayoutContent"
 
 describe("showCommitMessage on a wide window", () => {
   beforeEach(() => setViewport(WIDE));
-  afterEach(() => setViewport(NARROW));
+  afterEach(() => setViewport(DEFAULT));
 
   const expectInColumn = () => {
     expect(column()?.children).toHaveLength(1);
@@ -276,7 +278,20 @@ describe("showCommitMessage on a wide window", () => {
     expect(document.querySelectorAll(".gh-prism-commit-column")).toHaveLength(1);
   });
 
-  it("re-adds the column when GitHub re-renders the layout row", async () => {
+  it("moves the message above the diffs when GitHub detaches the layout row", async () => {
+    show();
+    runIdle();
+    const layoutRow = row();
+    if (!layoutRow) throw new Error("no row");
+    layoutRow.replaceWith(...layoutRow.childNodes);
+    box().after(document.createElement("div"));
+    await afterMutations();
+
+    expect(box().previousElementSibling).toBe(container());
+    expect(document.querySelector(".gh-prism-commit-slot")).toBeNull();
+  });
+
+  it("re-adds the column when GitHub drops it from the layout row", async () => {
     show();
     runIdle();
     column()?.remove();
@@ -353,6 +368,7 @@ describe("showCommitMessage across navigation", () => {
 
   it("shows each commit's message in the column across navigation", async () => {
     setViewport(WIDE);
+    onTestFinished(() => setViewport(DEFAULT));
     const mentionTitle = titleOf("mention");
     const shaTitle = titleOf("sha");
     watchCommits();
@@ -368,6 +384,5 @@ describe("showCommitMessage across navigation", () => {
     expect(column()).toBeNull();
     expect(document.querySelector(".gh-prism-commit-slot")).toBeNull();
     expect(sheets()).toHaveLength(0);
-    setViewport(NARROW);
   });
 });

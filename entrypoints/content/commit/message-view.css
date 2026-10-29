@@ -1,7 +1,7 @@
 /* GitHub hooks: the commit message box, the sibling after a rendered .gh-prism-commit-message
-   or after .gh-prism-commit-slot; and .gh-prism-commit-column, a flex item of GitHub's
-   PageLayout content row, placed before its panes by order. Every other rule selects only
-   gh-prism's own classes. */
+   or after .gh-prism-commit-slot; and [class*="PageLayout-PageLayoutContent"]'s flex row, whose
+   panes sort at order 1 or PageLayout's --region-order-pane-end, which the column's tw:-order-1
+   sorts before. Every other rule selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @source "./message-view.ts";
 
