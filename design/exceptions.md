@@ -45,9 +45,9 @@ the departure as intended.
   counter is hovered or focused. The sidebar's icons keep their hue.
 - **Keycap edges: GitHub's, below the 3:1 floor.** Older's and Newer's keycaps take
   GitHub's own `kbd` rule, whose border and raised bottom edge are
-  `--borderColor-neutral-muted`: 1.3:1 against the page in a light theme and 1.5:1 in a
-  dark one. The keycap's text holds the text floor, and the keycap is no control of its
-  own, so its edge only frames a key that already reads.
+  `--borderColor-neutral-muted`: 1.2:1 against the button they sit on in a light theme and
+  1.3:1 in a dark one. The keycap's text holds the text floor, and the keycap is no
+  control of its own, so its edge only frames a key that already reads.
 - **Header hairlines: decoration, below the 3:1 floor.** The floor holds hairlines to 3:1.
   The short rules between the header counter's pills only echo the spacing and icons that
   already separate the sections, so they stay `--borderColor-default`. `decisions.md` has

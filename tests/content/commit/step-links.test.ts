@@ -123,18 +123,20 @@ describe("showStepLinks", () => {
   });
 
   it.each([
-    ["Older", previous, "Shift+J", "⇧J"],
-    ["Newer", next, "Shift+K", "⇧K"],
+    ["Older", previous, "Shift+J", "⇧J", ["svg", "kbd", "#text"]],
+    ["Newer", next, "Shift+K", "⇧K", ["#text", "kbd", "svg"]],
   ])(
-    "shows %s's shortcut as a keycap after its label, hidden from assistive technology, which hears the shortcut instead",
-    (_, link, shortcut, keycap) => {
+    "shows %s's shortcut as a keycap between its label and its outermost chevron, hidden from assistive technology, which hears the shortcut instead",
+    (_, link, shortcut, keycap, order) => {
       show(new Promise(() => {}));
 
       expect(link()?.getAttribute("aria-keyshortcuts")).toBe(shortcut);
       const key = link()?.querySelector("kbd");
       expect(key?.textContent).toBe(keycap);
       expect(key?.getAttribute("aria-hidden")).toBe("true");
-      expect(key?.parentElement?.lastElementChild).toBe(key);
+      expect([...(link()?.childNodes ?? [])].map((node) => node.nodeName.toLowerCase())).toEqual(
+        order,
+      );
     },
   );
 });

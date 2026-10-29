@@ -51,7 +51,8 @@ export function showStepLinks(
     doc,
     "gh-prism-commit-previous",
     "J",
-    icon(doc, CHEVRON_LEFT, {}),
+    icon(doc, CHEVRON_LEFT, { class: "tw:text-fg-muted" }),
+    keycap(doc, "J"),
     "Older",
   );
   const following = stepLink(
@@ -59,12 +60,14 @@ export function showStepLinks(
     "gh-prism-commit-next",
     "K",
     "Newer",
-    icon(doc, CHEVRON_RIGHT, {}),
+    keycap(doc, "K"),
+    icon(doc, CHEVRON_RIGHT, { class: "tw:text-fg-muted" }),
   );
+  // Primer's ButtonGroup, but not isolated: isolation traps the tooltips under the content below.
   const steps = el(
     doc,
     "span",
-    "gh-prism-commit-steps tw:inline-flex tw:items-center tw:gap-1 tw:ms-2",
+    "gh-prism-commit-steps tw:inline-flex tw:ms-2",
     previous,
     following,
   );
@@ -95,8 +98,8 @@ const reasonFor = (found: Exclude<NextCommit, { kind: "commit" }> | undefined): 
   found?.kind === "newest" ? `none, this is the newest on ${found.branch}` : "none found";
 
 /**
- * Primer's small invisible Button, as a link holding `content`, an icon and its label, then a
- * keycap for Shift and `key`.
+ * Primer's small default Button inside its ButtonGroup, as a link holding `content`, which Shift
+ * and `key` follow.
  */
 function stepLink(
   doc: Document,
@@ -104,21 +107,25 @@ function stepLink(
   key: string,
   ...content: (Node | string)[]
 ): HTMLAnchorElement {
-  // GitHub's monospace stack draws ⇧ at half the letter's height; its sans stack, at full height.
-  const shift = el(doc, "span", "tw:[font-family:var(--fontStack-sansSerif)]", "⇧");
-  // GitHub's own kbd rule, which Markdown's <kbd> takes too, draws the keycap.
-  const keycap = el(doc, "kbd", "gh-prism-commit-key tw:text-inherit", shift, key);
-  keycap.setAttribute("aria-hidden", "true");
   const link = el(
     doc,
     "a",
-    "gh-prism-commit-step tw:relative tw:inline-flex tw:items-center tw:gap-1 tw:h-[var(--control-small-size,28px)] tw:px-2 tw:rounded-medium tw:text-[color:var(--button-invisible-fgColor-rest)] tw:[font-family:var(--fontStack-sansSerif)] tw:text-body-small tw:font-medium tw:no-underline tw:hover:no-underline tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
+    "gh-prism-commit-step tw:relative tw:inline-flex tw:items-center tw:gap-1 tw:h-[var(--control-small-size,28px)] tw:px-2 tw:not-first:-ms-px tw:first:rounded-s-medium tw:last:rounded-e-medium tw:[border:var(--borderWidth-thin,1px)_solid_var(--button-default-borderColor-rest)] tw:bg-[var(--button-default-bgColor-rest)] tw:[box-shadow:var(--button-default-shadow-resting)] tw:text-[color:var(--button-default-fgColor-rest)] tw:[font-family:var(--fontStack-sansSerif)] tw:text-body-small tw:font-medium tw:no-underline tw:hover:z-1 tw:hover:no-underline tw:hover:bg-[var(--button-default-bgColor-hover)] tw:active:z-1 tw:active:bg-[var(--button-default-bgColor-active)] tw:focus-visible:z-1 tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
     ...content,
-    keycap,
   );
   link.classList.add(name);
   link.setAttribute("aria-keyshortcuts", `Shift+${key}`);
   return link;
+}
+
+/** A keycap reading Shift and `key`, hidden from assistive technology. */
+function keycap(doc: Document, key: string): HTMLElement {
+  // GitHub's monospace stack draws ⇧ at half the letter's height; its sans stack, at full height.
+  const shift = el(doc, "span", "tw:[font-family:var(--fontStack-sansSerif)]", "⇧");
+  // GitHub's own kbd rule, which Markdown's <kbd> takes too, draws the keycap.
+  const cap = el(doc, "kbd", "gh-prism-commit-key tw:text-inherit", shift, key);
+  cap.setAttribute("aria-hidden", "true");
+  return cap;
 }
 
 /**

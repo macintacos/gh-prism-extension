@@ -2,11 +2,17 @@
 @import "../ui/tailwind.css" prefix(tw);
 @source "./step-links.ts";
 
-/* Primer's disabled invisible Button. Compound, to outrank the link's hover utilities. */
+/* Primer's disabled default Button. Compound, to outrank the link's hover utilities. */
 .gh-prism-commit-steps .gh-prism-commit-step[aria-disabled="true"] {
-  color: var(--button-invisible-fgColor-disabled, var(--fgColor-disabled));
-  background: none;
+  border-color: var(--button-default-borderColor-disabled);
+  background-color: var(--button-default-bgColor-disabled);
+  box-shadow: none;
+  color: var(--control-fgColor-disabled);
   cursor: not-allowed;
+}
+
+.gh-prism-commit-steps .gh-prism-commit-step[aria-disabled="true"] svg {
+  color: inherit;
 }
 
 /* Primer's tooltip, opening toward the row's start, so it stays inside the commit's card. */

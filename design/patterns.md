@@ -123,16 +123,16 @@ commit's SHA are the controls that take keys so far: Shift+J and Shift+K. Their 
 name the key in words, as "Older commit: 9eb4db2 (Shift+J)", and only while the link goes
 somewhere, because a held-off link's key does nothing.
 
-Those two links also show their key at rest, as a keycap at the end of the link, after
-Older's label and after Newer's chevron (`exceptions.md` says why). The keycap is a
-`<kbd>` that GitHub's own `kbd` rule draws, the rule Markdown's `<kbd>` renders with: 11px
-monospace on `--bgColor-muted`, in a 1px `--borderColor-neutral-muted` border with a
-raised bottom edge and a 6px radius. It reads "⇧J", with the ⇧ set in GitHub's sans stack,
-because the monospace stack has no ⇧ and the browser's fallback draws it at half the
-letter's height. It takes the link's colour, so it dims with a held-off link. It is hidden
-from assistive technology, which announces the key from the link's `aria-keyshortcuts`
-instead. Devices with no hover and a coarse pointer, such as touch screens, never show it.
-`commit/step-links.ts` and `commit/step-links.css` build it.
+Those two links also show their key at rest, as a keycap between the link's chevron and
+its label, so they read "‹ ⇧J Older" and "Newer ⇧K ›" (`exceptions.md` says why). The
+keycap is a `<kbd>` that GitHub's own `kbd` rule draws, the rule Markdown's `<kbd>`
+renders with: 11px monospace on `--bgColor-muted`, in a 1px `--borderColor-neutral-muted`
+border with a raised bottom edge and a 6px radius. It reads "⇧J", with the ⇧ set in
+GitHub's sans stack, because the monospace stack has no ⇧ and the browser's fallback draws
+it at half the letter's height. It takes the link's colour, so it dims with a held-off
+link. It is hidden from assistive technology, which announces the key from the link's
+`aria-keyshortcuts` instead. Devices with no hover and a coarse pointer, such as touch
+screens, never show it. `commit/step-links.ts` and `commit/step-links.css` build it.
 
 ## Switches
 
@@ -146,10 +146,13 @@ the state. Focus stays on it across the flip. It holds one Octicon in both state
   the button that shows the message again take the same form. `commit/message-view.ts`
   builds all three.
 
-The Older and Newer links beside a commit's SHA take that form too, as links, with Newer's
-chevron after its label. Their tooltip names the commit each goes to, which the label
-doesn't. A link with nowhere to go keeps its place, greyed out as Primer's disabled
-Button, and its tooltip says why. `commit/step-links.ts` builds them.
+The Older and Newer links beside a commit's SHA take Primer's ButtonGroup, not a switch's
+form, as a pull request's commit view pairs its Prev and Next: two small default Buttons
+that share one border, with the medium radius on the group's outer corners only. Each
+chevron sits at the group's outer edge, in `--fgColor-muted`. Their tooltip names the
+commit each goes to, which the label doesn't. A link with nowhere to go keeps its place as
+Primer's disabled default Button, and its tooltip says why. `commit/step-links.ts` and
+`commit/step-links.css` build them.
 
 ## Floating surfaces
 

@@ -566,6 +566,9 @@ test("a commit's Older and Newer hold their place from its first frame, and step
   expect(searched[0]?.sectionsFirst || (searched[0]?.afterMs ?? 0) >= 1000).toBe(true);
   expect(frames[0]?.next).toBeNull();
   expect(new Set(frames.map((frame) => frame.at)).size).toBe(1);
+  // As in Primer's ButtonGroup, one border divides the two.
+  const [older, newer] = await Promise.all([previous.boundingBox(), next.boundingBox()]);
+  expect(newer?.x).toBeCloseTo((older?.x ?? 0) + (older?.width ?? 0) - 1, 1);
 
   await previous.click();
   await expect(page).toHaveURL(parentUrl);

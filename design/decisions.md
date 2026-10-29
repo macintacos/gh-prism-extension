@@ -6,6 +6,59 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-29: Older and Newer as GitHub's button group, keys inside the chevrons
+
+- **Compared:**
+  - for the order inside each link, the keycap last, "‹ Older ⇧J" and "Newer › ⇧K", or
+    each keycap between its chevron and its label, "‹ ⇧J Older" and "Newer ⇧K ›";
+  - for the form, Primer's small invisible Buttons, as before, or Primer's ButtonGroup:
+    two default Buttons that share one border, as a pull request's commit view pairs its
+    Prev and Next;
+  - for a held-off link, one with nowhere to go, Primer's disabled Button, or the inactive
+    Button that GitHub's own group shows for "No next commit";
+  - for the keycap, GitHub's `kbd` rule as it is, or a fill that sets it apart from the
+    button.
+- **Won:**
+  - The maintainer picked the order, the chevrons outermost with each keycap between its
+    chevron and its label, and the form, Primer's ButtonGroup. The other picks follow from
+    those two.
+  - The group copies GitHub's own at its small size, built from GitHub's variables:
+    - 28px tall, with 8px side padding and 4px gaps;
+    - the `--button-default-*` fill, border colour, and resting shadow, and its hover and
+      active fills;
+    - one 1px border between the two links, with the medium radius on the group's outer
+      corners only;
+    - Primer's focus ring, 2px and inset by 2px, on each link;
+    - each chevron in `--fgColor-muted`, as a Button's icon is.
+  - A held-off link is Primer's disabled default Button: `--control-fgColor-disabled` for
+    its label, chevron, and keycap text, on `--button-default-bgColor-disabled`, with a
+    `not-allowed` cursor.
+  - The keycap keeps GitHub's `kbd` rule unchanged.
+  - The group leaves out Primer's `isolation: isolate`.
+- **Why:**
+  - The maintainer asked for native GitHub buttons. GitHub already pairs a pull request
+    commit's Prev and Next in this group, so a reader knows the form. It replaces the
+    invisible Buttons that the decision "Older and Newer on a commit's page" picked.
+  - GitHub's group is small, 28px tall like the copy button in the row naming the commit's
+    parents and SHA, so it fits that row unchanged.
+  - The link sets `aria-disabled`, which Primer draws as its disabled Button. The
+    `not-allowed` cursor tells a pointer the link goes nowhere, and the tooltip says why.
+  - The keycap needs no fill of its own, because its edge already makes it read as a key.
+    In a light theme, `--bgColor-muted` and `--button-default-bgColor-rest` are the same
+    colour, so the keycap's edge and raised bottom draw it, at 1.2:1 against the button.
+    On the page, before the button, its fill differed from the page by only 1.05:1, so its
+    1.3:1 edge did the work there too. In a dark theme the keycap sits darker than the
+    button, at 1.16:1, inside an edge at 1.3:1.
+  - Primer isolates its group so a hovered or focused link's raised `z-index` stays inside
+    it. But isolation also kept the tooltips inside the group's layer, so the header
+    counter, the line counts below the row, painted over them. Without it, a focused link
+    still rises above its neighbour, so its focus ring shows whole over the shared border.
+- **Known limits:** A held-off link's text is 3.1:1 against its fill in a light theme and
+  2.8:1 in a dark one, below the 4.5:1 text floor, as in every Primer disabled control.
+  WCAG exempts text in an inactive control. The group's colours follow GitHub's variables,
+  but its shape is a copy of Primer's ButtonGroup, so it won't follow a change to Primer's
+  shape.
+
 ## 2026-10-29: Shift+J and Shift+K for Older and Newer, with keycaps at rest
 
 - **Compared:**
