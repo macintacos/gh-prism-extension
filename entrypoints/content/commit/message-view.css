@@ -5,6 +5,7 @@
    .markdown-body's headings, which the body's heading rules outrank. Every other rule selects
    only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
+@import "../ui/mark.css";
 @source "./message-view.ts";
 @source "./column-width.ts";
 
@@ -81,6 +82,13 @@
   height: 100%;
   overflow-y: auto;
   padding: 24px;
+}
+
+/* Out of the message's flow, in the corner its 24px inset leaves empty. */
+.gh-prism-commit-column > .gh-prism-mark {
+  position: absolute;
+  bottom: 8px;
+  inset-inline-start: 24px;
 }
 
 /* Primer's pane divider: a 5px grip centred on the column's edge, washed on hover and while

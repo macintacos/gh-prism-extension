@@ -209,10 +209,21 @@ describe("the owner filter's actions", () => {
     },
   );
 
-  it("offers nothing, and has no footer, where the page has no owner filter", () => {
+  it("offers nothing, its footer holding only the mark, where the page has no owner filter", () => {
     open(undefined, { owner: "@o/team" });
 
     expect(actions()).toEqual([]);
-    expect(footer()).toBeNull();
+    expect([...(footer()?.children ?? [])].map((child) => child.className)).toEqual([
+      "gh-prism-mark",
+    ]);
+  });
+
+  it.each([
+    ["with", true],
+    ["without", false],
+  ])("carries one gh-prism mark %s an owner filter", (_, filtered) => {
+    open(undefined, { owner: "@o/team", filter: filtered ? filtering().filter : undefined });
+
+    expect(dialog()?.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
   });
 });

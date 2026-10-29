@@ -212,6 +212,13 @@ describe("the header's lines-changed counter", () => {
     ]);
   });
 
+  it("carries no gh-prism mark, its tooltip included, being a small surface", async () => {
+    await landed(counted);
+    counter()?.click();
+    expect(tipOf(counter())).not.toBeNull();
+    expect(document.querySelectorAll(".gh-prism-diffstat .gh-prism-mark")).toHaveLength(0);
+  });
+
   it("ends the total's tooltip by saying a click splits it by section", async () => {
     await landed(counted);
     counter()?.click();

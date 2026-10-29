@@ -12,6 +12,7 @@ import { type CodeOwner, owningTeams } from "@/utils/github/code-owners";
 import { el } from "../ui/dom";
 import { fileList } from "../ui/file-list";
 import type { Card } from "../ui/hover-intent";
+import { prismMark } from "../ui/mark";
 import { detailsHint, ownerLink } from "../ui/owners-dialog";
 import { place } from "../ui/place";
 
@@ -106,13 +107,16 @@ function openPopover(
   { root, signal, returnFocus }: PopoverOptions,
 ): Card {
   const doc = shield.ownerDocument;
+  const hint = detailsHint(doc, "small");
+  hint.classList.add("tw:flex", "tw:items-center", "tw:gap-2");
+  hint.append(prismMark(doc));
   const popover = el(
     doc,
     "div",
     "gh-prism-owners tw:inset-auto tw:m-0 tw:box-border tw:max-w-[min(400px,calc(100vw-16px))] tw:max-h-[calc(100vh-16px)] tw:overflow-y-auto tw:pt-3 tw:px-3 tw:pb-0 tw:text-body-small tw:leading-body-small tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:rounded-medium tw:[border:0] tw:[box-shadow:var(--shadow-floating-small)] tw:wrap-anywhere",
     el(doc, "h2", "tw:mt-0 tw:mb-2 tw:text-body-small tw:font-semibold", "Code owners"),
     body,
-    detailsHint(doc, "small"),
+    hint,
   );
   popover.popover = "auto";
   popover.setAttribute("role", "dialog");

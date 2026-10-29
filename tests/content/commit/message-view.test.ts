@@ -424,8 +424,9 @@ describe("showCommitMessage's column", () => {
   afterEach(() => setViewport(DEFAULT));
 
   const expectInColumn = () => {
-    expect(column()?.children).toHaveLength(2);
+    expect(column()?.children).toHaveLength(3);
     expect(column()?.firstElementChild).toBe(container());
+    expect(column()?.querySelectorAll(":scope > .gh-prism-mark")).toHaveLength(1);
     expect(column()?.lastElementChild?.getAttribute("role")).toBe("separator");
     expect(row()?.firstElementChild).toBe(column());
     expect(box().previousElementSibling?.matches(".gh-prism-commit-slot")).toBe(true);
@@ -562,6 +563,19 @@ describe("showCommitMessage's column", () => {
     expect(column()).toBeNull();
     expect(document.querySelector(".gh-prism-commit-slot")).toBeNull();
     expect(shows(box())).toBe(true);
+  });
+
+  it("keeps one gh-prism mark in the column when GitHub re-renders the page", () => {
+    show();
+    runIdle();
+    controller.abort();
+    controller = new AbortController();
+
+    show();
+    runIdle();
+
+    expect(document.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
+    expect(column()?.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
   });
 
   it("follows GitHub's re-render of the card while the message is in the column", async () => {

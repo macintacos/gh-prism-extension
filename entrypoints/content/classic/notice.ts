@@ -6,7 +6,7 @@
 
 import { type ClassicPage, isSignedIn } from "../files-page";
 import { el, icon, X_ICON } from "../ui/dom";
-import { PRISM_GLYPH } from "../ui/mark";
+import { PRISM_GLYPH, prismMark } from "../ui/mark";
 import { SECTION_SPECTRUM } from "../ui/section-catalog";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./notice.css?inline";
@@ -132,7 +132,13 @@ function noticeDialog(doc: Document, signedIn: boolean): HTMLDialogElement {
       close,
     ),
     el(doc, "div", "tw:p-4", ...body),
-    el(doc, "div", "tw:flex tw:flex-wrap tw:justify-end tw:gap-2 tw:p-4", ...actions),
+    el(
+      doc,
+      "div",
+      "gh-prism-classic-notice-footer tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:p-4",
+      prismMark(doc),
+      ...actions,
+    ),
   );
   dialog.setAttribute("aria-labelledby", TITLE_ID);
   dialog.setAttribute("closedby", "any");

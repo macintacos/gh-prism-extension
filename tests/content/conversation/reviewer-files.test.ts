@@ -590,7 +590,6 @@ describe("showReviewerFiles", () => {
       const dialog = document.querySelector("dialog.gh-prism-owners-dialog");
       expect(dialog).not.toBeNull();
       expect(dialog?.querySelector("a.gh-prism-owner-filter")).toBeNull();
-      expect(dialog?.querySelector(".gh-prism-owners-dialog-footer")).toBeNull();
     });
   });
 
@@ -649,6 +648,18 @@ describe("showReviewerFiles", () => {
       shield.click();
       await vi.advanceTimersByTimeAsync(0);
     }
+
+    it("shows gh-prism's mark only in the dialog, not on the shields or the hover card", async () => {
+      show();
+      await hoverOpen("frontend");
+      const onPage = document.querySelectorAll(".gh-prism-mark").length;
+
+      await clickOn(shieldOf("frontend"));
+
+      expect(onPage).toBe(0);
+      expect(document.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
+      expect(dialog()?.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
+    });
 
     it("opens the dialog of a team reviewer, its files and its members", async () => {
       show();

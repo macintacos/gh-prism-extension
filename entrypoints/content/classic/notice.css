@@ -1,6 +1,11 @@
 /* No GitHub hooks: every rule selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
+@import "../ui/mark.css";
 @source "./notice.ts";
+
+.gh-prism-classic-notice-footer > .gh-prism-mark {
+  margin-inline-end: auto;
+}
 
 /* gh-prism's spectrum, every section's hue, across the dialog's top edge; notice.ts sets it. */
 .gh-prism-classic-notice::before {

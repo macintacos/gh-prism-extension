@@ -15,6 +15,7 @@ import {
 } from "@/utils/github/code-owners";
 import type { OwnerFilterLink } from "@/utils/github/files-route";
 import { el, icon, X_ICON } from "./dom";
+import { prismMark } from "./mark";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./owners-dialog.css?inline";
 
@@ -211,16 +212,13 @@ function ownersDialog(
         el(doc, "div", "", ...summary),
         ...teams,
       ),
-      ...(footer
-        ? [
-            el(
-              doc,
-              "div",
-              "gh-prism-owners-dialog-footer tw:flex tw:justify-end tw:p-2 tw:[box-shadow:0_-1px_0_var(--borderColor-default)]",
-              footer,
-            ),
-          ]
-        : []),
+      el(
+        doc,
+        "div",
+        "gh-prism-owners-dialog-footer tw:flex tw:items-center tw:justify-between tw:p-2 tw:[box-shadow:0_-1px_0_var(--borderColor-default)]",
+        prismMark(doc),
+        ...(footer ? [footer] : []),
+      ),
     ),
   );
   dialog.setAttribute("aria-labelledby", TITLE_ID);

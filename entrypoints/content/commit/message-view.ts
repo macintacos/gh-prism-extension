@@ -15,6 +15,7 @@ import {
   findCommitMessage,
 } from "../files-page";
 import { el, icon } from "../ui/dom";
+import { prismMark } from "../ui/mark";
 import { type ColumnWidthChoice, columnSeparator, fitsColumn } from "./column-width";
 import { renderCommitMessage, withinCaps } from "./message";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
@@ -175,7 +176,7 @@ function mountMessage(
   const slot = Object.assign(el(doc, "span", "gh-prism-commit-slot"), { hidden: true });
   const column = messageColumn(doc);
   const { separator, size } = columnSeparator(column, { choice, saveWidth });
-  column.append(separator);
+  column.append(prismMark(doc), separator);
   // Found once: a new row means a new sidebar, and so a new visit; a row detached before then
   // falls back above the diffs.
   const row = findCommitColumnRow(page);
