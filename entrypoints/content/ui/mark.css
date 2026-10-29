@@ -1,0 +1,71 @@
+/* No GitHub hooks: every rule selects only gh-prism's own classes. */
+.gh-prism-mark {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--fgColor-muted);
+}
+
+.gh-prism-mark-bars {
+  position: absolute;
+  inset: 0;
+}
+
+.gh-prism-mark-sweep {
+  display: block;
+  height: 100%;
+  background: var(--gh-prism-spectrum);
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 240ms ease-out;
+}
+
+.gh-prism-mark:hover .gh-prism-mark-sweep {
+  clip-path: inset(0);
+}
+
+/* Primer's tooltip, above the mark with its start edge at the mark's start. A host whose mark sits
+   at an inline-end corner flips the alignment in its own sheet. Hover only: the mark takes no focus. */
+.gh-prism-mark::after {
+  content: attr(aria-label);
+  position: absolute;
+  bottom: calc(100% + 4px);
+  inset-inline-start: 0;
+  z-index: 100;
+  padding: 4px 8px;
+  border-radius: var(--borderRadius-medium);
+  background: var(--tooltip-bgColor);
+  color: var(--tooltip-fgColor);
+  font-size: var(--text-body-size-small);
+  font-weight: var(--base-text-weight-normal);
+  line-height: var(--text-body-lineHeight-small);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 120ms ease-out,
+    visibility 120ms;
+}
+
+.gh-prism-mark:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-prism-mark-sweep,
+  .gh-prism-mark::after {
+    transition: none;
+  }
+}
+
+/* Forced colours drop backgrounds, so the spectrum goes; the glyph takes the system text colour. */
+@media (forced-colors: active) {
+  .gh-prism-mark {
+    color: CanvasText;
+  }
+
+  .gh-prism-mark-bars {
+    display: none;
+  }
+}
