@@ -6,6 +6,34 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-29: A resizable commit message column
+
+- **Compared:**
+  - a fixed 320px column, as before;
+  - Primer's pane divider copied as a `role="slider"`, as GitHub's file tree has it, or as
+    a `role="separator"`, the ARIA window splitter;
+  - a keyboard step of Primer's 3px, or a coarser 16px;
+  - keeping the width in `sync:` storage, with the other commit message choice, or in
+    `local:`;
+  - a 1332px breakpoint from the picked width, moving the column above the diffs whenever
+    the window can't fit it, or a column that narrows with the window down to a minimum.
+- **Won:** a `role="separator"` on the column's inner edge with Primer's pane divider's
+  look and feel: a 5px grip centred on the 1px border, `col-resize`, a
+  `--bgColor-neutral-muted` wash fading in over 150 ms on hover and while dragged, and
+  arrow keys at 3px; the width in `local:commitColumnWidth`, 320px until set; held between
+  Primer's 256px pane minimum and the window's width past GitHub's 1012px docked layout;
+  above the diffs below 1268px.
+- **Why:** The divider sits a tree's width from GitHub's own, so any other look or step
+  would read as a different control. A separator names what the control does, where a
+  slider reads as a value to pick; the window splitter pattern is the ARIA role for it. A
+  width fits one screen, so syncing it would carry a wide desktop's width to a laptop. A
+  column that narrows with the window keeps the diffs at no less than GitHub's docked
+  layout gives them at any width the reader picks, and keeps the column on the screen it
+  was set on; moving it above the diffs while a narrower column would fit would throw away
+  room the reader has. The column sits one stacking level above the tree's pane, so with
+  the tree docked left the grip's overhang stays on top, and the pane's collapse slides
+  under the column rather than over it.
+
 ## 2026-10-29: A commit's message, loaded in place
 
 - **Compared:**

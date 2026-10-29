@@ -1,12 +1,15 @@
 /* GitHub hooks: the commit message box, the sibling after a rendered .gh-prism-commit-message
-   or after .gh-prism-commit-slot; and [class*="PageLayout-PageLayoutContent"]'s flex row, whose
-   panes sort at order 1 or PageLayout's --region-order-pane-end, which the column's tw:-order-1
-   sorts before. Every other rule selects only gh-prism's own classes. */
+   (other than the column's separator) or after .gh-prism-commit-slot; and
+   [class*="PageLayout-PageLayoutContent"]'s flex row, whose panes sort at order 1 or
+   PageLayout's --region-order-pane-end, which the column's tw:-order-1 sorts before. Every other
+   rule selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @source "./message-view.ts";
+@source "./column-width.ts";
 
-/* GitHub's box, while the rendered message stands in for it. */
-.gh-prism-commit-message[data-view="rendered"] + * {
+/* GitHub's box, while the rendered message stands in for it; in the column, the separator follows
+   the message instead. */
+.gh-prism-commit-message[data-view="rendered"] + :not(.gh-prism-commit-column-separator) {
   display: none !important;
 }
 
@@ -53,6 +56,38 @@
   flex-direction: column;
   justify-content: center;
   min-height: 44px;
+}
+
+/* The message scrolls inside the column, so the separator on the column's edge stays put. */
+.gh-prism-commit-column > .gh-prism-commit-message {
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* Primer's pane divider: a 5px grip centred on the column's edge, washed on hover and while
+   dragged. */
+.gh-prism-commit-column-separator {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: -2px;
+  width: 5px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.gh-prism-commit-column-separator::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--bgColor-neutral-muted);
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.gh-prism-commit-column-separator:hover::before,
+.gh-prism-commit-column-separator[data-dragging]::before {
+  opacity: 1;
 }
 
 /* Held back a moment, so a rendering that lands at once never flashes it. message-view.ts sets
@@ -140,5 +175,9 @@
   .gh-prism-commit-skeleton,
   .gh-prism-commit-skeleton > span {
     animation: none;
+  }
+
+  .gh-prism-commit-column-separator::before {
+    transition: none;
   }
 }

@@ -15,6 +15,7 @@ import {
   findCommitMessage,
 } from "../files-page";
 import { el, icon } from "../ui/dom";
+import { type ColumnWidthChoice, columnSeparator, fitsColumn } from "./column-width";
 import { renderCommitMessage, withinCaps } from "./message";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./message-view.css?inline";
@@ -32,14 +33,16 @@ export interface CommitMessageOptions {
   readonly choice: CommitMessageChoice;
   /** Remembers a view the switch picked. */
   readonly save: (view: CommitMessageView) => void;
+  /** Remembers a width the column was set to. */
+  readonly saveWidth: (width: number) => void;
   readonly visit: CommitMessageVisit;
 }
 
 /**
- * Which view a commit's message shows; one per browser tab, shared by every page in it, so a
- * switch carries to the next commit.
+ * Which view a commit's message shows, and how wide its column is; one per browser tab, shared by
+ * every page in it, so a switch or a resize carries to the next commit.
  */
-export interface CommitMessageChoice {
+export interface CommitMessageChoice extends ColumnWidthChoice {
   view: CommitMessageView;
 }
 
@@ -65,7 +68,7 @@ export interface CommitMessageVisit {
 export function showCommitMessage(
   page: FilesPage,
   signal: AbortSignal,
-  { afterSections, choice, save, visit }: CommitMessageOptions,
+  { afterSections, choice, save, saveWidth, visit }: CommitMessageOptions,
 ): void {
   const message = findCommitMessage(page);
   // A subject line alone gains nothing from rendering.
@@ -78,7 +81,7 @@ export function showCommitMessage(
   const view = messageView(doc, message.box, { choice, save });
   if (visit.rendered) view.fill(visit.rendered, "at once");
   else view.wait(elapsed);
-  mountMessage(page, message.box, view.container, shown);
+  mountMessage(page, { box: message.box, container: view.container }, { choice, saveWidth }, shown);
   if (visit.rendered) return;
 
   afterSections(() => {
@@ -100,25 +103,23 @@ function renderedOrWarn(doc: Document, message: CommitMessage): Node[] | undefin
   }
 }
 
-// GitHub docks its file tree beside the diffs from 1012px; the column's 320px (tw:w-80) comes on
-// top, so the diffs never get less width than GitHub gives them there.
-const COLUMN_QUERY = "(min-width: 1332px)";
-
 /**
  * Mounts `container`, the message and its switch, in a sticky column at the left of `page`'s
- * layout row on a wide window, else just before `page`'s message box, following GitHub's
- * re-renders and the window's width, until `signal` aborts.
+ * layout row on a window with room for it, else just before `box`, following GitHub's re-renders
+ * and the window's width, until `signal` aborts.
  */
 function mountMessage(
   page: FilesPage,
-  box: Element,
-  container: HTMLElement,
+  { box, container }: { box: Element; container: HTMLElement },
+  width: Pick<CommitMessageOptions, "choice" | "saveWidth">,
   signal: AbortSignal,
 ): void {
   const doc = page.sidebar.ownerDocument;
+  const win = doc.defaultView;
   const slot = Object.assign(el(doc, "span", "gh-prism-commit-slot"), { hidden: true });
   const column = messageColumn(doc);
-  const wide = doc.defaultView?.matchMedia(COLUMN_QUERY);
+  const { separator, size } = columnSeparator(column, width);
+  column.append(separator);
   // Found once: a new row means a new sidebar, and so a new visit; a row detached before then
   // falls back above the diffs.
   const row = findCommitColumnRow(page);
@@ -131,8 +132,9 @@ function mountMessage(
   };
   const moveIntoColumn = (connectedRow: Element, currentBox: Element) => {
     if (column.parentElement !== connectedRow) connectedRow.prepend(column);
-    if (container.parentElement !== column) column.append(container);
+    if (container.parentElement !== column) column.prepend(container);
     if (slot.nextElementSibling !== currentBox) currentBox.before(slot);
+    size();
   };
   const moveAboveDiffs = (currentBox: Element) => {
     column.remove();
@@ -143,8 +145,9 @@ function mountMessage(
   const follow = () => {
     const currentBox = findCommitMessage(page)?.box;
     if (!currentBox) unmount();
-    else if (wide?.matches && row?.isConnected) moveIntoColumn(row, currentBox);
-    else moveAboveDiffs(currentBox);
+    else if (win && fitsColumn(win.innerWidth) && row?.isConnected) {
+      moveIntoColumn(row, currentBox);
+    } else moveAboveDiffs(currentBox);
   };
 
   follow();
@@ -153,12 +156,10 @@ function mountMessage(
   const observer = new MutationObserver(follow);
   if (box.parentNode) observer.observe(box.parentNode, { childList: true });
   if (row) observer.observe(row, { childList: true });
-  wide?.addEventListener("change", follow);
+  win?.addEventListener("resize", follow, { signal });
 
   signal.addEventListener("abort", () => {
     observer.disconnect();
-    // Removed by hand: happy-dom's MediaQueryList ignores a { signal } option.
-    wide?.removeEventListener("change", follow);
     unmount();
     style.remove();
   });
@@ -274,7 +275,7 @@ function messageColumn(doc: Document): HTMLElement {
   const column = el(
     doc,
     "aside",
-    "gh-prism-commit-column tw:sticky tw:top-0 tw:-order-1 tw:h-screen tw:w-80 tw:shrink-0 tw:self-start tw:overflow-y-auto tw:border-e tw:border-border-default",
+    "gh-prism-commit-column tw:sticky tw:top-0 tw:z-1 tw:-order-1 tw:h-screen tw:shrink-0 tw:self-start tw:border-e tw:border-border-default",
   );
   column.setAttribute("aria-label", "Commit message");
   return column;

@@ -25,8 +25,9 @@ it("goes back from its loading state to GitHub's box, warning, when the message 
     afterSections: (task) => {
       render = task;
     },
-    choice: { view: "rendered" },
+    choice: { view: "rendered", width: 320 },
     save: () => {},
+    saveWidth: () => {},
     visit: { since: performance.now() },
   });
 

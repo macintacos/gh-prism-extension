@@ -193,19 +193,28 @@ page the tab's one choice, so a commit opens in the view last picked. The messag
 container mounts with its `data-view` already set, so a reader who picked GitHub's box
 never sees the rendering first.
 
-On a window at least 1332px wide, the view moves the message and its switch into
-`aside.gh-prism-commit-column`, a 320px sticky column it prepends to the flex row around
-the sidebar that `findCommitColumnRow` finds. GitHub docks its file tree beside the diffs
-from 1012px, and the column's width comes on top of that, so the diffs never get narrower
-than GitHub makes them. The column takes the tree pane's geometry and sorts first by
-`order`, wherever the pane is docked. The window stays the scroller, so GitHub's sticky
-file headers and lazy diff loading are untouched. While the message is in the column, a
-hidden `span.gh-prism-commit-slot` stands just before GitHub's box and hides it in the
-message's place, in both views. The column's plaintext view shows
-`div.gh-prism-commit-message-plain` instead: copies of the box's children, taken when the
-message mounts, laid out as the box is: a flex column, padded 8px 12px. A `matchMedia`
-listener moves the message back above the diffs when the window narrows, and a commit page
-with no row keeps it there at any width.
+On a window with room for it, the view moves the message and its switch into
+`aside.gh-prism-commit-column`, a sticky column it prepends to the flex row around the
+sidebar that `findCommitColumnRow` finds. GitHub docks its file tree beside the diffs from
+1012px, so the column takes only what a window has past that, and the diffs never get
+narrower than GitHub makes them there. The column takes the tree pane's geometry and sorts
+first by `order`, wherever the pane is docked. The window stays the scroller, so GitHub's
+sticky file headers and lazy diff loading are untouched; the message scrolls inside the
+column. While the message is in the column, a hidden `span.gh-prism-commit-slot` stands
+just before GitHub's box and hides it in the message's place, in both views. The column's
+plaintext view shows `div.gh-prism-commit-message-plain` instead: copies of the box's
+children, taken when the message mounts, laid out as the box is: a flex column, padded 8px
+12px.
+
+The column is 320px wide until the reader resizes it. `columnSeparator` in
+[`entrypoints/content/commit/column-width.ts`](../entrypoints/content/commit/column-width.ts)
+builds a `role="separator"` on the column's inner edge, copying the Primer pane divider on
+GitHub's file tree: dragging it, or its arrow keys at 3px a press, sets the width, which
+saves as `commitColumnWidth` in [`utils/prefs.ts`](../utils/prefs.ts) and carries to every
+commit in the tab. The width holds between Primer's 256px pane minimum and what the window
+has past 1012px, so the column narrows with the window, and moves back above the diffs
+once the window can't spare 256px, below 1268px. A `resize` listener applies both, and a
+commit page with no row keeps the message above the diffs at any width.
 
 gh-prism never edits GitHub's box: the view's sheet only hides it, and it shows again when
 the reader switches to it above the diffs, when the visit aborts, or when gh-prism can't

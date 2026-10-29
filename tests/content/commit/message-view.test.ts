@@ -45,14 +45,22 @@ const runIdle = () => {
 };
 let choice: CommitMessageChoice;
 let save: (view: CommitMessageView) => void;
+let saveWidth: (width: number) => void;
 let visit: CommitMessageVisit;
 const show = () =>
-  showCommitMessage(pageOf(), controller.signal, { afterSections, choice, save, visit });
+  showCommitMessage(pageOf(), controller.signal, {
+    afterSections,
+    choice,
+    save,
+    saveWidth,
+    visit,
+  });
 
 beforeEach(() => {
-  choice = { view: "rendered" };
+  choice = { view: "rendered", width: 320 };
   visit = { since: performance.now() };
   save = vi.fn();
+  saveWidth = vi.fn();
   vi.useFakeTimers();
   history.replaceState(null, "", "/o/r/commit/dd95cdc");
   loadCommitFixture("lists");
@@ -361,8 +369,9 @@ describe("showCommitMessage's column", () => {
   afterEach(() => setViewport(DEFAULT));
 
   const expectInColumn = () => {
-    expect(column()?.children).toHaveLength(1);
+    expect(column()?.children).toHaveLength(2);
     expect(column()?.firstElementChild).toBe(container());
+    expect(column()?.lastElementChild?.getAttribute("role")).toBe("separator");
     expect(row()?.firstElementChild).toBe(column());
     expect(box().previousElementSibling?.matches(".gh-prism-commit-slot")).toBe(true);
     expect(shows(box())).toBe(false);
@@ -378,9 +387,6 @@ describe("showCommitMessage's column", () => {
   it("moves the message back above the diffs when the window narrows", () => {
     show();
     runIdle();
-    // happy-dom seeds a `change` listener's last state as unmatched, so it skips the first
-    // narrowing unless a resize while wide records the match.
-    window.dispatchEvent(new Event("resize"));
     setViewport(NARROW);
 
     expect(column()).toBeNull();
@@ -535,6 +541,131 @@ describe("showCommitMessage's column", () => {
   });
 });
 
+describe("showCommitMessage's column width", () => {
+  const handle = () =>
+    document.querySelector<HTMLElement>('.gh-prism-commit-column > [role="separator"]');
+  const widthOf = () => document.querySelector<HTMLElement>(".gh-prism-commit-column")?.style.width;
+  const press = (key: string) =>
+    handle()?.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+  const pointer = (type: string, clientX: number) =>
+    handle()?.dispatchEvent(
+      new PointerEvent(type, { clientX, pointerId: 1, button: 0, bubbles: true }),
+    );
+  const resizeTo = (width: number) => setViewport({ width, height: 768 });
+
+  beforeEach(() => setViewport(WIDE));
+  afterEach(() => setViewport(DEFAULT));
+
+  it("opens the column at the tab's width, with a separator on its edge saying so", () => {
+    choice.width = 360;
+
+    show();
+
+    expect(widthOf()).toBe("360px");
+    const separator = handle();
+    if (!separator) throw new Error("no separator");
+    expect(shows(separator)).toBe(true);
+    expect(separator.tabIndex).toBe(0);
+    expect(handle()?.getAttribute("aria-orientation")).toBe("vertical");
+    expect(handle()?.getAttribute("aria-valuenow")).toBe("360");
+    expect(handle()?.getAttribute("aria-valuemin")).toBe("256");
+    expect(handle()?.getAttribute("aria-valuemax")).toBe("388");
+  });
+
+  it("holds the column to no more than the window leaves past GitHub's 1012px docked layout", () => {
+    choice.width = 600;
+    show();
+
+    expect(widthOf()).toBe("388px");
+
+    resizeTo(1300);
+
+    expect(widthOf()).toBe("288px");
+    expect(handle()?.getAttribute("aria-valuenow")).toBe("288");
+    expect(choice.width).toBe(600);
+  });
+
+  it("holds the column to no less than 256px", () => {
+    choice.width = 100;
+
+    show();
+
+    expect(widthOf()).toBe("256px");
+  });
+
+  it("keeps the column while the window spares 256px past GitHub's docked layout, and moves above the diffs below that", () => {
+    show();
+    resizeTo(1268);
+
+    expect(column()).not.toBeNull();
+    expect(widthOf()).toBe("256px");
+
+    resizeTo(1267);
+
+    expect(column()).toBeNull();
+    expect(box().previousElementSibling).toBe(container());
+  });
+
+  it("steps the width 3px an arrow key, within its bounds, saving each width", () => {
+    choice.width = 384;
+    show();
+
+    press("ArrowRight");
+
+    expect(widthOf()).toBe("387px");
+    expect(handle()?.getAttribute("aria-valuenow")).toBe("387");
+    expect(choice.width).toBe(387);
+    expect(saveWidth).toHaveBeenLastCalledWith(387);
+
+    press("ArrowUp");
+
+    expect(widthOf()).toBe("388px");
+
+    press("ArrowLeft");
+    press("ArrowDown");
+
+    expect(widthOf()).toBe("382px");
+    expect(saveWidth).toHaveBeenLastCalledWith(382);
+  });
+
+  it("follows a drag of its edge within its bounds, saving the width once on release", () => {
+    show();
+
+    pointer("pointerdown", 320);
+    pointer("pointermove", 350);
+
+    expect(widthOf()).toBe("350px");
+    expect(handle()?.hasAttribute("data-dragging")).toBe(true);
+
+    pointer("pointermove", 500);
+
+    expect(widthOf()).toBe("388px");
+    expect(saveWidth).not.toHaveBeenCalled();
+
+    pointer("pointerup", 500);
+    pointer("pointermove", 300);
+
+    expect(widthOf()).toBe("388px");
+    expect(choice.width).toBe(388);
+    expect(saveWidth).toHaveBeenCalledOnce();
+    expect(saveWidth).toHaveBeenCalledWith(388);
+    expect(handle()?.hasAttribute("data-dragging")).toBe(false);
+  });
+
+  it("ignores a key that isn't an arrow, and a drag by another button", () => {
+    show();
+
+    press("Enter");
+    handle()?.dispatchEvent(
+      new PointerEvent("pointerdown", { clientX: 320, pointerId: 1, button: 2, bubbles: true }),
+    );
+    pointer("pointermove", 350);
+
+    expect(widthOf()).toBe("320px");
+    expect(saveWidth).not.toHaveBeenCalled();
+  });
+});
+
 describe("showCommitMessage across navigation", () => {
   const navigate = async (path: string, load: () => void) => {
     history.pushState(null, "", path);
@@ -558,6 +689,7 @@ describe("showCommitMessage across navigation", () => {
               afterSections: (task) => task(),
               choice,
               save,
+              saveWidth,
               visit,
             });
         },

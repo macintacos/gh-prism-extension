@@ -24,6 +24,7 @@ import {
 import {
   type CommitMessageView,
   classicNoticeDismissed,
+  commitColumnWidth,
   commitMessageView,
   type DiffstatView,
   diffstatView,
@@ -78,16 +79,23 @@ export default defineContentScript({
     } satisfies IntentSources;
     const release = releaseOf(import.meta.env.WXT_RELEASE_NOTES, version);
     // Read before watching, so a saved side, view, or dismissal never shows its default first.
-    const [savedSide, savedDiffstat, savedCommitMessage, dismissed, whatsNewForPage] =
-      await Promise.all([
-        readSavedSide(),
-        readSavedDiffstat(),
-        readSavedCommitMessage(),
-        readNoticeDismissed(),
-        release && followWhatsNew(release, ctx),
-      ]);
+    const [
+      savedSide,
+      savedDiffstat,
+      savedCommitMessage,
+      savedColumnWidth,
+      dismissed,
+      whatsNewForPage,
+    ] = await Promise.all([
+      readSavedSide(),
+      readSavedDiffstat(),
+      readSavedCommitMessage(),
+      readSavedColumnWidth(),
+      readNoticeDismissed(),
+      release && followWhatsNew(release, ctx),
+    ]);
     const side = sideChoiceOf(savedSide);
-    const commitMessage = commitMessageChoiceOf(savedCommitMessage);
+    const commitMessage = commitMessageChoiceOf(savedCommitMessage, savedColumnWidth);
     // Shared by every visit, so a switch on one tab or page carries to the next.
     const diffstat = {
       choice: diffstatChoiceOf(savedDiffstat),
@@ -141,6 +149,7 @@ export default defineContentScript({
               afterSections: afterLanding(intent),
               choice: commitMessage,
               save: saveCommitMessage,
+              saveWidth: saveColumnWidth,
               visit: messageVisit,
             });
             dockSidebar(page, signal, { choice: side, save: saveSide });
@@ -256,11 +265,25 @@ const readSavedCommitMessage = (): Promise<unknown> =>
     return commitMessageView.fallback;
   });
 
-/** The view a commit's message opens on: `saved`, when it names one, else the default. */
-function commitMessageChoiceOf(saved: unknown): CommitMessageChoice {
-  // `fallback` covers only a missing view; a corrupt one reads back as stored.
-  const known = saved === "rendered" || saved === "plaintext";
-  return { view: known ? saved : commitMessageView.fallback };
+/** The stored commit message column width, unchecked, or the default when storage won't read. */
+const readSavedColumnWidth = (): Promise<unknown> =>
+  commitColumnWidth.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading the commit message column's width failed", error);
+    return commitColumnWidth.fallback;
+  });
+
+/**
+ * The view a commit's message opens on and its column's width: `savedView` and `savedWidth`, when
+ * each is one, else the defaults.
+ */
+function commitMessageChoiceOf(savedView: unknown, savedWidth: unknown): CommitMessageChoice {
+  // `fallback` covers only a missing value; a corrupt one reads back as stored.
+  const known = savedView === "rendered" || savedView === "plaintext";
+  const width = typeof savedWidth === "number" && Number.isFinite(savedWidth);
+  return {
+    view: known ? savedView : commitMessageView.fallback,
+    width: width ? savedWidth : commitColumnWidth.fallback,
+  };
 }
 
 const saveCommitMessage = (view: CommitMessageView) =>
@@ -268,6 +291,13 @@ const saveCommitMessage = (view: CommitMessageView) =>
     .setValue(view)
     .catch((error: unknown) =>
       console.error("gh-prism: saving the commit message view failed", error),
+    );
+
+const saveColumnWidth = (width: number) =>
+  commitColumnWidth
+    .setValue(width)
+    .catch((error: unknown) =>
+      console.error("gh-prism: saving the commit message column's width failed", error),
     );
 
 /** Whether the user dismissed the classic page's notice; not, when storage won't read. */

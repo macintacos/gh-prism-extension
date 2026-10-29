@@ -122,7 +122,7 @@ facts about GitHub that held when written, and ends with how to re-check them;
   named in the `tests/fixtures/commit-message-*.html` header comments, and compare each
   page's message card with its fixture. Check a scratch `div.markdown-body`'s computed
   `font-size` reads `16px`, and that a scratch `ul.contains-task-list > li.task-list-item`
-  drops its bullet. On a public commit page at ≥ 1332px, read the computed `order` of
+  drops its bullet. On a public commit page at ≥ 1268px, read the computed `order` of
   `[class*="PageLayout-PageLayoutContent"]`'s children, the pane wrapper's `position`,
   `top`, and `height`, and confirm `document.scrollingElement` is what scrolls.
 

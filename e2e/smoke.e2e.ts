@@ -224,6 +224,8 @@ test("a commit's message renders as Markdown in GitHub's box's place, after the 
 }) => {
   const card = readFixture("commit-message-lists.html");
   await serve(context, COMMIT_URL, commitBodyWith(card));
+  // Too narrow for the column, so the rendering takes GitHub's box's place.
+  await page.setViewportSize({ width: 1200, height: 900 });
   await page.addInitScript(() => {
     const seen: string[] = [];
     (window as unknown as { seen: string[] }).seen = seen;
@@ -376,6 +378,8 @@ test("a commit's message switches to GitHub's box from the keyboard, and opens t
 }) => {
   const card = readFixture("commit-message-lists.html");
   await serve(context, COMMIT_URL, commitBodyWith(card));
+  // Too narrow for the column, so the plaintext view is GitHub's own box.
+  await page.setViewportSize({ width: 1200, height: 900 });
   // Records, every frame, whether the rendering or a hidden box ever painted.
   await page.addInitScript((boxSelector) => {
     const painted = { rendering: false, hiddenBox: false };
@@ -432,6 +436,46 @@ test("a subject-only commit keeps GitHub's box, with no column or switch", async
     page.locator(".gh-prism-commit-message, .gh-prism-commit-column, .gh-prism-commit-slot"),
   ).toHaveCount(0);
   await expect(page.locator(MESSAGE_BOX)).toBeVisible();
+});
+
+test("a commit's message column resizes from its edge by mouse and keyboard, and keeps its width after a reload", async ({
+  context,
+  page,
+}) => {
+  await serve(context, COMMIT_URL, commitBodyWith(readFixture("commit-message-lists.html")));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(COMMIT_URL);
+  const column = page.locator(".gh-prism-commit-column");
+  const separator = page.getByRole("separator", { name: "Resize commit message" });
+  const wash = () => separator.evaluate((el) => Number(getComputedStyle(el, "::before").opacity));
+  await expect(column).toHaveCSS("width", "320px");
+  const edge = await separator.boundingBox();
+  if (!edge) throw new Error("no separator box");
+  const x = edge.x + edge.width / 2;
+  const y = edge.y + 200;
+  await page.mouse.move(x, y);
+  await expect(separator).toHaveCSS("cursor", "col-resize");
+  await expect.poll(wash).toBe(1);
+  await page.mouse.down();
+  await page.mouse.move(x + 60, y, { steps: 4 });
+  await expect(column).toHaveCSS("width", "380px");
+  await page.mouse.move(x + 400, y, { steps: 4 });
+  // 1440px leaves 428px past GitHub's 1012px docked layout.
+  await expect(column).toHaveCSS("width", "428px");
+  await page.mouse.up();
+  await expect(separator).toHaveAttribute("aria-valuenow", "428");
+
+  await separator.focus();
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("ArrowLeft");
+  await expect(column).toHaveCSS("width", "422px");
+  await expect(separator).toHaveCSS("outline-style", "solid");
+
+  // The width saves asynchronously; reload until a load reads it back.
+  await expect(async () => {
+    await page.reload();
+    await expect(column).toHaveCSS("width", "422px", { timeout: 5000 });
+  }).toPass({ timeout: 20_000 });
 });
 
 for (const width of [1280, 1440]) {
