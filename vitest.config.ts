@@ -10,6 +10,7 @@ export default defineConfig({
       include: [
         /diffs\/order\.css/,
         /diffstat-view\.css/,
+        /message-view\.css/,
         /loading-view\.css/,
         /notice\.css/,
         /owner-section\.css/,

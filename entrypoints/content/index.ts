@@ -30,6 +30,7 @@ import {
   whatsNewStateOf,
 } from "@/utils/whats-new";
 import { type NoticeChoice, showClassicNotice } from "./classic/notice";
+import { showCommitMessage } from "./commit/message-view";
 import { showReviewerFiles } from "./conversation/reviewer-files";
 import { visitViewed } from "./diffs/viewed";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
@@ -118,6 +119,9 @@ export default defineContentScript({
               teamMembers,
               owner: route.diff.kind === "pr" ? ownerOf(location.search) : undefined,
               whatsNew: whatsNewForPage?.(),
+            });
+            showCommitMessage(page, signal, {
+              idle: (task) => requestIdleCallback(task, { timeout: 1000 }),
             });
             dockSidebar(page, signal, { choice: side, save: saveSide });
           };
