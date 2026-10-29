@@ -63,6 +63,12 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   in a microtask still lands after the dispatch ends.
   [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `copyGitHubToggles` covers the Viewed
   toggle's flip.
+- **Don't read a sibling's computed style after a combinator's subject changes back.**
+  Under `.a[data-v] + * { display: none }`, happy-dom updates the sibling's computed
+  `display` when `.a` gains the attribute, but keeps `none` once it loses it. Prove the
+  way back in Chromium: [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "a commit's message
+  switches to GitHub's box from the keyboard, and opens there after a reload with no flash
+  of the rendering" covers the commit message's switch.
 
 ## Test bodies
 

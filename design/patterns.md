@@ -114,13 +114,21 @@ these marks.
 A tooltip copies Primer's. It is an `::after` on the control that shows the control's
 `aria-label`, on `--tooltip-bgColor`, at the small body size, and it fades in over 120 ms
 on hover and focus. It opens toward the inside of the sidebar or the page, so it never
-clips at an edge. `sidebar/side.css` and `sidebar/report.css` hold the two in use.
+clips at an edge. `sidebar/side.css`, `sidebar/report.css`, and `commit/message-view.css`
+hold the three in use.
 
 No control takes a key yet, because `j` and `k` step through files without a control of
 their own. When a control does take one, its tooltip shows the key after the action's
 name, as a keycap in the style of Primer's keybinding hint, and the control sets
 `aria-keyshortcuts`, so assistive technology announces the key. Touch devices have no
 hover, so they never show the keycap.
+
+## Switches
+
+A switch between two views or states is Primer's small invisible IconButton holding one
+Octicon in both states. Its `aria-label`, which its tooltip shows, names the action it
+takes and flips with the state. Focus stays on it across the flip. `sidebar/side.ts` and
+`commit/message-view.ts` build the two in use.
 
 ## Floating surfaces
 

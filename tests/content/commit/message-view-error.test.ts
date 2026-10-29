@@ -17,12 +17,17 @@ it("keeps GitHub's box and warns when the message fails to render", () => {
   if (!page) throw new Error("no Files page");
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-  showCommitMessage(page, new AbortController().signal, { afterSections: (task) => task() });
+  showCommitMessage(page, new AbortController().signal, {
+    afterSections: (task) => task(),
+    choice: { view: "rendered" },
+    save: () => {},
+  });
 
   const box = document.querySelector('[class*="commitMessageContainer__"]');
   if (!box) throw new Error("no message box");
   expect(getComputedStyle(box).display).not.toBe("none");
   expect(document.querySelector(".gh-prism-commit-message")).toBeNull();
+  expect(document.querySelector(".gh-prism-commit-view-switch")).toBeNull();
   expect(warn).toHaveBeenCalledOnce();
   expect(warn.mock.calls[0]?.[0]).toMatch(/^gh-prism: couldn't render the commit message/);
 });
