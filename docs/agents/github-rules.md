@@ -102,6 +102,11 @@ facts about GitHub that held when written, and ends with how to re-check them;
   `[text](url)`, GitHub's `<a>` covers exactly the URL, and the `(` and `)` stay text
   outside it. A compare URL becomes an `a.commit-link` reading
   `owner/repo@<tt>sha...sha</tt>`, not the URL, with no hovercard.
+- **Expect the message's card in PageLayout's Header, above the flex row
+  `[class*="PageLayout-PageLayoutContent"]`.** The row holds the tree's pane wrapper
+  (`order` 1, or 3 docked right) and the diffs' ContentWrapper (`order` 2). The pane
+  wrapper is `position: sticky; top: 0; height: 100vh`, and the window, not the row,
+  scrolls. `findCommitColumnRow` finds the row from the sidebar.
 - **Read the message from the box, not the embedded page data.** The data holds it only as
   HTML (`shortMessageMarkdown`, `bodyMessageHtml`), never as raw text.
 - **Rely on GitHub's `markdown-body` sheet.** It loads on commit pages, so a

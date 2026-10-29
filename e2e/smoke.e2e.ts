@@ -59,8 +59,8 @@ const scrollSidebarToBulkRow = (page: Page, n: number): Promise<void> =>
     // A bulk file's row follows bulk/, 28 px a row; 100 px of it shows below the top.
     sidebar.scrollTop = treeTop + (n + 1) * 28 - 100;
   }, n);
-// The wrapper supplies GitHub's layout container; the switch's container query needs ≥ 1012 px (default viewport: 1280).
-const COMMIT_BODY = `<!doctype html><div class="PageLayout-PageLayoutContent">${readFixture("commit-page.html")}</div>`;
+// The fixture's row is GitHub's layout container; the switch's container query needs ≥ 1012 px (default viewport: 1280).
+const COMMIT_BODY = `<!doctype html>${readFixture("commit-page.html")}`;
 
 const test = base.extend<{ context: BrowserContext }>({
   // biome-ignore lint/correctness/noEmptyPattern: Playwright reads fixture dependencies from this pattern.
@@ -215,8 +215,7 @@ test("a commit's diff list skips a comment thread beside it", async ({ context, 
   expect(regionsPerList).toEqual([2]);
 });
 
-const commitBodyWith = (card: string) =>
-  `<!doctype html><div class="PageLayout-PageLayoutContent">${card}${readFixture("commit-page.html")}</div>`;
+const commitBodyWith = (card: string) => `<!doctype html>${card}${readFixture("commit-page.html")}`;
 const MESSAGE_BOX = '[class*="commitMessageContainer__"]';
 
 test("a commit's message renders as Markdown in GitHub's box's place, after the sidebar", async ({

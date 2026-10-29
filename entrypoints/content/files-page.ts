@@ -2,8 +2,8 @@
  * The one script module that holds selectors into GitHub's Files view markup; the stylesheets list
  * theirs in a `GitHub hooks:` header. It holds a `PageKind` for a pull request's page and a
  * commit's, finds a Files view's page, a pull request's classic page, or its header on its header
- * tabs, finds a commit's message box, reads its rows, follows a pull request's narrow-layout
- * overlay and the file-tree filter menu, finds and follows the rows and code-owner shields of a
+ * tabs, finds a commit's message box and the row its message column joins, reads its rows,
+ * follows a pull request's narrow-layout overlay and the file-tree filter menu, finds and follows the rows and code-owner shields of a
  * pull request's Reviewers lists, and copies that menu's group, divider, and item for gh-prism's
  * entries, so the selectors stay in this seam; it builds no UI of its own and imports nothing from
  * WXT. The pull request selectors come from EXC-1662's survey.
@@ -33,6 +33,11 @@ export interface PageKind {
    * body.
    */
   readonly commitMessage?: string;
+  /**
+   * Selects the flex row around `sidebar`, holding its pane and the diffs, that a commit's
+   * message column joins.
+   */
+  readonly commitColumnRow?: string;
   /** A toolbar tree-toggle button; its parent wraps the toggle's buttons. */
   readonly treeToggle: string;
   /** The toggle buttons that collapse the tree in place, not the narrow layout's overlay toggle. */
@@ -103,6 +108,7 @@ export const commitPage = {
   diffs: "#diff-content-parent",
   diffstatSlot: '[class*="commitFilesChangedContainer__"]',
   commitMessage: '[class*="commitMessageContainer__"]',
+  commitColumnRow: '[class*="PageLayout-PageLayoutContent"]',
   // A commit's sidebar carries a copy of the toolbar for the narrow layout.
   treeToggle: '#diff-content-parent [aria-controls="diff_file_tree"]',
   // `.d-md-none` marks the narrow layout's overlay toggle.
@@ -177,6 +183,12 @@ export function findCommitMessage(page: FilesPage): CommitMessage | undefined {
   const title = box?.querySelector(":scope > span:first-child > div");
   if (!box || !title) return undefined;
   return { box, title, body: box.querySelector(":scope > .extended-commit-description-container") };
+}
+
+/** The row around `page`'s sidebar that a commit's message column joins, or `undefined`. */
+export function findCommitColumnRow(page: FilesPage): Element | undefined {
+  const { commitColumnRow: selector } = page.kind;
+  return (selector && page.sidebar.closest(selector)) || undefined;
 }
 
 /** The narrow layout's overlay copy of `page`'s tree while it is open, else `undefined`. */
