@@ -1,7 +1,7 @@
 /**
  * Adds an "Only files owned by…" section to GitHub's file-tree filter menu: "Me", standing in for
  * GitHub's "Only files owned by you", then each reviewer who owns a changed file, directly or
- * through a team they review for.
+ * through a team they review for, then the code owner the page filters by if none of those.
  */
 
 import {
@@ -77,8 +77,8 @@ function addSection(
   { reviewers, viewer, navigate }: SectionParts,
 ): void {
   const { ownedByYou } = menu;
-  if (!ownedByYou && reviewers.length === 0) return;
   const owner = ownerOf(doc.location.search);
+  if (!ownedByYou && reviewers.length === 0 && owner === undefined) return;
   const { group: section, list } = copyMenuGroup(menu, "Only files owned by…");
   section.classList.add("gh-prism-owner-section");
 
@@ -100,7 +100,11 @@ function addSection(
       }),
     );
   }
-  for (const token of reviewers) {
+  const listed =
+    owner === undefined || reviewers.some((token) => isOwner(token, { token: owner }))
+      ? reviewers
+      : [...reviewers, owner];
+  for (const token of listed) {
     const checked = owner !== undefined && isOwner(token, { token: owner });
     // ponytail: a pick reloads the page, since the owner filter reads its owner once per page and
     // never un-hides; re-read the owner on an in-page URL change in watch.ts and land.ts to skip

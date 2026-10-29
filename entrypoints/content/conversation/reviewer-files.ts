@@ -23,7 +23,13 @@ import {
 import { el, icon } from "../ui/dom";
 import { fileList } from "../ui/file-list";
 import { type Card, followHoverIntent } from "../ui/hover-intent";
-import { detailsHint, openOwnersDialog, ownerLink } from "../ui/owners-dialog";
+import {
+  detailsHint,
+  type OwnerFilter,
+  openOwnersDialog,
+  ownerFilterAction,
+  ownerLink,
+} from "../ui/owners-dialog";
 import { place } from "../ui/place";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./reviewer-files.css?inline";
@@ -48,12 +54,17 @@ export interface Ownership {
  * at once on Escape, focus leaving both, or a scroll outside it, moving focus it held to the
  * shield. A click on the shield opens the code owner details dialog instead, excerpting owning
  * teams' members through `teamMembers`. Calls `read` at most once, when a Reviewers list first
- * shows.
+ * shows. Given `filter`, popup and dialog offer to show only the code owner's files, when they
+ * list any.
  */
 export function showReviewerFiles(
   doc: Document,
   signal: AbortSignal,
-  { read, teamMembers }: { read: () => Promise<Ownership>; teamMembers: TeamMembersOf },
+  {
+    read,
+    teamMembers,
+    filter,
+  }: { read: () => Promise<Ownership>; teamMembers: TeamMembersOf; filter?: OwnerFilter },
 ): void {
   let ownership: Ownership | undefined;
   let reading: Promise<Ownership> | undefined;
@@ -84,8 +95,13 @@ export function showReviewerFiles(
   followHoverIntent(doc, signal, {
     triggerOf: shieldAt,
     show: async (shield) => {
-      const owned = ownedFiles(await readOnce(), ownerOf(shield));
-      const card = owned && show(shield, owned);
+      const token = ownerOf(shield);
+      const owned = ownedFiles(await readOnce(), token);
+      const action =
+        filter && owned && owned.paths.length > 0
+          ? ownerFilterAction(doc, token, filter)
+          : undefined;
+      const card = owned && show(shield, owned, action);
       if (card) closeCard = card.close;
       return card;
     },
@@ -110,6 +126,8 @@ export function showReviewerFiles(
         summary: popupBody(doc, owned),
         teams: token.includes("/") ? [token] : owned.teams,
         teamMembers,
+        filter: owned.paths.length > 0 ? filter : undefined,
+        owner: token,
         // Focus back on the shield opens its card again, as focus does anywhere here.
         returnFocus: () => shield.focus({ preventScroll: true }),
         signal,
@@ -215,17 +233,17 @@ function shieldFor(
 const bare = (token: string) => token.replace(/^@/, "");
 
 /**
- * Shows the popup listing `owned` below `shield` and names it as `shield`'s description, closing
- * it on a scroll outside it.
+ * Shows the popup listing `owned` below `shield`, ending in `action` if given, and names it as
+ * `shield`'s description, closing it on a scroll outside it.
  */
-function show(shield: HTMLElement, owned: OwnedFiles): Card {
+function show(shield: HTMLElement, owned: OwnedFiles, action: HTMLElement | undefined): Card {
   const doc = shield.ownerDocument;
   const popover = el(
     doc,
     "div",
     "gh-prism-reviewer-files tw:inset-auto tw:m-0 tw:w-max tw:max-w-[min(440px,calc(100vw-16px))] tw:box-border tw:max-h-[min(320px,calc(100vh-16px))] tw:overflow-y-auto tw:pt-4 tw:px-4 tw:pb-0 tw:text-body-medium tw:leading-body-medium tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:border tw:border-border-default tw:rounded-medium tw:wrap-anywhere",
     ...popupBody(doc, owned),
-    detailsHint(doc, "medium"),
+    detailsHint(doc, "medium", action),
   );
   popover.id = ID;
   popover.popover = "manual";

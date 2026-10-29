@@ -1,3 +1,4 @@
+import { isOwner } from "./code-owners";
 import { type DiffRef, isCommitSha, type PrRef } from "./pr-ref";
 
 // The classic page's `/files` and `/commits/<sha>`: GitHub redirects them to `/changes` and
@@ -75,6 +76,25 @@ export function withOwner(href: string, owner: string | undefined): string {
   if (owner === undefined) url.searchParams.delete(OWNER_PARAM);
   else url.searchParams.set(OWNER_PARAM, owner.replace(/^@/, ""));
   return url.href;
+}
+
+/** Where an action filtering by one code owner leads, and whether the page already filters by it. */
+export interface OwnerFilterLink {
+  readonly href: string;
+  readonly shown: boolean;
+}
+
+/**
+ * The link filtering `filesHref`, a Files changed URL, to `token`'s files, or clearing the filter
+ * when `current`, the code owner it already filters by, is `token`, ignoring case.
+ */
+export function ownerFilterLink(
+  filesHref: string,
+  current: string | undefined,
+  token: string,
+): OwnerFilterLink {
+  const shown = current !== undefined && isOwner(token, { token: current });
+  return { href: withOwner(filesHref, shown ? undefined : token), shown };
 }
 
 /** `href` with GitHub's "Only files owned by you" set to `login`, and the owner filter dropped. */

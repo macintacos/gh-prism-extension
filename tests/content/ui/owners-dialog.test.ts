@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { openOwnersDialog } from "../../../entrypoints/content/ui/owners-dialog";
+import { type OwnerFilter, openOwnersDialog } from "../../../entrypoints/content/ui/owners-dialog";
 import type { TeamMembers, TeamMembersOf } from "../../../utils/github/code-owners";
 import large from "../../fixtures/team-members-large.json?raw";
 
@@ -16,7 +16,9 @@ function open(
   {
     teams = ["@o/team"],
     summary = [document.createTextNode("summary")],
-  }: { teams?: string[]; summary?: Node[] } = {},
+    filter,
+    owner,
+  }: { teams?: string[]; summary?: Node[]; filter?: OwnerFilter; owner?: string } = {},
 ) {
   const returnFocus = vi.fn();
   openOwnersDialog(document, {
@@ -26,6 +28,8 @@ function open(
     teamMembers,
     returnFocus,
     signal: controller.signal,
+    filter,
+    owner,
   });
   return { returnFocus };
 }
@@ -129,5 +133,86 @@ describe("openOwnersDialog", () => {
 
     expect(dialog()).toBeNull();
     expect(document.head.querySelector("style")).toBeNull();
+  });
+});
+
+describe("the owner filter's actions", () => {
+  const FILES = "https://github.com/o/r/pull/1/files";
+  /** Links to `FILES` filtered to each token, the page's filter already naming `current`. */
+  const filtering = (current?: string) => {
+    const navigate = vi.fn();
+    const filter: OwnerFilter = {
+      linkOf: (token) =>
+        token === current
+          ? { href: FILES, shown: true }
+          : { href: `${FILES}?gh-prism-owner=${token.replace(/^@/, "")}`, shown: false },
+      navigate,
+    };
+    return { filter, navigate };
+  };
+  const actions = () => [
+    ...(dialog()?.querySelectorAll<HTMLAnchorElement>("a.gh-prism-owner-filter") ?? []),
+  ];
+  const footer = () => dialog()?.querySelector(".gh-prism-owners-dialog-footer");
+
+  it("offers each team block's files", () => {
+    open(undefined, { teams: ["@o/a", "@o/b"], filter: filtering().filter });
+
+    expect(
+      actions().map((a) => [a.closest("section")?.querySelector("h3")?.textContent, a.href]),
+    ).toEqual([
+      ["@o/a", `${FILES}?gh-prism-owner=o/a`],
+      ["@o/b", `${FILES}?gh-prism-owner=o/b`],
+    ]);
+    expect(actions()[0]?.textContent).toBe("Show only their files");
+  });
+
+  it("offers its own code owner's files once, in its footer", () => {
+    open(undefined, { teams: ["@o/a", "@o/b"], filter: filtering().filter, owner: "@O/A" });
+
+    expect(
+      actions().map((a) => [a.closest("section, .gh-prism-owners-dialog-footer"), a.href]),
+    ).toEqual([
+      [dialog()?.querySelectorAll("section")[1], `${FILES}?gh-prism-owner=o/b`],
+      [footer(), `${FILES}?gh-prism-owner=O/A`],
+    ]);
+  });
+
+  it("switches to showing all files for the code owner the page already filters by", () => {
+    open(undefined, { teams: ["@o/a"], filter: filtering("@o/a").filter });
+
+    expect(actions().map((a) => [a.textContent, a.href])).toEqual([["Show all files", FILES]]);
+  });
+
+  it("loads its link as a new page on a plain click", () => {
+    const { filter, navigate } = filtering();
+    open(undefined, { filter });
+
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+    actions()[0]?.dispatchEvent(click);
+
+    expect(navigate).toHaveBeenCalledWith(`${FILES}?gh-prism-owner=o/team`);
+    expect(click.defaultPrevented).toBe(true);
+  });
+
+  it.each(["metaKey", "ctrlKey", "shiftKey", "altKey"] as const)(
+    "leaves a click with %s to the browser",
+    (modifier) => {
+      const { filter, navigate } = filtering();
+      open(undefined, { filter });
+
+      const click = new MouseEvent("click", { bubbles: true, cancelable: true, [modifier]: true });
+      actions()[0]?.dispatchEvent(click);
+
+      expect(navigate).not.toHaveBeenCalled();
+      expect(click.defaultPrevented).toBe(false);
+    },
+  );
+
+  it("offers nothing, and has no footer, where the page has no owner filter", () => {
+    open(undefined, { owner: "@o/team" });
+
+    expect(actions()).toEqual([]);
+    expect(footer()).toBeNull();
   });
 });

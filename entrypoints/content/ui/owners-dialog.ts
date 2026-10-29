@@ -3,15 +3,17 @@
  * then an excerpt of each owning team's members. It exists only while open, and mounts in the
  * page's body so a shield in a shadow root and one in the light DOM share it. It also holds
  * `ownerLink`, the token link every code-owner surface shares, and the hover popups' hint that
- * points here.
+ * points here, and `ownerFilterAction`, the link that filters Files changed to one code owner.
  */
 
 import {
   type CodeOwner,
   codeOwnerOf,
+  isOwner,
   type TeamMembers,
   type TeamMembersOf,
 } from "@/utils/github/code-owners";
+import type { OwnerFilterLink } from "@/utils/github/files-route";
 import { el, icon, X_ICON } from "./dom";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./owners-dialog.css?inline";
@@ -30,6 +32,18 @@ export interface OwnersDialogOptions {
   readonly returnFocus: () => void;
   /** The page's lifetime; the dialog goes with it. */
   readonly signal: AbortSignal;
+  /** Filters Files changed by a code owner; without it, nothing offers to. */
+  readonly filter?: OwnerFilter;
+  /** The code owner the dialog is about, whose filter action its footer holds. */
+  readonly owner?: string;
+}
+
+/** How an action filters a pull request's Files changed to one code owner's files. */
+export interface OwnerFilter {
+  /** Where the action for `token` leads. */
+  readonly linkOf: (token: string) => OwnerFilterLink;
+  /** Loads `href` as a new page: the owner filter reads its owner once per page. */
+  readonly navigate: (href: string) => void;
 }
 
 const TITLE_ID = "gh-prism-owners-dialog-title";
@@ -37,13 +51,18 @@ const TITLE_ID = "gh-prism-owners-dialog-title";
 /** Opens the code owner details dialog over `doc`, until it closes or `signal` aborts. */
 export function openOwnersDialog(
   doc: Document,
-  { title, summary, teams, teamMembers, returnFocus, signal }: OwnersDialogOptions,
+  { title, summary, teams, teamMembers, returnFocus, signal, filter, owner }: OwnersDialogOptions,
 ): void {
   const style = Object.assign(doc.createElement("style"), { textContent: css });
+  const actionFor = (token: string) =>
+    filter && !(owner !== undefined && isOwner(token, { token: owner }))
+      ? ownerFilterAction(doc, token, filter)
+      : undefined;
   const dialog = ownersDialog(doc, {
     title,
     summary,
-    teams: teams.map((team) => teamBlock(doc, team, teamMembers(team))),
+    teams: teams.map((team) => teamBlock(doc, team, teamMembers(team), actionFor(team))),
+    footer: filter && owner !== undefined ? ownerFilterAction(doc, owner, filter) : undefined,
   });
 
   const closed = new AbortController();
@@ -78,19 +97,61 @@ const HINT_FOOTER = {
     "gh-prism-owners-hint tw:sticky tw:bottom-0 tw:-mx-4 tw:mt-4 tw:px-4 tw:py-2 tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:0_-1px_0_var(--borderColor-default)]",
 } as const;
 
-/** The footer a hover popup ends in, hinting that a click on its shield opens the dialog. */
-export function detailsHint(doc: Document, inset: keyof typeof HINT_FOOTER): HTMLElement {
-  return el(
+// The medium footer as a row beside a 28px action, in 4px padding rather than 8px.
+const ACTION_FOOTER =
+  "gh-prism-owners-hint tw:sticky tw:bottom-0 tw:-mx-4 tw:mt-4 tw:px-4 tw:py-1 tw:flex tw:items-center tw:gap-2 tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:0_-1px_0_var(--borderColor-default)]";
+
+/**
+ * The footer a hover popup ends in, hinting that a click on its shield opens the dialog, with
+ * `action` beside the hint in the medium inset.
+ */
+export function detailsHint(
+  doc: Document,
+  inset: keyof typeof HINT_FOOTER,
+  action?: HTMLElement,
+): HTMLElement {
+  const hint = el(
     doc,
-    "div",
-    HINT_FOOTER[inset],
-    el(
-      doc,
-      "p",
-      "tw:m-0 tw:text-body-small tw:leading-body-small tw:text-fg-muted",
-      "Click the shield for details",
-    ),
+    "p",
+    "tw:flex-1 tw:m-0 tw:text-body-small tw:leading-body-small tw:text-fg-muted",
+    "Click the shield for details",
   );
+  return action
+    ? el(doc, "div", ACTION_FOOTER, hint, action)
+    : el(doc, "div", HINT_FOOTER[inset], hint);
+}
+
+/** Octicons 19.15.0 (MIT, GitHub Inc.): filter. */
+const FILTER_ICON =
+  "M.75 3h14.5a.75.75 0 0 1 0 1.5H.75a.75.75 0 0 1 0-1.5ZM3 7.75A.75.75 0 0 1 3.75 7h8.5a.75.75 0 0 1 0 1.5h-8.5A.75.75 0 0 1 3 7.75Zm3 4a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 0 1.5h-2.5a.75.75 0 0 1-.75-.75Z";
+
+/**
+ * Primer's small invisible Button, as a link: shows only `token`'s files on Files changed, or all
+ * of them when the page already shows only theirs. A plain click loads it as a new page through
+ * `filter`; a modified one is the browser's.
+ */
+export function ownerFilterAction(
+  doc: Document,
+  token: string,
+  { linkOf, navigate }: OwnerFilter,
+): HTMLAnchorElement {
+  const { href, shown } = linkOf(token);
+  const link = el(
+    doc,
+    "a",
+    "gh-prism-owner-filter tw:shrink-0 tw:inline-flex tw:items-center tw:gap-1 tw:h-[var(--control-small-size,28px)] tw:px-2 tw:rounded-medium tw:text-[color:var(--button-invisible-fgColor-rest)] tw:text-body-small tw:font-medium tw:no-underline tw:hover:no-underline tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2 tw:[&>svg]:text-[color:var(--button-invisible-iconColor-rest)]",
+    icon(doc, FILTER_ICON, {}),
+    shown ? "Show all files" : "Show only their files",
+  );
+  link.href = href;
+  // GitHub's router would take a plain click softly, and the owner filter reads its owner once.
+  link.addEventListener("click", (event) => {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)
+      return;
+    event.preventDefault();
+    navigate(href);
+  });
+  return link;
 }
 
 /** Primer's Dialog, `title` over `summary` and `teams`, closing on Esc or a click outside it. */
@@ -100,7 +161,13 @@ function ownersDialog(
     title,
     summary,
     teams,
-  }: { title: string; summary: readonly Node[]; teams: readonly HTMLElement[] },
+    footer,
+  }: {
+    title: string;
+    summary: readonly Node[];
+    teams: readonly HTMLElement[];
+    footer: HTMLElement | undefined;
+  },
 ): HTMLDialogElement {
   const heading = el(
     doc,
@@ -144,6 +211,16 @@ function ownersDialog(
         el(doc, "div", "", ...summary),
         ...teams,
       ),
+      ...(footer
+        ? [
+            el(
+              doc,
+              "div",
+              "gh-prism-owners-dialog-footer tw:flex tw:justify-end tw:p-2 tw:[box-shadow:0_-1px_0_var(--borderColor-default)]",
+              footer,
+            ),
+          ]
+        : []),
     ),
   );
   dialog.setAttribute("aria-labelledby", TITLE_ID);
@@ -151,18 +228,30 @@ function ownersDialog(
   return dialog;
 }
 
-/** `team`'s linked token over its `members`' excerpt, which fills once the read settles. */
+/**
+ * `team`'s linked token, with `action` beside it, over its `members`' excerpt, which fills once
+ * the read settles.
+ */
 function teamBlock(
   doc: Document,
   team: string,
   members: Promise<TeamMembers | undefined>,
+  action: HTMLElement | undefined,
 ): HTMLElement {
   const owner = codeOwnerOf(team);
+  const heading = el(
+    doc,
+    "h3",
+    "tw:m-0 tw:text-body-medium tw:font-semibold",
+    ownerLink(doc, owner),
+  );
   const block = el(
     doc,
     "section",
     "tw:flex tw:flex-col tw:gap-2 tw:pt-4 tw:[box-shadow:0_-1px_0_var(--borderColor-muted)]",
-    el(doc, "h3", "tw:m-0 tw:text-body-medium tw:font-semibold", ownerLink(doc, owner)),
+    action
+      ? el(doc, "div", "tw:flex tw:items-center tw:justify-between tw:gap-2", heading, action)
+      : heading,
   );
   void members.then((read) => block.append(...excerpt(doc, owner.url, read)));
   return block;

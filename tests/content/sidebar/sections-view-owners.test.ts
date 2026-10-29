@@ -739,6 +739,27 @@ describe("showSections", () => {
         expect(dialogs()[0]?.querySelectorAll("section")).toHaveLength(1);
       });
 
+      it("offers each owning team's files in its block", async () => {
+        const navigate = vi.fn();
+        remountWith(() => Promise.resolve(landedWith()), undefined, {
+          codeOwners: Promise.resolve(tokensOf({ "src/engine.rs": ["@o/team", "@octocat"] })),
+          filter: {
+            linkOf: (token) => ({ href: `https://x.test/${token}`, shown: false }),
+            navigate,
+          },
+        });
+        await afterDebounce();
+
+        clickAt(engine(), { detail: 1 });
+        const action = dialogs()[0]?.querySelector<HTMLAnchorElement>(
+          "section a.gh-prism-owner-filter",
+        );
+        action?.click();
+
+        expect(action?.href).toBe("https://x.test/@o/team");
+        expect(navigate).toHaveBeenCalledWith("https://x.test/@o/team");
+      });
+
       it("moves focus to the file's row before opening, and back to it on close", async () => {
         await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"] }));
         const row = rowIn("implementation", "src/engine.rs");

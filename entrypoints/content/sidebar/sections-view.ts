@@ -32,7 +32,7 @@ import { el, icon } from "../ui/dom";
 import { type Card, followHoverIntent } from "../ui/hover-intent";
 import { lineTotals } from "../ui/line-counts";
 import { type LoadingView, loadingView } from "../ui/loading-view";
-import { openOwnersDialog } from "../ui/owners-dialog";
+import { type OwnerFilter, openOwnersDialog } from "../ui/owners-dialog";
 import { followReveals, fullName } from "../ui/reveal";
 import { markSection, SECTION_CATALOG, sectionIcon } from "../ui/section-catalog";
 import type { FileSection, LandingView } from "../visit/land";
@@ -438,12 +438,13 @@ function followViewport(view: HTMLElement, onMove: () => void, signal: AbortSign
  * progress bar while intent is pending; on landing, notices for path-only sections or diffs kept
  * in GitHub's order; then a tree per listing, each split file listed in every section its hunks
  * land in, with the lines each share adds and removes. All of it anchors below a leading
- * what's-new block when the nav holds one.
+ * what's-new block when the nav holds one. A code owners shield's dialog excerpts teams through
+ * `teamMembers`, and offers `filter`'s actions when given.
  */
 export function showSections(
   page: FilesPage,
   signal: AbortSignal,
-  teamMembers: TeamMembersOf,
+  { teamMembers, filter }: { teamMembers: TeamMembersOf; filter?: OwnerFilter },
 ): SectionsView {
   const doc = page.sidebar.ownerDocument;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
@@ -715,6 +716,7 @@ export function showSections(
       summary: [list],
       teams,
       teamMembers,
+      filter,
       returnFocus: focusRow,
       signal,
     });

@@ -106,7 +106,9 @@ function sectionTrees(count: number, hosts: "sidebar" | "fixed" = "sidebar") {
       "beforeend",
       "<style>.gh-prism-tree { height: 100vh !important; }</style>",
     );
-  const view = showSections(page, new AbortController().signal, async () => undefined);
+  const view = showSections(page, new AbortController().signal, {
+    teamMembers: async () => undefined,
+  });
   view.landed?.(NOTHING_PLACED);
   settle();
   const sectionsWith = (status: "modified" | "added", of = files) =>

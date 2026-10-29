@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isFilesPath,
+  ownerFilterLink,
   ownerOf,
   readFilesRoute,
   readHeaderTabPr,
@@ -140,5 +141,23 @@ describe("withViewerOwner", () => {
     expect(result).toContain("owned-by%5B%5D=me");
     expect(result).toContain("file-filters%5B%5D=.ts");
     expect(ownerOf(new URL(result).search)).toBeUndefined();
+  });
+});
+
+describe("ownerFilterLink", () => {
+  const changes = "https://github.com/o/r/pull/1/changes";
+
+  it("links to the files of a code owner the page doesn't filter by", () => {
+    const link = ownerFilterLink(changes, "@o/other", "@o/team");
+
+    expect(link.shown).toBe(false);
+    expect(ownerOf(new URL(link.href).search)).toBe("@o/team");
+  });
+
+  it("clears the filter of the code owner the page filters by, ignoring case", () => {
+    const link = ownerFilterLink(`${changes}?gh-prism-owner=O%2FTeam`, "@O/Team", "@o/team");
+
+    expect(link.shown).toBe(true);
+    expect(ownerOf(new URL(link.href).search)).toBeUndefined();
   });
 });

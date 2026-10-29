@@ -11,7 +11,7 @@ import {
   teamMembersReader,
   withMemberTeams,
 } from "@/utils/github/code-owners";
-import { ownerOf } from "@/utils/github/files-route";
+import { ownerFilterLink, ownerOf } from "@/utils/github/files-route";
 import { type NextCommit, readNextCommit } from "@/utils/github/next-commit";
 import { connectPrData } from "@/utils/github/pr-port";
 import { type CommitHead, type DiffRef, readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
@@ -110,6 +110,7 @@ export default defineContentScript({
       save: saveDiffstat,
     } satisfies DiffstatOptions;
     const notice: NoticeChoice = { dismissed };
+    const navigate = (href: string) => location.assign(href);
     let fullLoad = true;
     // Registered before watchFilesPages, so the flag clears before a navigation's visit runs.
     const navigated = () => (fullLoad = false);
@@ -148,12 +149,9 @@ export default defineContentScript({
               ? stepLinksFor(route.diff, seenChildren, { after: afterLanding(intent), visit })
               : undefined;
           return (page, signal) => {
+            const owner = route.diff.kind === "pr" ? ownerOf(location.search) : undefined;
             showReportLink(page, signal, reportOptions);
-            showOwnerSection(page, signal, {
-              codeOwners,
-              prReviewers,
-              navigate: (href) => location.assign(href),
-            });
+            showOwnerSection(page, signal, { codeOwners, prReviewers, navigate });
             showVisit(page, signal, {
               intent,
               diffstat,
@@ -161,7 +159,14 @@ export default defineContentScript({
               codeOwners,
               prReviewers,
               teamMembers,
-              owner: route.diff.kind === "pr" ? ownerOf(location.search) : undefined,
+              owner,
+              filter:
+                route.diff.kind === "pr"
+                  ? {
+                      linkOf: (token) => ownerFilterLink(location.href, owner, token),
+                      navigate,
+                    }
+                  : undefined,
               whatsNew: whatsNewForPage?.(),
             });
             showCommitMessage(page, signal, {
@@ -199,6 +204,15 @@ export default defineContentScript({
             return { codeOwners: await codeOwners, prReviewers: await prReviewers };
           },
           teamMembers,
+          filter: {
+            linkOf: (token) =>
+              ownerFilterLink(
+                `${location.origin}/${pr.owner}/${pr.repo}/pull/${pr.number}/files`,
+                undefined,
+                token,
+              ),
+            navigate,
+          },
         });
         return (page, signal) => showHeaderTab(page, signal, { intent, diffstat });
       },

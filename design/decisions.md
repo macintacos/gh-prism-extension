@@ -6,6 +6,35 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-29: Show only a code owner's files
+
+- **Compared:**
+  - in the code owner's files popup, the action in the footer beside the hint, in a row
+    under the count line, or no action;
+  - in the details dialog, the action in a footer, in the header, or in each team block's
+    heading row;
+  - actions in the sidebar's file and folder popovers, or none;
+  - a `<button>` or a link;
+  - a soft navigation or a full page load;
+  - the labels "Show only their files", "Review their files", and "Filter files".
+- **Won:**
+  - the popup's footer, beside the hint;
+  - a dialog footer for the dialog's own code owner, plus each other team block's heading
+    row;
+  - no action in the sidebar's popovers;
+  - a link that loads a new page on a plain click;
+  - "Show only their files", flipping to "Show all files" once the page shows only theirs.
+- **Why:**
+  - The footer stays put while a long list scrolls.
+  - A team block's heading already names the team the action filters to.
+  - A folder popover names owners per file, so per-owner actions would crowd it, and its
+    shield's click opens the dialog anyway.
+  - A link opens in a new tab on Cmd-click.
+  - The owner filter reads its owner once per page, so a soft navigation would not apply
+    it.
+  - "Only … files" is GitHub's own wording, from "Only files owned by you". The switch's
+    flip makes the filter clearable where it was set.
+
 ## 2026-10-29: Older and Newer as GitHub's button group, keys inside the chevrons
 
 - **Compared:**

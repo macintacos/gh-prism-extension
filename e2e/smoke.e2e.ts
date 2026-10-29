@@ -2989,7 +2989,7 @@ test("a user's code-owner shield lists their team's files when assigned on its b
   await expect(page.locator("button[data-gh-prism-owner]")).toHaveCount(0);
 });
 
-test("Tab from a code owner's shield enters their long list, then moves on through the sidebar", async ({
+test("Tab from a code owner's shield enters their long list's filter action, which scrolls it, then moves on through the sidebar", async ({
   context,
   page,
 }) => {
@@ -3020,7 +3020,11 @@ test("Tab from a code owner's shield enters their long list, then moves on throu
     await expect(page.locator(".gh-prism-reviewer-files")).toBeVisible({ timeout: 1000 });
   }).toPass();
   await page.keyboard.press("Tab");
-  await expect(page.locator(".gh-prism-reviewer-files")).toBeFocused();
+  const action = page.locator(".gh-prism-reviewer-files a.gh-prism-owner-filter");
+  await expect(action).toBeFocused();
+  const scrolled = page.locator(".gh-prism-reviewer-files");
+  await page.keyboard.press("ArrowDown");
+  await expect.poll(() => scrolled.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
   await page.keyboard.press("Tab");
 
   await expect(page.locator(".gh-prism-reviewer-files")).toHaveCount(0);

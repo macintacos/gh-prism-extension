@@ -33,6 +33,7 @@ import {
 import { type DiffstatOptions, showDiffstat } from "../header/diffstat-view";
 import { showSections } from "../sidebar/sections-view";
 import { type WhatsNew, whatsNewBlock } from "../sidebar/whats-new";
+import type { OwnerFilter } from "../ui/owners-dialog";
 
 /**
  * The native tree's files in the sections they land in: what the sidebar lists and the diffs
@@ -201,7 +202,8 @@ const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
  * narrows the sidebar and the diffs to that owner's files, counting the teams GitHub names a user
  * as reviewing for. A read still out by then counts as failed: every file shows when the code
  * owners can't be read, and only the owner's own files when the PR reviewers can't. `whatsNew`,
- * when given, opens the sidebar with its block.
+ * when given, opens the sidebar with its block. `filter`, when given, lets the sidebar's code owner
+ * dialogs filter by an owning team.
  */
 export function showVisit(
   page: FilesPage,
@@ -214,6 +216,7 @@ export function showVisit(
     prReviewers,
     teamMembers,
     owner,
+    filter,
     whatsNew,
   }: {
     intent: PendingIntent;
@@ -223,10 +226,11 @@ export function showVisit(
     prReviewers?: Promise<readonly PrReviewer[] | undefined>;
     teamMembers: TeamMembersOf;
     owner?: string;
+    filter?: OwnerFilter;
     whatsNew?: WhatsNew;
   },
 ): void {
-  const sidebar = showSections(page, signal, teamMembers);
+  const sidebar = showSections(page, signal, { teamMembers, filter });
   void codeOwners?.then((read) => {
     if (read && !signal.aborted) sidebar.owners(read);
   });

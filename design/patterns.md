@@ -145,6 +145,9 @@ the state. Focus stays on it across the flip. It holds one Octicon in both state
   a visible label that is its name, so it needs no tooltip. The message's hide button and
   the button that shows the message again take the same form. `commit/message-view.ts`
   builds all three.
+- **In the code-owner popup and dialog,** it is a link drawn as the same small invisible
+  Button. Its flip is a page load, so focus doesn't carry across it. `ui/owners-dialog.ts`
+  builds it.
 
 The Older and Newer links beside a commit's SHA take Primer's ButtonGroup, not a switch's
 form, as a pull request's commit view pairs its Prev and Next: two small default Buttons
@@ -204,6 +207,13 @@ and name keep GitHub's own hovercard, so the two cards never share a trigger.
 - **The hint:** like a file row's code owners popover (§ File rows), the popup ends in a
   footer that stays put while the list scrolls: below a hairline, "Click the shield for
   details" in small muted text.
+- **The filter action:** on a popup that lists files, the footer is one row: the hint on
+  the left, taking the free width, and "Show only their files" on the right, both centred
+  vertically. The footer's vertical padding drops to 4px, so the row stays 36px tall. The
+  action is a link drawn as Primer's small invisible Button, with Octicons `filter` before
+  its label, and it opens Files changed narrowed to that code owner's files. A plain click
+  loads it as a new page; Cmd-click opens a new tab. The "GitHub hides the team" popup has
+  no action. On a commit page there is no owner filter, so no surface shows the action.
 - **The click:** clicking the shield, or Enter or Space on it, closes the popup and opens
   the code owner details dialog (§ Dialogs), headed by the code owner's `@user` or
   `@org/team` name. Closing the dialog returns focus to the shield. Focus opens the popup
@@ -262,10 +272,24 @@ while the spectrum sweeps across its top edge, and its backdrop is Primer's
 `--overlay-backdrop-bgColor`. `classic/notice.ts` and `classic/notice.css` hold it.
 
 The code owner details dialog copies that dialog's shell, its header, ✕ button, entrance,
-and backdrop, but has no spectrum and no footer buttons. ✕, Escape, and a click outside
-close it. Under its heading, it repeats what the shield's popover lists, built by the same
-code. Then each owning team gets a block below a hairline: its `@org/team` name linked to
-its team page, then at most 15 members as `@login` links. A team with more members ends in
-a "See all N members" link to its team page. A team the viewer can't see reads "GitHub
-doesn't show you this team's members.", and an empty one reads "This team has no members."
-`ui/owners-dialog.ts` and `ui/owners-dialog.css` hold it.
+and backdrop, but has no spectrum. ✕, Escape, and a click outside close it. Under its
+heading, it repeats what the shield's popover lists, built by the same code. Then each
+owning team gets a block below a hairline: its `@org/team` name linked to its team page,
+then at most 15 members as `@login` links. A team with more members ends in a "See all N
+members" link to its team page. A team the viewer can't see reads "GitHub doesn't show you
+this team's members.", and an empty one reads "This team has no members."
+
+The dialog carries the popup's filter action (§ Code owner's files) in two places:
+
+- **The footer:** opened from a Reviewers shield whose popup lists files, the dialog ends
+  in a footer below the scrolling body, so it stays put. A hairline sits above it, drawn
+  as `box-shadow: 0 -1px 0` in `--borderColor-default` to mirror the header's. It has 8px
+  padding and holds the action for the dialog's own code owner, right-aligned.
+- **Each team block:** the block's heading is a row, the linked team name on the left and
+  the action for that team on the right, centred vertically. The block for the dialog's
+  own code owner skips it, so the dialog never offers the same action twice.
+
+The action is a switch, so its label names what it does and flips with the state: on a
+Files changed page already filtered to that code owner, it reads "Show all files" and
+clears the filter. The icon stays the same. `ui/owners-dialog.ts` and
+`ui/owners-dialog.css` hold it.

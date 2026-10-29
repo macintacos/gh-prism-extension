@@ -215,6 +215,33 @@ describe("showOwnerSection", () => {
     });
   });
 
+  it("checks the reviewer the page filters by, whatever its case, without listing it twice", async () => {
+    history.replaceState(null, "", `${PR}?gh-prism-owner=Excessive-Dev/Frontend`);
+    openFilterMenu("owner");
+    await show();
+
+    expect(entries().map((item) => item.textContent?.trim())).toEqual(["Me", FRONTEND, PLATFORM]);
+    expect(entry(FRONTEND).getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("lists the code owner the page filters by after the reviewers, checked, when none of them", async () => {
+    history.replaceState(null, "", `${PR}?gh-prism-owner=excessive-dev/docs`);
+    openFilterMenu("owner");
+    await show();
+
+    expect(entries().map((item) => item.textContent?.trim())).toEqual([
+      "Me",
+      FRONTEND,
+      PLATFORM,
+      "@excessive-dev/docs",
+    ]);
+    expect(entry("@excessive-dev/docs").getAttribute("aria-checked")).toBe("true");
+    entry("@excessive-dev/docs").click();
+    expect(new URL(navigate.mock.calls[0]?.[0] ?? "").searchParams.has("gh-prism-owner")).toBe(
+      false,
+    );
+  });
+
   it("forwards a Me pick to GitHub's item when no owner is on", async () => {
     openFilterMenu("owner");
     await show();

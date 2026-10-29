@@ -313,8 +313,9 @@ zone skips only disabled ones. "Me" shows only when GitHub's item does. The revi
 `owningReviewers` in [`utils/github/code-owners.ts`](../utils/github/code-owners.ts):
 those who own a changed file, directly or through a team they review for, leaving out your
 own login. A reviewer stays after submitting a review, since `review_requests` lists
-reviews as well as requests. Without the PR reviewers the section offers "Me" alone;
-without the code owners it adds nothing.
+reviews as well as requests. A code owner the page's owner filter names who isn't among
+them, as a team block's action can set, follows them, checked. Without the PR reviewers
+the section offers "Me" alone; without the code owners it adds nothing.
 
 A reviewer pick loads the page, through `withOwner` in
 [`utils/github/files-route.ts`](../utils/github/files-route.ts), because the owner filter
@@ -492,6 +493,18 @@ and folder shields' popover share one placer,
 roomier side, capped so it never covers its anchor. They also share one file list,
 [`ui/file-list.ts`](../entrypoints/content/ui/file-list.ts), which groups their files
 under folders as the sidebar's tree flattens them.
+
+On a pull request, the popup and the dialog also offer "Show only their files": a link,
+built by `ownerFilterAction` in `ui/owners-dialog.ts`, that sets the owner filter. The
+popup puts it beside its hint, and the dialog in its footer and in each other team block's
+heading. On Files changed it reads "Show all files" for the code owner the page already
+filters by, and clears the filter. `index.ts` hands each surface an `OwnerFilter`, the
+links from `ownerFilterLink` in
+[`utils/github/files-route.ts`](../utils/github/files-route.ts) and a `navigate` that
+loads a plain click's link as a new page, so the popup and the dialog never read
+`location`. On the Conversation tab the link goes to the pull request's `/files`, which
+GitHub redirects to `/changes`. A commit page gets no `OwnerFilter`, so it shows no
+action.
 
 The owner section is the third: it lists the reviewers who own a changed file (§ The owner
 section).

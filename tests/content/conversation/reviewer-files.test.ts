@@ -4,6 +4,7 @@ import {
   type Ownership,
   showReviewerFiles,
 } from "../../../entrypoints/content/conversation/reviewer-files";
+import type { OwnerFilter } from "../../../entrypoints/content/ui/owners-dialog";
 import {
   codeOwnerOf,
   type PrCodeOwners,
@@ -172,15 +173,16 @@ function show(
     prReviewers: SANDBOX_REVIEWERS,
   }),
   teamMembers: TeamMembersOf = teamMembersReader(membersFetch, controller.signal),
+  filter?: OwnerFilter,
 ) {
-  showReviewerFiles(document, controller.signal, { read, teamMembers });
+  showReviewerFiles(document, controller.signal, { read, teamMembers, filter });
 }
 
 /** Shows the popups on nodejs/node#67056's `page`, read after `edits`, once its reads settle. */
-async function showNode(edits: NodeEdits = {}, page = nodeConversation) {
+async function showNode(edits: NodeEdits = {}, page = nodeConversation, filter?: OwnerFilter) {
   document.body.innerHTML = page;
   const ownership = await nodeOwnership(edits);
-  show(async () => ownership);
+  show(async () => ownership, undefined, filter);
   await vi.advanceTimersByTimeAsync(0);
 }
 
@@ -522,6 +524,74 @@ describe("showReviewerFiles", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     expect(ownShields()).toEqual([]);
+  });
+
+  describe("the owner filter's action", () => {
+    const FILES = "https://github.com/o/r/pull/1/files";
+    const filter: OwnerFilter = {
+      linkOf: (token) => ({ href: `${FILES}?gh-prism-owner=${token}`, shown: false }),
+      navigate: () => {},
+    };
+    const action = () => popup()?.querySelector<HTMLAnchorElement>("a.gh-prism-owner-filter");
+
+    it("ends a team's popup, beside the hint", async () => {
+      show(undefined, undefined, filter);
+
+      await hoverOpen("frontend");
+
+      expect(action()?.href).toBe(`${FILES}?gh-prism-owner=@excessive-dev/frontend`);
+      expect(action()?.parentElement).toBe(popup()?.querySelector(".gh-prism-owners-hint"));
+    });
+
+    it("ends a user's popup", async () => {
+      await showNode({ reviewRequests: assignedFromCrypto }, undefined, filter);
+
+      await hoverJasnellsShield();
+
+      expect(action()?.href).toBe(`${FILES}?gh-prism-owner=@jasnell`);
+    });
+
+    it("is left out of a popup that lists no files", async () => {
+      await showNode({ reviewRequests: markedCodeOwner }, undefined, filter);
+
+      await hoverJasnellsShield();
+
+      expect(popup()?.querySelector(".gh-prism-owners-hint")).not.toBeNull();
+      expect(action()).toBeNull();
+    });
+
+    it("sits in the footer of the dialog a shield's click opens", async () => {
+      show(undefined, undefined, filter);
+      await vi.advanceTimersByTimeAsync(0);
+
+      shieldOf("frontend").click();
+      await vi.advanceTimersByTimeAsync(0);
+
+      const footerAction = document.querySelector<HTMLAnchorElement>(
+        "dialog .gh-prism-owners-dialog-footer a.gh-prism-owner-filter",
+      );
+      expect(footerAction?.href).toBe(`${FILES}?gh-prism-owner=@excessive-dev/frontend`);
+    });
+
+    it("is left out of the dialog of a team marked a code owner that owns no changed file", async () => {
+      const codeOwners = sandboxOwners((byPath) => {
+        for (const [path, ownership] of Object.entries(byPath))
+          byPath[path] = {
+            ...ownership,
+            owners: ownership.owners.filter((owner) => owner !== "@excessive-dev/frontend"),
+          };
+      });
+      show(async () => ({ codeOwners, prReviewers: SANDBOX_REVIEWERS }), undefined, filter);
+      await vi.advanceTimersByTimeAsync(0);
+
+      shieldOf("frontend").click();
+      await vi.advanceTimersByTimeAsync(0);
+
+      const dialog = document.querySelector("dialog.gh-prism-owners-dialog");
+      expect(dialog).not.toBeNull();
+      expect(dialog?.querySelector("a.gh-prism-owner-filter")).toBeNull();
+      expect(dialog?.querySelector(".gh-prism-owners-dialog-footer")).toBeNull();
+    });
   });
 
   describe("a user's code-owner shield", () => {
