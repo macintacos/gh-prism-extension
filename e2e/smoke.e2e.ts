@@ -350,13 +350,13 @@ test("a commit column's mark stays clear of a message too long for the column", 
 
   await expect(page.locator(".gh-prism-commit-column > .gh-prism-mark")).toBeVisible();
   const layout = await scroller.evaluate((el) => {
-    const view = el.getBoundingClientRect();
-    const mark = el.parentElement
+    const messageBox = el.getBoundingClientRect();
+    const markBox = el.parentElement
       ?.querySelector(":scope > .gh-prism-mark")
       ?.getBoundingClientRect();
     return {
       overflows: el.scrollHeight > el.clientHeight,
-      markClear: !!mark && mark.top >= view.top + el.clientTop + el.clientHeight,
+      markClear: !!markBox && markBox.top >= messageBox.top + el.clientTop + el.clientHeight,
     };
   });
   expect(layout).toEqual({ overflows: true, markClear: true });
@@ -375,9 +375,9 @@ test("the mark's spectrum sweeps across its bars alone", async ({ context, page 
 
   // The bars span x 8–15 of the 16px glyph.
   const sweep = await mark.evaluate((el) => {
-    const box = el.getBoundingClientRect();
-    const bar = el.querySelector(".gh-prism-mark-sweep")?.getBoundingClientRect();
-    return bar && { start: bar.left - box.left, end: bar.right - box.left };
+    const markBox = el.getBoundingClientRect();
+    const sweepBox = el.querySelector(".gh-prism-mark-sweep")?.getBoundingClientRect();
+    return sweepBox && { start: sweepBox.left - markBox.left, end: sweepBox.right - markBox.left };
   });
   expect(sweep).toEqual({ start: 8, end: 15 });
 });

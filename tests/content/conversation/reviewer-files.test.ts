@@ -652,11 +652,11 @@ describe("showReviewerFiles", () => {
     it("shows gh-prism's mark only in the dialog, not on the shields or the hover card", async () => {
       show();
       await hoverOpen("frontend");
-      const onPage = document.querySelectorAll(".gh-prism-mark").length;
+      const marksBeforeDialog = document.querySelectorAll(".gh-prism-mark").length;
 
       await clickOn(shieldOf("frontend"));
 
-      expect(onPage).toBe(0);
+      expect(marksBeforeDialog).toBe(0);
       expect(document.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
       expect(dialog()?.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
     });
