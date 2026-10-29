@@ -12,8 +12,9 @@ import {
   withMemberTeams,
 } from "@/utils/github/code-owners";
 import { ownerOf } from "@/utils/github/files-route";
+import { type NextCommit, readNextCommit } from "@/utils/github/next-commit";
 import { connectPrData } from "@/utils/github/pr-port";
-import { type DiffRef, readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
+import { type CommitHead, type DiffRef, readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
 import { hiddenKeyOf, hiddenKeysOf, isHidden, withHidden } from "@/utils/hidden-commits";
 import { storedIntents } from "@/utils/intent/cache";
 import {
@@ -45,6 +46,7 @@ import {
   type CommitMessageVisit,
   showCommitMessage,
 } from "./commit/message-view";
+import { type StepLinksOptions, showStepLinks } from "./commit/step-links";
 import { showReviewerFiles } from "./conversation/reviewer-files";
 import { visitViewed } from "./diffs/viewed";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
@@ -101,6 +103,7 @@ export default defineContentScript({
     const side = sideChoiceOf(savedSide);
     const commitMessage = commitMessageChoiceOf(savedCommitMessage, savedColumnWidth);
     const hiddenMessages: HiddenMessages = { keys: hiddenKeysOf(savedHidden) };
+    const seenChildren: SeenChildren = new Map();
     // Shared by every visit, so a switch on one tab or page carries to the next.
     const diffstat = {
       choice: diffstatChoiceOf(savedDiffstat),
@@ -140,6 +143,10 @@ export default defineContentScript({
           const saveHidden = (hidden: boolean) => {
             if (hiddenKey) saveHiddenMessage(hiddenMessages, hiddenKey, hidden);
           };
+          const steps =
+            route.diff.kind === "commit"
+              ? stepLinksFor(route.diff, seenChildren, { after: afterLanding(intent), visit })
+              : undefined;
           return (page, signal) => {
             showReportLink(page, signal, reportOptions);
             showOwnerSection(page, signal, {
@@ -165,6 +172,7 @@ export default defineContentScript({
               saveHidden,
               visit: messageVisit,
             });
+            if (steps) showStepLinks(page, signal, steps);
             dockSidebar(page, signal, { choice: side, save: saveSide });
           };
         },
@@ -234,6 +242,31 @@ const afterLanding =
     const bound = new Promise((resolve) => setTimeout(resolve, INTENT_WAIT_MS));
     void Promise.race([Promise.resolve(intent(() => {})), bound]).then(schedule, schedule);
   };
+
+/**
+ * The child of each commit, by `owner/repo@sha` in lowercase, under which this tab last showed it
+ * as the parent, so Next undoes Previous even where a commit has several children.
+ */
+type SeenChildren = Map<string, string>;
+
+/**
+ * `commit`'s step links: Next goes to the child `seenChildren` last saw it under, else to what a
+ * read started `after` the sections land finds, until `visit` aborts. The parent the page names
+ * records `commit` as its child.
+ */
+function stepLinksFor(
+  commit: CommitHead,
+  seenChildren: SeenChildren,
+  { after, visit }: { after: (task: () => void) => void; visit: AbortSignal },
+): StepLinksOptions {
+  const keyOf = (sha: string) => `${commit.owner}/${commit.repo}@${sha}`.toLowerCase();
+  const child = seenChildren.get(keyOf(commit.headSha));
+  const next: Promise<NextCommit | undefined> = child
+    ? Promise.resolve({ kind: "commit", sha: child })
+    : new Promise((resolve) => after(() => resolve(readNextCommit(commit, fetch, visit))));
+  const sawParent = (parent: string) => seenChildren.set(keyOf(parent), commit.headSha);
+  return { commit, next, sawParent };
+}
 
 /** The stored sidebar side, unchecked, or the default when storage won't read. */
 const readSavedSide = (): Promise<unknown> =>

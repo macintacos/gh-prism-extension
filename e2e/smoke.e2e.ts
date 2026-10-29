@@ -490,6 +490,81 @@ test("a subject-only commit keeps GitHub's box, with no column or switch", async
   await expect(page.locator(MESSAGE_BOX)).toBeVisible();
 });
 
+test("a commit's Previous and Next hold their place from its first frame, and step to its parent and back", async ({
+  context,
+  page,
+}) => {
+  // commit-message-lists.html's card names this first parent.
+  const parentUrl = "https://github.com/o/r/commit/9f707bc6d2d249be450352203059fb2a22bce9dd";
+  await serve(context, COMMIT_URL, commitBodyWith(readFixture("commit-message-lists.html")));
+  await serve(context, parentUrl, commitBodyWith(readFixture("commit-message-mention.html")));
+  // Holds the sections back, so a read of Next that doesn't wait for them shows.
+  await context.route(`${COMMIT_URL}.diff`, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    await route.fulfill({ status: 404 });
+  });
+  const childOf = new Map([
+    [COMMIT_URL.split("/").at(-1), "4f0a5807bf75a60bb17cca7788052d48e99be13f"],
+    [parentUrl.split("/").at(-1), COMMIT_URL.split("/").at(-1)],
+  ]);
+  let release: () => void = () => {};
+  const released = new Promise<void>((resolve) => (release = resolve));
+  const searched: { sectionsFirst: boolean }[] = [];
+  await context.route(
+    (url) => url.pathname === "/search",
+    async (route, request) => {
+      searched.push({ sectionsFirst: (await page.locator(".gh-prism-section").count()) > 0 });
+      await released;
+      const parent = new URL(request.url()).searchParams.get("q")?.split("parent:")[1];
+      const results = [{ sha: childOf.get(parent) }];
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ payload: { blackbirdSearchRoute: { results } } }),
+      });
+    },
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  // Records, every frame from the links' first, where they sit and where Next goes.
+  await page.addInitScript(() => {
+    const frames: { at: string; next: string | null }[] = [];
+    Object.assign(window, { stepFrames: frames });
+    const sample = () => {
+      requestAnimationFrame(sample);
+      const steps = document.querySelector(".gh-prism-commit-steps")?.getBoundingClientRect();
+      if (!frames.length && !steps) return;
+      frames.push({
+        at: steps ? `${Math.round(steps.left)},${Math.round(steps.top)},${steps.width}` : "gone",
+        next: document.querySelector(".gh-prism-commit-next")?.getAttribute("href") ?? null,
+      });
+    };
+    requestAnimationFrame(sample);
+  });
+  const previous = page.getByRole("link", { name: /^Previous commit/ });
+  const next = page.getByRole("link", { name: /^Next commit/ });
+
+  await page.goto(COMMIT_URL);
+  await expect(page.locator(".gh-prism-section").first()).toBeVisible();
+  await expect(next).toHaveAttribute("aria-disabled", "true");
+  await expect.poll(() => searched.length).toBe(1);
+  release();
+  await expect(next).toHaveAttribute(
+    "href",
+    "/o/r/commit/4f0a5807bf75a60bb17cca7788052d48e99be13f",
+  );
+
+  const frames = await page.evaluate(
+    () => (window as unknown as { stepFrames: { at: string; next: string | null }[] }).stepFrames,
+  );
+  expect(searched).toEqual([{ sectionsFirst: true }]);
+  expect(frames[0]?.next).toBeNull();
+  expect(new Set(frames.map((frame) => frame.at)).size).toBe(1);
+
+  await previous.click();
+  await expect(page).toHaveURL(parentUrl);
+  await next.click();
+  await expect(page).toHaveURL(COMMIT_URL);
+});
+
 test("a commit's message column resizes from its edge by mouse and keyboard, and keeps its width after a reload", async ({
   context,
   page,

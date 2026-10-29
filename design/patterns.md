@@ -114,7 +114,8 @@ these marks.
 A tooltip copies Primer's. It is an `::after` on the control that shows the control's
 `aria-label`, on `--tooltip-bgColor`, at the small body size, and it fades in over 120 ms
 on hover and focus. It opens toward the inside of the sidebar or the page, so it never
-clips at an edge. `sidebar/side.css` and `sidebar/report.css` hold the two in use.
+clips at an edge. `sidebar/side.css`, `sidebar/report.css`, and `commit/step-links.css`
+hold the three in use.
 
 No control takes a key yet, because `j` and `k` step through files without a control of
 their own. When a control does take one, its tooltip shows the key after the action's
@@ -133,6 +134,11 @@ the state. Focus stays on it across the flip. It holds one Octicon in both state
   a visible label that is its name, so it needs no tooltip. The message's hide button and
   the button that shows the message again take the same form. `commit/message-view.ts`
   builds all three.
+
+The Previous and Next links beside a commit's SHA take that form too, as links, with
+Next's chevron after its label. Their tooltip names the commit each goes to, which the
+label doesn't. A link with nowhere to go keeps its place, greyed out as Primer's disabled
+Button, and its tooltip says why. `commit/step-links.ts` builds them.
 
 ## Floating surfaces
 

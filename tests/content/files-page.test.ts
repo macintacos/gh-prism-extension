@@ -10,6 +10,7 @@ import {
   diffEntryOf,
   findClassicPage,
   findCommitColumnRow,
+  findCommitHeader,
   findCommitMessage,
   findDiff,
   findDiffList,
@@ -818,6 +819,40 @@ describe("the commit kind", () => {
     expect(findCommitMessage(foundPage())).toBeUndefined();
     document.body.insertAdjacentHTML("afterbegin", COMMIT_MESSAGES.sha);
     expect(findCommitMessage(foundPage())).toBeUndefined();
+  });
+
+  it("reads the commit's parent from the card's row naming its parents and SHA", () => {
+    loadCommitFixture("sha");
+
+    const header = findCommitHeader(foundPage());
+
+    expect(header?.row).toBe(document.querySelector('[class*="commitBranchContainer__"] > pre'));
+    expect(header?.parent).toBe("9eb4db2ba89017ea9dbcaed4f712dc4881f7f37b");
+  });
+
+  // Trimmed from github.com/cli/cli/commit/0cf1092 and octocat/Hello-World/commit/553c207.
+  it.each([
+    [
+      "a merge's first parent",
+      '2 parents <a data-hotkey="p" href="/cli/cli/commit/9eb4db2ba89017ea9dbcaed4f712dc4881f7f37b">9eb4db2</a> + <a data-hotkey="o" href="/cli/cli/commit/189706bccb1686c68fb73c5bd9013358320a9e71">189706b</a>',
+      "9eb4db2ba89017ea9dbcaed4f712dc4881f7f37b",
+    ],
+    ["no parent for a root commit", "0 parents <!-- -->", undefined],
+  ])("reads %s", (_, parents, parent) => {
+    loadCommitFixture("sha");
+    const row = document.querySelector('[class*="commitBranchContainer__"] > pre');
+    if (!row) throw new Error("fixture has no parents row");
+    row.innerHTML = `${parents} commit <span class="fgColor-default">0cf1092</span>`;
+
+    expect(findCommitHeader(foundPage())).toEqual({ row, parent });
+  });
+
+  it("finds no parents row while the page has none, or on a pull request's page", () => {
+    expect(findCommitHeader(foundPage())).toBeUndefined();
+
+    loadFixture();
+    document.body.insertAdjacentHTML("afterbegin", COMMIT_MESSAGES.sha);
+    expect(findCommitHeader(foundPage())).toBeUndefined();
   });
 
   it("finds the row its message column joins", () => {

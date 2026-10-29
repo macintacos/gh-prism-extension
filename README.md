@@ -70,6 +70,12 @@ how to get the new tab. Once you close the dialog, it stays closed, and
   to make it wider or narrower. A switch beside it shows the message's plain text instead,
   and gh-prism opens every commit in the view you last picked. A hide button beside the
   switch hides the message on that commit only, until you show it again.
+- On a commit's page, **Previous** and **Next** beside the commit's SHA step to its parent
+  and to the commit that follows it. Next goes to the earliest commit on the default
+  branch built on this one. For a commit only on another branch, it goes to the next newer
+  commit in that branch's history. After you step back with Previous, Next returns to the
+  commit you came from, until you reload the tab. A button that has nowhere to go stays
+  greyed out, and hovering or focusing it says why.
 
 ## Install
 
@@ -127,7 +133,10 @@ gh-prism needs access to three hosts and to Chrome's extension storage, and noth
   pages, and on a pull request's Conversation, Commits, and Checks tabs, where it reads
   the diff to split the header's lines-changed counter by section, and, on Conversation,
   the code owners and reviewers to list a code owner's files. It reads an owning team's
-  members only when GitHub shows you a team among the pull request's reviewers.
+  members only when GitHub shows you a team among the pull request's reviewers. On a
+  commit's page, it asks GitHub's commit search which commit follows the one you're on.
+  When search finds none, it reads the branches that hold the commit and the first
+  branch's commits list.
 - `https://patch-diff.githubusercontent.com/*` is where GitHub redirects diff downloads.
 - `https://raw.githubusercontent.com/*` is where GitHub redirects raw-file downloads.
 - Extension storage holds the side you put the sidebar on, whether the header's

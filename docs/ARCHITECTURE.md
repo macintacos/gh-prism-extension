@@ -236,6 +236,46 @@ gh-prism never edits GitHub's box: the view's sheet only hides it, and it shows 
 the reader switches to it above the diffs, when the visit aborts, or when gh-prism can't
 render the message.
 
+## A commit's Previous and Next
+
+On a commit's page, `showStepLinks` in
+[`entrypoints/content/commit/step-links.ts`](../entrypoints/content/commit/step-links.ts)
+adds **Previous** and **Next** links after the copy button in the card's row that names
+the commit's parents and SHA, which `findCommitHeader` in
+[`files-page.ts`](../entrypoints/content/files-page.ts) finds. That row shows wherever the
+message is, in the column, above the diffs, or hidden. Both links mount with the page, so
+they hold their place from its first frame. Each is a plain `<a>` inside GitHub's React
+tree, so GitHub's router follows it as a soft navigation, and the next visit starts as any
+other does. A link with nowhere to go is held off: it loses its `href` and stays in place,
+greyed out, with `aria-disabled` and a tooltip saying why.
+
+Previous goes to the commit's first parent, read from the row's parent link with no
+request. A root commit has none. Next comes from `readNextCommit` in
+[`utils/github/next-commit.ts`](../utils/github/next-commit.ts), which reads through
+github.com with the viewer's session, in at most three requests and never paging:
+
+1. GitHub's commit search for `parent:<sha>` in the repository, sorted by committer date.
+   The earliest result is the next commit. Search covers only the default branch.
+2. When search finds none, `/<owner>/<repo>/branch_commits/<sha>` lists the branches
+   holding the commit, in GitHub's order. It names only the default branch when that
+   branch holds the commit.
+3. The first branch's commits list, its newest page only. The commit listed just above
+   this one is the next. When this one is listed first, it is that branch's newest commit.
+   When the page doesn't list it, Next finds none. On the default branch, this step
+   decides for a commit with no child yet, and for one whose child search hasn't indexed.
+
+`index.ts` starts the read once per visit through the same `afterLanding` as the message's
+render, which waits for the sidebar's sections, or a second, and then for the browser to
+be idle. So the read never holds up the sidebar, the diffs, or the message. Until it
+lands, Next is held off, its tooltip reading "looking it up". A failed read logs one
+warning and leaves Next held off, reading "none found".
+
+A commit can have several children, so Previous then Next could land on a different child
+than the one the reader left. `index.ts` keeps a map for the tab: each commit page records
+itself as the child of the parent its row names, and a visit to that parent takes Next
+from the map with no request. So Previous then Next returns to where the reader started,
+for as long as the tab's content script runs; a full reload clears the map.
+
 ## The owner section
 
 `showOwnerSection` in

@@ -2,12 +2,12 @@
  * The one script module that holds selectors into GitHub's Files view markup; the stylesheets list
  * theirs in a `GitHub hooks:` header. It holds a `PageKind` for a pull request's page and a
  * commit's, finds a Files view's page, a pull request's classic page, or its header on its header
- * tabs, finds a commit's message box, reads its rows, finds the row a commit's message column
- * joins, follows a pull request's narrow-layout overlay and the file-tree filter menu, finds and
- * follows the rows and code-owner shields of a pull request's Reviewers lists, and copies that
- * menu's group, divider, and item for gh-prism's entries, so the selectors stay in this seam; it
- * builds no UI of its own and imports nothing from WXT. The pull request selectors come from
- * EXC-1662's survey.
+ * tabs, finds a commit's message box and the row naming its parent, reads its rows, finds the row
+ * a commit's message column joins, follows a pull request's narrow-layout overlay and the
+ * file-tree filter menu, finds and follows the rows and code-owner shields of a pull request's
+ * Reviewers lists, and copies that menu's group, divider, and item for gh-prism's entries, so the
+ * selectors stay in this seam; it builds no UI of its own and imports nothing from WXT. The pull
+ * request selectors come from EXC-1662's survey.
  */
 
 import { LOGIN } from "@/utils/github/code-owners";
@@ -34,6 +34,8 @@ export interface PageKind {
    * body.
    */
   readonly commitMessage?: string;
+  /** Selects a commit's card row naming its parents and SHA. */
+  readonly commitHeader?: string;
   /**
    * Selects the flex row around `sidebar`, holding its pane and the diffs, that a commit's
    * message column joins.
@@ -109,6 +111,7 @@ export const commitPage = {
   diffs: "#diff-content-parent",
   diffstatSlot: '[class*="commitFilesChangedContainer__"]',
   commitMessage: '[class*="commitMessageContainer__"]',
+  commitHeader: '[class*="commitBranchContainer__"] > pre',
   commitColumnRow: '[class*="PageLayout-PageLayoutContent"]',
   // A commit's sidebar carries a copy of the toolbar for the narrow layout.
   treeToggle: '#diff-content-parent [aria-controls="diff_file_tree"]',
@@ -184,6 +187,24 @@ export function findCommitMessage(page: FilesPage): CommitMessage | undefined {
   const title = box?.querySelector(":scope > span:first-child > div");
   if (!box || !title) return undefined;
   return { box, title, body: box.querySelector(":scope > .extended-commit-description-container") };
+}
+
+/** A commit's card row naming its parents and SHA, as `findCommitHeader` finds it. */
+export interface CommitHeader {
+  /** GitHub's row, ending in its button copying the SHA. */
+  readonly row: Element;
+  /** The SHA of the commit's first parent, as its link names it; `undefined` for a root commit. */
+  readonly parent: string | undefined;
+}
+
+/** `page`'s commit header row, or `undefined` on a kind without one or while it's missing. */
+export function findCommitHeader(page: FilesPage): CommitHeader | undefined {
+  const { commitHeader: selector } = page.kind;
+  const row = selector ? page.sidebar.ownerDocument.querySelector(selector) : null;
+  if (!row) return undefined;
+  // GitHub binds `p` to the first parent's link, and `o` to a merge's second.
+  const href = row.querySelector('a[data-hotkey="p"]')?.getAttribute("href");
+  return { row, parent: href?.split("/").at(-1) };
 }
 
 /**
