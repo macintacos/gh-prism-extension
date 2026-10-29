@@ -216,6 +216,12 @@ test("a commit's diff list skips a comment thread beside it", async ({ context, 
 });
 
 const commitBodyWith = (card: string) => `<!doctype html>${card}${readFixture("commit-page.html")}`;
+// GitHub's flex row, with the tree at a fixed width, for a test that reads where the diffs sit.
+const withLayoutRow = (body: string) =>
+  body.replace(
+    "<!doctype html>",
+    '<!doctype html><style>[class*="PageLayout-PageLayoutContent"] { display: flex; align-items: flex-start; } #diff_file_tree { width: 300px; flex: none; }</style>',
+  );
 const MESSAGE_BOX = '[class*="commitMessageContainer__"]';
 
 test("a commit's message renders as Markdown in GitHub's box's place, after the sidebar", async ({
@@ -258,16 +264,11 @@ test("a commit's message holds its column from its first frame, through GitHub's
   context,
   page,
 }) => {
-  // GitHub's flex row, with the tree at a fixed width, so only the message could move the diffs.
-  const layout =
-    '<style>[class*="PageLayout-PageLayoutContent"] { display: flex; align-items: flex-start; } #diff_file_tree { width: 300px; flex: none; }</style>';
+  // Only the message could move the diffs.
   await serve(
     context,
     COMMIT_URL,
-    commitBodyWith(readFixture("commit-message-lists.html")).replace(
-      "<!doctype html>",
-      `<!doctype html>${layout}`,
-    ),
+    withLayoutRow(commitBodyWith(readFixture("commit-message-lists.html"))),
   );
   // Keeps intent pending, so the message waits out the second its loading state lasts.
   await context.route(`${COMMIT_URL}.diff`, async (route) => {
@@ -476,6 +477,60 @@ test("a commit's message column resizes from its edge by mouse and keyboard, and
     await page.reload();
     await expect(column).toHaveCSS("width", "422px", { timeout: 5000 });
   }).toPass({ timeout: 20_000 });
+});
+
+test("hiding a commit's message keeps it hidden on that commit alone, across commits and reloads", async ({
+  context,
+  page,
+}) => {
+  const other = "https://github.com/o/r/commit/4f0a5807bf75a60bb17cca7788052d48e99be13f";
+  await serve(
+    context,
+    COMMIT_URL,
+    withLayoutRow(commitBodyWith(readFixture("commit-message-lists.html"))),
+  );
+  await serve(
+    context,
+    other,
+    withLayoutRow(commitBodyWith(readFixture("commit-message-mention.html"))),
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const column = page.locator(".gh-prism-commit-column");
+  const hide = page.getByRole("button", { name: "Hide commit message" });
+  const showAgain = page.getByRole("button", { name: "Show commit message" });
+  const diffsLeft = () =>
+    page.evaluate(
+      () => document.getElementById("diff-content-parent")?.getBoundingClientRect().left,
+    );
+  await page.goto(COMMIT_URL);
+  await expect(column).toBeVisible();
+  const besideColumn = await diffsLeft();
+
+  await hide.click();
+
+  await expect(column).toHaveCount(0);
+  await expect(showAgain).toBeFocused();
+  await expect(page.locator(MESSAGE_BOX)).toBeHidden();
+  expect(await diffsLeft()).toBeLessThan(besideColumn ?? 0);
+
+  await page.goto(other);
+  await expect(column).toBeVisible();
+  await expect(showAgain).toHaveCount(0);
+
+  // The pick saves asynchronously; load the hidden commit until a load reads it back.
+  await expect(async () => {
+    await page.goto(COMMIT_URL);
+    await expect(showAgain).toBeVisible({ timeout: 5000 });
+  }).toPass({ timeout: 20_000 });
+  await expect(column).toHaveCount(0);
+  await page.reload();
+  await expect(showAgain).toBeVisible();
+  await expect(page.locator(MESSAGE_BOX)).toBeHidden();
+
+  await showAgain.click();
+
+  await expect(column.locator(".gh-prism-commit-message-body > h1")).toBeVisible();
+  await expect(hide).toBeFocused();
 });
 
 for (const width of [1280, 1440]) {

@@ -139,8 +139,13 @@
   }
 }
 
+/* Primer's invisible button colours its icon apart from its label. */
+.gh-prism-commit-show > svg {
+  color: var(--button-invisible-iconColor-rest);
+}
+
 /* Primer's tooltip, opening inward from the message's end. */
-.gh-prism-commit-view-switch::after {
+.gh-prism-commit-control::after {
   content: attr(aria-label);
   position: absolute;
   top: calc(100% + 4px);
@@ -162,13 +167,13 @@
     visibility 120ms;
 }
 
-.gh-prism-commit-view-switch:is(:hover, :focus-visible)::after {
+.gh-prism-commit-control:is(:hover, :focus-visible)::after {
   opacity: 1;
   visibility: visible;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .gh-prism-commit-view-switch::after {
+  .gh-prism-commit-control::after {
     transition: none;
   }
 

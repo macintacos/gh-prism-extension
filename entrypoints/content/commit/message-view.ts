@@ -35,6 +35,8 @@ export interface CommitMessageOptions {
   readonly save: (view: CommitMessageView) => void;
   /** Remembers a width the column was set to. */
   readonly saveWidth: (width: number) => void;
+  /** Remembers whether the reader hid this commit's message. */
+  readonly saveHidden: (hidden: boolean) => void;
   readonly visit: CommitMessageVisit;
 }
 
@@ -55,20 +57,23 @@ export interface CommitMessageVisit {
   readonly since: number;
   /** The visit's rendering once made, or `"failed"` once it couldn't be. */
   rendered?: Node[] | "failed";
+  /** Whether the reader hid this commit's message. */
+  hidden: boolean;
 }
 
 /**
  * Stands in for a commit page's message box with its rendering, until `signal` aborts, opening in
  * `choice`'s view; its switch records each pick in `choice` and `save`s it. The message's place
- * shows a loading state at once, and the rendering fills it after `afterSections`. GitHub's box
- * stays as it is on any other page, for a message with only a subject line or past the
- * renderer's caps, while plain text is picked above the diffs, and from the moment the rendering
- * fails.
+ * shows a loading state at once, and the rendering fills it after `afterSections`. Its hide
+ * control leaves a way back in the box's place, and records each change in `visit` and
+ * `saveHidden`s it. GitHub's box stays as it is on any other page, for a message with only a
+ * subject line or past the renderer's caps, while plain text is picked above the diffs, and from
+ * the moment the rendering fails.
  */
 export function showCommitMessage(
   page: FilesPage,
   signal: AbortSignal,
-  { afterSections, choice, save, saveWidth, visit }: CommitMessageOptions,
+  { afterSections, choice, save, saveWidth, saveHidden, visit }: CommitMessageOptions,
 ): void {
   const message = findCommitMessage(page);
   // A subject line alone gains nothing from rendering.
@@ -79,18 +84,38 @@ export function showCommitMessage(
   const elapsed = (doc.defaultView?.performance.now() ?? visit.since) - visit.since;
 
   const view = messageView(doc, message.box, { choice, save });
+  const restore = restoreRow(doc);
   if (visit.rendered) view.fill(visit.rendered, "at once");
   else view.wait(elapsed);
-  mountMessage(page, { box: message.box, container: view.container }, { choice, saveWidth }, shown);
-  if (visit.rendered) return;
+  const place = mountMessage(
+    page,
+    { box: message.box, container: view.container, restore: restore.row },
+    { choice, saveWidth, visit },
+    shown,
+  );
 
-  afterSections(() => {
-    if (shown.aborted) return;
+  const render = () => {
+    if (shown.aborted || visit.rendered) return;
     const nodes = renderedOrWarn(doc, findCommitMessage(page) ?? message);
     visit.rendered = nodes ?? "failed";
     if (nodes) view.fill(nodes, "revealed");
     else failed.abort();
-  });
+  };
+  const setHidden = (hidden: boolean) => {
+    const [leaving, arriving] = hidden
+      ? [view.container, restore.button]
+      : [restore.row, view.hide];
+    const hadFocus = leaving.contains(doc.activeElement);
+    visit.hidden = hidden;
+    saveHidden(hidden);
+    place();
+    if (!hidden) render();
+    if (hadFocus) arriving.focus({ preventScroll: true });
+  };
+  view.hide.addEventListener("click", () => setHidden(true));
+  restore.button.addEventListener("click", () => setHidden(false));
+
+  if (!visit.rendered && !visit.hidden) afterSections(render);
 }
 
 /** `message`'s rendering, or `undefined`, warning when the renderer throws. */
@@ -104,21 +129,28 @@ function renderedOrWarn(doc: Document, message: CommitMessage): Node[] | undefin
 }
 
 /**
- * Mounts `container`, the message and its switch, in a sticky column at the left of `page`'s
- * layout row on a window with room for it, else just before `box`, following GitHub's re-renders
- * and the window's width, until `signal` aborts.
+ * Mounts `container`, the message and its controls, in a sticky column at the left of `page`'s
+ * layout row on a window with room for it, else just before `box`, or, while `visit` is hidden,
+ * `restore` in `box`'s place, following GitHub's re-renders and the window's width, until `signal`
+ * aborts. Returns how to place them again once `visit.hidden` changes.
  */
 function mountMessage(
   page: FilesPage,
-  { box, container }: { box: Element; container: HTMLElement },
-  width: Pick<CommitMessageOptions, "choice" | "saveWidth">,
+  { box, container, restore }: { box: Element; container: HTMLElement; restore: HTMLElement },
+  {
+    choice,
+    saveWidth,
+    visit,
+  }: Pick<CommitMessageOptions, "choice" | "saveWidth"> & {
+    visit: Pick<CommitMessageVisit, "hidden">;
+  },
   signal: AbortSignal,
-): void {
+): () => void {
   const doc = page.sidebar.ownerDocument;
   const win = doc.defaultView;
   const slot = Object.assign(el(doc, "span", "gh-prism-commit-slot"), { hidden: true });
   const column = messageColumn(doc);
-  const { separator, size } = columnSeparator(column, width);
+  const { separator, size } = columnSeparator(column, { choice, saveWidth });
   column.append(separator);
   // Found once: a new row means a new sidebar, and so a new visit; a row detached before then
   // falls back above the diffs.
@@ -129,8 +161,16 @@ function mountMessage(
     container.remove();
     slot.remove();
     column.remove();
+    restore.remove();
+  };
+  const moveToRestore = (currentBox: Element) => {
+    column.remove();
+    container.remove();
+    if (slot.nextElementSibling !== currentBox) currentBox.before(slot);
+    if (restore.nextElementSibling !== slot) slot.before(restore);
   };
   const moveIntoColumn = (connectedRow: Element, currentBox: Element) => {
+    restore.remove();
     if (column.parentElement !== connectedRow) connectedRow.prepend(column);
     if (container.parentElement !== column) column.prepend(container);
     if (slot.nextElementSibling !== currentBox) currentBox.before(slot);
@@ -139,12 +179,14 @@ function mountMessage(
   const moveAboveDiffs = (currentBox: Element) => {
     column.remove();
     slot.remove();
+    restore.remove();
     if (container.nextElementSibling !== currentBox) currentBox.before(container);
   };
 
   const follow = () => {
     const currentBox = findCommitMessage(page)?.box;
     if (!currentBox) unmount();
+    else if (visit.hidden) moveToRestore(currentBox);
     else if (win && fitsColumn(win.innerWidth) && row?.isConnected) {
       moveIntoColumn(row, currentBox);
     } else moveAboveDiffs(currentBox);
@@ -163,6 +205,7 @@ function mountMessage(
     unmount();
     style.remove();
   });
+  return follow;
 }
 
 /** Octicons 19.15.0 (MIT, GitHub Inc.): markdown. */
@@ -174,9 +217,10 @@ const LABEL: Record<CommitMessageView, string> = {
   plaintext: "Show rendered Markdown",
 };
 
-/** The message's container, and how to fill its body. */
+/** The message's container, its hide button, and how to fill its body. */
 interface MessageView {
   readonly container: HTMLElement;
+  readonly hide: HTMLButtonElement;
   /**
    * Shows a skeleton in a loading state, its fade-in and pulse `elapsed` ms along, so a skeleton
    * shown again mid-visit carries on where the last one was.
@@ -187,7 +231,7 @@ interface MessageView {
 }
 
 /**
- * An empty body beside a switch to plain text, with a copy of `box`'s children that the column
+ * An empty body beside a switch to plain text and a hide button, with a copy of `box`'s children that the column
  * shows as that plain text, returned with `data-view` already set to `choice.view` so a plain-text
  * reader never sees the rendering paint. Each click flips the view, records it in `choice`, and
  * `save`s it.
@@ -197,7 +241,9 @@ function messageView(
   box: Element,
   { choice, save }: Pick<CommitMessageOptions, "choice" | "save">,
 ): MessageView {
-  const button = viewSwitch(doc);
+  const button = iconButton(doc, "gh-prism-commit-view-switch", MARKDOWN);
+  const hide = iconButton(doc, "gh-prism-commit-hide", EYE_CLOSED);
+  hide.setAttribute("aria-label", "Hide commit message");
   const body = el(
     doc,
     "div",
@@ -216,6 +262,7 @@ function messageView(
       ...[...box.childNodes].map((node) => node.cloneNode(true)),
     ),
     button,
+    hide,
   );
 
   const showView = (view: CommitMessageView) => {
@@ -240,7 +287,7 @@ function messageView(
   };
 
   showView(choice.view);
-  return { container, wait, fill };
+  return { container, hide, wait, fill };
 }
 
 /** Bars standing in for the title and a paragraph until the rendering lands. */
@@ -281,15 +328,42 @@ function messageColumn(doc: Document): HTMLElement {
   return column;
 }
 
-/** The unlabelled button that switches between the rendering and the plain text. */
-function viewSwitch(doc: Document): HTMLButtonElement {
-  // Primer's small invisible IconButton, as the side switch is.
+/**
+ * Primer's small invisible IconButton, unlabelled, drawing `d`; the switch and the hide button
+ * share it, as the side switch does.
+ */
+function iconButton(doc: Document, name: string, d: string): HTMLButtonElement {
   const button = el(
     doc,
     "button",
-    "gh-prism-commit-view-switch tw:relative tw:grid tw:shrink-0 tw:place-content-center tw:size-[var(--control-small-size,28px)] tw:mt-2 tw:mr-2 tw:p-0 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-iconColor-rest)] tw:[font:inherit] tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:hover:text-[color:var(--button-invisible-iconColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
-    icon(doc, MARKDOWN, {}),
+    "gh-prism-commit-control tw:relative tw:grid tw:shrink-0 tw:place-content-center tw:size-[var(--control-small-size,28px)] tw:mt-2 tw:mr-2 tw:p-0 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-iconColor-rest)] tw:[font:inherit] tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:hover:text-[color:var(--button-invisible-iconColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
+    icon(doc, d, {}),
   );
+  button.classList.add(name);
   button.type = "button";
   return button;
+}
+
+/** Octicons 19.15.0 (MIT, GitHub Inc.): eye. */
+const EYE =
+  "M8 2c1.981 0 3.671.992 4.933 2.078 1.27 1.091 2.187 2.345 2.637 3.023a1.62 1.62 0 0 1 0 1.798c-.45.678-1.367 1.932-2.637 3.023C11.67 13.008 9.981 14 8 14c-1.981 0-3.671-.992-4.933-2.078C1.797 10.83.88 9.576.43 8.898a1.62 1.62 0 0 1 0-1.798c.45-.677 1.367-1.931 2.637-3.022C4.33 2.992 6.019 2 8 2ZM1.679 7.932a.12.12 0 0 0 0 .136c.411.622 1.241 1.75 2.366 2.717C5.176 11.758 6.527 12.5 8 12.5c1.473 0 2.825-.742 3.955-1.715 1.124-.967 1.954-2.096 2.366-2.717a.12.12 0 0 0 0-.136c-.412-.621-1.242-1.75-2.366-2.717C10.824 4.242 9.473 3.5 8 3.5c-1.473 0-2.825.742-3.955 1.715-1.124.967-1.954 2.096-2.366 2.717ZM8 10a2 2 0 1 1-.001-3.999A2 2 0 0 1 8 10Z";
+
+/** Octicons 19.15.0 (MIT, GitHub Inc.): eye-closed. */
+const EYE_CLOSED =
+  "M.143 2.31a.75.75 0 0 1 1.047-.167l14.5 10.5a.75.75 0 1 1-.88 1.214l-2.248-1.628C11.346 13.19 9.792 14 8 14c-1.981 0-3.67-.992-4.933-2.078C1.797 10.832.88 9.577.43 8.9a1.619 1.619 0 0 1 0-1.797c.353-.533.995-1.42 1.868-2.305L.31 3.357A.75.75 0 0 1 .143 2.31Zm1.536 5.622A.12.12 0 0 0 1.657 8c0 .021.006.045.022.068.412.621 1.242 1.75 2.366 2.717C5.175 11.758 6.527 12.5 8 12.5c1.195 0 2.31-.488 3.29-1.191L9.063 9.695A2 2 0 0 1 6.058 7.52L3.529 5.688a14.207 14.207 0 0 0-1.85 2.244ZM8 3.5c-.516 0-1.017.09-1.499.251a.75.75 0 1 1-.473-1.423A6.207 6.207 0 0 1 8 2c1.981 0 3.67.992 4.933 2.078 1.27 1.091 2.187 2.345 2.637 3.023a1.62 1.62 0 0 1 0 1.798c-.11.166-.248.365-.41.587a.75.75 0 1 1-1.21-.887c.148-.201.272-.382.371-.53a.119.119 0 0 0 0-.137c-.412-.621-1.242-1.75-2.366-2.717C10.825 4.242 9.473 3.5 8 3.5Z";
+
+/**
+ * The row standing in GitHub's box's place while the message is hidden, holding Primer's small
+ * invisible Button that shows it again.
+ */
+function restoreRow(doc: Document): { row: HTMLElement; button: HTMLButtonElement } {
+  const button = el(
+    doc,
+    "button",
+    "gh-prism-commit-show tw:inline-flex tw:items-center tw:gap-2 tw:h-[var(--control-small-size,28px)] tw:px-2 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-fgColor-rest)] tw:[font-family:inherit] tw:text-body-small tw:font-medium tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
+    icon(doc, EYE, {}),
+    "Show commit message",
+  );
+  button.type = "button";
+  return { row: el(doc, "div", "gh-prism-commit-restore tw:flex tw:p-2", button), button };
 }

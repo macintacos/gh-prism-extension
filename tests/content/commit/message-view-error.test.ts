@@ -28,7 +28,8 @@ it("goes back from its loading state to GitHub's box, warning, when the message 
     choice: { view: "rendered", width: 320 },
     save: () => {},
     saveWidth: () => {},
-    visit: { since: performance.now() },
+    saveHidden: () => {},
+    visit: { since: performance.now(), hidden: false },
   });
 
   expect(getComputedStyle(box).display).toBe("none");

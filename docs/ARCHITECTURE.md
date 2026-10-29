@@ -216,6 +216,17 @@ has past 1012px, so the column narrows with the window, and moves back above the
 once the window can't spare 256px, below 1268px. A `resize` listener applies both, and a
 commit page with no row keeps the message above the diffs at any width.
 
+A hide button beside the switch takes the message off the page, column and all, and puts
+`div.gh-prism-commit-restore` in GitHub's box's place, before the slot that keeps the box
+hidden, with a **Show commit message** button that brings it back; focus moves between the
+two. The pick belongs to that one commit: `index.ts` keys it as `owner/repo@sha` with
+[`utils/hidden-commits.ts`](../utils/hidden-commits.ts), which matches a full SHA against
+an abbreviated one, and saves the newest 100 keys as `hiddenCommitMessages` in
+[`utils/prefs.ts`](../utils/prefs.ts). It reads them before watching and keeps the tab's
+copy current, so a soft navigation back to a hidden commit finds it hidden, and it rereads
+storage before each save, so another tab's picks survive. A commit that opens hidden
+renders nothing until the reader shows it, and then renders at once.
+
 gh-prism never edits GitHub's box: the view's sheet only hides it, and it shows again when
 the reader switches to it above the diffs, when the visit aborts, or when gh-prism can't
 render the message.
@@ -526,7 +537,7 @@ entrypoints/
   content/
     index.ts             content script entry: wires the watchers, intent, and views
     files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; a commit's message box and the row its message column joins
-    commit/              a commit's message rendered as Markdown in GitHub's box's place, or in a column beside the diffs, and its switch back to GitHub's box
+    commit/              a commit's message rendered as Markdown in GitHub's box's place, or in a resizable column beside the diffs, with its switch back to GitHub's box and its hide button
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
@@ -540,6 +551,7 @@ utils/
   hunk-rules/            the docstring and inline-test rules
   sections.ts            path rules for the five sections
   prefs.ts               saved preferences
+  hidden-commits.ts      which commits' messages are hidden, capped
   whats-new.ts           when the what's-new block shows
 tests/                   Vitest unit tests, mirroring the source tree
 e2e/                     Playwright smoke tests against the built extension

@@ -6,6 +6,32 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-29: Hiding a commit's message
+
+- **Compared:**
+  - for the hide control, Octicons `x`, `sidebar-collapse`, or `eye-closed`, beside the
+    view switch;
+  - for the way back, an icon button at the start of the diffs' toolbar, a thin rail where
+    the column stood, or a labelled button in GitHub's box's place in the commit's card;
+  - for the hidden state, `session:` storage, or a capped list in `local:` storage;
+  - keying a commit by its route's SHA alone, or matching a full SHA against an
+    abbreviated one.
+- **Won:** an `eye-closed` icon button labelled "Hide commit message" beside the view
+  switch; Primer's small invisible Button with `eye` and "Show commit message" in the
+  box's place, in both layouts, with focus moving between the two;
+  `local:hiddenCommitMessages`, the newest 100 commits, keyed `owner/repo@sha` and matched
+  by SHA prefix; no motion.
+- **Why:** `x` reads as dismissing for good, and `sidebar-collapse` names a panel, which
+  the message isn't above the diffs; an eye says hidden and shown. The box's place is
+  where GitHub shows a commit's message, so a reader looking for it looks there, in either
+  layout, and it needs no new GitHub selector, as a toolbar button would; a labelled
+  button is easier to find than an icon, and a rail would keep taking the diffs' room.
+  `session:` storage needs the background script to open it to content scripts first, and
+  loses a pick when the browser restarts; 100 keys stay a few kilobytes. GitHub links a
+  commit by its full SHA, but a reader can type an abbreviated one, so either finds the
+  other. Hiding is a reader's tidy-up, so the message just goes, as GitHub's file tree
+  does when collapsed.
+
 ## 2026-10-29: A resizable commit message column
 
 - **Compared:**

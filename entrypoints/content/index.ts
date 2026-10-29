@@ -14,6 +14,7 @@ import {
 import { ownerOf } from "@/utils/github/files-route";
 import { connectPrData } from "@/utils/github/pr-port";
 import { type DiffRef, readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
+import { hiddenKeyOf, hiddenKeysOf, isHidden, withHidden } from "@/utils/hidden-commits";
 import { storedIntents } from "@/utils/intent/cache";
 import {
   type IntentSources,
@@ -28,6 +29,7 @@ import {
   commitMessageView,
   type DiffstatView,
   diffstatView,
+  hiddenCommitMessages,
   sidebarSide,
   whatsNewSeen,
 } from "@/utils/prefs";
@@ -84,6 +86,7 @@ export default defineContentScript({
       savedDiffstat,
       savedCommitMessage,
       savedColumnWidth,
+      savedHidden,
       dismissed,
       whatsNewForPage,
     ] = await Promise.all([
@@ -91,11 +94,13 @@ export default defineContentScript({
       readSavedDiffstat(),
       readSavedCommitMessage(),
       readSavedColumnWidth(),
+      readHiddenMessages(),
       readNoticeDismissed(),
       release && followWhatsNew(release, ctx),
     ]);
     const side = sideChoiceOf(savedSide);
     const commitMessage = commitMessageChoiceOf(savedCommitMessage, savedColumnWidth);
+    const hiddenMessages: HiddenMessages = { keys: hiddenKeysOf(savedHidden) };
     // Shared by every visit, so a switch on one tab or page carries to the next.
     const diffstat = {
       choice: diffstatChoiceOf(savedDiffstat),
@@ -127,7 +132,14 @@ export default defineContentScript({
             diffUrl: location.origin + location.pathname,
             version,
           };
-          const messageVisit: CommitMessageVisit = { since: performance.now() };
+          const hiddenKey = route.diff.kind === "commit" ? hiddenKeyOf(route.diff) : undefined;
+          const messageVisit: CommitMessageVisit = {
+            since: performance.now(),
+            hidden: hiddenKey !== undefined && isHidden(hiddenMessages.keys, hiddenKey),
+          };
+          const saveHidden = (hidden: boolean) => {
+            if (hiddenKey) saveHiddenMessage(hiddenMessages, hiddenKey, hidden);
+          };
           return (page, signal) => {
             showReportLink(page, signal, reportOptions);
             showOwnerSection(page, signal, {
@@ -150,6 +162,7 @@ export default defineContentScript({
               choice: commitMessage,
               save: saveCommitMessage,
               saveWidth: saveColumnWidth,
+              saveHidden,
               visit: messageVisit,
             });
             dockSidebar(page, signal, { choice: side, save: saveSide });
@@ -299,6 +312,32 @@ const saveColumnWidth = (width: number) =>
     .catch((error: unknown) =>
       console.error("gh-prism: saving the commit message column's width failed", error),
     );
+
+/** The commits whose message this tab knows are hidden, kept current as its visits hide them. */
+interface HiddenMessages {
+  keys: readonly string[];
+}
+
+/** The stored hidden commit messages, unchecked, or none when storage won't read. */
+const readHiddenMessages = (): Promise<unknown> =>
+  hiddenCommitMessages.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading the hidden commit messages failed", error);
+    return hiddenCommitMessages.fallback;
+  });
+
+/**
+ * Records `key`'s commit message as `hidden` or shown in the tab's `hiddenMessages` and in storage,
+ * read afresh so a pick another tab made since this one started survives.
+ */
+function saveHiddenMessage(hiddenMessages: HiddenMessages, key: string, hidden: boolean): void {
+  hiddenMessages.keys = withHidden(hiddenMessages.keys, key, hidden);
+  hiddenCommitMessages
+    .getValue()
+    .then((saved) => hiddenCommitMessages.setValue(withHidden(hiddenKeysOf(saved), key, hidden)))
+    .catch((error: unknown) =>
+      console.error("gh-prism: saving the hidden commit messages failed", error),
+    );
+}
 
 /** Whether the user dismissed the classic page's notice; not, when storage won't read. */
 const readNoticeDismissed = (): Promise<boolean> =>

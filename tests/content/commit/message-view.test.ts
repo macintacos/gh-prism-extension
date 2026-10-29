@@ -46,6 +46,7 @@ const runIdle = () => {
 let choice: CommitMessageChoice;
 let save: (view: CommitMessageView) => void;
 let saveWidth: (width: number) => void;
+let saveHidden: (hidden: boolean) => void;
 let visit: CommitMessageVisit;
 const show = () =>
   showCommitMessage(pageOf(), controller.signal, {
@@ -53,14 +54,16 @@ const show = () =>
     choice,
     save,
     saveWidth,
+    saveHidden,
     visit,
   });
 
 beforeEach(() => {
   choice = { view: "rendered", width: 320 };
-  visit = { since: performance.now() };
+  visit = { since: performance.now(), hidden: false };
   save = vi.fn();
   saveWidth = vi.fn();
+  saveHidden = vi.fn();
   vi.useFakeTimers();
   history.replaceState(null, "", "/o/r/commit/dd95cdc");
   loadCommitFixture("lists");
@@ -666,6 +669,122 @@ describe("showCommitMessage's column width", () => {
   });
 });
 
+describe("showCommitMessage's hide control", () => {
+  const hideButton = () => document.querySelector<HTMLButtonElement>(".gh-prism-commit-hide");
+  const restore = () => document.querySelector<HTMLElement>(".gh-prism-commit-restore");
+  const restoreButton = () => restore()?.querySelector("button");
+
+  afterEach(() => setViewport(DEFAULT));
+
+  it("hides the message and GitHub's box, leaving a way back in the box's place, and saves the pick", () => {
+    show();
+    runIdle();
+    expect(hideButton()?.getAttribute("aria-label")).toBe("Hide commit message");
+
+    hideButton()?.click();
+
+    expect(container()).toBeNull();
+    expect(shows(box())).toBe(false);
+    expect(restore()?.parentElement).toBe(box().parentElement);
+    expect(restoreButton()?.type).toBe("button");
+    expect(visit.hidden).toBe(true);
+    expect(saveHidden).toHaveBeenLastCalledWith(true);
+  });
+
+  it("gives the diffs the column's room back once hidden", () => {
+    setViewport(WIDE);
+    show();
+    runIdle();
+
+    hideButton()?.click();
+
+    expect(column()).toBeNull();
+    expect(restore()?.parentElement).toBe(box().parentElement);
+  });
+
+  it("brings the message back where the window puts it, saving the pick", () => {
+    setViewport(WIDE);
+    show();
+    runIdle();
+    hideButton()?.click();
+
+    restoreButton()?.click();
+
+    expect(column()?.firstElementChild).toBe(container());
+    expect(restore()).toBeNull();
+    expect(visit.hidden).toBe(false);
+    expect(saveHidden).toHaveBeenLastCalledWith(false);
+  });
+
+  it("opens hidden for a commit hidden before, rendering only once it's shown", () => {
+    visit.hidden = true;
+
+    show();
+
+    expect(container()).toBeNull();
+    expect(restore()).not.toBeNull();
+    expect(shows(box())).toBe(false);
+    expect(tasks).toHaveLength(0);
+
+    restoreButton()?.click();
+
+    expect(container()?.hasAttribute("aria-busy")).toBe(false);
+    expect(container()?.querySelector(".gh-prism-commit-message-body > h1")).not.toBeNull();
+  });
+
+  it("hands focus to the control that brings the message back, and back again", () => {
+    show();
+    runIdle();
+    hideButton()?.focus();
+
+    hideButton()?.click();
+
+    expect(document.activeElement).toBe(restoreButton());
+
+    restoreButton()?.click();
+
+    expect(document.activeElement).toBe(hideButton());
+  });
+
+  it("leaves the view the tab picked as it is", () => {
+    choice.view = "plaintext";
+    show();
+    runIdle();
+
+    hideButton()?.click();
+    restoreButton()?.click();
+
+    expect(container()?.dataset.view).toBe("plaintext");
+    expect(choice.view).toBe("plaintext");
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("goes back to GitHub's box when a message shown again can't be rendered", () => {
+    const body = box().querySelector(".extended-commit-description-container");
+    if (!body) throw new Error("no body");
+    body.textContent = `${">".repeat(40)} deep`;
+    visit.hidden = true;
+    show();
+
+    restoreButton()?.click();
+
+    expect(container()).toBeNull();
+    expect(restore()).toBeNull();
+    expect(shows(box())).toBe(true);
+  });
+
+  it("removes its way back on abort, showing GitHub's box", () => {
+    show();
+    runIdle();
+    hideButton()?.click();
+
+    controller.abort();
+
+    expect(restore()).toBeNull();
+    expect(shows(box())).toBe(true);
+  });
+});
+
 describe("showCommitMessage across navigation", () => {
   const navigate = async (path: string, load: () => void) => {
     history.pushState(null, "", path);
@@ -683,13 +802,14 @@ describe("showCommitMessage across navigation", () => {
       window,
       {
         onVisit: () => {
-          const visit = { since: performance.now() };
+          const visit = { since: performance.now(), hidden: false };
           return (page, signal) =>
             showCommitMessage(page, signal, {
               afterSections: (task) => task(),
               choice,
               save,
               saveWidth,
+              saveHidden,
               visit,
             });
         },

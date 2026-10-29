@@ -47,6 +47,14 @@ export const commitColumnWidth = storage.defineItem<number>("local:commitColumnW
 });
 
 /**
+ * The commits whose message the user hid, newest last, keyed as `utils/hidden-commits.ts` keys
+ * them; kept on this computer only.
+ */
+export const hiddenCommitMessages = storage.defineItem<string[]>("local:hiddenCommitMessages", {
+  fallback: [],
+});
+
+/**
  * Whether the user dismissed the notice on GitHub's classic Files changed page; kept on this
  * computer only.
  */
