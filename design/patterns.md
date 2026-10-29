@@ -255,9 +255,10 @@ carries on where the last one was, never fading in twice. `commit/message-view.t
 
 ## The mark
 
-The mark is the toolbar icon's prism and its three bars, redrawn at 16px, so a reader can
-tell gh-prism's surfaces from GitHub's. `ui/mark.ts` builds it as `prismMark`, and
-`ui/mark.css` styles it. It carries no setting to hide it.
+The mark is the toolbar icon's faceted pyramid and its three bars, redrawn at 16px in two
+tones, so a reader can tell gh-prism's surfaces from GitHub's. The lit face and the bars
+are solid, and the shaded face is at 40% opacity. `ui/mark.ts` builds it as `prismMark`,
+and `ui/mark.css` styles it. It carries no setting to hide it.
 
 Each of the five large surfaces carries one mark:
 
@@ -278,19 +279,23 @@ does any inline control. On a surface that small, a mark would crowd the content
 and repeat on every hover. A future surface gets a mark only if it is large, decided case
 by case against this entry.
 
-At rest the mark is `--fgColor-muted`, and `CanvasText` under forced colours, which also
-drop its spectrum. Hovering sweeps the spectrum across its bars, left to right, on
-`tokens.md`'s "State, opening" row, and leaving reverses it from where it is on the
-"State, closing" row. Under reduced motion, the spectrum appears and disappears without
-moving. The mark is an image named "Added by gh-prism" that takes no focus, and its
-tooltip shows the same words on hover only.
+At rest the mark is `--fgColor-muted`. Hovering cross-fades it to a coloured copy of the
+glyph on `tokens.md`'s "State, opening" row. While the pointer stays, the copy pulses on
+the "Pulse" row. It cycles through the four section hues in section order, leaving out the
+muted one, which would match the resting mark. It also breathes between full and 70%
+opacity. The copy keeps the glyph's two tones. Leaving fades the copy out on the "State,
+closing" row and pauses the pulse, so the next hover resumes it where it stopped. Under
+reduced motion, hovering swaps instantly to a still copy in `--fgColor-accent`. Under
+forced colours, the mark is `CanvasText`, and hovering changes nothing but the tooltip.
+The mark is an image named "Added by gh-prism" that takes no focus, and its tooltip shows
+the same words on hover only.
 
 ## The spectrum
 
 The spectrum is gh-prism's signature: every section's hue in one band, in section order.
-It appears only where gh-prism announces itself: the loading bar, the 3px top edge of the
-classic-page dialog, and a hovered mark. Anywhere else, it would compete with the section
-hues it is made of.
+It appears only where gh-prism announces itself: the loading bar and the 3px top edge of
+the classic-page dialog. Anywhere else, it would compete with the section hues it is made
+of. A hovered mark cycles through the same hues one at a time instead.
 
 ## Notices
 

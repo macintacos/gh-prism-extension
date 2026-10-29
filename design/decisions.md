@@ -6,6 +6,29 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-29: The mark is a faceted pyramid that pulses through the hues
+
+This entry replaces the sweep recorded in the entry below it.
+
+- **Compared:**
+  - for the glyph:
+    - the flat triangle and bars;
+    - the faceted pyramid;
+    - dispersion, a tinted prism splitting a beam into a fan of three bands;
+    - a badge, the faceted pyramid and bars inside @pierre/trees' squircle tile.
+
+    A literal three-quarter triangular prism was drawn and dropped before the mockup,
+    because at 16px it read as a triangle beside a slab;
+  - on hover: the bars alone cycling the hues, the whole mark cycling them, or the
+    spectrum drifting along the bars.
+- **Won:** the faceted pyramid, and the whole mark cycling.
+- **Why:**
+  - The flat triangle didn't read as a prism. The faceted pyramid reads as a solid at 16px
+    in the two-tone style of @pierre/trees' icons. It keeps the toolbar icon's shape, so
+    the toolbar icon needs no redraw.
+  - The maintainer wanted the icon itself to pulse slowly while hovered, in place of a
+    one-time sweep of its bars.
+
 ## 2026-10-29: The mark sweeps the spectrum, not the icon's colours
 
 - **Compared:**
