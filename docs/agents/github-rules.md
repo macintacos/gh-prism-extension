@@ -89,10 +89,34 @@ facts about GitHub that held when written, and ends with how to re-check them;
   diff", and a pull request's reads "Load Diff".
 - **Expect smooth scrolling.** `html` has `scroll-behavior: smooth`, except under reduced
   motion.
+- **Find the commit message box by `[class*="commitMessageContainer__"]`.** Its first
+  `span` holds the title in a `div`. The body is a sibling
+  `span.extended-commit-description-container`, absent for a subject-only message. Both
+  are `ws-pre-wrap` text with literal newlines. The box sits in a card beside the branch
+  row, `[class*="commitBranchContainer__"]`, which holds links of its own, so don't search
+  the whole card.
+- **Expect GitHub's links in the box to carry absolute `href`s.** `#123` is
+  `a.issue-link.js-issue-link` with `data-hovercard-*` attributes, `@user` is
+  `a.user-mention` with `data-hovercard-type="user"`, and a SHA is `a.commit-link` holding
+  a `<tt>` short SHA. A plain URL becomes an `<a>` with no class and no hovercard. Inside
+  `[text](url)`, GitHub's `<a>` covers exactly the URL, and the `(` and `)` stay text
+  outside it. A compare URL becomes an `a.commit-link` reading
+  `owner/repo@<tt>sha...sha</tt>`, not the URL, with no hovercard.
+- **Read the message from the box, not the embedded page data.** The data holds it only as
+  HTML (`shortMessageMarkdown`, `bodyMessageHtml`), never as raw text.
+- **Rely on GitHub's `markdown-body` sheet.** It loads on commit pages, so a
+  `div.markdown-body` gets GitHub's README styling with no sheet of gh-prism's. Task lists
+  rely on its classes too: `message.ts` writes `contains-task-list`, `task-list-item`, and
+  `task-list-item-checkbox`, so if checkboxes or bullets lose their styling, check those
+  classes in GitHub's sheet first.
 - **Re-check:** load a public commit page and a pull request. Read the placeholder text
   and `getComputedStyle(document.documentElement).scrollBehavior` from the DOM. Read the
   hydration re-render and the nav helper from GitHub's bundle as
-  [§ Re-checking GitHub](#re-checking-github) describes.
+  [§ Re-checking GitHub](#re-checking-github) describes. Signed out, load the five commits
+  named in the `tests/fixtures/commit-message-*.html` header comments, and compare each
+  page's message card with its fixture. Check a scratch `div.markdown-body`'s computed
+  `font-size` reads `16px`, and that a scratch `ul.contains-task-list > li.task-list-item`
+  drops its bullet.
 
 ## Diff lists
 

@@ -6,6 +6,39 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-28: A commit's message as Markdown
+
+- **Compared:**
+  - GitHub's renderer, `marked`, `markdown-it`, or micromark with its GFM extension;
+  - the title as an `h1` or a styled paragraph;
+  - an image as an image, a link, or nothing;
+  - rendering on a plain idle callback, once the sidebar's sections have landed, or once
+    they have landed or a second has passed;
+  - guarding the parse with a flat cap on emphasis and bracket delimiters, a lower length
+    cap, parsing in the background script, or a per-paragraph cost estimate;
+  - the container's padding.
+- **Won:** micromark, building plain DOM; the title as an `h1`; an image as a link to its
+  URL labelled with its alt text; rendering once the sections have landed or a second has
+  passed, then once the browser is idle; the per-paragraph cost estimate; `markdown-body`
+  with the box's measured `8px 12px` padding.
+- **Why:** GitHub's renderer is out of reach: a commit page has no preview endpoint to
+  call, GitHub's comment preview turns single newlines into `<br>`, and its REST API needs
+  a new site permission. `marked` passes raw HTML and `javascript:` links through, so it
+  needs a sanitiser. `markdown-it` needs an unmaintained plugin for task lists and is the
+  largest. micromark yields a syntax tree that gh-prism turns into DOM itself, so no HTML
+  string is parsed. Inside `markdown-body`, an `h1` takes GitHub's README title style, the
+  size of a pull request's title. An image would load an untrusted URL, and dropping it
+  would lose the reference. A plain idle callback rendered the message about 77 ms before
+  the sections, so the message got ahead of the sidebar, which it must never hold up.
+  Waiting for the sections alone held GitHub's box up for a whole cold intent read, often
+  seconds on a large commit, then shifted the diffs. A flat cap of 2,000 delimiters still
+  let one paragraph take 825 ms, and one unclosed `[` before 40,000 characters of prose
+  took 551 ms. A length cap low enough to bound the worst case would refuse ordinary
+  messages. Parsing in the background script adds a messaging round trip to every render.
+  The estimate held every adversarial shape tried to about 50–100 ms, and still accepts a
+  300-bullet message with bold, links, and code on every line. The box's padding keeps the
+  card's edges where GitHub drew them.
+
 ## 2026-10-28: A code owner's files as a flattened tree
 
 - **Compared:**

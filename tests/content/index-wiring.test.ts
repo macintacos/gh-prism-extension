@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import contentScript from "../../entrypoints/content";
+import { showCommitMessage } from "../../entrypoints/content/commit/message-view";
 import { showOwnerSection } from "../../entrypoints/content/sidebar/owner-section";
 import { dockSidebar, type Side } from "../../entrypoints/content/sidebar/side";
 import { showHeaderTab, showVisit } from "../../entrypoints/content/visit/land";
@@ -35,6 +36,10 @@ vi.mock(import("../../entrypoints/content/visit/land"), async (importOriginal) =
   ...(await importOriginal()),
   showVisit: vi.fn((_page, _signal, { intent }) => void intent(() => {})),
   showHeaderTab: vi.fn((_page, _signal, { intent }) => void intent(() => {})),
+}));
+vi.mock(import("../../entrypoints/content/commit/message-view"), async (importOriginal) => ({
+  ...(await importOriginal()),
+  showCommitMessage: vi.fn(),
 }));
 vi.mock(import("../../entrypoints/content/sidebar/owner-section"), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -662,5 +667,50 @@ describe("content script", () => {
       expect(block()).toBeNull();
       expect(await seen()).toBeUndefined();
     });
+  });
+
+  it("shows each commit page's message once the intent lands and the browser is idle", async () => {
+    const requestIdleCallback = vi.fn();
+    vi.stubGlobal("requestIdleCallback", requestIdleCallback);
+    let land: (value: never) => void = () => {};
+    vi.mocked(intentFor).mockImplementationOnce(
+      () => new Promise<never>((resolve) => (land = resolve)),
+    );
+    history.replaceState(null, "", "/o/r/commit/dd95cdc");
+    loadCommitFixture();
+    await run();
+
+    const calls = vi.mocked(showCommitMessage).mock.calls;
+    expect(calls).toHaveLength(1);
+    const [page, signal, options] = calls[0] ?? [];
+    expect(page).toBe(vi.mocked(showVisit).mock.calls[0]?.[0]);
+    expect(signal).toBe(vi.mocked(showVisit).mock.calls[0]?.[1]);
+    const task = () => {};
+    options?.afterSections(task);
+    await afterMutations();
+    expect(requestIdleCallback).not.toHaveBeenCalled();
+
+    land(undefined as never);
+    await afterMutations();
+
+    expect(requestIdleCallback).toHaveBeenCalledWith(task, { timeout: 1000 });
+  });
+
+  it("shows a commit page's message after a second when the intent never lands", async () => {
+    const requestIdleCallback = vi.fn();
+    vi.stubGlobal("requestIdleCallback", requestIdleCallback);
+    history.replaceState(null, "", "/o/r/commit/dd95cdc");
+    loadCommitFixture();
+    await run();
+
+    const task = () => {};
+    vi.mocked(showCommitMessage).mock.calls[0]?.[2].afterSections(task);
+    await vi.advanceTimersByTimeAsync(999);
+    expect(requestIdleCallback).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(requestIdleCallback).toHaveBeenCalledOnce();
+    expect(requestIdleCallback).toHaveBeenCalledWith(task, { timeout: 1000 });
   });
 });

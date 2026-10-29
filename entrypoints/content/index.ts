@@ -15,7 +15,12 @@ import { ownerOf } from "@/utils/github/files-route";
 import { connectPrData } from "@/utils/github/pr-port";
 import { type DiffRef, readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
 import { storedIntents } from "@/utils/intent/cache";
-import { type IntentSources, intentFor, shareIntent } from "@/utils/intent/read";
+import {
+  type IntentSources,
+  intentFor,
+  type PendingIntent,
+  shareIntent,
+} from "@/utils/intent/read";
 import {
   classicNoticeDismissed,
   type DiffstatView,
@@ -30,6 +35,7 @@ import {
   whatsNewStateOf,
 } from "@/utils/whats-new";
 import { type NoticeChoice, showClassicNotice } from "./classic/notice";
+import { showCommitMessage } from "./commit/message-view";
 import { showReviewerFiles } from "./conversation/reviewer-files";
 import { visitViewed } from "./diffs/viewed";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
@@ -119,6 +125,7 @@ export default defineContentScript({
               owner: route.diff.kind === "pr" ? ownerOf(location.search) : undefined,
               whatsNew: whatsNewForPage?.(),
             });
+            showCommitMessage(page, signal, { afterSections: afterLanding(intent) });
             dockSidebar(page, signal, { choice: side, save: saveSide });
           };
         },
@@ -171,6 +178,23 @@ async function readReviewersWithTeams(
   if (!reviewers || !owners) return reviewers;
   return withMemberTeams(reviewers, owners, async (team) => (await teamMembers(team))?.members);
 }
+
+// Keeps a slow intent read from holding GitHub's message box up.
+const INTENT_WAIT_MS = 1000;
+// Bounds how long GitHub's box shows on a busy page.
+const IDLE_TIMEOUT_MS = 1000;
+
+/**
+ * Runs a task once `intent` settles, or `INTENT_WAIT_MS` passes, then once the browser is idle.
+ * The sidebar's sections draw only once the intent lands.
+ */
+const afterLanding =
+  (intent: PendingIntent) =>
+  (task: () => void): void => {
+    const schedule = () => requestIdleCallback(task, { timeout: IDLE_TIMEOUT_MS });
+    const bound = new Promise((resolve) => setTimeout(resolve, INTENT_WAIT_MS));
+    void Promise.race([Promise.resolve(intent(() => {})), bound]).then(schedule, schedule);
+  };
 
 /** The stored sidebar side, unchecked, or the default when storage won't read. */
 const readSavedSide = (): Promise<unknown> =>

@@ -35,7 +35,8 @@ script module that holds selectors into GitHub's Files view markup. Each kind of
 view is a `PageKind`: a pull request's Files changed tab (`prPage`) and a commit's page
 (`commitPage`). A `PageKind` lists where that page keeps its sidebar, native tree, diff
 list, and diffstat, and how a row's link reveals its diff. A pull request's kind also
-names the narrow layout's overlay copy of the sidebar.
+names the narrow layout's overlay copy of the sidebar, and a commit's kind names its
+message box.
 
 `findFilesPage` tries each entry of `PAGE_KINDS` in turn and returns the first whose
 sidebar, native tree, and diffs are all present, passing over the overlay's copy. Callers
@@ -143,6 +144,35 @@ selected and the extension version prefilled. It prefills the diff's URL only wh
 `isPublicRepo` in [`files-page.ts`](../entrypoints/content/files-page.ts) confirms from
 the page's `<head>` that the route's own repo is public; otherwise it leaves the URL out,
 so a private diff's address never reaches a public issue.
+
+## The commit message
+
+On a commit's page, `showCommitMessage` in
+[`entrypoints/content/commit/message-view.ts`](../entrypoints/content/commit/message-view.ts)
+shows the commit message rendered as GitHub-flavored Markdown in place of GitHub's
+monospace box. [`index.ts`](../entrypoints/content/index.ts) runs it once the sidebar's
+sections have landed, or a second has passed without them, and the browser is idle, so the
+message never holds up the sidebar or the diffs, and a slow intent read never holds up
+GitHub's box.
+
+`renderCommitMessage` in
+[`entrypoints/content/commit/message.ts`](../entrypoints/content/commit/message.ts) reads
+the message's text from GitHub's box and writes each of GitHub's links in it as a
+placeholder. It parses that text with micromark's GFM extension into an mdast tree (a
+Markdown syntax tree), then builds plain DOM from the tree, never HTML, so raw HTML in a
+message shows as text. Each placeholder becomes a clone of GitHub's link, so `#123`
+references, mentions, and SHAs keep GitHub's `href`s and hovercards. Any other link keeps
+its `href` only for an `https:`, `http:`, or `mailto:` URL, and an image renders as a
+link, so no image loads. The first line becomes an `h1`, and the rest reflows like a
+README. A message over 50,000 characters, or nested deeper than 32 levels, stays in
+GitHub's box. So does a message whose paragraphs would cost too much to parse: micromark's
+inline parse grows with a paragraph's length times its emphasis and bracket delimiters,
+and with its length squared after an unclosed `[`. `renderCommitMessage` estimates that
+cost per paragraph and refuses a message past a budget, because a crafted message well
+under 50,000 characters would otherwise freeze the page for seconds.
+
+gh-prism never edits GitHub's box: the view's sheet only hides it, and it shows again when
+the visit aborts or gh-prism can't render the message.
 
 ## The owner section
 
@@ -449,7 +479,8 @@ entrypoints/
   background.ts          service worker: PR data port, cache clearing and what's-new mark on install
   content/
     index.ts             content script entry: wires the watchers, intent, and views
-    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields
+    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; a commit's message box
+    commit/              a commit's message rendered as Markdown in GitHub's box's place
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
