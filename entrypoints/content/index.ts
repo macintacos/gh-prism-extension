@@ -3,6 +3,7 @@ import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { storage } from "wxt/utils/storage";
 import { readCodeOwners } from "@/utils/github/code-owners";
+import { ownerOf } from "@/utils/github/files-route";
 import { connectPrData } from "@/utils/github/pr-port";
 import { readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
 import { storedIntents } from "@/utils/intent/cache";
@@ -32,11 +33,12 @@ import { watchClassicPages, watchFilesPages, watchHeaderPages } from "./visit/wa
 const CACHED_DIFFS = 50;
 
 /**
- * On every Files view on github.com, shows the sidebar's sections, orders the diffs to match,
- * stands in for the diffstat, docks the sidebar on the saved side with a switch, adds a link to
- * report a miscategorized file, and, after an update, opens the sidebar with that release's
- * notes. On a pull request's header tabs, stands in for the diffstat alone. On its classic Files
- * changed page, explains why gh-prism is off there.
+ * On every Files view on github.com, shows the sidebar's sections, narrowed on a pull request to
+ * the `gh-prism-owner` owner's files when set, orders the diffs to match, stands in for the
+ * diffstat, docks the sidebar on the saved side with a switch, adds a link to report a
+ * miscategorized file, and, after an update, opens the sidebar with that release's notes. On a
+ * pull request's header tabs, stands in for the diffstat alone. On its classic Files changed
+ * page, explains why gh-prism is off there.
  */
 export default defineContentScript({
   // Every GitHub page: soft navigation reaches a pull request without re-injecting the script.
@@ -91,6 +93,7 @@ export default defineContentScript({
               diffstat,
               viewed,
               codeOwners,
+              owner: route.diff.kind === "pr" ? ownerOf(location.search) : undefined,
               whatsNew: whatsNewForPage?.(),
             });
             dockSidebar(page, signal, { choice: side, save: saveSide });

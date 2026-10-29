@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { isFilesPath, readFilesRoute, readHeaderTabPr } from "../../../utils/github/files-route";
+import {
+  isFilesPath,
+  ownerOf,
+  readFilesRoute,
+  readHeaderTabPr,
+} from "../../../utils/github/files-route";
 
 describe("isFilesPath", () => {
   it.each([
@@ -83,4 +88,19 @@ describe("readHeaderTabPr", () => {
     "/o/r/issues/3",
     "/o/r/commit/dd95cdc",
   ])("is undefined for %s", (path) => expect(readHeaderTabPr(path)).toBeUndefined());
+});
+
+describe("ownerOf", () => {
+  it.each(["", "?gh-prism-owner=", "?gh-prism-owner=%20"])("is undefined for %j", (search) =>
+    expect(ownerOf(search)).toBeUndefined(),
+  );
+
+  it.each([
+    ["?gh-prism-owner=excessive-dev/frontend", "@excessive-dev/frontend"],
+    ["?gh-prism-owner=excessive-dev%2Ffrontend", "@excessive-dev/frontend"],
+    ["?gh-prism-owner=%40sandbox-user", "@sandbox-user"],
+    ["?gh-prism-owner=octocat&owned-by%5B%5D=octocat", "@octocat"],
+    ["?gh-prism-owner=octocat&gh-prism-owner=hubot", "@octocat"],
+    ["?gh-prism-owner=dev@example.com", "dev@example.com"],
+  ])("reads %s as %s", (search, token) => expect(ownerOf(search)).toBe(token));
 });

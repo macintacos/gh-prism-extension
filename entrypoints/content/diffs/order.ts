@@ -4,8 +4,13 @@
  * Each listed file's entry, the list child GitHub renders, deliberately gets an inline `order`
  * and `animation-delay`: that restyles the entry alone, where a `:has()` rule per file is matched
  * against every entry's subtree. React sets only the style keys it renders, so both survive its
- * re-renders; the view's removal strips them. GitHub's virtualized lists, which place each diff
- * absolutely, keep GitHub's order.
+ * re-renders; the view's removal strips them. A hidden file's entry gets a `data-gh-prism-hidden`
+ * attribute instead, so gh-prism never clears a style GitHub sets. GitHub's virtualized lists,
+ * which place each diff absolutely, keep GitHub's order.
+ *
+ * It also hides the diffs of the files gh-prism's owner filter leaves out: a rule on each one's
+ * region and virtualized row, since those rows mount and unmount as you scroll, and the attribute
+ * on a progressive list's entry, which closes its gap.
  */
 
 import { SECTIONS } from "@/utils/sections";
@@ -58,7 +63,11 @@ export function listRules(kind: PageKind): string {
   ].join("\n");
 }
 
-const SHEET = [css, ...PAGE_KINDS.map(listRules)].join("\n");
+const SHEET = [
+  css,
+  ...PAGE_KINDS.map(listRules),
+  "[data-gh-prism-hidden] { display: none !important; }",
+].join("\n");
 
 /** Each diff anchor `sections` list, in rank order, mapped to the first section that lists it. */
 function ranking(sections: readonly (readonly string[])[]): ReadonlyMap<string, number> {
@@ -81,6 +90,14 @@ function flushFirst(kind: PageKind, first: string | undefined): string {
   ].join("\n");
 }
 
+/** A rule hiding the diff of each file in `hidden`, on a kind that hides any. */
+function hideRule(kind: PageKind, hidden: ReadonlySet<string>): string {
+  const selectorsOf = kind.hiddenDiffSelectors;
+  return selectorsOf && hidden.size > 0
+    ? `${[...hidden].map(selectorsOf).join(", ")} { display: none !important; }`
+    : "";
+}
+
 /** Sets `entry`'s inline `property` to `value`, `""` removing it, skipping a no-op write. */
 function setStyle(entry: HTMLElement, property: string, value: string): void {
   if (entry.style.getPropertyValue(property) !== value) entry.style.setProperty(property, value);
@@ -88,19 +105,27 @@ function setStyle(entry: HTMLElement, property: string, value: string): void {
 
 /**
  * Gives `list`'s entries their place in `ranked`, inline, and strips it from every other child: a
- * file the filter hides, or a restored copy of a previous visit's entries.
+ * file GitHub's filter hides, or a restored copy of a previous visit's entries. Marks the entry
+ * of each file in `hidden` hidden, and only those, so the list's row gap closes over it.
  */
-function placeEntries(page: FilesPage, list: Element, ranked: ReadonlyMap<string, number>): void {
+function placeEntries(
+  page: FilesPage,
+  list: Element,
+  ranked: ReadonlyMap<string, number>,
+  hidden: ReadonlySet<string>,
+): void {
   const placed = new Map<Element, readonly [string, string]>();
   for (const [rank, [anchor, section]] of [...ranked].entries()) {
     const entry = diffEntryOf(page, list, anchor);
     if (entry) placed.set(entry, [`${rank + 1}`, `${section * STAGGER_MS}ms`]);
   }
+  const hiddenEntries = new Set([...hidden].map((anchor) => diffEntryOf(page, list, anchor)));
   for (const child of list.children) {
     if (!(child instanceof HTMLElement)) continue;
     const [order, delay] = placed.get(child) ?? ["", ""];
     setStyle(child, "order", order);
     setStyle(child, "animation-delay", delay);
+    child.toggleAttribute("data-gh-prism-hidden", hiddenEntries.has(child));
   }
 }
 
@@ -120,14 +145,16 @@ function watchList(observer: MutationObserver, page: FilesPage, list: Element | 
 }
 
 /**
- * Keeps `page`'s listed entries where `ranked` places them, re-placing any GitHub adds or
- * replaces, and any list it mounts or swaps in, until `signal` aborts.
+ * Keeps `page`'s listed entries where `ranked` places them, and `hidden`'s entries hidden,
+ * re-placing any GitHub adds or replaces, and any list it mounts or swaps in, until `signal`
+ * aborts.
  */
 function entryPlacer(
   page: FilesPage,
   signal: AbortSignal,
-): (ranked: ReadonlyMap<string, number>) => void {
+): (ranked: ReadonlyMap<string, number>, hidden: ReadonlySet<string>) => void {
   let ranked: ReadonlyMap<string, number> = new Map();
+  let hidden: ReadonlySet<string> = new Set();
   // `undefined` until bound, so a missing list is watched for too.
   let list: Element | null | undefined;
   // Not debounced, so an entry is placed before it paints.
@@ -138,16 +165,17 @@ function entryPlacer(
       list = found;
       watchList(observer, page, list);
     }
-    if (list) placeEntries(page, list, ranked);
+    if (list) placeEntries(page, list, ranked, hidden);
   };
 
   signal.addEventListener("abort", () => {
     observer.disconnect();
-    if (list) placeEntries(page, list, new Map());
+    if (list) placeEntries(page, list, new Map(), new Set());
   });
 
-  return (next) => {
-    ranked = next;
+  return (nextRanked, nextHidden) => {
+    ranked = nextRanked;
+    hidden = nextHidden;
     place();
   };
 }
@@ -158,9 +186,10 @@ interface DiffOrder {
   cover(loader: Element): void;
   /**
    * Orders the diffs as `ranking` ranks them, or not at all while they can't be reordered. Changes
-   * nothing when the order is unchanged.
+   * nothing when the order is unchanged. Hides the diffs of the files whose anchors `hidden`
+   * holds, in either kind of list.
    */
-  arrange(sections: readonly (readonly string[])[]): void;
+  arrange(sections: readonly (readonly string[])[], hidden: ReadonlySet<string>): void;
   /**
    * Lifts the cover: the diffs drop in section by section, and GitHub takes the URL's hash again,
    * since it can't scroll to a diff the cover hid.
@@ -204,12 +233,16 @@ function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
       root.dataset.ghPrismDiffs = "covered";
       timer = setTimeout(reveal, COVER_LIMIT_MS);
     },
-    arrange(sections) {
+    arrange(sections, hidden) {
       const ranked = reorderable(page) ? ranking(sections) : new Map<string, number>();
-      place(ranked);
+      // One malformed anchor would void the hide rule's whole selector list, or throw on a lookup.
+      const anchors = new Set([...hidden].filter(isDiffAnchor));
+      place(ranked, anchors);
 
       const [first] = ranked.keys();
-      const text = flushFirst(page.kind, first);
+      const text = [flushFirst(page.kind, first), hideRule(page.kind, anchors)]
+        .filter(Boolean)
+        .join("\n");
       if (rules.textContent !== text) rules.textContent = text;
     },
     reveal,
@@ -253,12 +286,13 @@ export function showDiffOrder(page: FilesPage, signal: AbortSignal): LandingView
     progress(progress) {
       loading?.progress(progress);
     },
-    sections(sections) {
+    sections(sections, hidden) {
       order.arrange(
         // A section of comment lines alone has no diffs, so it takes no drop-in turn.
         sections.flatMap(({ entries }) =>
           entries.length > 0 ? [entries.map(({ file }) => file.link.hash.slice(1))] : [],
         ),
+        hidden,
       );
       order.reveal();
     },

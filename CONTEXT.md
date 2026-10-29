@@ -112,6 +112,10 @@ own ownership is meant
 merge box lists. A reviewer who only commented isn't one. _Avoid_: reviewer alone, which
 names the person reading the diff
 
+**Owner filter**: gh-prism's narrowing of a pull request's files, in the sidebar and the
+diff list, to the files one code owner owns, set by the `gh-prism-owner` query parameter.
+_Avoid_: owned by, which names GitHub's own filter to the viewer's files
+
 ### What the reviewer sees
 
 **Sidebar**: gh-prism's sectioned list of changed files, shown in place of the native

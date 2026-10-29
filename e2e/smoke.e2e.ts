@@ -1545,3 +1545,68 @@ test("a commit's narrow layout keeps the side switch hidden", async ({ context, 
   await expect(page.locator(".gh-prism-sections")).toHaveCount(1);
   await expect(page.locator(".gh-prism-side-switch")).toBeHidden();
 });
+
+// src/engine.rs's diff region in tests/fixtures/files-page.html.
+const ENGINE_DIFF = "diff-ff278ec599adfd033d35a083ebe8948db8bf177c9817dee8ddc4f3a9e3f5728e";
+const FIXTURE_OWNERS: Record<string, string[]> = {
+  "src/lib.rs": ["@o/frontend"],
+  "src/helpers.rs": ["@o/frontend"],
+  "src/engine.rs": ["@o/platform"],
+};
+
+/**
+ * Answers the code owners read for tests/fixtures/files-page.html; registered after the catch-all
+ * 404.
+ */
+const routeCodeOwners = async (context: BrowserContext) => {
+  const ownershipByPath = Object.fromEntries(
+    Object.entries(FIXTURE_OWNERS).map(([path, owners]) => [
+      path,
+      { isOwnedByViewer: false, owners },
+    ]),
+  );
+  await context.route("**/page_data/codeowners", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ isEnabled: true, ownershipByPath }),
+    }),
+  );
+  await context.route("**/page_data/merge_box", (route) =>
+    route.fulfill({ contentType: "application/json", body: readFixture("merge-box-sandbox.json") }),
+  );
+};
+
+/** The file paths the sidebar lists, top to bottom. */
+const sidebarFiles = (page: Page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll(".gh-prism-tree")]
+      .flatMap((host) => [
+        ...(host.shadowRoot?.querySelectorAll<HTMLElement>('[data-type="item"]') ?? []),
+      ])
+      .map((row) => row.dataset.itemPath ?? "")
+      .filter((path) => !path.endsWith("/")),
+  );
+
+test("an owner filter lists only that owner's files and hides the others' diffs", async ({
+  context,
+  page,
+}) => {
+  await routeCodeOwners(context);
+  const url = `${PR_URL}?gh-prism-owner=o/frontend`;
+  await serve(context, url, PR_BODY);
+  await page.goto(url);
+
+  await expect.poll(() => sidebarFiles(page)).toEqual(["src/helpers.rs", "src/lib.rs"]);
+  // The fixture's regions are empty, so visibility can't tell a hidden entry from a shown one.
+  await expect(page.locator(`#${ENGINE_DIFF}`).locator("..")).toHaveCSS("display", "none");
+});
+
+test("an owner filter shows the diffs of that owner's files", async ({ context, page }) => {
+  await routeCodeOwners(context);
+  const url = `${PR_URL}?gh-prism-owner=o/platform`;
+  await serve(context, url, PR_BODY);
+  await page.goto(url);
+
+  await expect.poll(() => sidebarFiles(page)).toEqual(["src/engine.rs"]);
+  await expect(page.locator(`#${ENGINE_DIFF}`).locator("..")).not.toHaveCSS("display", "none");
+});

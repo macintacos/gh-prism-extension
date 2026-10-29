@@ -105,6 +105,13 @@ facts about GitHub that held when written, and ends with how to re-check them;
   the route data's `virtualizeDiffEntries` flag, with no client-side threshold. A
   virtualized list renders only the rows near the viewport, as absolutely placed rows
   carrying `data-index` and `data-path-digest`.
+- **Find a large pull request's virtualized list as
+  `[data-testid="virtualized-diffs-list"]`**, its rows `[data-index][data-path-digest]`,
+  the digest being the region id without `diff-`. The rows mount and unmount as you
+  scroll. Load Diff replaces the region but keeps its id and its row. The virtualizer
+  re-measures a `display: none` row to nothing, closing its slot.
+- **On a progressive list, hide a diff by its entry, not its region.** The list is a flex
+  column with a 16px row gap, and an emptied entry still takes a gap.
 - **Don't read list churn on a hard load as a new page.** A pull request's `diffEntry`
   wrappers stream in, and hydration removes and re-adds a few of the list's children, so
   an observer of the list (as in
@@ -129,7 +136,10 @@ facts about GitHub that held when written, and ends with how to re-check them;
   40 files, and inspect the list's markup. Search the page's embedded data for
   `virtualizeDiffEntries`, and watch the network panel for `diff_entries` requests while
   scrolling. Read the mount-time scrolls from GitHub's bundle. Grep the bundle for
-  `"data-hotkey":"j"` and read the `isSingleFileMode` gate around it.
+  `"data-hotkey":"j"` and read the `isSingleFileMode` gate around it. On the code-owners
+  sandbox's PR #3, hide a row with `[data-path-digest=…] { display: none !important }` and
+  scroll the list for gaps; on PR #1, hide a region alone, then its entry, and measure the
+  gap each leaves.
 
 ## Sticky headers
 
@@ -362,6 +372,23 @@ Below 1012px, a pull request's tree toggle opens the file tree as a "Files" over
 - **Re-check:** signed in with the saved `storageState`, load a pull request's Files
   changed tab below 1012px wide, click `[class*="MobileTreeToggle"]`, and read
   `#__primerPortalRoot__`'s markup.
+
+## Files changed filters
+
+- **Expect GitHub's filter menu to rewrite the URL with one `replaceState`.** "Only files
+  owned by you" writes `owned-by%5B%5D=<viewer login>`, and an extension writes
+  `file-filters%5B%5D=<.ext>`, with no `pushState` and no `soft-nav:end`.
+- **Expect a filter to remove tree rows and diff entries in place**, keeping the tree and
+  list nodes. The header counters don't change.
+- **Don't name another owner in `owned-by[]`.** It honours only the viewer's own login; a
+  team or another login shows every file.
+- **Expect an unknown parameter such as `gh-prism-owner` to survive** the load and every
+  filter change, re-encoded (`/` as `%2F`), so read it with `URLSearchParams`. GitHub's
+  links to other pages drop it.
+- **Re-check:** on the code-owners sandbox's PR #1 and PR #3, signed in with the saved
+  `storageState`, install `pushState`/`replaceState` wrappers and a `soft-nav:end`
+  listener, then pick "Only files owned by you" and toggle an extension. Count the tree
+  rows and diff entries, and read the header counter.
 
 ## Re-checking GitHub
 

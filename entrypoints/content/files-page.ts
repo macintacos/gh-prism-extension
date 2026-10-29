@@ -52,18 +52,24 @@ export interface PageKind {
   readonly anchorOfDiff: (diff: Element) => string | undefined;
   /** How a row's link reveals its diff: a click GitHub scrolls for, or a hash GitHub follows. */
   readonly reveal: "click" | "hash";
+  /**
+   * A selector list for the diff of the file whose anchor is `anchor`, in `diffs`: its region and
+   * a virtualized list's row. Only a pull request's, since a commit's regions have no id.
+   */
+  readonly hiddenDiffSelectors?: (anchor: string) => string;
 }
 
 // A diff list's entry holds its file's diff; nothing else in the list does.
 const HOLDS_DIFF = ':has([role="region"])';
 
+const PR_DIFFS = '[data-testid="diff-content"]';
 const PR_DIFF_LIST = '[data-testid="progressive-diffs-list"]';
 
 /** Where a pull request's Files changed tab keeps its markup. */
 export const prPage = {
   sidebar: "#pr-file-tree",
   overlay: '[role="dialog"] #pr-file-tree',
-  diffs: '[data-testid="diff-content"]',
+  diffs: PR_DIFFS,
   diffstatSlot: '[class*="rightContentWrapper__"]',
   treeToggle: '[class*="RegularTreeToggle"]',
   treeToggleButton: '[class*="RegularTreeToggle"]',
@@ -74,6 +80,8 @@ export const prPage = {
   diffOf: (diffs, anchor) => diffs.ownerDocument.getElementById(anchor),
   anchorOfDiff: (diff) => diff.id || undefined,
   reveal: "click",
+  hiddenDiffSelectors: (anchor) =>
+    `${PR_DIFFS} #${anchor}, ${PR_DIFFS} [data-path-digest="${digestOf(anchor)}"]`,
 } satisfies PageKind;
 
 // A commit's list while its diffs are in flow; a virtualized commit nests each diff a level deeper.
@@ -439,6 +447,9 @@ export const anchorOf = (link: HTMLAnchorElement): string | undefined =>
  * its tree link's hash.
  */
 export const anchorOfDigest = (pathDigest: string): string => `diff-${pathDigest}`;
+
+/** The route-data path digest of the file whose diff anchor is `anchor`. */
+export const digestOf = (anchor: string): string => anchor.slice(anchorOfDigest("").length);
 
 /**
  * `page`'s mounted diff regions, keyed by their files' anchors. Regions whose anchor is not a

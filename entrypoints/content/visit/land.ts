@@ -7,7 +7,7 @@
  * (`shareIntent`).
  */
 
-import type { PrCodeOwners } from "@/utils/github/code-owners";
+import { ownerFilter, type PrCodeOwners } from "@/utils/github/code-owners";
 import { type LandedSection, landingOf, sectionsOf } from "@/utils/intent/landing";
 import type { IntentProgress, IntentResult, PendingIntent } from "@/utils/intent/read";
 import { followFileKeys } from "../diffs/file-keys";
@@ -15,6 +15,7 @@ import { followOnScreen } from "../diffs/on-screen";
 import { showDiffOrder } from "../diffs/order";
 import { followViewed, type VisitViewed } from "../diffs/viewed";
 import {
+  anchorOf,
   type ChangedFile,
   type FilesPage,
   followOverlay,
@@ -34,12 +35,15 @@ import { type WhatsNew, whatsNewBlock } from "../sidebar/whats-new";
  */
 export type FileSection = LandedSection<ChangedFile>;
 
+/** Whether the changed file at a path stays in the sections. */
+export type PathFilter = (path: string) => boolean;
+
 /**
  * What a view draws as a page's intent lands. `land` calls every view's hook for a step before any
  * view's hook for the next.
  */
 export interface LandingView {
-  /** Intent is still being read: draw the pending state. */
+  /** Intent, or the filter `land` was given, is still pending: draw the pending state. */
   pending?(): void;
   /** How far the read has got: the latest progress right after `pending`, then each new one. */
   progress?(progress: IntentProgress): void;
@@ -47,9 +51,10 @@ export interface LandingView {
   landed?(result: IntentResult): void;
   /**
    * The native tree's files in their sections: right after landing, then after each change to the
-   * tree.
+   * tree. `hidden` holds the diff anchors of every file gh-prism's own filter has left out of the
+   * sections on this page, including those whose rows have since left the tree.
    */
-  sections?(sections: readonly FileSection[]): void;
+  sections?(sections: readonly FileSection[], hidden: ReadonlySet<string>): void;
   /**
    * The native tree the sections now list: the narrow layout's overlay while it is open, else the
    * page's own. Called before the re-list.
@@ -61,23 +66,38 @@ export interface LandingView {
  * Lands `intent` on `views`, then re-lists their sections after each change outside `ignore` to the
  * shown native tree, `page`'s or its overlay copy while open, until `signal` aborts. Each switch
  * between the two tells `views` through `shownIn` first. Reads `intent` once. A read that rejects
- * is logged and lands path-only, as `failed`.
+ * is logged and lands path-only, as `failed`. `keep`, when given, must not reject; it is part of
+ * landing: the page stays pending until intent and `keep` have both settled, then lists only the
+ * tree's files `keep` keeps; settling `undefined` keeps every file.
  */
 export function land(
   page: FilesPage,
   intent: PendingIntent,
   views: readonly LandingView[],
-  { signal, ignore }: { signal: AbortSignal; ignore?: Node },
+  {
+    signal,
+    ignore,
+    keep,
+  }: {
+    signal: AbortSignal;
+    ignore?: Node;
+    keep?: Promise<PathFilter | undefined>;
+  },
 ): void {
   let result: IntentResult | undefined;
+  let filter: PathFilter | undefined;
+  // A filter never changes once settled, so a file it drops stays dropped after its row is gone.
+  const hidden = new Set<string>();
   let shown: NativeTree = page;
   const relist = () => {
     if (!result) return;
-    const sections = sectionsOf(landingOf(result), readChangedFiles(shown.sidebar));
-    for (const view of views) view.sections?.(sections);
+    const kept = partition(readChangedFiles(shown.sidebar), filter, hidden);
+    const sections = sectionsOf(landingOf(result), kept);
+    for (const view of views) view.sections?.(sections, hidden);
   };
-  const settle = (landed: IntentResult) => {
+  const settle = (landed: IntentResult, settled?: PathFilter) => {
     result = landed;
+    filter = settled;
     for (const view of views) view.landed?.(landed);
     relist();
   };
@@ -89,12 +109,12 @@ export function land(
     else for (const view of views) view.progress?.(progress);
   });
 
-  if (read instanceof Promise) {
+  if (read instanceof Promise || keep) {
     pending = true;
     for (const view of views) view.pending?.();
     if (earlyProgress) for (const view of views) view.progress?.(earlyProgress);
-    void orFailed(read).then((landed) => {
-      if (!signal.aborted) settle(landed);
+    void Promise.all([orFailed(Promise.resolve(read)), keep]).then(([landed, settled]) => {
+      if (!signal.aborted) settle(landed, settled);
     });
   } else {
     settle(read);
@@ -119,6 +139,26 @@ export function land(
     },
     { signal },
   );
+}
+
+/**
+ * The `files` that `filter` keeps (all of them when it is `undefined`); adds the diff anchors of
+ * the rest to `hidden`.
+ */
+function partition(
+  files: readonly ChangedFile[],
+  filter: PathFilter | undefined,
+  hidden: Set<string>,
+): ChangedFile[] {
+  const kept: ChangedFile[] = [];
+  for (const file of files) {
+    if (!filter || filter(file.path)) kept.push(file);
+    else {
+      const anchor = anchorOf(file.link);
+      if (anchor !== undefined) hidden.add(anchor);
+    }
+  }
+  return kept;
 }
 
 /**
@@ -149,6 +189,9 @@ const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
  * trackers that feed the sidebar on one page of a visit, and lands `intent` on them in that order,
  * until `signal` aborts. `viewed` is the visit's Viewed state, shared by its pages. `codeOwners`
  * is the visit's code owners and reviewers, which can land after the sidebar draws or not at all.
+ * `owner`, the code owner the page's URL names, if any, holds the page pending until the code
+ * owners land, then narrows the sidebar and the diffs to that owner's files; every file shows when
+ * they can't be read.
  * `whatsNew`, when given, opens the sidebar with its block.
  */
 export function showVisit(
@@ -158,12 +201,15 @@ export function showVisit(
     intent,
     diffstat,
     viewed,
+    codeOwners,
+    owner,
     whatsNew,
   }: {
     intent: PendingIntent;
     diffstat: DiffstatOptions;
     viewed: VisitViewed;
     codeOwners?: Promise<PrCodeOwners | undefined>;
+    owner?: string;
     whatsNew?: WhatsNew;
   },
 ): void {
@@ -178,5 +224,7 @@ export function showVisit(
     followViewed(page, viewed, sidebar.viewed, signal),
   ];
   // The sidebar draws inside the tree's container, so its own changes must not re-list.
-  land(page, intent, views, { signal, ignore: sidebar.root });
+  const keep =
+    owner === undefined ? undefined : codeOwners?.then((read) => read && ownerFilter(read, owner));
+  land(page, intent, views, { signal, ignore: sidebar.root, keep });
 }

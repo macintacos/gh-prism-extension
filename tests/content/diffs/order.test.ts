@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listRules, showDiffOrder } from "../../../entrypoints/content/diffs/order";
 import { commitPage, findFilesPage, prPage } from "../../../entrypoints/content/files-page";
 import { byId, loadCommitFixture } from "../../fixtures/files-page";
@@ -80,10 +80,12 @@ function virtualize(): void {
     '<div role="region" id="diff-0a01"></div></div></div>';
 }
 
+const anchorAt = (path: string) =>
+  byId(path).querySelector("a")?.getAttribute("href")?.slice(1) ?? "";
+
 /** The diff list entry holding the diff of the native tree's file at `path`. */
 function entryOf(path: string): HTMLElement {
-  const anchor = byId(path).querySelector("a")?.getAttribute("href")?.slice(1) ?? "";
-  const entry = document.getElementById(anchor)?.parentElement;
+  const entry = document.getElementById(anchorAt(path))?.parentElement;
   if (!entry) throw new Error(`no entry for ${path}`);
   return entry;
 }
@@ -164,7 +166,7 @@ describe("the diffs beside the sections", () => {
     expect(laidOut(progressiveList())).toEqual(SIDEBAR_ORDER);
   });
 
-  it("place no rule per file", () => {
+  it("place no rule per listed file", () => {
     const sheets = [...document.querySelectorAll("style")];
     expect(sheets.filter((sheet) => /#diff-[0-9a-f]+\b/.test(sheet.textContent ?? ""))).toEqual([]);
   });
@@ -527,5 +529,76 @@ describe("a page kind's list rules", () => {
         reveal(entries),
       ].join("\n"),
     );
+  });
+});
+
+describe("the diffs of files the filter leaves out", () => {
+  let controller: AbortController;
+  let order: ReturnType<typeof showDiffOrder>;
+  const hidden = (element: Element) => getComputedStyle(element).display === "none";
+
+  beforeEach(() => {
+    mountEveryDiff();
+    // Drives a bare view, so each test passes `hidden` itself rather than through a landed visit.
+    abort();
+    const page = findFilesPage(document);
+    if (!page) throw new Error("fixture lacks the Files changed markup");
+    controller = new AbortController();
+    order = showDiffOrder(page, controller.signal);
+  });
+  afterEach(() => controller.abort());
+
+  it("are hidden by their entry, and no other diff is", () => {
+    order.sections?.([], new Set([anchorAt("src/engine.rs")]));
+    expect(entryOf("src/engine.rs").hasAttribute("data-gh-prism-hidden")).toBe(true);
+    expect(hidden(entryOf("src/engine.rs"))).toBe(true);
+    expect(hidden(entryOf("src/lib.rs"))).toBe(false);
+  });
+
+  it("stay hidden when GitHub adds their entry later", async () => {
+    const old = entryOf("src/engine.rs");
+    old.remove();
+    order.sections?.([], new Set([anchorAt("src/engine.rs")]));
+    const entry = document.createElement("div");
+    entry.append(...old.children);
+    progressiveList()?.append(entry);
+    await Promise.resolve();
+
+    expect(hidden(entry)).toBe(true);
+  });
+
+  it("show again once the filter keeps their file", () => {
+    order.sections?.([], new Set([anchorAt("src/engine.rs")]));
+    order.sections?.([], new Set());
+    expect(hidden(entryOf("src/engine.rs"))).toBe(false);
+  });
+
+  it("leave GitHub's inline display on the list's children", () => {
+    const entry = entryOf("src/lib.rs");
+    entry.style.display = "block";
+    order.sections?.([], new Set([anchorAt("src/engine.rs")]));
+    controller.abort();
+    expect(entry.style.display).toBe("block");
+    expect(entryOf("src/engine.rs").hasAttribute("data-gh-prism-hidden")).toBe(false);
+  });
+
+  it("are hidden by a rule on their region and virtualized row, skipping a malformed anchor", () => {
+    virtualize();
+    const row = document.querySelector("[data-index]");
+    row?.setAttribute("data-path-digest", "0a02");
+    order.sections?.([], new Set(["diff-0a01", "diff-0a02", 'diff-x"]']));
+    const region = document.getElementById("diff-0a01");
+    if (!region || !row) throw new Error("no virtualized diff");
+    expect(hidden(region)).toBe(true);
+    expect(hidden(row)).toBe(true);
+  });
+
+  it("lose that rule once nothing is left out", () => {
+    virtualize();
+    order.sections?.([], new Set(["diff-0a01"]));
+    order.sections?.([], new Set());
+    const region = document.getElementById("diff-0a01");
+    if (!region) throw new Error("no virtualized diff");
+    expect(hidden(region)).toBe(false);
   });
 });

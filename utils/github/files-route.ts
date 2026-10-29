@@ -48,6 +48,20 @@ export function readHeaderTabPr(pathname: string): PrRef | undefined {
   return { kind: "pr", owner, repo, number: Number(prNumber) };
 }
 
+/** gh-prism's own query parameter: the code owner whose files a Files changed page narrows to. */
+export const OWNER_PARAM = "gh-prism-owner";
+
+/**
+ * The code owner `search` names in {@link OWNER_PARAM}, as a CODEOWNERS token: `@` is added
+ * unless the value holds one, as `@user` and an email do, so `org/team` reads as `@org/team`.
+ * `undefined` when absent or empty.
+ */
+export function ownerOf(search: string): string | undefined {
+  const owner = new URLSearchParams(search).get(OWNER_PARAM)?.trim();
+  if (!owner) return undefined;
+  return owner.includes("@") ? owner : `@${owner}`;
+}
+
 /**
  * Whether `pathname` is a pull request's Files changed tab, any commit or range included, or a
  * commit page.

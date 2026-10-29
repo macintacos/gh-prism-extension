@@ -231,6 +231,38 @@ describe("content script", () => {
     );
   });
 
+  it("narrows each page to the owner its URL names, if any", async () => {
+    history.replaceState(null, "", `${PR}?gh-prism-owner=excessive-dev/frontend`);
+    await run();
+    history.pushState(null, "", "/o/r/pull/2/changes");
+    document.dispatchEvent(new Event("soft-nav:end"));
+    await afterMutations();
+    history.pushState(null, "", "/o/r/pull/3/changes?gh-prism-owner=octocat");
+    document.dispatchEvent(new Event("soft-nav:end"));
+    await afterMutations();
+
+    expect(vi.mocked(showVisit).mock.calls.map(([, , options]) => options.owner)).toEqual([
+      "@excessive-dev/frontend",
+      undefined,
+      "@octocat",
+    ]);
+  });
+
+  it("narrows no commit to an owner, whatever its URL names", async () => {
+    history.replaceState(null, "", "/o/r/commit/dd95cdc?gh-prism-owner=octocat");
+    loadCommitFixture();
+    await run();
+
+    expect(showVisit).toHaveBeenCalledOnce();
+    expect(vi.mocked(showVisit).mock.calls[0]?.[2].owner).toBeUndefined();
+  });
+
+  it("narrows a page whose URL names no owner to no one", async () => {
+    await run();
+
+    expect(vi.mocked(showVisit).mock.calls[0]?.[2].owner).toBeUndefined();
+  });
+
   it("seeds Viewed state from embedded data on the first visit only", async () => {
     history.replaceState(null, "", "/macintacos/gh-prism-sandbox/pull/3/changes");
     loadViewedFixture();

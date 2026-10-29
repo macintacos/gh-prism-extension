@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  anchorOf,
   type FilesPage,
   findFilesPage,
   findHeaderPage,
@@ -10,8 +11,10 @@ import {
   type FileSection,
   type LandingView,
   land,
+  type PathFilter,
   showHeaderTab,
 } from "../../../entrypoints/content/visit/land";
+import type { PrCodeOwners } from "../../../utils/github/code-owners";
 import { landingOf, sectionsOf } from "../../../utils/intent/landing";
 import {
   type IntentProgress,
@@ -27,7 +30,15 @@ import {
   openOverlay,
 } from "../../fixtures/files-page";
 import { landedWith, pendingIntent, whole } from "../../fixtures/intent";
-import { afterDebounce, filesIn, mountsVisit, progressBar, view } from "../../fixtures/visit";
+import {
+  addNativeFile,
+  afterDebounce,
+  filesIn,
+  mountsVisit,
+  progressBar,
+  sectionKeys,
+  view,
+} from "../../fixtures/visit";
 
 // Chrome content scripts run in an isolated world whose `customElements` is null. Hoisted above
 // the imports, which load @pierre/trees.
@@ -39,6 +50,7 @@ let controller: AbortController;
 let page: FilesPage;
 let log: string[];
 const received: (readonly FileSection[])[] = [];
+const hiddens: ReadonlySet<string>[] = [];
 
 const result: IntentResult = {
   ok: true,
@@ -53,9 +65,10 @@ function recording(name: string): LandingView {
     progress: () => log.push(`${name}.progress`),
     landed: () => log.push(`${name}.landed`),
     shownIn: (tree) => log.push(`${name}.shownIn:${tree === page ? "page" : "overlay"}`),
-    sections: (sections) => {
+    sections: (sections, hidden) => {
       log.push(`${name}.sections`);
       received.push(sections);
+      hiddens.push(hidden);
     },
   };
 }
@@ -74,8 +87,18 @@ function replayingIntent() {
   return { intent, resolve: deferred.resolve, progress: (p: IntentProgress) => report(p) };
 }
 
-const mount = (intent: PendingIntent, ignore?: Node) =>
-  land(page, intent, [recording("a"), recording("b")], { signal: controller.signal, ignore });
+const mount = (
+  intent: PendingIntent,
+  { ignore, keep }: { ignore?: Node; keep?: Promise<PathFilter | undefined> } = {},
+) =>
+  land(page, intent, [recording("a"), recording("b")], {
+    signal: controller.signal,
+    ignore,
+    keep,
+  });
+
+const listed = () =>
+  received.at(-1)?.flatMap(({ entries }) => entries.map(({ file }) => file.path));
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -88,6 +111,7 @@ beforeEach(() => {
 
   log = [];
   received.length = 0;
+  hiddens.length = 0;
 });
 
 afterEach(() => {
@@ -123,11 +147,12 @@ describe("land", () => {
   it("lands an intent that has already landed without showing it pending", () => {
     mount(() => result);
     expect(log).toEqual(["a.landed", "b.landed", "a.sections", "b.sections"]);
+    expect(hiddens[0]?.size).toBe(0);
   });
 
   it("re-lists every view on a change to the native tree, but not on one inside `ignore`", async () => {
     const ignored = page.sidebar.appendChild(document.createElement("div"));
-    mount(() => result, ignored);
+    mount(() => result, { ignore: ignored });
     log.length = 0;
 
     ignored.append(document.createElement("span"));
@@ -149,9 +174,93 @@ describe("land", () => {
     expect(log).toEqual([]);
   });
 
+  describe("with a filter to keep", () => {
+    const anchorsBut = (path: string) =>
+      new Set(
+        readChangedFiles(page.sidebar)
+          .filter((file) => file.path !== path)
+          .map((file) => anchorOf(file.link)),
+      );
+
+    it("keeps an intent that has already landed pending until the filter settles", () => {
+      mount(() => result, { keep: new Promise(() => {}) });
+      expect(log).toEqual(["a.pending", "b.pending"]);
+    });
+
+    it("lands, then lists only the kept files, with the others' anchors hidden", async () => {
+      const keep = Promise.withResolvers<PathFilter>();
+      mount(() => result, { keep: keep.promise });
+      log.length = 0;
+
+      keep.resolve((path) => path === "src/lib.rs");
+      await vi.runAllTimersAsync();
+
+      expect(log).toEqual(["a.landed", "b.landed", "a.sections", "b.sections"]);
+      expect(listed()).toEqual(["src/lib.rs"]);
+      expect(hiddens[0]).toEqual(anchorsBut("src/lib.rs"));
+      expect(hiddens[0]?.size).toBeGreaterThan(0);
+    });
+
+    it("lands a pending intent only once both it and the filter have settled", async () => {
+      const { intent, resolve } = replayingIntent();
+      mount(intent, { keep: Promise.resolve(() => true) });
+      await vi.runAllTimersAsync();
+      expect(log).not.toContain("a.landed");
+
+      resolve(result);
+      await vi.runAllTimersAsync();
+      expect(log.slice(-4)).toEqual(["a.landed", "b.landed", "a.sections", "b.sections"]);
+    });
+
+    it("lists every file when the filter settles undefined", async () => {
+      mount(() => result, { keep: Promise.resolve(undefined) });
+      await vi.runAllTimersAsync();
+
+      expect(listed()?.toSorted()).toEqual(
+        readChangedFiles(page.sidebar)
+          .map(({ path }) => path)
+          .toSorted(),
+      );
+      expect(hiddens[0]?.size).toBe(0);
+    });
+
+    it("re-lists a change to the tree through the same filter", async () => {
+      mount(() => result, { keep: Promise.resolve((path: string) => path === "src/lib.rs") });
+      await vi.runAllTimersAsync();
+
+      addNativeFile("src/added.rs", "src/lib.rs");
+      await afterDebounce();
+
+      expect(listed()).toEqual(["src/lib.rs"]);
+      expect(hiddens.at(-1)).toEqual(anchorsBut("src/lib.rs"));
+    });
+
+    it("keeps hiding a dropped file's diff once its row leaves the tree", async () => {
+      mount(() => result, { keep: Promise.resolve((path: string) => path === "src/lib.rs") });
+      await vi.runAllTimersAsync();
+      const engine = readChangedFiles(page.sidebar).find(({ path }) => path === "src/engine.rs");
+      if (!engine) throw new Error("fixture lacks src/engine.rs");
+
+      byId("src/engine.rs").remove();
+      await afterDebounce();
+
+      expect(hiddens.at(-1)).toContain(anchorOf(engine.link));
+    });
+
+    it("lands nothing once aborted before the filter settles", async () => {
+      const keep = Promise.withResolvers<undefined>();
+      mount(() => result, { keep: keep.promise });
+      log.length = 0;
+
+      controller.abort();
+      keep.resolve(undefined);
+      await vi.runAllTimersAsync();
+
+      expect(log).toEqual([]);
+    });
+  });
+
   describe("with the narrow layout's overlay open", () => {
-    const listed = () =>
-      received.at(-1)?.flatMap(({ entries }) => entries.map(({ file }) => file.path));
     const dockedRow = (path: string) => page.tree.querySelector(`[id="${CSS.escape(path)}"]`);
 
     it("lists the overlay's rows, then the docked rows once it closes", async () => {
@@ -230,6 +339,45 @@ describe("intent shared by each view of one visit", () => {
     expect(view()?.hasAttribute("aria-busy")).toBe(false);
     expect(view()?.hasAttribute("data-reveal")).toBe(false);
     expect(filesIn("docs")).toContain("src/parser.rs");
+  });
+});
+
+describe("a visit narrowed to an owner", () => {
+  const { remountWith } = mountsVisit();
+  const allListed = () => sectionKeys().flatMap((key) => (key ? filesIn(key) : []));
+  const ownedBy = (paths: Record<string, string>): PrCodeOwners => ({
+    byPath: new Map(
+      Object.entries(paths).map(([path, token]) => [
+        path,
+        { owners: [{ token }], ownedByViewer: false },
+      ]),
+    ),
+    reviewers: [],
+  });
+  const narrowed = async (codeOwners?: Promise<PrCodeOwners | undefined>) => {
+    remountWith(() => result, undefined, { owner: "@octocat", codeOwners });
+    await afterDebounce();
+    return allListed();
+  };
+
+  it("lists only the owner's files once the code owners land", async () => {
+    const listed = await narrowed(
+      Promise.resolve(ownedBy({ "src/lib.rs": "@OctoCat", "src/engine.rs": "@hubot" })),
+    );
+    expect(listed).toEqual(["src/lib.rs"]);
+  });
+
+  it("lists every file when the code owners can't be read", async () => {
+    const listed = await narrowed(Promise.resolve(undefined));
+    expect(listed.toSorted()).toEqual(
+      readChangedFiles(document.body)
+        .map(({ path }) => path)
+        .toSorted(),
+    );
+  });
+
+  it("lists every file when no code owners are read", async () => {
+    expect(await narrowed()).toHaveLength(readChangedFiles(document.body).length);
   });
 });
 

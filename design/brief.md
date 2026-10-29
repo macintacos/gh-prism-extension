@@ -41,7 +41,8 @@ hover and focus, so a reviewer who never looks for it never sees it.
 - **Say an empty or degraded state in one plain sentence, with no illustration and no
   icon.** The sidebar's "Grouped by path" notices are the model.
 - **Hold a loading view back 150 ms, then show the spectrum with a label and a count.** A
-  cached answer lands within 150 ms, so it never flashes a loading view.
+  cached answer lands within 150 ms, so it never flashes a loading view, unless the owner
+  filter is still waiting on the code owners.
 
 ## Floors
 

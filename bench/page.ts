@@ -69,7 +69,7 @@ function diffOrder(count: number, entrySize: number) {
   /** Orders the diffs as `order` lists them; returns the ms, layout included, and throws if the order didn't follow. */
   const arrange = async (order: readonly FileSection[]) => {
     const ms = await timed(() => {
-      view.sections?.(order);
+      view.sections?.(order, new Set());
       settle();
     });
     checkOrder(order);
@@ -114,7 +114,7 @@ function sectionTrees(count: number, hosts: "sidebar" | "fixed" = "sidebar") {
   const modified = sectionsWith("modified");
   const added = sectionsWith("added");
   const renderOf = (sections: FileSection[]) => async () => {
-    view.sections?.(sections);
+    view.sections?.(sections, new Set());
     // @pierre/trees renders in a microtask; a task boundary lands it on the clock.
     await nextTask();
     settle();

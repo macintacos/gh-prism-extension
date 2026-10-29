@@ -92,16 +92,16 @@ stateDiagram-v2
 [`entrypoints/content/visit/land.ts`](../entrypoints/content/visit/land.ts) runs on each
 page. `showVisit` mounts six views (the sidebar sections, the diff order, the j/k file
 keys, the diffstat, and the on-screen and Viewed trackers that feed the sidebar). Then
-`land` passes the intent read's steps to the views: pending while the read runs, progress
-as files are placed, landed with the result, and then each file's section. Every view gets
-a step before any view gets the next. `land` owns the only observer of the native tree,
-and it re-lists the sections after each change to the tree. While a pull request's narrow
-layout has its "Files" overlay open, `land` also observes the overlay's copy of the tree
-and lists from it, telling each view through `shownIn` before it re-lists. One visit reads
-intent once: `index.ts` wraps the read in `shareIntent`, so every page of the visit joins
-the same read. A header tab's visit reads intent the same way, and `showHeaderTab` mounts
-only the diffstat on each of its pages once the read lands, skipping a page dropped before
-then.
+`land` passes the intent read's steps to the views: pending while the read runs, and with
+an owner filter until the code owners land too; progress as files are placed, landed with
+the result, and then each file's section. Every view gets a step before any view gets the
+next. `land` owns the only observer of the native tree, and it re-lists the sections after
+each change to the tree. While a pull request's narrow layout has its "Files" overlay
+open, `land` also observes the overlay's copy of the tree and lists from it, telling each
+view through `shownIn` before it re-lists. One visit reads intent once: `index.ts` wraps
+the read in `shareIntent`, so every page of the visit joins the same read. A header tab's
+visit reads intent the same way, and `showHeaderTab` mounts only the diffstat on each of
+its pages once the read lands, skipping a page dropped before then.
 
 ## The classic page notice
 
@@ -212,6 +212,21 @@ only through a team. Either read failing, or either response missing a field it 
 resolves to `undefined`, never part of the result; a repository without CODEOWNERS
 resolves to no owners.
 
+The owner filter is the first reader of the code owners. `index.ts` reads the
+`gh-prism-owner` query parameter on a pull request's pages with `ownerOf` in
+[`utils/github/files-route.ts`](../utils/github/files-route.ts), and `showVisit` turns it
+and the visit's code owners into the filter `land` applies to the tree's files before
+sectioning them. A file is kept when its owners include the parameter's token, ignoring
+case. Every view therefore follows the narrowed listing as it follows GitHub's own
+filters, while section line totals and the diffstat keep counting the whole diff. `land`
+also hands the views the dropped files' diff anchors, kept for the whole page so a file
+stays hidden after its row leaves the tree, and `diffs/order.ts` hides their diffs: by a
+rule on each region and virtualized row (`#diff-…` and `data-path-digest`) that a pull
+request's `hiddenDiffSelectors` in `files-page.ts` scopes to the diff list, and by a
+`data-gh-prism-hidden` attribute on a progressive list's entries, to close their gaps.
+With the parameter set, the page stays pending until the code owners land, and a failed
+read keeps every file.
+
 ## Section rows
 
 [`entrypoints/content/sidebar/sections-view.ts`](../entrypoints/content/sidebar/sections-view.ts)
@@ -276,7 +291,9 @@ offers Viewed.
 GitHub's diffs out in the order the sidebar lists their files. It sets CSS `order` on each
 diff's entry and moves no node that React renders, so comments, Viewed, and GitHub's own
 scroll to a file keep working. While GitHub virtualizes a long diff list, placing each
-diff absolutely, the diffs keep GitHub's order, so they no longer follow the sidebar.
+diff absolutely, the diffs keep GitHub's order, so they no longer follow the sidebar. It
+also hides the diffs of the files the owner filter leaves out (see § Code owners and
+reviewers).
 
 [`entrypoints/content/diffs/file-keys.ts`](../entrypoints/content/diffs/file-keys.ts)
 has `j` and `k` reveal the next and previous file in the sidebar's order, from the file
