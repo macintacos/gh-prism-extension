@@ -33,16 +33,14 @@ export function renderCommitMessage(
   doc: Document,
   message: Pick<CommitMessage, "title" | "body">,
 ): Node[] | undefined {
-  const links: Element[] = [];
-  const title = sourceOf(message.title, links);
-  const body = message.body ? sourceOf(message.body, links) : "";
-  if (title.length + body.length > MAX_LENGTH) return undefined;
-  if (parseCost(title) + parseCost(body) > MAX_PARSE_COST) return undefined;
+  const source = sourceWithinCaps(message);
+  if (!source) return undefined;
 
-  const titleTree = parse(title);
-  const bodyTree = parse(body);
+  const titleTree = parse(source.title);
+  const bodyTree = parse(source.body);
   if (tooDeep(titleTree) || tooDeep(bodyTree)) return undefined;
 
+  const { links } = source;
   const context = { doc, links, definitions: definitionsOf(bodyTree) };
   const heading = titleOf(context, titleTree, message.title);
   const rest = bodyTree.children.flatMap((node) => nodesOf(context, node, "linked"));
@@ -50,6 +48,29 @@ export function renderCommitMessage(
     heading,
     ...rest.map((node) => (typeof node === "string" ? doc.createTextNode(node) : node)),
   ];
+}
+
+/**
+ * Whether `message` is within the length and parse-cost caps, checked without parsing; one nested
+ * too deep still renders as `undefined`.
+ */
+export const withinCaps = (message: Pick<CommitMessage, "title" | "body">): boolean =>
+  sourceWithinCaps(message) !== undefined;
+
+interface Source {
+  readonly title: string;
+  readonly body: string;
+  /** GitHub's links, each written in `title` or `body` as the placeholder of its index. */
+  readonly links: readonly Element[];
+}
+
+function sourceWithinCaps(message: Pick<CommitMessage, "title" | "body">): Source | undefined {
+  const links: Element[] = [];
+  const title = sourceOf(message.title, links);
+  const body = message.body ? sourceOf(message.body, links) : "";
+  if (title.length + body.length > MAX_LENGTH) return undefined;
+  if (parseCost(title) + parseCost(body) > MAX_PARSE_COST) return undefined;
+  return { title, body, links };
 }
 
 // Private-use code points around a link's index stand in for GitHub's `<a>` in the source.

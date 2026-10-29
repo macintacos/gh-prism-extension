@@ -55,6 +55,55 @@
   min-height: 44px;
 }
 
+/* Held back a moment, so a rendering that lands at once never flashes it. message-view.ts sets
+   --gh-prism-commit-elapsed, so a skeleton shown again mid-visit doesn't fade in or pulse anew. */
+.gh-prism-commit-skeleton {
+  animation: gh-prism-commit-appear 150ms ease-out backwards;
+  animation-delay: calc(150ms - var(--gh-prism-commit-elapsed, 0ms));
+}
+
+/* The title's bar, then a paragraph's lines, pulsing as the loading view's skeletons do. */
+.gh-prism-commit-skeleton > span {
+  display: block;
+  height: 10px;
+  margin: 9px 0;
+  border-radius: 5px;
+  background: var(--borderColor-muted);
+  animation: gh-prism-commit-pulse 1.2s ease-in-out infinite alternate;
+  animation-delay: calc(-1 * var(--gh-prism-commit-elapsed, 0ms));
+}
+
+.gh-prism-commit-skeleton > span:first-child {
+  width: 64%;
+  height: 16px;
+  margin: 4px 0 20px;
+  border-radius: 8px;
+}
+
+.gh-prism-commit-skeleton > span:nth-child(2) {
+  width: 92%;
+}
+
+.gh-prism-commit-skeleton > span:nth-child(3) {
+  width: 84%;
+}
+
+.gh-prism-commit-skeleton > span:nth-child(4) {
+  width: 46%;
+}
+
+@keyframes gh-prism-commit-appear {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes gh-prism-commit-pulse {
+  to {
+    opacity: 0.45;
+  }
+}
+
 /* Primer's tooltip, opening inward from the message's end. */
 .gh-prism-commit-view-switch::after {
   content: attr(aria-label);
@@ -86,5 +135,10 @@
 @media (prefers-reduced-motion: reduce) {
   .gh-prism-commit-view-switch::after {
     transition: none;
+  }
+
+  .gh-prism-commit-skeleton,
+  .gh-prism-commit-skeleton > span {
+    animation: none;
   }
 }

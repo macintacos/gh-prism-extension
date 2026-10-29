@@ -228,8 +228,8 @@ test("a commit's message renders as Markdown in GitHub's box's place, after the 
     const seen: string[] = [];
     (window as unknown as { seen: string[] }).seen = seen;
     new MutationObserver(() => {
-      for (const name of ["gh-prism-section", "gh-prism-commit-message"]) {
-        if (!seen.includes(name) && document.querySelector(`.${name}`)) seen.push(name);
+      for (const selector of [".gh-prism-section", ".gh-prism-commit-message-body > h1"]) {
+        if (!seen.includes(selector) && document.querySelector(selector)) seen.push(selector);
       }
     }).observe(document, { childList: true, subtree: true });
   });
@@ -247,9 +247,90 @@ test("a commit's message renders as Markdown in GitHub's box's place, after the 
   }, MESSAGE_BOX);
   expect(box).toEqual({ display: "none", afterMessage: true });
   expect(await page.evaluate(() => (window as unknown as { seen: string[] }).seen)).toEqual([
-    "gh-prism-section",
-    "gh-prism-commit-message",
+    ".gh-prism-section",
+    ".gh-prism-commit-message-body > h1",
   ]);
+});
+
+test("a commit's message holds its column from its first frame, through GitHub's re-render, with nothing moving as it lands", async ({
+  context,
+  page,
+}) => {
+  // GitHub's flex row, with the tree at a fixed width, so only the message could move the diffs.
+  const layout =
+    '<style>[class*="PageLayout-PageLayoutContent"] { display: flex; align-items: flex-start; } #diff_file_tree { width: 300px; flex: none; }</style>';
+  await serve(
+    context,
+    COMMIT_URL,
+    commitBodyWith(readFixture("commit-message-lists.html")).replace(
+      "<!doctype html>",
+      `<!doctype html>${layout}`,
+    ),
+  );
+  // Keeps intent pending, so the message waits out the second its loading state lasts.
+  await context.route(`${COMMIT_URL}.diff`, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    await route.fulfill({ status: 404 });
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  // Records, every frame from the column's first, what a reader sees of GitHub's box, the diffs,
+  // and the skeleton. A routed fixture parses before the content script has read its stored
+  // preferences, so GitHub's box paints before the visit starts, as a streamed page's doesn't.
+  await page.addInitScript((boxSelector) => {
+    const frames: { boxShown: boolean; diffsAt: string; skeleton?: number }[] = [];
+    const skeletons = new WeakSet<Element>();
+    const seen = { frames, skeletons: 0 };
+    Object.assign(window, { seen });
+    const sample = () => {
+      requestAnimationFrame(sample);
+      const diffs = document.getElementById("diff-content-parent")?.getBoundingClientRect();
+      const skeleton = document.querySelector(".gh-prism-commit-skeleton");
+      if (!diffs || (!frames.length && !document.querySelector(".gh-prism-commit-column"))) return;
+      if (skeleton && !skeletons.has(skeleton)) {
+        skeletons.add(skeleton);
+        seen.skeletons++;
+      }
+      const messageBox = document.querySelector(boxSelector);
+      frames.push({
+        boxShown: !!messageBox && getComputedStyle(messageBox).display !== "none",
+        diffsAt: `${Math.round(diffs.left + scrollX)},${Math.round(diffs.top + scrollY)}`,
+        skeleton: skeleton ? Number(getComputedStyle(skeleton).opacity) : undefined,
+      });
+    };
+    requestAnimationFrame(sample);
+  }, MESSAGE_BOX);
+
+  await page.goto(COMMIT_URL);
+  await expect(page.locator(".gh-prism-commit-column .gh-prism-commit-skeleton")).toBeVisible();
+  await page.waitForTimeout(400);
+  // GitHub's hydration swaps the tree's list, which shows the visit's page again.
+  await page.evaluate(() => {
+    const list = document.querySelector('#diff_file_tree ul[role="tree"]');
+    list?.replaceWith(list.cloneNode(true));
+  });
+  await expect(
+    page.locator(".gh-prism-commit-column .gh-prism-commit-message-body > h1"),
+  ).toBeVisible();
+
+  const { frames, skeletons } = await page.evaluate(
+    () =>
+      (
+        window as unknown as {
+          seen: {
+            frames: { boxShown: boolean; diffsAt: string; skeleton?: number }[];
+            skeletons: number;
+          };
+        }
+      ).seen,
+  );
+  expect(skeletons).toBe(2);
+  expect(frames.some((frame) => frame.boxShown)).toBe(false);
+  expect(new Set(frames.map((frame) => frame.diffsAt)).size).toBe(1);
+  const shownFrom = frames.findIndex((frame) => frame.skeleton === 1);
+  expect(shownFrom).toBeGreaterThan(-1);
+  expect(
+    frames.slice(shownFrom).every((frame) => frame.skeleton === undefined || frame.skeleton === 1),
+  ).toBe(true);
 });
 
 test("a commit's message moves into a column on a wide window and back above the diffs on a narrow one", async ({

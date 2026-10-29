@@ -37,7 +37,11 @@ import {
   whatsNewStateOf,
 } from "@/utils/whats-new";
 import { type NoticeChoice, showClassicNotice } from "./classic/notice";
-import { type CommitMessageChoice, showCommitMessage } from "./commit/message-view";
+import {
+  type CommitMessageChoice,
+  type CommitMessageVisit,
+  showCommitMessage,
+} from "./commit/message-view";
 import { showReviewerFiles } from "./conversation/reviewer-files";
 import { visitViewed } from "./diffs/viewed";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
@@ -115,6 +119,7 @@ export default defineContentScript({
             diffUrl: location.origin + location.pathname,
             version,
           };
+          const messageVisit: CommitMessageVisit = { since: performance.now() };
           return (page, signal) => {
             showReportLink(page, signal, reportOptions);
             showOwnerSection(page, signal, {
@@ -136,6 +141,7 @@ export default defineContentScript({
               afterSections: afterLanding(intent),
               choice: commitMessage,
               save: saveCommitMessage,
+              visit: messageVisit,
             });
             dockSidebar(page, signal, { choice: side, save: saveSide });
           };

@@ -151,10 +151,22 @@ On a commit's page, `showCommitMessage` in
 [`entrypoints/content/commit/message-view.ts`](../entrypoints/content/commit/message-view.ts)
 shows the commit message rendered as GitHub-flavored Markdown in place of GitHub's
 monospace box. A message with only a subject line stays in GitHub's box, since rendering
-it would change nothing a reader needs. [`index.ts`](../entrypoints/content/index.ts) runs
-it once the sidebar's sections have landed, or a second has passed without them, and the
-browser is idle, so the message never holds up the sidebar or the diffs, and a slow intent
-read never holds up GitHub's box.
+it would change nothing a reader needs, and so does one past the renderer's length or
+parse-cost caps, which `withinCaps` checks without parsing.
+
+The message's place is held from the visit's start. `showCommitMessage` mounts its
+container at once, hiding GitHub's box, with a pulsing skeleton in the body and
+`aria-busy` set, so the column or the slot above the diffs is there from the page's first
+frame and nothing moves when the rendering lands. It renders once the sidebar's sections
+have landed, or a second has passed without them, and the browser is idle, through the
+`afterSections` that [`index.ts`](../entrypoints/content/index.ts) passes, so the parse
+never holds up the sidebar or the diffs. The rendering then takes the skeleton's place,
+fading in on the motion scale's spatial row, or at once under reduced motion. When it
+can't render, the container unmounts and GitHub's box shows again. GitHub's hydration
+swaps the tree's list, which shows the visit's page again, so `index.ts` hands every show
+in a visit one `CommitMessageVisit`: a later show reuses the visit's rendering at once,
+keeps GitHub's box after a failure, and starts its skeleton as far along as the visit is,
+so the loading state never starts over.
 
 `renderCommitMessage` in
 [`entrypoints/content/commit/message.ts`](../entrypoints/content/commit/message.ts) reads

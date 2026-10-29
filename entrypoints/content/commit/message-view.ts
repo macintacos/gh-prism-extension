@@ -1,8 +1,10 @@
 /**
  * Shows a commit page's message rendered as GitHub-flavored Markdown in place of GitHub's
  * preformatted box, or in a sticky column beside the diffs on a wide window, with a switch to its
- * plain text. GitHub's box stays in the page, hidden and unchanged: it shows again on abort, and as
- * the plain text above the diffs; in the column, the plain text is a copy of its contents.
+ * plain text. Its place is held in a loading state from the visit's start, so nothing moves when
+ * the rendering lands. GitHub's box stays in the page, hidden and unchanged: it shows again on
+ * abort, when the rendering fails, and as the plain text above the diffs; in the column, the plain
+ * text is a copy of its contents.
  */
 
 import type { CommitMessageView } from "@/utils/prefs";
@@ -13,7 +15,7 @@ import {
   findCommitMessage,
 } from "../files-page";
 import { el, icon } from "../ui/dom";
-import { renderCommitMessage } from "./message";
+import { renderCommitMessage, withinCaps } from "./message";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./message-view.css?inline";
 
@@ -30,6 +32,7 @@ export interface CommitMessageOptions {
   readonly choice: CommitMessageChoice;
   /** Remembers a view the switch picked. */
   readonly save: (view: CommitMessageView) => void;
+  readonly visit: CommitMessageVisit;
 }
 
 /**
@@ -41,26 +44,49 @@ export interface CommitMessageChoice {
 }
 
 /**
+ * What every show in one visit to a commit shares, so GitHub re-rendering the page mid-visit
+ * neither starts the loading state over nor plays the rendering's entrance again.
+ */
+export interface CommitMessageVisit {
+  /** When the visit began, on the page's `performance.now()` clock. */
+  readonly since: number;
+  /** The visit's rendering once made, or `"failed"` once it couldn't be. */
+  rendered?: Node[] | "failed";
+}
+
+/**
  * Stands in for a commit page's message box with its rendering, until `signal` aborts, opening in
- * `choice`'s view; its switch records each pick in `choice` and `save`s it. GitHub's box stays as
- * it is on any other page, for a message with only a subject line, when the message can't be
- * rendered, or while plain text is picked above the diffs.
+ * `choice`'s view; its switch records each pick in `choice` and `save`s it. The message's place
+ * shows a loading state at once, and the rendering fills it after `afterSections`. GitHub's box
+ * stays as it is on any other page, for a message with only a subject line or past the
+ * renderer's caps, while plain text is picked above the diffs, and from the moment the rendering
+ * fails.
  */
 export function showCommitMessage(
   page: FilesPage,
   signal: AbortSignal,
-  { afterSections, choice, save }: CommitMessageOptions,
+  { afterSections, choice, save, visit }: CommitMessageOptions,
 ): void {
+  const message = findCommitMessage(page);
+  // A subject line alone gains nothing from rendering.
+  if (!message?.body || !withinCaps(message) || visit.rendered === "failed") return;
+  const doc = page.sidebar.ownerDocument;
+  const failed = new AbortController();
+  const shown = AbortSignal.any([signal, failed.signal]);
+  const elapsed = (doc.defaultView?.performance.now() ?? visit.since) - visit.since;
+
+  const view = messageView(doc, message.box, { choice, save });
+  if (visit.rendered) view.fill(visit.rendered, "at once");
+  else view.wait(elapsed);
+  mountMessage(page, message.box, view.container, shown);
+  if (visit.rendered) return;
+
   afterSections(() => {
-    const message = findCommitMessage(page);
-    // A subject line alone gains nothing from rendering.
-    if (signal.aborted || !message?.body) return;
-    const doc = page.sidebar.ownerDocument;
-    const nodes = renderedOrWarn(doc, message);
-    if (nodes) {
-      const view = messageView(doc, nodes, { box: message.box, choice, save });
-      mountMessage(page, message.box, view, signal);
-    }
+    if (shown.aborted) return;
+    const nodes = renderedOrWarn(doc, findCommitMessage(page) ?? message);
+    visit.rendered = nodes ?? "failed";
+    if (nodes) view.fill(nodes, "revealed");
+    else failed.abort();
   });
 }
 
@@ -147,28 +173,40 @@ const LABEL: Record<CommitMessageView, string> = {
   plaintext: "Show rendered Markdown",
 };
 
+/** The message's container, and how to fill its body. */
+interface MessageView {
+  readonly container: HTMLElement;
+  /**
+   * Shows a skeleton in a loading state, its fade-in and pulse `elapsed` ms along, so a skeleton
+   * shown again mid-visit carries on where the last one was.
+   */
+  readonly wait: (elapsed: number) => void;
+  /** Puts `nodes` in the body, fading them in where a skeleton stood when `"revealed"`. */
+  readonly fill: (nodes: Node[], entrance: "revealed" | "at once") => void;
+}
+
 /**
- * `nodes` beside a switch to plain text, with a copy of `box`'s children that the column shows as
- * that plain text, returned with `data-view` already set to `choice.view` so a plain-text reader
- * never sees the rendering paint. Each click flips the view, records it in `choice`, and `save`s
- * it.
+ * An empty body beside a switch to plain text, with a copy of `box`'s children that the column
+ * shows as that plain text, returned with `data-view` already set to `choice.view` so a plain-text
+ * reader never sees the rendering paint. Each click flips the view, records it in `choice`, and
+ * `save`s it.
  */
 function messageView(
   doc: Document,
-  nodes: Node[],
-  { box, choice, save }: Pick<CommitMessageOptions, "choice" | "save"> & { box: Element },
-): HTMLElement {
+  box: Element,
+  { choice, save }: Pick<CommitMessageOptions, "choice" | "save">,
+): MessageView {
   const button = viewSwitch(doc);
+  const body = el(
+    doc,
+    "div",
+    "gh-prism-commit-message-body markdown-body tw:flex-1 tw:min-w-0 tw:px-3 tw:py-2",
+  );
   const container = el(
     doc,
     "div",
     "gh-prism-commit-message tw:flex tw:items-start tw:justify-end",
-    el(
-      doc,
-      "div",
-      "gh-prism-commit-message-body markdown-body tw:flex-1 tw:min-w-0 tw:px-3 tw:py-2",
-      ...nodes,
-    ),
+    body,
     // Copies the children, not the box: findCommitMessage matches the box's own class.
     el(
       doc,
@@ -178,6 +216,7 @@ function messageView(
     ),
     button,
   );
+
   const showView = (view: CommitMessageView) => {
     container.dataset.view = view;
     button.setAttribute("aria-label", LABEL[view]);
@@ -187,9 +226,47 @@ function messageView(
     showView(choice.view);
     save(choice.view);
   });
+  const wait = (elapsed: number) => {
+    body.replaceChildren(skeleton(doc, elapsed));
+    container.setAttribute("aria-busy", "true");
+  };
+  const fill = (nodes: Node[], entrance: "revealed" | "at once") => {
+    const from = container.offsetHeight;
+    body.replaceChildren(...nodes);
+    container.removeAttribute("aria-busy");
+    const still = doc.defaultView?.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (entrance === "revealed" && !still) reveal(container, body, from);
+  };
 
   showView(choice.view);
-  return container;
+  return { container, wait, fill };
+}
+
+/** Bars standing in for the title and a paragraph until the rendering lands. */
+function skeleton(doc: Document, elapsed: number): HTMLElement {
+  const bars = el(
+    doc,
+    "div",
+    "gh-prism-commit-skeleton",
+    el(doc, "span", ""),
+    el(doc, "span", ""),
+    el(doc, "span", ""),
+    el(doc, "span", ""),
+  );
+  bars.style.setProperty("--gh-prism-commit-elapsed", `${Math.round(elapsed)}ms`);
+  return bars;
+}
+
+// The motion scale's spatial row, as the sections drop in after loading.
+const SPATIAL = { duration: 280, easing: "cubic-bezier(0.2, 0.7, 0.2, 1)" };
+
+/** Fades `body` in where the skeleton stood, easing `container` from `from` px to its height. */
+function reveal(container: HTMLElement, body: HTMLElement, from: number): void {
+  body.animate({ opacity: [0, 1], transform: ["translateY(-6px)", "none"] }, SPATIAL);
+  const to = container.offsetHeight;
+  if (to !== from) {
+    container.animate({ height: [`${from}px`, `${to}px`], overflow: ["clip", "clip"] }, SPATIAL);
+  }
 }
 
 /** The sticky column, at the left of GitHub's layout row, holding the message on a wide window. */

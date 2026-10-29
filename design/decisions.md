@@ -6,6 +6,33 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-29: A commit's message, loaded in place
+
+- **Compared:**
+  - mounting the message at idle, after GitHub's box has shown, as before;
+  - hiding GitHub's box from `document_start` with a sheet keyed on its body, before the
+    visit starts;
+  - holding the message's place from the visit's start, with GitHub's box's plain text
+    copied in, or with a skeleton;
+  - rendering at the visit's start, or still after the sections and idle;
+  - on a failed render, collapsing the column with motion, or at once.
+- **Won:** the place held from the visit's start with a skeleton: a title bar and three
+  lines, held back 150 ms, pulsing as the loading view's skeletons do; GitHub's box hidden
+  from the same frame; the render still after the sections and idle, fading in on the
+  spatial row; a message past the length or parse-cost caps never held at all, and a
+  failed render unmounting at once, back to GitHub's box.
+- **Why:** Live, at 1440px, the old load showed GitHub's box for about 600 ms, then hid
+  it, shifting everything below 64px up, and prepended the column, pushing the diffs 320px
+  right. The visit starts in the frame the box first paints, so holding the place then
+  means the diffs take their final spot in their first frame and never move. A
+  `document_start` sheet would hide the box before gh-prism knows it can show anything, so
+  a page it never visits would lose the box. A plain-text copy would read as content, then
+  swap to a different layout; a skeleton reads as waiting. Parsing still waits, so the
+  message never holds up the sidebar or the diffs. Checking the caps without parsing keeps
+  the loading state from ever resolving into GitHub's box for a message too long; only a
+  crafted nesting depth or a renderer bug still does, once, and rarely enough that a
+  collapse animation isn't worth its code.
+
 ## 2026-10-29: The commit message's heading scale
 
 - **Compared:** `markdown-body`'s README scale, with its 2em `h1` ruled underneath; the

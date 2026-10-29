@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   type CommitMessageChoice,
+  type CommitMessageVisit,
   showCommitMessage,
 } from "../../../entrypoints/content/commit/message-view";
 import {
@@ -44,10 +45,13 @@ const runIdle = () => {
 };
 let choice: CommitMessageChoice;
 let save: (view: CommitMessageView) => void;
-const show = () => showCommitMessage(pageOf(), controller.signal, { afterSections, choice, save });
+let visit: CommitMessageVisit;
+const show = () =>
+  showCommitMessage(pageOf(), controller.signal, { afterSections, choice, save, visit });
 
 beforeEach(() => {
   choice = { view: "rendered" };
+  visit = { since: performance.now() };
   save = vi.fn();
   vi.useFakeTimers();
   history.replaceState(null, "", "/o/r/commit/dd95cdc");
@@ -62,11 +66,19 @@ afterEach(() => {
 });
 
 describe("showCommitMessage", () => {
-  it("leaves GitHub's box showing until the browser is idle", () => {
+  it("holds GitHub's box's place in a loading state until the browser is idle", () => {
+    const before = box().outerHTML;
+
     show();
 
-    expect(container()).toBeNull();
-    expect(shows(box())).toBe(true);
+    const shown = box().previousElementSibling;
+    expect(shown).toBe(container());
+    expect(shown?.getAttribute("aria-busy")).toBe("true");
+    expect(shown?.querySelector(".gh-prism-commit-skeleton")).not.toBeNull();
+    expect(shown?.querySelector("h1")).toBeNull();
+    expect(viewButton()?.parentElement).toBe(shown);
+    expect(shows(box())).toBe(false);
+    expect(box().outerHTML).toBe(before);
   });
 
   it("stands in for GitHub's box, unchanged, once idle", () => {
@@ -157,11 +169,15 @@ describe("showCommitMessage", () => {
     expect(shows(box())).toBe(true);
   });
 
-  it("keeps GitHub's box for a message too large to render", () => {
+  it("keeps GitHub's box for a message too large to render, with no loading state", () => {
     const body = box().querySelector(".extended-commit-description-container");
     if (!body) throw new Error("no body");
     body.textContent = "a".repeat(50_001);
     show();
+
+    expect(container()).toBeNull();
+    expect(shows(box())).toBe(true);
+
     runIdle();
 
     expect(container()).toBeNull();
@@ -193,9 +209,13 @@ describe("showCommitMessage", () => {
     expect(sheets()).toHaveLength(0);
   });
 
-  it("mounts nothing when the idle task runs after abort", () => {
+  it("drops its loading state on abort, and mounts nothing when the idle task runs after", () => {
     show();
     controller.abort();
+
+    expect(container()).toBeNull();
+    expect(shows(box())).toBe(true);
+
     runIdle();
 
     expect(container()).toBeNull();
@@ -227,6 +247,102 @@ describe("showCommitMessage", () => {
       expect(container()).toBeNull();
     },
   );
+});
+
+describe("showCommitMessage's loading state", () => {
+  const setReducedMotion = (reduce: boolean) => {
+    (
+      window as unknown as { happyDOM: { settings: { device: { prefersReducedMotion: string } } } }
+    ).happyDOM.settings.device.prefersReducedMotion = reduce ? "reduce" : "no-preference";
+  };
+  const messageBody = () => container()?.querySelector(".gh-prism-commit-message-body");
+  const nestTooDeep = () => {
+    const body = box().querySelector(".extended-commit-description-container");
+    if (!body) throw new Error("no body");
+    body.textContent = `${">".repeat(40)} deep`;
+  };
+
+  afterEach(() => setReducedMotion(false));
+
+  it("swaps the skeleton for the rendering once idle, fading it in", () => {
+    show();
+    runIdle();
+
+    expect(container()?.hasAttribute("aria-busy")).toBe(false);
+    expect(container()?.querySelector(".gh-prism-commit-skeleton")).toBeNull();
+    expect(messageBody()?.firstElementChild?.localName).toBe("h1");
+    expect(messageBody()?.getAnimations()).toHaveLength(1);
+  });
+
+  it("swaps the skeleton for the rendering without motion under reduced motion", () => {
+    setReducedMotion(true);
+
+    show();
+    runIdle();
+
+    expect(messageBody()?.firstElementChild?.localName).toBe("h1");
+    expect(messageBody()?.getAnimations()).toHaveLength(0);
+    expect(container()?.getAnimations()).toHaveLength(0);
+  });
+
+  it("gives the plaintext view GitHub's box from the start, with the rendering filled in behind it", () => {
+    choice.view = "plaintext";
+
+    show();
+
+    expect(container()?.dataset.view).toBe("plaintext");
+    expect(shows(box())).toBe(true);
+
+    runIdle();
+
+    expect(messageBody()?.querySelector("h1")).not.toBeNull();
+    expect(shows(box())).toBe(true);
+  });
+
+  it("shows the visit's rendering at once, with no second entrance, when GitHub re-renders the page", () => {
+    show();
+    runIdle();
+    const rendering = messageBody()?.firstElementChild;
+    controller.abort();
+    controller = new AbortController();
+
+    show();
+
+    expect(container()?.hasAttribute("aria-busy")).toBe(false);
+    expect(messageBody()?.firstElementChild).toBe(rendering);
+    expect(messageBody()?.getAnimations()).toHaveLength(0);
+    expect(tasks).toHaveLength(0);
+  });
+
+  it("keeps GitHub's box when GitHub re-renders the page after the rendering failed", () => {
+    nestTooDeep();
+    show();
+    runIdle();
+    controller.abort();
+    controller = new AbortController();
+
+    show();
+
+    expect(container()).toBeNull();
+    expect(shows(box())).toBe(true);
+  });
+
+  it("goes back to GitHub's box, and stays there, when the message nests too deep to render", async () => {
+    nestTooDeep();
+    show();
+    expect(shows(box())).toBe(false);
+
+    runIdle();
+
+    expect(container()).toBeNull();
+    expect(sheets()).toHaveLength(0);
+    expect(shows(box())).toBe(true);
+
+    box().replaceWith(box().cloneNode(true));
+    await afterMutations();
+
+    expect(container()).toBeNull();
+  });
 });
 
 const WIDE = { width: 1400, height: 768 };
@@ -342,9 +458,31 @@ describe("showCommitMessage's column", () => {
     if (!body) throw new Error("no body");
     body.textContent = "a".repeat(50_001);
     show();
+
+    expect(column()).toBeNull();
+
     runIdle();
 
     expect(column()).toBeNull();
+    expect(shows(box())).toBe(true);
+  });
+
+  it("holds the column in a loading state from the start", () => {
+    show();
+
+    expectInColumn();
+    expect(container()?.getAttribute("aria-busy")).toBe("true");
+  });
+
+  it("drops the column for GitHub's box when the message nests too deep to render", () => {
+    const body = box().querySelector(".extended-commit-description-container");
+    if (!body) throw new Error("no body");
+    body.textContent = `${">".repeat(40)} deep`;
+    show();
+    runIdle();
+
+    expect(column()).toBeNull();
+    expect(document.querySelector(".gh-prism-commit-slot")).toBeNull();
     expect(shows(box())).toBe(true);
   });
 
@@ -413,8 +551,16 @@ describe("showCommitMessage across navigation", () => {
     watchFilesPages(
       window,
       {
-        onVisit: () => (page, signal) =>
-          showCommitMessage(page, signal, { afterSections: (task) => task(), choice, save }),
+        onVisit: () => {
+          const visit = { since: performance.now() };
+          return (page, signal) =>
+            showCommitMessage(page, signal, {
+              afterSections: (task) => task(),
+              choice,
+              save,
+              visit,
+            });
+        },
         onMissing: () => {},
       },
       controller.signal,
