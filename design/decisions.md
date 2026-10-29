@@ -19,7 +19,8 @@ at the top, dated.
 - **Won:** the sticky flex child, 320px wide, from a 1332px window, with GitHub's tree
   pane's geometry (`position: sticky; top: 0; height: 100vh`), a `--borderColor-default`
   hairline on its inline end, and `order: -1`; the slot; mounting at idle; the copy,
-  `div.gh-prism-commit-message-plain`, padded 8px 12px as the box is.
+  `div.gh-prism-commit-message-plain`, laid out as the box is: a flex column, padded 8px
+  12px.
 - **Why:** GitHub's tree pane is already a sticky, independently scrolling column in the
   same row, so the message column copies it and the window stays the scroller, which keeps
   GitHub's sticky file headers and lazy diff loading working. 320px is Primer's large pane

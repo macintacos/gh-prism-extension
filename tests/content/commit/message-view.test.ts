@@ -6,6 +6,7 @@ import {
 } from "../../../entrypoints/content/commit/message-view";
 import {
   type FilesPage,
+  findCommitColumnRow,
   findCommitMessage,
   findFilesPage,
 } from "../../../entrypoints/content/files-page";
@@ -205,9 +206,9 @@ const setViewport = (size: Size) =>
     size,
   );
 const column = () => document.querySelector(".gh-prism-commit-column");
-const row = () => document.querySelector('[class*="PageLayout-PageLayoutContent"]');
+const row = () => findCommitColumnRow(pageOf());
 
-describe("showCommitMessage on a wide window", () => {
+describe("showCommitMessage's column", () => {
   beforeEach(() => setViewport(WIDE));
   afterEach(() => setViewport(DEFAULT));
 
@@ -262,6 +263,7 @@ describe("showCommitMessage on a wide window", () => {
     const body = column()?.querySelector(".gh-prism-commit-message-body");
     if (!copy || !body) throw new Error("no copy or body");
     expect(shows(copy)).toBe(true);
+    expect(getComputedStyle(copy).flexDirection).toBe("column");
     expect(copy.textContent).toBe(real.textContent);
     expect(shows(body)).toBe(false);
     expect(shows(real)).toBe(false);

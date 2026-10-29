@@ -1,8 +1,8 @@
 /**
  * Shows a commit page's message rendered as GitHub-flavored Markdown in place of GitHub's
- * preformatted box, or in a sticky column beside the diffs on a wide window, with a switch back to
- * that box. GitHub's box stays in the page, hidden, so it shows again unchanged on a switch or on
- * abort.
+ * preformatted box, or in a sticky column beside the diffs on a wide window, with a switch to its
+ * plain text. GitHub's box stays in the page, hidden and unchanged: it shows again on abort, and as
+ * the plain text above the diffs; in the column, the plain text is a copy of its contents.
  */
 
 import type { CommitMessageView } from "@/utils/prefs";
@@ -43,7 +43,8 @@ export interface CommitMessageChoice {
 /**
  * Stands in for a commit page's message box with its rendering, until `signal` aborts, opening in
  * `choice`'s view; its switch records each pick in `choice` and `save`s it. GitHub's box stays as
- * it is on any other page, when the message can't be rendered, or while plain text is picked.
+ * it is on any other page, when the message can't be rendered, or while plain text is picked above
+ * the diffs.
  */
 export function showCommitMessage(
   page: FilesPage,
@@ -84,14 +85,10 @@ const COLUMN_QUERY = "(min-width: 1332px)";
 function standIn(page: FilesPage, box: Element, container: HTMLElement, signal: AbortSignal): void {
   const doc = page.sidebar.ownerDocument;
   const slot = Object.assign(el(doc, "span", "gh-prism-commit-slot"), { hidden: true });
-  const column = el(
-    doc,
-    "aside",
-    "gh-prism-commit-column tw:sticky tw:top-0 tw:-order-1 tw:h-screen tw:w-80 tw:shrink-0 tw:self-start tw:overflow-y-auto tw:border-e tw:border-border-default",
-  );
-  column.setAttribute("aria-label", "Commit message");
+  const column = messageColumn(doc);
   const wide = doc.defaultView?.matchMedia(COLUMN_QUERY);
-  // Found once: a new row comes with a new visit; till then, a detached one falls back.
+  // Found once: a new row means a new sidebar, and so a new visit; a row detached before then
+  // falls back above the diffs.
   const row = findCommitColumnRow(page);
   const style = Object.assign(doc.createElement("style"), { textContent: css });
 
@@ -100,8 +97,8 @@ function standIn(page: FilesPage, box: Element, container: HTMLElement, signal: 
     slot.remove();
     column.remove();
   };
-  const intoColumn = (row: Element, currentBox: Element) => {
-    if (column.parentElement !== row) row.prepend(column);
+  const intoColumn = (connectedRow: Element, currentBox: Element) => {
+    if (column.parentElement !== connectedRow) connectedRow.prepend(column);
     if (container.parentElement !== column) column.append(container);
     if (slot.nextElementSibling !== currentBox) currentBox.before(slot);
   };
@@ -145,9 +142,10 @@ const LABEL: Record<CommitMessageView, string> = {
 };
 
 /**
- * `nodes` and a copy of `box`'s children, for the column's plain text, beside a switch to GitHub's
- * box, returned with `data-view` already set to `choice.view` so a plain-text reader never sees
- * the rendering paint. Each click flips the view, records it in `choice`, and `save`s it.
+ * `nodes` beside a switch to plain text, with a copy of `box`'s children that the column shows as
+ * that plain text, returned with `data-view` already set to `choice.view` so a plain-text reader
+ * never sees the rendering paint. Each click flips the view, records it in `choice`, and `save`s
+ * it.
  */
 function messageView(
   doc: Document,
@@ -188,7 +186,18 @@ function messageView(
   return container;
 }
 
-/** The unlabelled button that switches between the rendering and GitHub's box. */
+/** The sticky column, at the left of GitHub's layout row, holding the message on a wide window. */
+function messageColumn(doc: Document): HTMLElement {
+  const column = el(
+    doc,
+    "aside",
+    "gh-prism-commit-column tw:sticky tw:top-0 tw:-order-1 tw:h-screen tw:w-80 tw:shrink-0 tw:self-start tw:overflow-y-auto tw:border-e tw:border-border-default",
+  );
+  column.setAttribute("aria-label", "Commit message");
+  return column;
+}
+
+/** The unlabelled button that switches between the rendering and the plain text. */
 function viewSwitch(doc: Document): HTMLButtonElement {
   // Primer's small invisible IconButton, as the side switch is.
   const button = el(

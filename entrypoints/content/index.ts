@@ -57,8 +57,9 @@ const CACHED_DIFFS = 50;
  * miscategorized file, adds an "Only files owned by…" section to GitHub's filter menu, and, after
  * an update, opens the sidebar with that release's notes. On a pull request's header tabs, stands
  * in for the diffstat, and on Conversation lists a code owner's files from their Reviewers sidebar
- * shield. On a commit's page, shows its message rendered as Markdown, with a switch back to
- * GitHub's box. On its classic Files changed page, explains why gh-prism is off there.
+ * shield. On a commit's page, shows its message rendered as Markdown, above the diffs or in a
+ * column beside them, with a switch to its plain text. On its classic Files changed page,
+ * explains why gh-prism is off there.
  */
 export default defineContentScript({
   // Every GitHub page: soft navigation reaches a pull request without re-injecting the script.

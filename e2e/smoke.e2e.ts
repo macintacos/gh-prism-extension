@@ -59,7 +59,7 @@ const scrollSidebarToBulkRow = (page: Page, n: number): Promise<void> =>
     // A bulk file's row follows bulk/, 28 px a row; 100 px of it shows below the top.
     sidebar.scrollTop = treeTop + (n + 1) * 28 - 100;
   }, n);
-// The fixture's row is GitHub's layout container; the switch's container query needs ≥ 1012 px (default viewport: 1280).
+// The fixture's row is GitHub's layout container; the side switch's container query needs ≥ 1012 px (default viewport: 1280).
 const COMMIT_BODY = `<!doctype html>${readFixture("commit-page.html")}`;
 
 const test = base.extend<{ context: BrowserContext }>({
@@ -281,6 +281,12 @@ test("a commit's message moves into a column on a wide window and back above the
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await expect(message).toBeVisible();
+
+  await page.locator(".gh-prism-commit-view-switch").click();
+  await expect(page.locator(".gh-prism-commit-message-plain")).toBeVisible();
+  await expect(page.locator(MESSAGE_BOX)).toBeHidden();
+  await page.setViewportSize({ width: 1200, height: 900 });
+  await expect(page.locator(MESSAGE_BOX)).toBeVisible();
 });
 
 test("a commit's message switches to GitHub's box from the keyboard, and opens there after a reload with no flash of the rendering", async ({
