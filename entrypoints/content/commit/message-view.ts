@@ -365,5 +365,12 @@ function restoreRow(doc: Document): { row: HTMLElement; button: HTMLButtonElemen
     "Show commit message",
   );
   button.type = "button";
-  return { row: el(doc, "div", "gh-prism-commit-restore tw:flex tw:p-2", button), button };
+  // Ruled off as GitHub's box is, from the card's next row.
+  const row = el(
+    doc,
+    "div",
+    "gh-prism-commit-restore tw:flex tw:p-2 tw:border-b tw:border-border-default",
+    button,
+  );
+  return { row, button };
 }
