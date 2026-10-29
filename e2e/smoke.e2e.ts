@@ -509,11 +509,16 @@ test("a commit's Previous and Next hold their place from its first frame, and st
   ]);
   let release: () => void = () => {};
   const released = new Promise<void>((resolve) => (release = resolve));
-  const searched: { sectionsFirst: boolean }[] = [];
+  const searched: { afterMs: number; sectionsFirst: boolean }[] = [];
+  let loadedAt = 0;
   await context.route(
     (url) => url.pathname === "/search",
     async (route, request) => {
-      searched.push({ sectionsFirst: (await page.locator(".gh-prism-section").count()) > 0 });
+      const afterMs = Date.now() - loadedAt;
+      searched.push({
+        afterMs,
+        sectionsFirst: (await page.locator(".gh-prism-section").count()) > 0,
+      });
       await released;
       const parent = new URL(request.url()).searchParams.get("q")?.split("parent:")[1];
       const results = [{ sha: childOf.get(parent) }];
@@ -542,6 +547,7 @@ test("a commit's Previous and Next hold their place from its first frame, and st
   const previous = page.getByRole("link", { name: /^Previous commit/ });
   const next = page.getByRole("link", { name: /^Next commit/ });
 
+  loadedAt = Date.now();
   await page.goto(COMMIT_URL);
   await expect(page.locator(".gh-prism-section").first()).toBeVisible();
   await expect(next).toHaveAttribute("aria-disabled", "true");
@@ -555,7 +561,9 @@ test("a commit's Previous and Next hold their place from its first frame, and st
   const frames = await page.evaluate(
     () => (window as unknown as { stepFrames: { at: string; next: string | null }[] }).stepFrames,
   );
-  expect(searched).toEqual([{ sectionsFirst: true }]);
+  // The read waits for the sections, or a second without them, as the message's render does.
+  expect(searched).toHaveLength(1);
+  expect(searched[0]?.sectionsFirst || (searched[0]?.afterMs ?? 0) >= 1000).toBe(true);
   expect(frames[0]?.next).toBeNull();
   expect(new Set(frames.map((frame) => frame.at)).size).toBe(1);
 
