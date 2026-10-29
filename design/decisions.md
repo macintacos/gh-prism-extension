@@ -6,6 +6,14 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-29: A subject-only commit keeps GitHub's box
+
+- **Compared:** rendering every commit's message, or only a message with a body.
+- **Won:** only a message with a body; a subject line alone gets no rendering, column,
+  switch, or loading state.
+- **Why:** A subject line renders as one heading, which says nothing GitHub's box doesn't,
+  and a column holding one line takes the diffs' width for it.
+
 ## 2026-10-28: A commit's message beside the diffs
 
 - **Compared:**

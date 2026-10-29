@@ -43,8 +43,8 @@ export interface CommitMessageChoice {
 /**
  * Stands in for a commit page's message box with its rendering, until `signal` aborts, opening in
  * `choice`'s view; its switch records each pick in `choice` and `save`s it. GitHub's box stays as
- * it is on any other page, when the message can't be rendered, or while plain text is picked above
- * the diffs.
+ * it is on any other page, for a message with only a subject line, when the message can't be
+ * rendered, or while plain text is picked above the diffs.
  */
 export function showCommitMessage(
   page: FilesPage,
@@ -53,7 +53,8 @@ export function showCommitMessage(
 ): void {
   afterSections(() => {
     const message = findCommitMessage(page);
-    if (signal.aborted || !message) return;
+    // A subject line alone gains nothing from rendering.
+    if (signal.aborted || !message?.body) return;
     const doc = page.sidebar.ownerDocument;
     const nodes = renderedOrWarn(doc, message);
     if (nodes) {

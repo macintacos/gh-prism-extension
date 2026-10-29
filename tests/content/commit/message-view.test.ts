@@ -151,6 +151,19 @@ describe("showCommitMessage", () => {
     expect(shows(box())).toBe(true);
   });
 
+  it("leaves a subject-only message as GitHub shows it", () => {
+    loadCommitFixture("subject");
+    const before = box().outerHTML;
+
+    show();
+    runIdle();
+
+    expect(container()).toBeNull();
+    expect(sheets()).toHaveLength(0);
+    expect(shows(box())).toBe(true);
+    expect(box().outerHTML).toBe(before);
+  });
+
   it("mounts nothing on a pull request's page", () => {
     history.replaceState(null, "", "/o/r/pull/1/changes");
     loadFixture();
@@ -280,6 +293,17 @@ describe("showCommitMessage's column", () => {
     const copy = container()?.querySelector(".gh-prism-commit-message-plain");
     if (!copy) throw new Error("no copy");
     expect(shows(copy)).toBe(false);
+    expect(shows(box())).toBe(true);
+  });
+
+  it("builds no column for a subject-only message", () => {
+    loadCommitFixture("subject");
+
+    show();
+    runIdle();
+
+    expect(column()).toBeNull();
+    expect(document.querySelector(".gh-prism-commit-slot")).toBeNull();
     expect(shows(box())).toBe(true);
   });
 

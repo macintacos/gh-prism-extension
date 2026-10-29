@@ -64,10 +64,11 @@ how to get the new tab. Once you close the dialog, it stays closed, and
 - A **Report a miscategorized file** button beside the file tree's filter opens a new
   issue on gh-prism's repository with your gh-prism version filled in, and, on a public
   repository only, the diff's URL.
-- On a commit's page, it shows the commit message rendered as Markdown, like a README,
-  with GitHub's links, in a column beside the diffs on a wide window, or in place of
-  GitHub's monospace box on a narrower one. A switch beside it shows the message's plain
-  text instead, and gh-prism opens every commit in the view you last picked.
+- On a commit's page, it shows a commit message longer than its subject line rendered as
+  Markdown, like a README, with GitHub's links, in a column beside the diffs on a wide
+  window, or in place of GitHub's monospace box on a narrower one. A switch beside it
+  shows the message's plain text instead, and gh-prism opens every commit in the view you
+  last picked.
 
 ## Install
 

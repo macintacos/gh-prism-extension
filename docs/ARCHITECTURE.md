@@ -150,10 +150,11 @@ so a private diff's address never reaches a public issue.
 On a commit's page, `showCommitMessage` in
 [`entrypoints/content/commit/message-view.ts`](../entrypoints/content/commit/message-view.ts)
 shows the commit message rendered as GitHub-flavored Markdown in place of GitHub's
-monospace box. [`index.ts`](../entrypoints/content/index.ts) runs it once the sidebar's
-sections have landed, or a second has passed without them, and the browser is idle, so the
-message never holds up the sidebar or the diffs, and a slow intent read never holds up
-GitHub's box.
+monospace box. A message with only a subject line stays in GitHub's box, since rendering
+it would change nothing a reader needs. [`index.ts`](../entrypoints/content/index.ts) runs
+it once the sidebar's sections have landed, or a second has passed without them, and the
+browser is idle, so the message never holds up the sidebar or the diffs, and a slow intent
+read never holds up GitHub's box.
 
 `renderCommitMessage` in
 [`entrypoints/content/commit/message.ts`](../entrypoints/content/commit/message.ts) reads

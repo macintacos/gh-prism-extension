@@ -331,6 +331,28 @@ test("a commit's message switches to GitHub's box from the keyboard, and opens t
   await expect(toPlain).toBeFocused();
 });
 
+test("a subject-only commit keeps GitHub's box, with no column or switch", async ({
+  context,
+  page,
+}) => {
+  await serve(context, COMMIT_URL, commitBodyWith(readFixture("commit-message-subject.html")));
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  await page.goto(COMMIT_URL);
+  await expect(page.locator(".gh-prism-section").first()).toBeVisible();
+  await page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestIdleCallback(() => setTimeout(resolve, 0), { timeout: 2000 }),
+      ),
+  );
+
+  await expect(
+    page.locator(".gh-prism-commit-message, .gh-prism-commit-column, .gh-prism-commit-slot"),
+  ).toHaveCount(0);
+  await expect(page.locator(MESSAGE_BOX)).toBeVisible();
+});
+
 for (const width of [1280, 1440]) {
   test(`a commit message over the cap keeps GitHub's box at ${width}px`, async ({
     context,
