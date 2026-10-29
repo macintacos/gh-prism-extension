@@ -58,6 +58,14 @@ const run = () => {
   return contentScript.main({ signal, onInvalidated } as ContentScriptContext);
 };
 const docked = () => vi.mocked(dockSidebar).mock.calls.map(([, , options]) => options);
+// At call time: a saved view read after the first page mounts would fix up the shared choice.
+const recordFirstCommitView = () => {
+  const views: CommitMessageView[] = [];
+  vi.mocked(showCommitMessage).mockImplementationOnce((_page, _signal, { choice }) => {
+    views.push(choice.view);
+  });
+  return views;
+};
 // Runs the MutationObserver's pending microtask, and no timer.
 const afterMutations = () => vi.advanceTimersByTimeAsync(0);
 
@@ -107,7 +115,7 @@ describe("content script", () => {
     },
   );
 
-  it("opens on the right and the breakout and mounts when reading saved choices fails", async () => {
+  it("opens on the right, the breakout, and the rendered message and mounts when reading saved choices fails", async () => {
     const failure = new Error("context invalidated");
     vi.spyOn(fakeBrowser.storage.sync, "get").mockRejectedValue(failure);
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -115,10 +123,12 @@ describe("content script", () => {
     vi.mocked(dockSidebar).mockImplementationOnce((_page, _signal, { choice }) => {
       sides.push(choice.side);
     });
+    const views = recordFirstCommitView();
 
     await run();
 
     expect(sides).toEqual(["right"]);
+    expect(views).toEqual(["rendered"]);
     expect(showVisit).toHaveBeenCalledOnce();
     expect(vi.mocked(showVisit).mock.calls[0]?.[2].diffstat.choice.view).toBe("breakout");
     expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
@@ -172,23 +182,26 @@ describe("content script", () => {
     if (saved !== undefined) await fakeBrowser.storage.sync.set({ commitMessageView: saved });
     history.replaceState(null, "", "/o/r/commit/dd95cdc");
     loadCommitFixture();
+    const views = recordFirstCommitView();
 
     await run();
 
-    expect(vi.mocked(showCommitMessage).mock.calls[0]?.[2].choice.view).toBe(opens);
+    expect(views).toEqual([opens]);
   });
 
-  it("opens a commit's message rendered when reading the saved view fails", async () => {
-    const failure = new Error("context invalidated");
-    vi.spyOn(fakeBrowser.storage.sync, "get").mockRejectedValue(failure);
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+  it("carries a commit's message view to the next commit in the tab", async () => {
     history.replaceState(null, "", "/o/r/commit/dd95cdc");
     loadCommitFixture();
-
     await run();
 
-    expect(vi.mocked(showCommitMessage).mock.calls[0]?.[2].choice.view).toBe("rendered");
-    expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
+    history.pushState(null, "", "/o/r/commit/4f0a580");
+    loadCommitFixture("mention");
+    document.dispatchEvent(new Event("soft-nav:end"));
+    await afterMutations();
+
+    const calls = vi.mocked(showCommitMessage).mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(calls[1]?.[2].choice).toBe(calls[0]?.[2].choice);
   });
 
   it("saves the commit message view the user picks", async () => {

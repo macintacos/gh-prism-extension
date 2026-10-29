@@ -174,9 +174,9 @@ under 50,000 characters would otherwise freeze the page for seconds.
 A switch at the rendering's top-right corner flips between it and GitHub's box and saves
 the pick as `commitMessageView` in [`utils/prefs.ts`](../utils/prefs.ts). `index.ts` reads
 it before watching, as it does the sidebar side and the counter's view, and hands every
-page the tab's one choice, so a commit opens in the view last picked. The view mounts with
-its `data-view` already set, so a reader who picked GitHub's box never sees the rendering
-first.
+page the tab's one choice, so a commit opens in the view last picked. The message's
+container mounts with its `data-view` already set, so a reader who picked GitHub's box
+never sees the rendering first.
 
 gh-prism never edits GitHub's box: the view's sheet only hides it, and it shows again when
 the reader switches to it, when the visit aborts, or when gh-prism can't render the
@@ -488,7 +488,7 @@ entrypoints/
   content/
     index.ts             content script entry: wires the watchers, intent, and views
     files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; a commit's message box
-    commit/              a commit's message rendered as Markdown in GitHub's box's place
+    commit/              a commit's message rendered as Markdown in GitHub's box's place, and its switch back to GitHub's box
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section

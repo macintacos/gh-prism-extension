@@ -123,6 +123,13 @@ name, as a keycap in the style of Primer's keybinding hint, and the control sets
 `aria-keyshortcuts`, so assistive technology announces the key. Touch devices have no
 hover, so they never show the keycap.
 
+## Switches
+
+A switch between two views or states is Primer's small invisible IconButton holding one
+Octicon in both states. Its `aria-label`, which its tooltip shows, names the action it
+takes and flips with the state. Focus stays on it across the flip. `sidebar/side.ts` and
+`commit/message-view.ts` build the two in use.
+
 ## Floating surfaces
 
 An overlay that floats over the page sits on `--overlay-bgColor`, falling back to

@@ -30,6 +30,10 @@ export const diffstatView = storage.defineItem<DiffstatView>("sync:diffstatView"
 
 /** Which view a commit page's message opens on: rendered as Markdown, or GitHub's own box. */
 export type CommitMessageView = "rendered" | "plaintext";
+/**
+ * The view the user last switched a commit's message to; Chrome sync carries it to their other
+ * computers when on.
+ */
 export const commitMessageView = storage.defineItem<CommitMessageView>("sync:commitMessageView", {
   fallback: "rendered",
 });

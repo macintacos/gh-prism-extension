@@ -1,7 +1,7 @@
 /**
  * Shows a commit page's message rendered as GitHub-flavored Markdown in place of GitHub's
- * preformatted box, which stays in the page, hidden, so it shows again unchanged on abort.
- * GitHub's box shows instead when the tab last picked plain text.
+ * preformatted box, with a switch back to that box. The box stays in the page, hidden, so it shows
+ * again unchanged on a switch or on abort.
  */
 
 import type { CommitMessageView } from "@/utils/prefs";
@@ -11,6 +11,10 @@ import { renderCommitMessage } from "./message";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./message-view.css?inline";
 
+/**
+ * When to render, the tab's view choice for `showCommitMessage` to apply, and how to persist a
+ * switch.
+ */
 export interface CommitMessageOptions {
   /**
    * Runs `task` once the sidebar's sections have drawn, or a second has passed without them,
@@ -31,8 +35,9 @@ export interface CommitMessageChoice {
 }
 
 /**
- * Stands in for a commit page's message box with its rendering, until `signal` aborts. GitHub's
- * box stays as it is on any other page, or when the message can't be rendered.
+ * Stands in for a commit page's message box with its rendering, until `signal` aborts, opening in
+ * `choice`'s view; its switch records each pick in `choice` and `save`s it. GitHub's box stays as
+ * it is on any other page, when the message can't be rendered, or while plain text is picked.
  */
 export function showCommitMessage(
   page: FilesPage,
@@ -42,8 +47,9 @@ export function showCommitMessage(
   afterSections(() => {
     const message = findCommitMessage(page);
     if (signal.aborted || !message) return;
-    const nodes = renderedOrWarn(page.sidebar.ownerDocument, message);
-    if (nodes) standIn(page, message.box, nodes, signal, { choice, save });
+    const doc = page.sidebar.ownerDocument;
+    const nodes = renderedOrWarn(doc, message);
+    if (nodes) standIn(page, message.box, messageView(doc, nodes, { choice, save }), signal);
   });
 }
 
@@ -58,29 +64,11 @@ function renderedOrWarn(doc: Document, message: CommitMessage): Node[] | undefin
 }
 
 /**
- * Mounts `nodes` just before `page`'s message box, following GitHub's re-renders of it, until
+ * Mounts `container` just before `page`'s message box, following GitHub's re-renders of it, until
  * `signal` aborts.
  */
-function standIn(
-  page: FilesPage,
-  box: Element,
-  nodes: Node[],
-  signal: AbortSignal,
-  { choice, save }: Pick<CommitMessageOptions, "choice" | "save">,
-): void {
+function standIn(page: FilesPage, box: Element, container: HTMLElement, signal: AbortSignal): void {
   const doc = page.sidebar.ownerDocument;
-  const container = el(
-    doc,
-    "div",
-    "gh-prism-commit-message tw:flex tw:items-start tw:justify-end",
-    el(
-      doc,
-      "div",
-      "gh-prism-commit-message-body markdown-body tw:flex-1 tw:min-w-0 tw:px-3 tw:py-2",
-      ...nodes,
-    ),
-  );
-  container.append(viewSwitch(doc, container, { choice, save }));
   const style = Object.assign(doc.createElement("style"), { textContent: css });
 
   const follow = () => {
@@ -109,20 +97,29 @@ const LABEL: Record<CommitMessageView, string> = {
   plaintext: "Show rendered Markdown",
 };
 
-/** The switch between `container`'s rendering and GitHub's box, showing `choice`'s view. */
-function viewSwitch(
+/**
+ * `nodes` beside a switch to GitHub's box, returned with `data-view` already set to `choice.view`
+ * so a plain-text reader never sees the rendering paint. Each click flips the view, records it in
+ * `choice`, and `save`s it.
+ */
+function messageView(
   doc: Document,
-  container: HTMLElement,
+  nodes: Node[],
   { choice, save }: Pick<CommitMessageOptions, "choice" | "save">,
-): HTMLButtonElement {
-  // Primer's small invisible IconButton, as the side switch is.
-  const button = el(
+): HTMLElement {
+  const button = viewSwitch(doc);
+  const container = el(
     doc,
-    "button",
-    "gh-prism-commit-view-switch tw:relative tw:grid tw:shrink-0 tw:place-content-center tw:size-[var(--control-small-size,28px)] tw:mt-2 tw:mr-2 tw:p-0 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-iconColor-rest)] tw:[font:inherit] tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:hover:text-[color:var(--button-invisible-iconColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
-    icon(doc, MARKDOWN, {}),
+    "div",
+    "gh-prism-commit-message tw:flex tw:items-start tw:justify-end",
+    el(
+      doc,
+      "div",
+      "gh-prism-commit-message-body markdown-body tw:flex-1 tw:min-w-0 tw:px-3 tw:py-2",
+      ...nodes,
+    ),
+    button,
   );
-  button.type = "button";
   const showView = (view: CommitMessageView) => {
     container.dataset.view = view;
     button.setAttribute("aria-label", LABEL[view]);
@@ -134,5 +131,18 @@ function viewSwitch(
   });
 
   showView(choice.view);
+  return container;
+}
+
+/** The unlabelled button that switches between the rendering and GitHub's box. */
+function viewSwitch(doc: Document): HTMLButtonElement {
+  // Primer's small invisible IconButton, as the side switch is.
+  const button = el(
+    doc,
+    "button",
+    "gh-prism-commit-view-switch tw:relative tw:grid tw:shrink-0 tw:place-content-center tw:size-[var(--control-small-size,28px)] tw:mt-2 tw:mr-2 tw:p-0 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-iconColor-rest)] tw:[font:inherit] tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:hover:text-[color:var(--button-invisible-iconColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
+    icon(doc, MARKDOWN, {}),
+  );
+  button.type = "button";
   return button;
 }

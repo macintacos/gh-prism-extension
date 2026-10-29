@@ -121,7 +121,7 @@ describe("showCommitMessage", () => {
 
     button.click();
 
-    // happy-dom keeps the box's computed style cached across its sibling's attribute change.
+    // happy-dom keeps the box's `display: none` once the `+` rule stops matching; e2e proves it shows.
     expect(container()?.dataset.view).toBe("rendered");
     expect(shows(body)).toBe(true);
     expect(save).toHaveBeenLastCalledWith("rendered");
@@ -208,10 +208,7 @@ describe("showCommitMessage across navigation", () => {
     loadCommitFixture(name);
     return messageOf().title.textContent;
   };
-
-  it("shows each commit's message and leaves nothing behind off commit pages", async () => {
-    const mentionTitle = titleOf("mention");
-    const shaTitle = titleOf("sha");
+  const watchCommits = () =>
     watchFilesPages(
       window,
       {
@@ -221,6 +218,11 @@ describe("showCommitMessage across navigation", () => {
       },
       controller.signal,
     );
+
+  it("shows each commit's message and leaves nothing behind off commit pages", async () => {
+    const mentionTitle = titleOf("mention");
+    const shaTitle = titleOf("sha");
+    watchCommits();
     await afterMutations();
     expect(title()).toBe(shaTitle);
 
@@ -234,15 +236,7 @@ describe("showCommitMessage across navigation", () => {
   });
 
   it("opens the next commit in the view the tab last picked", async () => {
-    watchFilesPages(
-      window,
-      {
-        onVisit: () => (page, signal) =>
-          showCommitMessage(page, signal, { afterSections: (task) => task(), choice, save }),
-        onMissing: () => {},
-      },
-      controller.signal,
-    );
+    watchCommits();
     await afterMutations();
     viewButton()?.click();
 
