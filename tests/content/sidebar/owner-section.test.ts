@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { showOwnerSection } from "../../../entrypoints/content/sidebar/owner-section";
-import type { FileOwners, PrCodeOwners } from "../../../utils/github/code-owners";
+import type { FileOwners, PrCodeOwners, PrReviewer } from "../../../utils/github/code-owners";
 import {
   addOwnedByGroup,
   closeFilterMenu,
@@ -29,14 +29,18 @@ const navigate = vi.fn<(href: string) => void>();
 
 interface Reads {
   readonly codeOwners?: PrCodeOwners | undefined;
-  readonly prReviewers?: readonly string[] | undefined;
+  readonly prReviewers?: readonly PrReviewer[] | undefined;
 }
+
+/** PR reviewers with `tokens`, reviewing for no team. */
+const reviewersOf = (...tokens: string[]): PrReviewer[] =>
+  tokens.map((token) => ({ token, teams: [], codeOwner: false }));
 
 /** Shows the section with `reads` over the sandbox's, then lets the reads settle. */
 async function show(reads: Reads = {}) {
   const { codeOwners, prReviewers } = {
     codeOwners: SANDBOX,
-    prReviewers: [FRONTEND, PLATFORM, "@nobody"],
+    prReviewers: reviewersOf(FRONTEND, PLATFORM, "@nobody"),
     ...reads,
   };
   showOwnerSection(foundPage(), controller.signal, {
@@ -186,6 +190,17 @@ describe("showOwnerSection", () => {
       expect(url.searchParams.get("file-filters[]")).toBe(".ts");
     });
 
+    it("lists a reviewer who owns files only through a team, and narrows to them", async () => {
+      openFilterMenu("owner");
+      await show({ prReviewers: [{ token: "@reviewed", teams: [PLATFORM], codeOwner: false }] });
+
+      entry("@reviewed").click();
+
+      expect(entries().map((item) => item.textContent?.trim())).toEqual(["Me", "@reviewed"]);
+      const url = new URL(navigate.mock.calls[0]?.[0] ?? "");
+      expect(url.searchParams.get("gh-prism-owner")).toBe("reviewed");
+    });
+
     it("clears the owner when picking the reviewer already on", async () => {
       history.replaceState(null, "", `${PR}?gh-prism-owner=excessive-dev/frontend`);
       openFilterMenu("owner");
@@ -266,9 +281,13 @@ describe("showOwnerSection", () => {
     {
       case: "no CODEOWNERS",
       kind: "notOwner" as const,
-      reads: { codeOwners: new Map(), prReviewers: [FRONTEND] },
+      reads: { codeOwners: new Map(), prReviewers: reviewersOf(FRONTEND) },
     },
-    { case: "no owning reviewer", kind: "notOwner" as const, reads: { prReviewers: ["@nobody"] } },
+    {
+      case: "no owning reviewer",
+      kind: "notOwner" as const,
+      reads: { prReviewers: reviewersOf("@nobody") },
+    },
   ])("adds nothing when $case", async ({ kind, reads }) => {
     openFilterMenu(kind);
 
@@ -291,7 +310,7 @@ describe("showOwnerSection", () => {
   it("gives you no entry of your own among the reviewers", async () => {
     openFilterMenu("owner");
 
-    await show({ prReviewers: ["@sandbox-user", FRONTEND] });
+    await show({ prReviewers: reviewersOf("@sandbox-user", FRONTEND) });
 
     expect(entries().map((item) => item.textContent?.trim())).toEqual(["Me", FRONTEND]);
   });

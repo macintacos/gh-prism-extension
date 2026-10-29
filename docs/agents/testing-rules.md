@@ -48,7 +48,10 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   before `click`, so the hidden popover's `toggle` arrives after the same click re-opens
   it.
   [`sections-view-owners.test.ts`](../../tests/content/sidebar/sections-view-owners.test.ts)
-  stubs both at its top.
+  stubs both at its top. Prove a popover that opens on focus in Chromium too: a stub skips
+  Chromium's focus return, where `hidePopover()` on a popover that holds focus moves focus
+  back to the element that had it, such as the popover's `source`, before the hide ends,
+  and a `showPopover()` from that focus throws.
 - **Prove tree row layout in Chromium, not happy-dom.** happy-dom computes no style from
   the section tree's shadow-root sheets, even with `section-tree.css` in
   `test.css.include`. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `rowLayout` is the
@@ -89,6 +92,11 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   so a click that comes too soon is intercepted and retried, with the same forced scroll.
   "ticking a box doesn't scroll the sidebar" polls the box's computed `pointer-events`
   first.
+- **Hover a tree row before a test tabs to its code owners shield.** A focus that scrolls
+  the window delivers the scroll event a frame later, after the focus has opened the
+  shield's popover, and the popover closes on any scroll outside it.
+  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "Shift+Tab from an owners popover back to
+  its shield keeps the same popover open" is the pattern.
 - **Click a control drawn over a tree row on GitHub's current file too, with Playwright's
   `click()`.** @pierre/trees stacks the focused and selected rows above their siblings, so
   either can cover a control that works on every other row, and `dispatchEvent` skips the
@@ -136,11 +144,11 @@ To check behavior live, build the extension and drive Playwright's bundled Chrom
   CSRF inputs, `csrf_tokens`, `nonce` values, `aliveChannel`, `data-hydro-*` and
   `octolytics` attributes, user ids, and JSON fields that identify the viewer. Keep
   per-file state such as `diffSummaries[].markedAsViewed`.
-- **Cut a `merge_box` capture down to `pullRequest.pendingReviewRequests` and
-  `pullRequest.latestOpinionatedReviews`, without `avatarUrl` or review `id`.** The rest
-  carries the viewer's commit emails and signed alive-channel tokens. Where the viewer's
-  login is data, as in a CODEOWNERS token, replace it with `sandbox-user`. Import a JSON
-  capture `?raw`, so each test parses its own copy to edit.
+- **Cut a `review_requests` capture down to `pendingReviewRequests` and
+  `completedReviews`, without `avatarUrl`, user or team `id`, or review `id`.** The rest
+  is Copilot's settings, with links to the viewer's own Copilot settings. Where the
+  viewer's login is data, as in a CODEOWNERS token, replace it with `sandbox-user`. Import
+  a JSON capture `?raw`, so each test parses its own copy to edit.
 - **Wrap the service worker's `fetch` to observe pull request data requests.** The
   background script calls the global `fetch` at request time, so wrapping `self.fetch`
   through `worker.evaluate` logs each request.

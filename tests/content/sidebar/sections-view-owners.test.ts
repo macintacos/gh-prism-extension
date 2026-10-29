@@ -408,6 +408,19 @@ describe("showSections", () => {
       expect(popovers()).toEqual([]);
     });
 
+    it("returns focus inside it to the file's row as a scroll outside it closes it", async () => {
+      await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"] }));
+      clickAt(shieldOf("implementation", "src/engine.rs"));
+      popovers()[0]?.querySelector("a")?.focus();
+
+      document.dispatchEvent(new Event("scroll"));
+
+      expect(popovers()).toEqual([]);
+      expect(hostOf("implementation").shadowRoot?.activeElement).toBe(
+        rowIn("implementation", "src/engine.rs"),
+      );
+    });
+
     it("stays open on a scroll inside it", async () => {
       await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"] }));
       clickAt(shieldOf("implementation", "src/engine.rs"));
@@ -441,6 +454,81 @@ describe("showSections", () => {
       expect(hostOf("implementation").shadowRoot?.activeElement).toBe(
         rowIn("implementation", "src/engine.rs"),
       );
+    });
+
+    describe("on hover and focus", () => {
+      const engine = () => shieldOf("implementation", "src/engine.rs");
+      const pointerAt = (type: "pointerover" | "pointerout", target: Element, related: Element) =>
+        target.dispatchEvent(
+          new PointerEvent(type, { bubbles: true, composed: true, relatedTarget: related }),
+        );
+      const focusIn = () => document.activeElement;
+
+      it("opens once the pointer rests on the shield, leaving focus where it was", async () => {
+        await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"] }));
+        const focused = focusIn();
+
+        pointerAt("pointerover", engine(), rowIn("implementation", "src/engine.rs"));
+        await vi.advanceTimersByTimeAsync(199);
+        const beforeDelay = popovers().length;
+        await vi.advanceTimersByTimeAsync(1);
+
+        expect(beforeDelay).toBe(0);
+        expect(popovers()).toHaveLength(1);
+        expect(engine().getAttribute("aria-expanded")).toBe("true");
+        expect(focusIn()).toBe(focused);
+      });
+
+      it("opens at once when the shield takes focus", async () => {
+        await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"] }));
+
+        engine().dispatchEvent(new FocusEvent("focusin", { bubbles: true, composed: true }));
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(popovers()).toHaveLength(1);
+      });
+
+      it("closes once the pointer has left shield and popover", async () => {
+        await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"] }));
+        pointerAt("pointerover", engine(), rowIn("implementation", "src/engine.rs"));
+        await vi.advanceTimersByTimeAsync(200);
+        const openBeforeLeaving = popovers().length;
+
+        pointerAt("pointerout", engine(), rowIn("implementation", "src/engine.rs"));
+        await vi.advanceTimersByTimeAsync(150);
+
+        expect(openBeforeLeaving).toBe(1);
+        expect(popovers()).toEqual([]);
+        expect(engine().hasAttribute("aria-expanded")).toBe(false);
+      });
+
+      it("stays open, taking focus, when its shield is clicked", async () => {
+        await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"] }));
+        pointerAt("pointerover", engine(), rowIn("implementation", "src/engine.rs"));
+        await vi.advanceTimersByTimeAsync(200);
+        const [hoverOpened] = popovers();
+
+        pressAt(engine());
+        pointerAt("pointerout", engine(), rowIn("implementation", "src/engine.rs"));
+        await vi.advanceTimersByTimeAsync(500);
+
+        const [popover] = popovers();
+        expect(hoverOpened).toBeDefined();
+        expect(popovers()).toHaveLength(1);
+        expect(popover?.contains(document.activeElement)).toBe(true);
+      });
+
+      it("closes on Escape", async () => {
+        await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"] }));
+        pointerAt("pointerover", engine(), rowIn("implementation", "src/engine.rs"));
+        await vi.advanceTimersByTimeAsync(200);
+        const openBeforeEscape = popovers().length;
+
+        press(engine(), "Escape");
+
+        expect(openBeforeEscape).toBe(1);
+        expect(popovers()).toEqual([]);
+      });
     });
 
     it("goes when its page does", async () => {

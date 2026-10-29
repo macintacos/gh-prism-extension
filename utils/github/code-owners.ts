@@ -20,7 +20,8 @@ export interface FileOwners {
  */
 export type PrCodeOwners = ReadonlyMap<string, FileOwners>;
 
-const LOGIN = /^[A-Za-z0-9_-]{1,39}$/;
+/** A user's or organization's login, an Enterprise Managed User's `_` included. */
+export const LOGIN = /^[A-Za-z0-9_-]{1,39}$/;
 const TEAM_SLUG = /^[A-Za-z0-9_-]+$/;
 
 /** `token`, linked when it is a `@user` or `@org/team` with only the characters GitHub allows. */
@@ -33,35 +34,126 @@ export function codeOwnerOf(token: string): CodeOwner {
     : { token };
 }
 
+/** A PR reviewer, and the teams GitHub tells the viewer they review for. */
+export interface PrReviewer {
+  /** `@user` or `@org/team`. */
+  readonly token: string;
+  /**
+   * The `@org/team` tokens of the teams one of their reviews was on behalf of, or their pending
+   * request was assigned from. GitHub names a team only to a viewer who can see it.
+   */
+  readonly teams: readonly string[];
+  /** Whether GitHub marks their pending request as a code owner's, even without naming a team. */
+  readonly codeOwner: boolean;
+}
+
 /** Whether `token` names `owner`: the same user or the same team, ignoring case. */
 export function isOwner(token: string, owner: CodeOwner): boolean {
   return token.toLowerCase() === owner.token.toLowerCase();
 }
 
+/** The PR reviewer in `reviewers` whose token is `token`, ignoring case. */
+export const reviewerOf = (
+  reviewers: readonly PrReviewer[],
+  token: string,
+): PrReviewer | undefined => reviewers.find((reviewer) => isOwner(token, reviewer));
+
 /**
- * A filter keeping the changed files one of whose code owners in `codeOwners` is `token`, ignoring
- * case; a path with no owners, or missing from `codeOwners`, is dropped.
+ * A filter keeping the changed files one of whose code owners in `codeOwners` is `token`, or a
+ * team the PR reviewer `token` reviews for in `reviewers`, ignoring case; a path with no owners,
+ * or missing from `codeOwners`, is dropped.
  */
-export function ownerFilter(codeOwners: PrCodeOwners, token: string): (path: string) => boolean {
-  return (path) => codeOwners.get(path)?.owners.some((owner) => isOwner(token, owner)) ?? false;
+export function ownerFilter(
+  codeOwners: PrCodeOwners,
+  token: string,
+  reviewers: readonly PrReviewer[],
+): (path: string) => boolean {
+  const tokens = [token, ...(reviewerOf(reviewers, token)?.teams ?? [])];
+  return (path) =>
+    codeOwners.get(path)?.owners.some((owner) => tokens.some((t) => isOwner(t, owner))) ?? false;
 }
 
 /**
- * The PR reviewers in `reviewers` who own at least one changed file in `codeOwners`, in reviewer
- * order, leaving out `viewer`'s own `@login`, since GitHub's "Only files owned by you" stands for
- * the viewer; a team the viewer belongs to stays, since its files differ from the viewer's.
+ * The tokens of the PR reviewers in `reviewers` who own at least one changed file in
+ * `codeOwners`, directly or through a team they review for, in reviewer order, leaving out
+ * `viewer`'s own `@login`, since GitHub's "Only files owned by you" stands for the viewer; a team
+ * the viewer belongs to stays, since its files differ from the viewer's.
  */
 export function owningReviewers(
-  reviewers: readonly string[],
+  reviewers: readonly PrReviewer[],
   codeOwners: PrCodeOwners,
   viewer: string | undefined,
 ): string[] {
   const paths = [...codeOwners.keys()];
-  return reviewers.filter(
-    (token) =>
-      !(viewer !== undefined && isOwner(token, { token: `@${viewer}` })) &&
-      paths.some(ownerFilter(codeOwners, token)),
+  return reviewers
+    .map(({ token }) => token)
+    .filter(
+      (token) =>
+        !(viewer !== undefined && isOwner(token, { token: `@${viewer}` })) &&
+        paths.some(ownerFilter(codeOwners, token, reviewers)),
+    );
+}
+
+/**
+ * `reviewers`, giving each `@user` every team owning a changed file in `codeOwners` whose members
+ * `readMembers` lists them among, ignoring case, that they don't already name. Asks each owning
+ * team once, and only when GitHub shows the viewer a team among `reviewers`, which it does only to
+ * a viewer who can see the organization's teams.
+ */
+export async function withMemberTeams(
+  reviewers: readonly PrReviewer[],
+  codeOwners: PrCodeOwners,
+  readMembers: (team: string) => Promise<readonly string[] | undefined>,
+): Promise<readonly PrReviewer[]> {
+  const seesTeams = reviewers.some(
+    ({ token, teams, codeOwner }) => token.includes("/") || teams.length > 0 || codeOwner,
   );
+  if (!seesTeams) return reviewers;
+
+  const teams = new Map<string, string>();
+  for (const { owners } of codeOwners.values())
+    for (const { token, url } of owners)
+      if (token.includes("/") && url) teams.set(token.toLowerCase(), token);
+  const membersOf = await Promise.all(
+    [...teams.values()].map(async (team) => ({ team, members: (await readMembers(team)) ?? [] })),
+  );
+
+  return reviewers.map((reviewer) => {
+    const joined = membersOf.filter(
+      ({ team, members }) =>
+        !reviewer.teams.some((named) => isOwner(named, { token: team })) &&
+        members.some((login) => isOwner(reviewer.token, { token: `@${login}` })),
+    );
+    return { ...reviewer, teams: [...reviewer.teams, ...joined.map(({ team }) => team)] };
+  });
+}
+
+/**
+ * The logins `team`, an `@org/team` token, lists as members, from the endpoint GitHub's team
+ * mentions read, in one request. GitHub lists a large team's first members only. `undefined` for
+ * any other token, for a team the viewer can't see, or once the read fails; logs one warning on
+ * an unexpected shape unless `signal` aborted.
+ */
+export async function readTeamMembers(
+  team: string,
+  fetchFn: typeof fetch,
+  signal: AbortSignal,
+): Promise<readonly string[] | undefined> {
+  const page = codeOwnerOf(team).url;
+  if (!team.includes("/") || !page) return undefined;
+  const url = `${page}/members`;
+
+  try {
+    // Without this header it answers with the members page's HTML.
+    const response = await fetchFn(url, { headers: { Accept: "application/json" }, signal });
+    if (!response.ok) return undefined;
+    const members = at(await response.json(), "members");
+    if (!isStrings(members)) throw new Error(`${url} answered an unexpected shape`);
+    return members;
+  } catch (error) {
+    if (!signal.aborted) console.warn(`gh-prism: couldn't read ${team}'s members`, error);
+    return undefined;
+  }
 }
 
 /**
@@ -83,21 +175,20 @@ export function readCodeOwners(
 }
 
 /**
- * The `@user` and `@org/team` tokens of a pull request's requested reviewers, then reviewers, in
- * GitHub's order, each once, from the `page_data/merge_box` endpoint its Files changed page reads,
- * in one request; a team counts when a review lists it in `onBehalfOf`. GitHub's merge box leaves
- * out reviews that only commented, so a reviewer who only commented is missing. `undefined` for a
- * commit, or once the read fails or answers an unexpected shape. Never rejects; logs one warning on
- * a failed read unless `signal` aborted.
+ * A pull request's requested reviewers, then those who reviewed it, commenting included, in
+ * GitHub's order, each once with every team GitHub names for them, from the
+ * `page_data/review_requests` endpoint its Reviewers sidebar reads, in one request. Only `@user`
+ * and `@org/team` reviewers count. `undefined` for a commit, or once the read fails or answers an
+ * unexpected shape. Never rejects; logs one warning on a failed read unless `signal` aborted.
  */
 export function readPrReviewers(
   diff: DiffRef,
   fetchFn: typeof fetch,
   signal: AbortSignal,
-): Promise<readonly string[] | undefined> {
+): Promise<readonly PrReviewer[] | undefined> {
   return readPageData(
     diff,
-    { endpoint: "merge_box", parse: reviewersFrom, what: "PR reviewers" },
+    { endpoint: "review_requests", parse: reviewersFrom, what: "PR reviewers" },
     fetchFn,
     signal,
   );
@@ -155,31 +246,57 @@ function byPathFrom(json: unknown): Map<string, FileOwners> | undefined {
   return byPath;
 }
 
-function reviewersFrom(json: unknown): string[] | undefined {
-  const requests = at(json, "pullRequest", "pendingReviewRequests");
-  const reviews = at(json, "pullRequest", "latestOpinionatedReviews");
+/** One request or review's reviewer, as review_requests names them. */
+interface ReviewerEntry {
+  readonly reviewer: unknown;
+  readonly teams: readonly unknown[];
+  readonly codeOwner: boolean;
+}
+
+function reviewersFrom(json: unknown): PrReviewer[] | undefined {
+  if (typeof json !== "object" || json === null || Array.isArray(json)) return undefined;
+  // Its JSON leaves out an empty list.
+  const requests = at(json, "pendingReviewRequests") ?? [];
+  const reviews = at(json, "completedReviews") ?? [];
   if (!Array.isArray(requests) || !Array.isArray(reviews)) return undefined;
 
-  const accounts: unknown[] = requests.map((request) => at(request, "reviewer"));
+  const entries: ReviewerEntry[] = requests.map((request) => ({
+    reviewer: at(request, "reviewer"),
+    teams: [at(request, "delegatedFromTeam")],
+    codeOwner: at(request, "isCodeOwner") === true,
+  }));
   for (const review of reviews) {
-    const onBehalfOf = at(review, "onBehalfOf");
-    if (!Array.isArray(onBehalfOf)) return undefined;
-    // Unobserved shape: read an element as `pendingReviewRequests` names a team, `org/slug`; skip the rest.
-    const teams = onBehalfOf.filter((team) => String(at(team, "login")).includes("/"));
-    accounts.push(at(review, "author"), ...teams);
+    const teams = at(review, "onBehalfOfTeams") ?? [];
+    if (!Array.isArray(teams)) return undefined;
+    entries.push({ reviewer: at(review, "reviewer"), teams, codeOwner: false });
   }
 
-  const reviewers = new Map<string, string>();
-  for (const account of accounts) {
-    if (account === null) continue;
-    const login = at(account, "login");
-    if (typeof login !== "string") return undefined;
-    const token = `@${login}`;
-    if (codeOwnerOf(token).url && !reviewers.has(token.toLowerCase())) {
-      reviewers.set(token.toLowerCase(), token);
-    }
+  const reviewers = new Map<string, PrReviewer>();
+  for (const { reviewer, teams, codeOwner } of entries) {
+    if (reviewer == null) continue;
+    const token = tokenOf(reviewer);
+    if (token === undefined) return undefined;
+    if (!codeOwnerOf(token).url) continue;
+    const seen = reviewers.get(token.toLowerCase());
+    reviewers.set(token.toLowerCase(), {
+      token: seen?.token ?? token,
+      teams: [...new Set([...(seen?.teams ?? []), ...teams.flatMap(teamTokenOf)])],
+      codeOwner: seen?.codeOwner || codeOwner,
+    });
   }
   return [...reviewers.values()];
+}
+
+/** `account`'s `@displayLogin`, or `undefined` when it has none. */
+function tokenOf(account: unknown): string | undefined {
+  const login = at(account, "displayLogin");
+  return typeof login === "string" ? `@${login}` : undefined;
+}
+
+/** `team`'s `@org/slug` token, once; nothing for anything else. */
+function teamTokenOf(team: unknown): string[] {
+  const token = tokenOf(team);
+  return token?.includes("/") && codeOwnerOf(token).url ? [token] : [];
 }
 
 function isStrings(value: unknown): value is string[] {

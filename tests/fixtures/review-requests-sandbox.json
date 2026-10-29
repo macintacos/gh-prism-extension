@@ -1,0 +1,24 @@
+{
+  "pendingReviewRequests": [
+    {
+      "reviewer": {
+        "displayLogin": "excessive-dev/frontend",
+        "name": "frontend",
+        "reviewerType": "Team",
+        "organizationLogin": "excessive-dev"
+      },
+      "isCodeOwner": true,
+      "createdAt": "2026-10-28T00:22:39-04:00"
+    },
+    {
+      "reviewer": {
+        "displayLogin": "excessive-dev/platform",
+        "name": "platform",
+        "reviewerType": "Team",
+        "organizationLogin": "excessive-dev"
+      },
+      "isCodeOwner": true,
+      "createdAt": "2026-10-28T00:58:51-04:00"
+    }
+  ]
+}

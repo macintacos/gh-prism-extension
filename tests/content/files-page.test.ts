@@ -31,12 +31,15 @@ import {
   readChangedFiles,
   readViewed,
   reorderable,
+  reviewerShieldOf,
+  shieldOwner,
   showsViewed,
   treeToggleButtonOf,
   viewedOffered,
   viewedToggleOf,
   viewerLogin,
 } from "../../entrypoints/content/files-page";
+import conversationFixture from "../fixtures/conversation-page.html?raw";
 import {
   addOwnedByGroup,
   byId,
@@ -263,6 +266,21 @@ describe("viewerLogin", () => {
   ])("is $expected when GitHub names the viewer '$login'", ({ login, expected }) => {
     loadClassicFixture(login);
     expect(viewerLogin(document)).toBe(expected);
+  });
+});
+
+describe("reviewerShieldOf", () => {
+  beforeEach(() => {
+    document.body.innerHTML = conversationFixture;
+  });
+
+  it("finds each code-owner shield in the Reviewers sidebar, and no other sidebar button", () => {
+    const buttons = document.querySelectorAll("#partial-discussion-sidebar button");
+    const shields = [...buttons].map(reviewerShieldOf).filter((shield) => shield !== null);
+    expect(shields.map(shieldOwner)).toEqual([
+      "@excessive-dev/frontend",
+      "@excessive-dev/platform",
+    ]);
   });
 });
 

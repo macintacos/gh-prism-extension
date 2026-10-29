@@ -239,39 +239,63 @@ describe("content script", () => {
       expect.any(AbortSignal),
     );
     const codeOwners = vi.mocked(readCodeOwners).mock.results[0]?.value;
-    const prReviewers = vi.mocked(readPrReviewers).mock.results[0]?.value;
     const given = vi.mocked(showOwnerSection).mock.calls.map(([, , options]) => options);
     expect(given).toHaveLength(2);
     for (const options of given) {
       expect(options.codeOwners).toBe(codeOwners);
-      expect(options.prReviewers).toBe(prReviewers);
+      expect(options.prReviewers).toBe(given[0]?.prReviewers);
     }
   });
 
-  it.each([
-    ["fails", () => Promise.resolve(new Response("", { status: 404 }))],
-    ["never answers", () => new Promise<Response>(() => {})],
-  ])("hands each page the code owners while merge_box %s", async (_, mergeBox) => {
+  /**
+   * Runs the content script with the real code owners and PR reviewers reads, answered by
+   * `routes`, and returns the options the first page's visit and owner section got.
+   */
+  const runWithReads = async (routes: Parameters<typeof routedFetch>[0]) => {
     const actual = await vi.importActual<typeof import("../../utils/github/code-owners")>(
       "../../utils/github/code-owners",
     );
     vi.mocked(readCodeOwners).mockImplementation(actual.readCodeOwners);
     vi.mocked(readPrReviewers).mockImplementation(actual.readPrReviewers);
-    vi.spyOn(console, "warn").mockImplementation(() => {});
-    const ownershipByPath = { "src/lib.rs": { owners: ["@o/a"], isOwnedByViewer: true } };
-    vi.stubGlobal(
-      "fetch",
-      routedFetch({
-        "https://github.com/o/r/pull/1/page_data/codeowners": () =>
-          Promise.resolve(new Response(JSON.stringify({ ownershipByPath }))),
-        "https://github.com/o/r/pull/1/page_data/merge_box": mergeBox,
-      }),
-    );
+    vi.stubGlobal("fetch", routedFetch(routes));
 
     await run();
 
     const [, , visit] = vi.mocked(showVisit).mock.calls[0] ?? [];
     const [, , section] = vi.mocked(showOwnerSection).mock.calls[0] ?? [];
+    return { visit, section };
+  };
+  const answers = (body: unknown) => () => Promise.resolve(new Response(JSON.stringify(body)));
+
+  it("hands each page the PR reviewers with the owning teams a code owner among them is in", async () => {
+    const ownershipByPath = { "src/lib.rs": { owners: ["@o/core"], isOwnedByViewer: false } };
+    const pendingReviewRequests = [
+      { reviewer: { displayLogin: "grace", reviewerType: "User" }, isCodeOwner: true },
+    ];
+
+    const { visit, section } = await runWithReads({
+      "https://github.com/o/r/pull/1/page_data/codeowners": answers({ ownershipByPath }),
+      "https://github.com/o/r/pull/1/page_data/review_requests": answers({ pendingReviewRequests }),
+      "https://github.com/orgs/o/teams/core/members": answers({ total: 1, members: ["grace"] }),
+    });
+
+    const withTeams = [{ token: "@grace", teams: ["@o/core"], codeOwner: true }];
+    await expect(visit?.prReviewers).resolves.toEqual(withTeams);
+    await expect(section?.prReviewers).resolves.toEqual(withTeams);
+  });
+
+  it.each([
+    ["fails", () => Promise.resolve(new Response("", { status: 404 }))],
+    ["never answers", () => new Promise<Response>(() => {})],
+  ])("hands each page the code owners while review_requests %s", async (_, reviewRequests) => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const ownershipByPath = { "src/lib.rs": { owners: ["@o/a"], isOwnedByViewer: true } };
+
+    const { visit, section } = await runWithReads({
+      "https://github.com/o/r/pull/1/page_data/codeowners": answers({ ownershipByPath }),
+      "https://github.com/o/r/pull/1/page_data/review_requests": reviewRequests,
+    });
+
     await expect(visit?.codeOwners).resolves.toHaveProperty("size", 1);
     await expect(section?.codeOwners).resolves.toHaveProperty("size", 1);
   });
@@ -421,6 +445,49 @@ describe("content script", () => {
 
       expect(readCodeOwners).not.toHaveBeenCalled();
       expect(readPrReviewers).not.toHaveBeenCalled();
+    });
+
+    describe("with a Reviewers list", () => {
+      /** Mounts a Reviewers list with one reviewer's row, then GitHub's replacement of it. */
+      const showReviewers = async () => {
+        for (let mount = 0; mount < 2; mount++) {
+          document.getElementById("partial-discussion-sidebar")?.remove();
+          document.body.insertAdjacentHTML(
+            "beforeend",
+            '<div id="partial-discussion-sidebar"><form id="pull-request-reviewers-form-1"><span class="css-truncate"><div><a href="/orgs/o/teams/team"></a></div></span></form></div>',
+          );
+          await afterMutations();
+        }
+      };
+
+      it("reads the pull request's code owners and PR reviewers once per visit, as it shows", async () => {
+        await run();
+
+        await showReviewers();
+
+        const pr = { kind: "pr", owner: "o", repo: "r", number: 3 };
+        expect(readCodeOwners).toHaveBeenCalledExactlyOnceWith(pr, fetch, expect.any(AbortSignal));
+        expect(readPrReviewers).toHaveBeenCalledExactlyOnceWith(pr, fetch, expect.any(AbortSignal));
+        expect(vi.mocked(readCodeOwners).mock.calls[0]?.[2].aborted).toBe(false);
+      });
+
+      it("reads again on a fresh visit", async () => {
+        await run();
+        await showReviewers();
+
+        history.pushState(null, "", "/o/r/pull/3/changes");
+        loadFixture();
+        document.dispatchEvent(new Event("soft-nav:end"));
+        await afterMutations();
+        history.pushState(null, "", "/o/r/pull/3");
+        loadHeaderFixture();
+        document.dispatchEvent(new Event("soft-nav:end"));
+        await afterMutations();
+        vi.mocked(readCodeOwners).mockClear();
+        await showReviewers();
+
+        expect(readCodeOwners).toHaveBeenCalledOnce();
+      });
     });
 
     it("shares the Files view's diffstat choice", async () => {

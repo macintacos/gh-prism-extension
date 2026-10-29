@@ -2,10 +2,17 @@ import { browser } from "wxt/browser";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { storage } from "wxt/utils/storage";
-import { readCodeOwners, readPrReviewers } from "@/utils/github/code-owners";
+import {
+  type PrCodeOwners,
+  type PrReviewer,
+  readCodeOwners,
+  readPrReviewers,
+  readTeamMembers,
+  withMemberTeams,
+} from "@/utils/github/code-owners";
 import { ownerOf } from "@/utils/github/files-route";
 import { connectPrData } from "@/utils/github/pr-port";
-import { readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
+import { type DiffRef, readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
 import { storedIntents } from "@/utils/intent/cache";
 import { type IntentSources, intentFor, shareIntent } from "@/utils/intent/read";
 import {
@@ -22,6 +29,7 @@ import {
   whatsNewStateOf,
 } from "@/utils/whats-new";
 import { type NoticeChoice, showClassicNotice } from "./classic/notice";
+import { showReviewerFiles } from "./conversation/reviewer-files";
 import { visitViewed } from "./diffs/viewed";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
 import { showOwnerSection } from "./sidebar/owner-section";
@@ -39,8 +47,8 @@ const CACHED_DIFFS = 50;
  * diffstat, docks the sidebar on the saved side with a switch, adds a link to report a
  * miscategorized file, adds an "Only files owned by…" section to GitHub's filter menu, and, after
  * an update, opens the sidebar with that release's notes. On a pull request's header tabs, stands
- * in for the diffstat alone. On its classic Files changed page, explains why gh-prism is off
- * there.
+ * in for the diffstat, and on Conversation lists a code owner's files from their Reviewers sidebar
+ * shield. On its classic Files changed page, explains why gh-prism is off there.
  */
 export default defineContentScript({
   // Every GitHub page: soft navigation reaches a pull request without re-injecting the script.
@@ -80,7 +88,7 @@ export default defineContentScript({
         onVisit: (route, visit) => {
           const intent = shareIntent((onProgress) => intentFor(route, visit, sources, onProgress));
           const codeOwners = readCodeOwners(route.diff, fetch, visit);
-          const prReviewers = readPrReviewers(route.diff, fetch, visit);
+          const prReviewers = readReviewersWithTeams(route.diff, codeOwners, visit);
           // Route data is fresh only until GitHub's first navigation.
           const viewed = visitViewed(fullLoad ? readViewedSeed(document, route.diff) : undefined);
           fullLoad = false;
@@ -101,6 +109,7 @@ export default defineContentScript({
               diffstat,
               viewed,
               codeOwners,
+              prReviewers,
               owner: route.diff.kind === "pr" ? ownerOf(location.search) : undefined,
               whatsNew: whatsNewForPage?.(),
             });
@@ -118,6 +127,12 @@ export default defineContentScript({
         const intent = shareIntent((onProgress) =>
           intentFor({ diff: pr, commitFiltered: false }, visit, sources, onProgress),
         );
+        // Rides the header visit, so it runs only where findHeaderPage finds the counter's slot.
+        showReviewerFiles(document, visit, async () => {
+          const codeOwners = readCodeOwners(pr, fetch, visit);
+          const prReviewers = readReviewersWithTeams(pr, codeOwners, visit);
+          return { codeOwners: await codeOwners, prReviewers: await prReviewers };
+        });
         return (page, signal) => showHeaderTab(page, signal, { intent, diffstat });
       },
       ctx.signal,
@@ -129,6 +144,20 @@ export default defineContentScript({
     );
   },
 });
+
+/**
+ * `diff`'s PR reviewers, each with the owning teams in `codeOwners` that list them as members,
+ * read until `signal` aborts.
+ */
+async function readReviewersWithTeams(
+  diff: DiffRef,
+  codeOwners: Promise<PrCodeOwners | undefined>,
+  signal: AbortSignal,
+): Promise<readonly PrReviewer[] | undefined> {
+  const [reviewers, owners] = await Promise.all([readPrReviewers(diff, fetch, signal), codeOwners]);
+  if (!reviewers || !owners) return reviewers;
+  return withMemberTeams(reviewers, owners, (team) => readTeamMembers(team, fetch, signal));
+}
 
 /** The stored sidebar side, unchecked, or the default when storage won't read. */
 const readSavedSide = (): Promise<unknown> =>

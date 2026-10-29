@@ -63,7 +63,8 @@ Counts, markers, and status letters in a row use `--fontStack-sansSerif`, with t
 figures so columns of counts line up.
 
 Sizes, line heights, and weights are the `--text-body-*`, `--leading-body-*`, and
-`--font-weight-*` tokens in `ui/tailwind.css`.
+`--font-weight-*` tokens in `ui/tailwind.css`, and the monospace face is its `--font-mono`
+(`tw:font-mono`).
 
 ## Radius
 

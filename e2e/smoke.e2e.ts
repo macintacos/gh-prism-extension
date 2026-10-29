@@ -1551,13 +1551,12 @@ const FIXTURE_OWNERS: Record<string, string[]> = {
 /**
  * Answers the code owners and PR reviewers reads for tests/fixtures/files-page.html; registered
  * after the catch-all 404. `ownership` maps each path to its CODEOWNERS tokens; it defaults to
- * `FIXTURE_OWNERS`. `mergeBoxStatus` is the status the PR reviewers read answers with, such as the
- * 404 GitHub sends signed out.
+ * `FIXTURE_OWNERS`. `reviewersStatus` is the status the PR reviewers read answers with.
  */
 const routeCodeOwners = async (
   context: BrowserContext,
   ownership = FIXTURE_OWNERS,
-  mergeBoxStatus = 200,
+  reviewersStatus = 200,
 ) => {
   const ownershipByPath = Object.fromEntries(
     Object.entries(ownership).map(([path, owners]) => [path, { isOwnedByViewer: false, owners }]),
@@ -1568,11 +1567,11 @@ const routeCodeOwners = async (
       body: JSON.stringify({ isEnabled: true, ownershipByPath }),
     }),
   );
-  await context.route("**/page_data/merge_box", (route) =>
+  await context.route("**/page_data/review_requests", (route) =>
     route.fulfill({
-      status: mergeBoxStatus,
+      status: reviewersStatus,
       contentType: "application/json",
-      body: readFixture("merge-box-sandbox.json"),
+      body: readFixture("review-requests-sandbox.json"),
     }),
   );
 };
@@ -1588,15 +1587,15 @@ const sidebarFiles = (page: Page) =>
       .filter((path) => !path.endsWith("/")),
   );
 
-for (const [when, mergeBoxStatus] of [
+for (const [when, reviewersStatus] of [
   ["", 200],
-  [" while merge_box fails", 404],
+  [" while review_requests fails", 404],
 ] as const) {
   test(`an owner filter lists only that owner's files and hides the others' diffs${when}`, async ({
     context,
     page,
   }) => {
-    await routeCodeOwners(context, FIXTURE_OWNERS, mergeBoxStatus);
+    await routeCodeOwners(context, FIXTURE_OWNERS, reviewersStatus);
     const url = `${PR_URL}?gh-prism-owner=o/frontend`;
     await serve(context, url, PR_BODY);
     await page.goto(url);
@@ -1776,9 +1775,101 @@ test("a shield lists its file's code owners in a popover until Escape returns to
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Tab");
   await expect(readmeShield).toBeFocused();
+  // Focus opens it, and Tab from the shield walks its links, then goes on past them.
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
+  for (const link of await popover.locator("a").all()) {
+    await page.keyboard.press("Tab");
+    await expect(link).toBeFocused();
+  }
   await page.keyboard.press("Tab");
-  // Tab past the popover's last link goes on as Tab from its shield does.
   expect(pastPopover).toBe(await focusedControl(page));
+  await expect(popover).toHaveCount(0);
+});
+
+test("an owned file's shield opens its owners on hover, and closes as the pointer leaves", async ({
+  context,
+  page,
+}) => {
+  await openOwned(context, page);
+  const readmeShield = shieldOf(page, "README.md");
+  const popover = page.locator(".gh-prism-owners:popover-open");
+  await treeRow(page, "README.md").hover();
+
+  await readmeShield.hover();
+
+  await expect(popover).toHaveAttribute("aria-label", "Code owners of README.md");
+  expect(await popover.evaluate((element) => element.contains(document.activeElement))).toBe(false);
+  await popover.hover();
+  await expect(popover).toHaveCount(1);
+  await page.mouse.move(1, 1);
+  await expect(popover).toHaveCount(0);
+});
+
+/** Whether `row` is the focused element of its tree's shadow root. */
+const rowFocused = (row: Locator) =>
+  row.evaluate((element) => (element.getRootNode() as ShadowRoot).activeElement === element);
+
+test("a hover-opened owners popover holding focus hands it to its row as the pointer leaves", async ({
+  context,
+  page,
+}) => {
+  await openOwned(context, page);
+  const readme = treeRow(page, "README.md");
+  const popover = page.locator(".gh-prism-owners:popover-open");
+  await readme.hover();
+  await shieldOf(page, "README.md").hover();
+  await popover.hover();
+  await popover.locator("a").first().focus();
+
+  await page.mouse.move(1, 1);
+
+  await expect(popover).toHaveCount(0);
+  expect(await rowFocused(readme)).toBe(true);
+});
+
+test("a pinned owners popover holding focus hands it to its row as another shield's opens", async ({
+  context,
+  page,
+}) => {
+  await openOwned(context, page);
+  const readme = treeRow(page, "README.md");
+  await readme.hover();
+  await shieldOf(page, "README.md").click();
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
+
+  await treeRow(page, "src/engine.rs").hover();
+  await shieldOf(page, "src/engine.rs").hover();
+
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveAttribute(
+    "aria-label",
+    "Code owners of engine.rs",
+  );
+  expect(await rowFocused(readme)).toBe(true);
+});
+
+test("Shift+Tab from an owners popover back to its shield keeps the same popover open", async ({
+  context,
+  page,
+}) => {
+  await openOwned(context, page);
+  const readme = treeRow(page, "README.md");
+  const readmeShield = shieldOf(page, "README.md");
+  const popover = page.locator(".gh-prism-owners");
+  await readme.hover();
+  await readme.focus();
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Tab");
+  await expect(readmeShield).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(popover.locator("a").first()).toBeFocused();
+  await popover.evaluate((element) => element.setAttribute("data-before", ""));
+
+  await page.keyboard.press("Shift+Tab");
+
+  await expect(readmeShield).toBeFocused();
+  await expect(popover).toHaveCount(1);
+  await expect(page.locator(".gh-prism-owners[data-before]:popover-open")).toHaveCount(1);
 });
 
 /** The focused element, through shadow roots, as the start of its markup. */
@@ -1853,4 +1944,246 @@ test("a shield's click closes its open popover, and another shield's swaps it", 
     "Code owners of engine.rs",
   );
   await expect(readmeShield).not.toHaveAttribute("aria-expanded");
+});
+
+test("a code owner reviewer's shield opens their files, closing as the pointer leaves or on Escape", async ({
+  context,
+  page,
+}) => {
+  const errors: Error[] = [];
+  page.on("pageerror", (error) => errors.push(error));
+  await serve(
+    context,
+    "https://github.com/o/r/pull/1",
+    `<!doctype html>${readFixture("conversation-page.html")}`,
+  );
+  await context.route("https://github.com/o/r/pull/1/page_data/codeowners", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: readFixture("codeowners-sandbox.json"),
+    }),
+  );
+  await page.goto("https://github.com/o/r/pull/1");
+  const shield = page.locator('[id="codeowner-excessive-dev/frontend"]');
+  const popup = page.locator(".gh-prism-reviewer-files");
+
+  await shield.hover();
+  await expect(popup).toContainText("api/generated/client.ts");
+  await expect(popup).toContainText("web/app.ts");
+
+  await page.getByRole("link", { name: "frontend", exact: true }).hover();
+  await expect(popup).toBeHidden();
+
+  await shield.focus();
+  await expect(popup).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(popup).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+/** Serves the code-owners sandbox's PR #1 Conversation tab at `o/r#1`, with its code owners. */
+const serveSandboxConversation = async (context: BrowserContext) => {
+  await serve(
+    context,
+    "https://github.com/o/r/pull/1",
+    `<!doctype html>${readFixture("conversation-page.html")}`,
+  );
+  await context.route("https://github.com/o/r/pull/1/page_data/codeowners", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: readFixture("codeowners-sandbox.json"),
+    }),
+  );
+};
+/** Replaces the classic Reviewers list with a copy, as GitHub's `reviewers_updated` does. */
+const replaceReviewers = (page: Page) =>
+  page
+    .locator('form[id^="pull-request-reviewers-form-"]')
+    .evaluate((form) => form.replaceWith(form.cloneNode(true)));
+
+for (const { how, open, leave } of [
+  {
+    how: "hovered card closes once the pointer moves on",
+    open: (shield: Locator) => shield.hover(),
+    leave: (page: Page) => page.mouse.move(1, 1),
+  },
+  {
+    how: "focused card closes",
+    open: (shield: Locator) => shield.focus(),
+    leave: async () => {},
+  },
+]) {
+  test(`a code owner reviewer's ${how} after GitHub replaces the Reviewers list`, async ({
+    context,
+    page,
+  }) => {
+    await serveSandboxConversation(context);
+    await page.goto("https://github.com/o/r/pull/1");
+    const shield = page.locator('[id="codeowner-excessive-dev/frontend"]');
+    const popup = page.locator(".gh-prism-reviewer-files");
+    await expect(async () => {
+      await shield.blur();
+      await open(shield);
+      await expect(popup).toBeVisible({ timeout: 1000 });
+    }).toPass();
+
+    await replaceReviewers(page);
+    await leave(page);
+
+    await expect(popup).toHaveCount(0);
+  });
+}
+
+const NODE_PR = "https://github.com/nodejs/node/pull/67056";
+const NODE_CRYPTO_FILES = [
+  "src/crypto/crypto_context.cc",
+  "src/crypto/crypto_context.h",
+  "src/crypto/crypto_hash.cc",
+  "src/crypto/crypto_rsa.cc",
+  "src/crypto/crypto_tls.cc",
+  "src/crypto/crypto_util.cc",
+];
+
+/**
+ * Serves nodejs/node#67056's Conversation tab with `edit` applied to its markup, and its code
+ * owners and review_requests, the latter with `editRequests` applied.
+ */
+const serveNodeConversation = async (
+  context: BrowserContext,
+  editRequests: (body: {
+    pendingReviewRequests: Record<string, unknown>[];
+    completedReviews: Record<string, unknown>[];
+  }) => void,
+  edit: (html: string) => string = (html) => html,
+) => {
+  await serve(context, NODE_PR, `<!doctype html>${edit(readFixture("conversation-node.html"))}`);
+  await context.route(`${NODE_PR}/page_data/codeowners`, (route) =>
+    route.fulfill({ contentType: "application/json", body: readFixture("codeowners-node.json") }),
+  );
+  const requests = JSON.parse(readFixture("review-requests-node.json"));
+  editRequests(requests);
+  await context.route(`${NODE_PR}/page_data/review_requests`, (route) =>
+    route.fulfill({ contentType: "application/json", body: JSON.stringify(requests) }),
+  );
+};
+const cryptoTeam = { displayLogin: "nodejs/crypto", name: "crypto", reviewerType: "Team" };
+
+test("a code owner who reviewed for a team keeps a shield that opens their team's files", async ({
+  context,
+  page,
+}) => {
+  await serveNodeConversation(context, ({ completedReviews: [pimterry] }) => {
+    Object.assign(pimterry ?? {}, { onBehalfOfTeams: [cryptoTeam] });
+  });
+  await page.goto(NODE_PR);
+  const shield = page.locator('button[data-gh-prism-owner="@pimterry"]');
+  const popup = page.locator(".gh-prism-reviewer-files");
+
+  await expect(shield).toHaveAccessibleName("pimterry is a code owner through nodejs/crypto");
+  await shield.hover();
+
+  await expect(popup).toContainText("Through @nodejs/crypto");
+  expect((await popup.locator("li").allTextContents()).sort()).toEqual(NODE_CRYPTO_FILES);
+  await expect(popup.getByRole("link", { name: "@nodejs/crypto" })).toHaveAttribute(
+    "href",
+    "https://github.com/orgs/nodejs/teams/crypto",
+  );
+});
+
+test("Tab from a code owner reviewer's shield reaches their card's team link, and Escape returns to the shield", async ({
+  context,
+  page,
+}) => {
+  await serveNodeConversation(context, ({ completedReviews: [pimterry] }) => {
+    Object.assign(pimterry ?? {}, { onBehalfOfTeams: [cryptoTeam] });
+  });
+  await page.goto(NODE_PR);
+  const shield = page.locator('button[data-gh-prism-owner="@pimterry"]');
+  const popup = page.locator(".gh-prism-reviewer-files");
+  await expect(async () => {
+    await shield.blur();
+    await shield.focus();
+    await expect(popup).toBeVisible({ timeout: 1000 });
+  }).toPass();
+
+  await page.keyboard.press("Tab");
+
+  await expect(popup.getByRole("link", { name: "@nodejs/crypto" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(popup).toHaveCount(0);
+  await expect(shield).toBeFocused();
+});
+
+test("a user's code-owner shield lists their team's files when assigned on its behalf", async ({
+  context,
+  page,
+}) => {
+  await serveNodeConversation(
+    context,
+    ({ pendingReviewRequests: [jasnell] }) => {
+      Object.assign(jasnell ?? {}, {
+        delegatedFromTeam: cryptoTeam,
+        isCodeOwner: true,
+        isCodeOwnerFromDelegation: true,
+      });
+    },
+    // GitHub's user shield, shaped as it draws a team's, which a viewer outside nodejs never gets.
+    (html) =>
+      html.replace(
+        '</button><tool-tip id="tooltip-f3e317d4-edf8-45a1-8341-07956ffcced5"',
+        '</button><button type="button" id="codeowner-jasnell" class="mr-2 btn-link muted-icon"><span class="reviewers-status-icon">⛨</span></button><tool-tip id="tooltip-f3e317d4-edf8-45a1-8341-07956ffcced5"',
+      ),
+  );
+  await page.goto(NODE_PR);
+  const popup = page.locator(".gh-prism-reviewer-files");
+
+  await page.locator('[id="codeowner-jasnell"]').hover();
+
+  await expect(popup).toContainText("Through @nodejs/crypto");
+  expect((await popup.locator("li").allTextContents()).sort()).toEqual(NODE_CRYPTO_FILES);
+  await expect(page.locator("button[data-gh-prism-owner]")).toHaveCount(0);
+});
+
+test("Tab from a code owner's shield enters their long list, then moves on through the sidebar", async ({
+  context,
+  page,
+}) => {
+  await serve(
+    context,
+    "https://github.com/o/r/pull/1",
+    `<!doctype html>${readFixture("conversation-page.html")}`,
+  );
+  const ownershipByPath = Object.fromEntries(
+    Array.from({ length: 24 }, (_, i) => [
+      `web/components/file-${i}.ts`,
+      { isOwnedByViewer: false, owners: ["@excessive-dev/frontend"] },
+    ]),
+  );
+  await context.route("https://github.com/o/r/pull/1/page_data/codeowners", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ isEnabled: true, ownershipByPath }),
+    }),
+  );
+  await page.goto("https://github.com/o/r/pull/1");
+  const shield = page.locator('[id="codeowner-excessive-dev/frontend"]');
+
+  // Refocus until the content script, which may attach after load, sees the focus.
+  await expect(async () => {
+    await shield.blur();
+    await shield.focus();
+    await expect(page.locator(".gh-prism-reviewer-files")).toBeVisible({ timeout: 1000 });
+  }).toPass();
+  await page.keyboard.press("Tab");
+  await expect(page.locator(".gh-prism-reviewer-files")).toBeFocused();
+  await page.keyboard.press("Tab");
+
+  await expect(page.locator(".gh-prism-reviewer-files")).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () =>
+        document.activeElement !== document.body &&
+        !!document.activeElement?.closest("#partial-discussion-sidebar"),
+    ),
+  ).toBe(true);
 });

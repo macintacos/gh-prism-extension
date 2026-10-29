@@ -6,6 +6,57 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-28: A file's code owners on hover
+
+- **Compared:** for the file sidebar's shield, opening its popover on a click only, and
+  opening it on hover and focus with the Conversation popup's timing. For a click on a
+  shield whose popover hover already opened: closing it, as a second click closes a
+  click-opened popover, and keeping it open with focus inside.
+- **Won:** hover and focus open it, and that click keeps it open, taking focus.
+- **Why:** one timing for both code-owner popups, so a reviewer who learns one knows the
+  other. A click right after the popover appears is a reach for its links, so closing it
+  then would undo what the reviewer asked for.
+
+## 2026-10-28: A shield for every code owner reviewer
+
+- **Compared:** for a PR reviewer who owns files where GitHub draws no shield, as after a
+  code owner reviews: a shield drawn as GitHub's own, a mark of gh-prism's own beside the
+  name, and the popup opening from the name. For the teams that make a reviewer an owner:
+  one line under the count, a team label on each file row, and nothing. For a code owner
+  whose team GitHub hides: a sentence in the popup, and no popup.
+- **Won:** a shield drawn as GitHub's, in the same spot; one "Through @org/team" line,
+  each team linked; and one sentence saying GitHub hides the team.
+- **Why:** one trigger for every code owner keeps one gesture to learn, and a shield
+  matching GitHub's reads as the same fact GitHub states, that the reviewer is a code
+  owner. A mark of gh-prism's own would be a second symbol for it, and the name keeps
+  GitHub's hovercard. A single line names the team without repeating it on every row,
+  which is noise when one team owns them all. A shield that opens nothing reads as broken,
+  so the hidden team gets a plain sentence, as [`brief.md`](brief.md) asks of a degraded
+  state.
+
+## 2026-10-28: A code owner's files, from their Reviewers sidebar shield
+
+- **Compared:** four triggers for the popup listing a code owner's files:
+  - the code-owner shield, the shield icon GitHub shows beside a team or person in the
+    Reviewers sidebar who owns code in the pull request;
+  - the name or avatar, replacing GitHub's card with gh-prism's on shielded rows;
+  - the name, appending the list into GitHub's card, which grows the card away from the
+    arrow GitHub placed it by;
+  - the name, opening beside GitHub's card, which stacks two cards at once.
+
+  Also compared: GitHub's three measured edges for a floating surface. Primer's ActionMenu
+  draws no border and lets `--shadow-floating-small`'s 1px ring be its edge. A legacy
+  `details-menu` dropdown draws a 1px `--borderColor-default` border and that full shadow,
+  so its edge doubles. The hovercard draws the 1px border and no shadow.
+- **Won:** the shield as the trigger. One edge won for every floating surface: overlays
+  take the ActionMenu's ring, and the code owner's files popup takes the hovercard's
+  border.
+- **Why:** the shield has only a tooltip, so gh-prism's card never shares a trigger with
+  GitHub's. A PR reviewer without a shield gets no popup. Each surface gets one edge
+  because two read as about 2px in dark mode. The popup opens one row away from where
+  GitHub's hovercard opens, so it takes that card's 1px `--borderColor-default` border
+  rather than a shadow.
+
 ## 2026-10-28: Only files owned by… in GitHub's filter menu
 
 - **Compared:** building the section from gh-prism's own classes against copying GitHub's

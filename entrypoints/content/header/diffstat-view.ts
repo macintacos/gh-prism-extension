@@ -30,7 +30,7 @@ export interface DiffstatOptions {
 }
 
 const TIP =
-  "gh-prism-tip tw:absolute tw:top-[calc(100%+6px)] tw:right-0 tw:z-100 tw:w-max tw:border tw:border-border-default tw:rounded-medium tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:var(--shadow-floating-small)] tw:text-fg-default tw:font-normal tw:leading-body-small tw:text-start tw:whitespace-normal";
+  "gh-prism-tip tw:absolute tw:top-[calc(100%+6px)] tw:right-0 tw:z-100 tw:w-max tw:rounded-medium tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:var(--shadow-floating-small)] tw:text-fg-default tw:font-normal tw:leading-body-small tw:text-start tw:whitespace-normal";
 
 /** A tooltip laid out by the `layout` classes, hidden from screen readers. */
 function tip(doc: Document, layout: string, ...children: Node[]): HTMLElement {

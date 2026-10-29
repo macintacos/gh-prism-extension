@@ -20,7 +20,7 @@ and its head. A revisit with the same pin lands its intent without reading the d
 commit's page. _Avoid_: files page, diff page
 
 **Header tab**: A pull request's Conversation, Commits, or Checks tab. It shares the Files
-changed tab's header, so gh-prism shows only the diffstat there. _Avoid_: other tab
+changed tab's header, so gh-prism shows the diffstat there. _Avoid_: other tab
 
 **Page kind**: Which Files view shows the diff: a pull request's Files changed tab or a
 commit's page. _Avoid_: page type, view type
@@ -108,9 +108,11 @@ mode
 changed file, kept as its token (`@user`, `@org/team`). _Avoid_: owner, when the viewer's
 own ownership is meant
 
-**PR reviewer**: An account requested to review a pull request, or whose review GitHub's
-merge box lists. A reviewer who only commented isn't one. _Avoid_: reviewer alone, which
-names the person reading the diff
+**PR reviewer**: An account requested to review a pull request, or that submitted a review
+of it, commenting included. Someone who only commented outside a review isn't one. A PR
+reviewer owns the changed files whose code owners name them, a team GitHub says they
+review for, or a team whose members GitHub lists them among. _Avoid_: reviewer alone,
+which names the person reading the diff
 
 **Owner filter**: gh-prism's narrowing of a pull request's files, in the sidebar and the
 diff list, to the files one code owner owns, set by the `gh-prism-owner` query parameter,

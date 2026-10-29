@@ -7,7 +7,7 @@
  * (`shareIntent`).
  */
 
-import { ownerFilter, type PrCodeOwners } from "@/utils/github/code-owners";
+import { ownerFilter, type PrCodeOwners, type PrReviewer } from "@/utils/github/code-owners";
 import { type LandedSection, landingOf, sectionsOf } from "@/utils/intent/landing";
 import type { IntentProgress, IntentResult, PendingIntent } from "@/utils/intent/read";
 import { followFileKeys } from "../diffs/file-keys";
@@ -188,12 +188,14 @@ const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
  * Mounts the sidebar, the diff order, the j/k file keys, the diffstat, and the on-screen and Viewed
  * trackers that feed the sidebar on one page of a visit, and lands `intent` on them in that order,
  * until `signal` aborts. `viewed` is the visit's Viewed state, shared by its pages. `codeOwners`
- * is the visit's code owners, read apart from its PR reviewers, which can land after the sidebar
- * draws or not at all, and never rejects; the sidebar shows them once they land. `owner`, the code
- * owner the page's URL names, if any, holds the page pending until the code owners land, then
- * narrows the sidebar and the diffs to that owner's files; every file shows when they can't be
- * read.
- * `whatsNew`, when given, opens the sidebar with its block.
+ * and `prReviewers` are the visit's code owners and PR reviewers, read apart; each can land after
+ * the sidebar draws or not at all, and never rejects. The sidebar shows the code owners once they
+ * land. `owner`, the code owner the page's URL names, if any, holds the page pending until the
+ * reads its filter needs land, the code owners for a team and the PR reviewers too for a user, or
+ * for 10 s at most, then narrows the sidebar and the diffs to that owner's files, counting the
+ * teams GitHub names a user as reviewing for. A read still out by then counts as failed: every
+ * file shows when the code owners can't be read, and only the owner's own files when the PR
+ * reviewers can't. `whatsNew`, when given, opens the sidebar with its block.
  */
 export function showVisit(
   page: FilesPage,
@@ -203,6 +205,7 @@ export function showVisit(
     diffstat,
     viewed,
     codeOwners,
+    prReviewers,
     owner,
     whatsNew,
   }: {
@@ -210,6 +213,7 @@ export function showVisit(
     diffstat: DiffstatOptions;
     viewed: VisitViewed;
     codeOwners?: Promise<PrCodeOwners | undefined>;
+    prReviewers?: Promise<readonly PrReviewer[] | undefined>;
     owner?: string;
     whatsNew?: WhatsNew;
   },
@@ -227,8 +231,32 @@ export function showVisit(
     followOnScreen(page, sidebar.onScreen, signal),
     followViewed(page, viewed, sidebar.viewed, signal),
   ];
-  // The sidebar draws inside the tree's container, so its own changes must not re-list.
   const keep =
-    owner === undefined ? undefined : codeOwners?.then((read) => read && ownerFilter(read, owner));
+    owner === undefined || codeOwners === undefined
+      ? undefined
+      : filterOf(owner, codeOwners, prReviewers);
+  // The sidebar draws inside the tree's container, so its own changes must not re-list.
   land(page, intent, views, { signal, ignore: sidebar.root, keep });
+}
+
+const READ_TIMEOUT_MS = 10_000;
+
+/** `read`'s value, or `undefined`, as from a failed read, once it has taken `READ_TIMEOUT_MS`. */
+const settledWithin = <T>(read: Promise<T | undefined> | undefined): Promise<T | undefined> =>
+  Promise.race([read, new Promise<undefined>((resolve) => setTimeout(resolve, READ_TIMEOUT_MS))]);
+
+/**
+ * The filter keeping `owner`'s files, once the reads it needs have settled or timed out: a team's
+ * files need only `codeOwners`, and a user's need `prReviewers` too, for their teams.
+ */
+async function filterOf(
+  owner: string,
+  codeOwners: Promise<PrCodeOwners | undefined>,
+  prReviewers: Promise<readonly PrReviewer[] | undefined> | undefined,
+): Promise<PathFilter | undefined> {
+  const [read, reviewers] = await Promise.all([
+    settledWithin(codeOwners),
+    owner.includes("/") ? undefined : settledWithin(prReviewers),
+  ]);
+  return read && ownerFilter(read, owner, reviewers ?? []);
 }

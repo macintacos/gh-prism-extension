@@ -2,6 +2,8 @@
 
 import type { CodeOwner } from "@/utils/github/code-owners";
 import { el } from "../ui/dom";
+import type { Card } from "../ui/hover-intent";
+import { place } from "../ui/place";
 
 interface OwnersOptions {
   /** The file's base name, for the popover's accessible name. */
@@ -11,25 +13,26 @@ interface OwnersOptions {
   readonly root: Element;
   /** The page's lifetime; the popover goes with it. */
   readonly signal: AbortSignal;
-  /** Called after Escape closes it, to return focus to the file's row. */
-  readonly onEscape: () => void;
+  /** Moves focus to the file's row, as the popover closes while holding focus. */
+  readonly returnFocus: () => void;
 }
 
 /**
- * Opens a popover below `shield` listing `owners`, and moves focus into it. `shield` is marked
- * expanded while it is open. It closes on Escape (then calls `onEscape`), on a click outside it,
- * its own shield's included, on any scroll outside it, once `signal` aborts, or on a call of the
- * returned function. Closing removes it with its listeners and clears the shield's mark.
+ * Opens a popover below `shield` listing `owners`. `shield` is marked expanded while it is open.
+ * It closes on Escape inside it, on a click outside it, its own shield's included, on any scroll
+ * outside it, once `signal` aborts, or on a call of the returned card's `close`. Closing removes
+ * it with its listeners and clears the shield's mark, and, unless a click closed it, hands focus
+ * it held to `returnFocus`.
  */
 export function openOwners(
   shield: HTMLElement,
-  { name, owners, root, signal, onEscape }: OwnersOptions,
-): () => void {
+  { name, owners, root, signal, returnFocus }: OwnersOptions,
+): Card {
   const doc = shield.ownerDocument;
   const popover = el(
     doc,
     "div",
-    "gh-prism-owners tw:inset-auto tw:m-0 tw:max-w-[320px] tw:max-h-[calc(100vh-16px)] tw:overflow-y-auto tw:p-3 tw:text-body-small tw:leading-body-small tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:border tw:border-border-default tw:rounded-medium tw:[box-shadow:var(--shadow-floating-small)] tw:wrap-anywhere",
+    "gh-prism-owners tw:inset-auto tw:m-0 tw:max-w-[320px] tw:max-h-[calc(100vh-16px)] tw:overflow-y-auto tw:p-3 tw:text-body-small tw:leading-body-small tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:rounded-medium tw:[border:0] tw:[box-shadow:var(--shadow-floating-small)] tw:wrap-anywhere",
     el(doc, "h2", "tw:mt-0 tw:mb-2 tw:text-body-small tw:font-semibold", "Code owners"),
     el(
       doc,
@@ -52,10 +55,18 @@ export function openOwners(
   // The browser fires no toggle events when an open popover leaves the document.
   const close = () => {
     if (closed.signal.aborted) return;
+    const heldFocus = popover.contains(doc.activeElement);
     remove();
     shield.removeAttribute("aria-expanded");
+    if (heldFocus) returnFocus();
   };
   signal.addEventListener("abort", close, { signal: closed.signal });
+  // Focus leaves first: hiding a popover that holds focus hands it back to the shield, and the
+  // shield's focus would open the popover again mid-hide.
+  const dismiss = () => {
+    returnFocus();
+    popover.hidePopover();
+  };
   // beforetoggle, not toggle: the browser queues toggle, after a click may have opened the next.
   popover.addEventListener(
     "beforetoggle",
@@ -77,17 +88,15 @@ export function openOwners(
       if (event.key !== "Escape") return;
       // The browser's own Escape would return focus to the shield, not the row.
       event.preventDefault();
-      popover.hidePopover();
-      onEscape();
+      dismiss();
     },
     { signal: closed.signal },
   );
 
-  // source: Tab past its last link goes on from the shield, not from the end of the view.
+  // source: Tab from the shield enters it, and Tab past its last link goes on from the shield,
+  // not from the end of the view.
   popover.showPopover({ source: shield });
   place(popover, shield.getBoundingClientRect());
-  // preventScroll: a scroll would close it.
-  popover.focus({ preventScroll: true });
   // Preact leaves alone an attribute it never rendered, and a scroll closes the popover before
   // its row could virtualize away.
   shield.setAttribute("aria-expanded", "true");
@@ -95,11 +104,13 @@ export function openOwners(
   doc.addEventListener(
     "scroll",
     (event) => {
-      if (!(event.target instanceof Node && popover.contains(event.target))) popover.hidePopover();
+      if (event.target instanceof Node && popover.contains(event.target)) return;
+      if (popover.contains(doc.activeElement)) dismiss();
+      else popover.hidePopover();
     },
     { capture: true, signal: closed.signal },
   );
-  return close;
+  return { element: popover, close };
 }
 
 /** `owner`'s token, linking to its page in a new tab when it has one. */
@@ -110,19 +121,4 @@ function ownerOf(doc: Document, { token, url }: CodeOwner): Node | string {
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   return link;
-}
-
-// Keep the popover's tw:max-h at 100vh minus twice this.
-const VIEWPORT_MARGIN = 8;
-
-/** Puts `popover` below `anchor`, start-aligned, or above it when there's no room below. */
-function place(popover: HTMLElement, anchor: DOMRect): void {
-  const view = popover.ownerDocument.defaultView;
-  // offset*, not getBoundingClientRect: the entrance transition is still scaling it.
-  const { offsetWidth: width, offsetHeight: height } = popover;
-  const maxLeft = (view?.innerWidth ?? 0) - width - VIEWPORT_MARGIN;
-  const maxTop = (view?.innerHeight ?? 0) - height - VIEWPORT_MARGIN;
-  const top = anchor.bottom > maxTop ? anchor.top - height : anchor.bottom;
-  popover.style.left = `${Math.max(VIEWPORT_MARGIN, Math.min(anchor.left, maxLeft))}px`;
-  popover.style.top = `${Math.max(VIEWPORT_MARGIN, Math.min(top, maxTop))}px`;
 }

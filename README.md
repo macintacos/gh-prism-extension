@@ -42,19 +42,24 @@ how to get the new tab. Once you close the dialog, it stays closed, and
 - It marks a file Viewed on GitHub when you tick the checkbox on its row, or when you
   Alt-click the row (Option-click on macOS). Doing either again marks it not viewed.
 - On a pull request, hovering or focusing a file's row shows a shield when the file has
-  code owners. Clicking the shield lists them, each team or user linked to their GitHub
-  page.
+  code owners. Hovering, focusing, or clicking the shield lists them, each team or user
+  linked to their GitHub page.
+- On a pull request's Conversation tab, hovering or focusing the code-owner shield beside
+  a team or person in the Reviewers list lists the changed files that code owner owns.
+  When a team makes them a code owner, the list names that team. gh-prism adds the shield
+  where GitHub draws none, such as beside a code owner who has reviewed.
 - After an update, the sidebar opens with a collapsed **What's new in vX.Y.Z** block of
   that version's release notes. It goes away when you dismiss it, or 3 days after you
   first see it.
 - Adding `gh-prism-owner=<owner>` to a pull request's Files changed URL, where the owner
   is a team such as `org/team` or a user's login, narrows the sidebar and the diffs to the
-  files whose CODEOWNERS rule names that owner. A user's filter doesn't include files they
-  own only through a team. It combines with GitHub's own filters, and removing it from the
-  URL shows every file again. You can also pick the owner from the
-  **Only files owned by…** section of the file tree's filter menu, which lists **Me** and
-  each reviewer who owns a changed file; picking a reviewer reloads the page narrowed to
-  their files.
+  files whose CODEOWNERS rule names that owner, or a team GitHub shows you the owner
+  reviewed for, was assigned from, or belongs to. GitHub shows you teams only in your own
+  organizations, so a user's filter leaves out files they own through a team you can't
+  see. It combines with GitHub's own filters, and removing it from the URL shows every
+  file again. You can also pick the owner from the **Only files owned by…** section of the
+  file tree's filter menu, which lists **Me** and each reviewer who owns a changed file;
+  picking a reviewer reloads the page narrowed to their files.
 - A **Report a miscategorized file** button beside the file tree's filter opens a new
   issue on gh-prism's repository with your gh-prism version filled in, and, on a public
   repository only, the diff's URL.
@@ -113,7 +118,9 @@ gh-prism needs access to three hosts and to Chrome's extension storage, and noth
   runs inside matching pages, also runs here, so gh-prism catches GitHub's in-page
   navigation into a pull request or commit. It acts only on Files changed and commit
   pages, and on a pull request's Conversation, Commits, and Checks tabs, where it reads
-  the diff to split the header's lines-changed counter by section.
+  the diff to split the header's lines-changed counter by section, and, on Conversation,
+  the code owners and reviewers to list a code owner's files. It reads an owning team's
+  members only when GitHub shows you a team among the pull request's reviewers.
 - `https://patch-diff.githubusercontent.com/*` is where GitHub redirects diff downloads.
 - `https://raw.githubusercontent.com/*` is where GitHub redirects raw-file downloads.
 - Extension storage holds the side you put the sidebar on, whether the header's

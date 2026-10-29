@@ -3,10 +3,13 @@
  * theirs in a `GitHub hooks:` header. It holds a `PageKind` for a pull request's page and a
  * commit's, finds a Files view's page, a pull request's classic page, or its header on its header
  * tabs, reads its rows, follows a pull request's narrow-layout overlay and the file-tree filter
- * menu, and copies that menu's group, divider, and item for gh-prism's entries, so the selectors
- * stay in this seam; it builds no UI of its own and imports nothing from WXT. The pull request
- * selectors come from EXC-1662's survey.
+ * menu, finds and follows the rows and code-owner shields of a pull request's Reviewers lists, and
+ * copies that menu's group, divider, and item for gh-prism's entries, so the selectors stay in
+ * this seam; it builds no UI of its own and imports nothing from WXT. The pull request selectors
+ * come from EXC-1662's survey.
  */
+
+import { LOGIN } from "@/utils/github/code-owners";
 
 /**
  * Where one kind of page, a pull request's or a commit's, keeps its Files changed markup. Callers
@@ -363,6 +366,99 @@ export const isSignedIn = (doc: Document): boolean => viewerLogin(doc) !== undef
 /** The signed-in viewer's login, or `undefined` when signed out. */
 export const viewerLogin = (doc: Document): string | undefined =>
   doc.head.querySelector('meta[name="user-login"]')?.getAttribute("content") || undefined;
+
+/** Which Reviewers list a row is in: GitHub's classic sidebar's, or its PR overview's. */
+export type ReviewerListKind = "classic" | "overview";
+
+/** Where one Reviewers list keeps its rows, and GitHub's code-owner shield in a row. */
+interface ReviewerList {
+  readonly kind: ReviewerListKind;
+  readonly row: string;
+  /** The row's column of status icons, where GitHub puts its shield; the row itself if absent. */
+  readonly icons?: string;
+  readonly shield: string;
+}
+
+const SHIELD_ID = "codeowner-";
+const SHIELD_LABEL = " is a code owner";
+
+const REVIEWER_LISTS: readonly ReviewerList[] = [
+  {
+    kind: "classic",
+    row: '#partial-discussion-sidebar form[id^="pull-request-reviewers-form-"] .css-truncate > div',
+    shield: `button[id^="${SHIELD_ID}"]`,
+  },
+  {
+    kind: "overview",
+    row: '[class*="reviewerList__"] li[class*="reviewerRow__"]',
+    icons: '[class*="indicators__"]',
+    // gh-prism's own shield takes GitHub's label; keep in sync with reviewer-files' OWN_SHIELD.
+    shield: `button[aria-label$="${SHIELD_LABEL}"]:not([data-gh-prism-owner])`,
+  },
+];
+
+/** One reviewer's row in a pull request's Reviewers list. */
+export interface ReviewerRow {
+  readonly kind: ReviewerListKind;
+  /** The reviewer's `@user` or `@org/team` token. */
+  readonly token: string;
+  /** GitHub's code-owner shield beside the reviewer, if it draws one. */
+  readonly shield: HTMLElement | null;
+  /** Where GitHub puts its status icons and shield. */
+  readonly icons: Element;
+}
+
+/** Every reviewer's row in `doc`'s Reviewers lists, leaving out rows that name no user or team. */
+export function findReviewerRows(doc: Document): ReviewerRow[] {
+  return REVIEWER_LISTS.flatMap(({ kind, row: rowSelector, icons, shield }) =>
+    [...doc.querySelectorAll(rowSelector)].flatMap((row) => {
+      const githubShield = row.querySelector<HTMLElement>(shield);
+      const token = githubShield ? shieldOwner(githubShield) : linkedToken(row);
+      const iconColumn = icons ? row.querySelector(icons) : row;
+      return token && iconColumn ? [{ kind, token, shield: githubShield, icons: iconColumn }] : [];
+    }),
+  );
+}
+
+/** The `@user` or `@org/team` the first link in `row` goes to, or `undefined`. */
+function linkedToken(row: Element): string | undefined {
+  const href = row.querySelector("a[href]")?.getAttribute("href") ?? "";
+  const { pathname } = new URL(href, "https://github.com");
+  const user = pathname.slice(1);
+  if (LOGIN.test(user)) return `@${user}`;
+  const [, org, team] = /^\/orgs\/([^/]+)\/teams\/([^/]+)$/.exec(pathname) ?? [];
+  return org && team ? `@${org}/${team}` : undefined;
+}
+
+/**
+ * Calls `onChange` with `doc`'s reviewer rows now and after each change to `doc`'s body, until
+ * `signal` aborts. GitHub replaces the classic sidebar on soft navigation and on review updates,
+ * and React re-renders the overview's list, so a caller re-checks every row each time.
+ */
+export function followReviewerRows(
+  doc: Document,
+  onChange: (rows: ReviewerRow[]) => void,
+  { signal }: { signal: AbortSignal },
+): void {
+  // ponytail: one querySelectorAll per mutation batch on the whole document; observe only the
+  // Reviewers lists if it shows up in a profile.
+  const observer = new MutationObserver(() => onChange(findReviewerRows(doc)));
+  observer.observe(doc.body, { childList: true, subtree: true });
+  signal.addEventListener("abort", () => observer.disconnect());
+  onChange(findReviewerRows(doc));
+}
+
+/** GitHub's code-owner shield `target` sits in, beside a PR reviewer in a Reviewers list, or `null`. */
+export const reviewerShieldOf = (target: Element): HTMLElement | null =>
+  target.closest<HTMLElement>(
+    REVIEWER_LISTS.map(({ row, shield }) => `${row} ${shield}`).join(","),
+  );
+
+/** The code owner token (`@login`, `@org/team`) that GitHub's `shield` marks. */
+export function shieldOwner(shield: Element): string {
+  if (shield.id.startsWith(SHIELD_ID)) return `@${shield.id.slice(SHIELD_ID.length)}`;
+  return `@${shield.getAttribute("aria-label")?.slice(0, -SHIELD_LABEL.length) ?? ""}`;
+}
 
 /** Whether `doc` shows `repo` as public; false when private, internal, or unconfirmed. */
 export function isPublicRepo(doc: Document, repo: { owner: string; repo: string }): boolean {

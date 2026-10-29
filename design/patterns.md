@@ -43,9 +43,11 @@ mid-word. The row's title and accessible name still carry every part.
 
 An owned file's icon gives way to a shield while its row is hovered or focused, as a
 folder's icon gives way to its chevron. The shield is Octicons `shield-lock`, muted at
-rest and `--fgColor-default` on hover. Clicking it, or Enter or Space on it, opens a
-popover listing the file's code owners. `sidebar/section-tree.css` swaps the icon for the
-shield; `sidebar/owners-popover.ts` builds the popover.
+rest and `--fgColor-default` on hover. Resting the pointer on it opens a popover listing
+the file's code owners, with the code owner's files popup's timing below, and so does
+focusing it. Clicking it, or Enter or Space on it, opens the popover and moves focus into
+it, where it stays until Escape or a click outside. `sidebar/section-tree.css` swaps the
+icon for the shield; `sidebar/owners-popover.ts` builds the popover.
 
 A folder chain short of room keeps its first folder and as many trailing folders as fit
 around one `…`. With room for less, it shows `…` and the deepest folder alone. Only the
@@ -110,10 +112,56 @@ hover, so they never show the keycap.
 
 ## Floating surfaces
 
-A surface that floats over the page sits on `--overlay-bgColor`, falling back to
-`--bgColor-default`, inside the default border, with the medium radius and
-`--shadow-floating-small`. The header counter's tip in `header/diffstat-view.ts` and the
-code owners popover in `sidebar/owners-popover.ts` share it, class for class.
+An overlay that floats over the page sits on `--overlay-bgColor`, falling back to
+`--bgColor-default`, with the medium radius and `--shadow-floating-small`. The header
+counter's tip in `header/diffstat-view.ts` and the code owners popover in
+`sidebar/owners-popover.ts` share it, class for class.
+
+A floating surface draws one 1px edge, never two. An overlay draws no border of its own,
+because `--shadow-floating-small` opens with a 1px ring that draws its edge, as in
+Primer's ActionMenu. Browsers give `[popover]` and `<dialog>` a default border, which
+would add a second edge, so such an overlay clears it with `tw:[border:0]`. The code
+owners popover does, and so does the classic notice in `classic/notice.ts`, which keeps
+its own radius.
+
+A hover card whose trigger sits next to one of GitHub's hovercard triggers takes GitHub's
+hovercard form instead: the 1px `--borderColor-default` border, the medium radius, and no
+shadow. The rule above holds, because that border is its one edge. The code owner's files
+popup below is the one such card.
+
+## Code owner's files
+
+On a pull request's Conversation tab, a code-owner shield beside a team or person in a
+Reviewers list opens a popup listing the changed files that code owner owns. The avatar
+and name keep GitHub's own hovercard, so the two cards never share a trigger.
+
+- **The shield:** GitHub's own, or gh-prism's beside a PR reviewer who owns a changed file
+  where GitHub draws none, as after a code owner reviews. gh-prism's is drawn as GitHub's
+  is in that list: Octicons `shield-lock` at 16px, muted, just before the status icon. In
+  the classic sidebar it takes GitHub's own `btn-link muted-icon` classes; in the overview
+  list, the look of Primer's small invisible `IconButton`. A 24px target surrounds the
+  16px glyph without moving it. Its accessible name says, in GitHub's words, "… is a code
+  owner", adding "through" and the team when only a team makes them one.
+- **Timing:** it opens 200 ms after the pointer rests on the shield, longer than GitHub's
+  card takes to close, and at once when the shield takes keyboard focus. It closes 150 ms
+  after the pointer leaves both shield and popup, so the pointer can cross into it. Tab
+  from the shield moves into it, so its team links work from the keyboard. Escape, focus
+  leaving both, and a scroll outside the popup close it at once, handing focus it held
+  back to the shield. One is open at a time.
+- **Content:** the count line "Code owner of N files in this pull request", in GitHub's
+  own words from its user hovercard. When teams make them an owner, a small muted line
+  under it says "Through" and names each team, linked to its team page, or "Directly and
+  through" when CODEOWNERS names them too. Then one row per file, its path in monospace
+  with the directory muted. A long list scrolls inside the popup.
+- **When GitHub hides the team:** a code owner GitHub marks without letting you see which
+  team makes them one gets one plain muted sentence instead of the list.
+- **The tooltip:** the classic shield's own GitHub tooltip ("… is a code owner") says
+  less, so the popup's stylesheet hides it while the popup is open. It stays the shield's
+  accessible name.
+
+It takes the hovercard form above on `--overlay-bgColor`, and matches GitHub's hovercard
+in size: 14px body text, 16px padding, and at most 360px wide.
+`conversation/reviewer-files.ts` and `conversation/reviewer-files.css` hold it.
 
 ## Loading
 

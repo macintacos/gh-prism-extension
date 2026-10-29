@@ -27,6 +27,10 @@ vi.mock(import("../../../entrypoints/content/sidebar/sections-view"), async (imp
 
 patchShadowActiveElement();
 
+// happy-dom has no Popover API, and a shield's focus opens its popover.
+HTMLElement.prototype.showPopover = () => {};
+HTMLElement.prototype.hidePopover = () => {};
+
 mountsVisit();
 
 /** The pieces of `folder`'s hairline that `listing`'s tree renders; throws when there are none. */
