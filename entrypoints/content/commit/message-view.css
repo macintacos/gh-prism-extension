@@ -1,10 +1,17 @@
-/* GitHub hooks: the commit message box, the sibling after a rendered .gh-prism-commit-message.
-   Every other rule selects only gh-prism's own classes. */
+/* GitHub hooks: the commit message box, the sibling after a rendered .gh-prism-commit-message
+   or after .gh-prism-commit-slot; and .gh-prism-commit-column, a flex item of GitHub's
+   PageLayout content row, placed before its panes by order. Every other rule selects only
+   gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @source "./message-view.ts";
 
 /* GitHub's box, while the rendered message stands in for it. */
 .gh-prism-commit-message[data-view="rendered"] + * {
+  display: none !important;
+}
+
+/* GitHub's box, while the rendered message is in the column. */
+.gh-prism-commit-slot + * {
   display: none !important;
 }
 

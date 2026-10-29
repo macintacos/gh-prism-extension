@@ -196,6 +196,110 @@ describe("showCommitMessage", () => {
   );
 });
 
+const WIDE = { width: 1400, height: 768 };
+const NARROW = { width: 1200, height: 768 };
+const setViewport = (size: { width: number; height: number }) =>
+  (window as unknown as { happyDOM: { setViewport: (size: object) => void } }).happyDOM.setViewport(
+    size,
+  );
+const column = () => document.querySelector(".gh-prism-commit-column");
+const row = () => document.querySelector('[class*="PageLayout-PageLayoutContent"]');
+
+describe("showCommitMessage on a wide window", () => {
+  beforeEach(() => setViewport(WIDE));
+  afterEach(() => setViewport(NARROW));
+
+  const expectInColumn = () => {
+    expect(column()?.children).toHaveLength(1);
+    expect(column()?.firstElementChild).toBe(container());
+    expect(row()?.firstElementChild).toBe(column());
+    expect(box().previousElementSibling?.matches(".gh-prism-commit-slot")).toBe(true);
+    expect(shows(box())).toBe(false);
+  };
+
+  it("moves the message into a column beside the sidebar on a wide window", () => {
+    show();
+    runIdle();
+
+    expectInColumn();
+  });
+
+  it("moves the message back above the diffs when the window narrows", () => {
+    show();
+    runIdle();
+    // happy-dom seeds a `change` listener's last state as unmatched, so it skips the first
+    // narrowing unless a resize while wide records the match.
+    window.dispatchEvent(new Event("resize"));
+    setViewport(NARROW);
+
+    expect(column()).toBeNull();
+    expect(document.querySelector(".gh-prism-commit-slot")).toBeNull();
+    expect(box().previousElementSibling).toBe(container());
+    expect(shows(box())).toBe(false);
+
+    setViewport(WIDE);
+
+    expectInColumn();
+  });
+
+  it("keeps the message above the diffs when the layout row is missing", () => {
+    const layoutRow = row();
+    if (!layoutRow) throw new Error("no row");
+    layoutRow.replaceWith(...layoutRow.childNodes);
+    show();
+    runIdle();
+
+    expect(column()).toBeNull();
+    expect(box().previousElementSibling).toBe(container());
+  });
+
+  it("keeps GitHub's box and builds no column when the message is over the cap", () => {
+    const body = box().querySelector(".extended-commit-description-container");
+    if (!body) throw new Error("no body");
+    body.textContent = "a".repeat(50_001);
+    show();
+    runIdle();
+
+    expect(column()).toBeNull();
+    expect(shows(box())).toBe(true);
+  });
+
+  it("follows GitHub's re-render of the card while the message is in the column", async () => {
+    show();
+    runIdle();
+    const clone = box().cloneNode(true) as Element;
+    box().replaceWith(clone);
+    await afterMutations();
+
+    expect(clone.previousElementSibling?.matches(".gh-prism-commit-slot")).toBe(true);
+    expect(column()?.firstElementChild).toBe(container());
+    expect(document.querySelectorAll(".gh-prism-commit-column")).toHaveLength(1);
+  });
+
+  it("re-adds the column when GitHub re-renders the layout row", async () => {
+    show();
+    runIdle();
+    column()?.remove();
+    await afterMutations();
+
+    expect(row()?.firstElementChild).toBe(column());
+    expect(column()?.firstElementChild).toBe(container());
+  });
+
+  it("leaves no column, slot, or sheet after abort", () => {
+    show();
+    runIdle();
+    controller.abort();
+    setViewport(NARROW);
+    setViewport(WIDE);
+
+    expect(column()).toBeNull();
+    expect(document.querySelector(".gh-prism-commit-slot")).toBeNull();
+    expect(sheets()).toHaveLength(0);
+    expect(shows(box())).toBe(true);
+  });
+});
+
 describe("showCommitMessage across navigation", () => {
   const navigate = async (path: string, load: () => void) => {
     history.pushState(null, "", path);
@@ -245,5 +349,25 @@ describe("showCommitMessage across navigation", () => {
     expect(container()?.dataset.view).toBe("plaintext");
     expect(shows(box())).toBe(true);
     expect(viewButton()?.getAttribute("aria-label")).toBe("Show rendered Markdown");
+  });
+
+  it("shows each commit's message in the column across navigation", async () => {
+    setViewport(WIDE);
+    const mentionTitle = titleOf("mention");
+    const shaTitle = titleOf("sha");
+    watchCommits();
+    await afterMutations();
+    expect(column()?.querySelector("h1")?.textContent).toBe(shaTitle);
+    expect(document.querySelectorAll(".gh-prism-commit-column")).toHaveLength(1);
+
+    await navigate("/o/r/commit/4f0a580", () => loadCommitFixture("mention"));
+    expect(column()?.querySelector("h1")?.textContent).toBe(mentionTitle);
+    expect(document.querySelectorAll(".gh-prism-commit-column")).toHaveLength(1);
+
+    await navigate("/o/r/pull/1/changes", loadFixture);
+    expect(column()).toBeNull();
+    expect(document.querySelector(".gh-prism-commit-slot")).toBeNull();
+    expect(sheets()).toHaveLength(0);
+    setViewport(NARROW);
   });
 });

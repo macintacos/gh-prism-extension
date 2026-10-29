@@ -1,11 +1,17 @@
 /**
  * Shows a commit page's message rendered as GitHub-flavored Markdown in place of GitHub's
- * preformatted box, with a switch back to that box. The box stays in the page, hidden, so it shows
+ * preformatted box, or in a sticky column beside the diffs on a wide window, with a switch back to
+ * that box. The box stays in the page, hidden, so it shows
  * again unchanged on a switch or on abort.
  */
 
 import type { CommitMessageView } from "@/utils/prefs";
-import { type CommitMessage, type FilesPage, findCommitMessage } from "../files-page";
+import {
+  type CommitMessage,
+  type FilesPage,
+  findCommitColumnRow,
+  findCommitMessage,
+} from "../files-page";
 import { el, icon } from "../ui/dom";
 import { renderCommitMessage } from "./message";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
@@ -63,27 +69,58 @@ function renderedOrWarn(doc: Document, message: CommitMessage): Node[] | undefin
   }
 }
 
+// GitHub docks its file tree beside the diffs from 1012px; the column's 320px (tw:w-80) comes on
+// top, so the diffs never get less width than GitHub gives them there.
+const COLUMN_QUERY = "(min-width: 1332px)";
+
 /**
- * Mounts `container` just before `page`'s message box, following GitHub's re-renders of it, until
- * `signal` aborts.
+ * Mounts `container`, the message and its switch, in a sticky column at the left of `page`'s
+ * layout row on a wide window, else just before `page`'s message box, following GitHub's
+ * re-renders and the window's width, until `signal` aborts.
  */
 function standIn(page: FilesPage, box: Element, container: HTMLElement, signal: AbortSignal): void {
   const doc = page.sidebar.ownerDocument;
+  const slot = Object.assign(el(doc, "span", "gh-prism-commit-slot"), { hidden: true });
+  const column = el(
+    doc,
+    "aside",
+    "gh-prism-commit-column tw:sticky tw:top-0 tw:-order-1 tw:h-screen tw:w-80 tw:shrink-0 tw:self-start tw:overflow-y-auto tw:border-e tw:border-border-default",
+  );
+  column.setAttribute("aria-label", "Commit message");
+  const wide = doc.defaultView?.matchMedia(COLUMN_QUERY);
+  const row = findCommitColumnRow(page);
   const style = Object.assign(doc.createElement("style"), { textContent: css });
 
   const follow = () => {
     const currentBox = findCommitMessage(page)?.box;
-    if (!currentBox) container.remove();
-    else if (container.nextElementSibling !== currentBox) currentBox.before(container);
+    if (!currentBox) {
+      container.remove();
+      slot.remove();
+      column.remove();
+    } else if (wide?.matches && row) {
+      if (column.parentElement !== row) row.prepend(column);
+      if (container.parentElement !== column) column.append(container);
+      if (slot.nextElementSibling !== currentBox) currentBox.before(slot);
+    } else {
+      column.remove();
+      slot.remove();
+      if (container.nextElementSibling !== currentBox) currentBox.before(container);
+    }
   };
 
   follow();
   doc.head.append(style);
   const observer = new MutationObserver(follow);
   if (box.parentNode) observer.observe(box.parentNode, { childList: true });
+  if (row) observer.observe(row, { childList: true });
+  wide?.addEventListener("change", follow);
   signal.addEventListener("abort", () => {
     observer.disconnect();
+    // Removed by hand: happy-dom's MediaQueryList ignores a { signal } option.
+    wide?.removeEventListener("change", follow);
     container.remove();
+    slot.remove();
+    column.remove();
     style.remove();
   });
 }
