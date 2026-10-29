@@ -97,6 +97,13 @@ at the top, dated.
   room the reader has. The column sits one stacking level above the tree's pane, so with
   the tree docked left the grip's overhang stays on top, and the pane's collapse slides
   under the column rather than over it.
+- **Floor gap:** The column misses WCAG 2.2's 2.5.7, Dragging Movements, which asks for a
+  single-pointer way (a click or tap) to do anything dragging does. Arrow keys don't count
+  toward it, because they are keyboard input, not a pointer. The maintainer chose on
+  2026-10-29 to leave the gap open: GitHub's own file-tree divider beside the column has
+  no such path either, and a click that stepped or reset the width would behave unlike
+  that divider. Close it if GitHub's divider gains such a path, or if a user reports
+  needing one.
 
 ## 2026-10-29: A commit's message, loaded in place
 
