@@ -144,6 +144,30 @@ selected and the extension version prefilled. It prefills the diff's URL only wh
 the page's `<head>` that the route's own repo is public; otherwise it leaves the URL out,
 so a private diff's address never reaches a public issue.
 
+## The commit message
+
+On a commit's page, `showCommitMessage` in
+[`entrypoints/content/commit/message-view.ts`](../entrypoints/content/commit/message-view.ts)
+shows the commit message rendered as GitHub-flavored Markdown in place of GitHub's
+monospace box. [`index.ts`](../entrypoints/content/index.ts) runs it once the sidebar's
+sections have landed and the browser is idle, so the message never holds up the sidebar or
+the diffs.
+
+`renderCommitMessage` in
+[`entrypoints/content/commit/message.ts`](../entrypoints/content/commit/message.ts) reads
+the message's text from GitHub's box and writes each of GitHub's links in it as a
+placeholder. It parses that text with micromark's GFM extension into an mdast tree (a
+Markdown syntax tree), then builds plain DOM from the tree, never HTML, so raw HTML in a
+message shows as text. Each placeholder becomes a clone of GitHub's link, so `#123`
+references, mentions, and SHAs keep GitHub's `href`s and hovercards. Any other link keeps
+its `href` only for an `https:`, `http:`, or `mailto:` URL, and an image renders as a
+link, so no image loads. The first line becomes an `h1`, and the rest reflows like a
+README. A message over 50,000 characters, or nested deeper than 32 levels, stays in
+GitHub's box.
+
+gh-prism never edits GitHub's box: the view's sheet only hides it, and it shows again when
+the visit aborts or gh-prism can't render the message.
+
 ## The owner section
 
 `showOwnerSection` in
@@ -450,6 +474,7 @@ entrypoints/
   content/
     index.ts             content script entry: wires the watchers, intent, and views
     files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields
+    commit/              a commit's message rendered as Markdown in GitHub's box's place
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section

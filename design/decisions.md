@@ -6,6 +6,28 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-28: A commit's message as Markdown
+
+- **Compared:**
+  - GitHub's renderer, `marked`, `markdown-it`, or micromark with its GFM extension;
+  - the title as an `h1` or a styled paragraph;
+  - an image as an image, a link, or nothing;
+  - rendering on a plain idle callback, or once the sidebar's sections have landed;
+  - the container's padding.
+- **Won:** micromark, building plain DOM; the title as an `h1`; an image as a link to its
+  URL labelled with its alt text; rendering once the sections have landed and the browser
+  is idle; `markdown-body` with the box's measured `8px 12px` padding.
+- **Why:** GitHub's renderer is out of reach: a commit page has no preview endpoint to
+  call, GitHub's comment preview turns single newlines into `<br>`, and its REST API needs
+  a new site permission. `marked` passes raw HTML and `javascript:` links through, so it
+  needs a sanitiser. `markdown-it` needs an unmaintained plugin for task lists and is the
+  largest. micromark yields a syntax tree that gh-prism turns into DOM itself, so no HTML
+  string is parsed. Inside `markdown-body`, an `h1` takes GitHub's README title style, the
+  size of a pull request's title. An image would load an untrusted URL, and dropping it
+  would lose the reference. A plain idle callback rendered the message about 77 ms before
+  the sections, so the message got ahead of the sidebar, which it must never hold up. The
+  box's padding keeps the card's edges where GitHub drew them.
+
 ## 2026-10-28: A code owner's files as a flattened tree
 
 - **Compared:**
