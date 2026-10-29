@@ -58,7 +58,7 @@ export function showCommitMessage(
     const nodes = renderedOrWarn(doc, message);
     if (nodes) {
       const view = messageView(doc, nodes, { box: message.box, choice, save });
-      standIn(page, message.box, view, signal);
+      mountMessage(page, message.box, view, signal);
     }
   });
 }
@@ -82,7 +82,12 @@ const COLUMN_QUERY = "(min-width: 1332px)";
  * layout row on a wide window, else just before `page`'s message box, following GitHub's
  * re-renders and the window's width, until `signal` aborts.
  */
-function standIn(page: FilesPage, box: Element, container: HTMLElement, signal: AbortSignal): void {
+function mountMessage(
+  page: FilesPage,
+  box: Element,
+  container: HTMLElement,
+  signal: AbortSignal,
+): void {
   const doc = page.sidebar.ownerDocument;
   const slot = Object.assign(el(doc, "span", "gh-prism-commit-slot"), { hidden: true });
   const column = messageColumn(doc);
@@ -97,12 +102,12 @@ function standIn(page: FilesPage, box: Element, container: HTMLElement, signal: 
     slot.remove();
     column.remove();
   };
-  const intoColumn = (connectedRow: Element, currentBox: Element) => {
+  const moveIntoColumn = (connectedRow: Element, currentBox: Element) => {
     if (column.parentElement !== connectedRow) connectedRow.prepend(column);
     if (container.parentElement !== column) column.append(container);
     if (slot.nextElementSibling !== currentBox) currentBox.before(slot);
   };
-  const aboveDiffs = (currentBox: Element) => {
+  const moveAboveDiffs = (currentBox: Element) => {
     column.remove();
     slot.remove();
     if (container.nextElementSibling !== currentBox) currentBox.before(container);
@@ -111,8 +116,8 @@ function standIn(page: FilesPage, box: Element, container: HTMLElement, signal: 
   const follow = () => {
     const currentBox = findCommitMessage(page)?.box;
     if (!currentBox) unmount();
-    else if (wide?.matches && row?.isConnected) intoColumn(row, currentBox);
-    else aboveDiffs(currentBox);
+    else if (wide?.matches && row?.isConnected) moveIntoColumn(row, currentBox);
+    else moveAboveDiffs(currentBox);
   };
 
   follow();
