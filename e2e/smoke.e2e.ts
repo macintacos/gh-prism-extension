@@ -270,6 +270,48 @@ test("a commit message over the cap keeps GitHub's box", async ({ context, page 
   await expect(page.locator(MESSAGE_BOX)).toBeVisible();
 });
 
+test("a commit's message switches to GitHub's box from the keyboard, and opens there after a reload with no flash of the rendering", async ({
+  context,
+  page,
+}) => {
+  const card = readFixture("commit-message-lists.html");
+  await serve(context, COMMIT_URL, commitBodyWith(card));
+  // Every frame, whether the rendering or a hidden box painted.
+  await page.addInitScript((box) => {
+    const painted = { rendering: false, hiddenBox: false };
+    Object.assign(window, { painted });
+    const sample = () => {
+      const body = document.querySelector(".gh-prism-commit-message-body");
+      const github = document.querySelector(box);
+      painted.rendering ||= !!body && getComputedStyle(body).display !== "none";
+      painted.hiddenBox ||= !!github && getComputedStyle(github).display === "none";
+      requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  }, MESSAGE_BOX);
+  const toPlain = page.getByRole("button", { name: "Show plain text" });
+  const toRendered = page.getByRole("button", { name: "Show rendered Markdown" });
+
+  await page.goto(COMMIT_URL);
+  await toPlain.press("Enter");
+
+  await expect(page.locator(MESSAGE_BOX)).toBeVisible();
+  await expect(page.locator(".gh-prism-commit-message-body")).toBeHidden();
+  // The view saves asynchronously; reload until a load reads it back.
+  await expect(async () => {
+    await page.reload();
+    await expect(toRendered).toBeVisible({ timeout: 5000 });
+  }).toPass({ timeout: 20_000 });
+  expect(await page.evaluate(() => (window as unknown as { painted: unknown }).painted)).toEqual({
+    rendering: false,
+    hiddenBox: false,
+  });
+
+  await toRendered.press("Space");
+  await expect(page.locator(MESSAGE_BOX)).toBeHidden();
+  await expect(toPlain).toBeFocused();
+});
+
 test("the side switch docks the sidebar on the other side and remembers it", async ({
   context,
   page,
