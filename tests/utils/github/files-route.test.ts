@@ -4,6 +4,8 @@ import {
   ownerOf,
   readFilesRoute,
   readHeaderTabPr,
+  withOwner,
+  withViewerOwner,
 } from "../../../utils/github/files-route";
 
 describe("isFilesPath", () => {
@@ -103,4 +105,40 @@ describe("ownerOf", () => {
     ["?gh-prism-owner=octocat&gh-prism-owner=hubot", "@octocat"],
     ["?gh-prism-owner=dev@example.com", "dev@example.com"],
   ])("reads %s as %s", (search, token) => expect(ownerOf(search)).toBe(token));
+});
+
+describe("withOwner", () => {
+  const changes = "https://github.com/o/r/pull/1/changes";
+
+  it("sets the owner and drops GitHub's owner filter, keeping other parameters", () => {
+    const result = withOwner(`${changes}?owned-by%5B%5D=me&file-filters%5B%5D=.ts#top`, "@o/team");
+
+    expect(result).not.toContain("owned-by");
+    expect(result).toContain("file-filters%5B%5D=.ts");
+    expect(result).toMatch(/#top$/);
+    expect(ownerOf(new URL(result).search)).toBe("@o/team");
+  });
+
+  it("clears the owner when given none", () => {
+    expect(withOwner(`${changes}?gh-prism-owner=o%2Fteam`, undefined)).not.toContain(
+      "gh-prism-owner",
+    );
+  });
+
+  it("round-trips a user through ownerOf", () => {
+    expect(ownerOf(new URL(withOwner(changes, "@user")).search)).toBe("@user");
+  });
+});
+
+describe("withViewerOwner", () => {
+  it("sets GitHub's owner filter to the login and drops the owner", () => {
+    const result = withViewerOwner(
+      "https://github.com/o/r/pull/1/changes?gh-prism-owner=o%2Fteam&file-filters%5B%5D=.ts",
+      "me",
+    );
+
+    expect(result).toContain("owned-by%5B%5D=me");
+    expect(result).toContain("file-filters%5B%5D=.ts");
+    expect(ownerOf(new URL(result).search)).toBeUndefined();
+  });
 });

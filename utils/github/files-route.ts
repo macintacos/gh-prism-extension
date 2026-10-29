@@ -62,6 +62,29 @@ export function ownerOf(search: string): string | undefined {
   return owner.includes("@") ? owner : `@${owner}`;
 }
 
+/** GitHub's own query parameter for "Only files owned by you", holding the viewer's login. */
+const OWNED_BY_PARAM = "owned-by[]";
+
+/**
+ * `href` with the owner filter set to `owner`, a CODEOWNERS token, or cleared when `undefined`.
+ * GitHub's own owner filter is dropped either way, so one owner applies at a time.
+ */
+export function withOwner(href: string, owner: string | undefined): string {
+  const url = new URL(href);
+  url.searchParams.delete(OWNED_BY_PARAM);
+  if (owner === undefined) url.searchParams.delete(OWNER_PARAM);
+  else url.searchParams.set(OWNER_PARAM, owner.replace(/^@/, ""));
+  return url.href;
+}
+
+/** `href` with GitHub's "Only files owned by you" set to `login`, and the owner filter dropped. */
+export function withViewerOwner(href: string, login: string): string {
+  const url = new URL(href);
+  url.searchParams.delete(OWNER_PARAM);
+  url.searchParams.set(OWNED_BY_PARAM, login);
+  return url.href;
+}
+
 /**
  * Whether `pathname` is a pull request's Files changed tab, any commit or range included, or a
  * commit page.

@@ -2,8 +2,10 @@
  * The one script module that holds selectors into GitHub's Files view markup; the stylesheets list
  * theirs in a `GitHub hooks:` header. It holds a `PageKind` for a pull request's page and a
  * commit's, finds a Files view's page, a pull request's classic page, or its header on its header
- * tabs, reads its rows, and follows a pull request's narrow-layout overlay; it holds no UI and
- * imports nothing from WXT. The pull request selectors come from EXC-1662's survey.
+ * tabs, reads its rows, follows a pull request's narrow-layout overlay and the file-tree filter
+ * menu, and copies that menu's group, divider, and item for gh-prism's entries, so the selectors
+ * stay in this seam; it builds no UI of its own and imports nothing from WXT. The pull request
+ * selectors come from EXC-1662's survey.
  */
 
 /**
@@ -191,6 +193,155 @@ export function followOverlay(
   reportIfChanged();
 }
 
+/**
+ * GitHub's file-tree filter menu while open: the parts the owner section copies or stands in for.
+ */
+export interface FilterMenu {
+  /** The menu's `ul[role="menu"]`. */
+  readonly list: Element;
+  /** The menu's first divider. */
+  readonly divider: Element;
+  /**
+   * GitHub's "Only files owned by you" and the group that holds it alone; absent when you own no
+   * changed file.
+   */
+  readonly ownedByYou: { readonly item: HTMLElement; readonly group: Element } | undefined;
+  /** A group with a heading, to copy: the group, its heading, and the list its items go in. */
+  readonly headedGroup: {
+    readonly group: HTMLElement;
+    readonly heading: HTMLElement;
+    readonly items: HTMLElement;
+  };
+  /** An item, to copy. */
+  readonly item: HTMLElement;
+}
+
+const MENU_GROUP = '[data-component="ActionList.Group"]';
+const GROUP_HEADING = '[data-component="GroupHeadingWrap"]';
+const GROUP_LIST = 'ul[role="group"]';
+const ITEM_LABEL = '[data-component="ActionList.Item.Label"]';
+const ITEM_SELECTION = '[data-component="ActionList.Selection"]';
+const DIVIDER = '[data-component="ActionList.Divider"]';
+const FILTER_ROW = "#diff-file-tree-filter";
+
+/**
+ * The open filter-options menu in `doc`, or `undefined` when it's closed or its markup is
+ * unrecognized.
+ */
+export function findFilterMenu(doc: Document): FilterMenu | undefined {
+  const list = doc.querySelector('#__primerPortalRoot__ ul[role="menu"]');
+  const labelledBy = list?.getAttribute("aria-labelledby");
+  if (!list || !labelledBy || !doc.getElementById(labelledBy)?.closest(FILTER_ROW))
+    return undefined;
+
+  const divider = list.querySelector(DIVIDER);
+  const heading = list.querySelector<HTMLElement>(GROUP_HEADING);
+  const group = heading?.closest<HTMLElement>(MENU_GROUP);
+  const items = group?.querySelector<HTMLElement>(GROUP_LIST);
+  const item = list.querySelector<HTMLElement>('[data-component="ActionList.Item"]');
+  if (
+    !divider ||
+    !heading ||
+    !group ||
+    !items ||
+    !item?.querySelector(ITEM_SELECTION) ||
+    !item.querySelector(ITEM_LABEL)
+  )
+    return undefined;
+
+  const ownedItem = list.querySelector<HTMLElement>(
+    '[role="menuitemradio"][aria-keyshortcuts="o"]',
+  );
+  const ownedGroup = ownedItem?.closest(MENU_GROUP);
+  if (ownedItem && ownedGroup?.querySelectorAll('[role^="menuitem"]').length !== 1)
+    return undefined;
+  return {
+    list,
+    divider,
+    ownedByYou: ownedItem && ownedGroup ? { item: ownedItem, group: ownedGroup } : undefined,
+    headedGroup: { group, heading, items },
+    item,
+  };
+}
+
+/**
+ * Calls `onOpen` with the filter-options menu each time it opens (and one already open), with a
+ * signal that aborts once it closes or GitHub adds or replaces its owned-by item, until `signal`
+ * aborts. Undebounced, like `followOverlay`, so the owner section is in place before the menu
+ * first paints.
+ */
+export function followFilterMenu(
+  doc: Document,
+  onOpen: (menu: FilterMenu, closed: AbortSignal) => void,
+  { signal }: { signal: AbortSignal },
+): void {
+  let shown: FilterMenu | undefined;
+  let closed: AbortController | undefined;
+  const reportIfChanged = () => {
+    const menu = findFilterMenu(doc);
+    if (menu?.list === shown?.list && menu?.ownedByYou?.item === shown?.ownedByYou?.item) return;
+    closed?.abort();
+    shown = menu;
+    closed = menu && new AbortController();
+    if (menu && closed) onOpen(menu, closed.signal);
+  };
+
+  // ponytail: one querySelector per mutation batch on the whole document; observe only the portal
+  // root if it shows up in a profile.
+  const observer = new MutationObserver(reportIfChanged);
+  observer.observe(doc.body, { childList: true, subtree: true });
+  signal.addEventListener("abort", () => {
+    observer.disconnect();
+    closed?.abort();
+  });
+  reportIfChanged();
+}
+
+// cloneNode returns the node's own type, which the DOM typings can't express.
+const cloneOf = <T extends Element>(el: T, deep: boolean): T => el.cloneNode(deep) as T;
+
+/**
+ * An empty copy of `menu`'s headed group, headed `heading`: the group, and the list its items go
+ * in.
+ */
+export function copyMenuGroup(
+  menu: FilterMenu,
+  heading: string,
+): { group: HTMLElement; list: HTMLElement } {
+  const group = cloneOf(menu.headedGroup.group, false);
+  const headingCopy = cloneOf(menu.headedGroup.heading, true);
+  const span = headingCopy.querySelector("span") ?? headingCopy;
+  span.removeAttribute("id");
+  span.textContent = heading;
+
+  const list = cloneOf(menu.headedGroup.items, false);
+  list.setAttribute("aria-label", heading);
+  group.append(headingCopy, list);
+  return { group, list };
+}
+
+/** A copy of `menu`'s first divider. */
+export const copyMenuDivider = (menu: FilterMenu): Element => cloneOf(menu.divider, true);
+
+/**
+ * A copy of `menu`'s item with its checkmark kept, and no id, labelling, tab stop, label text,
+ * trailing visual, checked state, or key: the item, and the label to fill.
+ */
+export function copyMenuItem(menu: FilterMenu): { item: HTMLElement; label: HTMLElement } {
+  const item = cloneOf(menu.item, true);
+  // Load-bearing beyond key clashes: a copy that kept GitHub's "o" would pass for its owned-by
+  // item, so findFilterMenu would stop recognizing the open menu and the section would tear
+  // itself down and re-add in a loop.
+  for (const attr of ["id", "aria-labelledby", "aria-keyshortcuts", "aria-checked", "tabindex"])
+    item.removeAttribute(attr);
+  for (const trailing of item.querySelectorAll('[data-component="ActionList.TrailingVisual"]'))
+    trailing.remove();
+  const label = item.querySelector<HTMLElement>(ITEM_LABEL);
+  if (!label) throw new Error("filter menu's item lost its label");
+  label.replaceChildren();
+  return { item, label };
+}
+
 /** A pull request's classic Files changed page, which gh-prism leaves alone. */
 export interface ClassicPage {
   /** GitHub's toolbar above the diffs. */
@@ -207,8 +358,11 @@ export function findClassicPage(root: ParentNode): ClassicPage | undefined {
 }
 
 /** Whether GitHub served `doc` to a signed-in viewer: it names the viewer's login. */
-export const isSignedIn = (doc: Document): boolean =>
-  Boolean(doc.head.querySelector('meta[name="user-login"]')?.getAttribute("content"));
+export const isSignedIn = (doc: Document): boolean => viewerLogin(doc) !== undefined;
+
+/** The signed-in viewer's login, or `undefined` when signed out. */
+export const viewerLogin = (doc: Document): string | undefined =>
+  doc.head.querySelector('meta[name="user-login"]')?.getAttribute("content") || undefined;
 
 /** Whether `doc` shows `repo` as public; false when private, internal, or unconfirmed. */
 export function isPublicRepo(doc: Document, repo: { owner: string; repo: string }): boolean {
@@ -301,8 +455,8 @@ export function findTreeToggle(page: FilesPage): Element | undefined {
  */
 export const findFilterOptions = (page: FilesPage): Element | undefined =>
   page.sidebar
-    .querySelector('#diff-file-tree-filter button[aria-haspopup="true"]')
-    ?.closest("#diff-file-tree-filter > *") ?? undefined;
+    .querySelector(`${FILTER_ROW} button[aria-haspopup="true"]`)
+    ?.closest(`${FILTER_ROW} > *`) ?? undefined;
 
 /** The tree-toggle button `target` sits in, when it collapses the tree in place. */
 export const treeToggleButtonOf = (page: FilesPage, target: Element): HTMLElement | null =>

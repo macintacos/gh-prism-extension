@@ -24,6 +24,7 @@ import {
 import { type NoticeChoice, showClassicNotice } from "./classic/notice";
 import { visitViewed } from "./diffs/viewed";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
+import { showOwnerSection } from "./sidebar/owner-section";
 import { showReportLink } from "./sidebar/report";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar/side";
 import type { WhatsNew } from "./sidebar/whats-new";
@@ -36,9 +37,10 @@ const CACHED_DIFFS = 50;
  * On every Files view on github.com, shows the sidebar's sections, narrowed on a pull request to
  * the `gh-prism-owner` owner's files when set, orders the diffs to match, stands in for the
  * diffstat, docks the sidebar on the saved side with a switch, adds a link to report a
- * miscategorized file, and, after an update, opens the sidebar with that release's notes. On a
- * pull request's header tabs, stands in for the diffstat alone. On its classic Files changed
- * page, explains why gh-prism is off there.
+ * miscategorized file, adds an "Only files owned by…" section to GitHub's filter menu, and, after
+ * an update, opens the sidebar with that release's notes. On a pull request's header tabs, stands
+ * in for the diffstat alone. On its classic Files changed page, explains why gh-prism is off
+ * there.
  */
 export default defineContentScript({
   // Every GitHub page: soft navigation reaches a pull request without re-injecting the script.
@@ -88,6 +90,10 @@ export default defineContentScript({
           };
           return (page, signal) => {
             showReportLink(page, signal, reportOptions);
+            showOwnerSection(page, signal, {
+              codeOwners,
+              navigate: (href) => location.assign(href),
+            });
             showVisit(page, signal, {
               intent,
               diffstat,

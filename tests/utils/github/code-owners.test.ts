@@ -3,6 +3,7 @@ import {
   codeOwnerOf,
   isOwner,
   ownerFilter,
+  owningReviewers,
   type PrCodeOwners,
   readCodeOwners,
 } from "../../../utils/github/code-owners";
@@ -365,5 +366,56 @@ describe("ownerFilter", () => {
     const keep = ownerFilter(owners, token);
 
     expect(paths.filter(keep)).toEqual(kept);
+  });
+});
+
+describe("owningReviewers", () => {
+  /** `PrCodeOwners` whose `byPath` maps each path to the owner tokens given. */
+  function ownedBy(reviewers: string[], byPath: Record<string, string[]>): PrCodeOwners {
+    return {
+      reviewers,
+      byPath: new Map(
+        Object.entries(byPath).map(([path, tokens]) => [
+          path,
+          { owners: tokens.map(codeOwnerOf), ownedByViewer: false },
+        ]),
+      ),
+    };
+  }
+
+  it("keeps the sandbox's owning reviewers", async () => {
+    const owners = await read(sandbox, sandboxFetch());
+    if (owners === undefined) throw new Error("the sandbox's read failed");
+
+    expect(owningReviewers(owners, "sandbox-user")).toEqual([
+      "@excessive-dev/frontend",
+      "@excessive-dev/platform",
+    ]);
+  });
+
+  it("leaves out a reviewer who owns no changed path, keeping reviewer order", () => {
+    const owners = ownedBy(["@o/b", "@idle", "@o/a"], { "a.ts": ["@o/a"], "b.ts": ["@o/b"] });
+
+    expect(owningReviewers(owners, undefined)).toEqual(["@o/b", "@o/a"]);
+  });
+
+  it.each(["sandbox-user", "Sandbox-User"])("leaves out the viewer %s", (viewer) => {
+    const owners = ownedBy(["@sandbox-user", "@o/a"], { "a.ts": ["@o/a", "@sandbox-user"] });
+
+    expect(owningReviewers(owners, viewer)).toEqual(["@o/a"]);
+  });
+
+  it("keeps the viewer's login when the viewer is unknown", () => {
+    const owners = ownedBy(["@sandbox-user"], { "a.ts": ["@sandbox-user"] });
+
+    expect(owningReviewers(owners, undefined)).toEqual(["@sandbox-user"]);
+  });
+
+  it("keeps no reviewer in a repository without CODEOWNERS", async () => {
+    const owners = await read(sandbox, sandboxFetch(ok(noCodeowners)));
+    if (owners === undefined) throw new Error("the sandbox's read failed");
+
+    expect(owners.reviewers).not.toEqual([]);
+    expect(owningReviewers(owners, undefined)).toEqual([]);
   });
 });

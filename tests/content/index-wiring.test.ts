@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import contentScript from "../../entrypoints/content";
+import { showOwnerSection } from "../../entrypoints/content/sidebar/owner-section";
 import { dockSidebar, type Side } from "../../entrypoints/content/sidebar/side";
 import { showHeaderTab, showVisit } from "../../entrypoints/content/visit/land";
 import { readCodeOwners } from "../../utils/github/code-owners";
@@ -32,6 +33,10 @@ vi.mock(import("../../entrypoints/content/visit/land"), async (importOriginal) =
   ...(await importOriginal()),
   showVisit: vi.fn((_page, _signal, { intent }) => void intent(() => {})),
   showHeaderTab: vi.fn((_page, _signal, { intent }) => void intent(() => {})),
+}));
+vi.mock(import("../../entrypoints/content/sidebar/owner-section"), async (importOriginal) => ({
+  ...(await importOriginal()),
+  showOwnerSection: vi.fn(),
 }));
 vi.mock(import("../../entrypoints/content/sidebar/side"), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -217,6 +222,18 @@ describe("content script", () => {
       read,
       read,
     ]);
+  });
+
+  it("gives each page's owner section the visit's code owners", async () => {
+    await run();
+    const sidebar = byId("pr-file-tree");
+    sidebar.replaceWith(sidebar.cloneNode(true));
+    await afterMutations();
+
+    const read = vi.mocked(readCodeOwners).mock.results[0]?.value;
+    expect(
+      vi.mocked(showOwnerSection).mock.calls.map(([, , options]) => options.codeOwners),
+    ).toEqual([read, read]);
   });
 
   it("reads code owners afresh on the next visit", async () => {

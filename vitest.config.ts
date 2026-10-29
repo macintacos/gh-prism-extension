@@ -7,7 +7,13 @@ export default defineConfig({
   // Vitest stubs CSS imports, ?raw and ?inline too; the sheets the tests read are opted in.
   test: {
     css: {
-      include: [/diffs\/order\.css/, /diffstat-view\.css/, /loading-view\.css/, /notice\.css/],
+      include: [
+        /diffs\/order\.css/,
+        /diffstat-view\.css/,
+        /loading-view\.css/,
+        /notice\.css/,
+        /owner-section\.css/,
+      ],
     },
   },
 });

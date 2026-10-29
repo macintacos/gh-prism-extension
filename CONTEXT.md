@@ -113,8 +113,15 @@ merge box lists. A reviewer who only commented isn't one. _Avoid_: reviewer alon
 names the person reading the diff
 
 **Owner filter**: gh-prism's narrowing of a pull request's files, in the sidebar and the
-diff list, to the files one code owner owns, set by the `gh-prism-owner` query parameter.
-_Avoid_: owned by, which names GitHub's own filter to the viewer's files
+diff list, to the files one code owner owns, set by the `gh-prism-owner` query parameter,
+which the owner section sets. _Avoid_: owned by, which names GitHub's own filter to the
+viewer's files
+
+**Owner section**: The "Only files owned by…" group gh-prism adds to GitHub's file-tree
+filter menu: "Me", standing in for GitHub's "Only files owned by you", then each PR
+reviewer who owns a changed file. Picking a reviewer sets the owner filter. Unlike a
+**Section**, it lists owners in GitHub's menu, not changed files in gh-prism's sidebar.
+_Avoid_: owner menu
 
 ### What the reviewer sees
 
