@@ -235,10 +235,10 @@ interface MessageView {
 }
 
 /**
- * An empty body beside a switch to plain text and a hide button, with a copy of `box`'s children that the column
- * shows as that plain text, returned with `data-view` already set to `choice.view` so a plain-text
- * reader never sees the rendering paint. Each click flips the view, records it in `choice`, and
- * `save`s it.
+ * An empty body beside a switch to plain text and a hide button, with a copy of `box`'s children
+ * that the column shows as that plain text, returned with `data-view` already set to `choice.view`
+ * so a plain-text reader never sees the rendering paint. Each click of the switch flips the view,
+ * records it in `choice`, and `save`s it.
  */
 function messageView(
   doc: Document,
