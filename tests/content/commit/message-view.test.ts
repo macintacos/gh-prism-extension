@@ -27,6 +27,9 @@ const messageOf = () => {
   return found;
 };
 const box = () => messageOf().box;
+// The name assistive technology announces: the aria-label, else the visible text.
+const nameOf = (control: Element | null) =>
+  control?.getAttribute("aria-label") ?? control?.textContent;
 const shows = (element: Element) => getComputedStyle(element).display !== "none";
 // Runs the MutationObserver's pending microtask, and no timer.
 const afterMutations = () => vi.advanceTimersByTimeAsync(0);
@@ -87,7 +90,7 @@ describe("showCommitMessage", () => {
     expect(shown?.getAttribute("aria-busy")).toBe("true");
     expect(shown?.querySelector(".gh-prism-commit-skeleton")).not.toBeNull();
     expect(shown?.querySelector("h1")).toBeNull();
-    expect(viewButton()?.parentElement).toBe(shown);
+    expect(shown?.contains(viewButton())).toBe(true);
     expect(shows(box())).toBe(false);
     expect(box().outerHTML).toBe(before);
   });
@@ -148,15 +151,15 @@ describe("showCommitMessage", () => {
     if (!button) throw new Error("no switch");
     const body = container()?.querySelector(".gh-prism-commit-message-body");
     if (!body) throw new Error("no body");
-    expect(button.parentElement).toBe(container());
+    expect(container()?.contains(button)).toBe(true);
     expect(button.type).toBe("button");
-    expect(button.getAttribute("aria-label")).toBe("Show plain text");
+    expect(nameOf(button)).toBe("Show plain text");
 
     button.click();
 
     expect(shows(box())).toBe(true);
     expect(shows(body)).toBe(false);
-    expect(button.getAttribute("aria-label")).toBe("Show rendered Markdown");
+    expect(nameOf(button)).toBe("Show Markdown");
     expect(choice.view).toBe("plaintext");
     expect(save).toHaveBeenLastCalledWith("plaintext");
     expect(box().outerHTML).toBe(before);
@@ -168,6 +171,19 @@ describe("showCommitMessage", () => {
     expect(container()?.dataset.view).toBe("rendered");
     expect(shows(body)).toBe(true);
     expect(save).toHaveBeenLastCalledWith("rendered");
+  });
+
+  it("labels each control with visible text that starts its accessible name", () => {
+    show();
+    runIdle();
+
+    const controls = [...(container()?.querySelectorAll("button") ?? [])];
+    expect(controls).toHaveLength(2);
+    for (const control of controls) {
+      const label = control.textContent?.trim().toLowerCase() ?? "";
+      expect(label).not.toBe("");
+      expect(nameOf(control)?.toLowerCase().startsWith(label)).toBe(true);
+    }
   });
 
   it("removes itself and its sheet on abort, showing GitHub's box again", () => {
@@ -249,7 +265,7 @@ describe("showCommitMessage", () => {
       await afterMutations();
 
       expect(clone.previousElementSibling).toBe(container());
-      expect(viewButton()?.parentElement).toBe(container());
+      expect(container()?.contains(viewButton())).toBe(true);
       expect(shows(clone)).toBe(view === "plaintext");
 
       clone.remove();
@@ -418,6 +434,21 @@ describe("showCommitMessage's column", () => {
     setViewport(WIDE);
 
     expectInColumn();
+  });
+
+  it("insets the message from the column's edges as GitHub insets its panes", () => {
+    show();
+    runIdle();
+
+    const message = container();
+    if (!message) throw new Error("no message");
+    const style = getComputedStyle(message);
+    expect([style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft]).toEqual([
+      "24px",
+      "24px",
+      "24px",
+      "24px",
+    ]);
   });
 
   it("moves the view switch into the column with the message", () => {
@@ -861,7 +892,7 @@ describe("showCommitMessage across navigation", () => {
 
     expect(container()?.dataset.view).toBe("plaintext");
     expect(shows(box())).toBe(true);
-    expect(viewButton()?.getAttribute("aria-label")).toBe("Show rendered Markdown");
+    expect(nameOf(viewButton())).toBe("Show Markdown");
   });
 
   it("shows each commit's message in the column across navigation", async () => {

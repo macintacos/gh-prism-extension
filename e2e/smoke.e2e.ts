@@ -373,6 +373,57 @@ test("a commit's message moves into a column on a wide window and back above the
   await expect(page.locator(MESSAGE_BOX)).toBeVisible();
 });
 
+test("a commit's message runs its prose under its controls, in the narrowest column and above the diffs", async ({
+  context,
+  page,
+}) => {
+  await serve(
+    context,
+    COMMIT_URL,
+    withLayoutRow(commitBodyWith(readFixture("commit-message-lists.html"))),
+  );
+  const layout = () =>
+    page.evaluate(() => {
+      const rect = (selector: string) => {
+        const found = document.querySelector(`.gh-prism-commit-message ${selector}`);
+        if (!found) throw new Error(`no ${selector}`);
+        const { top, right, bottom, left } = found.getBoundingClientRect();
+        return { top, right, bottom, left };
+      };
+      const message = document.querySelector(".gh-prism-commit-message");
+      if (!message) throw new Error("no message");
+      const { right, left } = message.getBoundingClientRect();
+      return {
+        message: { right, left },
+        viewSwitch: rect(".gh-prism-commit-view-switch"),
+        hide: rect(".gh-prism-commit-hide"),
+        title: rect(".gh-prism-commit-message-body > h1"),
+        list: rect(".gh-prism-commit-message-body > ul"),
+      };
+    });
+  // GitHub's 1012px docked layout leaves the column its 256px minimum.
+  await page.setViewportSize({ width: 1268, height: 900 });
+  await page.goto(COMMIT_URL);
+  await expect(page.locator(".gh-prism-commit-column ul")).toBeVisible();
+
+  const column = await layout();
+
+  expect(column.viewSwitch.top).toBe(column.hide.top);
+  expect(column.viewSwitch.left).toBeGreaterThanOrEqual(column.message.left + 24);
+  expect(column.hide.right).toBe(column.message.right - 24);
+  expect(column.title.top).toBeGreaterThanOrEqual(column.hide.bottom);
+  expect(column.list.left).toBe(column.message.left + 24);
+  expect(column.list.right).toBe(column.message.right - 24);
+
+  await page.setViewportSize({ width: 1200, height: 900 });
+  await expect(page.locator(".gh-prism-commit-column")).toHaveCount(0);
+
+  const above = await layout();
+
+  expect(above.title.top).toBeLessThan(above.hide.bottom);
+  expect(above.list.right).toBe(above.message.right - 12);
+});
+
 test("a commit's message switches to GitHub's box from the keyboard, and opens there after a reload with no flash of the rendering", async ({
   context,
   page,
@@ -395,7 +446,7 @@ test("a commit's message switches to GitHub's box from the keyboard, and opens t
     requestAnimationFrame(sample);
   }, MESSAGE_BOX);
   const toPlain = page.getByRole("button", { name: "Show plain text" });
-  const toRendered = page.getByRole("button", { name: "Show rendered Markdown" });
+  const toRendered = page.getByRole("button", { name: "Show Markdown" });
 
   await page.goto(COMMIT_URL);
   await toPlain.press("Enter");

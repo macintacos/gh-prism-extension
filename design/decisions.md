@@ -6,6 +6,43 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-29: Labelled controls for a commit's message
+
+- **Compared:**
+  - for the view switch and the hide control, Primer's small invisible IconButtons, as
+    before, or small invisible Buttons with a label, with or without an icon;
+  - for the switch's label in the plaintext view, "Show rendered Markdown", "Render
+    Markdown", or "Show Markdown";
+  - for where the controls sit, a strip of their own down the message's side, as before; a
+    row of their own above the title; or floated beside the title's first line;
+  - for the column's inset, GitHub's box's 8px 12px, as before, or the 24px that GitHub's
+    tree pane and diffs inset their content by.
+- **Won:** small invisible Buttons with an icon and a label, in the form of the "Show
+  commit message" button that brings a hidden message back. The switch reads "Show plain
+  text" or "Show Markdown". The hide button reads "Hide" and keeps its `aria-label`, "Hide
+  commit message". Neither has a tooltip. In the column, the controls take a 32px row of
+  their own above the title, and the message is inset 24px on every side. Above the diffs,
+  they float beside the title's first line, and the message keeps GitHub's box's 8px 12px.
+- **Why:**
+  - Icons alone left a reader guessing what each control does. A label says it, so a
+    tooltip would only repeat it.
+  - At rest, an invisible button with a label alone reads as text. The icon marks it as a
+    control, as it does on the "Show commit message" button.
+  - "Show rendered Markdown" doesn't fit beside "Hide" in the column's 256px minimum
+    width, less its 24px insets. "Render Markdown" fits with 1px to spare. "Show Markdown"
+    fits with 10px, and keeps both of the switch's labels starting with "Show".
+  - Controls beside the whole message held an empty strip down its side, and labels would
+    have widened the strip.
+  - In the column, a float beside the title leaves room for a word or two at most, so the
+    title would break after its first word. A row of its own reads as the column's
+    toolbar, level with the search field over the diffs and the filter field over the file
+    tree. Above the diffs, the title has room beside the controls, and a row of their own
+    would add an empty line to GitHub's card.
+  - Measured at 1280px and 1440px, GitHub's tree pane and diffs both inset their content
+    24px. The column takes the same inset, so its text sits as far from the divider as the
+    diffs do on the other side. Above the diffs, the message stays lined up with GitHub's
+    card, whose rows inset 12px.
+
 ## 2026-10-29: Hiding a commit's message
 
 - **Compared:**

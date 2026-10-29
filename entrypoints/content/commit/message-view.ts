@@ -218,7 +218,7 @@ const MARKDOWN =
 
 const LABEL: Record<CommitMessageView, string> = {
   rendered: "Show plain text",
-  plaintext: "Show rendered Markdown",
+  plaintext: "Show Markdown",
 };
 
 /** The message's container, its hide button, and how to fill its body. */
@@ -235,7 +235,7 @@ interface MessageView {
 }
 
 /**
- * An empty body beside a switch to plain text and a hide button, with a copy of `box`'s children
+ * An empty body under a switch to plain text and a hide button, with a copy of `box`'s children
  * that the column shows as that plain text, returned with `data-view` already set to `choice.view`
  * so a plain-text reader never sees the rendering paint. Each click of the switch flips the view,
  * records it in `choice`, and `save`s it.
@@ -245,33 +245,35 @@ function messageView(
   box: Element,
   { choice, save }: Pick<CommitMessageOptions, "choice" | "save">,
 ): MessageView {
-  const button = iconButton(doc, "gh-prism-commit-view-switch", MARKDOWN);
-  const hide = iconButton(doc, "gh-prism-commit-hide", EYE_CLOSED);
+  const mark = icon(doc, MARKDOWN, {});
+  const button = textButton(doc, "gh-prism-commit-view-switch");
+  const hide = textButton(doc, "gh-prism-commit-hide", icon(doc, EYE_CLOSED, {}), "Hide");
   hide.setAttribute("aria-label", "Hide commit message");
-  const body = el(
-    doc,
-    "div",
-    "gh-prism-commit-message-body markdown-body tw:flex-1 tw:min-w-0 tw:px-3 tw:py-2",
-  );
+  const body = el(doc, "div", "gh-prism-commit-message-body markdown-body");
   const container = el(
     doc,
     "div",
-    "gh-prism-commit-message tw:flex tw:items-start tw:justify-end",
+    "gh-prism-commit-message tw:flow-root tw:px-3 tw:py-2",
+    el(
+      doc,
+      "div",
+      "gh-prism-commit-controls tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1",
+      button,
+      hide,
+    ),
     body,
     // Copies the children, not the box: findCommitMessage matches the box's own class.
     el(
       doc,
       "div",
-      "gh-prism-commit-message-plain tw:flex-1 tw:min-w-0 tw:px-3 tw:py-2",
+      "gh-prism-commit-message-plain",
       ...[...box.childNodes].map((node) => node.cloneNode(true)),
     ),
-    button,
-    hide,
   );
 
   const showView = (view: CommitMessageView) => {
     container.dataset.view = view;
-    button.setAttribute("aria-label", LABEL[view]);
+    button.replaceChildren(mark, LABEL[view]);
   };
   button.addEventListener("click", () => {
     choice.view = choice.view === "rendered" ? "plaintext" : "rendered";
@@ -330,15 +332,15 @@ function messageColumn(doc: Document): HTMLElement {
 }
 
 /**
- * Primer's small invisible IconButton, unlabelled, drawing `d`; the switch and the hide button
- * share it, as the side switch does.
+ * Primer's small invisible Button holding `content`, an icon and its label; the switch, the hide
+ * button, and the way back share it.
  */
-function iconButton(doc: Document, name: string, d: string): HTMLButtonElement {
+function textButton(doc: Document, name: string, ...content: (Node | string)[]): HTMLButtonElement {
   const button = el(
     doc,
     "button",
-    "gh-prism-commit-control tw:relative tw:grid tw:shrink-0 tw:place-content-center tw:size-[var(--control-small-size,28px)] tw:mt-2 tw:mr-2 tw:p-0 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-iconColor-rest)] tw:[font:inherit] tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:hover:text-[color:var(--button-invisible-iconColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
-    icon(doc, d, {}),
+    "gh-prism-commit-button tw:inline-flex tw:items-center tw:gap-1 tw:h-[var(--control-small-size,28px)] tw:px-2 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-fgColor-rest)] tw:[font-family:inherit] tw:text-body-small tw:font-medium tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
+    ...content,
   );
   button.classList.add(name);
   button.type = "button";
@@ -358,14 +360,7 @@ const EYE_CLOSED =
  * invisible Button that shows it again.
  */
 function restoreRow(doc: Document): { row: HTMLElement; button: HTMLButtonElement } {
-  const button = el(
-    doc,
-    "button",
-    "gh-prism-commit-show tw:inline-flex tw:items-center tw:gap-2 tw:h-[var(--control-small-size,28px)] tw:px-2 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-fgColor-rest)] tw:[font-family:inherit] tw:text-body-small tw:font-medium tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
-    icon(doc, EYE, {}),
-    "Show commit message",
-  );
-  button.type = "button";
+  const button = textButton(doc, "gh-prism-commit-show", icon(doc, EYE, {}), "Show commit message");
   // Ruled off as GitHub's box is, from the card's next row.
   const row = el(
     doc,

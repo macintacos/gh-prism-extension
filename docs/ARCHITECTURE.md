@@ -203,8 +203,13 @@ sticky file headers and lazy diff loading are untouched; the message scrolls ins
 column. While the message is in the column, a hidden `span.gh-prism-commit-slot` stands
 just before GitHub's box and hides it in the message's place, in both views. The column's
 plaintext view shows `div.gh-prism-commit-message-plain` instead: copies of the box's
-children, taken when the message mounts, laid out as the box is: a flex column, padded 8px
-12px.
+children, taken when the message mounts, laid out as the box is, as a flex column.
+
+The switch and the hide button sit in `div.gh-prism-commit-controls`, ahead of the title
+and the rest of the message, so every line below the controls runs the message's full
+width. In the column, the controls take a row of their own, and the message is inset 24px,
+as GitHub insets its file tree and diffs. Above the diffs, they float beside the title's
+first line, and the message keeps GitHub's box's 8px 12px inset.
 
 The column is 320px wide until the reader resizes it. `columnSeparator` in
 [`entrypoints/content/commit/column-width.ts`](../entrypoints/content/commit/column-width.ts)

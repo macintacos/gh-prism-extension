@@ -114,8 +114,7 @@ these marks.
 A tooltip copies Primer's. It is an `::after` on the control that shows the control's
 `aria-label`, on `--tooltip-bgColor`, at the small body size, and it fades in over 120 ms
 on hover and focus. It opens toward the inside of the sidebar or the page, so it never
-clips at an edge. `sidebar/side.css`, `sidebar/report.css`, and `commit/message-view.css`
-hold the three in use.
+clips at an edge. `sidebar/side.css` and `sidebar/report.css` hold the two in use.
 
 No control takes a key yet, because `j` and `k` step through files without a control of
 their own. When a control does take one, its tooltip shows the key after the action's
@@ -125,10 +124,15 @@ hover, so they never show the keycap.
 
 ## Switches
 
-A switch between two views or states is Primer's small invisible IconButton holding one
-Octicon in both states. Its `aria-label`, which its tooltip shows, names the action it
-takes and flips with the state. Focus stays on it across the flip. `sidebar/side.ts` and
-`commit/message-view.ts` build the two in use.
+A switch between two views or states names the action it takes, and the name flips with
+the state. Focus stays on it across the flip. It holds one Octicon in both states.
+
+- **In the sidebar,** where room is short, it is Primer's small invisible IconButton,
+  named by an `aria-label` that its tooltip shows. `sidebar/side.ts` builds it.
+- **Beside a commit's message,** it is Primer's small invisible Button: the Octicon, then
+  a visible label that is its name, so it needs no tooltip. The message's hide button and
+  the button that shows the message again take the same form. `commit/message-view.ts`
+  builds all three.
 
 ## Floating surfaces
 
