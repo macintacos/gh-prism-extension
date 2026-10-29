@@ -336,6 +336,52 @@ test("a commit's message holds its column from its first frame, through GitHub's
   ).toBe(true);
 });
 
+test("a commit column's mark stays clear of a message too long for the column", async ({
+  context,
+  page,
+}) => {
+  await serve(context, COMMIT_URL, commitBodyWith(readFixture("commit-message-lists.html")));
+  // Short enough that the message overflows the column.
+  await page.setViewportSize({ width: 1440, height: 300 });
+
+  await page.goto(COMMIT_URL);
+  const scroller = page.locator(".gh-prism-commit-column > .gh-prism-commit-message");
+  await expect(scroller.locator(".gh-prism-commit-message-body > h1")).toBeVisible();
+
+  await expect(page.locator(".gh-prism-commit-column > .gh-prism-mark")).toBeVisible();
+  const layout = await scroller.evaluate((el) => {
+    const view = el.getBoundingClientRect();
+    const mark = el.parentElement
+      ?.querySelector(":scope > .gh-prism-mark")
+      ?.getBoundingClientRect();
+    return {
+      overflows: el.scrollHeight > el.clientHeight,
+      markClear: !!mark && mark.top >= view.top + el.clientTop + el.clientHeight,
+    };
+  });
+  expect(layout).toEqual({ overflows: true, markClear: true });
+});
+
+test("the mark's spectrum sweeps across its bars alone", async ({ context, page }) => {
+  await serve(context, COMMIT_URL, commitBodyWith(readFixture("commit-message-lists.html")));
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  await page.goto(COMMIT_URL);
+  await expect(
+    page.locator(".gh-prism-commit-column .gh-prism-commit-message-body > h1"),
+  ).toBeVisible();
+  const mark = page.locator(".gh-prism-commit-column > .gh-prism-mark");
+  await expect(mark).toBeVisible();
+
+  // The bars span x 8–15 of the 16px glyph.
+  const sweep = await mark.evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    const bar = el.querySelector(".gh-prism-mark-sweep")?.getBoundingClientRect();
+    return bar && { start: bar.left - box.left, end: bar.right - box.left };
+  });
+  expect(sweep).toEqual({ start: 8, end: 15 });
+});
+
 test("a commit's message moves into a column on a wide window and back above the diffs on a narrow one", async ({
   context,
   page,

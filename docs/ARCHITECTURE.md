@@ -600,7 +600,8 @@ then mounted only on the pages that need it. The rules for writing styles are in
 
 Each large surface (the sidebar, the code owners popover, the code owner details dialog,
 the classic page notice, and the commit message column) appends the `prismMark` built by
-[`ui/mark.ts`](../entrypoints/content/ui/mark.ts).
+[`ui/mark.ts`](../entrypoints/content/ui/mark.ts), and its sheet `@import`s the mark's
+partial, `ui/mark.css`.
 
 ## Source layout
 

@@ -11,20 +11,26 @@
   inset: 0;
 }
 
+/* Keep in sync with mark.ts's BARS, which spans x 8–15. */
 .gh-prism-mark-sweep {
   display: block;
+  width: 7px;
   height: 100%;
+  margin-left: 8px;
   background: var(--gh-prism-spectrum);
   clip-path: inset(0 100% 0 0);
-  transition: clip-path 240ms ease-out;
+  transition: clip-path 160ms ease-out;
 }
 
 .gh-prism-mark:hover .gh-prism-mark-sweep {
   clip-path: inset(0);
+  transition-duration: 240ms;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Primer's tooltip, above the mark with its start edge at the mark's start. A host whose mark sits
-   at an inline-end corner flips the alignment in its own sheet. Hover only: the mark takes no focus. */
+   at an inline-end corner flips the alignment in its own sheet, with a more specific selector.
+   Hover only: the mark takes no focus. */
 .gh-prism-mark::after {
   content: attr(aria-label);
   position: absolute;

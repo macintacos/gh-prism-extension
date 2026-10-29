@@ -33,6 +33,12 @@ markup a sheet targets are in [`github-rules.md`](github-rules.md).
   in each sheet.** [`ui/reveal.css`](../../entrypoints/content/ui/reveal.css) is the
   model: its selectors start at `:host` or `.gh-prism-sections`, so they match in a shadow
   root and only gh-prism's own markup in the light DOM.
+- **Give a builder that several features mount no `tw:` classes, and keep all its styling
+  in its `ui/` partial, so no host sheet `@source`s it.**
+  [`ui/mark.ts`](../../entrypoints/content/ui/mark.ts) is the model. A host places it with
+  a hand-written rule more specific than the partial's, such as
+  `.gh-prism-commit-column > .gh-prism-mark`, never a utility: utilities are unlayered
+  single classes, and the partial is imported after them, so its base rules win a tie.
 - **`@source` every module whose classes land on elements the sheet styles.** Tailwind
   generates only the classes it finds in those sources. A module whose classes land in
   other sheets has no sheet of its own, so every caller's sheet `@source`s it:

@@ -115,8 +115,8 @@ A tooltip copies Primer's. It is an `::after` on the control that shows the cont
 `aria-label`, on `--tooltip-bgColor`, at the small body size, and it fades in over 120 ms
 on hover and focus. It opens toward the inside of the sidebar or the page, so it never
 clips at an edge. `sidebar/side.css`, `sidebar/report.css`, `commit/step-links.css`, and
-`ui/mark.css` hold the four in use. The mark's alone fades in on hover only, since the
-mark takes no focus.
+`ui/mark.css` hold the four in use. Only the mark's opens on hover alone, since the mark
+takes no focus.
 
 A control that takes a key names it in its tooltip, after the action's name, and sets
 `aria-keyshortcuts`, so assistive technology announces the key. Older and Newer beside a
@@ -279,10 +279,11 @@ and repeat on every hover. A future surface gets a mark only if it is large, dec
 by case against this entry.
 
 At rest the mark is `--fgColor-muted`, and `CanvasText` under forced colours, which also
-drop its spectrum. Hovering sweeps the spectrum across its bars, start to end, over 240
-ms, and leaving reverses it from where it is. Under reduced motion, the spectrum appears
-and disappears without moving. The mark is an image named "Added by gh-prism" that takes
-no focus, and its tooltip shows the same words on hover only.
+drop its spectrum. Hovering sweeps the spectrum across its bars, left to right, on
+`tokens.md`'s "State, opening" row, and leaving reverses it from where it is on the
+"State, closing" row. Under reduced motion, the spectrum appears and disappears without
+moving. The mark is an image named "Added by gh-prism" that takes no focus, and its
+tooltip shows the same words on hover only.
 
 ## The spectrum
 
@@ -313,10 +314,11 @@ this team's members.", and an empty one reads "This team has no members."
 
 The dialog carries the popup's filter action (§ Code owner's files) in two places:
 
-- **The footer:** opened from a Reviewers shield whose popup lists files, the dialog ends
-  in a footer below the scrolling body, so it stays put. A hairline sits above it, drawn
-  as `box-shadow: 0 -1px 0` in `--borderColor-default` to mirror the header's. It has 8px
-  padding and holds the action for the dialog's own code owner, right-aligned.
+- **The footer:** the dialog always ends in a footer below the scrolling body, so it stays
+  put. A hairline sits above it, drawn as `box-shadow: 0 -1px 0` in
+  `--borderColor-default` to mirror the header's. It has 8px padding and holds gh-prism's
+  mark (§ The mark) at its start corner; opened from a Reviewers shield whose popup lists
+  files, it also holds the action for the dialog's own code owner, at the end.
 - **Each team block:** the block's heading is a row, the linked team name on the left and
   the action for that team on the right, centred vertically. The block for the dialog's
   own code owner skips it, so the dialog never offers the same action twice.

@@ -455,6 +455,7 @@ export function showSections(
     "gh-prism-sections tw:flex tw:flex-col tw:gap-1.5 tw:text-body-medium tw:[interpolate-size:allow-keywords]",
   );
   view.setAttribute("aria-label", "Changed files by section");
+  // Last in the nav: whatever mounts later goes before it, as pending()'s loading view does.
   const markRow = el(doc, "div", "gh-prism-sections-mark tw:flex tw:justify-end", prismMark(doc));
   view.append(markRow);
   followReveals(view, matchMedia("(prefers-reduced-motion: reduce)"));

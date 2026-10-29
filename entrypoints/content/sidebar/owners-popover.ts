@@ -108,7 +108,6 @@ function openPopover(
 ): Card {
   const doc = shield.ownerDocument;
   const hint = detailsHint(doc, "small");
-  hint.classList.add("tw:flex", "tw:items-center", "tw:gap-2");
   hint.append(prismMark(doc));
   const popover = el(
     doc,
