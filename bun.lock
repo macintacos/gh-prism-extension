@@ -5,15 +5,15 @@
     "": {
       "dependencies": {
         "@pierre/trees": "^1.0.0-beta.6",
-        "mdast-util-from-markdown": "^2",
-        "mdast-util-gfm": "^3",
-        "micromark-extension-gfm": "^3",
+        "mdast-util-from-markdown": "^2.1.0",
+        "mdast-util-gfm": "^3.1.0",
+        "micromark-extension-gfm": "^3.0.0",
       },
       "devDependencies": {
         "@commander-js/extra-typings": "^15.0.0",
         "@playwright/test": "^1.64.0",
         "@tailwindcss/vite": "4.3.3",
-        "@types/mdast": "^4",
+        "@types/mdast": "^4.0.4",
         "@types/semver": "^7.8.0",
         "commander": "^15.0.0",
         "happy-dom": "^20.14.6",

@@ -1,22 +1,17 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
 import { renderCommitMessage } from "../../../entrypoints/content/commit/message";
-import { COMMIT_MESSAGES } from "../../fixtures/files-page";
+import { type CommitMessage, findCommitMessage } from "../../../entrypoints/content/files-page";
+import { type COMMIT_MESSAGES, foundPage, loadCommitFixture } from "../../fixtures/files-page";
 
-interface Card {
-  readonly box: Element;
-  readonly title: Element;
-  readonly body: Element | null;
-}
+type Card = CommitMessage;
 
-/** A captured message card's box, title, and body. */
+/** The commit page loaded with the `name` card, and that card's message. */
 function cardOf(name: keyof typeof COMMIT_MESSAGES): Card {
-  const template = document.createElement("template");
-  template.innerHTML = COMMIT_MESSAGES[name];
-  const box = template.content.querySelector('[class*="commitMessageContainer__"]');
-  const title = box?.querySelector(":scope > span:first-child > div");
-  if (!box || !title) throw new Error(`no message box in ${name}`);
-  return { box, title, body: box.querySelector(".extended-commit-description-container") };
+  loadCommitFixture(name);
+  const card = findCommitMessage(foundPage());
+  if (!card) throw new Error(`no message box in ${name}`);
+  return card;
 }
 
 /** The `lists` card with `title` and `body` as text; a `null` body drops the body span. */
@@ -38,7 +33,7 @@ function bodyOf(...children: (Node | string)[]): Card {
   return card;
 }
 
-/** A detached clone of the `sha` card's `#14437` anchor. */
+/** A detached clone of the `sha` card's `#14437` anchor, taken before the card under test loads. */
 function issueLink(): Node {
   const anchor = cardOf("sha").box.querySelector("a.issue-link");
   if (!anchor) throw new Error("no issue link");
@@ -227,6 +222,24 @@ describe("renderCommitMessage", () => {
     expect(root.textContent).not.toMatch(/[\uE000\uE001]/);
   });
 
+  it.each([
+    ["hex", "&#xE000;0&#xE001;"],
+    ["decimal", "&#57344;0&#57345;"],
+  ])("never treats a %s character reference to a placeholder as a link", (_, forged) => {
+    const issue = issueLink() as HTMLAnchorElement;
+    const root = render(bodyOf(issue, ` see ${forged} and [x](${forged})`));
+
+    const githubs = [...root.querySelectorAll("a")].filter((a) => a.href === issue.href);
+    expect(githubs.map((a) => a.textContent)).toEqual([issue.textContent]);
+  });
+
+  it("keeps a footnote's reference and definition as text", () => {
+    const root = render(crafted("title", "Fix it[^1].\n\n[^1]: The note."));
+
+    expect(root.textContent).toContain("Fix it[^1].");
+    expect(root.textContent).toContain("[^1]: The note.");
+  });
+
   it("keeps a paragraph in every item of a loose list", () => {
     const root = render(crafted("title", "- a\n\n- b"));
 
@@ -271,6 +284,37 @@ describe("renderCommitMessage", () => {
     const list = Array.from({ length: 40 }, (_, i) => `${"  ".repeat(i)}- item`).join("\n");
 
     expect(renderCommitMessage(document, crafted("title", list))).toBeUndefined();
+  });
+
+  it("refuses a paragraph of unpaired emphasis delimiters", () => {
+    expect(renderCommitMessage(document, crafted("title", "*_".repeat(10_000)))).toBeUndefined();
+  });
+
+  it("refuses a long paragraph after an unclosed bracket", () => {
+    const body = `[${"word ".repeat(8_000)}`;
+
+    expect(renderCommitMessage(document, crafted("title", body))).toBeUndefined();
+  });
+
+  it("refuses a paragraph of closing brackets", () => {
+    expect(renderCommitMessage(document, crafted("title", "]".repeat(20_000)))).toBeUndefined();
+  });
+
+  it("counts indented bullet lines as one paragraph's delimiters", () => {
+    const body = `x\n${"    - [*[*\n".repeat(2_000)}`;
+
+    expect(renderCommitMessage(document, crafted("title", body))).toBeUndefined();
+  });
+
+  it("renders a long list rich in inline Markdown", () => {
+    const lines = Array.from(
+      { length: 300 },
+      (_, n) =>
+        `- **item ${n}**: fix [#${n}](https://example.com/${n}) in \`snake_case_name\` and _note_`,
+    );
+    const root = render(crafted("title", lines.join("\n")));
+
+    expect(root.querySelectorAll("ul > li")).toHaveLength(300);
   });
 
   it("renders a large table just under the length cap", () => {

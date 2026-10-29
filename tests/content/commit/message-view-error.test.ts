@@ -17,7 +17,7 @@ it("keeps GitHub's box and warns when the message fails to render", () => {
   if (!page) throw new Error("no Files page");
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-  showCommitMessage(page, new AbortController().signal, { idle: (task) => task() });
+  showCommitMessage(page, new AbortController().signal, { afterSections: (task) => task() });
 
   const box = document.querySelector('[class*="commitMessageContainer__"]');
   if (!box) throw new Error("no message box");

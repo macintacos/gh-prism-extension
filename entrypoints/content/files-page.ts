@@ -2,11 +2,11 @@
  * The one script module that holds selectors into GitHub's Files view markup; the stylesheets list
  * theirs in a `GitHub hooks:` header. It holds a `PageKind` for a pull request's page and a
  * commit's, finds a Files view's page, a pull request's classic page, or its header on its header
- * tabs, finds a commit's message box, reads its rows, follows a pull request's narrow-layout overlay and the file-tree filter
- * menu, finds and follows the rows and code-owner shields of a pull request's Reviewers lists, and
- * copies that menu's group, divider, and item for gh-prism's entries, so the selectors stay in
- * this seam; it builds no UI of its own and imports nothing from WXT. The pull request selectors
- * come from EXC-1662's survey.
+ * tabs, finds a commit's message box, reads its rows, follows a pull request's narrow-layout
+ * overlay and the file-tree filter menu, finds and follows the rows and code-owner shields of a
+ * pull request's Reviewers lists, and copies that menu's group, divider, and item for gh-prism's
+ * entries, so the selectors stay in this seam; it builds no UI of its own and imports nothing from
+ * WXT. The pull request selectors come from EXC-1662's survey.
  */
 
 import { LOGIN } from "@/utils/github/code-owners";
@@ -28,7 +28,10 @@ export interface PageKind {
   readonly diffs: string;
   /** The header's slot for its lines-changed counter, which holds a skeleton while it loads. */
   readonly diffstatSlot: string;
-  /** Selects a commit's message box: its first child holds the title, its description span the body. */
+  /**
+   * Selects a commit's message box: its first child holds the title, its description span the
+   * body.
+   */
   readonly commitMessage?: string;
   /** A toolbar tree-toggle button; its parent wraps the toggle's buttons. */
   readonly treeToggle: string;
@@ -161,6 +164,7 @@ export function findFilesPage(root: ParentNode): FilesPage | undefined {
 export interface CommitMessage {
   /** GitHub's box, which gh-prism hides but never changes. */
   readonly box: Element;
+  /** GitHub's title `div`: the message's first line, as text and GitHub's links. */
   readonly title: Element;
   /** `null` for a message with only a subject line. */
   readonly body: Element | null;

@@ -105,14 +105,18 @@ facts about GitHub that held when written, and ends with how to re-check them;
 - **Read the message from the box, not the embedded page data.** The data holds it only as
   HTML (`shortMessageMarkdown`, `bodyMessageHtml`), never as raw text.
 - **Rely on GitHub's `markdown-body` sheet.** It loads on commit pages, so a
-  `div.markdown-body` gets GitHub's README styling with no sheet of gh-prism's.
+  `div.markdown-body` gets GitHub's README styling with no sheet of gh-prism's. Task lists
+  rely on its classes too: `message.ts` writes `contains-task-list`, `task-list-item`, and
+  `task-list-item-checkbox`, so if checkboxes or bullets lose their styling, check those
+  classes in GitHub's sheet first.
 - **Re-check:** load a public commit page and a pull request. Read the placeholder text
   and `getComputedStyle(document.documentElement).scrollBehavior` from the DOM. Read the
   hydration re-render and the nav helper from GitHub's bundle as
   [§ Re-checking GitHub](#re-checking-github) describes. Signed out, load the five commits
   named in the `tests/fixtures/commit-message-*.html` header comments, and compare each
   page's message card with its fixture. Check a scratch `div.markdown-body`'s computed
-  `font-size` reads `16px`.
+  `font-size` reads `16px`, and that a scratch `ul.contains-task-list > li.task-list-item`
+  drops its bullet.
 
 ## Diff lists
 

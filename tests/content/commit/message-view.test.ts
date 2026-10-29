@@ -1,7 +1,11 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { showCommitMessage } from "../../../entrypoints/content/commit/message-view";
-import { type FilesPage, findFilesPage } from "../../../entrypoints/content/files-page";
+import {
+  type FilesPage,
+  findCommitMessage,
+  findFilesPage,
+} from "../../../entrypoints/content/files-page";
 import { watchFilesPages } from "../../../entrypoints/content/visit/watch";
 import { loadCommitFixture, loadFixture } from "../../fixtures/files-page";
 
@@ -10,11 +14,12 @@ const sheets = () =>
   [...document.head.querySelectorAll("style")].filter((style) =>
     style.textContent?.includes("gh-prism-commit-message"),
   );
-const box = () => {
-  const found = document.querySelector('[class*="commitMessageContainer__"]');
-  if (!found) throw new Error("no message box");
+const messageOf = () => {
+  const found = findCommitMessage(pageOf());
+  if (!found) throw new Error("no commit message");
   return found;
 };
+const box = () => messageOf().box;
 const shows = (element: Element) => getComputedStyle(element).display !== "none";
 // Runs the MutationObserver's pending microtask, and no timer.
 const afterMutations = () => vi.advanceTimersByTimeAsync(0);
@@ -27,11 +32,11 @@ function pageOf(): FilesPage {
 
 let controller: AbortController;
 let tasks: (() => void)[];
-const idle = (task: () => void) => void tasks.push(task);
+const afterSections = (task: () => void) => void tasks.push(task);
 const runIdle = () => {
   for (const task of tasks.splice(0)) task();
 };
-const show = () => showCommitMessage(pageOf(), controller.signal, { idle });
+const show = () => showCommitMessage(pageOf(), controller.signal, { afterSections });
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -120,6 +125,11 @@ describe("showCommitMessage", () => {
     await afterMutations();
 
     expect(clone.previousElementSibling).toBe(container());
+
+    clone.remove();
+    await afterMutations();
+
+    expect(container()).toBeNull();
   });
 });
 
@@ -133,7 +143,7 @@ describe("showCommitMessage across navigation", () => {
   const title = () => container()?.querySelector("h1")?.textContent;
   const titleOf = (name: "sha" | "mention") => {
     loadCommitFixture(name);
-    return box().querySelector(":scope > span:first-child > div")?.textContent;
+    return messageOf().title.textContent;
   };
 
   it("shows each commit's message and leaves nothing behind off commit pages", async () => {
@@ -143,7 +153,7 @@ describe("showCommitMessage across navigation", () => {
       window,
       {
         onVisit: () => (page, signal) =>
-          showCommitMessage(page, signal, { idle: (task) => task() }),
+          showCommitMessage(page, signal, { afterSections: (task) => task() }),
         onMissing: () => {},
       },
       controller.signal,

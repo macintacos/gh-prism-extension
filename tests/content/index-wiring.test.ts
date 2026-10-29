@@ -686,13 +686,31 @@ describe("content script", () => {
     expect(page).toBe(vi.mocked(showVisit).mock.calls[0]?.[0]);
     expect(signal).toBe(vi.mocked(showVisit).mock.calls[0]?.[1]);
     const task = () => {};
-    options?.idle(task);
+    options?.afterSections(task);
     await afterMutations();
     expect(requestIdleCallback).not.toHaveBeenCalled();
 
     land(undefined as never);
     await afterMutations();
 
+    expect(requestIdleCallback).toHaveBeenCalledWith(task, { timeout: 1000 });
+  });
+
+  it("shows a commit page's message after a second when the intent never lands", async () => {
+    const requestIdleCallback = vi.fn();
+    vi.stubGlobal("requestIdleCallback", requestIdleCallback);
+    history.replaceState(null, "", "/o/r/commit/dd95cdc");
+    loadCommitFixture();
+    await run();
+
+    const task = () => {};
+    vi.mocked(showCommitMessage).mock.calls[0]?.[2].afterSections(task);
+    await vi.advanceTimersByTimeAsync(999);
+    expect(requestIdleCallback).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(requestIdleCallback).toHaveBeenCalledOnce();
     expect(requestIdleCallback).toHaveBeenCalledWith(task, { timeout: 1000 });
   });
 });
