@@ -4,11 +4,13 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import contentScript from "../../entrypoints/content";
 import { showCommitMessage } from "../../entrypoints/content/commit/message-view";
+import { showStepLinks } from "../../entrypoints/content/commit/step-links";
 import { showOwnerSection } from "../../entrypoints/content/sidebar/owner-section";
 import { dockSidebar, type Side } from "../../entrypoints/content/sidebar/side";
 import { showHeaderTab, showVisit } from "../../entrypoints/content/visit/land";
 import { readCodeOwners, readPrReviewers } from "../../utils/github/code-owners";
 import { readFilesRoute } from "../../utils/github/files-route";
+import { readNextCommit } from "../../utils/github/next-commit";
 import { intentFor } from "../../utils/intent/read";
 import { type CommitMessageView, type DiffstatView, whatsNewSeen } from "../../utils/prefs";
 import { routedFetch } from "../fixtures/fetch";
@@ -40,6 +42,14 @@ vi.mock(import("../../entrypoints/content/visit/land"), async (importOriginal) =
 vi.mock(import("../../entrypoints/content/commit/message-view"), async (importOriginal) => ({
   ...(await importOriginal()),
   showCommitMessage: vi.fn(),
+}));
+vi.mock(import("../../utils/github/next-commit"), async (importOriginal) => ({
+  ...(await importOriginal()),
+  readNextCommit: vi.fn(() => new Promise<never>(() => {})),
+}));
+vi.mock(import("../../entrypoints/content/commit/step-links"), async (importOriginal) => ({
+  ...(await importOriginal()),
+  showStepLinks: vi.fn(),
 }));
 vi.mock(import("../../entrypoints/content/sidebar/owner-section"), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -764,6 +774,57 @@ describe("content script", () => {
     expect(requestIdleCallback).toHaveBeenCalledWith(task, { timeout: 1000 });
   });
 
+  it("reads what follows a commit once per visit, after the intent lands and the browser is idle", async () => {
+    vi.stubGlobal("requestIdleCallback", (task: () => void) => task());
+    let land: (value: never) => void = () => {};
+    vi.mocked(intentFor).mockImplementationOnce(
+      () => new Promise<never>((resolve) => (land = resolve)),
+    );
+    history.replaceState(null, "", "/o/r/commit/dd95cdc");
+    loadCommitFixture();
+    await run();
+    const sidebar = byId("diff_file_tree");
+    sidebar.replaceWith(sidebar.cloneNode(true));
+    await afterMutations();
+    expect(readNextCommit).not.toHaveBeenCalled();
+
+    land(undefined as never);
+    await afterMutations();
+
+    expect(readNextCommit).toHaveBeenCalledOnce();
+    expect(readNextCommit).toHaveBeenCalledWith(
+      readFilesRoute("/o/r/commit/dd95cdc")?.diff,
+      expect.any(Function),
+      expect.any(AbortSignal),
+    );
+    const shown = vi.mocked(showStepLinks).mock.calls.map(([, , options]) => options);
+    expect(shown).toHaveLength(2);
+    expect(shown[1]?.next).toBe(shown[0]?.next);
+  });
+
+  it("goes Next from a commit to the child the reader last saw it under, with no read", async () => {
+    vi.stubGlobal("requestIdleCallback", (task: () => void) => task());
+    const parent = "dd95cdc6a9817998ee6663563e888761f329abcd";
+    history.replaceState(null, "", "/o/r/commit/4f0a580");
+    loadCommitFixture();
+    await run();
+    vi.mocked(showStepLinks).mock.calls[0]?.[2].sawParent(parent);
+
+    history.pushState(null, "", `/o/r/commit/${parent}`);
+    loadCommitFixture();
+    document.dispatchEvent(new Event("soft-nav:end"));
+    await afterMutations();
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(await vi.mocked(showStepLinks).mock.calls[1]?.[2].next).toEqual({
+      kind: "commit",
+      sha: "4f0a580",
+    });
+    expect(vi.mocked(readNextCommit).mock.calls.map(([commit]) => commit.headSha)).toEqual([
+      "4f0a580",
+    ]);
+  });
+
   it("shows a commit page's message after a second when the intent never lands", async () => {
     const requestIdleCallback = vi.fn();
     vi.stubGlobal("requestIdleCallback", requestIdleCallback);
@@ -778,7 +839,8 @@ describe("content script", () => {
 
     await vi.advanceTimersByTimeAsync(1);
 
-    expect(requestIdleCallback).toHaveBeenCalledOnce();
-    expect(requestIdleCallback).toHaveBeenCalledWith(task, { timeout: 1000 });
+    expect(requestIdleCallback.mock.calls.filter(([scheduled]) => scheduled === task)).toEqual([
+      [task, { timeout: 1000 }],
+    ]);
   });
 });

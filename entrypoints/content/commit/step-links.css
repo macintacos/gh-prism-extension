@@ -1,0 +1,62 @@
+/* No GitHub hooks: every rule selects only gh-prism's own classes. */
+@import "../ui/tailwind.css" prefix(tw);
+@source "./step-links.ts";
+
+/* Primer's disabled default Button. Compound, to outrank the link's hover utilities. */
+.gh-prism-commit-steps .gh-prism-commit-step[aria-disabled="true"] {
+  border-color: var(--button-default-borderColor-disabled);
+  background-color: var(--button-default-bgColor-disabled);
+  box-shadow: none;
+  color: var(--control-fgColor-disabled);
+  cursor: not-allowed;
+}
+
+.gh-prism-commit-steps .gh-prism-commit-step[aria-disabled="true"] svg {
+  color: inherit;
+}
+
+/* Primer's tooltip, opening toward the row's start, so it stays inside the commit's card. */
+.gh-prism-commit-step::after {
+  content: attr(aria-label);
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline-end: 0;
+  z-index: 100;
+  padding: 4px 8px;
+  border-radius: var(--borderRadius-medium);
+  background: var(--tooltip-bgColor);
+  color: var(--tooltip-fgColor);
+  font-size: var(--text-body-size-small);
+  font-weight: var(--base-text-weight-normal);
+  line-height: var(--text-body-lineHeight-small);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 120ms ease-out,
+    visibility 120ms;
+}
+
+/* A held-off link's key does nothing, so only a link that goes somewhere names it. */
+.gh-prism-commit-step[href]::after {
+  content: attr(aria-label) " (" attr(aria-keyshortcuts) ")";
+}
+
+.gh-prism-commit-step:is(:hover, :focus-visible)::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-prism-commit-step::after {
+    transition: none;
+  }
+}
+
+/* A touch screen has no keyboard to press the key on. */
+@media (hover: none) and (pointer: coarse) {
+  .gh-prism-commit-key {
+    display: none;
+  }
+}

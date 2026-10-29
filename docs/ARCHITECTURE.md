@@ -150,10 +150,23 @@ so a private diff's address never reaches a public issue.
 On a commit's page, `showCommitMessage` in
 [`entrypoints/content/commit/message-view.ts`](../entrypoints/content/commit/message-view.ts)
 shows the commit message rendered as GitHub-flavored Markdown in place of GitHub's
-monospace box. [`index.ts`](../entrypoints/content/index.ts) runs it once the sidebar's
-sections have landed, or a second has passed without them, and the browser is idle, so the
-message never holds up the sidebar or the diffs, and a slow intent read never holds up
-GitHub's box.
+monospace box. A message with only a subject line stays in GitHub's box, since rendering
+it would change nothing a reader needs, and so does one past the renderer's length or
+parse-cost caps, which `withinCaps` checks without parsing.
+
+The message's place is held from the visit's start. `showCommitMessage` mounts its
+container at once, hiding GitHub's box, with a pulsing skeleton in the body and
+`aria-busy` set, so the column or the slot above the diffs is there from the page's first
+frame and nothing moves when the rendering lands. It renders once the sidebar's sections
+have landed, or a second has passed without them, and the browser is idle, through the
+`afterSections` that [`index.ts`](../entrypoints/content/index.ts) passes, so the parse
+never holds up the sidebar or the diffs. The rendering then takes the skeleton's place,
+fading in on the motion scale's spatial row, or at once under reduced motion. When it
+can't render, the container unmounts and GitHub's box shows again. GitHub's hydration
+swaps the tree's list, which shows the visit's page again, so `index.ts` hands every show
+in a visit one `CommitMessageVisit`: a later show reuses the visit's rendering at once,
+keeps GitHub's box after a failure, and starts its skeleton as far along as the visit is,
+so the loading state never starts over.
 
 `renderCommitMessage` in
 [`entrypoints/content/commit/message.ts`](../entrypoints/content/commit/message.ts) reads
@@ -164,12 +177,14 @@ message shows as text. Each placeholder becomes a clone of GitHub's link, so `#1
 references, mentions, and SHAs keep GitHub's `href`s and hovercards. Any other link keeps
 its `href` only for an `https:`, `http:`, or `mailto:` URL, and an image renders as a
 link, so no image loads. The first line becomes an `h1`, and the rest reflows like a
-README. A message over 50,000 characters, or nested deeper than 32 levels, stays in
-GitHub's box. So does a message whose paragraphs would cost too much to parse: micromark's
-inline parse grows with a paragraph's length times its emphasis and bracket delimiters,
-and with its length squared after an unclosed `[`. `renderCommitMessage` estimates that
-cost per paragraph and refuses a message past a budget, because a crafted message well
-under 50,000 characters would otherwise freeze the page for seconds.
+README. `message-view.css` steps `markdown-body`'s headings down, so the title reads one
+step above the text and no heading in the body outshouts it. A message over 50,000
+characters, or nested deeper than 32 levels, stays in GitHub's box. So does a message
+whose paragraphs would cost too much to parse: micromark's inline parse grows with a
+paragraph's length times its emphasis and bracket delimiters, and with its length squared
+after an unclosed `[`. `renderCommitMessage` estimates that cost per paragraph and refuses
+a message past a budget, because a crafted message well under 50,000 characters would
+otherwise freeze the page for seconds.
 
 A switch at the rendering's top-right corner flips between it and GitHub's box and saves
 the pick as `commitMessageView` in [`utils/prefs.ts`](../utils/prefs.ts). `index.ts` reads
@@ -178,23 +193,99 @@ page the tab's one choice, so a commit opens in the view last picked. The messag
 container mounts with its `data-view` already set, so a reader who picked GitHub's box
 never sees the rendering first.
 
-On a window at least 1332px wide, the view moves the message and its switch into
-`aside.gh-prism-commit-column`, a 320px sticky column it prepends to the flex row around
-the sidebar that `findCommitColumnRow` finds. GitHub docks its file tree beside the diffs
-from 1012px, and the column's width comes on top of that, so the diffs never get narrower
-than GitHub makes them. The column takes the tree pane's geometry and sorts first by
-`order`, wherever the pane is docked. The window stays the scroller, so GitHub's sticky
-file headers and lazy diff loading are untouched. While the message is in the column, a
-hidden `span.gh-prism-commit-slot` stands just before GitHub's box and hides it in the
-message's place, in both views. The column's plaintext view shows
-`div.gh-prism-commit-message-plain` instead: copies of the box's children, taken when the
-message mounts, laid out as the box is: a flex column, padded 8px 12px. A `matchMedia`
-listener moves the message back above the diffs when the window narrows, and a commit page
-with no row keeps it there at any width.
+On a window with room for it, the view moves the message and its switch into
+`aside.gh-prism-commit-column`, a sticky column it prepends to the flex row around the
+sidebar that `findCommitColumnRow` finds. GitHub docks its file tree beside the diffs from
+1012px, so the column takes only what a window has past that, and the diffs never get
+narrower than GitHub makes them there. The column takes the tree pane's geometry and sorts
+first by `order`, wherever the pane is docked. The window stays the scroller, so GitHub's
+sticky file headers and lazy diff loading are untouched; the message scrolls inside the
+column. While the message is in the column, a hidden `span.gh-prism-commit-slot` stands
+just before GitHub's box and hides it in the message's place, in both views. The column's
+plaintext view shows `div.gh-prism-commit-message-plain` instead: copies of the box's
+children, taken when the message mounts, laid out as the box is, as a flex column.
+
+The switch and the hide button sit in `div.gh-prism-commit-controls`, ahead of the title
+and the rest of the message, so every line below the controls runs the message's full
+width. In the column, the controls take a row of their own, and the message is inset 24px,
+as GitHub insets its file tree and diffs. Above the diffs, they float beside the title's
+first line, and the message keeps GitHub's box's 8px 12px inset.
+
+The column is 320px wide until the reader resizes it. `columnSeparator` in
+[`entrypoints/content/commit/column-width.ts`](../entrypoints/content/commit/column-width.ts)
+builds a `role="separator"` on the column's inner edge, copying the Primer pane divider on
+GitHub's file tree: dragging it, or its arrow keys at 3px a press, sets the width, which
+saves as `commitColumnWidth` in [`utils/prefs.ts`](../utils/prefs.ts) and carries to every
+commit in the tab. The width holds between Primer's 256px pane minimum and what the window
+has past 1012px, so the column narrows with the window, and moves back above the diffs
+once the window can't spare 256px, below 1268px. A `resize` listener applies both, and a
+commit page with no row keeps the message above the diffs at any width.
+
+A hide button beside the switch takes the message off the page, column and all, and puts
+`div.gh-prism-commit-restore` in GitHub's box's place, before the slot that keeps the box
+hidden, with a **Show commit message** button that brings it back; focus moves between the
+two. The pick belongs to that one commit: `index.ts` keys it as `owner/repo@sha` with
+[`utils/hidden-commits.ts`](../utils/hidden-commits.ts), which matches a full SHA against
+an abbreviated one, and saves the newest 100 keys as `hiddenCommitMessages` in
+[`utils/prefs.ts`](../utils/prefs.ts). It reads them before watching and keeps the tab's
+copy current, so a soft navigation back to a hidden commit finds it hidden, and it rereads
+storage before each save, so another tab's picks survive. A commit that opens hidden
+renders nothing until the reader shows it, and then renders at once.
 
 gh-prism never edits GitHub's box: the view's sheet only hides it, and it shows again when
 the reader switches to it above the diffs, when the visit aborts, or when gh-prism can't
 render the message.
+
+## A commit's Older and Newer links
+
+On a commit's page, `showStepLinks` in
+[`entrypoints/content/commit/step-links.ts`](../entrypoints/content/commit/step-links.ts)
+adds **Older** and **Newer** links after the copy button in the card's row that names the
+commit's parents and SHA, which `findCommitHeader` in
+[`files-page.ts`](../entrypoints/content/files-page.ts) finds. That row shows wherever the
+message is, in the column, above the diffs, or hidden. Both links mount with the page, so
+they hold their place from its first frame. Each is a plain `<a>` inside GitHub's React
+tree, so GitHub's router follows it as a soft navigation, and the next visit starts as any
+other does. A link with nowhere to go is held off: it loses its `href` and stays in place,
+greyed out, with `aria-disabled` and a tooltip saying why.
+
+Older goes to the commit's first parent, read from the row's parent link with no request.
+A root commit has none. Newer comes from `readNextCommit` in
+[`utils/github/next-commit.ts`](../utils/github/next-commit.ts), which reads through
+github.com with the viewer's session, in at most three requests and never paging:
+
+1. GitHub's commit search for `parent:<sha>` in the repository, sorted by committer date.
+   The earliest result is the next commit. Search covers only the default branch.
+2. When search finds none, `/<owner>/<repo>/branch_commits/<sha>` lists the branches
+   holding the commit, in GitHub's order. It names only the default branch when that
+   branch holds the commit.
+3. The first branch's commits list, its newest page only. The commit listed just above
+   this one is the next. When this one is listed first, it is that branch's newest commit.
+   When the page doesn't list it, Newer finds none. On the default branch, this step
+   decides for a commit with no child yet, and for one whose child search hasn't indexed.
+
+`index.ts` starts the read once per visit through the same `afterLanding` as the message's
+render, which waits for the sidebar's sections, or a second, and then for the browser to
+be idle. So the read never holds up the sidebar, the diffs, or the message. Until it
+lands, Newer is held off, its tooltip reading "looking it up". A failed read logs one
+warning and leaves Newer held off, reading "none found".
+
+A commit can have several children, so Older then Newer could land on a different child
+than the one the reader left. `index.ts` keeps a map for the tab: each commit page records
+itself as the child of the parent its row names, and a visit to that parent takes Newer
+from the map with no request. So Older then Newer returns to where the reader started, for
+as long as the tab's content script runs; a full reload clears the map.
+
+Shift+J follows Older and Shift+K follows Newer. Each link names its key in
+`aria-keyshortcuts` and shows it as a keycap that GitHub's own `kbd` rule draws.
+`showStepLinks` listens for `keydown` on the document, in the capture phase as the `j` and
+`k` file keys do, until the visit aborts. It clicks the link whose `aria-keyshortcuts`
+matches the key, so GitHub's router follows it as it follows a click. It ignores a key
+pressed in a text field, which `isEditable` in
+[`ui/dom.ts`](../entrypoints/content/ui/dom.ts) detects for both the step links and the
+file keys. It also ignores a key pressed with Alt, Ctrl, or Meta, a held key's repeats, a
+capital letter typed without Shift, and a held-off link. The file keys compare `event.key`
+to lowercase `j` and `k`, so the two bindings never take the same key.
 
 ## The owner section
 
@@ -502,7 +593,7 @@ entrypoints/
   content/
     index.ts             content script entry: wires the watchers, intent, and views
     files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; a commit's message box and the row its message column joins
-    commit/              a commit's message rendered as Markdown in GitHub's box's place, or in a column beside the diffs, and its switch back to GitHub's box
+    commit/              a commit's message rendered as Markdown in GitHub's box's place, or in a resizable column beside the diffs, with its switch back to GitHub's box and its hide button
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
@@ -516,6 +607,7 @@ utils/
   hunk-rules/            the docstring and inline-test rules
   sections.ts            path rules for the five sections
   prefs.ts               saved preferences
+  hidden-commits.ts      which commits' messages are hidden, capped
   whats-new.ts           when the what's-new block shows
 tests/                   Vitest unit tests, mirroring the source tree
 e2e/                     Playwright smoke tests against the built extension

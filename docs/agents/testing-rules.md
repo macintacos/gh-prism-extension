@@ -110,6 +110,13 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   current by setting `aria-current` on GitHub's tree item.
   [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "ticking GitHub's current file's box
   saves its Viewed state" is the pattern.
+- **Sample a routed page's frames from gh-prism's first mark, not the page's first
+  frame.** A fixture served from a route parses before the content script has read its
+  stored preferences, so GitHub's markup paints before the visit starts, where a live page
+  streams in after them. A fixture loads no GitHub sheet either, so a test that reads
+  where the diffs sit gives the layout row GitHub's flex and the tree a fixed width.
+  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "a commit's message holds its column from
+  its first frame…" is the pattern.
 - **Keep each end-to-end test independent of the others.** `playwright.config.ts` sets
   `fullyParallel`, so the tests in one file run across workers in no fixed order. The
   `context` fixture gives each test its own browser profile.

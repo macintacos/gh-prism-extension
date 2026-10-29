@@ -216,6 +216,12 @@ test("a commit's diff list skips a comment thread beside it", async ({ context, 
 });
 
 const commitBodyWith = (card: string) => `<!doctype html>${card}${readFixture("commit-page.html")}`;
+// GitHub's flex row, with the tree at a fixed width, for a test that reads where the diffs sit.
+const withLayoutRow = (body: string) =>
+  body.replace(
+    "<!doctype html>",
+    '<!doctype html><style>[class*="PageLayout-PageLayoutContent"] { display: flex; align-items: flex-start; } #diff_file_tree { width: 300px; flex: none; }</style>',
+  );
 const MESSAGE_BOX = '[class*="commitMessageContainer__"]';
 
 test("a commit's message renders as Markdown in GitHub's box's place, after the sidebar", async ({
@@ -224,12 +230,14 @@ test("a commit's message renders as Markdown in GitHub's box's place, after the 
 }) => {
   const card = readFixture("commit-message-lists.html");
   await serve(context, COMMIT_URL, commitBodyWith(card));
+  // Too narrow for the column, so the rendering takes GitHub's box's place.
+  await page.setViewportSize({ width: 1200, height: 900 });
   await page.addInitScript(() => {
     const seen: string[] = [];
     (window as unknown as { seen: string[] }).seen = seen;
     new MutationObserver(() => {
-      for (const name of ["gh-prism-section", "gh-prism-commit-message"]) {
-        if (!seen.includes(name) && document.querySelector(`.${name}`)) seen.push(name);
+      for (const selector of [".gh-prism-section", ".gh-prism-commit-message-body > h1"]) {
+        if (!seen.includes(selector) && document.querySelector(selector)) seen.push(selector);
       }
     }).observe(document, { childList: true, subtree: true });
   });
@@ -247,9 +255,85 @@ test("a commit's message renders as Markdown in GitHub's box's place, after the 
   }, MESSAGE_BOX);
   expect(box).toEqual({ display: "none", afterMessage: true });
   expect(await page.evaluate(() => (window as unknown as { seen: string[] }).seen)).toEqual([
-    "gh-prism-section",
-    "gh-prism-commit-message",
+    ".gh-prism-section",
+    ".gh-prism-commit-message-body > h1",
   ]);
+});
+
+test("a commit's message holds its column from its first frame, through GitHub's re-render, with nothing moving as it lands", async ({
+  context,
+  page,
+}) => {
+  // Only the message could move the diffs.
+  await serve(
+    context,
+    COMMIT_URL,
+    withLayoutRow(commitBodyWith(readFixture("commit-message-lists.html"))),
+  );
+  // Keeps intent pending, so the message waits out the second its loading state lasts.
+  await context.route(`${COMMIT_URL}.diff`, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    await route.fulfill({ status: 404 });
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  // Records, every frame from the column's first, what a reader sees of GitHub's box, the diffs,
+  // and the skeleton. A routed fixture parses before the content script has read its stored
+  // preferences, so GitHub's box paints before the visit starts, as a streamed page's doesn't.
+  await page.addInitScript((boxSelector) => {
+    const frames: { boxShown: boolean; diffsAt: string; skeleton?: number }[] = [];
+    const skeletons = new WeakSet<Element>();
+    const seen = { frames, skeletons: 0 };
+    Object.assign(window, { seen });
+    const sample = () => {
+      requestAnimationFrame(sample);
+      const diffs = document.getElementById("diff-content-parent")?.getBoundingClientRect();
+      const skeleton = document.querySelector(".gh-prism-commit-skeleton");
+      if (!diffs || (!frames.length && !document.querySelector(".gh-prism-commit-column"))) return;
+      if (skeleton && !skeletons.has(skeleton)) {
+        skeletons.add(skeleton);
+        seen.skeletons++;
+      }
+      const messageBox = document.querySelector(boxSelector);
+      frames.push({
+        boxShown: !!messageBox && getComputedStyle(messageBox).display !== "none",
+        diffsAt: `${Math.round(diffs.left + scrollX)},${Math.round(diffs.top + scrollY)}`,
+        skeleton: skeleton ? Number(getComputedStyle(skeleton).opacity) : undefined,
+      });
+    };
+    requestAnimationFrame(sample);
+  }, MESSAGE_BOX);
+
+  await page.goto(COMMIT_URL);
+  await expect(page.locator(".gh-prism-commit-column .gh-prism-commit-skeleton")).toBeVisible();
+  await page.waitForTimeout(400);
+  // GitHub's hydration swaps the tree's list, which shows the visit's page again.
+  await page.evaluate(() => {
+    const list = document.querySelector('#diff_file_tree ul[role="tree"]');
+    list?.replaceWith(list.cloneNode(true));
+  });
+  await expect(
+    page.locator(".gh-prism-commit-column .gh-prism-commit-message-body > h1"),
+  ).toBeVisible();
+
+  const { frames, skeletons } = await page.evaluate(
+    () =>
+      (
+        window as unknown as {
+          seen: {
+            frames: { boxShown: boolean; diffsAt: string; skeleton?: number }[];
+            skeletons: number;
+          };
+        }
+      ).seen,
+  );
+  expect(skeletons).toBe(2);
+  expect(frames.some((frame) => frame.boxShown)).toBe(false);
+  expect(new Set(frames.map((frame) => frame.diffsAt)).size).toBe(1);
+  const shownFrom = frames.findIndex((frame) => frame.skeleton === 1);
+  expect(shownFrom).toBeGreaterThan(-1);
+  expect(
+    frames.slice(shownFrom).every((frame) => frame.skeleton === undefined || frame.skeleton === 1),
+  ).toBe(true);
 });
 
 test("a commit's message moves into a column on a wide window and back above the diffs on a narrow one", async ({
@@ -289,12 +373,65 @@ test("a commit's message moves into a column on a wide window and back above the
   await expect(page.locator(MESSAGE_BOX)).toBeVisible();
 });
 
+test("a commit's message runs its prose under its controls, in the narrowest column and above the diffs", async ({
+  context,
+  page,
+}) => {
+  await serve(
+    context,
+    COMMIT_URL,
+    withLayoutRow(commitBodyWith(readFixture("commit-message-lists.html"))),
+  );
+  const layout = () =>
+    page.evaluate(() => {
+      const rect = (selector: string) => {
+        const found = document.querySelector(`.gh-prism-commit-message ${selector}`);
+        if (!found) throw new Error(`no ${selector}`);
+        const { top, right, bottom, left } = found.getBoundingClientRect();
+        return { top, right, bottom, left };
+      };
+      const message = document.querySelector(".gh-prism-commit-message");
+      if (!message) throw new Error("no message");
+      const { right, left } = message.getBoundingClientRect();
+      return {
+        message: { right, left },
+        viewSwitch: rect(".gh-prism-commit-view-switch"),
+        hide: rect(".gh-prism-commit-hide"),
+        title: rect(".gh-prism-commit-message-body > h1"),
+        list: rect(".gh-prism-commit-message-body > ul"),
+      };
+    });
+  // GitHub's 1012px docked layout leaves the column its 256px minimum.
+  await page.setViewportSize({ width: 1268, height: 900 });
+  await page.goto(COMMIT_URL);
+  await expect(page.locator(".gh-prism-commit-column ul")).toBeVisible();
+
+  const column = await layout();
+
+  expect(column.viewSwitch.top).toBe(column.hide.top);
+  expect(column.viewSwitch.left).toBeGreaterThanOrEqual(column.message.left + 24);
+  expect(column.hide.right).toBe(column.message.right - 24);
+  expect(column.title.top).toBeGreaterThanOrEqual(column.hide.bottom);
+  expect(column.list.left).toBe(column.message.left + 24);
+  expect(column.list.right).toBe(column.message.right - 24);
+
+  await page.setViewportSize({ width: 1200, height: 900 });
+  await expect(page.locator(".gh-prism-commit-column")).toHaveCount(0);
+
+  const above = await layout();
+
+  expect(above.title.top).toBeLessThan(above.hide.bottom);
+  expect(above.list.right).toBe(above.message.right - 12);
+});
+
 test("a commit's message switches to GitHub's box from the keyboard, and opens there after a reload with no flash of the rendering", async ({
   context,
   page,
 }) => {
   const card = readFixture("commit-message-lists.html");
   await serve(context, COMMIT_URL, commitBodyWith(card));
+  // Too narrow for the column, so the plaintext view is GitHub's own box.
+  await page.setViewportSize({ width: 1200, height: 900 });
   // Records, every frame, whether the rendering or a hidden box ever painted.
   await page.addInitScript((boxSelector) => {
     const painted = { rendering: false, hiddenBox: false };
@@ -309,7 +446,7 @@ test("a commit's message switches to GitHub's box from the keyboard, and opens t
     requestAnimationFrame(sample);
   }, MESSAGE_BOX);
   const toPlain = page.getByRole("button", { name: "Show plain text" });
-  const toRendered = page.getByRole("button", { name: "Show rendered Markdown" });
+  const toRendered = page.getByRole("button", { name: "Show Markdown" });
 
   await page.goto(COMMIT_URL);
   await toPlain.press("Enter");
@@ -329,6 +466,264 @@ test("a commit's message switches to GitHub's box from the keyboard, and opens t
   await toRendered.press("Space");
   await expect(page.locator(MESSAGE_BOX)).toBeHidden();
   await expect(toPlain).toBeFocused();
+});
+
+test("a subject-only commit keeps GitHub's box, with no column or switch", async ({
+  context,
+  page,
+}) => {
+  await serve(context, COMMIT_URL, commitBodyWith(readFixture("commit-message-subject.html")));
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  await page.goto(COMMIT_URL);
+  await expect(page.locator(".gh-prism-section").first()).toBeVisible();
+  await page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestIdleCallback(() => setTimeout(resolve, 0), { timeout: 2000 }),
+      ),
+  );
+
+  await expect(
+    page.locator(".gh-prism-commit-message, .gh-prism-commit-column, .gh-prism-commit-slot"),
+  ).toHaveCount(0);
+  await expect(page.locator(MESSAGE_BOX)).toBeVisible();
+});
+
+test("a commit's Older and Newer hold their place from its first frame, and step to its parent and back", async ({
+  context,
+  page,
+}) => {
+  // commit-message-lists.html's card names this first parent.
+  const parentUrl = "https://github.com/o/r/commit/9f707bc6d2d249be450352203059fb2a22bce9dd";
+  await serve(context, COMMIT_URL, commitBodyWith(readFixture("commit-message-lists.html")));
+  await serve(context, parentUrl, commitBodyWith(readFixture("commit-message-mention.html")));
+  // Holds the sections back, so a read of Newer that doesn't wait for them shows.
+  await context.route(`${COMMIT_URL}.diff`, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    await route.fulfill({ status: 404 });
+  });
+  const childOf = new Map([
+    [COMMIT_URL.split("/").at(-1), "4f0a5807bf75a60bb17cca7788052d48e99be13f"],
+    [parentUrl.split("/").at(-1), COMMIT_URL.split("/").at(-1)],
+  ]);
+  let release: () => void = () => {};
+  const released = new Promise<void>((resolve) => (release = resolve));
+  const searched: { afterMs: number; sectionsFirst: boolean }[] = [];
+  let loadedAt = 0;
+  await context.route(
+    (url) => url.pathname === "/search",
+    async (route, request) => {
+      const afterMs = Date.now() - loadedAt;
+      searched.push({
+        afterMs,
+        sectionsFirst: (await page.locator(".gh-prism-section").count()) > 0,
+      });
+      await released;
+      const parent = new URL(request.url()).searchParams.get("q")?.split("parent:")[1];
+      const results = [{ sha: childOf.get(parent) }];
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ payload: { blackbirdSearchRoute: { results } } }),
+      });
+    },
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  // Records, every frame from the links' first, where they sit and where Newer goes.
+  await page.addInitScript(() => {
+    const frames: { at: string; next: string | null }[] = [];
+    Object.assign(window, { stepFrames: frames });
+    const sample = () => {
+      requestAnimationFrame(sample);
+      const steps = document.querySelector(".gh-prism-commit-steps")?.getBoundingClientRect();
+      if (!frames.length && !steps) return;
+      frames.push({
+        at: steps ? `${Math.round(steps.left)},${Math.round(steps.top)},${steps.width}` : "gone",
+        next: document.querySelector(".gh-prism-commit-next")?.getAttribute("href") ?? null,
+      });
+    };
+    requestAnimationFrame(sample);
+  });
+  const previous = page.getByRole("link", { name: /^Older commit/ });
+  const next = page.getByRole("link", { name: /^Newer commit/ });
+
+  loadedAt = Date.now();
+  await page.goto(COMMIT_URL);
+  await expect(page.locator(".gh-prism-section").first()).toBeVisible();
+  await expect(next).toHaveAttribute("aria-disabled", "true");
+  await expect.poll(() => searched.length).toBe(1);
+  release();
+  await expect(next).toHaveAttribute(
+    "href",
+    "/o/r/commit/4f0a5807bf75a60bb17cca7788052d48e99be13f",
+  );
+
+  const frames = await page.evaluate(
+    () => (window as unknown as { stepFrames: { at: string; next: string | null }[] }).stepFrames,
+  );
+  // The read waits for the sections, or a second without them, as the message's render does.
+  expect(searched).toHaveLength(1);
+  expect(searched[0]?.sectionsFirst || (searched[0]?.afterMs ?? 0) >= 1000).toBe(true);
+  expect(frames[0]?.next).toBeNull();
+  expect(new Set(frames.map((frame) => frame.at)).size).toBe(1);
+  // As in Primer's ButtonGroup, one border divides the two.
+  const [older, newer] = await Promise.all([previous.boundingBox(), next.boundingBox()]);
+  expect(newer?.x).toBeCloseTo((older?.x ?? 0) + (older?.width ?? 0) - 1, 1);
+
+  await previous.click();
+  await expect(page).toHaveURL(parentUrl);
+  await next.click();
+  await expect(page).toHaveURL(COMMIT_URL);
+});
+
+test("Shift+J steps a commit to its parent and Shift+K back, while a text field types them", async ({
+  context,
+  page,
+}) => {
+  // commit-message-lists.html's card names this first parent.
+  const parentUrl = "https://github.com/o/r/commit/9f707bc6d2d249be450352203059fb2a22bce9dd";
+  await serve(context, COMMIT_URL, commitBodyWith(readFixture("commit-message-lists.html")));
+  await serve(context, parentUrl, commitBodyWith(readFixture("commit-message-mention.html")));
+  // A routed page loads in full, so the parent's Newer comes from search, not the tab's memory.
+  await context.route(
+    (url) => url.pathname === "/search",
+    (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          payload: { blackbirdSearchRoute: { results: [{ sha: COMMIT_URL.split("/").at(-1) }] } },
+        }),
+      }),
+  );
+  // A routed page has no charset, so the label's ellipsis decodes as Windows-1252.
+  const filter = page.getByRole("textbox", { name: /^Filter files/ });
+  const previous = page.getByRole("link", { name: /^Older commit/ });
+  const next = page.getByRole("link", { name: /^Newer commit/ });
+
+  await page.goto(COMMIT_URL);
+  await expect(previous).toHaveAttribute("href", /9f707bc/);
+  await filter.press("Shift+J");
+
+  await expect(filter).toHaveValue("J");
+  await expect(page).toHaveURL(COMMIT_URL);
+  expect(await previous.evaluate((link) => getComputedStyle(link, "::after").content)).toContain(
+    "Shift+J",
+  );
+
+  await filter.blur();
+  await page.keyboard.press("Shift+J");
+
+  await expect(page).toHaveURL(parentUrl);
+  await expect(next).toHaveAttribute("href", new URL(COMMIT_URL).pathname);
+
+  await page.keyboard.press("Shift+K");
+
+  await expect(page).toHaveURL(COMMIT_URL);
+});
+
+test("a commit's message column resizes from its edge by mouse and keyboard, and keeps its width after a reload", async ({
+  context,
+  page,
+}) => {
+  await serve(context, COMMIT_URL, commitBodyWith(readFixture("commit-message-lists.html")));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(COMMIT_URL);
+  const column = page.locator(".gh-prism-commit-column");
+  const separator = page.getByRole("separator", { name: "Resize commit message" });
+  const wash = () => separator.evaluate((el) => Number(getComputedStyle(el, "::before").opacity));
+  await expect(column).toHaveCSS("width", "320px");
+  const edge = await separator.boundingBox();
+  if (!edge) throw new Error("no separator box");
+  const x = edge.x + edge.width / 2;
+  const y = edge.y + 200;
+  // The target reaches outward past the column's edge, and leaves the scroll bar inside it alone.
+  const hits = (offset: number) =>
+    column.evaluate(
+      (aside, [dx, top]) => {
+        const point = aside.getBoundingClientRect().right + dx;
+        return aside.ownerDocument.elementFromPoint(point, top)?.getAttribute("role") ?? null;
+      },
+      [offset, y] as const,
+    );
+  expect(await hits(10)).toBe("separator");
+  expect(await hits(-8)).not.toBe("separator");
+  await page.mouse.move(x, y);
+  await expect(separator).toHaveCSS("cursor", "col-resize");
+  await expect.poll(wash).toBe(1);
+  await page.mouse.down();
+  await page.mouse.move(x + 60, y, { steps: 4 });
+  await expect(column).toHaveCSS("width", "380px");
+  await page.mouse.move(x + 400, y, { steps: 4 });
+  // 1440px leaves 428px past GitHub's 1012px docked layout.
+  await expect(column).toHaveCSS("width", "428px");
+  await page.mouse.up();
+  await expect(separator).toHaveAttribute("aria-valuenow", "428");
+
+  await separator.focus();
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("ArrowLeft");
+  await expect(column).toHaveCSS("width", "422px");
+  await expect(separator).toHaveCSS("outline-style", "solid");
+
+  // The width saves asynchronously; reload until a load reads it back.
+  await expect(async () => {
+    await page.reload();
+    await expect(column).toHaveCSS("width", "422px", { timeout: 5000 });
+  }).toPass({ timeout: 20_000 });
+});
+
+test("hiding a commit's message keeps it hidden on that commit alone, across commits and reloads", async ({
+  context,
+  page,
+}) => {
+  const other = "https://github.com/o/r/commit/4f0a5807bf75a60bb17cca7788052d48e99be13f";
+  await serve(
+    context,
+    COMMIT_URL,
+    withLayoutRow(commitBodyWith(readFixture("commit-message-lists.html"))),
+  );
+  await serve(
+    context,
+    other,
+    withLayoutRow(commitBodyWith(readFixture("commit-message-mention.html"))),
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const column = page.locator(".gh-prism-commit-column");
+  const hide = page.getByRole("button", { name: "Hide commit message" });
+  const showAgain = page.getByRole("button", { name: "Show commit message" });
+  const diffsLeft = () =>
+    page.evaluate(
+      () => document.getElementById("diff-content-parent")?.getBoundingClientRect().left,
+    );
+  await page.goto(COMMIT_URL);
+  await expect(column).toBeVisible();
+  const besideColumn = await diffsLeft();
+
+  await hide.click();
+
+  await expect(column).toHaveCount(0);
+  await expect(showAgain).toBeFocused();
+  await expect(page.locator(MESSAGE_BOX)).toBeHidden();
+  expect(await diffsLeft()).toBeLessThan(besideColumn ?? 0);
+
+  await page.goto(other);
+  await expect(column).toBeVisible();
+  await expect(showAgain).toHaveCount(0);
+
+  // The pick saves asynchronously; load the hidden commit until a load reads it back.
+  await expect(async () => {
+    await page.goto(COMMIT_URL);
+    await expect(showAgain).toBeVisible({ timeout: 5000 });
+  }).toPass({ timeout: 20_000 });
+  await expect(column).toHaveCount(0);
+  await page.reload();
+  await expect(showAgain).toBeVisible();
+  await expect(page.locator(MESSAGE_BOX)).toBeHidden();
+
+  await showAgain.click();
+
+  await expect(column.locator(".gh-prism-commit-message-body > h1")).toBeVisible();
+  await expect(hide).toBeFocused();
 });
 
 for (const width of [1280, 1440]) {

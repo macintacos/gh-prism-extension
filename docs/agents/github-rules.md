@@ -110,6 +110,17 @@ facts about GitHub that held when written, and ends with how to re-check them;
   `findCommitColumnRow` finds the row from the sidebar.
 - **Read the message from the box, not the embedded page data.** The data holds it only as
   HTML (`shortMessageMarkdown`, `bodyMessageHtml`), never as raw text.
+- **Read a commit's first parent from `a[data-hotkey="p"]` in the card's row
+  `[class*="commitBranchContainer__"] > pre`.** The row reads "1 parent", "2 parents" with
+  the second parent's link bound to `o`, or "0 parents" for a root commit, then "commit"
+  and the short SHA, and ends in the button that copies the full SHA. Each parent link's
+  `href` is `/<owner>/<repo>/commit/<full sha>`.
+- **Expect hydration to replace the whole commit card in the same frame as the tree.** On
+  cli/cli@189706b at 1440px, the parents row, the message box, and the tree's list were
+  all new nodes about 325 ms after load. Whatever gh-prism put in the card goes with it,
+  and the watcher's new page puts it back.
+- **Expect a plain `<a href>` that gh-prism appends inside the card to navigate softly.**
+  GitHub's router takes its click: `soft-nav:end` fires, and the document stays.
 - **Rely on GitHub's `markdown-body` sheet.** It loads on commit pages, so a
   `div.markdown-body` gets GitHub's README styling with no sheet of gh-prism's. Task lists
   rely on its classes too: `message.ts` writes `contains-task-list`, `task-list-item`, and
@@ -122,9 +133,45 @@ facts about GitHub that held when written, and ends with how to re-check them;
   named in the `tests/fixtures/commit-message-*.html` header comments, and compare each
   page's message card with its fixture. Check a scratch `div.markdown-body`'s computed
   `font-size` reads `16px`, and that a scratch `ul.contains-task-list > li.task-list-item`
-  drops its bullet. On a public commit page at ≥ 1332px, read the computed `order` of
+  drops its bullet. On a public commit page at ≥ 1268px, read the computed `order` of
   `[class*="PageLayout-PageLayoutContent"]`'s children, the pane wrapper's `position`,
-  `top`, and `height`, and confirm `document.scrollingElement` is what scrolls.
+  `top`, and `height`, and confirm `document.scrollingElement` is what scrolls. Read the
+  parents row of a merge (cli/cli@0cf1092) and a root commit
+  (octocat/Hello-World@553c207). On a commit page, append an `<a>` to another commit
+  inside the parents row, click it, and check that a `window` property survives.
+
+## A commit's next commit
+
+No commit records its children, so gh-prism reads them from three JSON endpoints that
+github.com's own pages read. Each answers JSON only with `Accept: application/json`, and
+its page's HTML without it. Each answers signed out on a public repository and signed in
+on a private one.
+
+- **Find a commit's children on the default branch with commit search.**
+  `/search?q=repo:<owner>/<repo> parent:<sha>&type=commits&s=committer-date&o=asc` answers
+  `payload.blackbirdSearchRoute.results[].sha`, earliest committer date first. `parent:`
+  matches either parent of a merge, and takes an abbreviated SHA. Search covers only the
+  default branch: a child on any other branch never shows.
+- **Read the branches holding a commit from `/<owner>/<repo>/branch_commits/<sha>`.** It
+  answers `{"branches": [{"branch", "prs"}], "tags": [...]}`, naming only the default
+  branch when that branch holds the commit. GitHub doesn't say how it orders several other
+  branches, so take its first as it comes. GitHub's commit card requests it to show the
+  branch.
+- **Read a branch's newest commits from `/<owner>/<repo>/commits/<branch>`.** It answers
+  `payload.commitsRefRoute.commitGroups[].commits[].oid`, 35 to a page, newest first. A
+  `/` in the branch name may be `%2F`. The entries carry no parents, and on a branch that
+  takes merges, a pull request's commits sit between the branch's own, so the entry above
+  a commit isn't always its child. Its cursors (`after=<head>+<n>`) count from the
+  branch's head, and `before=` with any other commit lists nothing, so no request jumps to
+  a commit's place in the list.
+- **Don't expect a compare to list commits between distant commits.**
+  `/compare/<sha>...<branch>` answered "This comparison is taking too long to generate"
+  for cli/cli@189706b against `trunk`, six weeks of history apart.
+- **Re-check:** curl each endpoint for cli/cli with the header, then without it.
+  `parent:9eb4db2` finds 189706b and 0cf1092. Commit 307d529, on `attester/multi-tenant`
+  alone, finds no children in search but lists that branch in `branch_commits`. Curl
+  `/cli/cli/compare/189706b...trunk` for the timeout. Signed in with the saved
+  `storageState`, fetch the search for a private repository's commit from its page.
 
 ## Diff lists
 

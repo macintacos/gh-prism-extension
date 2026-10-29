@@ -27,7 +27,9 @@ hover and focus, so a reviewer who never looks for it never sees it.
   marks Viewed too, so the dimming is never the only signal.
 - **Keep controls quiet at rest, and show their detail on hover and focus.** A section's
   icon gives way to its chevron, and a control's tooltip names its action and key. Focus
-  shows the same detail as hover, so a keyboard user gets it too.
+  shows the same detail as hover, so a keyboard user gets it too. A commit's Older and
+  Newer are the one exception: each shows its key as a keycap at rest, so a reader sees
+  the keys without hovering, because the maintainer asked for it.
 - **Move only to confirm an action or show a state change.** Keep motion brief, never
   block input on it, and let a frequent action such as stepping through files with `j`
   land without a flourish. The one exception: a truncated name in the sidebar scrolls back
@@ -35,7 +37,8 @@ hover and focus, so a reviewer who never looks for it never sees it.
   or focus leaves.
 - **Show the key a control takes in its tooltip, and never take a key GitHub binds on the
   page.** GitHub binds `?` to its shortcut list and `/` to search. gh-prism binds `j` and
-  `k` to step through files in the sidebar's order.
+  `k` to step through files in the sidebar's order, and Shift+J and Shift+K to follow a
+  commit's Older and Newer links.
 - **Play no sound.** gh-prism runs inside github.com, where a sound would surprise the
   reviewer, and it has no settings surface to turn one off.
 - **Say an empty or degraded state in one plain sentence, with no illustration and no

@@ -12,8 +12,10 @@ import {
   withMemberTeams,
 } from "@/utils/github/code-owners";
 import { ownerOf } from "@/utils/github/files-route";
+import { type NextCommit, readNextCommit } from "@/utils/github/next-commit";
 import { connectPrData } from "@/utils/github/pr-port";
-import { type DiffRef, readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
+import { type CommitHead, type DiffRef, readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
+import { hiddenKeyOf, hiddenKeysOf, isHidden, withHidden } from "@/utils/hidden-commits";
 import { storedIntents } from "@/utils/intent/cache";
 import {
   type IntentSources,
@@ -24,9 +26,11 @@ import {
 import {
   type CommitMessageView,
   classicNoticeDismissed,
+  commitColumnWidth,
   commitMessageView,
   type DiffstatView,
   diffstatView,
+  hiddenCommitMessages,
   sidebarSide,
   whatsNewSeen,
 } from "@/utils/prefs";
@@ -37,7 +41,12 @@ import {
   whatsNewStateOf,
 } from "@/utils/whats-new";
 import { type NoticeChoice, showClassicNotice } from "./classic/notice";
-import { type CommitMessageChoice, showCommitMessage } from "./commit/message-view";
+import {
+  type CommitMessageChoice,
+  type CommitMessageVisit,
+  showCommitMessage,
+} from "./commit/message-view";
+import { type StepLinksOptions, showStepLinks } from "./commit/step-links";
 import { showReviewerFiles } from "./conversation/reviewer-files";
 import { visitViewed } from "./diffs/viewed";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
@@ -74,16 +83,27 @@ export default defineContentScript({
     } satisfies IntentSources;
     const release = releaseOf(import.meta.env.WXT_RELEASE_NOTES, version);
     // Read before watching, so a saved side, view, or dismissal never shows its default first.
-    const [savedSide, savedDiffstat, savedCommitMessage, dismissed, whatsNewForPage] =
-      await Promise.all([
-        readSavedSide(),
-        readSavedDiffstat(),
-        readSavedCommitMessage(),
-        readNoticeDismissed(),
-        release && followWhatsNew(release, ctx),
-      ]);
+    const [
+      savedSide,
+      savedDiffstat,
+      savedCommitMessage,
+      savedColumnWidth,
+      savedHidden,
+      dismissed,
+      whatsNewForPage,
+    ] = await Promise.all([
+      readSavedSide(),
+      readSavedDiffstat(),
+      readSavedCommitMessage(),
+      readSavedColumnWidth(),
+      readHiddenMessages(),
+      readNoticeDismissed(),
+      release && followWhatsNew(release, ctx),
+    ]);
     const side = sideChoiceOf(savedSide);
-    const commitMessage = commitMessageChoiceOf(savedCommitMessage);
+    const commitMessage = commitMessageChoiceOf(savedCommitMessage, savedColumnWidth);
+    const hiddenMessages: HiddenMessages = { keys: hiddenKeysOf(savedHidden) };
+    const seenChildren: SeenChildren = new Map();
     // Shared by every visit, so a switch on one tab or page carries to the next.
     const diffstat = {
       choice: diffstatChoiceOf(savedDiffstat),
@@ -115,6 +135,18 @@ export default defineContentScript({
             diffUrl: location.origin + location.pathname,
             version,
           };
+          const hiddenKey = route.diff.kind === "commit" ? hiddenKeyOf(route.diff) : undefined;
+          const messageVisit: CommitMessageVisit = {
+            since: performance.now(),
+            hidden: hiddenKey !== undefined && isHidden(hiddenMessages.keys, hiddenKey),
+          };
+          const saveHidden = (hidden: boolean) => {
+            if (hiddenKey) saveHiddenMessage(hiddenMessages, hiddenKey, hidden);
+          };
+          const steps =
+            route.diff.kind === "commit"
+              ? stepLinksFor(route.diff, seenChildren, { after: afterLanding(intent), visit })
+              : undefined;
           return (page, signal) => {
             showReportLink(page, signal, reportOptions);
             showOwnerSection(page, signal, {
@@ -136,7 +168,11 @@ export default defineContentScript({
               afterSections: afterLanding(intent),
               choice: commitMessage,
               save: saveCommitMessage,
+              saveWidth: saveColumnWidth,
+              saveHidden,
+              visit: messageVisit,
             });
+            if (steps) showStepLinks(page, signal, steps);
             dockSidebar(page, signal, { choice: side, save: saveSide });
           };
         },
@@ -207,6 +243,31 @@ const afterLanding =
     void Promise.race([Promise.resolve(intent(() => {})), bound]).then(schedule, schedule);
   };
 
+/**
+ * The child of each commit, by `owner/repo@sha` in lowercase, under which this tab last showed it
+ * as the parent, so Next undoes Previous even where a commit has several children.
+ */
+type SeenChildren = Map<string, string>;
+
+/**
+ * `commit`'s step links: Next goes to the child `seenChildren` last saw it under, else to what a
+ * read started `after` the sections land finds, until `visit` aborts. The parent the page names
+ * records `commit` as its child.
+ */
+function stepLinksFor(
+  commit: CommitHead,
+  seenChildren: SeenChildren,
+  { after, visit }: { after: (task: () => void) => void; visit: AbortSignal },
+): StepLinksOptions {
+  const keyOf = (sha: string) => `${commit.owner}/${commit.repo}@${sha}`.toLowerCase();
+  const child = seenChildren.get(keyOf(commit.headSha));
+  const next: Promise<NextCommit | undefined> = child
+    ? Promise.resolve({ kind: "commit", sha: child })
+    : new Promise((resolve) => after(() => resolve(readNextCommit(commit, fetch, visit))));
+  const sawParent = (parent: string) => seenChildren.set(keyOf(parent), commit.headSha);
+  return { commit, next, sawParent };
+}
+
 /** The stored sidebar side, unchecked, or the default when storage won't read. */
 const readSavedSide = (): Promise<unknown> =>
   sidebarSide.getValue().catch((error: unknown) => {
@@ -250,11 +311,25 @@ const readSavedCommitMessage = (): Promise<unknown> =>
     return commitMessageView.fallback;
   });
 
-/** The view a commit's message opens on: `saved`, when it names one, else the default. */
-function commitMessageChoiceOf(saved: unknown): CommitMessageChoice {
-  // `fallback` covers only a missing view; a corrupt one reads back as stored.
-  const known = saved === "rendered" || saved === "plaintext";
-  return { view: known ? saved : commitMessageView.fallback };
+/** The stored commit message column width, unchecked, or the default when storage won't read. */
+const readSavedColumnWidth = (): Promise<unknown> =>
+  commitColumnWidth.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading the commit message column's width failed", error);
+    return commitColumnWidth.fallback;
+  });
+
+/**
+ * The view a commit's message opens on and its column's width: `savedView` and `savedWidth`, when
+ * each is one, else the defaults.
+ */
+function commitMessageChoiceOf(savedView: unknown, savedWidth: unknown): CommitMessageChoice {
+  // `fallback` covers only a missing value; a corrupt one reads back as stored.
+  const known = savedView === "rendered" || savedView === "plaintext";
+  const knownWidth = typeof savedWidth === "number" && Number.isFinite(savedWidth);
+  return {
+    view: known ? savedView : commitMessageView.fallback,
+    width: knownWidth ? savedWidth : commitColumnWidth.fallback,
+  };
 }
 
 const saveCommitMessage = (view: CommitMessageView) =>
@@ -263,6 +338,39 @@ const saveCommitMessage = (view: CommitMessageView) =>
     .catch((error: unknown) =>
       console.error("gh-prism: saving the commit message view failed", error),
     );
+
+const saveColumnWidth = (width: number) =>
+  commitColumnWidth
+    .setValue(width)
+    .catch((error: unknown) =>
+      console.error("gh-prism: saving the commit message column's width failed", error),
+    );
+
+/** The commits whose message this tab knows are hidden, kept current as its visits hide them. */
+interface HiddenMessages {
+  keys: readonly string[];
+}
+
+/** The stored hidden commit messages, unchecked, or none when storage won't read. */
+const readHiddenMessages = (): Promise<unknown> =>
+  hiddenCommitMessages.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading the hidden commit messages failed", error);
+    return hiddenCommitMessages.fallback;
+  });
+
+/**
+ * Records `key`'s commit message as `hidden` or shown in the tab's `hiddenMessages` and in storage,
+ * read afresh so a pick another tab made since this one started survives.
+ */
+function saveHiddenMessage(hiddenMessages: HiddenMessages, key: string, hidden: boolean): void {
+  hiddenMessages.keys = withHidden(hiddenMessages.keys, key, hidden);
+  hiddenCommitMessages
+    .getValue()
+    .then((saved) => hiddenCommitMessages.setValue(withHidden(hiddenKeysOf(saved), key, hidden)))
+    .catch((error: unknown) =>
+      console.error("gh-prism: saving the hidden commit messages failed", error),
+    );
+}
 
 /** Whether the user dismissed the classic page's notice; not, when storage won't read. */
 const readNoticeDismissed = (): Promise<boolean> =>

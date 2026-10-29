@@ -1,18 +1,59 @@
 /* GitHub hooks: the commit message box, the sibling after a rendered .gh-prism-commit-message
-   or after .gh-prism-commit-slot; and [class*="PageLayout-PageLayoutContent"]'s flex row, whose
-   panes sort at order 1 or PageLayout's --region-order-pane-end, which the column's tw:-order-1
-   sorts before. Every other rule selects only gh-prism's own classes. */
+   (other than the column's separator) or after .gh-prism-commit-slot; and
+   [class*="PageLayout-PageLayoutContent"]'s flex row, whose panes sort at order 1 or
+   PageLayout's --region-order-pane-end, which the column's tw:-order-1 sorts before; and
+   .markdown-body's headings, which the body's heading rules outrank. Every other rule selects
+   only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @source "./message-view.ts";
+@source "./column-width.ts";
 
-/* GitHub's box, while the rendered message stands in for it. */
-.gh-prism-commit-message[data-view="rendered"] + * {
+/* GitHub's box, while the rendered message stands in for it; in the column, the separator follows
+   the message instead. */
+.gh-prism-commit-message[data-view="rendered"] + :not(.gh-prism-commit-column-separator) {
   display: none !important;
 }
 
 /* GitHub's box, while the message is in the column, in either view. */
 .gh-prism-commit-slot + * {
   display: none !important;
+}
+
+/* markdown-body's README scale, whose 2em ruled h1 shouts in a commit message, stepped down so
+   the title sits a step above the text and every heading in the body below the title. Compound,
+   to outrank GitHub's .markdown-body rules. */
+.gh-prism-commit-message-body.markdown-body h1,
+.gh-prism-commit-message-body.markdown-body h2 {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.gh-prism-commit-message-body.markdown-body h1 {
+  font-size: 1.125rem;
+}
+
+.gh-prism-commit-message-body.markdown-body h2,
+.gh-prism-commit-message-body.markdown-body h3 {
+  font-size: 1rem;
+}
+
+.gh-prism-commit-message-body.markdown-body > h1:first-child {
+  font-size: var(--text-title-size-medium, 1.25rem);
+}
+
+/* Beside the title's first line, so the lines below run the message's full width. The negative
+   margins keep the float within the title's 25px line, so a wrapped title's next line clears it. */
+.gh-prism-commit-controls {
+  float: inline-end;
+  margin-block: -2px;
+  margin-inline-start: 16px;
+}
+
+/* In the column, a row of their own, level with the 32px fields GitHub's panes open with. */
+.gh-prism-commit-column .gh-prism-commit-controls {
+  float: none;
+  min-height: var(--control-medium-size, 32px);
+  margin: 0 0 8px;
 }
 
 /* The rendering, in the plaintext view. */
@@ -33,36 +74,106 @@
   min-height: 44px;
 }
 
-/* Primer's tooltip, opening inward from the message's end. */
-.gh-prism-commit-view-switch::after {
-  content: attr(aria-label);
-  position: absolute;
-  top: calc(100% + 4px);
-  inset-inline-end: 0;
-  z-index: 100;
-  padding: 4px 8px;
-  border-radius: var(--borderRadius-medium);
-  background: var(--tooltip-bgColor);
-  color: var(--tooltip-fgColor);
-  font-size: var(--text-body-size-small);
-  font-weight: var(--base-text-weight-normal);
-  line-height: var(--text-body-lineHeight-small);
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity 120ms ease-out,
-    visibility 120ms;
+/* The message scrolls inside the column, so the separator on the column's edge stays put. Inset
+   as GitHub insets its panes. */
+.gh-prism-commit-column > .gh-prism-commit-message {
+  box-sizing: border-box;
+  height: 100%;
+  overflow-y: auto;
+  padding: 24px;
 }
 
-.gh-prism-commit-view-switch:is(:hover, :focus-visible)::after {
+/* Primer's pane divider: a 5px grip centred on the column's edge, washed on hover and while
+   dragged. Its 24px target reaches outward over the next pane's padding, clear of the message's
+   scroll bar. */
+.gh-prism-commit-column-separator {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: -21px;
+  width: 24px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.gh-prism-commit-column-separator::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 5px;
+  background: var(--bgColor-neutral-muted);
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+
+.gh-prism-commit-column-separator:hover::before,
+.gh-prism-commit-column-separator[data-dragging]::before {
   opacity: 1;
-  visibility: visible;
+}
+
+/* Held back a moment, so a rendering that lands at once never flashes it. message-view.ts sets
+   --gh-prism-commit-elapsed, so a skeleton shown again mid-visit doesn't fade in or pulse anew. */
+.gh-prism-commit-skeleton {
+  animation: gh-prism-commit-appear 150ms ease-out backwards;
+  animation-delay: calc(150ms - var(--gh-prism-commit-elapsed, 0ms));
+}
+
+/* The title's bar, then a paragraph's lines, pulsing as the loading view's skeletons do. A bar
+   lays out apart from the controls, so the title's sits beside them or below, never under. */
+.gh-prism-commit-skeleton > span {
+  display: flow-root;
+  height: 10px;
+  margin: 9px 0;
+  border-radius: 5px;
+  background: var(--borderColor-muted);
+  animation: gh-prism-commit-pulse 1.2s ease-in-out infinite alternate;
+  animation-delay: calc(-1 * var(--gh-prism-commit-elapsed, 0ms));
+}
+
+.gh-prism-commit-skeleton > span:first-child {
+  width: 64%;
+  height: 16px;
+  margin: 4px 0 20px;
+  border-radius: 8px;
+}
+
+.gh-prism-commit-skeleton > span:nth-child(2) {
+  width: 92%;
+}
+
+.gh-prism-commit-skeleton > span:nth-child(3) {
+  width: 84%;
+}
+
+.gh-prism-commit-skeleton > span:nth-child(4) {
+  width: 46%;
+}
+
+@keyframes gh-prism-commit-appear {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes gh-prism-commit-pulse {
+  to {
+    opacity: 0.45;
+  }
+}
+
+/* Primer's invisible button colours its icon apart from its label. */
+.gh-prism-commit-button > svg {
+  color: var(--button-invisible-iconColor-rest);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .gh-prism-commit-view-switch::after {
+  .gh-prism-commit-skeleton,
+  .gh-prism-commit-skeleton > span {
+    animation: none;
+  }
+
+  .gh-prism-commit-column-separator::before {
     transition: none;
   }
 }

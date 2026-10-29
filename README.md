@@ -64,10 +64,19 @@ how to get the new tab. Once you close the dialog, it stays closed, and
 - A **Report a miscategorized file** button beside the file tree's filter opens a new
   issue on gh-prism's repository with your gh-prism version filled in, and, on a public
   repository only, the diff's URL.
-- On a commit's page, it shows the commit message rendered as Markdown, like a README,
-  with GitHub's links, in a column beside the diffs on a wide window, or in place of
-  GitHub's monospace box on a narrower one. A switch beside it shows the message's plain
-  text instead, and gh-prism opens every commit in the view you last picked.
+- On a commit's page, it shows a commit message longer than its subject line rendered as
+  Markdown, like a README, with GitHub's links, in a column beside the diffs on a wide
+  window, or in place of GitHub's monospace box on a narrower one. Drag the column's edge
+  to make it wider or narrower. A switch beside it shows the message's plain text instead,
+  and gh-prism opens every commit in the view you last picked. A hide button beside the
+  switch hides the message on that commit only, until you show it again.
+- On a commit's page, **Older** and **Newer** beside the commit's SHA step to its parent
+  and to the commit that follows it. Newer goes to the earliest commit on the default
+  branch built on this one. For a commit only on another branch, it goes to the next newer
+  commit in that branch's history. After you step back with Older, Newer returns to the
+  commit you came from, until you reload the tab. A link that has nowhere to go stays
+  greyed out, and hovering or focusing it says why. Press Shift+J for Older and Shift+K
+  for Newer, unless you're typing in a text field; each link shows its key.
 
 ## Install
 
@@ -125,19 +134,24 @@ gh-prism needs access to three hosts and to Chrome's extension storage, and noth
   pages, and on a pull request's Conversation, Commits, and Checks tabs, where it reads
   the diff to split the header's lines-changed counter by section, and, on Conversation,
   the code owners and reviewers to list a code owner's files. It reads an owning team's
-  members only when GitHub shows you a team among the pull request's reviewers.
+  members only when GitHub shows you a team among the pull request's reviewers. On a
+  commit's page, it asks GitHub's commit search which commit follows the one you're on.
+  When search finds none, it reads the branches that hold the commit and the first
+  branch's commits list.
 - `https://patch-diff.githubusercontent.com/*` is where GitHub redirects diff downloads.
 - `https://raw.githubusercontent.com/*` is where GitHub redirects raw-file downloads.
 - Extension storage holds the side you put the sidebar on, whether the header's
   lines-changed counter shows its breakout by section or GitHub's total, whether a
-  commit's message shows rendered as Markdown or as GitHub's plain text, whether you
-  closed the dialog on the classic Files changed tab, which version's what's-new notes you
-  dismissed or first saw and when, and where gh-prism placed each file for the diffs it
-  read most recently. It keeps up to 50 placement entries, and a pull request's diff can
-  take two: one for the diff and one for the base and head commits it runs between. Chrome
-  syncs the side, the counter's view, and the commit message's view to your other
-  computers when Chrome sync is on. The notice's dismissal, the what's-new marks, and the
-  placements stay on this computer.
+  commit's message shows rendered as Markdown or as GitHub's plain text, how wide you made
+  the commit message's column, which commits you hid the message on (the 100 most recent),
+  whether you closed the dialog on the classic Files changed tab, which version's
+  what's-new notes you dismissed or first saw and when, and where gh-prism placed each
+  file for the diffs it read most recently. It keeps up to 50 placement entries, and a
+  pull request's diff can take two: one for the diff and one for the base and head commits
+  it runs between. Chrome syncs the side, the counter's view, and the commit message's
+  view to your other computers when Chrome sync is on. The column's width, the hidden
+  messages, the notice's dismissal, the what's-new marks, and the placements stay on this
+  computer.
 
 ## Troubleshooting
 

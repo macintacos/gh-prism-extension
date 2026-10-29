@@ -114,21 +114,45 @@ these marks.
 A tooltip copies Primer's. It is an `::after` on the control that shows the control's
 `aria-label`, on `--tooltip-bgColor`, at the small body size, and it fades in over 120 ms
 on hover and focus. It opens toward the inside of the sidebar or the page, so it never
-clips at an edge. `sidebar/side.css`, `sidebar/report.css`, and `commit/message-view.css`
+clips at an edge. `sidebar/side.css`, `sidebar/report.css`, and `commit/step-links.css`
 hold the three in use.
 
-No control takes a key yet, because `j` and `k` step through files without a control of
-their own. When a control does take one, its tooltip shows the key after the action's
-name, as a keycap in the style of Primer's keybinding hint, and the control sets
-`aria-keyshortcuts`, so assistive technology announces the key. Touch devices have no
-hover, so they never show the keycap.
+A control that takes a key names it in its tooltip, after the action's name, and sets
+`aria-keyshortcuts`, so assistive technology announces the key. Older and Newer beside a
+commit's SHA are the controls that take keys so far: Shift+J and Shift+K. Their tooltips
+name the key in words, as "Older commit: 9eb4db2 (Shift+J)", and only while the link goes
+somewhere, because a held-off link's key does nothing.
+
+Those two links also show their key at rest, as a keycap between the link's chevron and
+its label, so they read "‹ ⇧J Older" and "Newer ⇧K ›" (`exceptions.md` says why). The
+keycap is a `<kbd>` that GitHub's own `kbd` rule draws, the rule Markdown's `<kbd>`
+renders with: 11px monospace on `--bgColor-muted`, in a 1px `--borderColor-neutral-muted`
+border with a raised bottom edge and a 6px radius. It reads "⇧J", with the ⇧ set in
+GitHub's sans stack, because the monospace stack has no ⇧ and the browser's fallback draws
+it at half the letter's height. It takes the link's colour, so it dims with a held-off
+link. It is hidden from assistive technology, which announces the key from the link's
+`aria-keyshortcuts` instead. Devices with no hover and a coarse pointer, such as touch
+screens, never show it. `commit/step-links.ts` and `commit/step-links.css` build it.
 
 ## Switches
 
-A switch between two views or states is Primer's small invisible IconButton holding one
-Octicon in both states. Its `aria-label`, which its tooltip shows, names the action it
-takes and flips with the state. Focus stays on it across the flip. `sidebar/side.ts` and
-`commit/message-view.ts` build the two in use.
+A switch between two views or states names the action it takes, and the name flips with
+the state. Focus stays on it across the flip. It holds one Octicon in both states.
+
+- **In the sidebar,** where room is short, it is Primer's small invisible IconButton,
+  named by an `aria-label` that its tooltip shows. `sidebar/side.ts` builds it.
+- **Beside a commit's message,** it is Primer's small invisible Button: the Octicon, then
+  a visible label that is its name, so it needs no tooltip. The message's hide button and
+  the button that shows the message again take the same form. `commit/message-view.ts`
+  builds all three.
+
+The Older and Newer links beside a commit's SHA take Primer's ButtonGroup, not a switch's
+form, as a pull request's commit view pairs its Prev and Next: two small default Buttons
+that share one border, with the medium radius on the group's outer corners only. Each
+chevron sits at the group's outer edge, in `--fgColor-muted`. Their tooltip names the
+commit each goes to, which the label doesn't. A link with nowhere to go keeps its place as
+Primer's disabled default Button, and its tooltip says why. `commit/step-links.ts` and
+`commit/step-links.css` build them.
 
 ## Floating surfaces
 
@@ -209,6 +233,14 @@ and diff cards they stand in for. Once the sections land, they drop in one after
 50 ms apart, on the spatial row of the [motion scale](tokens.md#motion).
 `ui/loading-view.ts`, `ui/loading-view.css`, `sidebar/sections-view.css`, and
 `diffs/order.css` hold these.
+
+A commit's message holds its place the same way, without the bar: from the page's first
+frame, its column or its slot above the diffs shows a title bar and a line for each of the
+body's lines, up to three, held back 150 ms, then pulsing. The rendering takes their place
+on the spatial row, fading in and dropping 6px, and the slot above the diffs eases from
+the skeleton's height to the rendering's. A skeleton GitHub's re-render shows again
+carries on where the last one was, never fading in twice. `commit/message-view.ts` and
+`commit/message-view.css` hold it.
 
 ## The spectrum
 

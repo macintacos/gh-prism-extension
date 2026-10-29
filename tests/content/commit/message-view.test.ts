@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   type CommitMessageChoice,
+  type CommitMessageVisit,
   showCommitMessage,
 } from "../../../entrypoints/content/commit/message-view";
 import {
@@ -26,6 +27,9 @@ const messageOf = () => {
   return found;
 };
 const box = () => messageOf().box;
+// The name assistive technology announces: the aria-label, else the visible text.
+const nameOf = (control: Element | null) =>
+  control?.getAttribute("aria-label") ?? control?.textContent;
 const shows = (element: Element) => getComputedStyle(element).display !== "none";
 // Runs the MutationObserver's pending microtask, and no timer.
 const afterMutations = () => vi.advanceTimersByTimeAsync(0);
@@ -44,11 +48,25 @@ const runIdle = () => {
 };
 let choice: CommitMessageChoice;
 let save: (view: CommitMessageView) => void;
-const show = () => showCommitMessage(pageOf(), controller.signal, { afterSections, choice, save });
+let saveWidth: (width: number) => void;
+let saveHidden: (hidden: boolean) => void;
+let visit: CommitMessageVisit;
+const show = () =>
+  showCommitMessage(pageOf(), controller.signal, {
+    afterSections,
+    choice,
+    save,
+    saveWidth,
+    saveHidden,
+    visit,
+  });
 
 beforeEach(() => {
-  choice = { view: "rendered" };
+  choice = { view: "rendered", width: 320 };
+  visit = { since: performance.now(), hidden: false };
   save = vi.fn();
+  saveWidth = vi.fn();
+  saveHidden = vi.fn();
   vi.useFakeTimers();
   history.replaceState(null, "", "/o/r/commit/dd95cdc");
   loadCommitFixture("lists");
@@ -62,11 +80,37 @@ afterEach(() => {
 });
 
 describe("showCommitMessage", () => {
-  it("leaves GitHub's box showing until the browser is idle", () => {
+  it("holds GitHub's box's place in a loading state until the browser is idle", () => {
+    const before = box().outerHTML;
+
     show();
 
-    expect(container()).toBeNull();
-    expect(shows(box())).toBe(true);
+    const shown = box().previousElementSibling;
+    expect(shown).toBe(container());
+    expect(shown?.hasAttribute("aria-busy")).toBe(false);
+    expect(shown?.querySelector(".gh-prism-commit-message-body")?.getAttribute("aria-busy")).toBe(
+      "true",
+    );
+    expect(shown?.querySelector(".gh-prism-commit-skeleton")).not.toBeNull();
+    expect(shown?.querySelector("h1")).toBeNull();
+    expect(shown?.contains(viewButton())).toBe(true);
+    expect(shows(box())).toBe(false);
+    expect(box().outerHTML).toBe(before);
+  });
+
+  it("renders a message whose box lands after the page, once the sections have drawn", () => {
+    const late = box();
+    const parent = late.parentElement;
+    const next = late.nextSibling;
+    late.remove();
+
+    show();
+    parent?.insertBefore(late, next);
+    runIdle();
+
+    expect(box().previousElementSibling).toBe(container());
+    expect(container()?.querySelector(".gh-prism-commit-message-body > h1")).not.toBeNull();
+    expect(shows(box())).toBe(false);
   });
 
   it("stands in for GitHub's box, unchanged, once idle", () => {
@@ -80,6 +124,25 @@ describe("showCommitMessage", () => {
     expect(shown?.dataset.view).toBe("rendered");
     expect(shows(box())).toBe(false);
     expect(box().outerHTML).toBe(before);
+  });
+
+  it("sets the title a step above the body's text, and every body heading below the title", () => {
+    const body = box().querySelector(".extended-commit-description-container");
+    if (!body) throw new Error("no body");
+    body.textContent = "# One\n\n## Two\n\n### Three\n\nText";
+    show();
+    runIdle();
+
+    const sizeOf = (selector: string) => {
+      const element = container()?.querySelector(selector);
+      if (!element) throw new Error(`no ${selector}`);
+      return Number.parseFloat(getComputedStyle(element).fontSize);
+    };
+    const title = sizeOf("h1:first-child");
+    const text = sizeOf("p");
+    expect(title).toBeGreaterThan(text);
+    expect(title).toBeLessThanOrEqual(text * 1.25);
+    for (const heading of ["h1 ~ h1", "h2", "h3"]) expect(sizeOf(heading)).toBeLessThan(title);
   });
 
   it("opens on GitHub's box, unchanged, when the tab last picked plain text", () => {
@@ -106,15 +169,15 @@ describe("showCommitMessage", () => {
     if (!button) throw new Error("no switch");
     const body = container()?.querySelector(".gh-prism-commit-message-body");
     if (!body) throw new Error("no body");
-    expect(button.parentElement).toBe(container());
+    expect(container()?.contains(button)).toBe(true);
     expect(button.type).toBe("button");
-    expect(button.getAttribute("aria-label")).toBe("Show plain text");
+    expect(nameOf(button)).toBe("Show plain text");
 
     button.click();
 
     expect(shows(box())).toBe(true);
     expect(shows(body)).toBe(false);
-    expect(button.getAttribute("aria-label")).toBe("Show rendered Markdown");
+    expect(nameOf(button)).toBe("Show Markdown");
     expect(choice.view).toBe("plaintext");
     expect(save).toHaveBeenLastCalledWith("plaintext");
     expect(box().outerHTML).toBe(before);
@@ -128,6 +191,19 @@ describe("showCommitMessage", () => {
     expect(save).toHaveBeenLastCalledWith("rendered");
   });
 
+  it("labels each control with visible text that starts its accessible name", () => {
+    show();
+    runIdle();
+
+    const controls = [...(container()?.querySelectorAll("button") ?? [])];
+    expect(controls).toHaveLength(2);
+    for (const control of controls) {
+      const label = control.textContent?.trim().toLowerCase() ?? "";
+      expect(label).not.toBe("");
+      expect(nameOf(control)?.toLowerCase().startsWith(label)).toBe(true);
+    }
+  });
+
   it("removes itself and its sheet on abort, showing GitHub's box again", () => {
     show();
     runIdle();
@@ -138,17 +214,34 @@ describe("showCommitMessage", () => {
     expect(shows(box())).toBe(true);
   });
 
-  it("keeps GitHub's box for a message too large to render", () => {
+  it("keeps GitHub's box for a message too large to render, with no loading state", () => {
     const body = box().querySelector(".extended-commit-description-container");
     if (!body) throw new Error("no body");
     body.textContent = "a".repeat(50_001);
     show();
+
+    expect(container()).toBeNull();
+    expect(shows(box())).toBe(true);
+
     runIdle();
 
     expect(container()).toBeNull();
     expect(viewButton()).toBeNull();
     expect(sheets()).toHaveLength(0);
     expect(shows(box())).toBe(true);
+  });
+
+  it("leaves a subject-only message as GitHub shows it", () => {
+    loadCommitFixture("subject");
+    const before = box().outerHTML;
+
+    show();
+    runIdle();
+
+    expect(container()).toBeNull();
+    expect(sheets()).toHaveLength(0);
+    expect(shows(box())).toBe(true);
+    expect(box().outerHTML).toBe(before);
   });
 
   it("mounts nothing on a pull request's page", () => {
@@ -161,9 +254,13 @@ describe("showCommitMessage", () => {
     expect(sheets()).toHaveLength(0);
   });
 
-  it("mounts nothing when the idle task runs after abort", () => {
+  it("drops its loading state on abort, and mounts nothing when the idle task runs after", () => {
     show();
     controller.abort();
+
+    expect(container()).toBeNull();
+    expect(shows(box())).toBe(true);
+
     runIdle();
 
     expect(container()).toBeNull();
@@ -186,7 +283,7 @@ describe("showCommitMessage", () => {
       await afterMutations();
 
       expect(clone.previousElementSibling).toBe(container());
-      expect(viewButton()?.parentElement).toBe(container());
+      expect(container()?.contains(viewButton())).toBe(true);
       expect(shows(clone)).toBe(view === "plaintext");
 
       clone.remove();
@@ -195,6 +292,120 @@ describe("showCommitMessage", () => {
       expect(container()).toBeNull();
     },
   );
+});
+
+describe("showCommitMessage's loading state", () => {
+  const setReducedMotion = (reduce: boolean) => {
+    (
+      window as unknown as { happyDOM: { settings: { device: { prefersReducedMotion: string } } } }
+    ).happyDOM.settings.device.prefersReducedMotion = reduce ? "reduce" : "no-preference";
+  };
+  const messageBody = () => container()?.querySelector(".gh-prism-commit-message-body");
+  const nestTooDeep = () => {
+    const body = box().querySelector(".extended-commit-description-container");
+    if (!body) throw new Error("no body");
+    body.textContent = `${">".repeat(40)} deep`;
+  };
+
+  afterEach(() => setReducedMotion(false));
+
+  it("draws a skeleton line for each of the body's lines, up to three", () => {
+    const lines = () => container()?.querySelectorAll(".gh-prism-commit-skeleton > *").length;
+    const body = box().querySelector(".extended-commit-description-container");
+    if (!body) throw new Error("no body");
+
+    body.textContent = "One line.";
+    show();
+
+    expect(lines()).toBe(2);
+
+    controller.abort();
+    controller = new AbortController();
+    body.textContent = "One\n\nTwo\nThree\nFour";
+    show();
+
+    expect(lines()).toBe(4);
+  });
+
+  it("swaps the skeleton for the rendering once idle, fading it in", () => {
+    show();
+    runIdle();
+
+    expect(container()?.hasAttribute("aria-busy")).toBe(false);
+    expect(container()?.querySelector(".gh-prism-commit-skeleton")).toBeNull();
+    expect(messageBody()?.firstElementChild?.localName).toBe("h1");
+    expect(messageBody()?.getAnimations()).toHaveLength(1);
+  });
+
+  it("swaps the skeleton for the rendering without motion under reduced motion", () => {
+    setReducedMotion(true);
+
+    show();
+    runIdle();
+
+    expect(messageBody()?.firstElementChild?.localName).toBe("h1");
+    expect(messageBody()?.getAnimations()).toHaveLength(0);
+    expect(container()?.getAnimations()).toHaveLength(0);
+  });
+
+  it("gives the plaintext view GitHub's box from the start, with the rendering filled in behind it", () => {
+    choice.view = "plaintext";
+
+    show();
+
+    expect(container()?.dataset.view).toBe("plaintext");
+    expect(shows(box())).toBe(true);
+
+    runIdle();
+
+    expect(messageBody()?.querySelector("h1")).not.toBeNull();
+    expect(shows(box())).toBe(true);
+  });
+
+  it("shows the visit's rendering at once, with no second entrance, when GitHub re-renders the page", () => {
+    show();
+    runIdle();
+    const rendering = messageBody()?.firstElementChild;
+    controller.abort();
+    controller = new AbortController();
+
+    show();
+
+    expect(container()?.hasAttribute("aria-busy")).toBe(false);
+    expect(messageBody()?.firstElementChild).toBe(rendering);
+    expect(messageBody()?.getAnimations()).toHaveLength(0);
+    expect(tasks).toHaveLength(0);
+  });
+
+  it("keeps GitHub's box when GitHub re-renders the page after the rendering failed", () => {
+    nestTooDeep();
+    show();
+    runIdle();
+    controller.abort();
+    controller = new AbortController();
+
+    show();
+
+    expect(container()).toBeNull();
+    expect(shows(box())).toBe(true);
+  });
+
+  it("goes back to GitHub's box, and stays there, when the message nests too deep to render", async () => {
+    nestTooDeep();
+    show();
+    expect(shows(box())).toBe(false);
+
+    runIdle();
+
+    expect(container()).toBeNull();
+    expect(sheets()).toHaveLength(0);
+    expect(shows(box())).toBe(true);
+
+    box().replaceWith(box().cloneNode(true));
+    await afterMutations();
+
+    expect(container()).toBeNull();
+  });
 });
 
 const WIDE = { width: 1400, height: 768 };
@@ -213,8 +424,9 @@ describe("showCommitMessage's column", () => {
   afterEach(() => setViewport(DEFAULT));
 
   const expectInColumn = () => {
-    expect(column()?.children).toHaveLength(1);
+    expect(column()?.children).toHaveLength(2);
     expect(column()?.firstElementChild).toBe(container());
+    expect(column()?.lastElementChild?.getAttribute("role")).toBe("separator");
     expect(row()?.firstElementChild).toBe(column());
     expect(box().previousElementSibling?.matches(".gh-prism-commit-slot")).toBe(true);
     expect(shows(box())).toBe(false);
@@ -230,9 +442,6 @@ describe("showCommitMessage's column", () => {
   it("moves the message back above the diffs when the window narrows", () => {
     show();
     runIdle();
-    // happy-dom seeds a `change` listener's last state as unmatched, so it skips the first
-    // narrowing unless a resize while wide records the match.
-    window.dispatchEvent(new Event("resize"));
     setViewport(NARROW);
 
     expect(column()).toBeNull();
@@ -243,6 +452,21 @@ describe("showCommitMessage's column", () => {
     setViewport(WIDE);
 
     expectInColumn();
+  });
+
+  it("insets the message from the column's edges as GitHub insets its panes", () => {
+    show();
+    runIdle();
+
+    const message = container();
+    if (!message) throw new Error("no message");
+    const style = getComputedStyle(message);
+    expect([style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft]).toEqual([
+      "24px",
+      "24px",
+      "24px",
+      "24px",
+    ]);
   });
 
   it("moves the view switch into the column with the message", () => {
@@ -283,6 +507,17 @@ describe("showCommitMessage's column", () => {
     expect(shows(box())).toBe(true);
   });
 
+  it("builds no column for a subject-only message", () => {
+    loadCommitFixture("subject");
+
+    show();
+    runIdle();
+
+    expect(column()).toBeNull();
+    expect(document.querySelector(".gh-prism-commit-slot")).toBeNull();
+    expect(shows(box())).toBe(true);
+  });
+
   it("keeps the message above the diffs when the layout row is missing", () => {
     const layoutRow = row();
     if (!layoutRow) throw new Error("no row");
@@ -299,9 +534,33 @@ describe("showCommitMessage's column", () => {
     if (!body) throw new Error("no body");
     body.textContent = "a".repeat(50_001);
     show();
+
+    expect(column()).toBeNull();
+
     runIdle();
 
     expect(column()).toBeNull();
+    expect(shows(box())).toBe(true);
+  });
+
+  it("holds the column in a loading state from the start", () => {
+    show();
+
+    expectInColumn();
+    expect(
+      container()?.querySelector(".gh-prism-commit-message-body")?.getAttribute("aria-busy"),
+    ).toBe("true");
+  });
+
+  it("drops the column for GitHub's box when the message nests too deep to render", () => {
+    const body = box().querySelector(".extended-commit-description-container");
+    if (!body) throw new Error("no body");
+    body.textContent = `${">".repeat(40)} deep`;
+    show();
+    runIdle();
+
+    expect(column()).toBeNull();
+    expect(document.querySelector(".gh-prism-commit-slot")).toBeNull();
     expect(shows(box())).toBe(true);
   });
 
@@ -354,6 +613,287 @@ describe("showCommitMessage's column", () => {
   });
 });
 
+describe("showCommitMessage's column width", () => {
+  const handle = () =>
+    document.querySelector<HTMLElement>('.gh-prism-commit-column > [role="separator"]');
+  const widthOf = () => document.querySelector<HTMLElement>(".gh-prism-commit-column")?.style.width;
+  const press = (key: string) =>
+    handle()?.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+  const pointer = (type: string, clientX: number) =>
+    handle()?.dispatchEvent(
+      new PointerEvent(type, { clientX, pointerId: 1, button: 0, bubbles: true }),
+    );
+  const resizeTo = (width: number) => setViewport({ width, height: 768 });
+
+  beforeEach(() => setViewport(WIDE));
+  afterEach(() => setViewport(DEFAULT));
+
+  it("opens the column at the tab's width, with a separator on its edge saying so", () => {
+    choice.width = 360;
+
+    show();
+
+    expect(widthOf()).toBe("360px");
+    const separator = handle();
+    if (!separator) throw new Error("no separator");
+    expect(shows(separator)).toBe(true);
+    expect(separator.tabIndex).toBe(0);
+    expect(handle()?.getAttribute("aria-orientation")).toBe("vertical");
+    expect(handle()?.getAttribute("aria-valuenow")).toBe("360");
+    expect(handle()?.getAttribute("aria-valuemin")).toBe("256");
+    expect(handle()?.getAttribute("aria-valuemax")).toBe("388");
+  });
+
+  it("holds the column to no more than the window leaves past GitHub's 1012px docked layout", () => {
+    choice.width = 600;
+    show();
+
+    expect(widthOf()).toBe("388px");
+
+    resizeTo(1300);
+
+    expect(widthOf()).toBe("288px");
+    expect(handle()?.getAttribute("aria-valuenow")).toBe("288");
+    expect(choice.width).toBe(600);
+  });
+
+  it("holds the column to no less than 256px", () => {
+    choice.width = 100;
+
+    show();
+
+    expect(widthOf()).toBe("256px");
+  });
+
+  it("keeps the column while the window spares 256px past GitHub's docked layout, and moves above the diffs below that", () => {
+    show();
+    resizeTo(1268);
+
+    expect(column()).not.toBeNull();
+    expect(widthOf()).toBe("256px");
+
+    resizeTo(1267);
+
+    expect(column()).toBeNull();
+    expect(box().previousElementSibling).toBe(container());
+  });
+
+  it("steps the width 3px an arrow key, within its bounds, saving each width", () => {
+    choice.width = 384;
+    show();
+
+    press("ArrowRight");
+
+    expect(widthOf()).toBe("387px");
+    expect(handle()?.getAttribute("aria-valuenow")).toBe("387");
+    expect(choice.width).toBe(387);
+    expect(saveWidth).toHaveBeenLastCalledWith(387);
+
+    press("ArrowUp");
+
+    expect(widthOf()).toBe("388px");
+
+    press("ArrowLeft");
+    press("ArrowDown");
+
+    expect(widthOf()).toBe("382px");
+    expect(saveWidth).toHaveBeenLastCalledWith(382);
+  });
+
+  it("follows a drag of its edge within its bounds, saving the width once on release", () => {
+    show();
+
+    pointer("pointerdown", 320);
+    pointer("pointermove", 350);
+
+    expect(widthOf()).toBe("350px");
+    expect(handle()?.hasAttribute("data-dragging")).toBe(true);
+
+    pointer("pointermove", 500);
+
+    expect(widthOf()).toBe("388px");
+    expect(saveWidth).not.toHaveBeenCalled();
+
+    pointer("pointerup", 500);
+    pointer("lostpointercapture", 500);
+    pointer("pointermove", 300);
+
+    expect(widthOf()).toBe("388px");
+    expect(choice.width).toBe(388);
+    expect(saveWidth).toHaveBeenCalledOnce();
+    expect(saveWidth).toHaveBeenCalledWith(388);
+    expect(handle()?.hasAttribute("data-dragging")).toBe(false);
+  });
+
+  it("ends a drag whose pointer capture is lost without a release", () => {
+    show();
+
+    pointer("pointerdown", 320);
+    pointer("lostpointercapture", 350);
+    pointer("pointermove", 350);
+
+    expect(widthOf()).toBe("320px");
+    expect(handle()?.hasAttribute("data-dragging")).toBe(false);
+  });
+
+  it("leaves a modified arrow key to the browser", () => {
+    show();
+
+    const keys = ["altKey", "ctrlKey", "metaKey"].map(
+      (modifier) =>
+        new KeyboardEvent("keydown", {
+          key: "ArrowLeft",
+          bubbles: true,
+          cancelable: true,
+          [modifier]: true,
+        }),
+    );
+    for (const key of keys) handle()?.dispatchEvent(key);
+
+    expect(widthOf()).toBe("320px");
+    expect(keys.some((key) => key.defaultPrevented)).toBe(false);
+  });
+
+  it("ignores a key that isn't an arrow, and a drag by another button", () => {
+    show();
+
+    press("Enter");
+    handle()?.dispatchEvent(
+      new PointerEvent("pointerdown", { clientX: 320, pointerId: 1, button: 2, bubbles: true }),
+    );
+    pointer("pointermove", 350);
+
+    expect(widthOf()).toBe("320px");
+    expect(saveWidth).not.toHaveBeenCalled();
+  });
+});
+
+describe("showCommitMessage's hide control", () => {
+  const hideButton = () => document.querySelector<HTMLButtonElement>(".gh-prism-commit-hide");
+  const restore = () => document.querySelector<HTMLElement>(".gh-prism-commit-restore");
+  const restoreButton = () => restore()?.querySelector("button");
+
+  afterEach(() => setViewport(DEFAULT));
+
+  it("hides the message and GitHub's box, leaving a way back in the box's place, and saves the pick", () => {
+    show();
+    runIdle();
+    expect(hideButton()?.getAttribute("aria-label")).toBe("Hide commit message");
+
+    hideButton()?.click();
+
+    expect(container()).toBeNull();
+    expect(shows(box())).toBe(false);
+    expect(restore()?.parentElement).toBe(box().parentElement);
+    expect(restoreButton()?.type).toBe("button");
+    expect(visit.hidden).toBe(true);
+    expect(saveHidden).toHaveBeenLastCalledWith(true);
+  });
+
+  it("gives the diffs the column's room back once hidden", () => {
+    setViewport(WIDE);
+    show();
+    runIdle();
+
+    hideButton()?.click();
+
+    expect(column()).toBeNull();
+    expect(restore()?.parentElement).toBe(box().parentElement);
+  });
+
+  it("brings the message back where the window puts it, saving the pick", () => {
+    setViewport(WIDE);
+    show();
+    runIdle();
+    hideButton()?.click();
+
+    restoreButton()?.click();
+
+    expect(column()?.firstElementChild).toBe(container());
+    expect(restore()).toBeNull();
+    expect(visit.hidden).toBe(false);
+    expect(saveHidden).toHaveBeenLastCalledWith(false);
+  });
+
+  it("opens hidden for a commit hidden before, rendering only once it's shown", () => {
+    visit.hidden = true;
+
+    show();
+
+    expect(container()).toBeNull();
+    expect(restore()).not.toBeNull();
+    expect(shows(box())).toBe(false);
+    expect(tasks).toHaveLength(0);
+
+    restoreButton()?.click();
+
+    expect(container()?.hasAttribute("aria-busy")).toBe(false);
+    expect(container()?.querySelector(".gh-prism-commit-message-body > h1")).not.toBeNull();
+  });
+
+  it("renders nothing while hidden before the browser is idle", () => {
+    show();
+    hideButton()?.click();
+
+    runIdle();
+
+    expect(visit.rendered).toBeUndefined();
+    expect(restore()).not.toBeNull();
+  });
+
+  it("hands focus to the control that brings the message back, and back again", () => {
+    show();
+    runIdle();
+    hideButton()?.focus();
+
+    hideButton()?.click();
+
+    expect(document.activeElement).toBe(restoreButton());
+
+    restoreButton()?.click();
+
+    expect(document.activeElement).toBe(hideButton());
+  });
+
+  it("leaves the view the tab picked as it is", () => {
+    choice.view = "plaintext";
+    show();
+    runIdle();
+
+    hideButton()?.click();
+    restoreButton()?.click();
+
+    expect(container()?.dataset.view).toBe("plaintext");
+    expect(choice.view).toBe("plaintext");
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("goes back to GitHub's box when a message shown again can't be rendered", () => {
+    const body = box().querySelector(".extended-commit-description-container");
+    if (!body) throw new Error("no body");
+    body.textContent = `${">".repeat(40)} deep`;
+    visit.hidden = true;
+    show();
+
+    restoreButton()?.click();
+
+    expect(container()).toBeNull();
+    expect(restore()).toBeNull();
+    expect(shows(box())).toBe(true);
+  });
+
+  it("removes its way back on abort, showing GitHub's box", () => {
+    show();
+    runIdle();
+    hideButton()?.click();
+
+    controller.abort();
+
+    expect(restore()).toBeNull();
+    expect(shows(box())).toBe(true);
+  });
+});
+
 describe("showCommitMessage across navigation", () => {
   const navigate = async (path: string, load: () => void) => {
     history.pushState(null, "", path);
@@ -370,8 +910,18 @@ describe("showCommitMessage across navigation", () => {
     watchFilesPages(
       window,
       {
-        onVisit: () => (page, signal) =>
-          showCommitMessage(page, signal, { afterSections: (task) => task(), choice, save }),
+        onVisit: () => {
+          const visit = { since: performance.now(), hidden: false };
+          return (page, signal) =>
+            showCommitMessage(page, signal, {
+              afterSections: (task) => task(),
+              choice,
+              save,
+              saveWidth,
+              saveHidden,
+              visit,
+            });
+        },
         onMissing: () => {},
       },
       controller.signal,
@@ -402,7 +952,7 @@ describe("showCommitMessage across navigation", () => {
 
     expect(container()?.dataset.view).toBe("plaintext");
     expect(shows(box())).toBe(true);
-    expect(viewButton()?.getAttribute("aria-label")).toBe("Show rendered Markdown");
+    expect(nameOf(viewButton())).toBe("Show Markdown");
   });
 
   it("shows each commit's message in the column across navigation", async () => {

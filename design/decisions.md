@@ -6,6 +6,314 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-29: Older and Newer as GitHub's button group, keys inside the chevrons
+
+- **Compared:**
+  - for the order inside each link, the keycap last, "‹ Older ⇧J" and "Newer › ⇧K", or
+    each keycap between its chevron and its label, "‹ ⇧J Older" and "Newer ⇧K ›";
+  - for the form, Primer's small invisible Buttons, as before, or Primer's ButtonGroup:
+    two default Buttons that share one border, as a pull request's commit view pairs its
+    Prev and Next;
+  - for a held-off link, one with nowhere to go, Primer's disabled Button, or the inactive
+    Button that GitHub's own group shows for "No next commit";
+  - for the keycap, GitHub's `kbd` rule as it is, or a fill that sets it apart from the
+    button.
+- **Won:**
+  - The maintainer picked the order, the chevrons outermost with each keycap between its
+    chevron and its label, and the form, Primer's ButtonGroup. The other picks follow from
+    those two.
+  - The group copies GitHub's own at its small size, built from GitHub's variables:
+    - 28px tall, with 8px side padding and 4px gaps;
+    - the `--button-default-*` fill, border colour, and resting shadow, and its hover and
+      active fills;
+    - one 1px border between the two links, with the medium radius on the group's outer
+      corners only;
+    - Primer's focus ring, 2px and inset by 2px, on each link;
+    - each chevron in `--fgColor-muted`, as a Button's icon is.
+  - A held-off link is Primer's disabled default Button: `--control-fgColor-disabled` for
+    its label, chevron, and keycap text, on `--button-default-bgColor-disabled`, with a
+    `not-allowed` cursor.
+  - The keycap keeps GitHub's `kbd` rule unchanged.
+  - The group leaves out Primer's `isolation: isolate`.
+- **Why:**
+  - The maintainer asked for native GitHub buttons. GitHub already pairs a pull request
+    commit's Prev and Next in this group, so a reader knows the form. It replaces the
+    invisible Buttons that the decision "Older and Newer on a commit's page" picked.
+  - GitHub's group is small, 28px tall like the copy button in the row naming the commit's
+    parents and SHA, so it fits that row unchanged.
+  - The link sets `aria-disabled`, which Primer draws as its disabled Button. The
+    `not-allowed` cursor tells a pointer the link goes nowhere, and the tooltip says why.
+  - The keycap needs no fill of its own, because its edge already makes it read as a key.
+    In a light theme, `--bgColor-muted` and `--button-default-bgColor-rest` are the same
+    colour, so the keycap's edge and raised bottom draw it, at 1.2:1 against the button.
+    On the page, before the button, its fill differed from the page by only 1.05:1, so its
+    1.3:1 edge did the work there too. In a dark theme the keycap sits darker than the
+    button, at 1.16:1, inside an edge at 1.3:1.
+  - Primer isolates its group so a hovered or focused link's raised `z-index` stays inside
+    it. But isolation also kept the tooltips inside the group's layer, so the header
+    counter, the line counts below the row, painted over them. Without it, a focused link
+    still rises above its neighbour, so its focus ring shows whole over the shared border.
+- **Known limits:** A held-off link's text is 3.1:1 against its fill in a light theme and
+  2.8:1 in a dark one, below the 4.5:1 text floor, as in every Primer disabled control.
+  WCAG exempts text in an inactive control. The group's colours follow GitHub's variables,
+  but its shape is a copy of Primer's ButtonGroup, so it won't follow a change to Primer's
+  shape.
+
+## 2026-10-29: Shift+J and Shift+K for Older and Newer, with keycaps at rest
+
+- **Compared:**
+  - for the keys, Shift+J for Older and Shift+K for Newer, or the reverse;
+  - for where the key shows, in the tooltip alone, as every other control does, or as a
+    keycap on the link at rest too;
+  - for the keycap's text, "⇧J" or "Shift J"; and for the ⇧, the text glyph, set in the
+    keycap's monospace or in GitHub's sans stack, or an Octicon;
+  - for the keycap's look, Primer's KeybindingHint or GitHub's Markdown `<kbd>`, drawn by
+    GitHub's own `kbd` rule or by a copy of it in gh-prism's sheet;
+  - for where the keycap sits, last in each link, or between Newer's label and its
+    chevron;
+  - for how a tooltip names the key, in words, or with the glyph.
+- **Won:**
+  - Shift+J follows Older and Shift+K follows Newer, as a click does, so GitHub's router
+    takes the step as a soft navigation.
+  - Each link shows its key as a keycap at rest, last in the link: "‹ Older ⇧J" and "Newer
+    › ⇧K".
+  - The keycap is a `<kbd>` that GitHub's own `kbd` rule draws, the rule Markdown's
+    `<kbd>` renders with. gh-prism sets only its colour, to the link's, and sets its ⇧ in
+    GitHub's sans stack.
+  - The tooltip names the key in words, "(Shift+J)", and only on a link that goes
+    somewhere.
+  - The keys do nothing in a text field, with Alt, Ctrl, or Meta held, on a held key's
+    repeats, on a capital J or K typed without Shift, or on a held-off link.
+- **Why:**
+  - `j` moves down a list, and older commits sit lower in `git log` and in GitHub's
+    commits list. gh-prism's own `j` steps down the sidebar too.
+  - Bare `j` and `k` already step through files. GitHub binds `p` to the parent commit and
+    `o` to a merge's other parent on this page. Checked on a live commit page with
+    gh-prism off, GitHub binds neither Shift+J nor Shift+K, and the Refined GitHub browser
+    extension doesn't either.
+  - The maintainer asked for three things: keys a reader sees without hovering, the shift
+    symbol instead of the word so the keycap stays compact, and the look of Markdown's
+    `<kbd>`.
+  - GitHub's `kbd` rule already styles every `<kbd>` on the page, Markdown's included, so
+    a copy would repeat it and could drift from it. Taking the link's colour dims the
+    keycap with a held-off link. At rest that colour matches the `kbd` rule's to within a
+    shade.
+  - GitHub's monospace stack has no ⇧, so the browser draws it from a fallback face at
+    half the letter's height. GitHub's sans stack draws it at the letter's height, as
+    GitHub's own keybinding hints do. Octicons has no shift icon.
+  - Last in the link, one rule places both keycaps, and Newer's chevron stays beside its
+    label. Inside the link, the keycap shares the link's target and its dim.
+  - The tooltip's words spell out the ⇧ for a reader who doesn't know the glyph. A
+    held-off link's key does nothing, so its tooltip doesn't offer it.
+  - A capital J without Shift comes from Caps Lock, not from a reader asking to step, and
+    a held key would race through history.
+- **Known limits:** The keycap's look depends on GitHub's `kbd` rule. Without it, the key
+  shows as plain monospace text. Its edge is below the 3:1 floor, which `exceptions.md`
+  records.
+
+## 2026-10-29: Older and Newer on a commit's page
+
+- **Compared:**
+  - for where they sit, the end of the commit card's row naming its parents and SHA, after
+    GitHub's copy button; the page title's row, beside **Browse files**, as a pull
+    request's commit pairs its Prev and Next with that button; or the diffs' toolbar;
+  - for their form, Primer's small invisible Buttons with a chevron and a label, like the
+    message's controls, or a bordered ButtonGroup reading "Prev" and "Next", like a pull
+    request's commit;
+  - for a link with nowhere to go, hiding it, or holding it in place, greyed out, with a
+    reason;
+  - for what Newer means, the next commit along the default branch's first parents; the
+    commit GitHub's commits list shows just above this one; or the earliest commit with
+    this one as a parent.
+- **Won:**
+  - Two links after the copy button: "Older", led by Octicons `chevron-left`, and "Newer",
+    followed by `chevron-right`, styled as Primer's small invisible Button.
+  - Each link is named "Older commit: <short SHA>" or "Newer commit: <short SHA>", and
+    Primer's tooltip shows that name on hover and focus.
+  - A link with nowhere to go keeps its place without an `href`. It is `aria-disabled`,
+    still focusable, and its tooltip says why: the first commit, the newest on a named
+    branch, or none found, which a failed read shows too. Newer reads "looking it up" in
+    the same state while its read is out.
+  - Newer is the earliest commit on the default branch with this one as a parent. When
+    search finds none, it is the commit listed just above this one on the first branch
+    GitHub names as holding it. After Older, Newer is the child the reader stepped back
+    from.
+- **Why:**
+  - The links first read "Previous" and "Next", which left unclear which way in time each
+    goes. "Older" and "Newer" name the direction.
+  - The row names the parent Older goes to and the SHA both links step from. It shows
+    whether the message is in the column, above the diffs, hidden, or in GitHub's box, so
+    the links never move with the message's controls. The title's row sits apart from the
+    parent it would go to, and the diffs' toolbar would need a new GitHub selector.
+  - The row's own copy button is an invisible IconButton, so invisible Buttons sit level
+    with it, as the message's labelled controls do. A bordered group would outweigh the
+    row's muted text.
+  - A link that appears or vanishes as Newer resolves moves the row, and the maintainer
+    dislikes controls appearing and disappearing. Held in place, it keeps the row still
+    and says why it goes nowhere. It stays focusable, as Primer's inactive buttons do, so
+    a keyboard reaches the reason.
+  - No commit records its children, and github.com offers no walk along first parents
+    short of paging through a branch's history. Commit search finds a commit's children on
+    the default branch in one request, and the earliest is the commit made next on top of
+    this one.
+  - Measured on cli/cli, which merges pull requests with merge commits, the commits list
+    interleaves pull request branch commits, so the commit above this one is often not a
+    child. It serves only where search finds nothing: off the default branch, where a
+    branch's history is mostly a line, and at the default branch's newest commits.
+  - A commit can have several children: cli/cli@9eb4db2 is the parent of both a pull
+    request's commit and the merge that took it in. No single Newer undoes every Older, so
+    the tab remembers the child the reader came from.
+- **Known limits:** The commits list stands in for search only on its newest page, so
+  Newer finds none for a commit past a branch's newest 35 when search doesn't cover it:
+  off the default branch, or on it before search indexes a push.
+
+## 2026-10-29: Labelled controls for a commit's message
+
+- **Compared:**
+  - for the view switch and the hide control, Primer's small invisible IconButtons, as
+    before, or small invisible Buttons with a label, with or without an icon;
+  - for the switch's label in the plaintext view, "Show rendered Markdown", "Render
+    Markdown", or "Show Markdown";
+  - for where the controls sit, a strip of their own down the message's side, as before; a
+    row of their own above the title; or floated beside the title's first line;
+  - for the column's inset, GitHub's box's 8px 12px, as before, or the 24px that GitHub's
+    tree pane and diffs inset their content by.
+- **Won:** small invisible Buttons with an icon and a label, in the form of the "Show
+  commit message" button that brings a hidden message back. The switch reads "Show plain
+  text" or "Show Markdown". The hide button reads "Hide" and keeps its `aria-label`, "Hide
+  commit message". Neither has a tooltip. In the column, the controls take a 32px row of
+  their own above the title, and the message is inset 24px on every side. Above the diffs,
+  they float beside the title's first line, and the message keeps GitHub's box's 8px 12px.
+- **Why:**
+  - Icons alone left a reader guessing what each control does. A label says it, so a
+    tooltip would only repeat it.
+  - At rest, an invisible button with a label alone reads as text. The icon marks it as a
+    control, as it does on the "Show commit message" button.
+  - "Show rendered Markdown" doesn't fit beside "Hide" in the column's 256px minimum
+    width, less its 24px insets. "Render Markdown" fits with 1px to spare. "Show Markdown"
+    fits with 10px, and keeps both of the switch's labels starting with "Show".
+  - Controls beside the whole message held an empty strip down its side, and labels would
+    have widened the strip.
+  - In the column, a float beside the title leaves room for a word or two at most, so the
+    title would break after its first word. A row of its own reads as the column's
+    toolbar, level with the search field over the diffs and the filter field over the file
+    tree. Above the diffs, the title has room beside the controls, and a row of their own
+    would add an empty line to GitHub's card.
+  - Measured at 1280px and 1440px, GitHub's tree pane and diffs both inset their content
+    24px. The column takes the same inset, so its text sits as far from the divider as the
+    diffs do on the other side. Above the diffs, the message stays lined up with GitHub's
+    card, whose rows inset 12px.
+
+## 2026-10-29: Hiding a commit's message
+
+- **Compared:**
+  - for the hide control, Octicons `x`, `sidebar-collapse`, or `eye-closed`, beside the
+    view switch;
+  - for the way back, an icon button at the start of the diffs' toolbar, a thin rail where
+    the column stood, or a labelled button in GitHub's box's place in the commit's card;
+  - for the hidden state, `session:` storage, or a capped list in `local:` storage;
+  - keying a commit by its route's SHA alone, or matching a full SHA against an
+    abbreviated one.
+- **Won:** an `eye-closed` icon button labelled "Hide commit message" beside the view
+  switch; Primer's small invisible Button with `eye` and "Show commit message" in the
+  box's place, in both layouts, with focus moving between the two;
+  `local:hiddenCommitMessages`, the newest 100 commits, keyed `owner/repo@sha` and matched
+  by SHA prefix; no motion.
+- **Why:** `x` reads as dismissing for good, and `sidebar-collapse` names a panel, which
+  the message isn't above the diffs; an eye says hidden and shown. The box's place is
+  where GitHub shows a commit's message, so a reader looking for it looks there, in either
+  layout, and it needs no new GitHub selector, as a toolbar button would; a labelled
+  button is easier to find than an icon, and a rail would keep taking the diffs' room.
+  `session:` storage needs the background script to open it to content scripts first, and
+  loses a pick when the browser restarts; 100 keys stay a few kilobytes. GitHub links a
+  commit by its full SHA, but a reader can type an abbreviated one, so either finds the
+  other. Hiding is a reader's tidy-up, so the message just goes, as GitHub's file tree
+  does when collapsed.
+
+## 2026-10-29: A resizable commit message column
+
+- **Compared:**
+  - a fixed 320px column, as before;
+  - Primer's pane divider copied as a `role="slider"`, as GitHub's file tree has it, or as
+    a `role="separator"`, the ARIA window splitter;
+  - a keyboard step of Primer's 3px, or a coarser 16px;
+  - keeping the width in `sync:` storage, with the other commit message choice, or in
+    `local:`;
+  - a 1332px breakpoint from the picked width, moving the column above the diffs whenever
+    the window can't fit it, or a column that narrows with the window down to a minimum.
+- **Won:** a `role="separator"` on the column's inner edge with Primer's pane divider's
+  look and feel: a visible 5px grip centred on the 1px border, in a 24px target reaching
+  outward over the next pane's padding, `col-resize`, a `--bgColor-neutral-muted` wash
+  fading in over 150 ms `ease-out` on hover and while dragged, and arrow keys at 3px; the
+  width in `local:commitColumnWidth`, 320px until set; held between Primer's 256px pane
+  minimum and the window's width past GitHub's 1012px docked layout; above the diffs below
+  1268px.
+- **Why:** The divider sits a tree's width from GitHub's own, so any other look or step
+  would read as a different control. A separator names what the control does, where a
+  slider reads as a value to pick; the window splitter pattern is the ARIA role for it. A
+  width fits one screen, so syncing it would carry a wide desktop's width to a laptop. A
+  column that narrows with the window keeps the diffs at no less than GitHub's docked
+  layout gives them at any width the reader picks, and keeps the column on the screen it
+  was set on; moving it above the diffs while a narrower column would fit would throw away
+  room the reader has. The column sits one stacking level above the tree's pane, so with
+  the tree docked left the grip's overhang stays on top, and the pane's collapse slides
+  under the column rather than over it.
+- **Floor gap:** The column misses WCAG 2.2's 2.5.7, Dragging Movements, which asks for a
+  single-pointer way (a click or tap) to do anything dragging does. Arrow keys don't count
+  toward it, because they are keyboard input, not a pointer. The maintainer chose on
+  2026-10-29 to leave the gap open: GitHub's own file-tree divider beside the column has
+  no such path either, and a click that stepped or reset the width would behave unlike
+  that divider. Close it if GitHub's divider gains such a path, or if a user reports
+  needing one.
+
+## 2026-10-29: A commit's message, loaded in place
+
+- **Compared:**
+  - mounting the message at idle, after GitHub's box has shown, as before;
+  - hiding GitHub's box from `document_start` with a sheet keyed on its body, before the
+    visit starts;
+  - holding the message's place from the visit's start, with GitHub's box's plain text
+    copied in, or with a skeleton;
+  - rendering at the visit's start, or still after the sections and idle;
+  - on a failed render, collapsing the column with motion, or at once.
+- **Won:** the place held from the visit's start with a skeleton: a title bar and a line
+  for each of the body's lines, up to three, held back 150 ms, pulsing as the loading
+  view's skeletons do; GitHub's box hidden from the same frame; the render still after the
+  sections and idle, fading in on the spatial row; a message past the length or parse-cost
+  caps never held at all, and a failed render unmounting at once, back to GitHub's box.
+- **Why:** Live, at 1440px, the old load showed GitHub's box for about 600 ms, then hid
+  it, shifting everything below 64px up, and prepended the column, pushing the diffs 320px
+  right. The visit starts in the frame the box first paints, so holding the place then
+  means the diffs take their final spot in their first frame and never move. A
+  `document_start` sheet would hide the box before gh-prism knows it can show anything, so
+  a page it never visits would lose the box. A plain-text copy would read as content, then
+  swap to a different layout; a skeleton reads as waiting. Parsing still waits, so the
+  message never holds up the sidebar or the diffs. Checking the caps without parsing keeps
+  the loading state from ever resolving into GitHub's box for a message too long; only a
+  crafted nesting depth or a renderer bug still does, once, and rarely enough that a
+  collapse animation isn't worth its code.
+
+## 2026-10-29: The commit message's heading scale
+
+- **Compared:** `markdown-body`'s README scale, with its 2em `h1` ruled underneath; the
+  title as a bold paragraph; or the title one step above the body's text, with the body's
+  headings stepped under it.
+- **Won:** the title, still an `h1`, at Primer's medium title size (20px) in semibold,
+  with no rule; a body `h1` at 18px and an `h2` or `h3` at 16px, unruled, so no heading in
+  the body outshouts the title.
+- **Why:** At 2em the title reads louder than the pull request title it sits beside and
+  takes three lines of a 320px column. A paragraph would drop the heading assistive
+  technology announces. One step up still marks the title; the body's headings stay
+  semibold, so they still read as headings at the text's size.
+
+## 2026-10-29: A subject-only commit keeps GitHub's box
+
+- **Compared:** rendering every commit's message, or only a message with a body.
+- **Won:** only a message with a body; a subject line alone gets no rendering, column,
+  switch, or loading state.
+- **Why:** A subject line renders as one heading, which says nothing GitHub's box doesn't,
+  and a column holding one line takes the diffs' width for it.
+
 ## 2026-10-28: A commit's message beside the diffs
 
 - **Compared:**

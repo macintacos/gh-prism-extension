@@ -39,6 +39,22 @@ export const commitMessageView = storage.defineItem<CommitMessageView>("sync:com
 });
 
 /**
+ * The width, in pixels, the user last set a commit message's column to; kept on this computer
+ * only, since it fits this computer's screen.
+ */
+export const commitColumnWidth = storage.defineItem<number>("local:commitColumnWidth", {
+  fallback: 320,
+});
+
+/**
+ * The commits whose message the user hid, newest last, keyed as `utils/hidden-commits.ts` keys
+ * them; kept on this computer only.
+ */
+export const hiddenCommitMessages = storage.defineItem<string[]>("local:hiddenCommitMessages", {
+  fallback: [],
+});
+
+/**
  * Whether the user dismissed the notice on GitHub's classic Files changed page; kept on this
  * computer only.
  */
