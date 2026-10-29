@@ -15,6 +15,28 @@
   display: none !important;
 }
 
+/* markdown-body's README scale, whose 2em ruled h1 shouts in a commit message, stepped down so
+   the title sits a step above the text and every heading in the body below the title. Compound,
+   to outrank GitHub's .markdown-body rules. */
+.gh-prism-commit-message-body.markdown-body h1,
+.gh-prism-commit-message-body.markdown-body h2 {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.gh-prism-commit-message-body.markdown-body h1 {
+  font-size: 1.125rem;
+}
+
+.gh-prism-commit-message-body.markdown-body h2,
+.gh-prism-commit-message-body.markdown-body h3 {
+  font-size: 1rem;
+}
+
+.gh-prism-commit-message-body.markdown-body > h1:first-child {
+  font-size: var(--text-title-size-medium, 1.25rem);
+}
+
 /* The rendering, in the plaintext view. */
 .gh-prism-commit-message[data-view="plaintext"] > .gh-prism-commit-message-body {
   display: none;

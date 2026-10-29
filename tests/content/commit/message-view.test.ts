@@ -82,6 +82,25 @@ describe("showCommitMessage", () => {
     expect(box().outerHTML).toBe(before);
   });
 
+  it("sets the title a step above the body's text, and every body heading below the title", () => {
+    const body = box().querySelector(".extended-commit-description-container");
+    if (!body) throw new Error("no body");
+    body.textContent = "# One\n\n## Two\n\n### Three\n\nText";
+    show();
+    runIdle();
+
+    const sizeOf = (selector: string) => {
+      const element = container()?.querySelector(selector);
+      if (!element) throw new Error(`no ${selector}`);
+      return Number.parseFloat(getComputedStyle(element).fontSize);
+    };
+    const title = sizeOf("h1:first-child");
+    const text = sizeOf("p");
+    expect(title).toBeGreaterThan(text);
+    expect(title).toBeLessThanOrEqual(text * 1.25);
+    for (const heading of ["h1 ~ h1", "h2", "h3"]) expect(sizeOf(heading)).toBeLessThan(title);
+  });
+
   it("opens on GitHub's box, unchanged, when the tab last picked plain text", () => {
     choice.view = "plaintext";
     const before = box().outerHTML;

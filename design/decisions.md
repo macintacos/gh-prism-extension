@@ -6,6 +6,19 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-29: The commit message's heading scale
+
+- **Compared:** `markdown-body`'s README scale, with its 2em `h1` ruled underneath; the
+  title as a bold paragraph; or the title one step above the body's text, with the body's
+  headings stepped under it.
+- **Won:** the title, still an `h1`, at Primer's medium title size (20px) in semibold,
+  with no rule; a body `h1` at 18px and an `h2` or `h3` at 16px, unruled, so no heading in
+  the body outshouts the title.
+- **Why:** At 2em the title reads louder than the pull request title it sits beside and
+  takes three lines of a 320px column. A paragraph would drop the heading assistive
+  technology announces. One step up still marks the title; the body's headings stay
+  semibold, so they still read as headings at the text's size.
+
 ## 2026-10-29: A subject-only commit keeps GitHub's box
 
 - **Compared:** rendering every commit's message, or only a message with a body.

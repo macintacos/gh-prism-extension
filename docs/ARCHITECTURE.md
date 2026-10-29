@@ -165,12 +165,14 @@ message shows as text. Each placeholder becomes a clone of GitHub's link, so `#1
 references, mentions, and SHAs keep GitHub's `href`s and hovercards. Any other link keeps
 its `href` only for an `https:`, `http:`, or `mailto:` URL, and an image renders as a
 link, so no image loads. The first line becomes an `h1`, and the rest reflows like a
-README. A message over 50,000 characters, or nested deeper than 32 levels, stays in
-GitHub's box. So does a message whose paragraphs would cost too much to parse: micromark's
-inline parse grows with a paragraph's length times its emphasis and bracket delimiters,
-and with its length squared after an unclosed `[`. `renderCommitMessage` estimates that
-cost per paragraph and refuses a message past a budget, because a crafted message well
-under 50,000 characters would otherwise freeze the page for seconds.
+README. `message-view.css` steps `markdown-body`'s headings down, so the title reads one
+step above the text and no heading in the body outshouts it. A message over 50,000
+characters, or nested deeper than 32 levels, stays in GitHub's box. So does a message
+whose paragraphs would cost too much to parse: micromark's inline parse grows with a
+paragraph's length times its emphasis and bracket delimiters, and with its length squared
+after an unclosed `[`. `renderCommitMessage` estimates that cost per paragraph and refuses
+a message past a budget, because a crafted message well under 50,000 characters would
+otherwise freeze the page for seconds.
 
 A switch at the rendering's top-right corner flips between it and GitHub's box and saves
 the pick as `commitMessageView` in [`utils/prefs.ts`](../utils/prefs.ts). `index.ts` reads
