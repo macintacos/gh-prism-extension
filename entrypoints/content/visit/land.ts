@@ -7,6 +7,7 @@
  * (`shareIntent`).
  */
 
+import type { PrCodeOwners } from "@/utils/github/code-owners";
 import { type LandedSection, landingOf, sectionsOf } from "@/utils/intent/landing";
 import type { IntentProgress, IntentResult, PendingIntent } from "@/utils/intent/read";
 import { followFileKeys } from "../diffs/file-keys";
@@ -146,8 +147,9 @@ const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
 /**
  * Mounts the sidebar, the diff order, the j/k file keys, the diffstat, and the on-screen and Viewed
  * trackers that feed the sidebar on one page of a visit, and lands `intent` on them in that order,
- * until `signal` aborts. `viewed` is the visit's Viewed state, shared by its pages. `whatsNew`,
- * when given, opens the sidebar with its block.
+ * until `signal` aborts. `viewed` is the visit's Viewed state, shared by its pages. `codeOwners`
+ * is the visit's code owners and reviewers, which can land after the sidebar draws or not at all.
+ * `whatsNew`, when given, opens the sidebar with its block.
  */
 export function showVisit(
   page: FilesPage,
@@ -157,7 +159,13 @@ export function showVisit(
     diffstat,
     viewed,
     whatsNew,
-  }: { intent: PendingIntent; diffstat: DiffstatOptions; viewed: VisitViewed; whatsNew?: WhatsNew },
+  }: {
+    intent: PendingIntent;
+    diffstat: DiffstatOptions;
+    viewed: VisitViewed;
+    codeOwners?: Promise<PrCodeOwners | undefined>;
+    whatsNew?: WhatsNew;
+  },
 ): void {
   const sidebar = showSections(page, signal);
   if (whatsNew) sidebar.root.prepend(whatsNewBlock(page.sidebar.ownerDocument, whatsNew));

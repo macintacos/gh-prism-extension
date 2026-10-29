@@ -102,6 +102,16 @@ section's line totals, built from intent or from paths alone.
 every file keeps its path section. The sidebar says "Grouped by path". _Avoid_: degraded
 mode
 
+### Code owners
+
+**Code owner**: A user, team, or email that the base branch's CODEOWNERS names for a
+changed file, kept as its token (`@user`, `@org/team`). _Avoid_: owner, when the viewer's
+own ownership is meant
+
+**PR reviewer**: An account requested to review a pull request, or whose review GitHub's
+merge box lists. A reviewer who only commented isn't one. _Avoid_: reviewer alone, which
+names the person reading the diff
+
 ### What the reviewer sees
 
 **Sidebar**: gh-prism's sectioned list of changed files, shown in place of the native
@@ -156,4 +166,6 @@ aren't.
 - "Source" names both the background's fetcher of diffs and file contents, and where
   intent is read from and cached. Keep it for the fetcher.
 - "Pin" also names a diff head's one commit. Say diff pin only for the base and head pair.
+- "Reviewer" names the person reading a diff, and in `code-owners.ts` a PR reviewer.
+  "Viewer" (`ownedByViewer`) is GitHub's word for the person reading the diff.
 - The Docs & Comments section's key is `docs`. They are the same section.

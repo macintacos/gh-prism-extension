@@ -1,0 +1,60 @@
+{
+  "isEnabled": true,
+  "isViewerOneOfMultipleCodeowners": false,
+  "ownershipByPath": {
+    "deps/ncrypto/ncrypto.h": {
+      "isOwnedByViewer": false,
+      "owners": ["@nodejs/security-wg"],
+      "ruleLineNumber": 187,
+      "ruleUrl": "/nodejs/node/blob/main/.github/CODEOWNERS#L187"
+    },
+    "deps/ncrypto/ncrypto.cc": {
+      "isOwnedByViewer": false,
+      "owners": ["@nodejs/security-wg"],
+      "ruleLineNumber": 187,
+      "ruleUrl": "/nodejs/node/blob/main/.github/CODEOWNERS#L187"
+    },
+    "src/crypto/crypto_util.cc": {
+      "isOwnedByViewer": false,
+      "owners": ["@nodejs/crypto"],
+      "ruleLineNumber": 63,
+      "ruleUrl": "/nodejs/node/blob/main/.github/CODEOWNERS#L63"
+    },
+    "src/crypto/crypto_tls.cc": {
+      "isOwnedByViewer": false,
+      "owners": ["@nodejs/crypto"],
+      "ruleLineNumber": 63,
+      "ruleUrl": "/nodejs/node/blob/main/.github/CODEOWNERS#L63"
+    },
+    "src/crypto/crypto_rsa.cc": {
+      "isOwnedByViewer": false,
+      "owners": ["@nodejs/crypto"],
+      "ruleLineNumber": 63,
+      "ruleUrl": "/nodejs/node/blob/main/.github/CODEOWNERS#L63"
+    },
+    "src/crypto/crypto_hash.cc": {
+      "isOwnedByViewer": false,
+      "owners": ["@nodejs/crypto"],
+      "ruleLineNumber": 63,
+      "ruleUrl": "/nodejs/node/blob/main/.github/CODEOWNERS#L63"
+    },
+    "src/crypto/crypto_context.h": {
+      "isOwnedByViewer": false,
+      "owners": ["@nodejs/crypto"],
+      "ruleLineNumber": 63,
+      "ruleUrl": "/nodejs/node/blob/main/.github/CODEOWNERS#L63"
+    },
+    "src/crypto/crypto_context.cc": {
+      "isOwnedByViewer": false,
+      "owners": ["@nodejs/crypto"],
+      "ruleLineNumber": 63,
+      "ruleUrl": "/nodejs/node/blob/main/.github/CODEOWNERS#L63"
+    },
+    "test/cctest/test_node_crypto.cc": {
+      "isOwnedByViewer": false,
+      "owners": [],
+      "ruleLineNumber": null,
+      "ruleUrl": null
+    }
+  }
+}

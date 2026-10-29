@@ -2,6 +2,7 @@ import { browser } from "wxt/browser";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { storage } from "wxt/utils/storage";
+import { readCodeOwners } from "@/utils/github/code-owners";
 import { connectPrData } from "@/utils/github/pr-port";
 import { readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
 import { storedIntents } from "@/utils/intent/cache";
@@ -74,6 +75,7 @@ export default defineContentScript({
       {
         onVisit: (route, visit) => {
           const intent = shareIntent((onProgress) => intentFor(route, visit, sources, onProgress));
+          const codeOwners = readCodeOwners(route.diff, fetch, visit);
           // Route data is fresh only until GitHub's first navigation.
           const viewed = visitViewed(fullLoad ? readViewedSeed(document, route.diff) : undefined);
           fullLoad = false;
@@ -88,6 +90,7 @@ export default defineContentScript({
               intent,
               diffstat,
               viewed,
+              codeOwners,
               whatsNew: whatsNewForPage?.(),
             });
             dockSidebar(page, signal, { choice: side, save: saveSide });
