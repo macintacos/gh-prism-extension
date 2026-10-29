@@ -276,7 +276,7 @@ test("a commit's message switches to GitHub's box from the keyboard, and opens t
 }) => {
   const card = readFixture("commit-message-lists.html");
   await serve(context, COMMIT_URL, commitBodyWith(card));
-  // Every frame, whether the rendering or a hidden box painted.
+  // Records, every frame, whether the rendering or a hidden box ever painted.
   await page.addInitScript((box) => {
     const painted = { rendering: false, hiddenBox: false };
     Object.assign(window, { painted });

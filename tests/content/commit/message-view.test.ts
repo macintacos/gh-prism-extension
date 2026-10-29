@@ -121,7 +121,7 @@ describe("showCommitMessage", () => {
 
     button.click();
 
-    // happy-dom keeps the box's `display: none` once the `+` rule stops matching; e2e proves it shows.
+    // happy-dom keeps the box hidden once the `+` rule stops matching; e2e proves it shows.
     expect(container()?.dataset.view).toBe("rendered");
     expect(shows(body)).toBe(true);
     expect(save).toHaveBeenLastCalledWith("rendered");
