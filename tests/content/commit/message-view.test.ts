@@ -275,6 +275,24 @@ describe("showCommitMessage's loading state", () => {
 
   afterEach(() => setReducedMotion(false));
 
+  it("draws a skeleton line for each of the body's lines, up to three", () => {
+    const lines = () => container()?.querySelectorAll(".gh-prism-commit-skeleton > *").length;
+    const body = box().querySelector(".extended-commit-description-container");
+    if (!body) throw new Error("no body");
+
+    body.textContent = "One line.";
+    show();
+
+    expect(lines()).toBe(2);
+
+    controller.abort();
+    controller = new AbortController();
+    body.textContent = "One\n\nTwo\nThree\nFour";
+    show();
+
+    expect(lines()).toBe(4);
+  });
+
   it("swaps the skeleton for the rendering once idle, fading it in", () => {
     show();
     runIdle();

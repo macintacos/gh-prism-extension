@@ -211,11 +211,12 @@ and diff cards they stand in for. Once the sections land, they drop in one after
 `diffs/order.css` hold these.
 
 A commit's message holds its place the same way, without the bar: from the page's first
-frame, its column or its slot above the diffs shows a title bar and three lines, held back
-150 ms, then pulsing. The rendering takes their place on the spatial row, fading in and
-dropping 6px, and the slot above the diffs eases from the skeleton's height to the
-rendering's. A skeleton GitHub's re-render shows again carries on where the last one was,
-never fading in twice. `commit/message-view.ts` and `commit/message-view.css` hold it.
+frame, its column or its slot above the diffs shows a title bar and a line for each of the
+body's lines, up to three, held back 150 ms, then pulsing. The rendering takes their place
+on the spatial row, fading in and dropping 6px, and the slot above the diffs eases from
+the skeleton's height to the rendering's. A skeleton GitHub's re-render shows again
+carries on where the last one was, never fading in twice. `commit/message-view.ts` and
+`commit/message-view.css` hold it.
 
 ## The spectrum
 

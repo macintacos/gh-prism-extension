@@ -86,7 +86,7 @@ export function showCommitMessage(
   const view = messageView(doc, message.box, { choice, save });
   const restore = restoreRow(doc);
   if (visit.rendered) view.fill(visit.rendered, "at once");
-  else view.wait(elapsed);
+  else view.wait(elapsed, bodyLines(message.body));
   const place = mountMessage(
     page,
     { box: message.box, container: view.container, restore: restore.row },
@@ -117,6 +117,10 @@ export function showCommitMessage(
 
   if (!visit.rendered && !visit.hidden) afterSections(render);
 }
+
+/** How many of `body`'s lines hold text, up to the skeleton's three. */
+const bodyLines = (body: Element): number =>
+  Math.min(3, (body.textContent ?? "").split("\n").filter((line) => line.trim()).length);
 
 /** `message`'s rendering, or `undefined`, warning when the renderer throws. */
 function renderedOrWarn(doc: Document, message: CommitMessage): Node[] | undefined {
@@ -222,10 +226,10 @@ interface MessageView {
   readonly container: HTMLElement;
   readonly hide: HTMLButtonElement;
   /**
-   * Shows a skeleton in a loading state, its fade-in and pulse `elapsed` ms along, so a skeleton
-   * shown again mid-visit carries on where the last one was.
+   * Shows a skeleton of a title and `lines` lines in a loading state, its fade-in and pulse
+   * `elapsed` ms along, so a skeleton shown again mid-visit carries on where the last one was.
    */
-  readonly wait: (elapsed: number) => void;
+  readonly wait: (elapsed: number, lines: number) => void;
   /** Puts `nodes` in the body, fading them in where a skeleton stood when `"revealed"`. */
   readonly fill: (nodes: Node[], entrance: "revealed" | "at once") => void;
 }
@@ -274,8 +278,8 @@ function messageView(
     showView(choice.view);
     save(choice.view);
   });
-  const wait = (elapsed: number) => {
-    body.replaceChildren(skeleton(doc, elapsed));
+  const wait = (elapsed: number, lines: number) => {
+    body.replaceChildren(skeleton(doc, elapsed, lines));
     container.setAttribute("aria-busy", "true");
   };
   const fill = (nodes: Node[], entrance: "revealed" | "at once") => {
@@ -290,16 +294,13 @@ function messageView(
   return { container, hide, wait, fill };
 }
 
-/** Bars standing in for the title and a paragraph until the rendering lands. */
-function skeleton(doc: Document, elapsed: number): HTMLElement {
+/** Bars standing in for the title and `lines` lines of the body until the rendering lands. */
+function skeleton(doc: Document, elapsed: number, lines: number): HTMLElement {
   const bars = el(
     doc,
     "div",
     "gh-prism-commit-skeleton",
-    el(doc, "span", ""),
-    el(doc, "span", ""),
-    el(doc, "span", ""),
-    el(doc, "span", ""),
+    ...Array.from({ length: 1 + lines }, () => el(doc, "span", "")),
   );
   bars.style.setProperty("--gh-prism-commit-elapsed", `${Math.round(elapsed)}ms`);
   return bars;

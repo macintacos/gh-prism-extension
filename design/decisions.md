@@ -70,11 +70,11 @@ at the top, dated.
     copied in, or with a skeleton;
   - rendering at the visit's start, or still after the sections and idle;
   - on a failed render, collapsing the column with motion, or at once.
-- **Won:** the place held from the visit's start with a skeleton: a title bar and three
-  lines, held back 150 ms, pulsing as the loading view's skeletons do; GitHub's box hidden
-  from the same frame; the render still after the sections and idle, fading in on the
-  spatial row; a message past the length or parse-cost caps never held at all, and a
-  failed render unmounting at once, back to GitHub's box.
+- **Won:** the place held from the visit's start with a skeleton: a title bar and a line
+  for each of the body's lines, up to three, held back 150 ms, pulsing as the loading
+  view's skeletons do; GitHub's box hidden from the same frame; the render still after the
+  sections and idle, fading in on the spatial row; a message past the length or parse-cost
+  caps never held at all, and a failed render unmounting at once, back to GitHub's box.
 - **Why:** Live, at 1440px, the old load showed GitHub's box for about 600 ms, then hid
   it, shifting everything below 64px up, and prepended the column, pushing the diffs 320px
   right. The visit starts in the frame the box first paints, so holding the place then
