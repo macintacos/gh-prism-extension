@@ -6,6 +6,24 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-28: A code owner's files as a flattened tree
+
+- **Compared:**
+  - `@pierre/trees` or a hand-built list;
+  - one heading per directory, or nested folders with single-child chains merged;
+  - eliding a long folder's start, or breaking it after a slash;
+  - 400, 440, or 480px for the code owner's files popup;
+  - the tree for that popup alone, or for every file list.
+- **Won:** a hand-built nested list, flattened as the sidebar flattens, breaking after a
+  slash, 440px for the popup and 400px for the folder popover, in every file list.
+- **Why:** `@pierre/trees` is a virtualized, keyboard-driven widget. A static card of tens
+  of files needs neither, and the library would bring the sidebar's shadow-root runtime to
+  the Conversation tab. Nesting prints a shared prefix once, as the sidebar does. Eliding
+  needs measuring in a card that is gone in a second, and hides the path being checked. At
+  440px, a nested folder path of about 50 monospace characters fits on one line. The
+  popup, its details dialog, and the folder popover show the same paths, so they read the
+  same.
+
 ## 2026-10-28: Code owner details in a dialog
 
 - **Compared:**

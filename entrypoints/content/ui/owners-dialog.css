@@ -1,6 +1,7 @@
 /* No GitHub hooks: every rule selects only gh-prism's own classes. */
 @import "./tailwind.css" prefix(tw);
 @source "./owners-dialog.ts";
+@source "./file-list.ts";
 @source "../sidebar/owners-popover.ts";
 @source "../conversation/reviewer-files.ts";
 

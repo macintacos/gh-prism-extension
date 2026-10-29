@@ -1,3 +1,4 @@
+// Keep in sync with the popovers' calc(100vw-16px) and calc(100vh-16px) caps.
 const VIEWPORT_MARGIN = 8;
 
 /**
@@ -18,7 +19,8 @@ export function place(popover: HTMLElement, anchor: DOMRect): void {
   popover.style.top = `${top}px`;
   if (room === undefined) return;
 
-  // max-height bounds the content box, as no preflight sets box-sizing.
+  // Subtracts what max-height doesn't bound: padding and border under content-box, nothing
+  // under border-box.
   const paddingAndBorder = height - parseFloat(view?.getComputedStyle(popover).height ?? "0");
   popover.style.maxHeight = `${room - paddingAndBorder}px`;
 }

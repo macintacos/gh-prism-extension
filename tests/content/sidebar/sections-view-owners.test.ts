@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
 import { codeOwnerOf, type PrCodeOwners } from "../../../utils/github/code-owners";
+import { outline } from "../../fixtures/file-list";
 import { byId, openOverlay } from "../../fixtures/files-page";
 import { landedWith } from "../../fixtures/intent";
 import {
@@ -556,11 +557,10 @@ describe("showSections", () => {
             "src/lib.rs": [],
           }),
         );
-      const items = (popover: HTMLElement | undefined) =>
-        [...(popover?.querySelectorAll("li") ?? [])].map((item) => item.textContent);
       const src = () => shieldOf("implementation", "src/");
       const LISTED_UNDER_SRC = [
-        "generated/schema.rs@o/other",
+        "generated/",
+        "  schema.rs@o/other",
         "engine.rs@o/team",
         "helpers.rs",
         "lib.rs",
@@ -578,7 +578,7 @@ describe("showSections", () => {
         expect(popovers()).toHaveLength(1);
         expect(popover?.querySelector(".gh-prism-owners-hint")?.textContent).toBeTruthy();
         expect(popover?.getAttribute("aria-label")).toBe("Code owners of files in src");
-        expect(items(popover)).toEqual(LISTED_UNDER_SRC);
+        expect(outline(popover?.querySelector("ul"))).toEqual(LISTED_UNDER_SRC);
         const links = [...(popover?.querySelectorAll("a") ?? [])];
         expect(links.map((link) => [link.href, link.target, link.rel])).toEqual([
           ["https://github.com/orgs/o/teams/other", "_blank", "noopener noreferrer"],
@@ -592,7 +592,7 @@ describe("showSections", () => {
 
         await focusOpen(src());
 
-        expect(items(popovers()[0])).toContain("<img src=x>.rs@o/<b>x</b>");
+        expect(outline(popovers()[0]?.querySelector("ul"))).toContain("<img src=x>.rs@o/<b>x</b>");
         expect(popovers()[0]?.querySelector("img, b")).toBeNull();
       });
 
@@ -602,7 +602,7 @@ describe("showSections", () => {
 
         await focusOpen(shieldOf("implementation", "a/b/c/"));
 
-        expect(items(popovers()[0])).toEqual(["file.rs@o/team"]);
+        expect(outline(popovers()[0]?.querySelector("ul"))).toEqual(["file.rs@o/team"]);
       });
 
       it("opens its details without toggling, selecting, or revealing its folder", async () => {
@@ -665,7 +665,7 @@ describe("showSections", () => {
         const [dialog] = dialogs();
         expect(dialogs()).toHaveLength(1);
         expect(dialogTitle(dialog)).toBe("Code owners of files in src");
-        expect(items(dialog?.querySelector("ul") ?? undefined)).toEqual(LISTED_UNDER_SRC);
+        expect(outline(dialog?.querySelector("ul"))).toEqual(LISTED_UNDER_SRC);
         expect(popovers()).toEqual([]);
       });
 

@@ -10,6 +10,7 @@
 
 import { type CodeOwner, owningTeams } from "@/utils/github/code-owners";
 import { el } from "../ui/dom";
+import { fileList } from "../ui/file-list";
 import type { Card } from "../ui/hover-intent";
 import { detailsHint, ownerLink } from "../ui/owners-dialog";
 import { place } from "../ui/place";
@@ -53,7 +54,8 @@ export function describeListing(doc: Document, listing: ShieldListing) {
 
 /** Opens the popover listing `listing`. */
 // ponytail: builds every file under a folder on each open, thousands of nodes at GitHub's
-// 3,000-file cap; cap the list with a "+N more" line, or swap in a file tree, if that hitches.
+// 3,000-file cap; cap the list with a "+N more" line,
+// or virtualize it with `@pierre/trees`, if that hitches.
 export function openListing(
   shield: HTMLElement,
   listing: ShieldListing,
@@ -73,14 +75,27 @@ function ownersList(doc: Document, owners: readonly CodeOwner[]): HTMLElement {
   );
 }
 
-/** `files` by their paths relative to `folder`, each owned one with its owners. */
+/**
+ * `files` grouped under their folders relative to `folder`, each owned one with its owners below
+ * its name.
+ */
 function folderList(doc: Document, folder: string, files: readonly FileOwnersAt[]): HTMLElement {
-  return el(
-    doc,
-    "ul",
-    "tw:m-0 tw:p-0 tw:list-none tw:flex tw:flex-col tw:gap-2",
-    ...files.map(({ path, owners }) => fileItem(doc, path.slice(folder.length), owners)),
-  );
+  const ownersOf = new Map(files.map(({ path, owners }) => [path.slice(folder.length), owners]));
+  return fileList(doc, [...ownersOf.keys()], (path) => ownerLine(doc, ownersOf.get(path) ?? []));
+}
+
+/** `owners` comma-separated on one line, or nothing when there are none. */
+function ownerLine(doc: Document, owners: readonly CodeOwner[]): HTMLElement[] {
+  return owners.length > 0
+    ? [
+        el(
+          doc,
+          "div",
+          "",
+          ...owners.flatMap((owner, i) => [i > 0 ? ", " : "", ownerLink(doc, owner)]),
+        ),
+      ]
+    : [];
 }
 
 /** `label` is the popover's accessible name; `body` goes below its heading. */
@@ -94,7 +109,7 @@ function openPopover(
   const popover = el(
     doc,
     "div",
-    "gh-prism-owners tw:inset-auto tw:m-0 tw:max-w-[320px] tw:max-h-[calc(100vh-16px)] tw:overflow-y-auto tw:pt-3 tw:px-3 tw:pb-0 tw:text-body-small tw:leading-body-small tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:rounded-medium tw:[border:0] tw:[box-shadow:var(--shadow-floating-small)] tw:wrap-anywhere",
+    "gh-prism-owners tw:inset-auto tw:m-0 tw:box-border tw:max-w-[min(400px,calc(100vw-16px))] tw:max-h-[calc(100vh-16px)] tw:overflow-y-auto tw:pt-3 tw:px-3 tw:pb-0 tw:text-body-small tw:leading-body-small tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:rounded-medium tw:[border:0] tw:[box-shadow:var(--shadow-floating-small)] tw:wrap-anywhere",
     el(doc, "h2", "tw:mt-0 tw:mb-2 tw:text-body-small tw:font-semibold", "Code owners"),
     body,
     detailsHint(doc, "small"),
@@ -169,33 +184,4 @@ function openPopover(
     { capture: true, signal: closed.signal },
   );
   return { element: popover, close };
-}
-
-/** `path`'s list item, with its owners, if any, below it. */
-function fileItem(doc: Document, path: string, owners: readonly CodeOwner[]): HTMLElement {
-  return el(
-    doc,
-    "li",
-    "",
-    el(doc, "div", "tw:font-mono", ...pathParts(doc, path)),
-    ...(owners.length > 0
-      ? [
-          el(
-            doc,
-            "div",
-            "",
-            ...owners.flatMap((owner, i) => [i > 0 ? ", " : "", ownerLink(doc, owner)]),
-          ),
-        ]
-      : []),
-  );
-}
-
-// ponytail: copied from conversation/reviewer-files.ts; EXC-2111's file tree replaces both.
-/** `path` as a muted directory and its file name. */
-function pathParts(doc: Document, path: string): (Node | string)[] {
-  const nameStart = path.lastIndexOf("/") + 1;
-  return nameStart === 0
-    ? [path]
-    : [el(doc, "span", "tw:text-fg-muted", path.slice(0, nameStart)), path.slice(nameStart)];
 }

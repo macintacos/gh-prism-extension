@@ -20,6 +20,7 @@ import nodeConversation from "../../fixtures/conversation-node.html?raw";
 import overviewConversation from "../../fixtures/conversation-overview.html?raw";
 import conversationFixture from "../../fixtures/conversation-page.html?raw";
 import { routedFetch } from "../../fixtures/fetch";
+import { outline } from "../../fixtures/file-list";
 import nodeReviewRequests from "../../fixtures/review-requests-node.json?raw";
 import sandboxMembers from "../../fixtures/team-members-sandbox.json?raw";
 
@@ -197,7 +198,12 @@ const rowOf = (login: string) =>
   document.querySelector(`a[href="/${login}"]`)?.closest("li, div.d-flex") as HTMLElement;
 const popups = () => [...document.querySelectorAll<HTMLElement>(".gh-prism-reviewer-files")];
 const popup = () => document.querySelector<HTMLElement>(".gh-prism-reviewer-files");
-const listed = () => [...(popup()?.querySelectorAll("li") ?? [])].map((li) => li.textContent);
+const listed = () => outline(popup()?.querySelector("ul"));
+const cryptoListing = [
+  "src/crypto/",
+  ...NODE_CRYPTO.map((path) => `  ${path.replace(/^src\/crypto\//, "")}`),
+];
+const sortedAfterFolder = ([folder, ...files]: string[]) => [folder, ...files.sort()];
 
 function pointerOver(target: Element, from: Element | null = null) {
   target.dispatchEvent(new PointerEvent("pointerover", { bubbles: true, relatedTarget: from }));
@@ -226,7 +232,7 @@ describe("showReviewerFiles", () => {
 
     expect(popupsBeforeDelay).toBe(0);
     expect(popups()).toHaveLength(1);
-    expect(listed()).toEqual(["api/generated/client.ts", "web/app.ts"]);
+    expect(listed()).toEqual(["api/generated/", "  client.ts", "web/", "  app.ts"]);
     expect(popup()?.textContent).toContain("Code owner of 2 files in this pull request");
   });
 
@@ -363,7 +369,7 @@ describe("showReviewerFiles", () => {
     await hoverOpen("platform");
 
     expect(popups()).toHaveLength(1);
-    expect(listed()).toEqual(["infra/deploy.yml", "api/routes.ts"]);
+    expect(listed()).toEqual(["infra/", "  deploy.yml", "api/", "  routes.ts"]);
   });
 
   it("closes on a scroll outside it", async () => {
@@ -532,7 +538,7 @@ describe("showReviewerFiles", () => {
 
       await hoverJasnellsShield();
 
-      expect(listed()).toEqual(["test/cctest/test_node_crypto.cc"]);
+      expect(listed()).toEqual(["test/cctest/", "  test_node_crypto.cc"]);
       expect(popup()?.querySelector("a")).toBeNull();
     });
 
@@ -541,7 +547,7 @@ describe("showReviewerFiles", () => {
 
       await hoverJasnellsShield();
 
-      expect(listed().sort()).toEqual(NODE_CRYPTO);
+      expect(sortedAfterFolder(listed())).toEqual(cryptoListing);
       const teamLink = popup()?.querySelector("a");
       expect(teamLink?.textContent).toBe("@nodejs/crypto");
       expect(teamLink?.href).toBe("https://github.com/orgs/nodejs/teams/crypto");
@@ -576,16 +582,16 @@ describe("showReviewerFiles", () => {
 
     it("opens the dialog of a team reviewer, its files and its members", async () => {
       show();
+      await hoverOpen("frontend");
+      const cardListing = listed();
 
       await clickOn(shieldOf("frontend"));
 
       expect(dialogName()).toBe("@excessive-dev/frontend");
       expect(dialog()?.textContent).toMatch(/Code owner of \d+ files? in this pull request/);
-      const owned = [...sandboxOwners()]
-        .filter(([, { owners }]) => owners.some((o) => o.token === "@excessive-dev/frontend"))
-        .map(([path]) => path);
-      expect(owned.length).toBeGreaterThan(0);
-      expect(dialogItems()).toEqual(expect.arrayContaining([...owned, "@sandbox-user"]));
+      expect(cardListing.length).toBeGreaterThan(0);
+      expect(outline(dialog()?.querySelector("ul"))).toEqual(cardListing);
+      expect(dialogItems()).toContain("@sandbox-user");
       expect(dialog()?.textContent).not.toContain("See all");
     });
 
@@ -703,7 +709,7 @@ describe("showReviewerFiles", () => {
 
       await hoverOn(ownShieldOf("@pimterry"));
 
-      expect(listed().sort()).toEqual(NODE_CRYPTO);
+      expect(sortedAfterFolder(listed())).toEqual(cryptoListing);
       expect(popup()?.textContent).toContain("Through @nodejs/crypto");
       expect(ownShieldOf("@pimterry").getAttribute("aria-describedby")).toBe(
         "gh-prism-reviewer-files",
@@ -772,7 +778,7 @@ describe("showReviewerFiles", () => {
         document.querySelector('button[aria-label="jasnell is a code owner"]') as Element,
       );
 
-      expect(listed()).toEqual(["test/cctest/test_node_crypto.cc"]);
+      expect(listed()).toEqual(["test/cctest/", "  test_node_crypto.cc"]);
     });
 
     /** Edits making pimterry, who has reviewed, a code owner of a file in their own name. */
