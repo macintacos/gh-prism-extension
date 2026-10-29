@@ -7,7 +7,8 @@ import {
   type PrReviewer,
   readCodeOwners,
   readPrReviewers,
-  readTeamMembers,
+  type TeamMembersOf,
+  teamMembersReader,
   withMemberTeams,
 } from "@/utils/github/code-owners";
 import { ownerOf } from "@/utils/github/files-route";
@@ -88,7 +89,11 @@ export default defineContentScript({
         onVisit: (route, visit) => {
           const intent = shareIntent((onProgress) => intentFor(route, visit, sources, onProgress));
           const codeOwners = readCodeOwners(route.diff, fetch, visit);
-          const prReviewers = readReviewersWithTeams(route.diff, codeOwners, visit);
+          const teamMembers = teamMembersReader(fetch, visit);
+          const prReviewers = readReviewersWithTeams(route.diff, codeOwners, {
+            teamMembers,
+            signal: visit,
+          });
           // Route data is fresh only until GitHub's first navigation.
           const viewed = visitViewed(fullLoad ? readViewedSeed(document, route.diff) : undefined);
           fullLoad = false;
@@ -110,6 +115,7 @@ export default defineContentScript({
               viewed,
               codeOwners,
               prReviewers,
+              teamMembers,
               owner: route.diff.kind === "pr" ? ownerOf(location.search) : undefined,
               whatsNew: whatsNewForPage?.(),
             });
@@ -127,11 +133,18 @@ export default defineContentScript({
         const intent = shareIntent((onProgress) =>
           intentFor({ diff: pr, commitFiltered: false }, visit, sources, onProgress),
         );
+        const teamMembers = teamMembersReader(fetch, visit);
         // Rides the header visit, so it runs only where findHeaderPage finds the counter's slot.
-        showReviewerFiles(document, visit, async () => {
-          const codeOwners = readCodeOwners(pr, fetch, visit);
-          const prReviewers = readReviewersWithTeams(pr, codeOwners, visit);
-          return { codeOwners: await codeOwners, prReviewers: await prReviewers };
+        showReviewerFiles(document, visit, {
+          read: async () => {
+            const codeOwners = readCodeOwners(pr, fetch, visit);
+            const prReviewers = readReviewersWithTeams(pr, codeOwners, {
+              teamMembers,
+              signal: visit,
+            });
+            return { codeOwners: await codeOwners, prReviewers: await prReviewers };
+          },
+          teamMembers,
         });
         return (page, signal) => showHeaderTab(page, signal, { intent, diffstat });
       },
@@ -152,11 +165,11 @@ export default defineContentScript({
 async function readReviewersWithTeams(
   diff: DiffRef,
   codeOwners: Promise<PrCodeOwners | undefined>,
-  signal: AbortSignal,
+  { teamMembers, signal }: { teamMembers: TeamMembersOf; signal: AbortSignal },
 ): Promise<readonly PrReviewer[] | undefined> {
   const [reviewers, owners] = await Promise.all([readPrReviewers(diff, fetch, signal), codeOwners]);
   if (!reviewers || !owners) return reviewers;
-  return withMemberTeams(reviewers, owners, (team) => readTeamMembers(team, fetch, signal));
+  return withMemberTeams(reviewers, owners, async (team) => (await teamMembers(team))?.members);
 }
 
 /** The stored sidebar side, unchecked, or the default when storage won't read. */

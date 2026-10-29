@@ -1696,7 +1696,7 @@ test("an owned file's row shows a shield in place of its icon while hovered or f
   await expect(page.locator("[data-item-shield]")).toHaveCount(0);
 });
 
-test("a shield lists its file's code owners in a popover until Escape returns to the row", async ({
+test("a shield lists its file's code owners in a popover, and Tab walks its links", async ({
   context,
   page,
 }) => {
@@ -1706,7 +1706,7 @@ test("a shield lists its file's code owners in a popover until Escape returns to
   const popover = page.locator(".gh-prism-owners");
   await readme.hover();
   const before = await page.evaluate(() => ({ scrollY: window.scrollY, hash: location.hash }));
-  await readmeShield.click();
+  await readmeShield.hover();
 
   await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
   await popover.evaluate(async (element) => {
@@ -1727,7 +1727,7 @@ test("a shield lists its file's code owners in a popover until Escape returns to
       const style = getComputedStyle(element);
       return [style.position, style.padding, style.maxHeight !== "none"];
     }),
-  ).toEqual(["fixed", "12px", true]);
+  ).toEqual(["fixed", "12px 12px 0px", true]);
   const links = popover.locator("a");
   await expect(links).toHaveCount(2);
   expect(await links.evaluateAll((all) => all.map((link) => link.getAttribute("href")))).toEqual([
@@ -1746,29 +1746,6 @@ test("a shield lists its file's code owners in a popover until Escape returns to
   );
 
   await page.mouse.move(0, 0);
-  expect(await popover.evaluate((element) => element.contains(document.activeElement))).toBe(true);
-  await expect.poll(() => opacityOf(readmeShield)).toBe("1");
-  await expect.poll(() => opacityOf(rowIcon(page, "README.md"))).toBe("0");
-
-  await page.keyboard.press("Escape");
-  await expect(popover).toHaveCount(0);
-  expect(
-    await readme.evaluate((row) => (row.getRootNode() as ShadowRoot).activeElement === row),
-  ).toBe(true);
-
-  await page.keyboard.press("ArrowUp");
-  await page.keyboard.press("ArrowDown");
-  await expect(readme).toBeFocused();
-  await page.keyboard.press("Tab");
-  await expect(readmeShield).toBeFocused();
-  await page.keyboard.press("Enter");
-  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
-  expect(await popover.evaluate((element) => element.contains(document.activeElement))).toBe(true);
-
-  await popover.locator("a").last().focus();
-  await page.keyboard.press("Tab");
-  const pastPopover = await focusedControl(page);
-  await page.mouse.click(1, 1);
   await expect(popover).toHaveCount(0);
   await readme.focus();
   await page.keyboard.press("ArrowUp");
@@ -1782,8 +1759,8 @@ test("a shield lists its file's code owners in a popover until Escape returns to
     await expect(link).toBeFocused();
   }
   await page.keyboard.press("Tab");
-  expect(pastPopover).toBe(await focusedControl(page));
   await expect(popover).toHaveCount(0);
+  expect(await focusedControl(page)).not.toContain("gh-prism-owners");
 });
 
 test("an owned file's shield opens its owners on hover, and closes as the pointer leaves", async ({
@@ -1824,26 +1801,6 @@ test("a hover-opened owners popover holding focus hands it to its row as the poi
   await page.mouse.move(1, 1);
 
   await expect(popover).toHaveCount(0);
-  expect(await rowFocused(readme)).toBe(true);
-});
-
-test("a pinned owners popover holding focus hands it to its row as another shield's opens", async ({
-  context,
-  page,
-}) => {
-  await openOwned(context, page);
-  const readme = treeRow(page, "README.md");
-  await readme.hover();
-  await shieldOf(page, "README.md").click();
-  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
-
-  await treeRow(page, "src/engine.rs").hover();
-  await shieldOf(page, "src/engine.rs").hover();
-
-  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveAttribute(
-    "aria-label",
-    "Code owners of engine.rs",
-  );
   expect(await rowFocused(readme)).toBe(true);
 });
 
@@ -1889,7 +1846,7 @@ test("a shield's popover in the overlay closes as the overlay does, leaving its 
   await openOverlay(page);
   const readmeShield = overlay(page).locator('[data-item-shield="README.md"]');
   await treeRow(page, "README.md").hover();
-  await readmeShield.click();
+  await readmeShield.focus();
   await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
 
   await closeOverlay(page);
@@ -1897,7 +1854,7 @@ test("a shield's popover in the overlay closes as the overlay does, leaving its 
   await expect(page.locator(".gh-prism-owners")).toHaveCount(0);
   await expect(shieldOf(page, "README.md")).not.toHaveAttribute("aria-expanded");
   await treeRow(page, "README.md").hover();
-  await shieldOf(page, "README.md").click();
+  await shieldOf(page, "README.md").hover();
   await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(1);
 });
 
@@ -1916,34 +1873,129 @@ test("a hovered shield keeps its glyph in forced colours", async ({ context, pag
   await expect.poll(glyphColor).toBe(atRest);
 });
 
-test("a shield's click closes its open popover, and another shield's swaps it", async ({
+/** Answers `@org/team`'s members read with `fixture`, counting the requests. */
+const routeMembers = async (context: BrowserContext, team: string, fixture: string) => {
+  const [org, slug] = team.slice(1).split("/");
+  const hits = { count: 0 };
+  await context.route(`https://github.com/orgs/${org}/teams/${slug}/members`, (route) => {
+    hits.count++;
+    return route.fulfill({ contentType: "application/json", body: readFixture(fixture) });
+  });
+  return hits;
+};
+
+/** How far the hint's footer sits from `scroller`'s inner bottom edge, once scrolled midway. */
+const hintFooterGapMidway = (scroller: Locator) =>
+  scroller.evaluate(async (element) => {
+    await Promise.all(element.getAnimations().map(({ finished }) => finished));
+    if (element.scrollHeight <= element.clientHeight) throw new Error("the list doesn't overflow");
+    element.scrollTop = (element.scrollHeight - element.clientHeight) / 2;
+    const footer = element.querySelector(".gh-prism-owners-hint");
+    if (!footer) throw new Error("no hint");
+    // Not clientHeight, which rounds to a whole pixel.
+    const innerBottom =
+      element.getBoundingClientRect().bottom -
+      parseFloat(getComputedStyle(element).borderBottomWidth);
+    return Math.abs(footer.getBoundingClientRect().bottom - innerBottom);
+  });
+
+test("a shield's click swaps its hover popover for the code owner details dialog", async ({
+  context,
+  page,
+}) => {
+  await routeMembers(context, "@o/team", "team-members-large.json");
+  await openOwned(context, page, ["@o/team", "@octocat"]);
+  const readme = treeRow(page, "README.md");
+  const dialog = page.getByRole("dialog", { name: "Code owners of README.md" });
+  await readme.hover();
+
+  await shieldOf(page, "README.md").click();
+
+  await expect(dialog).toBeVisible();
+  expect(await dialog.evaluate((element) => element.matches(":modal"))).toBe(true);
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(0);
+  await expect(dialog.getByRole("link", { name: /^@member-/ })).toHaveCount(15);
+  await expect(dialog.getByRole("link", { name: "See all 214 members" })).toBeVisible();
+
+  // Off the shield, so hover intent can't reopen its popover.
+  await page.mouse.move(1, 1);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  expect(await rowFocused(readme)).toBe(true);
+  await page.waitForTimeout(500);
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(0);
+
+  await readme.hover();
+  await shieldOf(page, "README.md").click();
+  await expect(dialog).toBeVisible();
+  await page.mouse.click(4, 4);
+  await expect(dialog).toHaveCount(0);
+});
+
+test("Enter on a focused shield opens its details, and Escape returns to the row", async ({
   context,
   page,
 }) => {
   await openOwned(context, page);
   const readme = treeRow(page, "README.md");
-  const readmeShield = shieldOf(page, "README.md");
-  const popover = page.locator(".gh-prism-owners");
-
+  const dialog = page.getByRole("dialog", { name: "Code owners of README.md" });
   await readme.hover();
-  await readmeShield.click();
-  await expect(popover).toHaveCount(1);
-  await readmeShield.click();
+  await readme.focus();
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Tab");
+  await expect(shieldOf(page, "README.md")).toBeFocused();
 
-  await expect(popover).toHaveCount(0);
-  await expect(readmeShield).not.toHaveAttribute("aria-expanded");
+  await page.keyboard.press("Enter");
 
-  await readmeShield.click();
-  await expect(popover).toHaveCount(1);
-  await treeRow(page, "src/engine.rs").hover();
-  await shieldOf(page, "src/engine.rs").click();
+  await expect(dialog).toBeVisible();
+  expect(await dialog.evaluate((element) => element.matches(":modal"))).toBe(true);
+  await page.mouse.move(1, 1);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  expect(await rowFocused(readme)).toBe(true);
+  await page.waitForTimeout(500);
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(0);
+});
 
+test("a folder shield's click opens the code owner details of its files", async ({
+  context,
+  page,
+}) => {
+  await openOwned(context, page, ["@o/team"]);
+  await treeRow(page, "src/generated/").hover();
+
+  await shieldOf(page, "src/generated/").click();
+
+  const dialog = page.getByRole("dialog", { name: "Code owners of files in src/generated" });
+  await expect(dialog.locator("li").filter({ hasText: "schema.rs" })).toContainText("o/team");
+});
+
+test("a shield's hover popover hints that a click opens its details", async ({ context, page }) => {
+  await openOwned(context, page);
+  const popover = page.locator(".gh-prism-owners:popover-open");
+  for (const path of ["README.md", "src/generated/"]) {
+    await treeRow(page, path).hover();
+    await shieldOf(page, path).hover();
+    await expect(popover).toContainText("Click the shield for details");
+    await page.mouse.move(1, 1);
+    await expect(popover).toHaveCount(0);
+  }
+});
+
+test("a scrolled owners popover keeps its hint flush with its bottom", async ({
+  context,
+  page,
+}) => {
+  await openOwned(context, page);
+  await page.addStyleTag({ content: ".gh-prism-owners { max-height: 90px !important; }" });
+  await treeRow(page, "src/").hover();
+  await shieldOf(page, "src/").hover();
+  const popover = page.locator(".gh-prism-owners:popover-open");
   await expect(popover).toHaveCount(1);
-  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveAttribute(
-    "aria-label",
-    "Code owners of engine.rs",
-  );
-  await expect(readmeShield).not.toHaveAttribute("aria-expanded");
+
+  expect(await hintFooterGapMidway(popover)).toBeLessThanOrEqual(0.5);
+  await expect(popover.locator(".gh-prism-owners-hint")).toBeVisible();
 });
 
 test("an owned folder's row shows a shield at its end and keeps its chevron", async ({
@@ -1991,13 +2043,14 @@ test("a folder shield's popover lists its files until Escape returns to the row"
   const popover = page.locator(".gh-prism-owners:popover-open");
   await folder.hover();
 
-  await shieldOf(page, "src/generated/").click();
+  await shieldOf(page, "src/generated/").focus();
 
   await expect(popover).toHaveAttribute("aria-label", "Code owners of files in src/generated");
   await expect(popover.locator("li").filter({ hasText: "schema.rs" })).toContainText("o/team");
-  expect(await popover.evaluate((element) => element.contains(document.activeElement))).toBe(true);
   await expect(folder).toHaveAttribute("aria-expanded", expanded ?? "");
 
+  await page.keyboard.press("Tab");
+  await expect(popover.locator("a").first()).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.locator(".gh-prism-owners")).toHaveCount(0);
   expect(
@@ -2022,11 +2075,10 @@ test("a folder shield's popover too tall for either side of it pins without cove
   await treeRow(page, "src/generated/").hover();
   await page.addStyleTag({ content: ".gh-prism-owners li { min-height: 2000px; }" });
 
-  await shield.click();
+  await shield.focus();
 
   const popover = page.locator(".gh-prism-owners:popover-open");
   await expect(popover).toHaveCount(1);
-  expect(await popover.evaluate((element) => element.contains(document.activeElement))).toBe(true);
   await popover.evaluate((element) =>
     Promise.all(element.getAnimations().map((animation) => animation.finished)),
   );
@@ -2073,6 +2125,46 @@ test("a code owner reviewer's shield opens their files, closing as the pointer l
   await page.keyboard.press("Escape");
   await expect(popup).toBeHidden();
   expect(errors).toEqual([]);
+});
+
+test("a code owner reviewer's shield click opens their team's details", async ({
+  context,
+  page,
+}) => {
+  const hits = await routeMembers(context, "@excessive-dev/frontend", "team-members-sandbox.json");
+  await serveSandboxConversation(context);
+  await page.goto("https://github.com/o/r/pull/1");
+  const shield = page.locator('[id="codeowner-excessive-dev/frontend"]');
+  const card = page.locator(".gh-prism-reviewer-files");
+  await shield.hover();
+  await expect(card).toContainText("Click the shield for details");
+
+  await shield.click();
+
+  const dialog = page.getByRole("dialog", { name: "@excessive-dev/frontend" });
+  await expect(dialog).toContainText("api/generated/client.ts");
+  await expect(dialog.getByRole("link", { name: "@sandbox-user" })).toBeVisible();
+  expect(await dialog.evaluate((element) => element.matches(":modal"))).toBe(true);
+  expect(hits.count).toBe(1);
+  await page.mouse.move(1, 1);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(shield).toBeFocused();
+});
+
+test("a scrolled code owner reviewer's card keeps its hint flush with its bottom", async ({
+  context,
+  page,
+}) => {
+  await serveSandboxConversation(context);
+  await page.goto("https://github.com/o/r/pull/1");
+  await page.addStyleTag({ content: ".gh-prism-reviewer-files { max-height: 80px !important; }" });
+  const card = page.locator(".gh-prism-reviewer-files");
+  await page.locator('[id="codeowner-excessive-dev/frontend"]').hover();
+  await expect(card).toBeVisible();
+
+  expect(await hintFooterGapMidway(card)).toBeLessThanOrEqual(0.5);
+  await expect(card.locator(".gh-prism-owners-hint")).toBeVisible();
 });
 
 /** Serves the code-owners sandbox's PR #1 Conversation tab at `o/r#1`, with its code owners. */
@@ -2182,6 +2274,27 @@ test("a code owner who reviewed for a team keeps a shield that opens their team'
     "href",
     "https://github.com/orgs/nodejs/teams/crypto",
   );
+});
+
+test("gh-prism's shield for a code owner who reviewed for a team opens their details", async ({
+  context,
+  page,
+}) => {
+  await serveNodeConversation(context, ({ completedReviews: [pimterry] }) => {
+    Object.assign(pimterry ?? {}, { onBehalfOfTeams: [cryptoTeam] });
+  });
+  await page.goto(NODE_PR);
+  const shield = page.locator('button[data-gh-prism-owner="@pimterry"]');
+  await shield.hover();
+  await expect(page.locator(".gh-prism-reviewer-files")).toContainText(
+    "Click the shield for details",
+  );
+
+  await shield.click();
+
+  const dialog = page.getByRole("dialog", { name: "@pimterry" });
+  await expect(dialog).toContainText("Through @nodejs/crypto");
+  await expect(dialog).toContainText("GitHub doesn't show you this team's members.");
 });
 
 test("Tab from a code owner reviewer's shield reaches their card's team link, and Escape returns to the shield", async ({

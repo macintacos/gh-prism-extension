@@ -261,7 +261,11 @@ once, through `readTeamMembers`, from the JSON GitHub's team mentions read, and 
 returns only a large team's first members. It reads members only when GitHub shows the
 viewer a team among the PR reviewers, because a viewer outside the organization sees none
 and gets 404 for every team. `index.ts` runs it on the PR reviewers once both reads land,
-and hands every reader the result, so every reader sees the same teams.
+and hands every reader the result, so every reader sees the same teams. `withMemberTeams`
+and the code owner details dialog both read through the visit's `teamMembersReader`, so
+the dialog reuses a read already made. Each read also carries the team's member count,
+which the dialog's "See all N members" link shows when the team has more members than it
+lists.
 
 Each read settles on its own: one that fails, or whose response misses a field it expects,
 resolves to `undefined` and logs one warning naming it, and the other read is unaffected.
@@ -292,18 +296,26 @@ once they land, and drops them if the page has gone. `SectionTree` in
 [`sidebar/section-tree.ts`](../entrypoints/content/sidebar/section-tree.ts) marks each
 owned file's rows in every section and every folder row above one, and the `@pierre/trees`
 patch draws a shield beside each: a file's in place of its icon, a folder's at its row's
-end, while the row is hovered or focused. Resting the pointer on a shield for 200 ms,
-focusing it, or clicking it opens a popover listing the file's owners or, for a folder,
-each file the section shows under it with that file's owners, built by
+end, while the row is hovered or focused. Resting the pointer on a shield for 200 ms or
+focusing it opens a popover listing the file's owners or, for a folder, each file the
+section shows under it with that file's owners, built by
 [`sidebar/owners-popover.ts`](../entrypoints/content/sidebar/owners-popover.ts) and
 removed, with its listeners, once it closes. Hover and focus go through
 `followHoverIntent`, as the Conversation popup's do, following each tree's shadow root,
 because a move between a row and its shield never reaches the document. A popover that
-hover or focus opened closes as the pointer or focus leaves; a click keeps it open with
-focus inside. The sections view also closes it before moving into or out of the narrow
-layout's overlay, since a popover that leaves the document closes without a toggle event.
-A pointer click on the shield of a popover a click opened only closes it. Showing a file's
-owners never changes its section or the diffstat.
+hover or focus opened closes as the pointer or focus leaves. The sections view also closes
+it before moving into or out of the narrow layout's overlay, since a popover that leaves
+the document closes without a toggle event. Showing a file's owners never changes its
+section or the diffstat.
+
+Clicking a shield, or Enter or Space on it, closes the popover and opens the code owner
+details dialog, built by
+[`ui/owners-dialog.ts`](../entrypoints/content/ui/owners-dialog.ts). The dialog repeats
+the popover's list, then shows each owning team's first 15 members and a link to the
+team's page for the rest. It mounts in the page's body with its own stylesheet, so a
+shield in a shadow root and one in the light DOM can share it. Opening it moves focus to
+the shield's row first. The dialog then hands focus back to the row, never the shield,
+whose focus would reopen the popover.
 
 On the Conversation tab, a code-owner shield beside a PR reviewer in a Reviewers list
 opens a popup listing the changed files that code owner owns, built by
@@ -318,8 +330,10 @@ gh-prism's own shield to every row whose PR reviewer owns a changed file, or who
 marks a code owner, but has no shield, and takes it away from a row where GitHub later
 draws its own. That shield is a button drawn as GitHub draws its own in that list, placed
 just before the row's last icon, the status icon, where GitHub puts its shield. Hovering
-or focusing either shield opens the popup. A click on either changes nothing: GitHub's
-shield has no action of its own, and gh-prism's leaves its click free.
+or focusing either shield opens the popup. A click on either closes the popup and opens
+the code owner details dialog from `ui/owners-dialog.ts`. One click listener on the
+document serves both shields, because GitHub replaces the classic sidebar's nodes
+mid-visit, and a listener on a shield would go with them.
 
 The popup lists the files `ownerFilter` gives the shield's `@user` or `@org/team` token,
 counting the teams GitHub names for that reviewer, and names those teams, each linked to
@@ -440,7 +454,7 @@ entrypoints/
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
     header/              diffstat breakout
     conversation/        a code owner's files popup and gh-prism's reviewer shield, in the Reviewers lists
-    ui/                  shared DOM helpers, popup placer, hover intent, loading view, Markdown subset, name reveal, Tailwind tokens
+    ui/                  shared DOM helpers, popup placer, hover intent, loading view, code owner details dialog, Markdown subset, name reveal, Tailwind tokens
 utils/
   github/                routes, diff parsing, the PR data port and source, code owners and reviewers
   intent/                reading, caching, and landing intent

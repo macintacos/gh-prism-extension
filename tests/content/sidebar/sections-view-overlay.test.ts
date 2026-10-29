@@ -79,6 +79,7 @@ describe("showSections in the narrow layout's overlay", () => {
       intent: () => landedWith(),
       diffstat: { choice: { view: "breakout" }, save: () => {} },
       viewed: visitViewed(undefined),
+      teamMembers: async () => undefined,
       whatsNew: { version: "1.2.3", notes: "", dismiss: () => {} },
     });
     await open();

@@ -110,12 +110,9 @@ export async function withMemberTeams(
   );
   if (!seesTeams) return reviewers;
 
-  const teams = new Map<string, string>();
-  for (const { owners } of codeOwners.values())
-    for (const { token, url } of owners)
-      if (token.includes("/") && url) teams.set(token.toLowerCase(), token);
+  const teams = owningTeams([...codeOwners.values()].flatMap(({ owners }) => owners));
   const membersOf = await Promise.all(
-    [...teams.values()].map(async (team) => ({ team, members: (await readMembers(team)) ?? [] })),
+    teams.map(async (team) => ({ team, members: (await readMembers(team)) ?? [] })),
   );
 
   return reviewers.map((reviewer) => {
@@ -128,17 +125,27 @@ export async function withMemberTeams(
   });
 }
 
+/** A team's members as GitHub lists them: its first logins, and how many it has in all. */
+export interface TeamMembers {
+  readonly total: number;
+  readonly members: readonly string[];
+}
+
+/** Reads an `@org/team` token's members; `undefined` when they can't be read. Never rejects. */
+export type TeamMembersOf = (team: string) => Promise<TeamMembers | undefined>;
+
 /**
- * The logins `team`, an `@org/team` token, lists as members, from the endpoint GitHub's team
- * mentions read, in one request. GitHub lists a large team's first members only. `undefined` for
- * any other token, for a team the viewer can't see, or once the read fails; logs one warning on
- * an unexpected shape unless `signal` aborted.
+ * The members `team`, an `@org/team` token, lists, and its member count, from the endpoint
+ * GitHub's team mentions read, in one request. GitHub lists a large team's first members only;
+ * without a count in the answer, `total` is the listed members'. `undefined` for any other token,
+ * for a team the viewer can't see, or once the read fails; logs one warning on an unexpected
+ * shape unless `signal` aborted.
  */
 export async function readTeamMembers(
   team: string,
   fetchFn: typeof fetch,
   signal: AbortSignal,
-): Promise<readonly string[] | undefined> {
+): Promise<TeamMembers | undefined> {
   const page = codeOwnerOf(team).url;
   if (!team.includes("/") || !page) return undefined;
   const url = `${page}/members`;
@@ -147,13 +154,39 @@ export async function readTeamMembers(
     // Without this header it answers with the members page's HTML.
     const response = await fetchFn(url, { headers: { Accept: "application/json" }, signal });
     if (!response.ok) return undefined;
-    const members = at(await response.json(), "members");
+    const body: unknown = await response.json();
+    const members = at(body, "members");
     if (!isStrings(members)) throw new Error(`${url} answered an unexpected shape`);
-    return members;
+    const total = at(body, "total");
+    return { total: typeof total === "number" ? total : members.length, members };
   } catch (error) {
     if (!signal.aborted) console.warn(`gh-prism: couldn't read ${team}'s members`, error);
     return undefined;
   }
+}
+
+/**
+ * `readTeamMembers` through `fetchFn` until `signal` aborts, asking each team at most once,
+ * ignoring case. A read that fails stays failed for the visit.
+ */
+export function teamMembersReader(fetchFn: typeof fetch, signal: AbortSignal): TeamMembersOf {
+  const reads = new Map<string, Promise<TeamMembers | undefined>>();
+  return (team) => {
+    const key = team.toLowerCase();
+    const read = reads.get(key) ?? readTeamMembers(team, fetchFn, signal);
+    reads.set(key, read);
+    return read;
+  };
+}
+
+/** The `@org/team` tokens among `owners`, first seen first, each once, ignoring case. */
+export function owningTeams(owners: Iterable<CodeOwner>): string[] {
+  const teams = new Map<string, string>();
+  for (const { token, url } of owners) {
+    const key = token.toLowerCase();
+    if (token.includes("/") && url && !teams.has(key)) teams.set(key, token);
+  }
+  return [...teams.values()];
 }
 
 /**

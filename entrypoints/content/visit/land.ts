@@ -7,7 +7,12 @@
  * (`shareIntent`).
  */
 
-import { ownerFilter, type PrCodeOwners, type PrReviewer } from "@/utils/github/code-owners";
+import {
+  ownerFilter,
+  type PrCodeOwners,
+  type PrReviewer,
+  type TeamMembersOf,
+} from "@/utils/github/code-owners";
 import { type LandedSection, landingOf, sectionsOf } from "@/utils/intent/landing";
 import type { IntentProgress, IntentResult, PendingIntent } from "@/utils/intent/read";
 import { followFileKeys } from "../diffs/file-keys";
@@ -190,12 +195,13 @@ const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
  * until `signal` aborts. `viewed` is the visit's Viewed state, shared by its pages. `codeOwners`
  * and `prReviewers` are the visit's code owners and PR reviewers, read apart; each can land after
  * the sidebar draws or not at all, and never rejects. The sidebar shows the code owners once they
- * land. `owner`, the code owner the page's URL names, if any, holds the page pending until the
- * reads its filter needs land, the code owners for a team and the PR reviewers too for a user, or
- * for 10 s at most, then narrows the sidebar and the diffs to that owner's files, counting the
- * teams GitHub names a user as reviewing for. A read still out by then counts as failed: every
- * file shows when the code owners can't be read, and only the owner's own files when the PR
- * reviewers can't. `whatsNew`, when given, opens the sidebar with its block.
+ * land, reading a team's members through `teamMembers`, the visit's reader. `owner`, the code
+ * owner the page's URL names, if any, holds the page pending until the reads its filter needs
+ * land, the code owners for a team and the PR reviewers too for a user, or for 10 s at most, then
+ * narrows the sidebar and the diffs to that owner's files, counting the teams GitHub names a user
+ * as reviewing for. A read still out by then counts as failed: every file shows when the code
+ * owners can't be read, and only the owner's own files when the PR reviewers can't. `whatsNew`,
+ * when given, opens the sidebar with its block.
  */
 export function showVisit(
   page: FilesPage,
@@ -206,6 +212,7 @@ export function showVisit(
     viewed,
     codeOwners,
     prReviewers,
+    teamMembers,
     owner,
     whatsNew,
   }: {
@@ -214,11 +221,12 @@ export function showVisit(
     viewed: VisitViewed;
     codeOwners?: Promise<PrCodeOwners | undefined>;
     prReviewers?: Promise<readonly PrReviewer[] | undefined>;
+    teamMembers: TeamMembersOf;
     owner?: string;
     whatsNew?: WhatsNew;
   },
 ): void {
-  const sidebar = showSections(page, signal);
+  const sidebar = showSections(page, signal, teamMembers);
   void codeOwners?.then((read) => {
     if (read && !signal.aborted) sidebar.owners(read);
   });

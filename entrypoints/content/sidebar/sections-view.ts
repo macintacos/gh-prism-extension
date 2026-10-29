@@ -8,7 +8,7 @@
  */
 
 import type { FileTreeRowDecoration } from "@pierre/trees";
-import type { FileOwners } from "@/utils/github/code-owners";
+import type { FileOwners, TeamMembersOf } from "@/utils/github/code-owners";
 import type { LineCounts } from "@/utils/github/pr-diff";
 import {
   type CommentLines,
@@ -32,10 +32,11 @@ import { el, icon } from "../ui/dom";
 import { type Card, followHoverIntent } from "../ui/hover-intent";
 import { lineTotals } from "../ui/line-counts";
 import { type LoadingView, loadingView } from "../ui/loading-view";
+import { openOwnersDialog } from "../ui/owners-dialog";
 import { followReveals, fullName } from "../ui/reveal";
 import { markSection, SECTION_CATALOG, sectionIcon } from "../ui/section-catalog";
 import type { FileSection, LandingView } from "../visit/land";
-import { openFolderOwners, openOwners } from "./owners-popover";
+import { describeListing, openListing, type ShieldListing } from "./owners-popover";
 import { SectionTree, type TreeFile } from "./section-tree";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./sections-view.css?inline";
@@ -66,8 +67,8 @@ interface SectionsView extends LandingView {
    */
   viewed(paths: ReadonlySet<string>): void;
   /**
-   * Shields the rows of every file in `byPath` with at least one code owner; a shield's click
-   * lists them.
+   * Shields the rows of every file in `byPath` with at least one code owner; a shield's hover or
+   * focus lists them, and its click opens the code owner details dialog.
    */
   owners(byPath: ReadonlyMap<string, FileOwners>): void;
 }
@@ -439,7 +440,11 @@ function followViewport(view: HTMLElement, onMove: () => void, signal: AbortSign
  * land in, with the lines each share adds and removes. All of it anchors below a leading
  * what's-new block when the nav holds one.
  */
-export function showSections(page: FilesPage, signal: AbortSignal): SectionsView {
+export function showSections(
+  page: FilesPage,
+  signal: AbortSignal,
+  teamMembers: TeamMembersOf,
+): SectionsView {
   const doc = page.sidebar.ownerDocument;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   const view = el(
@@ -661,61 +666,66 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
     scrolledTo = active;
   };
 
-  let closeOwners = () => {};
-  const showOwners = (shield: HTMLElement): Card | undefined => {
+  /** What `shield`'s popover and dialog list, and how to focus its row. */
+  const shieldListing = (shield: HTMLElement) => {
     const path = shield.dataset.itemShield;
     const listing = listingOfShield(shield);
     if (path === undefined || listing === undefined) return undefined;
 
-    closeOwners();
-
-    const popoverOptions = {
-      root: view,
-      signal,
-      returnFocus: () => shown.get(listing)?.tree.focusRow(path),
-    };
-    const card = path.endsWith("/")
-      ? openFolderOwners(shield, {
+    const focusRow = () => shown.get(listing)?.tree.focusRow(path);
+    const listed: ShieldListing = path.endsWith("/")
+      ? {
           folder: path,
           files: (shown.get(listing)?.tree.pathsUnder(path) ?? []).map((filePath) => ({
             path: filePath,
             owners: ownersByPath.get(filePath)?.owners ?? [],
           })),
-          ...popoverOptions,
-        })
-      : openOwners(shield, {
+        }
+      : {
           name: path.slice(path.lastIndexOf("/") + 1),
           owners: ownersByPath.get(path)?.owners ?? [],
-          ...popoverOptions,
-        });
+        };
+    return { listed, focusRow };
+  };
+  let closeOwners = () => {};
+  const showOwners = (shield: HTMLElement): Card | undefined => {
+    const details = shieldListing(shield);
+    if (!details) return undefined;
 
+    closeOwners();
+
+    const { listed, focusRow } = details;
+    const card = openListing(shield, listed, { root: view, signal, returnFocus: focusRow });
     closeOwners = card.close;
     return card;
   };
-  // The shield whose popover a click opened. A press on it closes the popover; a press on a shield
-  // whose popover hover or focus opened keeps it open, as a click's.
-  let pinned: HTMLElement | undefined;
+  // Focus moves to the row first: the dialog hands focus back to what had it, and the shield's
+  // focus would open its popover again.
+  const openDetails = (shield: HTMLElement) => {
+    const details = shieldListing(shield);
+    if (!details) return;
+
+    const { listed, focusRow } = details;
+    closeOwners();
+    focusRow();
+
+    const { title, list, teams } = describeListing(doc, listed);
+    openOwnersDialog(doc, {
+      title,
+      summary: [list],
+      teams,
+      teamMembers,
+      returnFocus: focusRow,
+      signal,
+    });
+  };
   const hoverIntent = followHoverIntent(doc, signal, {
     triggerOf: (target) => target.closest<HTMLElement>("[data-item-shield]"),
     show: (shield) => {
       if (shield.getAttribute("aria-expanded") === "true") return undefined;
-      pinned = undefined;
       return showOwners(shield);
     },
   });
-  // The shield a press began on while its pinned popover was open. The press light-dismisses the
-  // popover before its click arrives, so that click must not reopen it. A keyboard click
-  // (`detail` 0) has no press, so it always opens.
-  let closingShield: HTMLElement | undefined;
-  view.addEventListener(
-    "pointerdown",
-    (event) => {
-      const shield = clickedShield(event)?.shield;
-      closingShield =
-        shield === pinned && shield?.getAttribute("aria-expanded") === "true" ? shield : undefined;
-    },
-    { capture: true, signal },
-  );
   view.addEventListener(
     "click",
     (event) => {
@@ -729,13 +739,7 @@ export function showSections(page: FilesPage, signal: AbortSignal): SectionsView
 
       const shieldClick = clickedShield(event);
       if (shieldClick) {
-        const closing = event.detail > 0 ? closingShield : undefined;
-        closingShield = undefined;
-        if (shieldClick.shield !== closing) {
-          // preventScroll: a scroll would close it.
-          showOwners(shieldClick.shield)?.element.focus({ preventScroll: true });
-          pinned = shieldClick.shield;
-        }
+        openDetails(shieldClick.shield);
         return;
       }
 
