@@ -6,9 +6,10 @@ maintain its design direction.*
 ## The direction
 
 gh-prism is a guest in GitHub's page, so it looks native to Primer, GitHub's design
-system. It has an identity of its own in two places only: the five section hues, and the
-spectrum, a band of all five hues that marks gh-prism announcing itself. Everything else
-follows the GitHub page around it, in light and dark.
+system. It has an identity of its own in three places: the five section hues; the
+spectrum, a band of all five hues that marks gh-prism announcing itself; and the mark, the
+toolbar icon's prism, small and muted, on each of gh-prism's large surfaces. Everything
+else follows the GitHub page around it, in light and dark.
 
 gh-prism stays out of the reviewer's way. The sidebar is quiet at rest, left-aligned, and
 dense without feeling cramped. Detail such as a chevron, a tooltip, or a key appears on

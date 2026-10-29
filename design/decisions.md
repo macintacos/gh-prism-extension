@@ -6,6 +6,28 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-29: The mark sweeps the spectrum, not the icon's colours
+
+- **Compared:**
+  - on hover, the toolbar icon's own blue, yellow, and pink bars, or the spectrum swept
+    across them;
+  - for each large surface, two slots: the nav's last row at its end or its start corner;
+    the code owners popover's footer hint row at its end corner or before the hint; the
+    code owner details dialog's footer start corner, with the footer always shown, or its
+    header between the heading and ✕; the classic Files-changed dialog's footer start
+    corner or its header between the heading and ✕; the commit message column's
+    bottom-start or its bottom-end corner.
+- **Won:**
+  - the spectrum;
+  - the nav's last row at the end corner, the popover footer row's end corner, the details
+    dialog footer's start corner, the classic dialog footer's start corner, and the commit
+    column's bottom-start corner.
+- **Why:**
+  - The spectrum ties the mark to gh-prism's existing signature and keeps one source of
+    hues.
+  - Each winning slot is space the surface already has, so the mark moves and wraps
+    nothing.
+
 ## 2026-10-29: Show only a code owner's files
 
 - **Compared:**

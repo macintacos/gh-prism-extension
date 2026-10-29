@@ -114,8 +114,9 @@ these marks.
 A tooltip copies Primer's. It is an `::after` on the control that shows the control's
 `aria-label`, on `--tooltip-bgColor`, at the small body size, and it fades in over 120 ms
 on hover and focus. It opens toward the inside of the sidebar or the page, so it never
-clips at an edge. `sidebar/side.css`, `sidebar/report.css`, and `commit/step-links.css`
-hold the three in use.
+clips at an edge. `sidebar/side.css`, `sidebar/report.css`, `commit/step-links.css`, and
+`ui/mark.css` hold the four in use. The mark's alone fades in on hover only, since the
+mark takes no focus.
 
 A control that takes a key names it in its tooltip, after the action's name, and sets
 `aria-keyshortcuts`, so assistive technology announces the key. Older and Newer beside a
@@ -252,12 +253,43 @@ the skeleton's height to the rendering's. A skeleton GitHub's re-render shows ag
 carries on where the last one was, never fading in twice. `commit/message-view.ts` and
 `commit/message-view.css` hold it.
 
+## The mark
+
+The mark is the toolbar icon's prism and its three bars, redrawn at 16px, so a reader can
+tell gh-prism's surfaces from GitHub's. `ui/mark.ts` builds it as `prismMark`, and
+`ui/mark.css` styles it. It carries no setting to hide it.
+
+Each of the five large surfaces carries one mark:
+
+- **Sidebar:** the nav's last row, at the end corner, below the sections, so it moves none
+  of them. Its tooltip opens up and inward, because `sidebar/side.css` clips the sidebar.
+- **Code owners popover:** the end corner of the footer row that reads "Click the shield
+  for details", so it adds no row.
+- **Code owner details dialog:** the footer's start corner, with the filter action at the
+  end. The footer always renders, and the header is untouched.
+- **Classic Files-changed dialog:** the footer's start corner, with the buttons at the
+  end. Both still fit at the dialog's 296px minimum width.
+- **Commit message column:** the column's empty bottom-start corner, positioned
+  absolutely, out of the wrapping controls row and the message's flow.
+
+The four small surfaces carry none: the header counter tip, the code owner's files hover
+card, the commit's Older and Newer links, and the conversation page's reviewer shield. Nor
+does any inline control. On a surface that small, a mark would crowd the content it labels
+and repeat on every hover. A future surface gets a mark only if it is large, decided case
+by case against this entry.
+
+At rest the mark is `--fgColor-muted`, and `CanvasText` under forced colours, which also
+drop its spectrum. Hovering sweeps the spectrum across its bars, start to end, over 240
+ms, and leaving reverses it from where it is. Under reduced motion, the spectrum appears
+and disappears without moving. The mark is an image named "Added by gh-prism" that takes
+no focus, and its tooltip shows the same words on hover only.
+
 ## The spectrum
 
 The spectrum is gh-prism's signature: every section's hue in one band, in section order.
-It appears only where gh-prism announces itself, which is the loading bar and the 3px top
-edge of the classic-page dialog. Anywhere else, it would compete with the section hues it
-is made of.
+It appears only where gh-prism announces itself: the loading bar, the 3px top edge of the
+classic-page dialog, and a hovered mark. Anywhere else, it would compete with the section
+hues it is made of.
 
 ## Notices
 
