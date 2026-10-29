@@ -277,14 +277,14 @@ test("a commit's message switches to GitHub's box from the keyboard, and opens t
   const card = readFixture("commit-message-lists.html");
   await serve(context, COMMIT_URL, commitBodyWith(card));
   // Records, every frame, whether the rendering or a hidden box ever painted.
-  await page.addInitScript((box) => {
+  await page.addInitScript((boxSelector) => {
     const painted = { rendering: false, hiddenBox: false };
     Object.assign(window, { painted });
     const sample = () => {
-      const body = document.querySelector(".gh-prism-commit-message-body");
-      const github = document.querySelector(box);
-      painted.rendering ||= !!body && getComputedStyle(body).display !== "none";
-      painted.hiddenBox ||= !!github && getComputedStyle(github).display === "none";
+      const rendering = document.querySelector(".gh-prism-commit-message-body");
+      const messageBox = document.querySelector(boxSelector);
+      painted.rendering ||= !!rendering && getComputedStyle(rendering).display !== "none";
+      painted.hiddenBox ||= !!messageBox && getComputedStyle(messageBox).display === "none";
       requestAnimationFrame(sample);
     };
     requestAnimationFrame(sample);
