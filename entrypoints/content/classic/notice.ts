@@ -6,7 +6,7 @@
 
 import { type ClassicPage, isSignedIn } from "../files-page";
 import { el, icon, X_ICON } from "../ui/dom";
-import { PRISM_GLYPH, prismMark } from "../ui/mark";
+import { prismGlyph, prismMark } from "../ui/mark";
 import { SECTION_SPECTRUM } from "../ui/section-catalog";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./notice.css?inline";
@@ -34,7 +34,7 @@ const BUTTON =
 const PRIMARY =
   "tw:inline-flex tw:items-center tw:h-[var(--control-medium-size,32px)] tw:px-3 tw:rounded-medium tw:[border:var(--borderWidth-thin,1px)_solid_var(--button-primary-borderColor-rest)] tw:bg-[var(--button-primary-bgColor-rest)] tw:text-[color:var(--button-primary-fgColor-rest)] tw:text-body-medium tw:font-medium tw:no-underline tw:hover:bg-[var(--button-primary-bgColor-hover)] tw:hover:no-underline tw:active:bg-[var(--button-primary-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:outline-offset-2";
 
-const prism = (doc: Document) => icon(doc, PRISM_GLYPH, { class: "tw:shrink-0" });
+const prism = (doc: Document) => prismGlyph(doc, { class: "tw:shrink-0" });
 
 const strong = (doc: Document, text: string) => el(doc, "strong", "tw:font-semibold", text);
 

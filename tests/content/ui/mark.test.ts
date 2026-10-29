@@ -1,7 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
-import { PRISM_GLYPH, prismMark } from "../../../entrypoints/content/ui/mark";
-import { SECTION_SPECTRUM } from "../../../entrypoints/content/ui/section-catalog";
+import { prismMark } from "../../../entrypoints/content/ui/mark";
 
 describe("prismMark", () => {
   it("is an image named for gh-prism", () => {
@@ -23,13 +22,15 @@ describe("prismMark", () => {
     expect(prismMark(document).querySelector("[id]")).toBeNull();
   });
 
-  it("sweeps the section spectrum", () => {
-    expect(prismMark(document).style.getPropertyValue("--gh-prism-spectrum")).toBe(
-      SECTION_SPECTRUM,
-    );
+  it("draws a solid layer and a shaded face at 40% opacity", () => {
+    const paths = [...prismMark(document).querySelectorAll(":scope > svg > path")];
+    expect(paths.map((path) => path.getAttribute("opacity"))).toEqual([null, "0.4"]);
   });
 
-  it("draws the prism glyph", () => {
-    expect(prismMark(document).querySelector("svg path")?.getAttribute("d")).toBe(PRISM_GLYPH);
+  it("carries a pulsing copy of its glyph", () => {
+    const mark = prismMark(document);
+    expect(mark.querySelector(".gh-prism-mark-pulse > svg")?.innerHTML).toBe(
+      mark.querySelector(":scope > svg")?.innerHTML,
+    );
   });
 });

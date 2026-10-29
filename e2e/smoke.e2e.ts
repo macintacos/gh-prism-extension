@@ -362,7 +362,10 @@ test("a commit column's mark stays clear of a message too long for the column", 
   expect(layout).toEqual({ overflows: true, markClear: true });
 });
 
-test("the mark's spectrum sweeps across its bars alone", async ({ context, page }) => {
+test("a hovered mark pulses through the section hues until the pointer leaves", async ({
+  context,
+  page,
+}) => {
   await serve(context, COMMIT_URL, commitBodyWith(readFixture("commit-message-lists.html")));
   await page.setViewportSize({ width: 1440, height: 900 });
 
@@ -373,13 +376,24 @@ test("the mark's spectrum sweeps across its bars alone", async ({ context, page 
   const mark = page.locator(".gh-prism-commit-column > .gh-prism-mark");
   await expect(mark).toBeVisible();
 
-  // The bars span x 8–15 of the 16px glyph.
-  const sweep = await mark.evaluate((el) => {
-    const markBox = el.getBoundingClientRect();
-    const sweepBox = el.querySelector(".gh-prism-mark-sweep")?.getBoundingClientRect();
-    return sweepBox && { start: sweepBox.left - markBox.left, end: sweepBox.right - markBox.left };
+  // The fixture lacks GitHub's Primer sheet, which defines the hues.
+  await page.addStyleTag({
+    content:
+      ":root { --fgColor-accent: #0969da; --fgColor-done: #8250df; --fgColor-attention: #9a6700; --fgColor-sponsors: #bf3989; }",
   });
-  expect(sweep).toEqual({ start: 8, end: 15 });
+  const pulse = mark.locator(".gh-prism-mark-pulse");
+  const copy = pulse.locator("svg");
+  const colour = () => copy.evaluate((el) => getComputedStyle(el).color);
+
+  await mark.hover();
+  await expect(pulse).toHaveCSS("opacity", "1");
+  await expect(copy).toHaveCSS("animation-play-state", "running");
+  const first = await colour();
+  await expect.poll(colour).not.toBe(first);
+
+  await page.mouse.move(0, 0);
+  await expect(pulse).toHaveCSS("opacity", "0");
+  await expect(copy).toHaveCSS("animation-play-state", "paused");
 });
 
 test("a commit's message moves into a column on a wide window and back above the diffs on a narrow one", async ({
@@ -1131,7 +1145,11 @@ const openViewed = async (context: BrowserContext, page: Page) => {
 /** Waits out the sections' reveal, which moves every row. */
 const revealSettled = (page: Page) =>
   page.locator(".gh-prism-sections").evaluate(async (view) => {
-    await Promise.all(view.getAnimations({ subtree: true }).map(({ finished }) => finished));
+    // The mark's paused pulse loops forever, so only finite animations can settle.
+    const finite = view
+      .getAnimations({ subtree: true })
+      .filter(({ effect }) => effect?.getComputedTiming().iterations !== Infinity);
+    await Promise.all(finite.map(({ finished }) => finished));
   });
 
 test("ticking a row's box saves its file's Viewed state once", async ({ context, page }) => {

@@ -152,13 +152,15 @@ describe("showClassicNotice", () => {
     expect(opener()?.querySelector(".gh-prism-mark")).toBeNull();
   });
 
-  it("sweeps its mark without motion when the viewer prefers reduced motion", () => {
+  it("pulses its mark without motion when the viewer prefers reduced motion", () => {
     preferReducedMotion("reduce");
 
     show();
 
-    const sweep = dialog()?.querySelector<HTMLElement>(".gh-prism-mark-sweep");
-    expect(sweep && getComputedStyle(sweep).transition).toBe("none");
+    const pulse = dialog()?.querySelector<HTMLElement>(".gh-prism-mark-pulse");
+    const copy = pulse?.querySelector("svg");
+    expect(pulse && getComputedStyle(pulse).transition).toBe("none");
+    expect(copy && getComputedStyle(copy).animation).toBe("none");
   });
 
   it("removes the dialog and button when aborted", () => {
