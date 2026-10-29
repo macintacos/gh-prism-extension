@@ -215,6 +215,61 @@ test("a commit's diff list skips a comment thread beside it", async ({ context, 
   expect(regionsPerList).toEqual([2]);
 });
 
+const commitBodyWith = (card: string) =>
+  `<!doctype html><div class="PageLayout-PageLayoutContent">${card}${readFixture("commit-page.html")}</div>`;
+const MESSAGE_BOX = '[class*="commitMessageContainer__"]';
+
+test("a commit's message renders as Markdown in GitHub's box's place, after the sidebar", async ({
+  context,
+  page,
+}) => {
+  const card = readFixture("commit-message-lists.html");
+  await serve(context, COMMIT_URL, commitBodyWith(card));
+  await page.addInitScript(() => {
+    const seen: string[] = [];
+    (window as unknown as { seen: string[] }).seen = seen;
+    new MutationObserver(() => {
+      for (const name of ["gh-prism-section", "gh-prism-commit-message"]) {
+        if (!seen.includes(name) && document.querySelector(`.${name}`)) seen.push(name);
+      }
+    }).observe(document, { childList: true, subtree: true });
+  });
+
+  await page.goto(COMMIT_URL);
+
+  const bullets = card.match(/(^|>)- /gm)?.length;
+  await expect(page.locator(".gh-prism-commit-message ul > li")).toHaveCount(bullets ?? -1);
+  const box = await page.evaluate((selector) => {
+    const el = document.querySelector(selector);
+    return {
+      display: el && getComputedStyle(el).display,
+      afterMessage: el?.previousElementSibling?.matches(".gh-prism-commit-message"),
+    };
+  }, MESSAGE_BOX);
+  expect(box).toEqual({ display: "none", afterMessage: true });
+  expect(await page.evaluate(() => (window as unknown as { seen: string[] }).seen)).toEqual([
+    "gh-prism-section",
+    "gh-prism-commit-message",
+  ]);
+});
+
+test("a commit message over the cap keeps GitHub's box", async ({ context, page }) => {
+  const card = `<div><div class="commitMessageContainer__x"><span><div>Long message</div></span><span class="extended-commit-description-container">${"word ".repeat(12_000)}</span></div></div>`;
+  await serve(context, COMMIT_URL, commitBodyWith(card));
+
+  await page.goto(COMMIT_URL);
+  await expect(page.locator(".gh-prism-section").first()).toBeVisible();
+  await page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestIdleCallback(() => setTimeout(resolve, 0), { timeout: 2000 }),
+      ),
+  );
+
+  await expect(page.locator(".gh-prism-commit-message")).toHaveCount(0);
+  await expect(page.locator(MESSAGE_BOX)).toBeVisible();
+});
+
 test("the side switch docks the sidebar on the other side and remembers it", async ({
   context,
   page,
