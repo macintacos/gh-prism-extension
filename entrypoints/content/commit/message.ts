@@ -26,7 +26,9 @@ type Mode = "linked" | "inLink";
 
 const MAX_LENGTH = 50_000; // title and body source, a link counting as its placeholder
 
-/** `message`'s title as an `h1` and its body as GFM, as DOM of `doc`, or `undefined` past the caps. */
+/**
+ * `message`'s title as an `h1` and its body as GFM, as DOM of `doc`, or `undefined` past the caps.
+ */
 export function renderCommitMessage(
   doc: Document,
   message: Pick<CommitMessage, "title" | "body">,
