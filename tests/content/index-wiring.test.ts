@@ -669,9 +669,13 @@ describe("content script", () => {
     });
   });
 
-  it("shows each commit page's message once the browser is idle", async () => {
+  it("shows each commit page's message once the intent lands and the browser is idle", async () => {
     const requestIdleCallback = vi.fn();
     vi.stubGlobal("requestIdleCallback", requestIdleCallback);
+    let land: (value: never) => void = () => {};
+    vi.mocked(intentFor).mockImplementationOnce(
+      () => new Promise<never>((resolve) => (land = resolve)),
+    );
     history.replaceState(null, "", "/o/r/commit/dd95cdc");
     loadCommitFixture();
     await run();
@@ -683,6 +687,12 @@ describe("content script", () => {
     expect(signal).toBe(vi.mocked(showVisit).mock.calls[0]?.[1]);
     const task = () => {};
     options?.idle(task);
+    await afterMutations();
+    expect(requestIdleCallback).not.toHaveBeenCalled();
+
+    land(undefined as never);
+    await afterMutations();
+
     expect(requestIdleCallback).toHaveBeenCalledWith(task, { timeout: 1000 });
   });
 });

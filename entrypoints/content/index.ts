@@ -121,7 +121,11 @@ export default defineContentScript({
               whatsNew: whatsNewForPage?.(),
             });
             showCommitMessage(page, signal, {
-              idle: (task) => requestIdleCallback(task, { timeout: 1000 }),
+              // The sidebar's sections draw only once the intent lands; the message waits.
+              idle: (task) => {
+                const schedule = () => requestIdleCallback(task, { timeout: 1000 });
+                void Promise.resolve(intent(() => {})).then(schedule, schedule);
+              },
             });
             dockSidebar(page, signal, { choice: side, save: saveSide });
           };
