@@ -70,6 +70,10 @@ const ICON_SPRITE = `<svg data-icon-sprite aria-hidden="true" width="0" height="
     <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".4" d="M5 1.25c-1 1 1 2 0 3.5M8.5 1.25c-1 1 1 2 0 3.5"/>
     <path fill="currentColor" d="M1.5 6.25h10.5v4.25a4 4 0 0 1-4 4h-2.5a4 4 0 0 1-4-4zM12 7.25h.5a2.5 2.5 0 0 1 0 5h-1.6a4 4 0 0 0 .7-1.5h.9a1 1 0 0 0 0-2H12z"/>
   </symbol>
+  <symbol id="gh-prism-toml" viewBox="0 0 16 16">
+    <path fill="none" stroke="currentColor" stroke-width="1.5" opacity=".4" d="M4.5 2.25h-2.25v11.5h2.25M11.5 2.25h2.25v11.5h-2.25"/>
+    <path fill="currentColor" d="M5 4h6v1.75h-2.12v6.25h-1.76v-6.25h-2.12z"/>
+  </symbol>
 </svg>`;
 
 /**
@@ -454,8 +458,9 @@ export class SectionTree {
 
 /**
  * Manifests and lockfiles the complete set draws as JSON or a plain file, drawn with their
- * ecosystem's glyph. A glyph new to this map needs a color rule in section-tree.css. The set
- * has no yarn, pnpm, or PHP glyph.
+ * ecosystem's glyph, and TOML configs the set draws with their tool's glyph, which
+ * LANGUAGE_ICONS' `toml` would otherwise override. A glyph new to this map needs a color rule
+ * in section-tree.css. The set has no yarn, pnpm, or PHP glyph.
  */
 const ECOSYSTEM_ICONS = {
   "package.json": "file-tree-builtin-npm",
@@ -468,13 +473,15 @@ const ECOSYSTEM_ICONS = {
   "Gemfile.lock": "file-tree-builtin-ruby",
   "poetry.lock": "file-tree-builtin-python",
   "uv.lock": "file-tree-builtin-python",
+  "bunfig.toml": "file-tree-builtin-bun",
+  ".prettierrc.toml": "file-tree-builtin-prettier",
 };
 
 /**
  * Languages the complete set draws as a plain file, drawn with gh-prism's own glyph from
  * ICON_SPRITE. A glyph new to this map needs a color rule in section-tree.css.
  */
-const LANGUAGE_ICONS = { java: "gh-prism-java" };
+const LANGUAGE_ICONS = { java: "gh-prism-java", toml: "gh-prism-toml" };
 
 /** A tree of `files`, every directory open, that asks `decorationOf` for each row's decoration. */
 function fileTreeOf(

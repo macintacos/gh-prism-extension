@@ -294,6 +294,30 @@ describe("showSections", () => {
     expect(symbol?.id).toBe("gh-prism-java");
   });
 
+  it("draws a TOML file with gh-prism's TOML icon", () => {
+    const use = rowIn("config", "config/app.toml").querySelector('[data-item-section="icon"] use');
+    const symbol = treeHost("config").shadowRoot?.querySelector(
+      `symbol${use?.getAttribute("href")}`,
+    );
+
+    expect(symbol?.id).toBe("gh-prism-toml");
+  });
+
+  it.each([
+    ["bunfig.toml", "file-tree-builtin-bun"],
+    [".prettierrc.toml", "file-tree-builtin-prettier"],
+  ])("draws %s with its tool's icon", async (path, icon) => {
+    addNativeFile(path, "Cargo.toml");
+    await afterDebounce();
+
+    const use = rowIn("config", path).querySelector('[data-item-section="icon"] use');
+    const symbol = treeHost("config").shadowRoot?.querySelector(
+      `symbol${use?.getAttribute("href")}`,
+    );
+
+    expect(symbol?.id).toBe(icon);
+  });
+
   describe("a section's header", () => {
     const expanded = (section: string) => sectionToggle(section).getAttribute("aria-expanded");
 
