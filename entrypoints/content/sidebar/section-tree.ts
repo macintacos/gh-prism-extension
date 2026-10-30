@@ -458,9 +458,9 @@ export class SectionTree {
 
 /**
  * Manifests and lockfiles the complete set draws as JSON or a plain file, drawn with their
- * ecosystem's glyph, and TOML configs the set draws with their tool's glyph, which
- * LANGUAGE_ICONS' `toml` would otherwise override. A glyph new to this map needs a color rule
- * in section-tree.css. The set has no yarn, pnpm, or PHP glyph.
+ * ecosystem's glyph, and files the set draws by name under a LANGUAGE_ICONS extension, pinned
+ * to the set's own glyph. A glyph new to this map needs a color rule in section-tree.css. The
+ * set has no yarn, pnpm, or PHP glyph.
  */
 const ECOSYSTEM_ICONS = {
   "package.json": "file-tree-builtin-npm",
@@ -479,7 +479,10 @@ const ECOSYSTEM_ICONS = {
 
 /**
  * Languages the complete set draws as a plain file, drawn with gh-prism's own glyph from
- * ICON_SPRITE. A glyph new to this map needs a color rule in section-tree.css.
+ * ICON_SPRITE. An extension here outranks the set's own file names, so ECOSYSTEM_ICONS pins
+ * each file the set draws by name under it, such as `bunfig.toml`, to the set's glyph; recheck
+ * those names on a @pierre/trees upgrade. A glyph new to this map needs a color rule in
+ * section-tree.css.
  */
 const LANGUAGE_ICONS = { java: "gh-prism-java", toml: "gh-prism-toml" };
 
