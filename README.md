@@ -31,7 +31,8 @@ Implementation, Tests, Docs & Comments, Config, and Generated / lockfiles.
   `Partial`.
 - Comment-only changes count toward Docs & Comments. An Implementation file's comment
   lines are listed under **Implementation comments**.
-- The diffs follow the sidebar's order, and clicking a section's heading collapses it.
+- The diffs follow the sidebar's order, except on very large pull requests, and clicking a
+  section's heading collapses it.
 
 <details>
 <summary>Screenshot: the sidebar's five sections, each with its file count and lines changed</summary>
@@ -45,10 +46,11 @@ Implementation, Tests, Docs & Comments, Config, and Generated / lockfiles.
 
 ### Code owners
 
-On a pull request, a shield marks each file with code owners. Rest the pointer on it to
-see who owns the file, or click it for details.
+On a pull request, a file with code owners shows a shield when you hover or focus its row.
+Rest the pointer on the shield to see who owns the file, or click it for details.
 
-- On the Conversation tab, the shield beside a reviewer lists the changed files they own.
+- On the Conversation tab, the shield beside a team or person in the Reviewers list lists
+  the changed files they own.
 - **Only files owned by…** in the file tree's filter menu, or `gh-prism-owner=<owner>` in
   the Files changed URL, shows only one owner's files. The owner is a team such as
   `org/team`, or a user's login.
@@ -104,8 +106,8 @@ The lines-changed count in the header splits into one count per section.
 
 ### Commit pages
 
-A commit's message renders as Markdown in a column beside its diffs, and Older and Newer
-links step through its history.
+A commit message longer than its subject line renders as Markdown in a column beside its
+diffs, and Older and Newer links step through its history.
 
 - Drag the column's edge to resize it. **Show plain text** shows the message as GitHub
   does, and **Hide** hides it on that commit.
@@ -117,7 +119,7 @@ links step through its history.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/commit-dark.png">
-  <img src="docs/images/commit-light.png" width="1408" alt="Commit f98efef with Older and Newer beside its SHA and one lines-changed count per section. On the left, the message renders as a heading over a bulleted list, under Show plain text and Hide.">
+  <img src="docs/images/commit-light.png" width="1408" alt="Commit f98efef with Older and Newer beside its SHA and one lines-changed count per section it touches. On the left, the message renders as a heading over a bulleted list, under Show plain text and Hide.">
 </picture>
 
 </details>
@@ -144,8 +146,9 @@ You need Git, Bun (a JavaScript runtime and package manager), and Chrome.
    error, run `mise trust` in the clone, then rerun the command.
 2. In Chrome, open `chrome://extensions` and turn on **Developer mode**.
 3. Click **Load unpacked** and choose the clone's `.output/chrome-mv3` folder. The picker
-   hides folders whose names start with a dot. Press Cmd+Shift+. on macOS, or Ctrl+H on
-   Linux, to show them.
+   hides folders whose names start with a dot. Press
+   <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>.</kbd> on macOS, or <kbd>Ctrl</kbd>+<kbd>H</kbd>
+   on Linux, to show them.
 4. Reload any GitHub tabs that were already open.
 
 To update, run `git pull`, `bun install`, and `bun run build` in the clone. Then click the
@@ -156,13 +159,15 @@ reload button on gh-prism's card in `chrome://extensions`, and reload your GitHu
 gh-prism needs no token or setup, because it reads through your signed-in GitHub session.
 It sees only what your account can see.
 
-It asks Chrome for access to these hosts, and nothing else:
+It asks Chrome for access to only these hosts:
 
-- `https://github.com/*`: it runs on pull request and commit pages. It reads a pull
-  request's or commit's diff, file contents, code owners, and reviewers, and an owning
-  team's members only when GitHub shows you that team among the reviewers. On a commit
-  page, it asks GitHub's commit search which commit comes next. When search finds none, it
-  reads the branches that hold the commit and the first branch's commits.
+- `https://github.com/*`: it runs on every GitHub page, so it catches GitHub's in-page
+  navigation, and acts only on pull request and commit pages. It reads a pull request's or
+  commit's diff and file contents, and a pull request's code owners and reviewers. It
+  reads an owning team's members when you open a code-owner shield's details or GitHub
+  shows you a team among the reviewers. On a commit page, it asks GitHub's commit search
+  which commit comes next. When search finds none, it reads the branches that hold the
+  commit and the first branch's commits.
 - `https://patch-diff.githubusercontent.com/*`: where GitHub redirects diff downloads.
 - `https://raw.githubusercontent.com/*`: where GitHub redirects raw-file downloads.
 
@@ -198,9 +203,9 @@ It keeps these on this computer only:
   GitHub in the Chrome profile gh-prism is installed in, then reload. Chrome's "Block
   third-party cookies" setting is untested with gh-prism.
 - **gh-prism put a file in the wrong section.** Click **Report a miscategorized file**,
-  the report icon beside the file tree's filter button. It opens an issue on gh-prism's
-  repository with your gh-prism version filled in, and, on a public repository, the diff's
-  URL.
+  the report icon beside the file tree's filter button. It opens a new-issue form on
+  gh-prism's repository with your gh-prism version filled in, and, on a public repository
+  only, the diff's URL.
 
 ## Contributing
 
