@@ -53,6 +53,11 @@ const cases: Record<SectionKey, string[]> = {
     "a.yaml",
     "a.yml",
     "hk.pkl",
+    "tests/fixtures/app.pkl",
+    "pkl-core/src/test/files/LanguageSnippetTests/input/basic/a.pkl",
+    "app_test.pkl",
+    "app.spec.pkl",
+    "docs/a.pkl",
     "a.json",
     "setup.cfg",
     "tox.ini",
@@ -106,8 +111,9 @@ describe("classify", () => {
     it.each(paths)(`puts %s in ${section}`, (path) => expect(classify(path)).toBe(section));
   }
 
-  it.each(["tests/a_spec.lua", "README.md", "api.go"])("puts flagged %s in generated", (path) =>
-    expect(classify(path, true)).toBe("generated"),
+  it.each(["tests/a_spec.lua", "README.md", "api.go", "hk.pkl"])(
+    "puts flagged %s in generated",
+    (path) => expect(classify(path, true)).toBe("generated"),
   );
 
   it("leaves an unflagged source file in implementation", () => {

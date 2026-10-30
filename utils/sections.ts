@@ -3,7 +3,7 @@
  * macintacos/changeset.nvim@2b6115db3a5394a207836afdeaa8237225b8de93 — the glob strings are
  * copied verbatim, plus the `e2e` test dir, `*.e2e.*` test files, `*.config.*` tool configs
  * such as `vite.config.ts`, `*.bazel` build files, `LICENSE*` files, and `man1`–`man9` man page
- * dirs, so diff that file against this one when syncing. Upstream's labels and icons are not ported; this sidebar's
+ * dirs, and `*.pkl` files going to Config ahead of Tests and Docs, so diff that file against this one when syncing. Upstream's labels and icons are not ported; this sidebar's
  * own live in `entrypoints/content/ui/section-catalog.ts`.
  * Upstream's `test_rule` is ported in `utils/hunk-rules/inline-tests.ts`.
  */
@@ -30,8 +30,8 @@ const SCRIPT_FILES = glob("{*.sh,*.bash,*.py,*.js,*.ts,*.rs,*.go,*.lua}");
 
 /**
  * The section a changed file belongs in, from its repo-relative `/`-separated path.
- * Generated wins, then Tests, Docs & Comments and Config in that order; anything unmatched is
- * Implementation.
+ * Generated wins, then any Pkl file is Config, then Tests, Docs & Comments and Config in that
+ * order; anything unmatched is Implementation.
  *
  * @param generated - Whether the file is known to be generated, e.g. from a
  *   `linguist-generated` attribute or a Go `// Code generated … DO NOT EDIT.` header;
@@ -41,6 +41,7 @@ export function classify(path: string, generated = false): SectionKey {
   const dirs = path.split("/").slice(0, -1);
   const name = path.slice(path.lastIndexOf("/") + 1);
   if (generated || GENERATED_FILES.test(name)) return "generated";
+  if (name.endsWith(".pkl")) return "config";
   if (hasDir(dirs, TEST_DIRS) || TEST_FILES.test(name)) return "tests";
   if (
     DOC_FILES.test(name) ||
