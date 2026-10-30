@@ -303,6 +303,18 @@ describe("showSections", () => {
     expect(symbol?.id).toBe("gh-prism-toml");
   });
 
+  it("draws a Pkl file with gh-prism's Pkl icon", async () => {
+    addNativeFile("config/app.pkl", "Cargo.toml");
+    await afterDebounce();
+
+    const use = rowIn("config", "config/app.pkl").querySelector('[data-item-section="icon"] use');
+    const symbol = treeHost("config").shadowRoot?.querySelector(
+      `symbol${use?.getAttribute("href")}`,
+    );
+
+    expect(symbol?.id).toBe("gh-prism-pkl");
+  });
+
   it.each([
     ["bunfig.toml", "file-tree-builtin-bun"],
     [".prettierrc.toml", "file-tree-builtin-prettier"],
