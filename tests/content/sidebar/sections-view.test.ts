@@ -182,8 +182,14 @@ describe("showSections", () => {
       teamMembers: async () => undefined,
     });
     expect(document.querySelectorAll(".gh-prism-sections")).toHaveLength(1);
+    expect(document.querySelectorAll(".gh-prism-sections .gh-prism-mark")).toHaveLength(1);
 
     fresh.abort();
+  });
+
+  it("ends in one gh-prism mark", () => {
+    expect(view()?.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
+    expect(view()?.lastElementChild?.querySelector(".gh-prism-mark")).not.toBeNull();
   });
 
   it("adds a file that joins the native tree, with its status, to its section's tree", async () => {
@@ -500,6 +506,12 @@ describe("showSections", () => {
       expect(sectionKeys()).toEqual([]);
     });
 
+    it("keeps its gh-prism mark below the progress bar", () => {
+      remountWith(pendingIntent().intent);
+      expect(view()?.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
+      expect(view()?.lastElementChild?.querySelector(".gh-prism-mark")).not.toBeNull();
+    });
+
     it("carries the progress bar's stylesheet in the bar itself", () => {
       remountWith(pendingIntent().intent);
       expect(
@@ -624,7 +636,7 @@ describe("showSections", () => {
     };
     const childClasses = () => [...(view()?.children ?? [])].map((child) => child.classList[0]);
 
-    it("keeps the block first, then the notice and the sections", async () => {
+    it("keeps the block first, then the notice, the sections, and the mark", async () => {
       const { pending } = mountUnderBlock();
       pending.resolve({ ok: false, problem: "no-access" });
       await afterDebounce();
@@ -633,6 +645,7 @@ describe("showSections", () => {
         "gh-prism-whats-new",
         "gh-prism-notice",
         ...sectionKeys().map(() => "gh-prism-section"),
+        "gh-prism-sections-mark",
       ]);
     });
 

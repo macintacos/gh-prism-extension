@@ -336,6 +336,70 @@ test("a commit's message holds its column from its first frame, through GitHub's
   ).toBe(true);
 });
 
+test("a commit column's mark starts the controls row, above the message", async ({
+  context,
+  page,
+}) => {
+  await serve(context, COMMIT_URL, commitBodyWith(readFixture("commit-message-lists.html")));
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  await page.goto(COMMIT_URL);
+  const scroller = page.locator(".gh-prism-commit-column > .gh-prism-commit-message");
+  await expect(scroller.locator(".gh-prism-commit-message-body > h1")).toBeVisible();
+  const mark = scroller.locator(".gh-prism-mark");
+  await expect(mark).toBeVisible();
+
+  const layout = await scroller.evaluate((el) => {
+    const box = (selector: string) => el.querySelector(selector)?.getBoundingClientRect();
+    const markBox = box(".gh-prism-mark");
+    const switchBox = box(".gh-prism-commit-view-switch");
+    const bodyBox = box(".gh-prism-commit-message-body > :first-child");
+    const tip = getComputedStyle(el.querySelector(".gh-prism-mark") as Element, "::after");
+    if (!markBox || !switchBox || !bodyBox) return undefined;
+    return {
+      beforeSwitch: markBox.right <= switchBox.left,
+      sameRow: markBox.top < switchBox.bottom && switchBox.top < markBox.bottom,
+      aboveBody: markBox.bottom <= bodyBox.top,
+      tipInside: markBox.top - 4 - Number.parseFloat(tip.height) >= el.getBoundingClientRect().top,
+    };
+  });
+  expect(layout).toEqual({ beforeSwitch: true, sameRow: true, aboveBody: true, tipInside: true });
+});
+
+test("a hovered mark pulses through the section hues until the pointer leaves", async ({
+  context,
+  page,
+}) => {
+  await serve(context, COMMIT_URL, commitBodyWith(readFixture("commit-message-lists.html")));
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  await page.goto(COMMIT_URL);
+  await expect(
+    page.locator(".gh-prism-commit-column .gh-prism-commit-message-body > h1"),
+  ).toBeVisible();
+  const mark = page.locator(".gh-prism-commit-column .gh-prism-mark");
+  await expect(mark).toBeVisible();
+
+  // The fixture lacks GitHub's Primer sheet, which defines the hues.
+  await page.addStyleTag({
+    content:
+      ":root { --fgColor-accent: #0969da; --fgColor-done: #8250df; --fgColor-attention: #9a6700; --fgColor-sponsors: #bf3989; }",
+  });
+  const pulse = mark.locator(".gh-prism-mark-pulse");
+  const copy = pulse.locator("svg");
+  const colour = () => copy.evaluate((el) => getComputedStyle(el).color);
+
+  await mark.hover();
+  await expect(pulse).toHaveCSS("opacity", "1");
+  await expect(copy).toHaveCSS("animation-play-state", "running");
+  const first = await colour();
+  await expect.poll(colour).not.toBe(first);
+
+  await page.mouse.move(0, 0);
+  await expect(pulse).toHaveCSS("opacity", "0");
+  await expect(copy).toHaveCSS("animation-play-state", "paused");
+});
+
 test("a commit's message moves into a column on a wide window and back above the diffs on a narrow one", async ({
   context,
   page,
@@ -408,7 +472,10 @@ test("a commit's message runs its prose under its controls, in the narrowest col
 
   const column = await layout();
 
-  expect(column.viewSwitch.top).toBe(column.hide.top);
+  const mark = await page.locator(".gh-prism-commit-column .gh-prism-mark").boundingBox();
+  expect(mark?.x).toBe(column.message.left + 24);
+  expect(mark && mark.y + mark.height).toBeGreaterThan(column.viewSwitch.top);
+  expect(mark?.y).toBeLessThan(column.viewSwitch.bottom);
   expect(column.viewSwitch.left).toBeGreaterThanOrEqual(column.message.left + 24);
   expect(column.hide.right).toBe(column.message.right - 24);
   expect(column.title.top).toBeGreaterThanOrEqual(column.hide.bottom);
@@ -1085,7 +1152,11 @@ const openViewed = async (context: BrowserContext, page: Page) => {
 /** Waits out the sections' reveal, which moves every row. */
 const revealSettled = (page: Page) =>
   page.locator(".gh-prism-sections").evaluate(async (view) => {
-    await Promise.all(view.getAnimations({ subtree: true }).map(({ finished }) => finished));
+    // The mark's paused pulse loops forever, so only finite animations can settle.
+    const finite = view
+      .getAnimations({ subtree: true })
+      .filter(({ effect }) => effect?.getComputedTiming().iterations !== Infinity);
+    await Promise.all(finite.map(({ finished }) => finished));
   });
 
 test("ticking a row's box saves its file's Viewed state once", async ({ context, page }) => {
@@ -2731,7 +2802,7 @@ test("a code owner's long folder paths break only after a slash, in a wider card
   await page.locator('[id="codeowner-excessive-dev/frontend"]').hover();
   await expect(card).toBeVisible();
   await card.evaluate((element) =>
-    Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)),
+    Promise.all(element.getAnimations().map((animation) => animation.finished)),
   );
 
   const { boxSizing, width } = await card.evaluate((element) => ({
@@ -2774,7 +2845,7 @@ test("a code owner's files sit indented below their folder after another sheet m
   // earlier sheet's longhands.
   await page.addStyleTag({ content: ".tw\\:p-0 { padding: 0; } .tw\\:m-0 { margin: 0; }" });
   await card.evaluate((element) =>
-    Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)),
+    Promise.all(element.getAnimations().map((animation) => animation.finished)),
   );
 
   const folder = await card.getByText("api/generated/", { exact: true }).boundingBox();
@@ -2792,7 +2863,7 @@ test("a code owner's files card stays inside a narrow viewport", async ({ contex
   await page.locator('[id="codeowner-excessive-dev/frontend"]').hover();
   await expect(card).toBeVisible();
   await card.evaluate((element) =>
-    Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)),
+    Promise.all(element.getAnimations().map((animation) => animation.finished)),
   );
 
   const { left, right, innerWidth } = await card.evaluate((element) => ({

@@ -598,6 +598,12 @@ follow GitHub. Each feature's sheet sits beside its module and is imported with 
 then mounted only on the pages that need it. The rules for writing styles are in
 [`docs/agents/styling-rules.md`](agents/styling-rules.md).
 
+The sidebar, the header counter's tooltips, the code owner details dialog, the classic
+page notice, and the commit message column each append the `prismMark` built by
+[`ui/mark.ts`](../entrypoints/content/ui/mark.ts). The code owners popover and the code
+owner's files popup get theirs from `detailsHint`, the footer they share. Every one of
+these surfaces' sheets `@import`s the mark's partial, `ui/mark.css`.
+
 ## Source layout
 
 ```text
@@ -613,7 +619,7 @@ entrypoints/
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
     header/              diffstat breakout
     conversation/        a code owner's files popup and gh-prism's reviewer shield, in the Reviewers lists
-    ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, Markdown subset, name reveal, Tailwind tokens
+    ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, Tailwind tokens
 utils/
   github/                routes, diff parsing, the PR data port and source, code owners and reviewers
   intent/                reading, caching, and landing intent

@@ -212,6 +212,31 @@ describe("the header's lines-changed counter", () => {
     ]);
   });
 
+  it("ends each pill tooltip's title row with gh-prism's mark", async () => {
+    await landed(counted);
+    for (const pill of pills()) {
+      const marks = tipOf(pill)?.querySelectorAll(".gh-prism-mark") ?? [];
+      expect(marks).toHaveLength(1);
+      expect(marks[0]?.parentElement?.lastElementChild).toBe(marks[0]);
+      expect(marks[0]?.parentElement?.querySelector("strong")).not.toBeNull();
+    }
+  });
+
+  it("ends the total tooltip's last row with gh-prism's mark", async () => {
+    await landed(counted);
+    counter()?.click();
+    const marks = tipOf(counter())?.querySelectorAll(".gh-prism-mark") ?? [];
+    expect(marks).toHaveLength(1);
+    expect(tipOf(counter())?.lastElementChild?.lastElementChild).toBe(marks[0]);
+  });
+
+  it("carries gh-prism's mark only in its tooltips", async () => {
+    await landed(counted);
+    const marks = [...document.querySelectorAll(".gh-prism-diffstat .gh-prism-mark")];
+    expect(marks).toHaveLength(pills().length);
+    for (const mark of marks) expect(mark.closest(".gh-prism-tip")).not.toBeNull();
+  });
+
   it("ends the total's tooltip by saying a click splits it by section", async () => {
     await landed(counted);
     counter()?.click();

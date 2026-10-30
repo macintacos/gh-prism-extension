@@ -32,6 +32,7 @@ import { el, icon } from "../ui/dom";
 import { type Card, followHoverIntent } from "../ui/hover-intent";
 import { lineTotals } from "../ui/line-counts";
 import { type LoadingView, loadingView } from "../ui/loading-view";
+import { prismMark } from "../ui/mark";
 import { type OwnerFilter, openOwnersDialog } from "../ui/owners-dialog";
 import { followReveals, fullName } from "../ui/reveal";
 import { markSection, SECTION_CATALOG, sectionIcon } from "../ui/section-catalog";
@@ -454,6 +455,9 @@ export function showSections(
     "gh-prism-sections tw:flex tw:flex-col tw:gap-1.5 tw:text-body-medium tw:[interpolate-size:allow-keywords]",
   );
   view.setAttribute("aria-label", "Changed files by section");
+  // Last in the nav: whatever mounts later goes before it, as pending()'s loading view does.
+  const markRow = el(doc, "div", "gh-prism-sections-mark tw:flex tw:justify-end", prismMark(doc));
+  view.append(markRow);
   followReveals(view, matchMedia("(prefers-reduced-motion: reduce)"));
 
   const shown = new Map<ListingKey, ShownListing>();
@@ -806,7 +810,7 @@ export function showSections(
     pending() {
       loading = loadingView(doc, listSkeleton(doc));
       view.setAttribute("aria-busy", "true");
-      view.append(loading.root);
+      markRow.before(loading.root);
     },
     progress(progress) {
       loading?.progress(progress);

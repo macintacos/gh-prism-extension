@@ -142,6 +142,25 @@ describe("showClassicNotice", () => {
 
     expect(document.querySelectorAll(".gh-prism-classic-notice")).toHaveLength(1);
     expect(document.querySelectorAll(".gh-prism-classic-notice-button")).toHaveLength(1);
+    expect(document.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
+  });
+
+  it("carries one gh-prism mark in the dialog and none on its button", () => {
+    show();
+
+    expect(dialog()?.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
+    expect(opener()?.querySelector(".gh-prism-mark")).toBeNull();
+  });
+
+  it("pulses its mark without motion when the viewer prefers reduced motion", () => {
+    preferReducedMotion("reduce");
+
+    show();
+
+    const pulse = dialog()?.querySelector<HTMLElement>(".gh-prism-mark-pulse");
+    const copy = pulse?.querySelector("svg");
+    expect(pulse && getComputedStyle(pulse).transition).toBe("none");
+    expect(copy && getComputedStyle(copy).animation).toBe("none");
   });
 
   it("removes the dialog and button when aborted", () => {

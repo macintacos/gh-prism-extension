@@ -15,6 +15,7 @@ import {
   findCommitMessage,
 } from "../files-page";
 import { el, icon } from "../ui/dom";
+import { prismMark } from "../ui/mark";
 import { type ColumnWidthChoice, columnSeparator, fitsColumn } from "./column-width";
 import { renderCommitMessage, withinCaps } from "./message";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
@@ -176,6 +177,9 @@ function mountMessage(
   const column = messageColumn(doc);
   const { separator, size } = columnSeparator(column, { choice, saveWidth });
   column.append(separator);
+  const mark = prismMark(doc);
+  // Holds the controls row's buttons at its end, as its justify-end did alone.
+  mark.classList.add("tw:me-auto");
   // Found once: a new row means a new sidebar, and so a new visit; a row detached before then
   // falls back above the diffs.
   const row = findCommitColumnRow(page);
@@ -189,6 +193,7 @@ function mountMessage(
   };
   const moveToRestore = (currentBox: Element) => {
     column.remove();
+    mark.remove();
     container.remove();
     if (slot.nextElementSibling !== currentBox) currentBox.before(slot);
     if (restore.nextElementSibling !== slot) slot.before(restore);
@@ -197,11 +202,13 @@ function mountMessage(
     restore.remove();
     if (column.parentElement !== connectedRow) connectedRow.prepend(column);
     if (container.parentElement !== column) column.prepend(container);
+    if (!mark.isConnected) container.querySelector(".gh-prism-commit-controls")?.prepend(mark);
     if (slot.nextElementSibling !== currentBox) currentBox.before(slot);
     size();
   };
   const moveAboveDiffs = (currentBox: Element) => {
     column.remove();
+    mark.remove();
     slot.remove();
     restore.remove();
     if (container.nextElementSibling !== currentBox) currentBox.before(container);

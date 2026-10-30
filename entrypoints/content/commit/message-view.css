@@ -5,6 +5,7 @@
    .markdown-body's headings, which the body's heading rules outrank. Every other rule selects
    only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
+@import "../ui/mark.css";
 @source "./message-view.ts";
 @source "./column-width.ts";
 

@@ -1,0 +1,133 @@
+/* No GitHub hooks: every rule selects only gh-prism's own classes. */
+.gh-prism-mark {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--fgColor-muted);
+}
+
+.gh-prism-mark > svg,
+.gh-prism-mark-pulse {
+  transition: opacity 160ms ease-out;
+}
+
+.gh-prism-mark-pulse {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+/* Breathing sits on the svg so it doesn't fight the span's fade. */
+.gh-prism-mark-pulse > svg {
+  display: block;
+  animation:
+    gh-prism-mark-hues 8s ease-in-out infinite,
+    gh-prism-mark-breathe 2.4s ease-in-out infinite alternate;
+  animation-play-state: paused;
+}
+
+.gh-prism-mark:hover > svg {
+  opacity: 0;
+}
+
+.gh-prism-mark:hover > svg,
+.gh-prism-mark:hover .gh-prism-mark-pulse {
+  transition-duration: 240ms;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.gh-prism-mark:hover .gh-prism-mark-pulse {
+  opacity: 1;
+}
+
+.gh-prism-mark:hover .gh-prism-mark-pulse > svg {
+  animation-play-state: running;
+}
+
+/* Follows section-catalog.ts's hues in SECTIONS order, less the muted one. */
+@keyframes gh-prism-mark-hues {
+  0%,
+  100% {
+    color: var(--fgColor-accent);
+  }
+
+  25% {
+    color: var(--fgColor-done);
+  }
+
+  50% {
+    color: var(--fgColor-attention);
+  }
+
+  75% {
+    color: var(--fgColor-sponsors);
+  }
+}
+
+@keyframes gh-prism-mark-breathe {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0.7;
+  }
+}
+
+/* Primer's tooltip, above the mark with its start edge at the mark's start. A host whose mark sits
+   at an inline-end corner flips the alignment in its own sheet, with a more specific selector.
+   Hover only: the mark takes no focus. */
+.gh-prism-mark::after {
+  content: attr(aria-label);
+  position: absolute;
+  bottom: calc(100% + 4px);
+  inset-inline-start: 0;
+  z-index: 100;
+  padding: 4px 8px;
+  border-radius: var(--borderRadius-medium);
+  background: var(--tooltip-bgColor);
+  color: var(--tooltip-fgColor);
+  font-size: var(--text-body-size-small);
+  font-weight: var(--base-text-weight-normal);
+  line-height: var(--text-body-lineHeight-small);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 120ms ease-out,
+    visibility 120ms;
+}
+
+.gh-prism-mark:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-prism-mark > svg,
+  .gh-prism-mark-pulse,
+  .gh-prism-mark::after {
+    transition: none;
+  }
+
+  .gh-prism-mark-pulse > svg {
+    animation: none;
+    color: var(--fgColor-accent);
+  }
+}
+
+/* Forced colours override the hues, so the pulse goes; the glyph takes the system text colour. */
+@media (forced-colors: active) {
+  .gh-prism-mark {
+    color: CanvasText;
+  }
+
+  .gh-prism-mark-pulse {
+    display: none;
+  }
+
+  .gh-prism-mark:hover > svg {
+    opacity: 1;
+  }
+}

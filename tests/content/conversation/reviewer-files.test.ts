@@ -551,6 +551,16 @@ describe("showReviewerFiles", () => {
       expect(action()?.href).toBe(`${FILES}?gh-prism-owner=@jasnell`);
     });
 
+    it("follows gh-prism's mark in the popup's footer", async () => {
+      show(undefined, undefined, filter);
+
+      await hoverOpen("frontend");
+
+      const marks = popup()?.querySelectorAll(".gh-prism-mark") ?? [];
+      expect(marks).toHaveLength(1);
+      expect(marks[0]?.nextElementSibling).toBe(action());
+    });
+
     it("is left out of a popup that lists no files", async () => {
       await showNode({ reviewRequests: markedCodeOwner }, undefined, filter);
 
@@ -590,7 +600,6 @@ describe("showReviewerFiles", () => {
       const dialog = document.querySelector("dialog.gh-prism-owners-dialog");
       expect(dialog).not.toBeNull();
       expect(dialog?.querySelector("a.gh-prism-owner-filter")).toBeNull();
-      expect(dialog?.querySelector(".gh-prism-owners-dialog-footer")).toBeNull();
     });
   });
 
@@ -649,6 +658,24 @@ describe("showReviewerFiles", () => {
       shield.click();
       await vi.advanceTimersByTimeAsync(0);
     }
+
+    it("shows gh-prism's mark in the hover card's footer and the dialog, not on the shields", async () => {
+      show();
+      await hoverOpen("frontend");
+      const cardMarks = [...document.querySelectorAll(".gh-prism-mark")];
+
+      await clickOn(shieldOf("frontend"));
+
+      expect(cardMarks).toHaveLength(1);
+      expect(cardMarks[0]?.parentElement?.lastElementChild).toBe(cardMarks[0]);
+      expect(cardMarks[0]?.closest(".gh-prism-owners-hint")).not.toBeNull();
+      expect(dialog()?.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
+      expect(
+        [...document.querySelectorAll(".gh-prism-mark")].filter(
+          (mark) => !dialog()?.contains(mark),
+        ),
+      ).toEqual([]);
+    });
 
     it("opens the dialog of a team reviewer, its files and its members", async () => {
       show();

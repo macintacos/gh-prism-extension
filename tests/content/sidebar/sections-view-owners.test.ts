@@ -343,6 +343,14 @@ describe("showSections", () => {
       await vi.advanceTimersByTimeAsync(0);
     };
 
+    it("carries one gh-prism mark", async () => {
+      await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"] }));
+
+      await focusOpen(shieldOf("implementation", "src/engine.rs"));
+
+      expect(popovers()[0]?.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
+    });
+
     it("lists every owner, linking teams and users in a new tab", async () => {
       await landedOwned(tokensOf({ "src/engine.rs": ["@o/team", "@someone", "dev@example.com"] }));
 
@@ -695,6 +703,15 @@ describe("showSections", () => {
 
     describe("a file's details dialog", () => {
       const engine = () => shieldOf("implementation", "src/engine.rs");
+
+      it("carries one gh-prism mark", async () => {
+        await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"] }));
+        await focusOpen(engine());
+
+        clickAt(engine(), { detail: 1 });
+
+        expect(dialogs()[0]?.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
+      });
 
       it("opens on a click of its shield, listing the file's owners", async () => {
         await landedOwned(tokensOf({ "src/engine.rs": ["@o/team", "@someone"] }));

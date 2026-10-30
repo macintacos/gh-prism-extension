@@ -46,6 +46,11 @@ describe("showStepLinks", () => {
     );
   });
 
+  it("carries no gh-prism mark beside Older and Newer, being a small surface", () => {
+    show(new Promise(() => {}));
+    expect(parentsRow()?.querySelector(".gh-prism-mark")).toBeNull();
+  });
+
   it("links Older to the commit's first parent, named by its short SHA", () => {
     show(new Promise(() => {}));
 

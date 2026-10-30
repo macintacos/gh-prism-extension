@@ -6,6 +6,71 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-29: Header tooltips and the owner popup carry the mark; the column's moves up
+
+This entry replaces the placement half of "The mark sweeps the spectrum, not the icon's
+colours", below.
+
+- **Compared:**
+  - the header counter's tooltips and the code owner's files popup on the Conversation
+    page without the mark, as the entry below ruled, or with it;
+  - for the commit message column, its bottom-start corner or the start of its controls
+    row.
+- **Won:**
+  - Both carry it: at the end of a pill tooltip's label row and of the total view's
+    tooltip's last row, and just before the popup's filter action.
+  - The commit column's mark sits at the start of its controls row.
+- **Why:**
+  - At the hand check, the maintainer flagged both the tooltips and the popup for missing
+    the mark.
+  - They wanted the column's mark at the top left, above the message's first line, instead
+    of at the column's foot. The controls row's start is space the row already has.
+
+## 2026-10-29: The mark is a faceted pyramid that pulses through the hues
+
+This entry replaces the sweep recorded in the entry below it.
+
+- **Compared:**
+  - for the glyph:
+    - the flat triangle and bars;
+    - the faceted pyramid;
+    - dispersion, a tinted prism splitting a beam into a fan of three bands;
+    - a badge, the faceted pyramid and bars inside @pierre/trees' squircle tile.
+
+    A literal three-quarter triangular prism was drawn and dropped before the mockup,
+    because at 16px it read as a triangle beside a slab;
+  - on hover: the bars alone cycling the hues, the whole mark cycling them, or the
+    spectrum drifting along the bars.
+- **Won:** the faceted pyramid, and the whole mark cycling.
+- **Why:**
+  - The flat triangle didn't read as a prism. The faceted pyramid reads as a solid at 16px
+    in the two-tone style of @pierre/trees' icons. It keeps the toolbar icon's shape, so
+    the toolbar icon needs no redraw.
+  - The maintainer wanted the icon itself to pulse slowly while hovered, in place of a
+    one-time sweep of its bars.
+
+## 2026-10-29: The mark sweeps the spectrum, not the icon's colours
+
+- **Compared:**
+  - on hover, the toolbar icon's own blue, yellow, and pink bars, or the spectrum swept
+    across them;
+  - for each large surface, two slots: the nav's last row at its end or its start corner;
+    the code owners popover's footer hint row at its end corner or before the hint; the
+    code owner details dialog's footer start corner, with the footer always shown, or its
+    header between the heading and ✕; the classic Files-changed dialog's footer start
+    corner or its header between the heading and ✕; the commit message column's
+    bottom-start or its bottom-end corner.
+- **Won:**
+  - the spectrum;
+  - the nav's last row at the end corner, the popover footer row's end corner, the details
+    dialog footer's start corner, the classic dialog footer's start corner, and the commit
+    column's bottom-start corner.
+- **Why:**
+  - The spectrum ties the mark to gh-prism's existing signature and keeps one source of
+    hues.
+  - Each winning slot is space the surface already has, so the mark moves and wraps
+    nothing.
+
 ## 2026-10-29: Show only a code owner's files
 
 - **Compared:**
