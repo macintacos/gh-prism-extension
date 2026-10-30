@@ -116,7 +116,8 @@ A tooltip copies Primer's. It is an `::after` on the control that shows the cont
 on hover and focus. It opens toward the inside of the sidebar or the page, so it never
 clips at an edge. `sidebar/side.css`, `sidebar/report.css`, `commit/step-links.css`, and
 `ui/mark.css` hold the four in use. Only the mark's opens on hover alone, since the mark
-takes no focus.
+takes no focus. Inside the header counter's tooltips, which take no pointer, the mark's
+own tooltip never opens.
 
 A control that takes a key names it in its tooltip, after the action's name, and sets
 `aria-keyshortcuts`, so assistive technology announces the key. Older and Newer beside a
@@ -207,7 +208,7 @@ and name keep GitHub's own hovercard, so the two cards never share a trigger.
   rows), and through them the details dialog. A long list scrolls inside the popup.
 - **The hint:** like a file row's code owners popover (§ File rows), the popup ends in a
   footer that stays put while the list scrolls: below a hairline, "Click the shield for
-  details" in small muted text.
+  details" in small muted text. gh-prism's mark sits in the same footer (§ The mark).
 - **The filter action:** on a popup that lists files, the footer is one row: the hint on
   the left, taking the free width, and "Show only their files" on the right, both centred
   vertically. The footer's vertical padding drops to 4px, so the row stays 36px tall. The
@@ -260,24 +261,33 @@ tones, so a reader can tell gh-prism's surfaces from GitHub's. The lit face and 
 are solid, and the shaded face is at 40% opacity. `ui/mark.ts` builds it as `prismMark`,
 and `ui/mark.css` styles it. It carries no setting to hide it.
 
-Each of the five large surfaces carries one mark:
+Each of these seven surfaces carries one mark:
 
+- **Header counter's tooltips:** each pill's tooltip, at the end of its label's row, with
+  the description below at the tooltip's full width; and the total view's tooltip, at the
+  end of its last row, "Click to split by section". The mark stays still there, because
+  the tooltip takes no pointer.
 - **Sidebar:** the nav's last row, at the end corner, below the sections, so it moves none
   of them. Its tooltip opens up and inward, because `sidebar/side.css` clips the sidebar.
 - **Code owners popover:** the end corner of the footer row that reads "Click the shield
   for details", so it adds no row.
+- **Code owner's files popup:** in the footer, just before "Show only their files", or at
+  the footer's end corner when the popup has no action. Its tooltip opens inward at that
+  corner.
 - **Code owner details dialog:** the footer's start corner, with the filter action at the
   end. The footer always renders, and the header is untouched.
 - **Classic Files-changed dialog:** the footer's start corner, with the buttons at the
   end. Both still fit at the dialog's 296px minimum width.
-- **Commit message column:** the column's empty bottom-start corner, positioned
-  absolutely, out of the wrapping controls row and the message's flow.
+- **Commit message column:** the start of the controls row, above the message's first
+  line, with "Show plain text" and "Hide" at the row's end. It scrolls with the message.
+  When the row wraps in a narrow column, the mark stays at the start of its first line.
+  Above the diffs, on a narrow window, the message carries no mark, because there it
+  stands in for GitHub's own message box inside GitHub's card.
 
-The four small surfaces carry none: the header counter tip, the code owner's files hover
-card, the commit's Older and Newer links, and the conversation page's reviewer shield. Nor
-does any inline control. On a surface that small, a mark would crowd the content it labels
-and repeat on every hover. A future surface gets a mark only if it is large, decided case
-by case against this entry.
+The commit's Older and Newer links, the Reviewers shields themselves, and every inline
+control carry none. On a control that small, a mark would crowd the content it labels and
+repeat down the page. A future surface gets a mark only if it is a panel, dialog, popup,
+or tooltip of gh-prism's own, decided case by case against this entry.
 
 At rest the mark is `--fgColor-muted`. Hovering cross-fades it to a coloured copy of the
 glyph on `tokens.md`'s "State, opening" row. While the pointer stays, the copy pulses on

@@ -6,6 +6,26 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-29: Header tooltips and the owner popup carry the mark; the column's moves up
+
+This entry replaces the placement half of "The mark sweeps the spectrum, not the icon's
+colours", below.
+
+- **Compared:**
+  - the header counter's tooltips and the code owner's files popup on the Conversation
+    page without the mark, as the entry below ruled, or with it;
+  - for the commit message column, its bottom-start corner or the start of its controls
+    row.
+- **Won:**
+  - Both carry it: at the end of a pill tooltip's label row and of the total view's
+    tooltip's last row, and just before the popup's filter action.
+  - The commit column's mark sits at the start of its controls row.
+- **Why:**
+  - At the hand check, the maintainer flagged both the tooltips and the popup for missing
+    the mark.
+  - They wanted the column's mark at the top left, above the message's first line, instead
+    of at the column's foot. The controls row's start is space the row already has.
+
 ## 2026-10-29: The mark is a faceted pyramid that pulses through the hues
 
 This entry replaces the sweep recorded in the entry below it.

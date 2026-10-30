@@ -598,10 +598,11 @@ follow GitHub. Each feature's sheet sits beside its module and is imported with 
 then mounted only on the pages that need it. The rules for writing styles are in
 [`docs/agents/styling-rules.md`](agents/styling-rules.md).
 
-Each large surface (the sidebar, the code owners popover, the code owner details dialog,
-the classic page notice, and the commit message column) appends the `prismMark` built by
-[`ui/mark.ts`](../entrypoints/content/ui/mark.ts), and its sheet `@import`s the mark's
-partial, `ui/mark.css`.
+The sidebar, the header counter's tooltips, the code owner details dialog, the classic
+page notice, and the commit message column each append the `prismMark` built by
+[`ui/mark.ts`](../entrypoints/content/ui/mark.ts). The code owners popover and the code
+owner's files popup get theirs from `detailsHint`, the footer they share. Every one of
+these surfaces' sheets `@import`s the mark's partial, `ui/mark.css`.
 
 ## Source layout
 
