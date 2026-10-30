@@ -1,182 +1,216 @@
 # gh-prism
 
-gh-prism is a Chrome extension that replaces the file tree on a GitHub pull request or
-commit with a sidebar that splits the changes into sections, so you can review one part at
-a time. It takes its idea from how Linear, an issue tracker, breaks a pull request into
-parts.
+gh-prism is a Chrome extension that sorts a GitHub pull request's changed files into
+sections, so you can review one part at a time. It started by copying how other review
+tools split a pull request's lines changed, and has grown from there: it now also works on
+commit pages and on a pull request's Conversation tab.
 
-A pull request can look large by its total lines changed when only a small part of it is
-implementation. AI-assisted pull requests often look like this: the rest of the lines are
-docs, tests, and other updates. gh-prism lets you focus on the implementation first, then
-give each other part its own deliberate pass.
+AI-assisted pull requests often look large when only a small part of them is
+implementation, and gh-prism lets you review that part first. See
+[what it does](#what-it-does).
 
-![The gh-prism sidebar with the sections Implementation, Tests, Docs & Comments, Config, and Generated / lockfiles. src/render.rs is marked Partial under Implementation and Docs & Comments.](docs/images/sidebar-grouped.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/hero-dark.png">
+  <img src="docs/images/hero-light.png" width="1408" alt="A pull request's Files changed tab with gh-prism. The tab row shows five lines-changed counts, one per section, and the sidebar on the right lists files under Implementation, Tests, and Docs & Comments, with render.rs marked Partial.">
+</picture>
 
 ## What it does
 
-gh-prism runs on a commit's page and on GitHub's new Files changed tab of a pull request,
-at `/pull/<number>/changes`. On the classic Files changed tab, at `/pull/<number>/files`
-or `/pull/<number>/commits/<sha>`, it opens a dialog that says why it isn't running and
-how to get the new tab. Once you close the dialog, it stays closed, and
-**Why is gh-prism off?** in the tab's toolbar opens it again.
+gh-prism runs on commit pages and on a pull request's new Files changed tab
+(`/pull/<number>/changes`), which GitHub offers as a feature preview; see
+[Troubleshooting](#troubleshooting) to turn it on. Its code-owner shields also show on a
+pull request's Conversation tab, and its lines-changed counts on the Conversation,
+Commits, and Checks tabs.
 
-- It groups changed files into five sections: Implementation, Tests, Docs & Comments,
-  Config, and Generated / lockfiles.
-- It moves a file whose changes touch only comments or docstrings to Docs & Comments, and
-  a change that sits only inside inline test blocks, such as a Rust `mod tests` block, to
-  Tests. Outside Implementation, it moves a comment-only change on its own.
-- In a file that stays in Implementation, it counts the comment and docstring lines toward
-  Docs & Comments and lists the file by them under **Implementation comments**, a
-  sub-section at the end of Docs & Comments, collapsed by default.
-- It lists a file whose changes belong in more than one section under each of those
-  sections, and marks each entry `Partial`. It also marks `Partial` an Implementation
-  entry whose comment lines count toward Docs & Comments, and every entry in the
-  sub-section.
-- It lays out the diffs in the order the sidebar lists their files.
-- It splits the count of lines changed in the pull request or commit header into one count
-  per section.
-- It collapses or expands a section's files when you click its heading.
-- It dims the files you've marked Viewed on GitHub, in every section that lists them, and
-  once any file is Viewed, each section's heading shows how many of its files are Viewed
-  (`N/M`). It follows GitHub's Viewed toggle.
-- It marks a file Viewed on GitHub when you tick the checkbox on its row, or when you
-  Alt-click the row (Option-click on macOS). Doing either again marks it not viewed.
-- On a pull request, hovering or focusing a file's row shows a shield when the file has
-  code owners, and a folder's row shows one when a file below it does. Hovering, focusing,
-  or clicking a file's shield lists its owners, each team or user linked to their GitHub
-  page; a folder's lists every file below it, each owned one with its owners.
-- On a pull request's Conversation tab, hovering or focusing the code-owner shield beside
-  a team or person in the Reviewers list lists the changed files that code owner owns.
-  When a team makes them a code owner, the list names that team. gh-prism adds the shield
-  where GitHub draws none, such as beside a code owner who has reviewed.
-- After an update, the sidebar opens with a collapsed **What's new in vX.Y.Z** block of
-  that version's release notes. It goes away when you dismiss it, or 3 days after you
-  first see it.
-- Adding `gh-prism-owner=<owner>` to a pull request's Files changed URL, where the owner
-  is a team such as `org/team` or a user's login, narrows the sidebar and the diffs to the
-  files whose CODEOWNERS rule names that owner, or a team GitHub shows you the owner
-  reviewed for, was assigned from, or belongs to. GitHub shows you teams only in your own
-  organizations, so a user's filter leaves out files they own through a team you can't
-  see. It combines with GitHub's own filters, and removing it from the URL shows every
-  file again. You can also pick the owner from the **Only files owned by…** section of the
-  file tree's filter menu, which lists **Me** and each reviewer who owns a changed file;
-  picking a reviewer reloads the page narrowed to their files.
-- A **Report a miscategorized file** button beside the file tree's filter opens a new
-  issue on gh-prism's repository with your gh-prism version filled in, and, on a public
-  repository only, the diff's URL.
-- On a commit's page, it shows a commit message longer than its subject line rendered as
-  Markdown, like a README, with GitHub's links, in a column beside the diffs on a wide
-  window, or in place of GitHub's monospace box on a narrower one. Drag the column's edge
-  to make it wider or narrower. A switch beside it shows the message's plain text instead,
-  and gh-prism opens every commit in the view you last picked. A hide button beside the
-  switch hides the message on that commit only, until you show it again.
-- On a commit's page, **Older** and **Newer** beside the commit's SHA step to its parent
-  and to the commit that follows it. Newer goes to the earliest commit on the default
-  branch built on this one. For a commit only on another branch, it goes to the next newer
-  commit in that branch's history. After you step back with Older, Newer returns to the
-  commit you came from, until you reload the tab. A link that has nowhere to go stays
-  greyed out, and hovering or focusing it says why. Press Shift+J for Older and Shift+K
-  for Newer, unless you're typing in a text field; each link shows its key.
+### Sections in a sidebar
+
+gh-prism replaces the file tree with a sidebar that sorts changed files into
+Implementation, Tests, Docs & Comments, Config, and Generated / lockfiles.
+
+- A file whose changes belong in more than one section is listed under each, marked
+  `Partial`.
+- Comment-only changes count toward Docs & Comments. An Implementation file's comment
+  lines are listed under **Implementation comments**.
+- The diffs follow the sidebar's order, except on very large pull requests, and clicking a
+  section's heading collapses it.
+
+<details>
+<summary>Screenshot: the sidebar's five sections, each with its file count and lines changed</summary>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/sections-dark.png">
+  <img src="docs/images/sections-light.png" width="401" alt="The gh-prism sidebar with Implementation (4 files, render.rs marked Partial), Tests (2), Docs & Comments (4, ending in an Implementation comments row), Config (2), and Generated / lockfiles (1), each with its lines added and removed.">
+</picture>
+
+</details>
+
+### Code owners
+
+On a pull request, a file with code owners shows a shield when you hover or focus its row.
+Rest the pointer on the shield to see who owns the file, or click it for details.
+
+- On the Conversation tab, the shield beside a team or person in the Reviewers list lists
+  the changed files they own.
+- **Only files owned by…** in the file tree's filter menu, or `gh-prism-owner=<owner>` in
+  the Files changed URL, shows only one owner's files. The owner is a team such as
+  `org/team`, or a user's login.
+- GitHub shows you teams only in your own organizations, so a user's filter leaves out
+  files they own through a team you can't see.
+
+<details>
+<summary>Screenshot: a file's code-owner shield and the owners it lists</summary>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/code-owners-dark.png">
+  <img src="docs/images/code-owners-light.png" width="425" alt="The gh-prism sidebar with a shield on client.ts. Its popup reads Code owners, @excessive-dev/frontend, and Click the shield for details.">
+</picture>
+
+</details>
+
+### Viewed tracking
+
+Files you've marked Viewed are dimmed in every section, and each section's heading counts
+them (`N/M`).
+
+- Tick a row's checkbox, or Alt-click the row (Option-click on macOS), to mark the file
+  Viewed. Do either again to unmark it.
+- It stays in step with GitHub's own Viewed toggle.
+
+<details>
+<summary>Screenshot: three files marked Viewed and each section's count</summary>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/viewed-dark.png">
+  <img src="docs/images/viewed-light.png" width="401" alt="The gh-prism sidebar with schema.rs, engine.rs, and helpers.rs ticked and dimmed. The headings read Implementation 3/4, Tests 0/2, Docs & Comments 0/4, Config 0/2, and Generated / lockfiles 0/1.">
+</picture>
+
+</details>
+
+### Lines changed by section
+
+The lines-changed count in the header splits into one count per section.
+
+- It shows on Files changed and commit pages, and on a pull request's Conversation,
+  Commits, and Checks tabs.
+- Click the counts to switch to GitHub's total and back. gh-prism remembers your choice.
+
+<details>
+<summary>Screenshot: a pull request's tab row with one count per section</summary>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/lines-changed-dark.png">
+  <img src="docs/images/lines-changed-light.png" width="1248" alt="A pull request's header on the Conversation tab. At the right end of the tab row are five counts, each with its section's icon: +9 −3, +12 −0, +6 −6, +2 −1, and +7 −0.">
+</picture>
+
+</details>
+
+### Commit pages
+
+A commit message longer than its subject line renders as Markdown in a column beside its
+diffs, and Older and Newer links step through its history.
+
+- Drag the column's edge to resize it. **Show plain text** shows the message as GitHub
+  does, and **Hide** hides it on that commit.
+- Press <kbd>Shift</kbd>+<kbd>J</kbd> for Older and <kbd>Shift</kbd>+<kbd>K</kbd> for
+  Newer, unless you're typing.
+
+<details>
+<summary>Screenshot: a commit's message rendered beside its diffs, with Older and Newer</summary>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/commit-dark.png">
+  <img src="docs/images/commit-light.png" width="1408" alt="Commit f98efef with Older and Newer beside its SHA and one lines-changed count per section it touches. On the left, the message renders as a heading over a bulleted list, under Show plain text and Hide.">
+</picture>
+
+</details>
 
 ## Install
 
-You need Git, Bun (a JavaScript runtime and package manager), and Chrome. Run steps 1 to 3
-in a terminal.
+[Install gh-prism from the Chrome Web Store](https://chromewebstore.google.com/detail/nbgincngpiakbeihobifpdahbhflplgh),
+then reload any GitHub tabs that were already open.
 
-1. Clone the repository and enter it:
+### Build from source
+
+You need Git, Bun (a JavaScript runtime and package manager), and Chrome.
+
+1. Clone the repository, install its dependencies, and build it:
 
    ```bash
    git clone https://github.com/macintacos/gh-prism-extension.git
    cd gh-prism-extension
-   ```
-
-2. Install the dependencies:
-
-   ```bash
    bun install
-   ```
-
-3. Build the extension:
-
-   ```bash
    bun run build
    ```
 
-   The build writes the unpacked extension to `.output/chrome-mv3`.
-4. In Chrome, open `chrome://extensions` and turn on **Developer mode**.
-5. Click **Load unpacked** and choose the `.output/chrome-mv3` folder inside the clone.
-   The picker hides folders whose names start with a dot. Press Cmd+Shift+. on macOS, or
-   Ctrl+H on Linux, to show them.
-6. Sign in to GitHub in the Chrome profile where you loaded gh-prism. Then open the Files
-   changed tab of any pull request you can see, at a URL that contains
-   `/pull/<number>/changes`. Reload any GitHub tab that was already open when you loaded
-   gh-prism. When it works, the sidebar shows the section headings.
+   If Bun comes from mise, a tool version manager, and fails with an untrusted-config
+   error, run `mise trust` in the clone, then rerun the command.
+2. In Chrome, open `chrome://extensions` and turn on **Developer mode**.
+3. Click **Load unpacked** and choose the clone's `.output/chrome-mv3` folder. The picker
+   hides folders whose names start with a dot. Press
+   <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>.</kbd> on macOS, or <kbd>Ctrl</kbd>+<kbd>H</kbd>
+   on Linux, to show them.
+4. Reload any GitHub tabs that were already open.
 
-To update gh-prism:
-
-1. Run `git pull`.
-2. Run `bun install`.
-3. Run `bun run build`.
-4. Click the reload button on the gh-prism card in `chrome://extensions`.
-5. Reload any open GitHub tabs.
+To update, run `git pull`, `bun install`, and `bun run build` in the clone. Then click the
+reload button on gh-prism's card in `chrome://extensions`, and reload your GitHub tabs.
 
 ## Permissions
 
-No token or setup is needed, because gh-prism reads each pull request through your
-signed-in browser session. It sees only the repositories your account can see.
+gh-prism needs no token or setup, because it reads through your signed-in GitHub session.
+It sees only what your account can see.
 
-gh-prism needs access to three hosts and to Chrome's extension storage, and nothing else.
+It asks Chrome for access to only these hosts:
 
-- `https://github.com/*` serves the pull request or commit page, its diff, file contents,
-  and a pull request's code owners and reviewers. A content script, which is code that
-  runs inside matching pages, also runs here, so gh-prism catches GitHub's in-page
-  navigation into a pull request or commit. It acts only on Files changed and commit
-  pages, and on a pull request's Conversation, Commits, and Checks tabs, where it reads
-  the diff to split the header's lines-changed counter by section, and, on Conversation,
-  the code owners and reviewers to list a code owner's files. It reads an owning team's
-  members only when GitHub shows you a team among the pull request's reviewers. On a
-  commit's page, it asks GitHub's commit search which commit follows the one you're on.
-  When search finds none, it reads the branches that hold the commit and the first
-  branch's commits list.
-- `https://patch-diff.githubusercontent.com/*` is where GitHub redirects diff downloads.
-- `https://raw.githubusercontent.com/*` is where GitHub redirects raw-file downloads.
-- Extension storage holds the side you put the sidebar on, whether the header's
-  lines-changed counter shows its breakout by section or GitHub's total, whether a
-  commit's message shows rendered as Markdown or as GitHub's plain text, how wide you made
-  the commit message's column, which commits you hid the message on (the 100 most recent),
-  whether you closed the dialog on the classic Files changed tab, which version's
-  what's-new notes you dismissed or first saw and when, and where gh-prism placed each
-  file for the diffs it read most recently. It keeps up to 50 placement entries, and a
-  pull request's diff can take two: one for the diff and one for the base and head commits
-  it runs between. Chrome syncs the side, the counter's view, and the commit message's
-  view to your other computers when Chrome sync is on. The column's width, the hidden
-  messages, the notice's dismissal, the what's-new marks, and the placements stay on this
-  computer.
+- `https://github.com/*`: it runs on every GitHub page, so it catches GitHub's in-page
+  navigation, and acts only on pull request and commit pages. It reads a pull request's or
+  commit's diff and file contents, and a pull request's code owners and reviewers. It
+  reads an owning team's members when you open a code-owner shield's details or GitHub
+  shows you a team among the reviewers. On a commit page, it asks GitHub's commit search
+  which commit comes next. When search finds none, it reads the branches that hold the
+  commit and the first branch's commits.
+- `https://patch-diff.githubusercontent.com/*`: where GitHub redirects diff downloads.
+- `https://raw.githubusercontent.com/*`: where GitHub redirects raw-file downloads.
+
+It also uses Chrome's extension storage. When Chrome sync is on, it syncs these to your
+other computers:
+
+- Which side the sidebar is on.
+- Whether the header shows lines changed by section or GitHub's total.
+- Whether a commit's message shows as Markdown or plain text.
+
+It keeps these on this computer only:
+
+- The width of the commit message column.
+- The commits you hid the message on, up to the 100 most recent.
+- Whether you closed the dialog on GitHub's classic Files changed tab.
+- Which version's release notes, shown in the sidebar after an update, you dismissed or
+  first saw, and when.
+- Which section it put each file in, for the diffs it read most recently.
 
 ## Troubleshooting
 
-- **No sections appear.** Reload the page. Tabs that were open before you loaded or
-  reloaded gh-prism don't run it. Then check that the URL contains
-  `/pull/<number>/changes` or `/commit/<sha>`.
-- **A pull request's Files changed URL ends in `/files` or `/commits/<sha>`, and the page
-  looks like plain GitHub.** That is GitHub's classic page, where gh-prism shows only its
-  dialog. If you closed it, click **Why is gh-prism off?** in the toolbar above the files.
-  GitHub shows the classic page when you are signed out, even on a public pull request, so
-  sign in. Signed in, GitHub shows it when its New Files Changed Experience preview is
-  off. Click your profile picture, click **Feature preview**, choose
-  **New Files Changed Experience**, and click **Enable**. GitHub Docs explains the dialog
-  in
+- **No sections appear.** Reload the page, because tabs open before gh-prism was installed
+  or reloaded don't run it. Then check that the URL contains `/pull/<number>/changes` or
+  `/commit/<sha>`.
+- **The Files changed tab looks like plain GitHub, and its URL ends in `/files` or
+  `/commits/<sha>`.** That is GitHub's classic page, where gh-prism only shows a dialog.
+  To reopen the dialog, click **Why is gh-prism off?** in the toolbar above the files.
+  Sign in to GitHub. If you are signed in, turn on the **New Files Changed Experience**
+  preview: click your profile picture, click **Feature preview**, choose
+  **New Files Changed Experience**, and click **Enable**. GitHub Docs covers this in
   [Exploring early access releases with feature preview](https://docs.github.com/en/get-started/using-github/exploring-early-access-releases-with-feature-preview).
-- **gh-prism's dialog asks you to sign in while you are signed in.** Check that you are
-  signed in to GitHub in the same Chrome profile where you loaded gh-prism, then reload
-  the page. Chrome's "Block third-party cookies" setting is untested with gh-prism.
-- **`bun` fails with a `mise` error about an untrusted config.** If Bun comes from mise, a
-  tool version manager, run `mise trust` in the clone, then rerun the command that failed.
+- **gh-prism asks you to sign in while you're signed in.** Check that you're signed in to
+  GitHub in the Chrome profile gh-prism is installed in, then reload. Chrome's "Block
+  third-party cookies" setting is untested with gh-prism.
+- **gh-prism put a file in the wrong section.** Click **Report a miscategorized file**,
+  the report icon beside the file tree's filter button. It opens a new-issue form on
+  gh-prism's repository with your gh-prism version filled in, and, on a public repository
+  only, the diff's URL.
 
 ## Contributing
 
-Setup commands for contributors are in [CONTRIBUTING.md](CONTRIBUTING.md), and how
-gh-prism works is in [docs/](docs/README.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) to set up a clone, and [docs/](docs/README.md) for
+how gh-prism works.
 
 ## License
 
