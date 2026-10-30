@@ -95,7 +95,7 @@ const HINT_FOOTER = {
   small:
     "gh-prism-owners-hint tw:sticky tw:bottom-0 tw:-mx-3 tw:mt-3 tw:px-3 tw:py-2 tw:flex tw:items-center tw:gap-2 tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:0_-1px_0_var(--borderColor-default)]",
   medium:
-    "gh-prism-owners-hint tw:sticky tw:bottom-0 tw:-mx-4 tw:mt-4 tw:px-4 tw:py-2 tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:0_-1px_0_var(--borderColor-default)]",
+    "gh-prism-owners-hint tw:sticky tw:bottom-0 tw:-mx-4 tw:mt-4 tw:px-4 tw:py-2 tw:flex tw:items-center tw:gap-2 tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:0_-1px_0_var(--borderColor-default)]",
 } as const;
 
 // The medium footer as a row beside a 28px action, in 4px padding rather than 8px.
@@ -118,8 +118,8 @@ export function detailsHint(
     "Click the shield for details",
   );
   return action
-    ? el(doc, "div", ACTION_FOOTER, hint, action)
-    : el(doc, "div", HINT_FOOTER[inset], hint);
+    ? el(doc, "div", ACTION_FOOTER, hint, prismMark(doc), action)
+    : el(doc, "div", HINT_FOOTER[inset], hint, prismMark(doc));
 }
 
 /** Octicons 19.15.0 (MIT, GitHub Inc.): filter. */

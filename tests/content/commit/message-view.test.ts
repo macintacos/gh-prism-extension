@@ -424,9 +424,14 @@ describe("showCommitMessage's column", () => {
   afterEach(() => setViewport(DEFAULT));
 
   const expectInColumn = () => {
-    expect(column()?.children).toHaveLength(3);
+    expect(column()?.children).toHaveLength(2);
     expect(column()?.firstElementChild).toBe(container());
-    expect(column()?.querySelectorAll(":scope > .gh-prism-mark")).toHaveLength(1);
+    expect(column()?.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
+    expect(
+      container()
+        ?.querySelector(".gh-prism-commit-controls")
+        ?.firstElementChild?.matches(".gh-prism-mark"),
+    ).toBe(true);
     expect(column()?.lastElementChild?.getAttribute("role")).toBe("separator");
     expect(row()?.firstElementChild).toBe(column());
     expect(box().previousElementSibling?.matches(".gh-prism-commit-slot")).toBe(true);
@@ -449,6 +454,7 @@ describe("showCommitMessage's column", () => {
     expect(document.querySelector(".gh-prism-commit-slot")).toBeNull();
     expect(box().previousElementSibling).toBe(container());
     expect(shows(box())).toBe(false);
+    expect(container()?.querySelector(".gh-prism-mark")).toBeNull();
 
     setViewport(WIDE);
 
@@ -465,10 +471,9 @@ describe("showCommitMessage's column", () => {
     expect([style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft]).toEqual([
       "24px",
       "24px",
-      "0px",
+      "24px",
       "24px",
     ]);
-    expect(style.height).toBe("calc(100% - 24px)");
   });
 
   it("moves the view switch into the column with the message", () => {

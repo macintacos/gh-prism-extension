@@ -1,5 +1,5 @@
 /* GitHub hooks: the commit message box, the sibling after a rendered .gh-prism-commit-message
-   (other than the column's mark) or after .gh-prism-commit-slot; and
+   (other than the column's separator) or after .gh-prism-commit-slot; and
    [class*="PageLayout-PageLayoutContent"]'s flex row, whose panes sort at order 1 or
    PageLayout's --region-order-pane-end, which the column's tw:-order-1 sorts before; and
    .markdown-body's headings, which the body's heading rules outrank. Every other rule selects
@@ -10,8 +10,8 @@
 @source "./column-width.ts";
 
 /* GitHub's box, while the rendered message stands in for it; in the column, the separator follows
-   the message's mark instead. */
-.gh-prism-commit-message[data-view="rendered"] + :not(.gh-prism-mark) {
+   the message instead. */
+.gh-prism-commit-message[data-view="rendered"] + :not(.gh-prism-commit-column-separator) {
   display: none !important;
 }
 
@@ -76,20 +76,12 @@
 }
 
 /* The message scrolls inside the column, so the separator on the column's edge stays put. Inset
-   as GitHub insets its panes, less the bottom 24px, a strip under the scroller that holds the mark
-   clear of a message long enough to scroll. */
+   as GitHub insets its panes. */
 .gh-prism-commit-column > .gh-prism-commit-message {
   box-sizing: border-box;
-  height: calc(100% - 24px);
+  height: 100%;
   overflow-y: auto;
-  padding: 24px 24px 0;
-}
-
-/* In the strip under the message, inset as the message is. */
-.gh-prism-commit-column > .gh-prism-mark {
-  position: absolute;
-  bottom: 8px;
-  inset-inline-start: 24px;
+  padding: 24px;
 }
 
 /* Primer's pane divider: a 5px grip centred on the column's edge, washed on hover and while

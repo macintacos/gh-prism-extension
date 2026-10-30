@@ -9,6 +9,7 @@ import type { DiffstatView } from "@/utils/prefs";
 import { findDiffstat, type Header, observeDiffstat } from "../files-page";
 import { el } from "../ui/dom";
 import { count, counts } from "../ui/line-counts";
+import { prismMark } from "../ui/mark";
 import { markSection, SECTION_CATALOG, sectionIcon } from "../ui/section-catalog";
 import type { LandingView } from "../visit/land";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
@@ -52,7 +53,13 @@ function pill(doc: Document, { section, lines }: SectionLines): HTMLElement {
     tip(
       doc,
       "tw:grid tw:gap-1 tw:max-w-[260px] tw:py-1.5 tw:px-2",
-      el(doc, "strong", "", label),
+      el(
+        doc,
+        "span",
+        "tw:flex tw:items-center tw:justify-between tw:gap-2",
+        el(doc, "strong", "", label),
+        prismMark(doc),
+      ),
       el(doc, "span", "tw:text-fg-muted", description),
     ),
   );
@@ -91,7 +98,13 @@ function breakdown(doc: Document, sections: readonly SectionLines[]): HTMLElemen
     "tw:grid tw:grid-cols-[auto_1fr_auto_auto] tw:gap-x-2 tw:gap-y-1 tw:min-w-48 tw:py-2 tw:px-3 tw:tabular-nums",
     ...sections.map((lines) => tipRow(doc, lines)),
     total,
-    el(doc, "span", "tw:col-span-full tw:mt-1 tw:text-fg-muted", "Click to split by section"),
+    el(
+      doc,
+      "span",
+      "tw:col-span-full tw:flex tw:items-center tw:justify-between tw:gap-2 tw:mt-1",
+      el(doc, "span", "tw:text-fg-muted", "Click to split by section"),
+      prismMark(doc),
+    ),
   );
 }
 

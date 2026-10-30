@@ -551,6 +551,16 @@ describe("showReviewerFiles", () => {
       expect(action()?.href).toBe(`${FILES}?gh-prism-owner=@jasnell`);
     });
 
+    it("follows gh-prism's mark in the popup's footer", async () => {
+      show(undefined, undefined, filter);
+
+      await hoverOpen("frontend");
+
+      const marks = popup()?.querySelectorAll(".gh-prism-mark") ?? [];
+      expect(marks).toHaveLength(1);
+      expect(marks[0]?.nextElementSibling).toBe(action());
+    });
+
     it("is left out of a popup that lists no files", async () => {
       await showNode({ reviewRequests: markedCodeOwner }, undefined, filter);
 
@@ -649,16 +659,22 @@ describe("showReviewerFiles", () => {
       await vi.advanceTimersByTimeAsync(0);
     }
 
-    it("shows gh-prism's mark only in the dialog, not on the shields or the hover card", async () => {
+    it("shows gh-prism's mark in the hover card's footer and the dialog, not on the shields", async () => {
       show();
       await hoverOpen("frontend");
-      const marksBeforeDialog = document.querySelectorAll(".gh-prism-mark").length;
+      const cardMarks = [...document.querySelectorAll(".gh-prism-mark")];
 
       await clickOn(shieldOf("frontend"));
 
-      expect(marksBeforeDialog).toBe(0);
-      expect(document.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
+      expect(cardMarks).toHaveLength(1);
+      expect(cardMarks[0]?.parentElement?.lastElementChild).toBe(cardMarks[0]);
+      expect(cardMarks[0]?.closest(".gh-prism-owners-hint")).not.toBeNull();
       expect(dialog()?.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
+      expect(
+        [...document.querySelectorAll(".gh-prism-mark")].filter(
+          (mark) => !dialog()?.contains(mark),
+        ),
+      ).toEqual([]);
     });
 
     it("opens the dialog of a team reviewer, its files and its members", async () => {

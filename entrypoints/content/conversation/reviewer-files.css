@@ -1,6 +1,7 @@
 /* GitHub hooks: the code-owner shield's tool-tip[for^="codeowner-"]. Every other rule selects only
    gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
+@import "../ui/mark.css";
 @source "./reviewer-files.ts";
 @source "../ui/owners-dialog.ts";
 @source "../ui/file-list.ts";
@@ -32,6 +33,13 @@ html:has(.gh-prism-reviewer-files:popover-open) tool-tip[for^="codeowner-"] {
     opacity: 0;
     scale: 0.96;
   }
+}
+
+/* Without an action the mark sits at the footer's inline-end corner, which clips a tooltip that
+   opens outward. */
+.gh-prism-reviewer-files .gh-prism-owners-hint > .gh-prism-mark:last-child::after {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

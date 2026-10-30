@@ -1,6 +1,7 @@
 /* GitHub hooks: the header's lines-changed counter, the sibling after .gh-prism-diffstat. Every
    other rule selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
+@import "../ui/mark.css";
 @source "./diffstat-view.ts";
 @source "../ui/line-counts.ts";
 
@@ -58,7 +59,7 @@
   visibility: visible;
 }
 
-.gh-prism-tip > strong {
+.gh-prism-tip strong {
   font-weight: var(--base-text-weight-semibold);
 }
 

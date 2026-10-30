@@ -336,30 +336,34 @@ test("a commit's message holds its column from its first frame, through GitHub's
   ).toBe(true);
 });
 
-test("a commit column's mark stays clear of a message too long for the column", async ({
+test("a commit column's mark starts the controls row, above the message", async ({
   context,
   page,
 }) => {
   await serve(context, COMMIT_URL, commitBodyWith(readFixture("commit-message-lists.html")));
-  // Short enough that the message overflows the column.
-  await page.setViewportSize({ width: 1440, height: 300 });
+  await page.setViewportSize({ width: 1440, height: 900 });
 
   await page.goto(COMMIT_URL);
   const scroller = page.locator(".gh-prism-commit-column > .gh-prism-commit-message");
   await expect(scroller.locator(".gh-prism-commit-message-body > h1")).toBeVisible();
+  const mark = scroller.locator(".gh-prism-mark");
+  await expect(mark).toBeVisible();
 
-  await expect(page.locator(".gh-prism-commit-column > .gh-prism-mark")).toBeVisible();
   const layout = await scroller.evaluate((el) => {
-    const messageBox = el.getBoundingClientRect();
-    const markBox = el.parentElement
-      ?.querySelector(":scope > .gh-prism-mark")
-      ?.getBoundingClientRect();
+    const box = (selector: string) => el.querySelector(selector)?.getBoundingClientRect();
+    const markBox = box(".gh-prism-mark");
+    const switchBox = box(".gh-prism-commit-view-switch");
+    const bodyBox = box(".gh-prism-commit-message-body > :first-child");
+    const tip = getComputedStyle(el.querySelector(".gh-prism-mark") as Element, "::after");
+    if (!markBox || !switchBox || !bodyBox) return undefined;
     return {
-      overflows: el.scrollHeight > el.clientHeight,
-      markClear: !!markBox && markBox.top >= messageBox.top + el.clientTop + el.clientHeight,
+      beforeSwitch: markBox.right <= switchBox.left,
+      sameRow: markBox.top < switchBox.bottom && switchBox.top < markBox.bottom,
+      aboveBody: markBox.bottom <= bodyBox.top,
+      tipInside: markBox.top - 4 - Number.parseFloat(tip.height) >= el.getBoundingClientRect().top,
     };
   });
-  expect(layout).toEqual({ overflows: true, markClear: true });
+  expect(layout).toEqual({ beforeSwitch: true, sameRow: true, aboveBody: true, tipInside: true });
 });
 
 test("a hovered mark pulses through the section hues until the pointer leaves", async ({
@@ -373,7 +377,7 @@ test("a hovered mark pulses through the section hues until the pointer leaves", 
   await expect(
     page.locator(".gh-prism-commit-column .gh-prism-commit-message-body > h1"),
   ).toBeVisible();
-  const mark = page.locator(".gh-prism-commit-column > .gh-prism-mark");
+  const mark = page.locator(".gh-prism-commit-column .gh-prism-mark");
   await expect(mark).toBeVisible();
 
   // The fixture lacks GitHub's Primer sheet, which defines the hues.
@@ -468,7 +472,10 @@ test("a commit's message runs its prose under its controls, in the narrowest col
 
   const column = await layout();
 
-  expect(column.viewSwitch.top).toBe(column.hide.top);
+  const mark = await page.locator(".gh-prism-commit-column .gh-prism-mark").boundingBox();
+  expect(mark?.x).toBe(column.message.left + 24);
+  expect(mark && mark.y + mark.height).toBeGreaterThan(column.viewSwitch.top);
+  expect(mark?.y).toBeLessThan(column.viewSwitch.bottom);
   expect(column.viewSwitch.left).toBeGreaterThanOrEqual(column.message.left + 24);
   expect(column.hide.right).toBe(column.message.right - 24);
   expect(column.title.top).toBeGreaterThanOrEqual(column.hide.bottom);
@@ -2795,7 +2802,7 @@ test("a code owner's long folder paths break only after a slash, in a wider card
   await page.locator('[id="codeowner-excessive-dev/frontend"]').hover();
   await expect(card).toBeVisible();
   await card.evaluate((element) =>
-    Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)),
+    Promise.all(element.getAnimations().map((animation) => animation.finished)),
   );
 
   const { boxSizing, width } = await card.evaluate((element) => ({
@@ -2838,7 +2845,7 @@ test("a code owner's files sit indented below their folder after another sheet m
   // earlier sheet's longhands.
   await page.addStyleTag({ content: ".tw\\:p-0 { padding: 0; } .tw\\:m-0 { margin: 0; }" });
   await card.evaluate((element) =>
-    Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)),
+    Promise.all(element.getAnimations().map((animation) => animation.finished)),
   );
 
   const folder = await card.getByText("api/generated/", { exact: true }).boundingBox();
@@ -2856,7 +2863,7 @@ test("a code owner's files card stays inside a narrow viewport", async ({ contex
   await page.locator('[id="codeowner-excessive-dev/frontend"]').hover();
   await expect(card).toBeVisible();
   await card.evaluate((element) =>
-    Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)),
+    Promise.all(element.getAnimations().map((animation) => animation.finished)),
   );
 
   const { left, right, innerWidth } = await card.evaluate((element) => ({
