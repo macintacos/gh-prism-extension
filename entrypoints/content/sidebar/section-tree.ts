@@ -53,8 +53,8 @@ const SHIELDED_FOLDER: RowDecoration = { text: "", shield: SHIELD };
 
 const ROW_HEIGHT = 28;
 
-// Two-tone like the library's file glyphs. section-tree.css shows the folder's open shape on
-// expanded rows.
+// Two-tone like the library's file glyphs; the Pkl glyph redraws pkl-lang.org's logo.
+// section-tree.css shows the folder's open shape on expanded rows.
 const ICON_SPRITE = `<svg data-icon-sprite aria-hidden="true" width="0" height="0">
   <symbol id="gh-prism-folder" viewBox="0 0 16 16">
     <g class="gh-prism-folder-closed">

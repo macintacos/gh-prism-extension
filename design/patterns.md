@@ -41,6 +41,15 @@ Only then does the row drop whole decoration parts, leading ones first, never cl
 mid-word. The row's title and accessible name still carry every part.
 `sidebar/section-tree.css` holds the layout.
 
+Where the `@pierre/trees` set draws a language as a plain file, gh-prism draws its own
+glyph. The glyph is a 16px redraw of the language's logo in the library's two tones, kept
+in `ICON_SPRITE` (`sidebar/section-tree.ts`). The main shape fills with `currentColor`, a
+secondary shape sits at `.4` opacity, and cut-outs use `fill-rule="evenodd"`. Its colour
+is the library palette hue nearest the language's brand colour. A rule in
+`sidebar/section-tree.css` sets it the way the library sets its own:
+`var(--trees-file-icon-color, var(--trees-icon-<hue>))`. Copy the Java, TOML, and Pkl
+entries in `ICON_SPRITE` and their colour rules.
+
 An owned file's icon gives way to a shield while its row is hovered or focused, as a
 folder's icon gives way to its chevron. The shield is Octicons `shield-lock`, muted at
 rest and `--fgColor-default` on hover. Resting the pointer on it opens a popover listing

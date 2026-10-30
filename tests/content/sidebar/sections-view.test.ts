@@ -304,7 +304,7 @@ describe("showSections", () => {
   });
 
   it("draws a Pkl file with gh-prism's Pkl icon", async () => {
-    addNativeFile("config/app.pkl", "Cargo.toml");
+    addNativeFile("config/app.pkl", "config/app.toml");
     await afterDebounce();
 
     const use = rowIn("config", "config/app.pkl").querySelector('[data-item-section="icon"] use');
