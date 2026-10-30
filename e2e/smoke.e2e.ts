@@ -9,6 +9,7 @@ import {
   type Page,
 } from "@playwright/test";
 import { commitPage } from "../entrypoints/content/files-page";
+import { LANGUAGE_ICONS } from "../entrypoints/content/sidebar/language-icons";
 
 const EXTENSION = join(import.meta.dirname, "../.output/chrome-mv3");
 const PR_URL = "https://github.com/o/r/pull/1/changes";
@@ -1440,6 +1441,42 @@ test("each file's icon takes its type's color in the page's color scheme", async
   expect(onDarkOs).toEqual(onLightOs);
   expect(onDarkOs.font).not.toBeNull();
   expect(onDarkOs.font).toBe(onDarkOs.fontSpan);
+});
+
+test("each of gh-prism's own file glyphs takes a color of its own", async ({ context, page }) => {
+  const extensions = Object.keys(LANGUAGE_ICONS);
+  const rows = extensions
+    .map(
+      (ext) =>
+        `<li role="treeitem" id="x.${ext}" aria-level="1" aria-label="x.${ext}" aria-selected="false"><div class="PRIVATE_TreeView-item-visual"><svg class="octicon octicon-file-added"></svg></div><a href="#diff-${ext}">x.${ext}</a></li>`,
+    )
+    .join("");
+  await serve(context, PR_URL, PR_BODY.replace(TREE_OPEN, `${TREE_OPEN}${rows}`));
+  await page.goto(PR_URL);
+  await expect(page.locator(`[data-item-path="x.${extensions.at(-1)}"]`)).toBeVisible();
+
+  const icons = await page.evaluate(
+    (paths) =>
+      paths.map((path) => {
+        const icon = [...document.querySelectorAll(".gh-prism-tree")]
+          .map((host) =>
+            host.shadowRoot?.querySelector(`[data-item-path="${path}"] [data-item-section="icon"]`),
+          )
+          .find((found) => found);
+        const svg = icon?.querySelector("svg");
+        return {
+          href: svg?.querySelector("use")?.getAttribute("href"),
+          color: svg ? getComputedStyle(svg).color : null,
+          spanColor: icon ? getComputedStyle(icon).color : null,
+        };
+      }),
+    extensions.map((ext) => `x.${ext}`),
+  );
+
+  for (const [i, glyph] of Object.values(LANGUAGE_ICONS).entries()) {
+    expect(icons[i]?.href, extensions[i]).toBe(`#${glyph}`);
+    expect(icons[i]?.color, extensions[i]).not.toBe(icons[i]?.spanColor);
+  }
 });
 
 /**

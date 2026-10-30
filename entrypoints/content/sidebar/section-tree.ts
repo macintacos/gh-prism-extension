@@ -9,6 +9,7 @@ import {
 import { el } from "../ui/dom";
 import { followReveals } from "../ui/reveal";
 import { chainRule, fitChain } from "./chain-fit";
+import { LANGUAGE_ICONS } from "./language-icons";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./section-tree.css?inline";
 
@@ -53,8 +54,8 @@ const SHIELDED_FOLDER: RowDecoration = { text: "", shield: SHIELD };
 
 const ROW_HEIGHT = 28;
 
-// Two-tone like the library's file glyphs. section-tree.css shows the folder's open shape on
-// expanded rows.
+// Two-tone like the library's file glyphs; the Pkl glyph redraws pkl-lang.org's logo.
+// section-tree.css shows the folder's open shape on expanded rows.
 const ICON_SPRITE = `<svg data-icon-sprite aria-hidden="true" width="0" height="0">
   <symbol id="gh-prism-folder" viewBox="0 0 16 16">
     <g class="gh-prism-folder-closed">
@@ -73,6 +74,14 @@ const ICON_SPRITE = `<svg data-icon-sprite aria-hidden="true" width="0" height="
   <symbol id="gh-prism-toml" viewBox="0 0 16 16">
     <path fill="none" stroke="currentColor" stroke-width="1.5" opacity=".4" d="M4.5 2.25h-2.25v11.5h2.25M11.5 2.25h2.25v11.5h-2.25"/>
     <path fill="currentColor" d="M5 4h6v1.75h-2.12v6.25h-1.76v-6.25h-2.12z"/>
+  </symbol>
+  <symbol id="gh-prism-pkl" viewBox="0 0 16 16">
+    <path fill="currentColor" fill-rule="evenodd" d="M6.71 2.14L7.05 .46L8.95 .46L9.29 2.14L10.78 2.68L12.12 1.61L13.58 2.84L12.75 4.34L13.55 5.71L15.26 5.75L15.59 7.63L13.99 8.25L13.72 9.81L15.01 10.95L14.05 12.59L12.43 12.05L11.21 13.07L11.47 14.76L9.68 15.41L8.79 13.95L7.21 13.95L6.32 15.41L4.53 14.76L4.79 13.07L3.57 12.05L1.95 12.59L.99 10.95L2.28 9.81L2.01 8.25L.41 7.63L.74 5.75L2.45 5.71L3.25 4.34L2.42 2.84L3.88 1.61L5.22 2.68zM4 8a4 4 0 1 0 8 0a4 4 0 1 0-8 0z"/>
+    <g fill="currentColor" opacity=".4">
+      <ellipse cx="8" cy="6.1" rx="1.6" ry="1"/>
+      <ellipse cx="8" cy="6.1" rx="1.6" ry="1" transform="rotate(120 8 8)"/>
+      <ellipse cx="8" cy="6.1" rx="1.6" ry="1" transform="rotate(240 8 8)"/>
+    </g>
   </symbol>
 </svg>`;
 
@@ -476,15 +485,6 @@ const ECOSYSTEM_ICONS = {
   "bunfig.toml": "file-tree-builtin-bun",
   ".prettierrc.toml": "file-tree-builtin-prettier",
 };
-
-/**
- * Languages the complete set draws as a plain file, drawn with gh-prism's own glyph from
- * ICON_SPRITE. An extension here outranks the set's own file names, so ECOSYSTEM_ICONS pins
- * each file the set draws by name under it, such as `bunfig.toml`, to the set's glyph; recheck
- * those names on a @pierre/trees upgrade. A glyph new to this map needs a color rule in
- * section-tree.css.
- */
-const LANGUAGE_ICONS = { java: "gh-prism-java", toml: "gh-prism-toml" };
 
 /** A tree of `files`, every directory open, that asks `decorationOf` for each row's decoration. */
 function fileTreeOf(
