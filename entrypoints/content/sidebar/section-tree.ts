@@ -9,6 +9,7 @@ import {
 import { el } from "../ui/dom";
 import { followReveals } from "../ui/reveal";
 import { chainRule, fitChain } from "./chain-fit";
+import { LANGUAGE_ICONS } from "./language-icons";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./section-tree.css?inline";
 
@@ -484,15 +485,6 @@ const ECOSYSTEM_ICONS = {
   "bunfig.toml": "file-tree-builtin-bun",
   ".prettierrc.toml": "file-tree-builtin-prettier",
 };
-
-/**
- * Languages the complete set draws as a plain file, drawn with gh-prism's own glyph from
- * ICON_SPRITE. An extension here outranks the set's own file names, so ECOSYSTEM_ICONS pins
- * each file the set draws by name under it, such as `bunfig.toml`, to the set's glyph; recheck
- * those names on a @pierre/trees upgrade. A glyph new to this map needs a color rule in
- * section-tree.css.
- */
-const LANGUAGE_ICONS = { java: "gh-prism-java", toml: "gh-prism-toml", pkl: "gh-prism-pkl" };
 
 /** A tree of `files`, every directory open, that asks `decorationOf` for each row's decoration. */
 function fileTreeOf(

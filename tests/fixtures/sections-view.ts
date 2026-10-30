@@ -86,6 +86,14 @@ export function rowIn(listing: string, path: string): HTMLElement {
   return found;
 }
 
+/** The id of the sprite symbol the icon of `listing`'s row for `path` draws. */
+export function iconOf(listing: string, path: string): string | undefined {
+  const href = rowIn(listing, path)
+    .querySelector('[data-item-section="icon"] use')
+    ?.getAttribute("href");
+  return hostOf(listing).shadowRoot?.querySelector(`symbol${href}`)?.id;
+}
+
 export function shieldOf(listing: string, path: string): HTMLElement {
   const shield = hostOf(listing).shadowRoot?.querySelector<HTMLElement>(
     `[data-item-shield="${path}"]`,

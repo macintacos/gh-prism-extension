@@ -14,6 +14,7 @@ import {
   countIn,
   filesOf,
   hostOf,
+  iconOf,
   partTexts,
   patchShadowActiveElement,
   press,
@@ -253,11 +254,7 @@ describe("showSections", () => {
   });
 
   it("draws each directory as a folder", () => {
-    const icon = rowIn("implementation", "src/").querySelector('[data-item-section="icon"] use');
-    const symbol = treeHost("implementation").shadowRoot?.querySelector(
-      `symbol${icon?.getAttribute("href")}`,
-    );
-    expect(symbol?.id).toMatch(/folder/);
+    expect(iconOf("implementation", "src/")).toMatch(/folder/);
   });
 
   it("draws each file with its type's icon", async () => {
@@ -272,47 +269,28 @@ describe("showSections", () => {
   });
 
   it("draws a manifest with its ecosystem's icon", () => {
-    const use = rowIn("config", "Cargo.toml").querySelector('[data-item-section="icon"] use');
-    const symbol = treeHost("config").shadowRoot?.querySelector(
-      `symbol${use?.getAttribute("href")}`,
-    );
-
-    expect(symbol?.id).toBe("file-tree-builtin-rust");
+    expect(iconOf("config", "Cargo.toml")).toBe("file-tree-builtin-rust");
   });
 
   it("draws a Java file with gh-prism's Java icon", async () => {
     addNativeFile("src/Main.java", "src/lib.rs");
     await afterDebounce();
 
-    const use = rowIn("implementation", "src/Main.java").querySelector(
-      '[data-item-section="icon"] use',
-    );
-    const symbol = treeHost("implementation").shadowRoot?.querySelector(
-      `symbol${use?.getAttribute("href")}`,
-    );
-
-    expect(symbol?.id).toBe("gh-prism-java");
+    expect(iconOf("implementation", "src/Main.java")).toBe("gh-prism-java");
   });
 
   it("draws a TOML file with gh-prism's TOML icon", () => {
-    const use = rowIn("config", "config/app.toml").querySelector('[data-item-section="icon"] use');
-    const symbol = treeHost("config").shadowRoot?.querySelector(
-      `symbol${use?.getAttribute("href")}`,
-    );
-
-    expect(symbol?.id).toBe("gh-prism-toml");
+    expect(iconOf("config", "config/app.toml")).toBe("gh-prism-toml");
   });
 
-  it("draws a Pkl file with gh-prism's Pkl icon", async () => {
-    addNativeFile("config/app.pkl", "config/app.toml");
+  it.each([
+    ["config", "config/app.pkl"],
+    ["implementation", "config/app.pcf"],
+  ])("draws %s's %s with gh-prism's Pkl icon", async (section, path) => {
+    addNativeFile(path, "config/app.toml");
     await afterDebounce();
 
-    const use = rowIn("config", "config/app.pkl").querySelector('[data-item-section="icon"] use');
-    const symbol = treeHost("config").shadowRoot?.querySelector(
-      `symbol${use?.getAttribute("href")}`,
-    );
-
-    expect(symbol?.id).toBe("gh-prism-pkl");
+    expect(iconOf(section, path)).toBe("gh-prism-pkl");
   });
 
   it.each([
@@ -322,12 +300,7 @@ describe("showSections", () => {
     addNativeFile(path, "Cargo.toml");
     await afterDebounce();
 
-    const use = rowIn("config", path).querySelector('[data-item-section="icon"] use');
-    const symbol = treeHost("config").shadowRoot?.querySelector(
-      `symbol${use?.getAttribute("href")}`,
-    );
-
-    expect(symbol?.id).toBe(icon);
+    expect(iconOf("config", path)).toBe(icon);
   });
 
   describe("a section's header", () => {
