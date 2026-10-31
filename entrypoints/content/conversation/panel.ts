@@ -9,8 +9,10 @@ import type { PrRef } from "@/utils/github/pr-ref";
 import { type FilesPage, findFilesToolbar } from "../files-page";
 import { type ColumnWidthChoice, columnSeparator, fitsColumn } from "../ui/column-width";
 import { el, icon, isEditable, X_ICON } from "../ui/dom";
+import { keycap } from "../ui/keycap";
 import { prismMark } from "../ui/mark";
-import { CONVERSATION_ESCAPE, isFrameMessage } from "./frame-messages";
+import { toggleKeyInit, toggleKeyOf } from "../ui/toggle-keys";
+import { CONVERSATION_ESCAPE, CONVERSATION_KEY, isFrameMessage } from "./frame-messages";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./panel.css?inline";
 
@@ -208,6 +210,15 @@ export function conversationPanel(
   doc.addEventListener("pointerup", forgetPress, { signal: visit });
   doc.addEventListener("pointercancel", forgetPress, { signal: visit });
   followFrameMessages(doc, () => frame, dismiss, visit);
+  doc.addEventListener(
+    "keydown",
+    (event) => {
+      if (toggleKeyOf(event) !== "Shift+\\") return;
+      event.preventDefault();
+      panel.toggle();
+    },
+    { capture: true, signal: visit },
+  );
   if (choice.open) restore();
   return panel;
 }
@@ -405,8 +416,9 @@ function dismissOnOutsidePointer(
 }
 
 /**
- * Takes the frame's messages until `signal` aborts: a relayed Escape closes the panel, and a
- * leaving link loads in the page. Only the panel's own frame, from GitHub's origin, is heard.
+ * Takes the frame's messages until `signal` aborts: a relayed Escape closes the panel, a relayed
+ * toggle key is pressed on the page, and a leaving link loads in the page. Only the panel's own
+ * frame, from GitHub's origin, is heard.
  */
 function followFrameMessages(
   doc: Document,
@@ -421,6 +433,11 @@ function followFrameMessages(
       if (!frameWindow || event.source !== frameWindow || event.origin !== ORIGIN) return;
       if (!isFrameMessage(event.data)) return;
       if (event.data.type === CONVERSATION_ESCAPE) close();
+      // Pressed again on the page, for whichever of its handlers takes the key.
+      else if (event.data.type === CONVERSATION_KEY)
+        doc.body.dispatchEvent(
+          new KeyboardEvent("keydown", { bubbles: true, ...toggleKeyInit(event.data.key) }),
+        );
       else follow(doc, event.data.href);
     },
     { signal },
@@ -456,14 +473,19 @@ export function showConversationButton(
   if (!toolbar) return;
   const doc = toolbar.ownerDocument;
 
+  // Primer's small invisible Button: the icon, then the keycap, as Older and Newer hold theirs.
   const button = el(
     doc,
     "button",
-    "gh-prism-conversation-button tw:relative tw:shrink-0 tw:inline-grid tw:place-content-center tw:size-[var(--control-small-size,28px)] tw:p-0 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-iconColor-rest)] tw:[font:inherit] tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:hover:text-[color:var(--button-invisible-iconColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
-    icon(doc, COMMENT_DISCUSSION, {}),
+    "gh-prism-conversation-button tw:relative tw:shrink-0 tw:inline-flex tw:items-center tw:gap-1 tw:h-[var(--control-small-size,28px)] tw:px-2 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-fgColor-rest)] tw:[font-family:var(--fontStack-sansSerif)] tw:text-body-small tw:font-medium tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
+    icon(doc, COMMENT_DISCUSSION, {
+      class: "tw:text-[color:var(--button-invisible-iconColor-rest)]",
+    }),
+    keycap(doc, "\\", { shift: true }),
   );
   button.type = "button";
   button.setAttribute("aria-label", "Conversation");
+  button.setAttribute("aria-keyshortcuts", "Shift+\\");
   button.addEventListener("click", () => panel.toggle());
 
   // A DOM clone of the toolbar, such as a restored snapshot, can carry an earlier button.

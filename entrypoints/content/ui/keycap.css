@@ -1,0 +1,8 @@
+/* No GitHub hooks: every rule selects only gh-prism's own classes. */
+
+/* A touch screen has no keyboard to press the key on. */
+@media (hover: none) and (pointer: coarse) {
+  .gh-prism-key {
+    display: none;
+  }
+}

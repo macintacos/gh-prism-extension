@@ -6,6 +6,42 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-30: `\` and Shift+\ for the file tree and the Conversation panel, with keycaps
+
+- **Compared:**
+  - for the keys, the maintainer's `\` for the file tree and Shift+\ for the Conversation
+    panel, against no keys;
+  - for the Conversation button, the 28px icon button as it was, with the key only in its
+    tooltip, or Primer's small invisible Button holding the icon and then the keycap;
+  - for the tree toggle's keycap, a child of GitHub's button, or gh-prism's own `<kbd>`
+    beside it at the toolbar's 8px gap or 4px closer, in the button's colour or muted.
+- **Won:**
+  - `\` toggles the file tree and Shift+\ the Conversation panel, matched as `event.key`
+    `"\"` without Shift and `"|"` with Shift held.
+  - The Conversation button is Primer's small invisible Button: the icon, a 4px gap, then
+    the keycap reading "⇧\", 28px tall like the toolbar's other controls. Its tooltip
+    reads "Conversation (Shift+\)".
+  - The tree toggle's keycap is gh-prism's own `<kbd>` after GitHub's toggle, 4px closer
+    than the toolbar's gap, centred on the toggle, in `--fgColor-muted`, taking no
+    pointer. Docked right, and on a commit's toolbar, it takes the toggle's place in the
+    reordered row, so it still follows the toggle.
+- **Why:**
+  - The maintainer asked for these keys and keycaps at the hand check.
+  - Both keys are free. Checked with gh-prism not loaded, signed in, on
+    macintacos/gh-prism-sandbox's Files changed tab, a commit page, and the Conversation
+    tab: neither key moved focus, opened a dialog, or fired a hotkey, and no `data-hotkey`
+    holds `\` or `|`.
+  - Shift+\ types `|` on US and UK layouts, so `event.key` is `|`, not `\`. Matching `|`
+    with Shift held reads the key the reader pressed, and `\` without Shift keeps the two
+    keys apart.
+  - A child of GitHub's button would mutate what React renders. Beside it, the keycap
+    survives React's re-renders and reads as the toggle's because it sits closer than the
+    gap to the next control. Muted matches the toggle's icon, so the pair reads as one.
+- **Known limits:** GitHub's tooltip on the tree toggle doesn't name the key, because
+  gh-prism doesn't change GitHub's tooltips. Assistive technology hears it from
+  `aria-keyshortcuts`. A live check confirmed the attribute stays on GitHub's toggle after
+  four collapses and expands.
+
 ## 2026-10-30: The pinned Conversation panel moves the page with it
 
 - **Compared:** for opening, closing, pinning, and unpinning the pinned panel, the page's

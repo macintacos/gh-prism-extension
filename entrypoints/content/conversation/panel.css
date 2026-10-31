@@ -2,11 +2,13 @@
 @import "../ui/tailwind.css" prefix(tw);
 @import "../ui/column-width.css";
 @import "../ui/mark.css";
+@import "../ui/keycap.css";
 @source "./panel.ts";
+@source "../ui/keycap.ts";
 
 /* Primer's tooltip, opening rightward from the toolbar's start. */
 .gh-prism-conversation-button::after {
-  content: attr(aria-label);
+  content: attr(aria-label) " (" attr(aria-keyshortcuts) ")";
   position: absolute;
   top: calc(100% + 4px);
   inset-inline-start: 0;

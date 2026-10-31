@@ -15,6 +15,8 @@ import {
 } from "../files-page";
 import { el, icon } from "../ui/dom";
 import { glide, glides } from "../ui/glide";
+import { keycap } from "../ui/keycap";
+import { toggleKeyOf } from "../ui/toggle-keys";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./side.css?inline";
 
@@ -71,6 +73,39 @@ function glideTreeToggle(page: FilesPage, toggle: Element, signal: AbortSignal):
     },
     { capture: true, signal },
   );
+}
+
+/**
+ * Clicks the shown one of GitHub's tree toggles on `\`, as a reviewer's click would, so the
+ * glide and GitHub's handler both run, until `signal` aborts. Names the key on each toggle, an
+ * attribute React doesn't own.
+ */
+function followTreeKey(page: FilesPage, toggle: Element, signal: AbortSignal): void {
+  const doc = page.sidebar.ownerDocument;
+  const buttons = () => [...toggle.querySelectorAll<HTMLElement>("button")];
+  for (const button of buttons()) button.setAttribute("aria-keyshortcuts", "\\");
+
+  doc.addEventListener(
+    "keydown",
+    (event) => {
+      if (toggleKeyOf(event) !== "\\") return;
+      // The regular toggle first: the narrow layout hides it and shows its overlay toggle instead.
+      const shown = buttons()
+        .sort(
+          (a, b) =>
+            Number(b.matches(page.kind.treeToggleButton)) -
+            Number(a.matches(page.kind.treeToggleButton)),
+        )
+        .find((button) => getComputedStyle(button).display !== "none");
+      if (!shown) return;
+      event.preventDefault();
+      shown.click();
+    },
+    { capture: true, signal },
+  );
+  signal.addEventListener("abort", () => {
+    for (const button of buttons()) button.removeAttribute("aria-keyshortcuts");
+  });
 }
 
 /** Whether a Primer start pane's divider sits at the pane's left, where only docking right puts it. */
@@ -159,15 +194,21 @@ export function dockSidebar(
     save(choice.side);
   });
 
+  const cap = keycap(doc, "\\", { shift: false });
+  cap.classList.add("gh-prism-tree-key");
+
   // A DOM clone of the toolbar, such as a restored snapshot, can carry an earlier switch.
-  for (const stale of doc.querySelectorAll(".gh-prism-side-switch")) stale.remove();
+  for (const stale of doc.querySelectorAll(".gh-prism-side-switch, .gh-prism-tree-key"))
+    stale.remove();
   dock(choice.side);
-  toggle.after(button);
+  toggle.after(cap, button);
   glideTreeToggle(page, toggle, signal);
+  followTreeKey(page, toggle, signal);
   mirrorPaneDrag(doc, signal);
   doc.head.append(style);
   signal.addEventListener("abort", () => {
     button.remove();
+    cap.remove();
     style.remove();
     delete root.dataset.ghPrismSide;
   });

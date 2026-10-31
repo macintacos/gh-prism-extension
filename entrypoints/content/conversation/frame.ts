@@ -1,14 +1,21 @@
 import { isConversationFrame } from "@/utils/github/conversation-frame";
 import { isEditable } from "../ui/dom";
+import { toggleKeyOf } from "../ui/toggle-keys";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./frame.css?inline";
-import { CONVERSATION_ESCAPE, CONVERSATION_LEAVE, type FrameMessage } from "./frame-messages";
+import {
+  CONVERSATION_ESCAPE,
+  CONVERSATION_KEY,
+  CONVERSATION_LEAVE,
+  type FrameMessage,
+} from "./frame-messages";
 
 const PARENT_ORIGIN = "https://github.com";
 
 /**
  * Dresses `win` when it is the Conversation panel's frame: hides GitHub's chrome, hands links
- * that leave the Conversation to the parent, and relays unhandled Escape. Does nothing elsewhere.
+ * that leave the Conversation to the parent, and relays unhandled Escape, `\`, and Shift+\. Does
+ * nothing elsewhere.
  */
 export function dressConversationFrame(win: Window): void {
   if (win.top === win || !isConversationFrame(new URL(win.location.href))) return;
@@ -37,6 +44,8 @@ export function dressConversationFrame(win: Window): void {
   doc.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !event.defaultPrevented && !isEditable(event.target))
       postToParent({ type: CONVERSATION_ESCAPE });
+    const key = event.defaultPrevented ? undefined : toggleKeyOf(event);
+    if (key) postToParent({ type: CONVERSATION_KEY, key });
   });
 }
 

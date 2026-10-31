@@ -7,7 +7,18 @@
    request's diffComparisonViewer container (this sheet names a commit's), and PageLayout's
    --region-order-pane-end custom property. */
 @import "../ui/tailwind.css" prefix(tw);
+@import "../ui/keycap.css";
 @source "./side.ts";
+@source "../ui/keycap.ts";
+
+/* The tree toggle's key: drawn closer to the toggle than the toolbar's gap, so it reads as the
+   toggle's, and muted like its icon. It is no control, so it takes no pointer. */
+.gh-prism-tree-key {
+  align-self: center;
+  margin-inline-start: calc(var(--base-size-4, 4px) * -1);
+  color: var(--fgColor-muted);
+  pointer-events: none;
+}
 
 /* Hidden until a rule below shows it: CSS, not tw:hidden, which a later sheet's copy would let
    outrank those rules. */
@@ -202,7 +213,8 @@ section[class*="toolbar__"]:has([class*="MobileTreeToggle"]) .gh-prism-side-swit
       margin-inline-start: auto;
     }
 
-    & :has(> [class*="RegularTreeToggle"]) {
+    & :has(> [class*="RegularTreeToggle"]),
+    & .gh-prism-tree-key {
       order: 2;
     }
 
@@ -228,7 +240,8 @@ section[class*="toolbar__"]:has([class*="MobileTreeToggle"]) .gh-prism-side-swit
 
   /* A commit's toolbar: the toggle and switch end it, after its full-width search. */
   [data-gh-prism-side="right"] #diff-content-parent {
-    & :has(> [aria-controls="diff_file_tree"]) {
+    & :has(> [aria-controls="diff_file_tree"]),
+    & .gh-prism-tree-key {
       order: 2;
     }
 

@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CONVERSATION_ESCAPE,
+  CONVERSATION_KEY,
   CONVERSATION_LEAVE,
 } from "../../../entrypoints/content/conversation/frame-messages";
 import {
@@ -23,6 +24,9 @@ const headOk = () =>
       new Response(null, { status: 200, headers: { "content-security-policy": POLICY } }),
   );
 
+// Every relayed key reaches each open panel's listeners, so a test's panel must end with it.
+const visits: AbortController[] = [];
+
 const closed = (): ConversationChoice => ({ open: false, pinned: false, width: 300 });
 
 function setup({
@@ -32,6 +36,7 @@ function setup({
   pr = PR,
 } = {}) {
   const visit = new AbortController();
+  visits.push(visit);
   const savePinned = vi.fn();
   const saveWidth = vi.fn();
   const panel = conversationPanel(document, {
@@ -91,6 +96,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  for (const visit of visits.splice(0)) visit.abort();
   vi.restoreAllMocks();
   document.head.innerHTML = "";
 });
@@ -264,7 +270,99 @@ describe("dismissing the overlay", () => {
   });
 });
 
+describe("Shift+\\", () => {
+  const pressShiftBackslash = (target: EventTarget = document.body, init: KeyboardEventInit = {}) =>
+    target.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "|", shiftKey: true, bubbles: true, ...init }),
+    );
+
+  it("opens the panel, moving focus into it, and closes it, returning focus to the button", () => {
+    const { panel } = setup();
+    const control = mountButton(panel);
+
+    pressShiftBackslash();
+    const focusedOpen = document.activeElement;
+    pressShiftBackslash();
+
+    expect(focusedOpen).toBe(aside());
+    expect(panel.open).toBe(false);
+    expect(document.activeElement).toBe(control);
+  });
+
+  it("closes a pinned panel, as the button does", () => {
+    setViewport(WIDE);
+    const { panel } = setup({ choice: { open: true, pinned: true, width: 300 } });
+    mountButton(panel);
+
+    pressShiftBackslash();
+
+    expect(panel.open).toBe(false);
+  });
+
+  it("is left alone in a field, with a modifier, or on a repeat", () => {
+    const { panel } = setup();
+    mountButton(panel);
+    const field = document.body.appendChild(document.createElement("textarea"));
+
+    pressShiftBackslash(field);
+    pressShiftBackslash(document.body, { metaKey: true });
+    pressShiftBackslash(document.body, { repeat: true });
+
+    expect(panel.open).toBe(false);
+  });
+
+  it("stops once the visit ends", () => {
+    const { panel, visit } = setup();
+    mountButton(panel);
+    visit.abort();
+
+    pressShiftBackslash();
+
+    expect(panel.open).toBe(false);
+  });
+
+  it("is named on the button for assistive technology, and shown on it as a hidden keycap", () => {
+    const { panel } = setup();
+    const control = mountButton(panel);
+
+    expect(control?.getAttribute("aria-keyshortcuts")).toBe("Shift+\\");
+    const key = control?.querySelector("kbd");
+    expect(key?.textContent).toBe("⇧\\");
+    expect(key?.getAttribute("aria-hidden")).toBe("true");
+    expect(control?.lastElementChild).toBe(key);
+  });
+});
+
 describe("messages from the frame", () => {
+  it("closes on a Shift+\\ the frame relays", () => {
+    const { panel } = setup();
+    mountButton(panel)?.click();
+
+    post({ type: CONVERSATION_KEY, key: "Shift+\\" });
+
+    expect(panel.open).toBe(false);
+  });
+
+  it("presses a relayed \\ on the page, for the tree's key to take", () => {
+    const { panel } = setup();
+    mountButton(panel)?.click();
+    const keys: string[] = [];
+    document.addEventListener("keydown", (event) => keys.push(event.key));
+
+    post({ type: CONVERSATION_KEY, key: "\\" });
+
+    expect(keys).toEqual(["\\"]);
+  });
+
+  it("ignores a relayed key from another window", () => {
+    const { panel } = setup();
+    mountButton(panel)?.click();
+
+    post({ type: CONVERSATION_KEY, key: "Shift+\\" }, { source: window });
+
+    expect(panel.open).toBe(true);
+  });
+
   it("closes on an Escape the frame relays", () => {
     const { panel } = setup();
     mountButton(panel)?.click();

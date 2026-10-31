@@ -157,9 +157,29 @@ Conversation, the frame posts its URL, and the panel clicks a temporary link to 
 page, so GitHub's router can take it without a reload. A link to the same pull request,
 such as a comment's permalink, only moves the frame's hash, so the panel stays put.
 
+Shift+\ toggles the panel as the toolbar button does, and the button shows the key as a
+keycap. `panel.ts` listens for it on the document, in the capture phase, until the visit
+aborts. `toggleKeyOf` in [`ui/toggle-keys.ts`](../entrypoints/content/ui/toggle-keys.ts)
+reads the key: Shift held with `event.key === "|"`, because Shift+\ types `|` on US and UK
+layouts, and `event.key === "\\"` without Shift for the tree key. It ignores a key typed
+into a field, a key pressed with Alt, Ctrl, or Meta, and a held key's repeats.
+
+A key pressed inside the frame never reaches the top page, so the frame relays `\` and
+Shift+\ to it. It relays only a key whose event GitHub didn't `preventDefault`, and never
+one typed into a field. The panel then dispatches the same keydown on the page, where the
+panel's listener and the file tree's key take it.
+
+That tree key is `\`, which `dockSidebar` in
+[`sidebar/side.ts`](../entrypoints/content/sidebar/side.ts) binds on a pull request and a
+commit alike. It clicks whichever of GitHub's tree toggles is shown: the regular one, or
+the narrow layout's overlay toggle. The click runs the tree's glide and GitHub's handler,
+as a reader's click does. gh-prism shows the key as its own keycap beside the toggle,
+because a sibling moves and mutates nothing React renders, and sets `aria-keyshortcuts` on
+GitHub's toggles, an attribute React doesn't own.
+
 These close the overlay:
 
-- the toolbar button or the panel's ✕;
+- the toolbar button, its Shift+\, or the panel's ✕;
 - Escape on the page, or an Escape the frame relays;
 - a pointerdown outside the panel and its button.
 
@@ -356,11 +376,12 @@ from the map with no request. So Older then Newer returns to where the reader st
 as long as the tab's content script runs; a full reload clears the map.
 
 Shift+J follows Older and Shift+K follows Newer. Each link names its key in
-`aria-keyshortcuts` and shows it as a keycap that GitHub's own `kbd` rule draws.
-`showStepLinks` listens for `keydown` on the document, in the capture phase as the `j` and
-`k` file keys do, until the visit aborts. It clicks the link whose `aria-keyshortcuts`
-matches the key, so GitHub's router follows it as it follows a click. It ignores a key
-pressed in a text field, which `isEditable` in
+`aria-keyshortcuts` and shows it as a keycap that GitHub's own `kbd` rule draws. `keycap`
+in [`ui/keycap.ts`](../entrypoints/content/ui/keycap.ts) builds it, and the Conversation
+button and the tree toggle use it too. `showStepLinks` listens for `keydown` on the
+document, in the capture phase as the `j` and `k` file keys do, until the visit aborts. It
+clicks the link whose `aria-keyshortcuts` matches the key, so GitHub's router follows it
+as it follows a click. It ignores a key pressed in a text field, which `isEditable` in
 [`ui/dom.ts`](../entrypoints/content/ui/dom.ts) detects for both the step links and the
 file keys. It also ignores a key pressed with Alt, Ctrl, or Meta, a held key's repeats, a
 capital letter typed without Shift, and a held-off link. The file keys compare `event.key`

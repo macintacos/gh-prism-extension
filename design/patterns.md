@@ -129,21 +129,38 @@ hover alone, since the mark takes no focus. Inside the header counter's tooltips
 take no pointer, the mark's own tooltip never opens.
 
 A control that takes a key names it in its tooltip, after the action's name, and sets
-`aria-keyshortcuts`, so assistive technology announces the key. Older and Newer beside a
-commit's SHA are the controls that take keys so far: Shift+J and Shift+K. Their tooltips
-name the key in words, as "Older commit: 9eb4db2 (Shift+J)", and only while the link goes
-somewhere, because a held-off link's key does nothing.
+`aria-keyshortcuts`, so assistive technology announces the key. Three sets of controls
+take keys:
 
-Those two links also show their key at rest, as a keycap between the link's chevron and
-its label, so they read "‹ ⇧J Older" and "Newer ⇧K ›" (`exceptions.md` says why). The
-keycap is a `<kbd>` that GitHub's own `kbd` rule draws, the rule Markdown's `<kbd>`
+- Older and Newer beside a commit's SHA take Shift+J and Shift+K. Their tooltips name the
+  key in words, as "Older commit: 9eb4db2 (Shift+J)", and only while the link goes
+  somewhere, because a held-off link's key does nothing.
+- The Conversation button takes Shift+\. Its tooltip reads "Conversation (Shift+\)".
+- GitHub's file-tree toggle takes `\`. Its tooltip is GitHub's own, so only its
+  `aria-keyshortcuts` and keycap name the key.
+
+Each also shows its key at rest as a keycap (`exceptions.md` says why):
+
+- Older and Newer hold it between the link's chevron and its label, so they read "‹ ⇧J
+  Older" and "Newer ⇧K ›".
+- The Conversation button is Primer's small invisible Button holding its icon, then the
+  keycap, so it reads as the comment-discussion icon, then "⇧\".
+- The tree toggle's keycap is gh-prism's own `<kbd>` just after GitHub's toggle, not
+  inside it, because gh-prism inserts nothing into what React renders. It sits 4px closer
+  to the toggle than the toolbar's gap, in `--fgColor-muted` like the toggle's icon, and
+  takes no pointer. It follows the toggle when the sidebar docks right and the toolbar
+  reorders.
+
+The keycap is a `<kbd>` that GitHub's own `kbd` rule draws, the rule Markdown's `<kbd>`
 renders with: 11px monospace on `--bgColor-muted`, in a 1px `--borderColor-neutral-muted`
-border with a raised bottom edge and a 6px radius. It reads "⇧J", with the ⇧ set in
-GitHub's sans stack, because the monospace stack has no ⇧ and the browser's fallback draws
-it at half the letter's height. It takes the link's colour, so it dims with a held-off
-link. It is hidden from assistive technology, which announces the key from the link's
-`aria-keyshortcuts` instead. Devices with no hover and a coarse pointer, such as touch
-screens, never show it. `commit/step-links.ts` and `commit/step-links.css` build it.
+border with a raised bottom edge and a 6px radius. It reads a key such as "⇧J", with the ⇧
+set in GitHub's sans stack, because the monospace stack has no ⇧ and the browser's
+fallback draws it at half the letter's height. Inside a control, it takes the control's
+colour, so it dims with a held-off link; the tree toggle's keycap, beside its control,
+sets `--fgColor-muted`. It is hidden from assistive technology, which announces the key
+from the control's `aria-keyshortcuts` instead. Devices with no hover and a coarse
+pointer, such as touch screens, never show it. `keycap` in `ui/keycap.ts` builds it, and
+`ui/keycap.css`, which each control's sheet imports, hides it on touch screens.
 
 ## Switches
 

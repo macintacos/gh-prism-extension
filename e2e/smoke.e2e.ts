@@ -2079,7 +2079,7 @@ test("the overlay slides in from the right only beside the page, not as a fullsc
   await expect.poll(dialogAnimation).not.toBe("gh-prism-overlay-in");
 });
 
-test("the narrow layout shows the side switch beside its tree toggle", async ({
+test("the narrow layout shows the side switch beside its tree toggle and the toggle's keycap", async ({
   context,
   page,
 }) => {
@@ -2088,9 +2088,14 @@ test("the narrow layout shows the side switch beside its tree toggle", async ({
   await page.goto(PR_URL);
   const sideSwitch = page.locator(".gh-prism-side-switch");
   await expect(sideSwitch).toBeVisible();
+  await expect(page.locator(".gh-prism-tree-key")).toBeVisible();
   expect(
     await sideSwitch.evaluate(
-      (el) => el.previousElementSibling?.querySelector('[class*="MobileTreeToggle"]') != null,
+      (el) =>
+        el.previousElementSibling?.classList.contains("gh-prism-tree-key") &&
+        el.previousElementSibling.previousElementSibling?.querySelector(
+          '[class*="MobileTreeToggle"]',
+        ) != null,
     ),
   ).toBe(true);
 });
@@ -3222,6 +3227,69 @@ test("Escape inside the Conversation frame closes the overlay, handing focus bac
 
   await expect(page.locator("#gh-prism-conversation")).toBeHidden();
   await expect(conversationButton(page)).toBeFocused();
+});
+
+test("Shift+\\ opens the Conversation panel and closes it, from the page and from inside its frame, while a text field types it", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  await page.goto(PR_URL);
+  const panel = page.locator("#gh-prism-conversation");
+  const filter = page.getByRole("textbox", { name: /^Filter files/ });
+  await expect(conversationButton(page).locator("kbd")).toBeVisible();
+  expect(
+    await conversationButton(page).evaluate(
+      (button) => getComputedStyle(button, "::after").content,
+    ),
+  ).toContain("Shift+\\");
+
+  await filter.press("Shift+Backslash");
+  await expect(filter).toHaveValue("|");
+  await expect(panel).toBeHidden();
+
+  await filter.blur();
+  await page.keyboard.press("Shift+Backslash");
+  await expect(panel).toBeVisible();
+  await expect(panel).toBeFocused();
+
+  await page.keyboard.press("Shift+Backslash");
+  await expect(panel).toBeHidden();
+  await expect(conversationButton(page)).toBeFocused();
+
+  await page.keyboard.press("Shift+Backslash");
+  await page.frameLocator("#gh-prism-conversation iframe").locator("#conversation").click();
+  await page.keyboard.press("Shift+Backslash");
+  await expect(panel).toBeHidden();
+  await expect(conversationButton(page)).toBeFocused();
+});
+
+test("\\ presses GitHub's tree toggle, which shows it as a keycap, while a text field types it", async ({
+  context,
+  page,
+}) => {
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+  const toggle = page.locator('[class*="RegularTreeToggle"]');
+  const filter = page.getByRole("textbox", { name: /^Filter files/ });
+  await expect(page.locator(".gh-prism-tree-key")).toBeVisible();
+  await expect(toggle).toHaveAttribute("aria-keyshortcuts", "\\");
+  // A routed page runs none of GitHub's scripts, so the toggle's clicks are counted instead.
+  await toggle.evaluate((button) => {
+    button.addEventListener("click", () => {
+      button.dataset.clicks = String(Number(button.dataset.clicks ?? 0) + 1);
+    });
+  });
+
+  await filter.press("Backslash");
+  await expect(filter).toHaveValue("\\");
+
+  await filter.blur();
+  await page.keyboard.press("Backslash");
+  await expect(toggle).toHaveAttribute("data-clicks", "1");
+  await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-glide");
+  await page.keyboard.press("Backslash");
+  await expect(toggle).toHaveAttribute("data-clicks", "2");
 });
 
 test("a link in the Conversation frame that leaves the Conversation loads in the page", async ({

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { dressConversationFrame } from "../../../entrypoints/content/conversation/frame";
 import {
   CONVERSATION_ESCAPE,
+  CONVERSATION_KEY,
   CONVERSATION_LEAVE,
 } from "../../../entrypoints/content/conversation/frame-messages";
 import chrome from "../../fixtures/conversation-chrome.html?raw";
@@ -142,6 +143,36 @@ describe("dressConversationFrame", () => {
     document
       .querySelector("#reply")
       ?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(posted).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["\\", { key: "\\" }],
+    ["Shift+\\", { key: "|", shiftKey: true }],
+  ])("relays %s to the parent", (key, init) => {
+    const { win, posted } = frameWindow();
+    dressConversationFrame(win);
+    document.body.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, ...init }));
+    expect(posted).toHaveBeenCalledWith({ type: CONVERSATION_KEY, key }, "https://github.com");
+  });
+
+  it("leaves \\ and | typed into a comment box, or handled by GitHub, to the page", () => {
+    const { win, posted } = frameWindow();
+    dressConversationFrame(win);
+    const reply = document.querySelector("#reply");
+    const typed = new KeyboardEvent("keydown", {
+      key: "|",
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    reply?.dispatchEvent(typed);
+    reply?.dispatchEvent(new KeyboardEvent("keydown", { key: "\\", bubbles: true }));
+    document.body.addEventListener("keydown", (event) => event.preventDefault(), { once: true });
+    document.body.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "\\", bubbles: true, cancelable: true }),
+    );
+    expect(typed.defaultPrevented).toBe(false);
     expect(posted).not.toHaveBeenCalled();
   });
 });
