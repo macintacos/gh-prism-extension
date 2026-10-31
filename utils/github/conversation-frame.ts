@@ -1,4 +1,4 @@
-import type { Browser } from "wxt/browser";
+import { type Browser, browser } from "wxt/browser";
 import { isOwnerOrRepo } from "./pr-port";
 import type { PrRef } from "./pr-ref";
 
@@ -126,3 +126,50 @@ export function conversationFraming(rules: {
     forget: revoke,
   };
 }
+
+/** The slice of `browser.runtime.Port` the panel uses. */
+export interface ConversationFrameClientPort {
+  postMessage(message: unknown): void;
+  disconnect(): void;
+  onMessage: { addListener(listener: (message: unknown) => void): void };
+  onDisconnect: { addListener(listener: () => void): void };
+}
+
+/**
+ * Asks the service worker over a port from `connect` to let this tab's panel frame `pr` under
+ * `policy`, resolving whether it did. The port stays open, keeping the rule, until `signal` aborts.
+ */
+export function requestFraming(
+  connect: () => ConversationFrameClientPort,
+  pr: PrRef,
+  policy: string,
+  signal: AbortSignal,
+): Promise<boolean> {
+  const port = connect();
+  signal.addEventListener("abort", () => port.disconnect(), { once: true });
+  return new Promise((resolve) => {
+    port.onMessage.addListener((message) =>
+      resolve(
+        typeof message === "object" &&
+          message !== null &&
+          "allowed" in message &&
+          message.allowed === true,
+      ),
+    );
+    port.onDisconnect.addListener(() => resolve(false));
+    port.postMessage({ owner: pr.owner, repo: pr.repo, number: pr.number, policy });
+  });
+}
+
+/** `requestFraming` over the extension's own Conversation frame port. */
+export const allowConversationFrame = (
+  pr: PrRef,
+  policy: string,
+  signal: AbortSignal,
+): Promise<boolean> =>
+  requestFraming(
+    () => browser.runtime.connect({ name: CONVERSATION_FRAME_PORT }),
+    pr,
+    policy,
+    signal,
+  );

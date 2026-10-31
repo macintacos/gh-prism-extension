@@ -1,0 +1,174 @@
+/* GitHub hooks: [class*="toolbar__"], [class*="RegularTreeToggle"]. */
+@import "../ui/tailwind.css" prefix(tw);
+@import "../ui/mark.css";
+@source "./panel.ts";
+
+/* Below side.css's dock orders, 1 and 2, so the button stays first when the sidebar docks right. */
+section[class*="toolbar__"]:has([class*="RegularTreeToggle"]) > .gh-prism-conversation-button {
+  order: -1;
+}
+
+/* Primer's tooltip, opening rightward from the toolbar's start. */
+.gh-prism-conversation-button::after {
+  content: attr(aria-label);
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline-start: 0;
+  z-index: 100;
+  padding: 4px 8px;
+  border-radius: var(--borderRadius-medium);
+  background: var(--tooltip-bgColor);
+  color: var(--tooltip-fgColor);
+  font-size: var(--text-body-size-small);
+  font-weight: var(--base-text-weight-normal);
+  line-height: var(--text-body-lineHeight-small);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 120ms ease-out,
+    visibility 120ms;
+}
+
+.gh-prism-conversation-button:is(:hover, :focus-visible)::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* A floating surface along the left edge: its shadow's ring draws its one edge. */
+.gh-prism-conversation {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-start: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  width: min(var(--gh-prism-conversation-width, 480px), 100vw - 48px);
+  /* The framed Conversation's own canvas, so the header and frame read as one surface. */
+  background: var(--bgColor-default);
+  box-shadow: var(--shadow-floating-small);
+  color: var(--fgColor-default);
+  outline: none;
+  translate: 0;
+  transition:
+    translate 160ms ease-out,
+    display 160ms allow-discrete;
+}
+
+/* The author display above beats the user-agent sheet's [hidden]. */
+.gh-prism-conversation[hidden] {
+  display: none;
+  translate: -100%;
+}
+
+.gh-prism-conversation:not([hidden]) {
+  transition-duration: 280ms;
+  transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@starting-style {
+  .gh-prism-conversation:not([hidden]) {
+    translate: -100%;
+  }
+}
+
+.gh-prism-conversation:focus-visible {
+  outline: 2px solid var(--focus-outlineColor);
+  outline-offset: -2px;
+}
+
+.gh-prism-conversation-header {
+  box-shadow: 0 1px 0 var(--borderColor-default);
+}
+
+/* The header sits at the top edge, so the mark's tooltip opens below it. */
+.gh-prism-conversation-header > .gh-prism-mark::after {
+  top: calc(100% + 4px);
+  bottom: auto;
+}
+
+.gh-prism-conversation-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.gh-prism-conversation-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+
+[data-state="loaded"] .gh-prism-conversation-frame {
+  opacity: 1;
+}
+
+/* Over the frame until it loads; held back 150 ms so a quick load never flashes it. */
+.gh-prism-conversation-skeleton {
+  position: absolute;
+  inset: 0;
+  padding: 16px;
+  animation: gh-prism-conversation-appear 150ms ease-out 150ms backwards;
+}
+
+[data-state="loaded"] .gh-prism-conversation-skeleton {
+  display: none;
+}
+
+.gh-prism-conversation-skeleton > span {
+  display: block;
+  height: 10px;
+  margin: 9px 0;
+  border-radius: 5px;
+  background: var(--borderColor-muted);
+  animation: gh-prism-conversation-pulse 1.2s ease-in-out infinite alternate;
+}
+
+.gh-prism-conversation-skeleton > span:first-child {
+  width: 64%;
+  height: 16px;
+  margin: 4px 0 20px;
+  border-radius: 8px;
+}
+
+.gh-prism-conversation-skeleton > span:nth-child(2) {
+  width: 92%;
+}
+
+.gh-prism-conversation-skeleton > span:nth-child(3) {
+  width: 84%;
+}
+
+.gh-prism-conversation-skeleton > span:nth-child(4) {
+  width: 46%;
+}
+
+@keyframes gh-prism-conversation-appear {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes gh-prism-conversation-pulse {
+  to {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-prism-conversation,
+  .gh-prism-conversation:not([hidden]),
+  .gh-prism-conversation-frame,
+  .gh-prism-conversation-button::after {
+    transition: none;
+  }
+
+  .gh-prism-conversation-skeleton,
+  .gh-prism-conversation-skeleton > span {
+    animation: none;
+  }
+}

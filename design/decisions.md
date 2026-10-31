@@ -6,6 +6,45 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-30: The Conversation panel's overlay, button, loading, and failure
+
+- **Compared:**
+  - for the surface, a modal `<dialog>` like the code owner details dialog, or a fixed
+    `<aside>` on the floating-surface form;
+  - for the mark, the header's start, before the title, or its end, before ✕;
+  - for loading, the spectrum's loading view, or a skeleton like the commit message's;
+  - for the motion, a fade, or a slide from the left edge;
+  - for the button's name, one that flips with the state, as a switch's does, or one name
+    in both states;
+  - for failure, a notice sentence, or Chrome's error page left in the frame.
+- **Won:**
+  - A fixed `<aside>` on `--bgColor-default` with `--shadow-floating-small`, under a
+    header of the mark, "Conversation" in semibold, and ✕, ruled off by a hairline.
+    `--overlay-bgColor` was tried and dropped: in dark mode it set the header a shade off
+    the framed Conversation's own canvas, splitting the panel in two.
+  - The mark at the header's start, its tooltip opening downward.
+  - A skeleton of a title bar and three lines, which appears only if the frame hasn't
+    loaded 150 ms later, then pulses. The frame fades in over 150 ms once it loads.
+  - The panel slides in from the left on the Spatial row and back out on the State,
+    closing row. Under reduced motion it appears and disappears in place.
+  - On failure, one muted sentence: "The Conversation didn't load here. Open the
+    Conversation tab." The second sentence is the link.
+  - The toolbar button is the side switch's small invisible IconButton with Octicons
+    `comment-discussion`, named "Conversation" in both states. Its tooltip opens
+    rightward.
+- **Why:**
+  - A dialog can't become the pinned column, and re-creating its frame would reload the
+    Conversation.
+  - At the header's start, the mark's tooltip opens into the panel, never off its edge.
+  - The spectrum's loading view counts progress gh-prism doesn't have here, and the
+    skeleton matches the commit message's, the other wait on a rendered page.
+  - A slide from the edge says where the panel lives, as the sidebar's overlay does
+    mirrored.
+  - The button is a disclosure, not a switch between views, so its `aria-expanded` carries
+    the state and its name stays put.
+  - Chrome's error page for a refused frame says nothing a reviewer can act on. The notice
+    names what happened and links where the Conversation still loads.
+
 ## 2026-10-29: Header tooltips and the owner popup carry the mark; the column's moves up
 
 This entry replaces the placement half of "The mark sweeps the spectrum, not the icon's

@@ -3,7 +3,8 @@
  * theirs in a `GitHub hooks:` header. It holds a `PageKind` for a pull request's page and a
  * commit's, finds a Files view's page, a pull request's classic page, or its header on its header
  * tabs, finds a commit's message box and the row naming its parent, reads its rows, finds the row
- * a commit's message column joins, follows a pull request's narrow-layout overlay and the
+ * a commit's message column joins, finds the toolbar row a pull request's Conversation button
+ * starts, follows a pull request's narrow-layout overlay and the
  * file-tree filter menu, finds and follows the rows and code-owner shields of a pull request's
  * Reviewers lists, and copies that menu's group, divider, and item for gh-prism's entries, so the
  * selectors stay in this seam; it builds no UI of its own and imports nothing from WXT. The pull
@@ -41,6 +42,11 @@ export interface PageKind {
    * message column joins.
    */
   readonly commitColumnRow?: string;
+  /**
+   * Selects the toolbar row the Conversation button starts; a kind without one, a commit's, has
+   * no Conversation tab.
+   */
+  readonly toolbar?: string;
   /** A toolbar tree-toggle button; its parent wraps the toggle's buttons. */
   readonly treeToggle: string;
   /** The toggle buttons that collapse the tree in place, not the narrow layout's overlay toggle. */
@@ -89,6 +95,7 @@ export const prPage = {
   overlay: '[role="dialog"] #pr-file-tree',
   diffs: PR_DIFFS,
   diffstatSlot: '[class*="rightContentWrapper__"]',
+  toolbar: 'section[class*="toolbar__"]:has([class*="RegularTreeToggle"])',
   treeToggle: '[class*="RegularTreeToggle"]',
   treeToggleButton: '[class*="RegularTreeToggle"]',
   diffList: PR_DIFF_LIST,
@@ -606,6 +613,12 @@ export function observeDiffstat(
  */
 export function findTreeToggle(page: FilesPage): Element | undefined {
   return page.sidebar.ownerDocument.querySelector(page.kind.treeToggle)?.parentElement ?? undefined;
+}
+
+/** The toolbar row the Conversation button starts, or `undefined` on a kind without one. */
+export function findFilesToolbar(page: FilesPage): Element | undefined {
+  const { toolbar } = page.kind;
+  return (toolbar && page.sidebar.ownerDocument.querySelector(toolbar)) || undefined;
 }
 
 /**

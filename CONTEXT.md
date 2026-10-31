@@ -162,6 +162,14 @@ aren't.
 
 **Glide**: The smooth scroll that ends a reveal. _Avoid_: slide
 
+**Conversation panel**: A panel on the left edge of a pull request's Files changed tab
+that shows the same pull request's Conversation tab, loaded from GitHub's own page. A
+button at the left end of the toolbar opens and closes it. Unpinned, it overlays the page.
+_Avoid_: sidebar, drawer
+
+**Pinned**: The Conversation panel's mode as the page's leftmost column, pushing the rest
+of the page over instead of covering it. _Avoid_: docked, which is the sidebar's term
+
 **Diffstat**: The header's lines-changed counter, shown as a breakout or a total.
 
 **Breakout**: The diffstat view with one pill per section.
@@ -182,4 +190,6 @@ aren't.
 - "Pin" also names a diff head's one commit. Say diff pin only for the base and head pair.
 - "Reviewer" names the person reading a diff, and in `code-owners.ts` a PR reviewer.
   "Viewer" (`ownedByViewer`) is GitHub's word for the person reading the diff.
+- "Sidebar" is only gh-prism's sectioned file list, never the Conversation panel, though
+  both sit at a page edge.
 - The Docs & Comments section's key is `docs`. They are the same section.

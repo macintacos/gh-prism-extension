@@ -11,6 +11,7 @@ import {
   teamMembersReader,
   withMemberTeams,
 } from "@/utils/github/code-owners";
+import { allowConversationFrame } from "@/utils/github/conversation-frame";
 import { ownerFilterLink, ownerOf } from "@/utils/github/files-route";
 import { type NextCommit, readNextCommit } from "@/utils/github/next-commit";
 import { connectPrData } from "@/utils/github/pr-port";
@@ -47,6 +48,11 @@ import {
   showCommitMessage,
 } from "./commit/message-view";
 import { type StepLinksOptions, showStepLinks } from "./commit/step-links";
+import {
+  type ConversationChoice,
+  conversationPanel,
+  showConversationButton,
+} from "./conversation/panel";
 import { showReviewerFiles } from "./conversation/reviewer-files";
 import { visitViewed } from "./diffs/viewed";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
@@ -63,7 +69,8 @@ const CACHED_DIFFS = 50;
  * On every Files view on github.com, shows the sidebar's sections, narrowed on a pull request to
  * the `gh-prism-owner` owner's files when set, orders the diffs to match, stands in for the
  * diffstat, docks the sidebar on the saved side with a switch, adds a link to report a
- * miscategorized file, adds an "Only files owned by…" section to GitHub's filter menu, and, after
+ * miscategorized file, adds an "Only files owned by…" section to GitHub's filter menu, on a pull
+ * request adds a button opening its Conversation in a panel, and, after
  * an update, opens the sidebar with that release's notes. On a pull request's header tabs, stands
  * in for the diffstat, and on Conversation lists a code owner's files from their Reviewers sidebar
  * shield. On a commit's page, shows its message rendered as Markdown, above the diffs or in a
@@ -110,6 +117,7 @@ export default defineContentScript({
       save: saveDiffstat,
     } satisfies DiffstatOptions;
     const notice: NoticeChoice = { dismissed };
+    const conversation: ConversationChoice = { open: false };
     const navigate = (href: string) => location.assign(href);
     let fullLoad = true;
     // Registered before watchFilesPages, so the flag clears before a navigation's visit runs.
@@ -148,6 +156,16 @@ export default defineContentScript({
             route.diff.kind === "commit"
               ? stepLinksFor(route.diff, seenChildren, { after: afterLanding(intent), visit })
               : undefined;
+          const panel =
+            route.diff.kind === "pr"
+              ? conversationPanel(document, {
+                  pr: route.diff,
+                  choice: conversation,
+                  fetch: (input, init) => fetch(input, init),
+                  allowFraming: allowConversationFrame,
+                  visit,
+                })
+              : undefined;
           return (page, signal) => {
             const owner = route.diff.kind === "pr" ? ownerOf(location.search) : undefined;
             showReportLink(page, signal, reportOptions);
@@ -179,6 +197,7 @@ export default defineContentScript({
             });
             if (steps) showStepLinks(page, signal, steps);
             dockSidebar(page, signal, { choice: side, save: saveSide });
+            if (panel) showConversationButton(page, signal, panel);
           };
         },
         onMissing: () =>

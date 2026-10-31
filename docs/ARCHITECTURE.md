@@ -119,6 +119,47 @@ the read in `shareIntent`, so every page of the visit joins the same read. A hea
 visit reads intent the same way, and `showHeaderTab` mounts only the diffstat on each of
 its pages once the read lands, skipping a page dropped before then.
 
+## The Conversation panel
+
+On a pull request's Files changed tab,
+[`conversation/panel.ts`](../entrypoints/content/conversation/panel.ts) shows the pull
+request's Conversation tab in a panel on the left edge. `index.ts` builds the panel per
+visit, only for a pull request. On each page, `showConversationButton` puts its button
+first in the toolbar row that `findFilesToolbar` in
+[`files-page.ts`](../entrypoints/content/files-page.ts) finds.
+
+The panel is one fixed `<aside>` appended to `<body>` and never moved, because moving or
+re-creating an `<iframe>` reloads it. Its first open in a visit loads the frame in order:
+
+1. It shows a skeleton, which appears only if the frame hasn't loaded 150 ms later.
+2. It fetches the Conversation URL with gh-prism's `gh-prism-panel=1` marker, by `HEAD`,
+   for GitHub's live Content-Security-Policy.
+3. `allowConversationFrame` in
+   [`utils/github/conversation-frame.ts`](../utils/github/conversation-frame.ts) sends the
+   policy to the service worker over a port, which installs the tab's framing rule. The
+   port stays open, and the rule with it, until the visit ends.
+4. Once the top page has fired `load`, it sets the frame's `src` to the marked URL.
+
+If the `HEAD` fails or carries no policy, the rule is refused, or the loaded frame's
+`contentDocument` is `null`, the panel shows one sentence linking to the Conversation tab
+instead. Closing hides the panel and keeps the frame, so reopening is instant.
+
+The content script creates the frame and sets its `src`, never a script in the page's main
+world, whose `frame-src` would refuse it. It hears only messages from its own frame on
+github.com. When the reader clicks a link in the frame that points away from the
+Conversation, the frame posts its URL, and the panel clicks a temporary link to it in the
+page, so GitHub's router can take it without a reload.
+
+These close the overlay:
+
+- the toolbar button or the panel's ✕;
+- Escape on the page, or an Escape the frame relays;
+- a pointerdown outside the panel and its button.
+
+A tab-wide `ConversationChoice` object carries whether the panel is open, so a soft
+navigation to another pull request's Files changed opens the new one's panel without
+taking focus.
+
 ## The classic page notice
 
 [`entrypoints/content/classic/notice.ts`](../entrypoints/content/classic/notice.ts) runs
@@ -634,11 +675,11 @@ entrypoints/
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
     header/              diffstat breakout
-    conversation/        a code owner's files popup and gh-prism's reviewer shield, in the Reviewers lists; dressing the Conversation panel's frame and the messages it posts
+    conversation/        a code owner's files popup and gh-prism's reviewer shield, in the Reviewers lists; the Conversation panel and its button, dressing its frame, and the messages the frame posts
     ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, Tailwind tokens
 utils/
   github/                routes, diff parsing, the PR data port and source, code owners and reviewers
-    conversation-frame.ts  the per-tab session rule that lets only the Conversation panel frame a PR's Conversation tab
+    conversation-frame.ts  the per-tab session rule that lets only the Conversation panel frame a PR's Conversation tab, and the panel's request for it
   intent/                reading, caching, and landing intent
   hunk-rules/            the docstring and inline-test rules
   sections.ts            path rules for the five sections

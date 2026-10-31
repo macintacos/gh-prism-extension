@@ -3,6 +3,7 @@ import {
   conversationFrameUrl,
   conversationFraming,
   framingRule,
+  requestFraming,
   withoutFrameAncestors,
 } from "../../../utils/github/conversation-frame";
 import type { PrRef } from "../../../utils/github/pr-ref";
@@ -187,5 +188,46 @@ describe("conversationFraming", () => {
     framing.forget(3);
 
     expect(update).toHaveBeenCalledWith({ removeRuleIds: [3] });
+  });
+});
+
+describe("requestFraming", () => {
+  it("asks for the PR's frame and resolves with the answer", async () => {
+    const port = fakePort();
+
+    const allowed = requestFraming(() => port, PR, POLICY, new AbortController().signal);
+    await port.send({ allowed: true });
+
+    expect(port.postMessage).toHaveBeenCalledWith(REQUEST);
+    await expect(allowed).resolves.toBe(true);
+  });
+
+  it("keeps the port open after the answer, so the rule stays", async () => {
+    const port = fakePort();
+
+    const allowed = requestFraming(() => port, PR, POLICY, new AbortController().signal);
+    await port.send({ allowed: true });
+    await allowed;
+
+    expect(port.disconnect).not.toHaveBeenCalled();
+  });
+
+  it("refuses when the port drops before answering", async () => {
+    const port = fakePort();
+
+    const allowed = requestFraming(() => port, PR, POLICY, new AbortController().signal);
+    port.drop();
+
+    await expect(allowed).resolves.toBe(false);
+  });
+
+  it("disconnects when the signal aborts", () => {
+    const port = fakePort();
+    const controller = new AbortController();
+
+    void requestFraming(() => port, PR, POLICY, controller.signal);
+    controller.abort();
+
+    expect(port.disconnect).toHaveBeenCalled();
   });
 });

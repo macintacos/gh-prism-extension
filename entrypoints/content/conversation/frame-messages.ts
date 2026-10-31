@@ -14,3 +14,10 @@ export interface ConversationEscape {
 
 /** A message the Conversation panel's frame posts to the page that frames it. */
 export type FrameMessage = ConversationLeave | ConversationEscape;
+
+/** Whether `data`, posted from the panel's frame, has a `FrameMessage`'s shape. */
+export function isFrameMessage(data: unknown): data is FrameMessage {
+  if (typeof data !== "object" || data === null) return false;
+  const { type, href } = data as Record<string, unknown>;
+  return type === CONVERSATION_ESCAPE || (type === CONVERSATION_LEAVE && typeof href === "string");
+}

@@ -8,6 +8,7 @@ import {
   type Locator,
   type Page,
 } from "@playwright/test";
+import type { Browser, WxtBrowser } from "wxt/browser";
 import { commitPage } from "../entrypoints/content/files-page";
 import { LANGUAGE_ICONS } from "../entrypoints/content/sidebar/language-icons";
 
@@ -3143,4 +3144,182 @@ test("Tab from a code owner's shield enters their long list's filter action, whi
         !!document.activeElement?.closest("#partial-discussion-sidebar"),
     ),
   ).toBe(true);
+});
+
+const CONVERSATION_FRAME_URL = "https://github.com/o/r/pull/1?gh-prism-panel=1";
+// GitHub's policy, cut to what a routed page needs, with no frame-ancestors to refuse the frame.
+const CONVERSATION_CSP = "default-src 'none'; style-src 'unsafe-inline'";
+
+/** Serves the Files changed fixture and the panel's marked Conversation, framable. */
+async function serveConversation(context: BrowserContext): Promise<void> {
+  await serve(context, PR_URL, PR_BODY);
+  await context.route(
+    (url) => url.href === CONVERSATION_FRAME_URL,
+    (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        headers: { "content-security-policy": CONVERSATION_CSP },
+        body: `<!doctype html><main id="conversation">A pull request's Conversation <a href="${CLASSIC_URL}">Files</a></main>`,
+      }),
+  );
+}
+
+const conversationButton = (page: Page) =>
+  page.getByRole("button", { name: "Conversation", exact: true });
+
+/** The extension's session rules, read from its service worker. */
+async function sessionRules(
+  context: BrowserContext,
+): Promise<Browser.declarativeNetRequest.Rule[]> {
+  const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
+  // e2e's tsconfig has no extension globals; the worker has `chrome`.
+  return worker.evaluate(() =>
+    (
+      globalThis as unknown as {
+        chrome: WxtBrowser;
+      }
+    ).chrome.declarativeNetRequest.getSessionRules(),
+  );
+}
+
+test("the Conversation button opens an overlay framing the pull request's Conversation", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  await page.goto(PR_URL);
+
+  await conversationButton(page).click();
+
+  const panel = page.getByRole("complementary", { name: "Conversation" });
+  await expect(panel).toBeVisible();
+  await expect(conversationButton(page)).toHaveAttribute("aria-expanded", "true");
+  const frame = page.frameLocator("#gh-prism-conversation iframe");
+  await expect(frame.locator("#conversation")).toBeVisible();
+  await expect(frame.locator(".gh-prism-conversation-button")).toHaveCount(0);
+});
+
+test("Escape inside the Conversation frame closes the overlay, handing focus back to its button", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  await page.goto(PR_URL);
+
+  await conversationButton(page).click();
+  await page.frameLocator("#gh-prism-conversation iframe").locator("#conversation").click();
+  await page.keyboard.press("Escape");
+
+  await expect(page.locator("#gh-prism-conversation")).toBeHidden();
+  await expect(conversationButton(page)).toBeFocused();
+});
+
+test("a link in the Conversation frame that leaves the Conversation loads in the page", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  await serve(context, CLASSIC_URL, CLASSIC_BODY);
+  await page.goto(PR_URL);
+
+  const frameUrls: string[] = [];
+  page.on("framenavigated", (frame) => {
+    if (frame !== page.mainFrame() && frame.url() !== "about:blank") frameUrls.push(frame.url());
+  });
+
+  await conversationButton(page).click();
+  await page
+    .frameLocator("#gh-prism-conversation iframe")
+    .getByRole("link", { name: "Files" })
+    .click();
+
+  await expect(page).toHaveURL(CLASSIC_URL);
+  expect(frameUrls).toEqual([CONVERSATION_FRAME_URL]);
+});
+
+test("a commit's page has no Conversation button", async ({ context, page }) => {
+  await serve(context, COMMIT_URL, COMMIT_BODY);
+  await page.goto(COMMIT_URL);
+
+  await expect(page.locator(".gh-prism-side-switch")).toBeAttached();
+  await expect(page.locator(".gh-prism-conversation-button")).toHaveCount(0);
+});
+
+test("Escape and a click outside close the Conversation overlay, handing focus back to its button", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  await page.goto(PR_URL);
+  const panel = page.locator("#gh-prism-conversation");
+
+  await conversationButton(page).click();
+  await expect(panel).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(panel).toBeHidden();
+  await expect(conversationButton(page)).toBeFocused();
+
+  await conversationButton(page).click();
+  await expect(panel).toBeVisible();
+  await page.mouse.click(1200, 400);
+  await expect(panel).toBeHidden();
+  await expect(conversationButton(page)).toHaveAttribute("aria-expanded", "false");
+});
+
+test("the Conversation frame's rule is scoped to its tab and URL, and leaves with the page", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  await serve(context, COMMIT_URL, COMMIT_BODY);
+  await page.goto(PR_URL);
+
+  await conversationButton(page).click();
+  // The frame loads only once its rule is in.
+  await expect(
+    page.frameLocator("#gh-prism-conversation iframe").locator("#conversation"),
+  ).toBeVisible();
+
+  const rules = await sessionRules(context);
+  expect(rules).toHaveLength(1);
+  const [rule] = rules;
+  expect(rule?.condition.tabIds).toHaveLength(1);
+  expect(rule?.condition.resourceTypes).toEqual(["sub_frame"]);
+  expect(rule?.condition.urlFilter).toBe(`|${CONVERSATION_FRAME_URL}|`);
+  const policy = rule?.action.responseHeaders?.find(
+    (header) => header.header === "content-security-policy",
+  )?.value;
+  expect(policy).toBe(CONVERSATION_CSP);
+
+  await page.goto(COMMIT_URL);
+
+  await expect.poll(async () => (await sessionRules(context)).length).toBe(0);
+});
+
+test("a Conversation that won't load says so and links to its tab", async ({ context, page }) => {
+  // Only Files changed is served, so the catch-all answers the Conversation's HEAD with a 404.
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+
+  await conversationButton(page).click();
+
+  await expect(
+    page.locator("#gh-prism-conversation").getByRole("link", { name: "Open the Conversation tab" }),
+  ).toHaveAttribute("href", "https://github.com/o/r/pull/1");
+  await expect(page.locator("#gh-prism-conversation iframe")).toHaveCount(0);
+});
+
+test("under reduced motion the Conversation overlay opens without moving", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(PR_URL);
+
+  await conversationButton(page).click();
+
+  const panel = page.locator("#gh-prism-conversation");
+  await expect(panel).toBeVisible();
+  expect(await panel.evaluate((el) => el.getAnimations().length)).toBe(0);
 });
