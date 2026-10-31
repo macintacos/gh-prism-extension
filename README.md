@@ -181,7 +181,7 @@ other computers:
 - Which side the sidebar is on.
 - Whether the header shows lines changed by section or GitHub's total.
 - Whether a commit's message shows as Markdown or plain text.
-- Whether the Conversation panel is pinned.
+- Whether the Conversation panel is pinned, and whether it's open.
 
 It keeps these on this computer only:
 

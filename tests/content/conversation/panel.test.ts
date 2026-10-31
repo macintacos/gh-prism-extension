@@ -38,6 +38,7 @@ function setup({
   const visit = new AbortController();
   visits.push(visit);
   const savePinned = vi.fn();
+  const saveOpen = vi.fn();
   const saveWidth = vi.fn();
   const panel = conversationPanel(document, {
     pr,
@@ -45,10 +46,11 @@ function setup({
     fetch: fetch as unknown as typeof globalThis.fetch,
     allowFraming,
     savePinned,
+    saveOpen,
     saveWidth,
     visit: visit.signal,
   });
-  return { panel, visit, choice, fetch, allowFraming, savePinned, saveWidth };
+  return { panel, visit, choice, fetch, allowFraming, savePinned, saveOpen, saveWidth };
 }
 
 const WIDE = { width: 1400, height: 768 };
@@ -301,6 +303,16 @@ describe("Shift+\\", () => {
     pressShiftBackslash();
 
     expect(panel.open).toBe(false);
+  });
+
+  it("saves closed when it closes a pinned panel", () => {
+    setViewport(WIDE);
+    const { panel, saveOpen } = setup({ choice: { open: true, pinned: true, width: 300 } });
+    mountButton(panel);
+
+    pressShiftBackslash();
+
+    expect(saveOpen).toHaveBeenCalledExactlyOnceWith(false);
   });
 
   it("is left alone in a field, with a modifier, or on a repeat", () => {
@@ -976,5 +988,24 @@ describe("jumping in the frame", () => {
     sidebar()?.click();
 
     expect(frameWindow.scrollTo).toHaveBeenCalledWith({ top: 50, behavior: "instant" });
+  });
+});
+
+describe("remembering whether it's open", () => {
+  it("saves open when the reviewer opens it, and closed when they close it with ✕", () => {
+    const { panel, saveOpen } = setup();
+    mountButton(panel)?.click();
+    expect(saveOpen).toHaveBeenLastCalledWith(true);
+
+    aside()?.querySelector<HTMLButtonElement>(".gh-prism-conversation-close")?.click();
+
+    expect(saveOpen).toHaveBeenLastCalledWith(false);
+  });
+
+  it("saves nothing when a visit opens it as the last one left it", () => {
+    setViewport(WIDE);
+    const { saveOpen } = setup({ choice: { open: true, pinned: true, width: 300 } });
+
+    expect(saveOpen).not.toHaveBeenCalled();
   });
 });

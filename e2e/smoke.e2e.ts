@@ -3813,7 +3813,6 @@ const openGitHubDrawer = (page: Page) =>
     );
     document.body.prepend(wrapper);
     const drawer = document.querySelector('[role="dialog"]');
-    const sticky = document.getElementById("sticky");
     const panel = document.getElementById("gh-prism-conversation");
     const { right } = panel?.getBoundingClientRect() ?? { right: NaN };
     return {
@@ -3869,6 +3868,40 @@ test("an unpinned Conversation panel starts closed after a reload", async ({ con
     });
     await expect(page.locator("#gh-prism-conversation")).toHaveCount(0);
   }).toPass({ timeout: 20_000 });
+});
+
+test("a pinned Conversation panel left closed stays closed after a reload, still pinned", async ({
+  context,
+  page,
+}) => {
+  await serveLaidOutConversation(context);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  await openPinned(page);
+  // The pin and the open save asynchronously; reload until a load reads them back.
+  await expect(async () => {
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-gh-prism-conversation", "pinned", {
+      timeout: 5000,
+    });
+  }).toPass({ timeout: 20_000 });
+
+  await page
+    .locator("#gh-prism-conversation")
+    .getByRole("button", { name: "Close Conversation" })
+    .click();
+
+  // The close saves asynchronously; reload until a load starts closed.
+  await expect(async () => {
+    await page.reload();
+    await expect(conversationButton(page)).toHaveAttribute("aria-expanded", "false", {
+      timeout: 5000,
+    });
+    await expect(page.locator("#gh-prism-conversation")).toHaveCount(0);
+  }).toPass({ timeout: 20_000 });
+
+  await conversationButton(page).click();
+  await expect(page.locator("html")).toHaveAttribute("data-gh-prism-conversation", "pinned");
 });
 
 test("on a window too narrow for the column, the Conversation panel offers no pin and opens as the overlay", async ({

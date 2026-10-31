@@ -29,6 +29,7 @@ import {
   classicNoticeDismissed,
   commitColumnWidth,
   commitMessageView,
+  conversationOpen,
   conversationPinned,
   conversationWidth,
   type DiffstatView,
@@ -100,6 +101,7 @@ export default defineContentScript({
       savedColumnWidth,
       savedHidden,
       savedPinned,
+      savedOpen,
       savedConversationWidth,
       dismissed,
       whatsNewForPage,
@@ -110,6 +112,7 @@ export default defineContentScript({
       readSavedColumnWidth(),
       readHiddenMessages(),
       readSavedPinned(),
+      readSavedOpen(),
       readSavedConversationWidth(),
       readNoticeDismissed(),
       release && followWhatsNew(release, ctx),
@@ -125,8 +128,7 @@ export default defineContentScript({
     } satisfies DiffstatOptions;
     const notice: NoticeChoice = { dismissed };
     const conversation = conversationChoiceOf(
-      savedPinned,
-      savedConversationWidth,
+      { pinned: savedPinned, open: savedOpen, width: savedConversationWidth },
       fitsPinned(window),
     );
     const navigate = (href: string) => location.assign(href);
@@ -178,6 +180,7 @@ export default defineContentScript({
                   fetch,
                   allowFraming: allowConversationFrame,
                   savePinned,
+                  saveOpen,
                   saveWidth: saveConversationWidth,
                   visit,
                 })
@@ -408,6 +411,16 @@ const readSavedPinned = (): Promise<unknown> =>
     return conversationPinned.fallback;
   });
 
+/**
+ * Whether the Conversation panel was left open, unchecked, or the default when storage won't
+ * read.
+ */
+const readSavedOpen = (): Promise<unknown> =>
+  conversationOpen.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading whether the Conversation panel is open failed", error);
+    return conversationOpen.fallback;
+  });
+
 /** The stored Conversation panel width, unchecked, or the default when storage won't read. */
 const readSavedConversationWidth = (): Promise<unknown> =>
   conversationWidth.getValue().catch((error: unknown) => {
@@ -416,22 +429,28 @@ const readSavedConversationWidth = (): Promise<unknown> =>
   });
 
 /**
- * The Conversation panel's start on a full load: pinned and its width from `savedPinned` and
- * `savedWidth`, when each is one, else the defaults, and open only when pinned and the window
+ * The Conversation panel's start on a full load: pinned and its width from `saved`, when each
+ * is one, else the defaults, and open only when it was left open and pinned and the window
  * `fits` the column.
  */
 function conversationChoiceOf(
-  savedPinned: unknown,
-  savedWidth: unknown,
+  saved: { pinned: unknown; open: unknown; width: unknown },
   fits: boolean,
 ): ConversationChoice {
-  const pinned = savedPinned === true;
+  const pinned = saved.pinned === true;
   return {
-    open: pinned && fits,
+    open: saved.open === true && pinned && fits,
     pinned,
-    width: knownWidth(savedWidth, conversationWidth.fallback),
+    width: knownWidth(saved.width, conversationWidth.fallback),
   };
 }
+
+const saveOpen = (open: boolean) =>
+  conversationOpen
+    .setValue(open)
+    .catch((error: unknown) =>
+      console.error("gh-prism: saving whether the Conversation panel is open failed", error),
+    );
 
 const savePinned = (pinned: boolean) =>
   conversationPinned

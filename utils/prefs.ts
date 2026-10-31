@@ -55,6 +55,14 @@ export const conversationPinned = storage.defineItem<boolean>("sync:conversation
 });
 
 /**
+ * Whether the user last left the Conversation panel open; Chrome sync carries it with
+ * `conversationPinned`.
+ */
+export const conversationOpen = storage.defineItem<boolean>("sync:conversationOpen", {
+  fallback: false,
+});
+
+/**
  * The width, in pixels, the user last set the Conversation panel to, pinned or over the page; kept
  * on this computer only, since it fits this computer's screen.
  */

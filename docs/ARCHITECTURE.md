@@ -213,8 +213,9 @@ cross-fade it between two places, drawing GitHub's header and the diffs twice.
 
 A tab-wide `ConversationChoice` object carries whether the panel is open and pinned and
 its width, so a soft navigation to another pull request's Files changed opens the new
-one's panel without taking focus. `conversationPinned` is saved too, and a full load opens
-the panel only when it was left pinned and the window fits the column.
+one's panel without taking focus. `conversationPinned` and `conversationOpen` are saved
+too, and a full load opens the panel only when it was left open and pinned and the window
+fits the column.
 
 ## The classic page notice
 

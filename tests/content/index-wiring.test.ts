@@ -210,16 +210,19 @@ describe("content script", () => {
     expect(views).toEqual([opens]);
   });
 
-  it.each<{ pinned?: unknown; viewport: number; open: boolean }>([
-    { pinned: true, viewport: 1400, open: true },
-    { pinned: true, viewport: 1024, open: false },
-    { pinned: "yes", viewport: 1400, open: false },
-    { viewport: 1400, open: false },
+  it.each<{ pinned?: unknown; left?: unknown; viewport: number; open: boolean }>([
+    { pinned: true, left: true, viewport: 1400, open: true },
+    { pinned: true, left: false, viewport: 1400, open: false },
+    { pinned: true, viewport: 1400, open: false },
+    { pinned: true, left: true, viewport: 1024, open: false },
+    { pinned: "yes", left: true, viewport: 1400, open: false },
+    { left: true, viewport: 1400, open: false },
   ])(
-    "on a full load, opens the Conversation panel only when pinned and the window fits it (pinned: $pinned, $viewport px)",
-    async ({ pinned, viewport, open }) => {
+    "on a full load, opens the Conversation panel only when left open and pinned and the window fits it (pinned: $pinned, open: $left, $viewport px)",
+    async ({ pinned, left, viewport, open }) => {
       // Raw keys on purpose, so the test outlives a move to typed storage items.
       if (pinned !== undefined) await fakeBrowser.storage.sync.set({ conversationPinned: pinned });
+      if (left !== undefined) await fakeBrowser.storage.sync.set({ conversationOpen: left });
       await fakeBrowser.storage.local.set({ conversationWidth: 520 });
       setViewport({ width: viewport, height: 768 });
       onTestFinished(() => setViewport({ width: 1024, height: 768 }));

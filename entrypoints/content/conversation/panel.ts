@@ -23,7 +23,7 @@ import css from "./panel.css?inline";
 
 /**
  * Whether the panel is open and pinned, and its width, pinned or over the page. One per tab, so
- * an open panel carries to the next pull request.
+ * an open panel carries to the next pull request; a full load restores what the reader left.
  */
 export interface ConversationChoice extends ColumnWidthChoice {
   open: boolean;
@@ -88,6 +88,8 @@ export interface ConversationPanelOptions {
   allowFraming: (pr: PrRef, policy: string, signal: AbortSignal) => Promise<boolean>;
   /** Remembers whether the reader pinned the panel. */
   savePinned: (pinned: boolean) => void;
+  /** Remembers whether the reader left the panel open. */
+  saveOpen: (open: boolean) => void;
   /** Remembers a width the panel was set to. */
   saveWidth: (width: number) => void;
   visit: AbortSignal;
@@ -112,13 +114,14 @@ interface PanelView {
 
 /**
  * The visit's Conversation panel for `pr`; mounted when first opened, removed when `visit` aborts.
- * It opens at once, without taking focus, when `choice` says the last one was left open.
+ * It opens at once, without taking focus, when `choice` says the reader left it open. Only the
+ * reader's own opens and closes are saved.
  */
 export function conversationPanel(
   doc: Document,
   options: ConversationPanelOptions,
 ): ConversationPanel {
-  const { choice, savePinned, saveWidth, visit } = options;
+  const { choice, savePinned, saveOpen, saveWidth, visit } = options;
   const root = doc.documentElement;
   let view: PanelView | undefined;
   let frame: HTMLIFrameElement | undefined;
@@ -184,6 +187,7 @@ export function conversationPanel(
     const shown = reveal();
     relayout();
     shown.aside.focus({ preventScroll: true });
+    saveOpen(true);
   }
 
   /** Opens the panel as the last visit left it, leaving focus where it is. */
@@ -194,6 +198,7 @@ export function conversationPanel(
 
   function hide(): void {
     if (!view || !open) return;
+    saveOpen(false);
     const heldFocus = view.aside.contains(doc.activeElement);
     open = choice.open = false;
     relayout();

@@ -6,6 +6,19 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-31: A full load restores the Conversation panel as it was left
+
+- **Compared:** opening the panel on a full load whenever it was pinned and the window fit
+  the column, as planned; and opening it only when it was also left open.
+- **Won:** left open, pinned, and fitting. The reader's own opens and closes are saved; an
+  open on arrival saves nothing.
+- **Why:** the maintainer pinned the panel, closed it, and found it open again after a
+  commit link: "I want it to always remember the last position I had it in."
+- **Settled with it:** an unpinned overlay still starts closed after a full load, since it
+  would cover the diffs. A window too narrow for the column starts closed and keeps the
+  saved state for the next wide load. Dismissing the narrow overlay with an outside click
+  saves closed, as the last position the reader saw.
+
 ## 2026-10-31: The framed Conversation ends without GitHub's site footer
 
 - **Compared:** leaving GitHub's site footer, its Terms, Privacy, and other links over a
