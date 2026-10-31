@@ -6,6 +6,34 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-31: The Conversation button and tree toggle hold their keycaps
+
+This replaces the button forms in the 2026-10-30 keys-and-keycaps entry below. The keys,
+`aria-keyshortcuts`, and tooltips stay as that entry picked them.
+
+- **Compared:**
+  - for both controls, Primer's small invisible Button, as before, or its small default
+    Button, as GitHub draws "All commits" beside them;
+  - for placing the tree keycap inside the toggle's padded border, a negative margin on
+    the keycap, or CSS anchor positioning.
+- **Won:**
+  - Both are Primer's small default Button (`--button-default-*` tokens, medium radius,
+    28px tall, Primer's focus ring). Each holds its icon, then its keycap.
+  - GitHub's tree toggle stays the control, drawn as that Button through `side.css`, with
+    inline-end padding for the keycap. Expanded, it takes the default Button's pressed
+    fill, `--button-default-bgColor-active`, so expanded and collapsed still look
+    different.
+  - The keycap stays gh-prism's sibling `<kbd>`, anchored over that padding and taking no
+    pointer. On touch screens, where the keycap is hidden, the toggle drops that padding.
+- **Why:**
+  - The maintainer asked, while checking the build by hand, for each control to read as
+    one button holding its icon and keycap.
+  - A negative margin depends on the toolbar's gap and on the row's order, both of which
+    change when the sidebar docks right or the page is a commit's. An anchored keycap is
+    out of the row's flow, so it sits in the same place in every layout.
+  - The keycap takes no pointer, so a click on it reaches GitHub's toggle, and hover and
+    active cover the whole button.
+
 ## 2026-10-30: `\` and Shift+\ for the file tree and the Conversation panel, with keycaps
 
 - **Compared:**

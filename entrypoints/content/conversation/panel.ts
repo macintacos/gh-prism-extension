@@ -473,14 +473,12 @@ export function showConversationButton(
   if (!toolbar) return;
   const doc = toolbar.ownerDocument;
 
-  // Primer's small invisible Button: the icon, then the keycap, as Older and Newer hold theirs.
+  // Primer's small default Button, like "All commits" beside it: the icon, then the keycap.
   const button = el(
     doc,
     "button",
-    "gh-prism-conversation-button tw:relative tw:shrink-0 tw:inline-flex tw:items-center tw:gap-1 tw:h-[var(--control-small-size,28px)] tw:px-2 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-fgColor-rest)] tw:[font-family:var(--fontStack-sansSerif)] tw:text-body-small tw:font-medium tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
-    icon(doc, COMMENT_DISCUSSION, {
-      class: "tw:text-[color:var(--button-invisible-iconColor-rest)]",
-    }),
+    "gh-prism-conversation-button tw:relative tw:shrink-0 tw:inline-flex tw:items-center tw:gap-1 tw:h-[var(--control-small-size,28px)] tw:px-2 tw:[border:var(--borderWidth-thin,1px)_solid_var(--button-default-borderColor-rest)] tw:rounded-medium tw:bg-[var(--button-default-bgColor-rest)] tw:[box-shadow:var(--button-default-shadow-resting)] tw:text-[color:var(--button-default-fgColor-rest)] tw:[font-family:var(--fontStack-sansSerif)] tw:text-body-small tw:font-medium tw:cursor-pointer tw:hover:bg-[var(--button-default-bgColor-hover)] tw:active:bg-[var(--button-default-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
+    icon(doc, COMMENT_DISCUSSION, { class: "tw:text-fg-muted" }),
     keycap(doc, "\\", { shift: true }),
   );
   button.type = "button";

@@ -11,11 +11,52 @@
 @source "./side.ts";
 @source "../ui/keycap.ts";
 
-/* The tree toggle's key: drawn closer to the toggle than the toolbar's gap, so it reads as the
-   toggle's, and muted like its icon. It is no control, so it takes no pointer. */
+/* GitHub's tree toggle drawn as Primer's small default Button, with room at its end for the key.
+   :root[data-gh-prism-side] outranks Primer's invisible-variant rules. */
+:root[data-gh-prism-side]
+:is([class*="RegularTreeToggle"], [class*="MobileTreeToggle"], [aria-controls="diff_file_tree"]) {
+  anchor-name: --gh-prism-tree-toggle;
+  height: var(--control-small-size, 28px);
+  border: var(--borderWidth-thin, 1px) solid var(--button-default-borderColor-rest);
+  background-color: var(--button-default-bgColor-rest);
+  box-shadow: var(--button-default-shadow-resting);
+
+  &:hover {
+    background-color: var(--button-default-bgColor-hover);
+    border-color: var(--button-default-borderColor-hover);
+  }
+
+  /* Expanded keeps the pressed fill it had as an invisible Button. */
+  &:active,
+  &[aria-expanded="true"] {
+    background-color: var(--button-default-bgColor-active);
+    border-color: var(--button-default-borderColor-active);
+  }
+}
+
+/* Touch screens hide the key, so the toggle keeps its icon-only width there. */
+@media not ((hover: none) and (pointer: coarse)) {
+  :root[data-gh-prism-side]
+  :is([class*="RegularTreeToggle"], [class*="MobileTreeToggle"], [aria-controls="diff_file_tree"]) {
+    width: auto;
+    padding-inline-end: calc(var(--base-size-8, 8px) + var(--base-size-4, 4px) + 20px);
+  }
+}
+
+/* The key sits inside the toggle's end padding. It is no control, so a click on it lands on the
+   toggle underneath. Anchored, not a child, so nothing React renders gains a child. */
 .gh-prism-tree-key {
-  align-self: center;
-  margin-inline-start: calc(var(--base-size-4, 4px) * -1);
+  position: absolute;
+  position-anchor: --gh-prism-tree-toggle;
+  position-visibility: anchors-visible;
+  top: anchor(center);
+  right: calc(anchor(right) + var(--base-size-8, 8px));
+  translate: 0 -50%;
+  /* Above the toggle even when a docked-right row reorders it after the key. */
+  z-index: 1;
+  box-sizing: border-box;
+  min-inline-size: 20px;
+  text-align: center;
   color: var(--fgColor-muted);
   pointer-events: none;
 }
@@ -213,8 +254,7 @@ section[class*="toolbar__"]:has([class*="MobileTreeToggle"]) .gh-prism-side-swit
       margin-inline-start: auto;
     }
 
-    & :has(> [class*="RegularTreeToggle"]),
-    & .gh-prism-tree-key {
+    & :has(> [class*="RegularTreeToggle"]) {
       order: 2;
     }
 
@@ -240,8 +280,7 @@ section[class*="toolbar__"]:has([class*="MobileTreeToggle"]) .gh-prism-side-swit
 
   /* A commit's toolbar: the toggle and switch end it, after its full-width search. */
   [data-gh-prism-side="right"] #diff-content-parent {
-    & :has(> [aria-controls="diff_file_tree"]),
-    & .gh-prism-tree-key {
+    & :has(> [aria-controls="diff_file_tree"]) {
       order: 2;
     }
 

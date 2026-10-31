@@ -46,9 +46,10 @@ the departure as intended.
 - **Keycap edges: GitHub's, below the 3:1 floor.** gh-prism's keycaps take GitHub's own
   `kbd` rule, whose border and raised bottom edge are `--borderColor-neutral-muted`: 1.2:1
   against Older's and Newer's buttons in a light theme and 1.3:1 in a dark one. The
-  Conversation button's and the tree toggle's keycaps sit on the toolbar's own canvas,
-  where the edge reads no stronger. The keycap's text holds the text floor, and the keycap
-  is no control of its own, so its edge only frames a key that already reads.
+  Conversation button's and the tree toggle's keycaps sit on the default Button's
+  `--button-default-bgColor-rest` fill, the same fill as Older's and Newer's. The keycap's
+  text holds the text floor, and the keycap is no control of its own, so its edge only
+  frames a key that already reads.
 - **Header hairlines: decoration, below the 3:1 floor.** The floor holds hairlines to 3:1.
   The short rules between the header counter's pills only echo the spacing and icons that
   already separate the sections, so they stay `--borderColor-default`. `decisions.md` has

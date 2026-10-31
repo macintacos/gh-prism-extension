@@ -3238,6 +3238,7 @@ test("Shift+\\ opens the Conversation panel and closes it, from the page and fro
   const panel = page.locator("#gh-prism-conversation");
   const filter = page.getByRole("textbox", { name: /^Filter files/ });
   await expect(conversationButton(page).locator("kbd")).toBeVisible();
+  await expectInside(conversationButton(page).locator("kbd"), conversationButton(page));
   expect(
     await conversationButton(page).evaluate(
       (button) => getComputedStyle(button, "::after").content,
@@ -3272,7 +3273,9 @@ test("\\ presses GitHub's tree toggle, which shows it as a keycap, while a text 
   await page.goto(PR_URL);
   const toggle = page.locator('[class*="RegularTreeToggle"]');
   const filter = page.getByRole("textbox", { name: /^Filter files/ });
-  await expect(page.locator(".gh-prism-tree-key")).toBeVisible();
+  const key = page.locator(".gh-prism-tree-key");
+  await expect(key).toBeVisible();
+  await expectInside(key, toggle);
   await expect(toggle).toHaveAttribute("aria-keyshortcuts", "\\");
   // A routed page runs none of GitHub's scripts, so the toggle's clicks are counted instead.
   await toggle.evaluate((button) => {
@@ -3290,7 +3293,23 @@ test("\\ presses GitHub's tree toggle, which shows it as a keycap, while a text 
   await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-glide");
   await page.keyboard.press("Backslash");
   await expect(toggle).toHaveAttribute("data-clicks", "2");
+
+  const box = await key.boundingBox();
+  if (!box) throw new Error("the tree key has no box");
+  // A glide's view transition takes every pointer event until it ends.
+  await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-glide");
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(toggle).toHaveAttribute("data-clicks", "3");
 });
+
+async function expectInside(inner: Locator, outer: Locator): Promise<void> {
+  const [a, b] = await Promise.all([inner.boundingBox(), outer.boundingBox()]);
+  if (!a || !b) throw new Error("a box is missing");
+  expect(a.x).toBeGreaterThanOrEqual(b.x);
+  expect(a.y).toBeGreaterThanOrEqual(b.y);
+  expect(a.x + a.width).toBeLessThanOrEqual(b.x + b.width);
+  expect(a.y + a.height).toBeLessThanOrEqual(b.y + b.height);
+}
 
 test("a link in the Conversation frame that leaves the Conversation loads in the page", async ({
   context,

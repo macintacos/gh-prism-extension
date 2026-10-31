@@ -143,22 +143,27 @@ Each also shows its key at rest as a keycap (`exceptions.md` says why):
 
 - Older and Newer hold it between the link's chevron and its label, so they read "‹ ⇧J
   Older" and "Newer ⇧K ›".
-- The Conversation button is Primer's small invisible Button holding its icon, then the
-  keycap, so it reads as the comment-discussion icon, then "⇧\".
-- The tree toggle's keycap is gh-prism's own `<kbd>` just after GitHub's toggle, not
-  inside it, because gh-prism inserts nothing into what React renders. It sits 4px closer
-  to the toggle than the toolbar's gap, in `--fgColor-muted` like the toggle's icon, and
-  takes no pointer. It follows the toggle when the sidebar docks right and the toolbar
-  reorders.
+- The Conversation button is Primer's small default Button, like GitHub's "All commits"
+  beside it. It holds its icon, then the keycap, so it reads as the comment-discussion
+  icon, then "⇧\".
+- GitHub's tree toggle is drawn as the same small default Button, with inline-end padding
+  for the keycap. Expanded, it takes the default Button's pressed fill,
+  `--button-default-bgColor-active`, so expanded and collapsed still differ. The keycap is
+  gh-prism's own `<kbd>`, a sibling of the toggle rather than a child, because gh-prism
+  inserts nothing into what React renders. `side.css` names the toggle a CSS anchor
+  (`anchor-name: --gh-prism-tree-toggle`) and positions the keycap over its end padding
+  (`position-anchor`), in `--fgColor-muted` like the toggle's icon. It takes no pointer,
+  so a click on it lands on the toggle. On touch screens, where the keycap is hidden, the
+  toggle keeps its icon-only width.
 
 The keycap is a `<kbd>` that GitHub's own `kbd` rule draws, the rule Markdown's `<kbd>`
 renders with: 11px monospace on `--bgColor-muted`, in a 1px `--borderColor-neutral-muted`
 border with a raised bottom edge and a 6px radius. It reads a key such as "⇧J", with the ⇧
 set in GitHub's sans stack, because the monospace stack has no ⇧ and the browser's
 fallback draws it at half the letter's height. Inside a control, it takes the control's
-colour, so it dims with a held-off link; the tree toggle's keycap, beside its control,
-sets `--fgColor-muted`. It is hidden from assistive technology, which announces the key
-from the control's `aria-keyshortcuts` instead. Devices with no hover and a coarse
+colour, so it dims with a held-off link; the tree toggle's keycap, a sibling of its
+control, sets `--fgColor-muted`. It is hidden from assistive technology, which announces
+the key from the control's `aria-keyshortcuts` instead. Devices with no hover and a coarse
 pointer, such as touch screens, never show it. `keycap` in `ui/keycap.ts` builds it, and
 `ui/keycap.css`, which each control's sheet imports, hides it on touch screens.
 

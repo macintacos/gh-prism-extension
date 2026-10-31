@@ -173,9 +173,10 @@ That tree key is `\`, which `dockSidebar` in
 [`sidebar/side.ts`](../entrypoints/content/sidebar/side.ts) binds on a pull request and a
 commit alike. It clicks whichever of GitHub's tree toggles is shown: the regular one, or
 the narrow layout's overlay toggle. The click runs the tree's glide and GitHub's handler,
-as a reader's click does. gh-prism shows the key as its own keycap beside the toggle,
-because a sibling moves and mutates nothing React renders, and sets `aria-keyshortcuts` on
-GitHub's toggles, an attribute React doesn't own.
+as a reader's click does. gh-prism shows the key as its own keycap, a sibling of the
+toggle, because a sibling moves and mutates nothing React renders. `side.css` anchors the
+keycap over the toggle's end padding and gives it no pointer events. gh-prism also sets
+`aria-keyshortcuts` on GitHub's toggles, an attribute React doesn't own.
 
 These close the overlay:
 
