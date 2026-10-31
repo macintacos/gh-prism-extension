@@ -198,7 +198,7 @@ export function conversationPanel(
     open = choice.open = false;
     relayout();
     syncExpanded();
-    if (heldFocus) button?.focus();
+    if (heldFocus) button?.focus({ focusVisible: false });
   }
 
   function togglePin(): void {

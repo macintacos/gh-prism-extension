@@ -3318,6 +3318,51 @@ test("Shift+\\ opens the Conversation panel and closes it, from the page and fro
   await expect(conversationButton(page)).toBeFocused();
 });
 
+test("Shift+\\ moves focus into the Conversation panel and back to its button without a focus ring", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  await page.goto(PR_URL);
+  const panel = page.locator("#gh-prism-conversation");
+  await expect(conversationButton(page)).toBeVisible();
+
+  await page.keyboard.press("Shift+Backslash");
+  await expect(panel).toBeFocused();
+  expect(await panel.evaluate((aside) => getComputedStyle(aside).outlineStyle)).toBe("none");
+
+  await page.keyboard.press("Shift+Backslash");
+  await expect(conversationButton(page)).toBeFocused();
+  expect(await conversationButton(page).evaluate((b) => b.matches(":focus-visible"))).toBe(false);
+});
+
+test("Tab rings the Conversation button", async ({ context, page }) => {
+  await serveConversation(context);
+  await page.goto(PR_URL);
+  await conversationButton(page).focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+
+  await expect(conversationButton(page)).toBeFocused();
+  expect(await conversationButton(page).evaluate((b) => getComputedStyle(b).outlineStyle)).toBe(
+    "solid",
+  );
+});
+
+test("\\ leaves no focus ring on the tree toggle GitHub focuses", async ({ context, page }) => {
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+  const button = page.locator('[class*="RegularTreeToggle"]');
+  await expect(page.locator(".gh-prism-tree-key")).toBeVisible();
+  // A routed page runs none of GitHub's scripts; GitHub focuses the toggle after its click.
+  await button.evaluate((b) => b.addEventListener("click", () => setTimeout(() => b.focus())));
+
+  await page.keyboard.press("Backslash");
+
+  await expect(button).toBeFocused();
+  expect(await button.evaluate((b) => b.matches(":focus-visible"))).toBe(false);
+});
+
 test("\\ presses GitHub's tree toggle, which shows it as a keycap, while a text field types it", async ({
   context,
   page,

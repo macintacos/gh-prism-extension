@@ -6,6 +6,18 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-31: A sidebar shortcut moves focus without a ring
+
+- **Compared:** letting Shift+\ and `\` draw the focus ring Chrome shows after a key on
+  the element they focus, or moving focus there without one.
+- **Won:** no ring. Shift+\ focuses the Conversation panel, which no longer draws a ring
+  of its own, and returns focus to its button with `focusVisible: false`. `\` focuses
+  GitHub's tree toggle the same way before clicking it, so the toggle GitHub then focuses
+  stays ringless too. Tab still rings every control it reaches.
+- **Why:** the maintainer: "I don't like the focus ring that comes up when you use the
+  keyboard shortcut to open these sidebars." Chrome before 145 ignores `focusVisible` and
+  still rings the button and the tree toggle.
+
 ## 2026-10-31: The pinned Conversation panel stops at GitHub's real breakpoint
 
 - **Compared:** bounding the pinned panel at the window less 1012px, letting its widest

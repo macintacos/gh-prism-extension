@@ -137,14 +137,6 @@ section[class*="toolbar__"]:has(> .gh-prism-conversation-button)
   color: var(--fgColor-accent);
 }
 
-/* Longhands, so a page without Primer's colour still draws the ring in currentColor. */
-.gh-prism-conversation:focus-visible {
-  outline-style: solid;
-  outline-width: 2px;
-  outline-color: var(--focus-outlineColor);
-  outline-offset: -2px;
-}
-
 /* A border, not a shadow below the box: the positioned body paints over anything outside it. */
 .gh-prism-conversation-header {
   border-bottom: var(--borderWidth-thin, 1px) solid var(--borderColor-default);

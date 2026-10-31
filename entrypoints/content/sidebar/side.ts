@@ -99,6 +99,8 @@ function followTreeKey(page: FilesPage, toggle: Element, signal: AbortSignal): v
         .find((button) => getComputedStyle(button).display !== "none");
       if (!shown) return;
       event.preventDefault();
+      // GitHub then focuses its toggle by script, which inherits this focus's lack of a ring.
+      shown.focus({ focusVisible: false });
       shown.click();
     },
     { capture: true, signal },
