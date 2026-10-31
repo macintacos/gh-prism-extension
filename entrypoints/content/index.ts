@@ -59,6 +59,7 @@ import {
 } from "./conversation/panel";
 import { showReviewerFiles } from "./conversation/reviewer-files";
 import { visitViewed } from "./diffs/viewed";
+import { followRightPanel } from "./files-page";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
 import { showOwnerSection } from "./sidebar/owner-section";
 import { showReportLink } from "./sidebar/report";
@@ -216,7 +217,10 @@ export default defineContentScript({
             });
             if (steps) showStepLinks(page, signal, steps);
             dockSidebar(page, signal, { choice: side, save: saveSide });
-            if (panel) showConversationButton(page, signal, panel);
+            if (panel) {
+              showConversationButton(page, signal, panel);
+              followRightPanel(document, panel.refit, { signal });
+            }
           };
         },
         onMissing: () =>

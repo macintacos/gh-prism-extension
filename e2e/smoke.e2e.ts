@@ -3591,6 +3591,37 @@ test("the widest pinned Conversation panel leaves GitHub its docked layout", asy
   await expect(page.locator('[class*="RegularTreeToggle"]')).toBeVisible();
 });
 
+// GitHub's right-hand panel, mounted 0px wide while closed, as Merge status's wrapper is.
+const PR_RIGHT_PANEL_BODY = `${PR_TOOLBAR_BODY}<div id="diff-comparison-viewer-container"><div class="prc-PageLayout-SidebarWrapper-e2e" style="width: 0"></div></div>`;
+
+test("a pinned Conversation panel gives way to GitHub's right-hand panel, and pins again once it closes", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  // Routed after serveConversation's copy, so this one answers.
+  await serve(context, PR_URL, PR_RIGHT_PANEL_BODY);
+  await page.setViewportSize({ width: 1880, height: 900 });
+  await page.goto(PR_URL);
+  await openPinned(page);
+  const html = page.locator("html");
+  const pinnedWidth = () =>
+    html.evaluate((root) => root.style.getPropertyValue("--gh-prism-conversation-width"));
+  const width = await pinnedWidth();
+  const rightPanel = page.locator('[class*="PageLayout-SidebarWrapper"]');
+
+  await rightPanel.evaluate((panel) => ((panel as HTMLElement).style.width = "583px"));
+
+  await expect(html).not.toHaveAttribute("data-gh-prism-conversation", "pinned");
+  await expect(page.getByRole("complementary", { name: "Conversation" })).toBeVisible();
+  await expect(pinControl(page)).toBeHidden();
+
+  await rightPanel.evaluate((panel) => ((panel as HTMLElement).style.width = "0px"));
+
+  await expect(html).toHaveAttribute("data-gh-prism-conversation", "pinned");
+  expect(await pinnedWidth()).toBe(width);
+});
+
 test("a pinned Conversation panel pushes the tree and diffs over, whichever side the tree docks on", async ({
   context,
   page,

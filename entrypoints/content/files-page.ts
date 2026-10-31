@@ -5,7 +5,8 @@
  * tabs, finds a commit's message box and the row naming its parent, reads its rows, finds the row
  * a commit's message column joins, finds the toolbar row a pull request's Conversation button
  * starts, follows a pull request's narrow-layout overlay and the file-tree filter menu, finds and
- * follows the rows and code-owner shields of a pull request's Reviewers lists, and copies that
+ * follows the rows and code-owner shields of a pull request's Reviewers lists, measures and
+ * follows GitHub's right-hand panel beside a pull request's Files changed, and copies that
  * menu's group, divider, and item for gh-prism's entries, so the selectors stay in this seam; it
  * builds no UI of its own and imports nothing from WXT. The pull request selectors come from
  * EXC-1662's survey.
@@ -367,6 +368,30 @@ export function followFilterMenu(
     closed?.abort();
   });
   reportIfChanged();
+}
+
+// GitHub's right-hand panel: Merge status, and the Alerts, Comments, Copilot, Manage batch, and
+// Overview panels its header's dropdown switches to. Mounted at 0px wide while closed.
+const RIGHT_PANEL = '#diff-comparison-viewer-container [class*="PageLayout-SidebarWrapper"]';
+
+/** How wide GitHub's right-hand panel is beside Files changed: 0 while it's closed. */
+export const rightPanelWidth = (doc: Document): number =>
+  doc.querySelector(RIGHT_PANEL)?.getBoundingClientRect().width ?? 0;
+
+/**
+ * Calls `onResize` as GitHub's right-hand panel opens, closes, or is resized, until `signal`
+ * aborts. GitHub toggles it with `history.replaceState`, which fires no event.
+ */
+export function followRightPanel(
+  doc: Document,
+  onResize: () => void,
+  { signal }: { signal: AbortSignal },
+): void {
+  const panel = doc.querySelector(RIGHT_PANEL);
+  if (!panel) return;
+  const observer = new ResizeObserver(() => onResize());
+  observer.observe(panel);
+  signal.addEventListener("abort", () => observer.disconnect());
 }
 
 // cloneNode returns the node's own type, which the DOM typings can't express.

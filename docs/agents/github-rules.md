@@ -551,6 +551,28 @@ Below 1012px, a pull request's tree toggle opens the file tree as a "Files" over
   and undocks the tree below a 1076px page, not a 1012px one. Both toggles stay in the
   DOM; the hidden one is `display: none`. A commit page has no such container and docks
   its tree down to a 768px window.
+- **Expect GitHub's right-hand panel inside the `diffComparisonViewer` container, which
+  docks the tree on the container's whole width.** Merge status, and the Alerts, Comments,
+  Copilot, Manage batch, and Overview panels its header's dropdown switches to
+  (`?panel=mergeStatus`, `alerts`, `comments`, `copilotChat`, `manageBatchReviewComments`,
+  `overview`), are one Primer `SplitPageLayout.Sidebar`:
+  `#diff-comparison-viewer-container [class*="PageLayout-SidebarWrapper"]`, a flex item
+  beside `[class*="PageLayout-PageLayoutWrapper"]`. Closed, it stays mounted at 0px wide.
+  Open, it's 450–768px wide (plus a 3px divider), a per-user width GitHub saves on the
+  server as `docked_panel_width`. Primer also caps it at the viewport less 959px (less
+  511px below a 1280px viewport). While it's open, the container sets
+  `data-side-panel-open="true"` and drops its right padding. The tree still docks while
+  the container's content box is 1012px wide, so the panel counts as room for the tree and
+  diffs: beside a 580px panel, a 1215px page leaves the diffs 168px. GitHub's layout needs
+  a 1044px page plus the panel to keep the 1012px it docks at. GitHub opens, switches, and
+  closes the panel with `history.replaceState` on `?panel=`, which fires no event, so
+  `followRightPanel` in `files-page.ts` watches the panel's box with a `ResizeObserver`,
+  and `panel.ts` takes its width from the pinned column's room.
+
+  Re-check: on a pull request's Files changed, open Merge status from the header's
+  **Status** button. Read the wrapper's width and the container's `data-side-panel-open`
+  and padding, and confirm the URL changed with no `popstate`. Switch panels through the
+  dropdown and confirm each is the same wrapper at the same width.
 - **Expect Primer's Dialog to read `<html>`'s padding into `--prc-dialog-scrollgutter` on
   `<body>`.** `panel.css` accounts for it.
 - **Expect GitHub to wrap its whole app in `[data-turbo-body]` with `isolation: isolate`,

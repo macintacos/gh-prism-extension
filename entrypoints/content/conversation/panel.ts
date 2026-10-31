@@ -6,7 +6,7 @@
 
 import { conversationFrameUrl, conversationUrl } from "@/utils/github/conversation-frame";
 import type { PrRef } from "@/utils/github/pr-ref";
-import { type FilesPage, findFilesToolbar } from "../files-page";
+import { type FilesPage, findFilesToolbar, rightPanelWidth } from "../files-page";
 import {
   type ColumnWidthChoice,
   columnSeparator,
@@ -38,6 +38,8 @@ export interface ConversationPanel {
   readonly open: boolean;
   /** Makes `button` the panel's control, keeping its `aria-expanded` in step. */
   attach(button: HTMLElement): void;
+  /** Redraws the panel for the room GitHub's layout now leaves it, as a window resize does. */
+  refit(): void;
 }
 
 const PANEL_ID = "gh-prism-conversation";
@@ -48,7 +50,7 @@ const WIDTH_PROPERTY = "--gh-prism-conversation-width";
 // The strip of page left beside the widest overlay, to click outside it.
 const OVERLAY_GUTTER = 48;
 // GitHub docks a pull request's tree while its diff viewer's content box, inside 32px of padding
-// a side, is 1012px wide.
+// a side, is 1012px wide, and GitHub's open right-hand panel takes its width from the window.
 const DOCKED_FROM = 1012 + 2 * 32;
 
 /** The window's width less a classic scrollbar, which GitHub's diff viewer never gets. */
@@ -57,6 +59,10 @@ const pageWidth = (win: Window | null): number =>
 
 /** Whether `win` has room for the pinned panel beside GitHub's docked layout. */
 export const fitsPinned = (win: Window | null): boolean => fitsColumn(pageWidth(win), DOCKED_FROM);
+
+/** The room for GitHub's layout and the pinned column: the page less GitHub's right-hand panel. */
+const roomOf = (win: Window | null): number =>
+  win ? pageWidth(win) - rightPanelWidth(win.document) : 0;
 
 /** Octicons (MIT, GitHub Inc.): pin. */
 const PIN =
@@ -130,7 +136,7 @@ export function conversationPanel(
   let open = false;
 
   const syncExpanded = () => button?.setAttribute("aria-expanded", String(open));
-  const fits = () => fitsPinned(doc.defaultView);
+  const fits = () => fitsColumn(roomOf(doc.defaultView), DOCKED_FROM);
   /** How the panel should be drawn, as `open`, the choice, and the window allow. */
   const mode = (): Mode => (!open ? "closed" : choice.pinned && fits() ? "column" : "overlay");
   let drawn: Mode = "closed";
@@ -220,6 +226,7 @@ export function conversationPanel(
   const panel: ConversationPanel = {
     toggle: () => (open ? hide() : openForReviewer()),
     close: hide,
+    refit: layout,
     get open() {
       return open;
     },
@@ -347,9 +354,7 @@ function mountPanel(
       if (isColumn()) doc.documentElement.style.setProperty(WIDTH_PROPERTY, `${width}px`);
     },
     widest: (viewport) =>
-      isColumn()
-        ? widestColumn(pageWidth(doc.defaultView), DOCKED_FROM)
-        : viewport - OVERLAY_GUTTER,
+      isColumn() ? widestColumn(roomOf(doc.defaultView), DOCKED_FROM) : viewport - OVERLAY_GUTTER,
   });
   aside.append(separator);
   aside.id = PANEL_ID;

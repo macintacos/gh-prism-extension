@@ -199,17 +199,22 @@ sits right of the panel whichever side the sidebar docks on. Only the toolbar bu
 close a pinned panel. Its right edge carries `columnSeparator` from `ui/column-width.ts`,
 pinned or not, which sets the panel's one width, saved as `conversationWidth` in
 [`utils/prefs.ts`](../utils/prefs.ts). Each mode holds that width to its own bound: the
-column's what the window, less a classic scrollbar, has past 1076px, where GitHub undocks
-a pull request's tree (its 1012px query plus the diff viewer's 32px padding a side), and
-the overlay's at the window less 48px. Only the column sets
+column's what the window, less a classic scrollbar and GitHub's open right-hand panel
+(Merge status and the panels its dropdown switches to), has past 1076px, where GitHub
+undocks a pull request's tree (its 1012px query plus the diff viewer's 32px padding a
+side), and the overlay's at the window less 48px. Only the column sets
 `--gh-prism-conversation-width`, so the overlay never moves the page, and switching modes
 redraws the width without saving it. On a window too narrow for that column, as
 `fitsPinned` judges, the pin control hides and a pinned panel draws as the overlay; a
-`resize` listener switches between the two. Pinning and unpinning only change attributes
-and styles, never the frame. When the page's padding changes, `panel.ts` animates it from
-its old width with the Web Animations API, timed to the panel's own slide in `panel.css`,
-so the panel and the page move as one. A view transition would snapshot the page and
-cross-fade it between two places, drawing GitHub's header and the diffs twice.
+`resize` listener and a `ResizeObserver` on GitHub's right-hand panel switch between the
+two, without a slide and without saving. A full load decides by the window alone whether a
+panel left open and pinned opens; it then draws for the room beside an open right-hand
+panel, narrowed or as the overlay, without focus. Pinning and unpinning only change
+attributes and styles, never the frame. When the page's padding changes, `panel.ts`
+animates it from its old width with the Web Animations API, timed to the panel's own slide
+in `panel.css`, so the panel and the page move as one. A view transition would snapshot
+the page and cross-fade it between two places, drawing GitHub's header and the diffs
+twice.
 
 A tab-wide `ConversationChoice` object carries whether the panel is open and pinned and
 its width, so a soft navigation to another pull request's Files changed opens the new

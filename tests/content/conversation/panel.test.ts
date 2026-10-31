@@ -10,7 +10,11 @@ import {
   conversationPanel,
   showConversationButton,
 } from "../../../entrypoints/content/conversation/panel";
-import { type FilesPage, findFilesPage } from "../../../entrypoints/content/files-page";
+import {
+  type FilesPage,
+  findFilesPage,
+  followRightPanel,
+} from "../../../entrypoints/content/files-page";
 import type { PrRef } from "../../../utils/github/pr-ref";
 import fixture from "../../fixtures/files-page.html?raw";
 import { setViewport } from "../../fixtures/viewport";
@@ -1007,5 +1011,89 @@ describe("remembering whether it's open", () => {
     const { saveOpen } = setup({ choice: { open: true, pinned: true, width: 300 } });
 
     expect(saveOpen).not.toHaveBeenCalled();
+  });
+});
+
+describe("beside GitHub's right-hand panel", () => {
+  const root = document.documentElement;
+  const pin = () => aside()?.querySelector<HTMLButtonElement>(".gh-prism-conversation-pin");
+  const pinnedWidth = () => root.style.getPropertyValue("--gh-prism-conversation-width");
+  let rightPanel = 0;
+  let resized: (() => void) | undefined;
+
+  beforeEach(() => {
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      '<div id="diff-comparison-viewer-container"><div class="prc-PageLayout-SidebarWrapper-kLG4B"></div></div>',
+    );
+    const wrapper = document.querySelector('[class*="PageLayout-SidebarWrapper"]');
+    if (!wrapper) throw new Error("no right-hand panel");
+    vi.spyOn(wrapper, "getBoundingClientRect").mockImplementation(
+      () => new DOMRect(0, 0, rightPanel, 0),
+    );
+
+    // happy-dom's ResizeObserver never fires, so the test calls its callback.
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(callback: () => void) {
+          resized = callback;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+
+    setViewport({ width: 1880, height: 768 });
+  });
+  afterEach(() => {
+    rightPanel = 0;
+    resized = undefined;
+    vi.unstubAllGlobals();
+    setViewport(NARROW);
+    delete root.dataset.ghPrismConversation;
+    root.style.removeProperty("--gh-prism-conversation-width");
+  });
+
+  // GitHub docks its tree on a container that holds this panel, so the panel's width comes
+  // off the room GitHub's docked layout keeps past 1076px.
+  it("draws a pinned panel as the overlay on a window the open panel leaves no room for the column", () => {
+    setViewport({ width: 1900, height: 768 });
+    const { choice, savePinned, saveOpen } = setup({
+      choice: { open: true, pinned: true, width: 665 },
+    });
+    expect(root.dataset.ghPrismConversation).toBe("pinned");
+    rightPanel = 583;
+
+    // A size change, so happy-dom fires `resize`.
+    setViewport({ width: 1880, height: 768 });
+
+    expect(root.dataset.ghPrismConversation).toBeUndefined();
+    expect(shown()).toBe(true);
+    expect(pin()?.hidden).toBe(true);
+    expect(choice).toMatchObject({ open: true, pinned: true, width: 665 });
+    expect(savePinned).not.toHaveBeenCalled();
+    expect(saveOpen).not.toHaveBeenCalled();
+  });
+
+  it("follows the panel opening and closing, holding the column to the room it leaves", () => {
+    setViewport({ width: 2200, height: 768 });
+    const { panel, saveWidth } = setup({ choice: { open: true, pinned: true, width: 665 } });
+    followRightPanel(document, panel.refit, { signal: new AbortController().signal });
+
+    rightPanel = 583;
+    resized?.();
+    expect(root.dataset.ghPrismConversation).toBe("pinned");
+    expect(pinnedWidth()).toBe(`${2200 - 583 - 1076}px`);
+
+    setViewport({ width: 1880, height: 768 });
+    resized?.();
+    expect(root.dataset.ghPrismConversation).toBeUndefined();
+
+    rightPanel = 0;
+    resized?.();
+    expect(root.dataset.ghPrismConversation).toBe("pinned");
+    expect(pinnedWidth()).toBe("665px");
+    expect(saveWidth).not.toHaveBeenCalled();
   });
 });

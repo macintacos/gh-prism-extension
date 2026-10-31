@@ -6,6 +6,24 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-31: The pinned Conversation panel makes room for GitHub's right-hand panel
+
+- **Compared:** keeping the pinned column at its width beside Merge status and the panels
+  its dropdown switches to; and counting GitHub's open right-hand panel against the
+  column's room.
+- **Won:** counting it. Beside an open right-hand panel the column narrows to fit, or
+  draws as the overlay when no room is left, until that panel closes. The switch has no
+  slide and saves nothing, so the column comes back at its saved width.
+- **Why:** the maintainer: "when I click on the "Merge status" button in the github
+  interface, which brings up its on sidebar on the right, if you have the conversation
+  sidebar on the left pinned, everything looks super cramped and the UI kinda blows up - a
+  lot of stuff gets overlapped and whatnot".
+- **Settled with it:** on a full load with a right-hand panel already open, a panel left
+  open and pinned opens without focus, drawn for the room beside that panel (narrowed, or
+  as the overlay when none is left), and comes back at its saved width when that panel
+  closes. An overlay forced by room keeps the overlay's rules: an outside click, one
+  inside Merge status included, closes it and saves closed, as on a narrow window.
+
 ## 2026-10-31: A full load restores the Conversation panel as it was left
 
 - **Compared:** opening the panel on a full load whenever it was pinned and the window fit
