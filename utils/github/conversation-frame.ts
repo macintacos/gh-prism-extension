@@ -13,6 +13,10 @@ const MAX_POLICY_LENGTH = 16384;
 export const conversationFrameUrl = (pr: PrRef): string =>
   `https://github.com/${pr.owner}/${pr.repo}/pull/${pr.number}?gh-prism-panel=1`;
 
+/** Whether `url` carries the marker of the URL the panel frames. */
+export const isConversationFrame = (url: URL): boolean =>
+  url.searchParams.get("gh-prism-panel") === "1";
+
 /** `policy` without its frame-ancestors directive; every other directive kept as sent. */
 export function withoutFrameAncestors(policy: string): string {
   return policy

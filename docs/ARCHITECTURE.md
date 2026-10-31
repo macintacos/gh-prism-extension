@@ -32,6 +32,17 @@ Instead, it watches every page for a Files view to appear, for a pull request's 
 tabs, where it shows the diffstat and, on Conversation, a code owner's files, and for a
 pull request's classic page, where it opens a dialog instead.
 
+That script runs in the top frame only, so nothing of gh-prism's, the Conversation button
+included, shows inside the Conversation panel. A second content script,
+[`entrypoints/conversation-frame.content.ts`](../entrypoints/conversation-frame.content.ts),
+runs in every frame of a pull request URL at `document_start` and acts only in a sub-frame
+whose URL carries the panel's `gh-prism-panel=1` marker. There,
+[`conversation/frame.ts`](../entrypoints/content/conversation/frame.ts) hides GitHub's
+site header, PR title bar, and tab row, posts each link that leaves the Conversation to
+the parent page to load, and relays an Escape GitHub didn't handle. The messages' shapes
+live in
+[`conversation/frame-messages.ts`](../entrypoints/content/conversation/frame-messages.ts).
+
 ## Page kinds
 
 [`entrypoints/content/files-page.ts`](../entrypoints/content/files-page.ts) is the one
@@ -613,6 +624,7 @@ these surfaces' sheets `@import`s the mark's partial, `ui/mark.css`.
 ```text
 entrypoints/
   background.ts          service worker: PR data port, the Conversation panel's framing rule, cache clearing and what's-new mark on install
+  conversation-frame.content.ts  content script in the Conversation panel's frame
   content/
     index.ts             content script entry: wires the watchers, intent, and views
     files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; a commit's message box and the row its message column joins
@@ -622,7 +634,7 @@ entrypoints/
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
     header/              diffstat breakout
-    conversation/        a code owner's files popup and gh-prism's reviewer shield, in the Reviewers lists
+    conversation/        a code owner's files popup and gh-prism's reviewer shield, in the Reviewers lists; dressing the Conversation panel's frame and the messages it posts
     ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, Tailwind tokens
 utils/
   github/                routes, diff parsing, the PR data port and source, code owners and reviewers
