@@ -189,14 +189,18 @@ The pin control in the panel's header pins it. Pinned, the panel stays put and s
 `panel.css` pads `<html>` by that width, so the whole page, GitHub's own layout included,
 sits right of the panel whichever side the sidebar docks on. Only the toolbar button and ✕
 close a pinned panel. Its right edge carries `columnSeparator` from `ui/column-width.ts`,
-which sets the width, saved as `conversationWidth` in
-[`utils/prefs.ts`](../utils/prefs.ts). On a window too narrow for that column, as
-`fitsColumn` judges, the pin control hides and a pinned panel draws as the overlay; a
-`resize` listener switches between the two. Pinning and unpinning only change attributes
-and styles, never the frame. When the page's padding changes, `panel.ts` animates it from
-its old width with the Web Animations API, timed to the panel's own slide in `panel.css`,
-so the panel and the page move as one. A view transition would snapshot the page and
-cross-fade it between two places, drawing GitHub's header and the diffs twice.
+pinned or not, which sets the panel's one width, saved as `conversationWidth` in
+[`utils/prefs.ts`](../utils/prefs.ts). Each mode holds that width to its own bound: the
+column's beside GitHub's docked layout, and the overlay's at the window less 48px. Only
+the column sets `--gh-prism-conversation-width`, so the overlay never moves the page, and
+switching modes redraws the width without saving it. On a window too narrow for that
+column, as `fitsColumn` judges, the pin control hides and a pinned panel draws as the
+overlay; a `resize` listener switches between the two. Pinning and unpinning only change
+attributes and styles, never the frame. When the page's padding changes, `panel.ts`
+animates it from its old width with the Web Animations API, timed to the panel's own slide
+in `panel.css`, so the panel and the page move as one. A view transition would snapshot
+the page and cross-fade it between two places, drawing GitHub's header and the diffs
+twice.
 
 A tab-wide `ConversationChoice` object carries whether the panel is open and pinned and
 its width, so a soft navigation to another pull request's Files changed opens the new

@@ -6,6 +6,28 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-31: The Conversation panel's overlay resizes, with one width
+
+This widens the 2026-10-30 pinned-panel entry below, which put the separator on the pinned
+panel's edge only.
+
+- **Compared:**
+  - a fixed overlay, or one that resizes from its right edge;
+  - a width per mode, or one width both modes share;
+  - 480px, as before, or 560px as the default.
+- **Won:**
+  - The overlay takes the pinned column's separator, by drag and arrow keys, held between
+    256px and the window less 48px.
+  - One width, saved as `conversationWidth`, which each mode holds to its own bound.
+    Switching modes redraws it and never saves it.
+  - 560px.
+- **Why:**
+  - The maintainer asked for the overlay to resize without pinning it.
+  - A reader sizes the panel once, so both modes keep the size they set.
+  - The overlay floats, so it only needs the strip of page that a click outside it uses.
+  - The maintainer asked for a default a little wider than 480px, and 560px still fits the
+    pinned column's bound of 588px on a 1600px window.
+
 ## 2026-10-31: The Conversation button and tree toggle hold their keycaps
 
 This replaces the button forms in the 2026-10-30 keys-and-keycaps entry below. The keys,

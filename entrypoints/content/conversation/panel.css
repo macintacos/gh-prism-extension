@@ -42,9 +42,6 @@
   z-index: 100;
   display: flex;
   flex-direction: column;
-  /* The overlay's width, unset unpinned: keep 480px in sync with conversationWidth's fallback in
-     utils/prefs.ts. 48px leaves a strip of page to click outside it. */
-  width: min(var(--gh-prism-conversation-width, 480px), 100vw - 48px);
   /* The framed Conversation's own canvas, so the header and frame read as one surface. */
   background: var(--bgColor-default);
   box-shadow: var(--shadow-floating-small);
@@ -85,7 +82,7 @@
 }
 
 /* Pinned, a column beside the page rather than a surface over it: a hairline in place of the
-   shadow. panel.ts sets the width inline. */
+   shadow. */
 :root[data-gh-prism-conversation="pinned"] .gh-prism-conversation {
   box-shadow: 1px 0 0 var(--borderColor-default);
 }

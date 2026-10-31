@@ -3526,14 +3526,14 @@ test("a pinned Conversation panel resizes from its edge by mouse and keyboard, a
   const separator = page.getByRole("separator", { name: "Resize Conversation" });
 
   await openPinned(page);
-  await expect(panel).toHaveCSS("width", "480px");
+  await expect(panel).toHaveCSS("width", "560px");
   const edge = await separator.boundingBox();
   if (!edge) throw new Error("no separator box");
   const x = edge.x + edge.width / 2;
   const y = edge.y + 200;
   await page.mouse.move(x, y);
   await page.mouse.down();
-  await page.mouse.move(x + 40, y, { steps: 4 });
+  await page.mouse.move(x - 40, y, { steps: 4 });
   await page.mouse.up();
   await expect(panel).toHaveCSS("width", "520px");
   expect((await columns(page)).pane?.left).toBeGreaterThanOrEqual(520);
@@ -3551,6 +3551,47 @@ test("a pinned Conversation panel resizes from its edge by mouse and keyboard, a
     await expect(panel).toHaveCSS("width", "517px", { timeout: 5000 });
   }).toPass({ timeout: 20_000 });
   await expect(panel).not.toBeFocused();
+});
+
+test("an unpinned Conversation panel resizes from its edge by mouse and keyboard, staying open, and keeps its width after a reload", async ({
+  context,
+  page,
+}) => {
+  await serveLaidOutConversation(context);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  const panel = page.locator("#gh-prism-conversation");
+  const separator = page.getByRole("separator", { name: "Resize Conversation" });
+
+  await conversationButton(page).click();
+  await expect(panel).toHaveCSS("width", "560px");
+  // The overlay slides in; measure its edge where it settles.
+  await panel.evaluate((aside) =>
+    Promise.allSettled(aside.getAnimations().map((slide) => slide.finished)),
+  );
+  const edge = await separator.boundingBox();
+  if (!edge) throw new Error("no separator box");
+  const x = edge.x + edge.width / 2;
+  const y = edge.y + 200;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 240, y, { steps: 4 });
+  await page.mouse.up();
+  await expect(panel).toHaveCSS("width", "800px");
+  await expect(panel).toBeVisible();
+  await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-conversation");
+
+  await separator.focus();
+  await page.keyboard.press("ArrowLeft");
+  await expect(panel).toHaveCSS("width", "797px");
+  await expect(panel).toBeVisible();
+
+  // The width saves asynchronously; reload until a load reads it back.
+  await expect(async () => {
+    await page.reload();
+    await conversationButton(page).click();
+    await expect(panel).toHaveCSS("width", "797px", { timeout: 5000 });
+  }).toPass({ timeout: 20_000 });
 });
 
 test("a GitHub dialog opened beside a pinned Conversation panel keeps the page's width", async ({

@@ -591,7 +591,6 @@ describe("pinning", () => {
     expect(pin()?.getAttribute("aria-pressed")).toBe("false");
     expect(root.dataset.ghPrismConversation).toBeUndefined();
     expect(pinnedWidth()).toBe("");
-    expect(separator()?.hidden).toBe(true);
     expect(savePinned).toHaveBeenLastCalledWith(false);
   });
 
@@ -740,5 +739,93 @@ describe("pinning", () => {
 
     expect(root.dataset.ghPrismConversation).toBeUndefined();
     expect(pinnedWidth()).toBe("");
+  });
+});
+
+describe("resizing the overlay", () => {
+  const separator = () => aside()?.querySelector<HTMLElement>('[role="separator"]');
+  const pin = () => aside()?.querySelector<HTMLButtonElement>(".gh-prism-conversation-pin");
+  const root = document.documentElement;
+  const press = (key: string, times = 1) => {
+    for (let i = 0; i < times; i++)
+      separator()?.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+  };
+  const openOverlay = (choice: Partial<ConversationChoice> = {}) => {
+    const parts = setup({ choice: { ...closed(), ...choice } });
+    mountButton(parts.panel)?.click();
+    return parts;
+  };
+
+  beforeEach(() => setViewport(WIDE));
+  afterEach(() => {
+    setViewport(NARROW);
+    delete root.dataset.ghPrismConversation;
+    root.style.removeProperty("--gh-prism-conversation-width");
+    root.style.removeProperty("padding-inline-start");
+  });
+
+  it("draws the overlay at the chosen width, with its separator", () => {
+    openOverlay();
+
+    expect(separator()?.hidden).toBe(false);
+    expect(aside()?.style.width).toBe("300px");
+  });
+
+  it("steps the overlay's width by arrow key, saving each width", () => {
+    const { choice, saveWidth } = openOverlay();
+
+    press("ArrowRight");
+
+    expect(aside()?.style.width).toBe("303px");
+    expect(choice.width).toBe(303);
+    expect(saveWidth).toHaveBeenCalledWith(303);
+  });
+
+  it("holds the overlay to the window less a strip of page, past the column's bound", () => {
+    openOverlay({ width: 1500 });
+
+    expect(aside()?.style.width).toBe(`${WIDE.width - 48}px`);
+    expect(separator()?.getAttribute("aria-valuemax")).toBe(String(WIDE.width - 48));
+  });
+
+  it("resizes the overlay on a window too narrow for the column", () => {
+    setViewport(NARROW);
+    const { choice } = openOverlay({ pinned: true, width: 600 });
+
+    press("ArrowRight");
+
+    expect(choice.width).toBe(603);
+    expect(aside()?.style.width).toBe("603px");
+  });
+
+  it("leaves the page alone while it resizes the overlay", () => {
+    openOverlay();
+
+    press("ArrowRight", 5);
+
+    expect(root.style.getPropertyValue("--gh-prism-conversation-width")).toBe("");
+    expect(root.style.paddingInlineStart).toBe("");
+    expect(root.dataset.ghPrismConversation).toBeUndefined();
+  });
+
+  it("pins at the overlay's width, held to the column's bound", () => {
+    const { choice } = openOverlay({ width: 380 });
+    press("ArrowRight", 10);
+
+    pin()?.click();
+
+    expect(choice.width).toBe(410);
+    expect(aside()?.style.width).toBe(`${WIDE.width - 1012}px`);
+    expect(root.style.getPropertyValue("--gh-prism-conversation-width")).toBe(
+      `${WIDE.width - 1012}px`,
+    );
+  });
+
+  it("stays open on a pointerdown on its separator", () => {
+    const { panel } = openOverlay();
+
+    separator()?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 }));
+
+    expect(panel.open).toBe(true);
   });
 });

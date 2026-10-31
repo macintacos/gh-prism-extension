@@ -7,7 +7,12 @@
 import { conversationFrameUrl, conversationUrl } from "@/utils/github/conversation-frame";
 import type { PrRef } from "@/utils/github/pr-ref";
 import { type FilesPage, findFilesToolbar } from "../files-page";
-import { type ColumnWidthChoice, columnSeparator, fitsColumn } from "../ui/column-width";
+import {
+  type ColumnWidthChoice,
+  columnSeparator,
+  fitsColumn,
+  widestColumn,
+} from "../ui/column-width";
 import { el, icon, isEditable, X_ICON } from "../ui/dom";
 import { keycap } from "../ui/keycap";
 import { prismMark } from "../ui/mark";
@@ -17,8 +22,8 @@ import { CONVERSATION_ESCAPE, CONVERSATION_KEY, isFrameMessage } from "./frame-m
 import css from "./panel.css?inline";
 
 /**
- * Whether the panel is open and pinned, and its pinned width. One per tab, so an open panel
- * carries to the next pull request.
+ * Whether the panel is open and pinned, and its width, pinned or over the page. One per tab, so
+ * an open panel carries to the next pull request.
  */
 export interface ConversationChoice extends ColumnWidthChoice {
   open: boolean;
@@ -37,8 +42,11 @@ export interface ConversationPanel {
 
 const PANEL_ID = "gh-prism-conversation";
 const ORIGIN = "https://github.com";
-// Read by panel.css's padding on <html>, which makes the pinned panel's room.
+// The pinned column's width, read by panel.css's padding on <html>, which makes its room. The
+// overlay never sets it.
 const WIDTH_PROPERTY = "--gh-prism-conversation-width";
+// The strip of page left beside the widest overlay, to click outside it.
+const OVERLAY_GUTTER = 48;
 
 /** Octicons (MIT, GitHub Inc.): pin. */
 const PIN =
@@ -56,7 +64,7 @@ export interface ConversationPanelOptions {
   allowFraming: (pr: PrRef, policy: string, signal: AbortSignal) => Promise<boolean>;
   /** Remembers whether the reader pinned the panel. */
   savePinned: (pinned: boolean) => void;
-  /** Remembers a width the pinned panel was set to. */
+  /** Remembers a width the panel was set to. */
   saveWidth: (width: number) => void;
   visit: AbortSignal;
 }
@@ -70,7 +78,7 @@ interface PanelView {
   readonly body: HTMLElement;
   readonly pin: HTMLElement;
   readonly separator: HTMLElement;
-  /** Sizes the pinned panel, and the page's room for it, to the choice's width. */
+  /** Sizes the panel to the choice's width, and the page's room for it when pinned. */
   readonly size: () => void;
 }
 
@@ -104,14 +112,9 @@ export function conversationPanel(
     view.aside.hidden = drawn === "closed";
     view.pin.hidden = !fits();
     view.pin.setAttribute("aria-pressed", String(choice.pinned));
-    view.separator.hidden = drawn !== "column";
-    if (drawn === "column") {
-      root.dataset.ghPrismConversation = "pinned";
-      view.size();
-    } else {
-      unpinPage(root);
-      view.aside.style.removeProperty("width");
-    }
+    if (drawn === "column") root.dataset.ghPrismConversation = "pinned";
+    else unpinPage(root);
+    if (drawn !== "closed") view.size();
   }
 
   /** Runs `layout`, sliding the page alongside the panel when it moves. */
@@ -131,7 +134,17 @@ export function conversationPanel(
 
   /** Mounts the panel and its frame once, and marks it open, before it's laid out. */
   function reveal(): PanelView {
-    view ??= mountPanel(doc, { close: () => panel.close(), togglePin, choice, saveWidth }, visit);
+    view ??= mountPanel(
+      doc,
+      {
+        close: () => panel.close(),
+        togglePin,
+        isColumn: () => drawn === "column",
+        choice,
+        saveWidth,
+      },
+      visit,
+    );
     frame ??= loadFrame(doc, view, options);
     open = choice.open = true;
     syncExpanded();
@@ -235,11 +248,14 @@ function mountPanel(
   {
     close,
     togglePin,
+    isColumn,
     choice,
     saveWidth,
   }: {
     close: () => void;
     togglePin: () => void;
+    /** Whether the panel is drawn as the pinned column rather than the overlay. */
+    isColumn: () => boolean;
     choice: ColumnWidthChoice;
     saveWidth: (width: number) => void;
   },
@@ -281,9 +297,11 @@ function mountPanel(
     choice,
     saveWidth,
     label: "Resize Conversation",
-    onSize: (width) => doc.documentElement.style.setProperty(WIDTH_PROPERTY, `${width}px`),
+    onSize: (width) => {
+      if (isColumn()) doc.documentElement.style.setProperty(WIDTH_PROPERTY, `${width}px`);
+    },
+    widest: (viewport) => (isColumn() ? widestColumn(viewport) : viewport - OVERLAY_GUTTER),
   });
-  separator.hidden = true;
   aside.append(separator);
   aside.id = PANEL_ID;
   aside.tabIndex = -1;

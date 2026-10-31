@@ -226,7 +226,9 @@ A column on the left of the page takes a separator on its inner edge, copying Pr
 pane divider: drag it, or step it 3px with the arrow keys, between Primer's 256px pane
 minimum and what the window has past GitHub's 1012px docked layout. Every page in the tab
 shares the width the reader picked. `ui/column-width.ts` and `ui/column-width.css` build
-it for the commit message column and the pinned Conversation panel.
+it for the commit message column and the Conversation panel. The Conversation panel's
+overlay takes the same separator but floats over the page, so its bound is the window less
+48px, the strip left to click outside it.
 
 ## Code owner's files
 

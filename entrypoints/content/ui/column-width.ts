@@ -17,11 +17,9 @@ const STEP = 3;
 /** Whether a `viewport`-wide window has room for the column beside GitHub's docked layout. */
 export const fitsColumn = (viewport: number): boolean => viewport - DOCKED_FROM >= MIN_WIDTH;
 
-const widest = (viewport: number): number => Math.max(MIN_WIDTH, viewport - DOCKED_FROM);
-
-/** `width` held to the column's bounds on a `viewport`-wide window. */
-const heldWidth = (width: number, viewport: number): number =>
-  Math.min(Math.max(width, MIN_WIDTH), widest(viewport));
+/** The widest the column can be on a `viewport`-wide window. */
+export const widestColumn = (viewport: number): number =>
+  Math.max(MIN_WIDTH, viewport - DOCKED_FROM);
 
 /** The width a reader picked, shared by every page in the tab. */
 export interface ColumnWidthChoice {
@@ -32,7 +30,8 @@ export interface ColumnWidthChoice {
  * Builds the separator for `column`, which `size` then sizes to `choice.width` held to the
  * window's bounds. Dragging the separator, or its arrow keys, records the width in `choice` and
  * `saveWidth`s it: a drag once on release, a key at each press. `onSize` hears each width the
- * column takes. The separator's rules are in `column-width.css`, which the column's sheet imports.
+ * column takes. `widest` overrides the column's upper bound. The separator's rules are in
+ * `column-width.css`, which the column's sheet imports.
  */
 export function columnSeparator(
   column: HTMLElement,
@@ -41,11 +40,13 @@ export function columnSeparator(
     saveWidth,
     label,
     onSize,
+    widest = widestColumn,
   }: {
     choice: ColumnWidthChoice;
     saveWidth: (width: number) => void;
     label: string;
     onSize?: (width: number) => void;
+    widest?: (viewport: number) => number;
   },
 ): { readonly separator: HTMLElement; readonly size: () => void } {
   const doc = column.ownerDocument;
@@ -56,6 +57,8 @@ export function columnSeparator(
   separator.setAttribute("aria-label", label);
 
   const viewport = () => doc.defaultView?.innerWidth ?? 0;
+  const heldWidth = (width: number): number =>
+    Math.min(Math.max(width, MIN_WIDTH), widest(viewport()));
   const show = (width: number) => {
     column.style.width = `${width}px`;
     onSize?.(width);
@@ -63,9 +66,9 @@ export function columnSeparator(
     separator.setAttribute("aria-valuemin", String(MIN_WIDTH));
     separator.setAttribute("aria-valuemax", String(widest(viewport())));
   };
-  const size = () => show(heldWidth(choice.width, viewport()));
+  const size = () => show(heldWidth(choice.width));
   const pick = (width: number) => {
-    choice.width = heldWidth(width, viewport());
+    choice.width = heldWidth(width);
     show(choice.width);
   };
 
@@ -73,7 +76,7 @@ export function columnSeparator(
     const step = KEY_STEPS[event.key];
     if (step === undefined || event.altKey || event.ctrlKey || event.metaKey) return;
     event.preventDefault();
-    pick(heldWidth(choice.width, viewport()) + step * STEP);
+    pick(heldWidth(choice.width) + step * STEP);
     saveWidth(choice.width);
   });
 
@@ -82,7 +85,7 @@ export function columnSeparator(
     if (event.button !== 0) return;
     event.preventDefault();
     separator.setPointerCapture(event.pointerId);
-    drag = { x: event.clientX, width: heldWidth(choice.width, viewport()) };
+    drag = { x: event.clientX, width: heldWidth(choice.width) };
     separator.dataset.dragging = "";
   });
   separator.addEventListener("pointermove", (event) => {
