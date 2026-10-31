@@ -4,11 +4,11 @@
  * `<body>`, never moved, because moving or re-creating an `<iframe>` reloads it.
  */
 
-import { conversationFrameUrl } from "@/utils/github/conversation-frame";
+import { conversationFrameUrl, conversationUrl } from "@/utils/github/conversation-frame";
 import type { PrRef } from "@/utils/github/pr-ref";
 import { type FilesPage, findFilesToolbar } from "../files-page";
 import { type ColumnWidthChoice, columnSeparator, fitsColumn } from "../ui/column-width";
-import { el, icon, X_ICON } from "../ui/dom";
+import { el, icon, isEditable, X_ICON } from "../ui/dom";
 import { glide } from "../ui/glide";
 import { prismMark } from "../ui/mark";
 import { CONVERSATION_ESCAPE, isFrameMessage } from "./frame-messages";
@@ -47,9 +47,21 @@ const PIN =
 const COMMENT_DISCUSSION =
   "M1.75 1h8.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 10.25 10H7.061l-2.574 2.573A1.458 1.458 0 0 1 2 11.543V10h-.25A1.75 1.75 0 0 1 0 8.25v-5.5C0 1.784.784 1 1.75 1ZM1.5 2.75v5.5c0 .138.112.25.25.25h1a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h3.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25h-8.5a.25.25 0 0 0-.25.25Zm13 2a.25.25 0 0 0-.25-.25h-.5a.75.75 0 0 1 0-1.5h.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 14.25 12H14v1.543a1.458 1.458 0 0 1-2.487 1.03L9.22 12.28a.749.749 0 0 1 1.06-1.06l2.22 2.22v-2.19a.75.75 0 0 1 .75-.75h1a.25.25 0 0 0 .25-.25Z";
 
-// Primer's small invisible IconButton, as the sidebar's side switch draws it.
-const ICON_BUTTON =
-  "tw:relative tw:shrink-0 tw:inline-grid tw:place-content-center tw:size-[var(--control-small-size,28px)] tw:p-0 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-iconColor-rest)] tw:[font:inherit] tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:hover:text-[color:var(--button-invisible-iconColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2";
+/** What `conversationPanel` frames, and how it reaches storage and the framing rule. */
+export interface ConversationPanelOptions {
+  pr: PrRef;
+  choice: ConversationChoice;
+  fetch: typeof fetch;
+  allowFraming: (pr: PrRef, policy: string, signal: AbortSignal) => Promise<boolean>;
+  /** Remembers whether the reader pinned the panel. */
+  savePinned: (pinned: boolean) => void;
+  /** Remembers a width the pinned panel was set to. */
+  saveWidth: (width: number) => void;
+  visit: AbortSignal;
+}
+
+/** Closed, over the page, or pinned as a column beside it. */
+type Mode = "closed" | "overlay" | "column";
 
 /** The panel's markup, before it holds a frame. */
 interface PanelView {
@@ -67,17 +79,7 @@ interface PanelView {
  */
 export function conversationPanel(
   doc: Document,
-  options: {
-    pr: PrRef;
-    choice: ConversationChoice;
-    fetch: typeof fetch;
-    allowFraming: (pr: PrRef, policy: string, signal: AbortSignal) => Promise<boolean>;
-    /** Remembers whether the reader pinned the panel. */
-    savePinned: (pinned: boolean) => void;
-    /** Remembers a width the pinned panel was set to. */
-    saveWidth: (width: number) => void;
-    visit: AbortSignal;
-  },
+  options: ConversationPanelOptions,
 ): ConversationPanel {
   const { choice, savePinned, saveWidth, visit } = options;
   const root = doc.documentElement;
@@ -89,16 +91,18 @@ export function conversationPanel(
 
   const sync = () => button?.setAttribute("aria-expanded", String(open));
   const fits = () => fitsColumn(doc.defaultView?.innerWidth ?? 0);
-  const pinned = () => open && choice.pinned && fits();
+  /** How the panel should be drawn, as `open`, the choice, and the window allow. */
+  const mode = (): Mode => (!open ? "closed" : choice.pinned && fits() ? "column" : "overlay");
+  let drawn: Mode = "closed";
 
-  /** Draws the panel pinned or as the overlay, as the choice and the window allow. */
   function layout(): void {
     if (!view) return;
-    view.aside.hidden = !open;
+    drawn = mode();
+    view.aside.hidden = drawn === "closed";
     view.pin.hidden = !fits();
     view.pin.setAttribute("aria-pressed", String(choice.pinned));
-    view.separator.hidden = !pinned();
-    if (pinned()) {
+    view.separator.hidden = drawn !== "column";
+    if (drawn === "column") {
       root.dataset.ghPrismConversation = "pinned";
       view.size();
     } else {
@@ -107,25 +111,35 @@ export function conversationPanel(
     }
   }
 
-  /** Runs `layout`, gliding the page when it moves, unless the sidebar is already gliding. */
+  /** Runs `layout`, gliding the page when it moves. */
   function relayout(): void {
-    const moves = (root.dataset.ghPrismConversation === "pinned") !== pinned();
-    if (moves && root.dataset.ghPrismGlide === undefined) glide(doc, "pin", layout);
+    const moves = (drawn === "column") !== (mode() === "column");
+    if (moves) glide(doc, "pin", layout);
     else layout();
   }
 
-  function show(focus: boolean): void {
+  /** Mounts the panel and its frame once, and marks it open, before it's laid out. */
+  function reveal(): PanelView {
     view ??= mountPanel(doc, { close: () => panel.close(), togglePin, choice, saveWidth }, visit);
     frame ??= loadFrame(doc, view, options);
     open = choice.open = true;
+    // Shown before relayout, so a glide's old snapshot already holds the panel.
     view.aside.hidden = false;
     sync();
-    if (!focus) {
-      layout();
-      return;
-    }
+    return view;
+  }
+
+  /** Opens the panel for the reviewer, gliding the page and moving focus into it. */
+  function openForReviewer(): void {
+    const shown = reveal();
     relayout();
-    view.aside.focus({ preventScroll: true });
+    shown.aside.focus({ preventScroll: true });
+  }
+
+  /** Opens the panel as the last visit left it, leaving focus where it is. */
+  function restore(): void {
+    reveal();
+    layout();
   }
 
   function hide(): void {
@@ -145,11 +159,11 @@ export function conversationPanel(
 
   /** Closes the overlay; a pinned panel stays until its own close or the toolbar button. */
   const dismiss = () => {
-    if (!pinned()) hide();
+    if (drawn !== "column") hide();
   };
 
   const panel: ConversationPanel = {
-    toggle: () => (open ? hide() : show(true)),
+    toggle: () => (open ? hide() : openForReviewer()),
     close: hide,
     get open() {
       return open;
@@ -160,7 +174,6 @@ export function conversationPanel(
       next.addEventListener("pointerdown", () => (pressed = next));
       next.addEventListener("pointerup", () => {
         if (pressed && !pressed.isConnected) panel.toggle();
-        pressed = undefined;
       });
       next.setAttribute("aria-controls", PANEL_ID);
       sync();
@@ -183,8 +196,12 @@ export function conversationPanel(
     dismiss,
     visit,
   );
+  // After each button's own pointerup, so a press released elsewhere is forgotten.
+  const forget = () => (pressed = undefined);
+  doc.addEventListener("pointerup", forget, { signal: visit });
+  doc.addEventListener("pointercancel", forget, { signal: visit });
   followFrameMessages(doc, () => frame, dismiss, visit);
-  if (choice.open) show(false);
+  if (choice.open) restore();
   return panel;
 }
 
@@ -210,7 +227,13 @@ function mountPanel(
   },
   visit: AbortSignal,
 ): PanelView {
-  const pin = el(doc, "button", `gh-prism-conversation-pin ${ICON_BUTTON}`, icon(doc, PIN, {}));
+  // Primer's small invisible IconButton, as the sidebar's side switch draws it.
+  const pin = el(
+    doc,
+    "button",
+    "gh-prism-conversation-pin tw:relative tw:shrink-0 tw:place-content-center tw:size-[var(--control-small-size,28px)] tw:p-0 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-iconColor-rest)] tw:[font:inherit] tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:hover:text-[color:var(--button-invisible-iconColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
+    icon(doc, PIN, {}),
+  );
   pin.type = "button";
   pin.setAttribute("aria-label", "Pin Conversation");
   pin.addEventListener("click", togglePin);
@@ -218,7 +241,7 @@ function mountPanel(
   const closeButton = el(
     doc,
     "button",
-    `gh-prism-conversation-close ${ICON_BUTTON}`,
+    "gh-prism-conversation-close tw:relative tw:shrink-0 tw:inline-grid tw:place-content-center tw:size-[var(--control-small-size,28px)] tw:p-0 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-iconColor-rest)] tw:[font:inherit] tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:hover:text-[color:var(--button-invisible-iconColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
     icon(doc, X_ICON, {}),
   );
   closeButton.type = "button";
@@ -264,7 +287,7 @@ function mountPanel(
 function loadFrame(
   doc: Document,
   view: PanelView,
-  { pr, fetch, allowFraming, visit }: Parameters<typeof conversationPanel>[1],
+  { pr, fetch, allowFraming, visit }: ConversationPanelOptions,
 ): HTMLIFrameElement {
   const url = conversationFrameUrl(pr);
   const frame = el(doc, "iframe", "gh-prism-conversation-frame");
@@ -276,10 +299,20 @@ function loadFrame(
     view.aside.dataset.state = "failed";
     view.body.replaceChildren(failure(doc, pr));
   };
+  // Whether a load has succeeded since the frame was last pointed at `url`, so a refused load
+  // re-points it once, and a refused re-point fails rather than looping.
+  let loadedSincePoint = false;
   frame.addEventListener("load", () => {
+    if (!frame.hasAttribute("src")) return;
     // Chrome's error page for a refused or failed frame is cross-origin.
-    if (frame.contentDocument) view.aside.dataset.state = "loaded";
-    else fail();
+    if (frame.contentDocument) {
+      loadedSincePoint = true;
+      view.aside.dataset.state = "loaded";
+    } else if (loadedSincePoint) {
+      // Left the marked URL, so the framing rule no longer matched.
+      loadedSincePoint = false;
+      frame.src = url;
+    } else fail();
   });
 
   void (async () => {
@@ -315,7 +348,7 @@ function skeleton(doc: Document): HTMLElement {
 /** The one sentence the panel shows when the Conversation won't load, linking to its tab. */
 function failure(doc: Document, pr: PrRef): HTMLElement {
   const link = el(doc, "a", "", "Open the Conversation tab");
-  link.href = `${ORIGIN}/${pr.owner}/${pr.repo}/pull/${pr.number}`;
+  link.href = conversationUrl(pr);
   return el(
     doc,
     "p",
@@ -336,7 +369,8 @@ function dismissOnEscape(
   doc.addEventListener(
     "keydown",
     (event) => {
-      if (event.key === "Escape" && !event.defaultPrevented && isOpen()) close();
+      if (event.key !== "Escape" || event.defaultPrevented || isEditable(event.target)) return;
+      if (isOpen()) close();
     },
     { signal },
   );
@@ -357,11 +391,7 @@ function dismissOnOutsidePointer(
     "pointerdown",
     (event) => {
       if (!isOpen() || !(event.target instanceof Node)) return;
-      if (
-        !owns(event.target) &&
-        !event.composedPath().some((node) => node instanceof Node && owns(node))
-      )
-        close();
+      if (!event.composedPath().some((node) => node instanceof Node && owns(node))) close();
     },
     { capture: true, signal },
   );
@@ -422,7 +452,7 @@ export function showConversationButton(
   const button = el(
     doc,
     "button",
-    `gh-prism-conversation-button ${ICON_BUTTON}`,
+    "gh-prism-conversation-button tw:relative tw:shrink-0 tw:inline-grid tw:place-content-center tw:size-[var(--control-small-size,28px)] tw:p-0 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-iconColor-rest)] tw:[font:inherit] tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:hover:text-[color:var(--button-invisible-iconColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
     icon(doc, COMMENT_DISCUSSION, {}),
   );
   button.type = "button";

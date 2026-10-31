@@ -18,10 +18,10 @@ export default defineConfig({
     },
   },
   manifest: {
-    // storage holds the sidebar side, the classic notice's dismissal, the what's-new state, the
-    // Conversation panel's pin and width, and the intent cache. declarativeNetRequestWithHostAccess lifts GitHub's framing refusal for
-    // the Conversation panel's frame only; unlike declarativeNetRequest it adds no install
-    // warning, so an update doesn't disable gh-prism.
+    // storage holds preferences, the what's-new state, and the intent cache.
+    // declarativeNetRequestWithHostAccess lifts GitHub's framing refusal for the Conversation
+    // panel's frame only; unlike declarativeNetRequest it adds no install warning, so an update
+    // doesn't disable gh-prism.
     permissions: ["storage", "declarativeNetRequestWithHostAccess"],
     // github.com's .diff and raw/ URLs redirect to these two githubusercontent hosts.
     host_permissions: [

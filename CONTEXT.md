@@ -162,14 +162,6 @@ aren't.
 
 **Glide**: The smooth scroll that ends a reveal. _Avoid_: slide
 
-**Conversation panel**: A panel on the left edge of a pull request's Files changed tab
-that shows the same pull request's Conversation tab, loaded from GitHub's own page. A
-button at the left end of the toolbar opens and closes it. Unpinned, it overlays the page.
-_Avoid_: sidebar, drawer
-
-**Pinned**: The Conversation panel's mode as the page's leftmost column, pushing the rest
-of the page over instead of covering it. _Avoid_: docked, which is the sidebar's term
-
 **Diffstat**: The header's lines-changed counter, shown as a breakout or a total.
 
 **Breakout**: The diffstat view with one pill per section.
@@ -178,16 +170,29 @@ of the page over instead of covering it. _Avoid_: docked, which is the sidebar's
 
 **Total**: The diffstat view that shows GitHub's own count.
 
+### The Conversation panel
+
+**Conversation panel**: A panel on the left edge of a pull request's Files changed tab
+that shows the same pull request's Conversation tab, loaded from GitHub's own page. A
+button at the left end of the toolbar opens and closes it. Unpinned, it overlays the page.
+_Avoid_: sidebar, drawer
+
+**Pinned**: The Conversation panel's mode as the page's leftmost column, pushing the rest
+of the page over instead of covering it. _Avoid_: docked, which is the sidebar's term
+
 ## Flagged ambiguities
 
 - "PR" also covers single commits wherever commit pages are supported, including names in
   the data path. Say diff ref unless only a pull request is meant.
 - "Intent" also names the pending read and the rule sections. Intent is the result; say
   pending intent and rule section for the others.
-- "Glide" also names the sidebar's move. The sidebar slides; a reveal glides.
+- "Glide" also names the sidebar's move. The sidebar slides; a reveal glides. The
+  view-transition helper in `ui/glide.ts`, which runs the sidebar's slide and the
+  Conversation panel's pin cross-fade, is not the reveal's glide.
 - "Source" names both the background's fetcher of diffs and file contents, and where
   intent is read from and cached. Keep it for the fetcher.
-- "Pin" also names a diff head's one commit. Say diff pin only for the base and head pair.
+- "Pin" also names a diff head's one commit and the Conversation panel's Pinned mode. Say
+  diff pin for the base and head pair, and pinned for the Conversation panel's column.
 - "Reviewer" names the person reading a diff, and in `code-owners.ts` a PR reviewer.
   "Viewer" (`ownedByViewer`) is GitHub's word for the person reading the diff.
 - "Sidebar" is only gh-prism's sectioned file list, never the Conversation panel, though

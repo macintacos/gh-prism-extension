@@ -1,13 +1,8 @@
-/* GitHub hooks: [class*="toolbar__"], [class*="RegularTreeToggle"], Primer's --prc-dialog-scrollgutter. */
+/* GitHub hooks: Primer's --prc-dialog-scrollgutter. */
 @import "../ui/tailwind.css" prefix(tw);
 @import "../ui/column-width.css";
 @import "../ui/mark.css";
 @source "./panel.ts";
-
-/* Below side.css's dock orders, 1 and 2, so the button stays first when the sidebar docks right. */
-section[class*="toolbar__"]:has([class*="RegularTreeToggle"]) > .gh-prism-conversation-button {
-  order: -1;
-}
 
 /* Primer's tooltip, opening rightward from the toolbar's start. */
 .gh-prism-conversation-button::after {
@@ -45,6 +40,8 @@ section[class*="toolbar__"]:has([class*="RegularTreeToggle"]) > .gh-prism-conver
   z-index: 100;
   display: flex;
   flex-direction: column;
+  /* The overlay's width, unset unpinned: keep 480px in sync with conversationWidth's fallback in
+     utils/prefs.ts. 48px leaves a strip of page to click outside it. */
   width: min(var(--gh-prism-conversation-width, 480px), 100vw - 48px);
   /* The framed Conversation's own canvas, so the header and frame read as one surface. */
   background: var(--bgColor-default);
@@ -91,9 +88,9 @@ section[class*="toolbar__"]:has([class*="RegularTreeToggle"]) > .gh-prism-conver
   box-shadow: 1px 0 0 var(--borderColor-default);
 }
 
-/* The button's inline-grid utility beats the user-agent sheet's [hidden]. */
-.gh-prism-conversation-pin[hidden] {
-  display: none;
+/* CSS, not tw:inline-grid, so the [hidden] the panel toggles still hides it. */
+.gh-prism-conversation-pin:not([hidden]) {
+  display: inline-grid;
 }
 
 .gh-prism-conversation-pin[aria-pressed="true"] {
@@ -111,8 +108,11 @@ section[class*="toolbar__"]:has([class*="RegularTreeToggle"]) > .gh-prism-conver
   animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
+/* Longhands, so a page without Primer's colour still draws the ring in currentColor. */
 .gh-prism-conversation:focus-visible {
-  outline: 2px solid var(--focus-outlineColor);
+  outline-style: solid;
+  outline-width: 2px;
+  outline-color: var(--focus-outlineColor);
   outline-offset: -2px;
 }
 

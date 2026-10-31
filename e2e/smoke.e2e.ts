@@ -3188,6 +3188,16 @@ test("the Conversation button opens an overlay framing the pull request's Conver
 }) => {
   await serveConversation(context);
   await page.goto(PR_URL);
+  await expect(page.locator("html")).toHaveAttribute("data-gh-prism-side", "right");
+  // Docked right, side.css reorders the toolbar's items; the button still leads the row.
+  const leads = await conversationButton(page).evaluate((button) => {
+    const toolbar = button.closest('section[class*="toolbar__"]');
+    const lefts = [...(toolbar?.querySelectorAll("button") ?? [])]
+      .filter((other) => other.getClientRects().length)
+      .map((other) => other.getBoundingClientRect().left);
+    return button.getBoundingClientRect().left === Math.min(...lefts);
+  });
+  expect(leads).toBe(true);
 
   await conversationButton(page).click();
 
@@ -3349,7 +3359,7 @@ const columns = (page: Page) =>
   page.evaluate(() => {
     const edges = (selector: string) => {
       const element = document.querySelector(selector);
-      if (!element || !element.getClientRects().length) return null;
+      if (!element?.getClientRects().length) return null;
       const { left, right } = element.getBoundingClientRect();
       return { left: Math.round(left), right: Math.round(right) };
     };

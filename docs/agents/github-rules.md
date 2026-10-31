@@ -520,6 +520,33 @@ Below 1012px, a pull request's tree toggle opens the file tree as a "Files" over
   changed tab below 1012px wide, click `[class*="MobileTreeToggle"]`, and read
   `#__primerPortalRoot__`'s markup.
 
+## The Conversation frame
+
+- **Create and navigate the frame from the content script, never the page's main world.**
+  Files changed's
+  `frame-src viewscreen.githubusercontent.com notebooks.githubusercontent.com` refuses a
+  frame created from the main world, but not one created from the content script's
+  isolated world.
+- **Expect a pull request page to answer a `HEAD` with its full
+  `content-security-policy`**, plus `x-frame-options: deny` and `frame-ancestors 'none'`.
+  The policy carries no nonce, only a sha256 hash, so a policy fetched just before the
+  frame loads is valid for that load.
+- **Find the framed page's chrome as `.js-header-wrapper` and
+  `header[class*="prc-PageLayout-Header-"]:has(nav[class*="TabNav__"])`.** The title bar,
+  its sticky copy, and the tab row all sit in that one header.
+- **Find Files changed's toolbar row as
+  `section[class*="toolbar__"]:has([class*="RegularTreeToggle"])`.** A press on a button
+  prepended to it can make React hydrate the toolbar and re-mount the button mid-press, so
+  no `click` fires; `panel.ts`'s `attach` handles the press itself.
+- **Expect Primer's Dialog to read `<html>`'s padding into `--prc-dialog-scrollgutter` on
+  `<body>`.** `panel.css` accounts for it.
+- **Expect GitHub's router to take a link appended to Files changed's `<body>` and clicked
+  as a soft navigation.** `panel.ts`'s `follow` relies on it, as the commit card does.
+- **Re-check:** curl `HEAD` on a pull request and read the three headers. Signed in with
+  the saved `storageState`, add an `<iframe>` to Files changed from `page.evaluate`, then
+  from the extension, and compare the console's CSP refusal. Read the header's and the tab
+  row's markup on the Conversation tab.
+
 ## Files changed filters
 
 - **Expect GitHub's filter menu to rewrite the URL with one `replaceState`.** "Only files

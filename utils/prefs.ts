@@ -59,6 +59,7 @@ export const conversationPinned = storage.defineItem<boolean>("sync:conversation
  * only, since it fits this computer's screen.
  */
 export const conversationWidth = storage.defineItem<number>("local:conversationWidth", {
+  // Keep in sync with conversation/panel.css's overlay width.
   fallback: 480,
 });
 

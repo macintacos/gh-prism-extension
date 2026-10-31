@@ -14,6 +14,7 @@ import {
 import { watchFilesPages } from "../../../entrypoints/content/visit/watch";
 import type { CommitMessageView } from "../../../utils/prefs";
 import { loadCommitFixture, loadFixture } from "../../fixtures/files-page";
+import { setViewport } from "../../fixtures/viewport";
 
 const container = () => document.querySelector<HTMLElement>(".gh-prism-commit-message");
 const viewButton = () => document.querySelector<HTMLButtonElement>(".gh-prism-commit-view-switch");
@@ -411,11 +412,6 @@ describe("showCommitMessage's loading state", () => {
 const WIDE = { width: 1400, height: 768 };
 const NARROW = { width: 1200, height: 768 };
 const DEFAULT = { width: 1024, height: 768 };
-type Size = { width: number; height: number };
-const setViewport = (size: Size) =>
-  (window as unknown as { happyDOM: { setViewport: (size: Size) => void } }).happyDOM.setViewport(
-    size,
-  );
 const column = () => document.querySelector(".gh-prism-commit-column");
 const row = () => findCommitColumnRow(pageOf());
 

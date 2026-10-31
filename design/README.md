@@ -7,8 +7,9 @@ maintain its design direction.*
 inside GitHub's pages. That UI is the sidebar, the header counter (the per-section
 breakout of the lines-changed count, on a commit's page and a pull request's tabs), the
 commit message rendered as Markdown on a commit's page (in a column beside the diffs on a
-wide window), the dialog gh-prism opens on GitHub's classic Files changed page, and the
-code owner details dialog that a code-owner shield opens. [`CONTEXT.md`](../CONTEXT.md)
+wide window), the dialog gh-prism opens on GitHub's classic Files changed page, the code
+owner details dialog that a code-owner shield opens, and the Conversation panel that shows
+a pull request's Conversation tab beside Files changed. [`CONTEXT.md`](../CONTEXT.md)
 defines the domain terms these files use, such as section, Viewed, and what's new.
 [`docs/agents/styling-rules.md`](../docs/agents/styling-rules.md) says how a stylesheet is
 written, imported, and scoped.

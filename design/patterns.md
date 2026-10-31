@@ -123,10 +123,10 @@ these marks.
 A tooltip copies Primer's. It is an `::after` on the control that shows the control's
 `aria-label`, on `--tooltip-bgColor`, at the small body size, and it fades in over 120 ms
 on hover and focus. It opens toward the inside of the sidebar or the page, so it never
-clips at an edge. `sidebar/side.css`, `sidebar/report.css`, `commit/step-links.css`, and
-`ui/mark.css` hold the four in use. Only the mark's opens on hover alone, since the mark
-takes no focus. Inside the header counter's tooltips, which take no pointer, the mark's
-own tooltip never opens.
+clips at an edge. `sidebar/side.css`, `sidebar/report.css`, `commit/step-links.css`,
+`conversation/panel.css`, and `ui/mark.css` hold the five in use. Only the mark's opens on
+hover alone, since the mark takes no focus. Inside the header counter's tooltips, which
+take no pointer, the mark's own tooltip never opens.
 
 A control that takes a key names it in its tooltip, after the action's name, and sets
 `aria-keyshortcuts`, so assistive technology announces the key. Older and Newer beside a
@@ -160,6 +160,12 @@ the state. Focus stays on it across the flip. It holds one Octicon in both state
   Button. Its flip is a page load, so focus doesn't carry across it. `ui/owners-dialog.ts`
   builds it.
 
+A toggle that opens or holds something keeps one name in both states and carries its state
+in ARIA instead, so the name says what it controls. The Conversation button keeps
+"Conversation" and sets `aria-expanded` while the panel is open; the panel's pin keeps
+"Pin Conversation" and sets `aria-pressed` while pinned. `conversation/panel.ts` builds
+both.
+
 The Older and Newer links beside a commit's SHA take Primer's ButtonGroup, not a switch's
 form, as a pull request's commit view pairs its Prev and Next: two small default Buttons
 that share one border, with the medium radius on the group's outer corners only. Each
@@ -186,6 +192,19 @@ A hover card whose trigger sits next to one of GitHub's hovercard triggers takes
 hovercard form instead: the 1px `--borderColor-default` border, the medium radius, and no
 shadow. The rule above holds, because that border is its one edge. The code owner's files
 popup below is the one such card.
+
+A surface anchored to a page edge, full height, is a pane rather than a floating card: it
+sits on `--bgColor-default` with no radius, so it reads as part of the page it pushes or
+covers. The Conversation panel in `conversation/panel.css` is the one such pane;
+`decisions.md` says why.
+
+## Column separator
+
+A column on the left of the page takes a separator on its inner edge, copying Primer's
+pane divider: drag it, or step it 3px with the arrow keys, between Primer's 256px pane
+minimum and what the window has past GitHub's 1012px docked layout. Every page in the tab
+shares the width the reader picked. `ui/column-width.ts` and `ui/column-width.css` build
+it for the commit message column and the pinned Conversation panel.
 
 ## Code owner's files
 
@@ -255,6 +274,9 @@ and diff cards they stand in for. Once the sections land, they drop in one after
 `ui/loading-view.ts`, `ui/loading-view.css`, `sidebar/sections-view.css`, and
 `diffs/order.css` hold these.
 
+A view that waits on one load, with no count to show, holds its place with a skeleton
+alone: shaped like what it stands in for, held back 150 ms, then pulsing. Two use it.
+
 A commit's message holds its place the same way, without the bar: from the page's first
 frame, its column or its slot above the diffs shows a title bar and a line for each of the
 body's lines, up to three, held back 150 ms, then pulsing. The rendering takes their place
@@ -263,6 +285,10 @@ the skeleton's height to the rendering's. A skeleton GitHub's re-render shows ag
 carries on where the last one was, never fading in twice. `commit/message-view.ts` and
 `commit/message-view.css` hold it.
 
+The Conversation panel holds its frame's place with a skeleton of the Conversation's
+timeline, shown only if the frame hasn't loaded 150 ms after its first open.
+`conversation/panel.css` holds it.
+
 ## The mark
 
 The mark is the toolbar icon's faceted pyramid and its three bars, redrawn at 16px in two
@@ -270,7 +296,7 @@ tones, so a reader can tell gh-prism's surfaces from GitHub's. The lit face and 
 are solid, and the shaded face is at 40% opacity. `ui/mark.ts` builds it as `prismMark`,
 and `ui/mark.css` styles it. It carries no setting to hide it.
 
-Each of these seven surfaces carries one mark:
+Each of these eight surfaces carries one mark:
 
 - **Header counter's tooltips:** each pill's tooltip, at the end of its label's row, with
   the description below at the tooltip's full width; and the total view's tooltip, at the
@@ -292,6 +318,7 @@ Each of these seven surfaces carries one mark:
   When the row wraps in a narrow column, the mark stays at the start of its first line.
   Above the diffs, on a narrow window, the message carries no mark, because there it
   stands in for GitHub's own message box inside GitHub's card.
+- **Conversation panel:** its header, beside the pin and close buttons.
 
 The commit's Older and Newer links, the Reviewers shields themselves, and every inline
 control carry none. On a control that small, a mark would crowd the content it labels and

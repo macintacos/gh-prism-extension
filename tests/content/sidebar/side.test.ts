@@ -72,6 +72,19 @@ it("switches sides on click, keeping the tab's choice and saving it", () => {
   expect(save).toHaveBeenLastCalledWith("right");
 });
 
+it("switches at once while another glide runs, leaving that glide its names", () => {
+  const start = stubViewTransitions();
+  dock("right");
+  document.documentElement.dataset.ghPrismGlide = "pin";
+
+  switcher()?.click();
+
+  expect(docked()).toBe("left");
+  expect(start).not.toHaveBeenCalled();
+  expect(gliding()).toBe("pin");
+  delete document.documentElement.dataset.ghPrismGlide;
+});
+
 it("replaces a switch a restored snapshot carries", () => {
   document.querySelector("#tree-toggle")?.after(
     Object.assign(document.createElement("button"), {

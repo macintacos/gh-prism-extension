@@ -28,6 +28,7 @@ import {
   loadViewedFixture,
   VIEWED_APP_TOML,
 } from "../fixtures/files-page";
+import { setViewport } from "../fixtures/viewport";
 
 // Only leaves are faked: intentFor needs a port fakeBrowser lacks; the views' DOM has own tests.
 vi.mock(import("../../utils/intent/read"), async (importOriginal) => ({
@@ -69,12 +70,6 @@ vi.mock(import("../../entrypoints/content/conversation/panel"), async (importOri
   ...(await importOriginal()),
   conversationPanel: vi.fn(),
 }));
-
-type Size = { width: number; height: number };
-const setViewport = (size: Size) =>
-  (window as unknown as { happyDOM: { setViewport: (size: Size) => void } }).happyDOM.setViewport(
-    size,
-  );
 
 const PR = "/o/r/pull/1/changes";
 let controller: AbortController;

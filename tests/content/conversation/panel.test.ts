@@ -12,6 +12,7 @@ import {
 import { type FilesPage, findFilesPage } from "../../../entrypoints/content/files-page";
 import type { PrRef } from "../../../utils/github/pr-ref";
 import fixture from "../../fixtures/files-page.html?raw";
+import { setViewport } from "../../fixtures/viewport";
 
 const PR: PrRef = { kind: "pr", owner: "o", repo: "r", number: 7 };
 const POLICY = "default-src 'none'; frame-ancestors 'none'";
@@ -45,11 +46,6 @@ function setup({
   return { panel, visit, choice, fetch, allowFraming, savePinned, saveWidth };
 }
 
-type Size = { width: number; height: number };
-const setViewport = (size: Size) =>
-  (window as unknown as { happyDOM: { setViewport: (size: Size) => void } }).happyDOM.setViewport(
-    size,
-  );
 const WIDE = { width: 1400, height: 768 };
 const NARROW = { width: 1024, height: 768 };
 
@@ -161,6 +157,20 @@ describe("a press the page re-mounts the button under", () => {
     expect(shown()).toBe(true);
   });
 
+  it("forgets a press released elsewhere", () => {
+    const { panel } = setup();
+    const first = new AbortController();
+    mountButton(panel, first.signal)?.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true }),
+    );
+    document.body.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+
+    first.abort();
+    mountButton(panel)?.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+
+    expect(shown()).toBe(false);
+  });
+
   it("still opens the panel once for a press on an unchanged button", () => {
     const { panel } = setup();
     const control = mountButton(panel);
@@ -202,6 +212,17 @@ describe("dismissing the overlay", () => {
 
     expect(shown()).toBe(false);
     expect(choice.open).toBe(false);
+  });
+
+  it("stays open on an Escape in a text field", () => {
+    const { panel } = setup();
+    mountButton(panel)?.click();
+    const field = document.createElement("textarea");
+    document.body.append(field);
+
+    field.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+    expect(panel.open).toBe(true);
   });
 
   it("closes on a pointerdown outside it", () => {
@@ -325,6 +346,66 @@ describe("loading the frame", () => {
       ),
     );
     expect(frame()?.hasAttribute("src") ?? false).toBe(false);
+  });
+
+  describe("a load", () => {
+    // Chrome's error page for a refused frame is cross-origin, so it has no reachable document.
+    const refuse = () =>
+      vi.spyOn(HTMLIFrameElement.prototype, "contentDocument", "get").mockReturnValue(null);
+    const accept = () =>
+      vi.spyOn(HTMLIFrameElement.prototype, "contentDocument", "get").mockReturnValue(document);
+    const framed = async () => {
+      const { panel } = setup();
+      mountButton(panel)?.click();
+      await vi.waitFor(() => expect(frame()?.getAttribute("src")).toBeTruthy());
+      return frame();
+    };
+    const state = () => aside()?.dataset.state;
+
+    it("fails when the Conversation refuses framing", async () => {
+      const framedAt = await framed();
+      refuse();
+
+      framedAt?.dispatchEvent(new Event("load"));
+
+      expect(state()).toBe("failed");
+    });
+
+    it("ignores the empty frame's load before it has a source", () => {
+      const { panel } = setup();
+      mountButton(panel)?.click();
+      refuse();
+
+      frame()?.dispatchEvent(new Event("load"));
+
+      expect(state()).toBe("loading");
+    });
+
+    it("points a frame that left the Conversation back at it, keeping the frame", async () => {
+      const framedAt = await framed();
+      accept();
+      framedAt?.dispatchEvent(new Event("load"));
+      framedAt?.setAttribute("src", "https://github.com/o/r/pull/1");
+      refuse();
+
+      framedAt?.dispatchEvent(new Event("load"));
+
+      expect(frame()).toBe(framedAt);
+      expect(framedAt?.getAttribute("src")).toBe("https://github.com/o/r/pull/7?gh-prism-panel=1");
+      expect(state()).toBe("loaded");
+    });
+
+    it("fails when the pointed-back frame is refused too", async () => {
+      const framedAt = await framed();
+      accept();
+      framedAt?.dispatchEvent(new Event("load"));
+      refuse();
+      framedAt?.dispatchEvent(new Event("load"));
+
+      framedAt?.dispatchEvent(new Event("load"));
+
+      expect(state()).toBe("failed");
+    });
   });
 
   it("reuses the frame when reopened", async () => {

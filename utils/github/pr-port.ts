@@ -72,7 +72,7 @@ export interface PrDataClient {
 const OWNER_OR_REPO = /^[A-Za-z0-9_.-]+$/;
 const FAILED: PrFailure = { ok: false, problem: "failed" };
 
-export function isOwnerOrRepo(value: unknown): value is string {
+function isOwnerOrRepo(value: unknown): value is string {
   return typeof value === "string" && OWNER_OR_REPO.test(value) && value !== "." && value !== "..";
 }
 
@@ -80,7 +80,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function asPrRef(value: unknown): PrRef | undefined {
+export function asPrRef(value: unknown): PrRef | undefined {
   if (!isObject(value) || value.kind !== "pr") return undefined;
   const { owner, repo, number } = value;
   if (!isOwnerOrRepo(owner) || !isOwnerOrRepo(repo)) return undefined;

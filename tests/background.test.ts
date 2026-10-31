@@ -91,7 +91,10 @@ describe("background", () => {
     serve(port);
     const [send] = port.onMessage.addListener.mock.calls[0] ?? [];
 
-    await send({ owner: "o", repo: "r", number: 1, policy: "default-src 'none'" });
+    await send({
+      pr: { kind: "pr", owner: "o", repo: "r", number: 1 },
+      policy: "default-src 'none'",
+    });
 
     expect(updateSessionRules).toHaveBeenCalledWith(
       expect.objectContaining({ removeRuleIds: [4], addRules: [expect.anything()] }),

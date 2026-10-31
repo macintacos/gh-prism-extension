@@ -4,11 +4,11 @@
  * commit's, finds a Files view's page, a pull request's classic page, or its header on its header
  * tabs, finds a commit's message box and the row naming its parent, reads its rows, finds the row
  * a commit's message column joins, finds the toolbar row a pull request's Conversation button
- * starts, follows a pull request's narrow-layout overlay and the
- * file-tree filter menu, finds and follows the rows and code-owner shields of a pull request's
- * Reviewers lists, and copies that menu's group, divider, and item for gh-prism's entries, so the
- * selectors stay in this seam; it builds no UI of its own and imports nothing from WXT. The pull
- * request selectors come from EXC-1662's survey.
+ * starts, follows a pull request's narrow-layout overlay and the file-tree filter menu, finds and
+ * follows the rows and code-owner shields of a pull request's Reviewers lists, and copies that
+ * menu's group, divider, and item for gh-prism's entries, so the selectors stay in this seam; it
+ * builds no UI of its own and imports nothing from WXT. The pull request selectors come from
+ * EXC-1662's survey.
  */
 
 import { LOGIN } from "@/utils/github/code-owners";

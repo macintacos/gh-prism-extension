@@ -73,12 +73,12 @@ const CACHED_DIFFS = 50;
  * the `gh-prism-owner` owner's files when set, orders the diffs to match, stands in for the
  * diffstat, docks the sidebar on the saved side with a switch, adds a link to report a
  * miscategorized file, adds an "Only files owned by…" section to GitHub's filter menu, on a pull
- * request adds a button opening its Conversation in a panel, and, after
- * an update, opens the sidebar with that release's notes. On a pull request's header tabs, stands
- * in for the diffstat, and on Conversation lists a code owner's files from their Reviewers sidebar
- * shield. On a commit's page, shows its message rendered as Markdown, above the diffs or in a
- * column beside them, with a switch to its plain text. On its classic Files changed page,
- * explains why gh-prism is off there.
+ * request adds a button opening its Conversation in a panel, and, after an update, opens the
+ * sidebar with that release's notes. On a pull request's header tabs, stands in for the diffstat,
+ * and on Conversation lists a code owner's files from their Reviewers sidebar shield. On a
+ * commit's page, shows its message rendered as Markdown, above the diffs or in a column beside
+ * them, with a switch to its plain text. On its classic Files changed page, explains why gh-prism
+ * is off there.
  */
 export default defineContentScript({
   // Every GitHub page: soft navigation reaches a pull request without re-injecting the script.
@@ -163,12 +163,15 @@ export default defineContentScript({
             route.diff.kind === "commit"
               ? stepLinksFor(route.diff, seenChildren, { after: afterLanding(intent), visit })
               : undefined;
+          // ponytail: the panel lives per visit, so a same-PR route change that starts a new
+          // visit (e.g. into one commit's diff) reloads the frame; key the panel by PR if that
+          // bites.
           const panel =
             route.diff.kind === "pr"
               ? conversationPanel(document, {
                   pr: route.diff,
                   choice: conversation,
-                  fetch: (input, init) => fetch(input, init),
+                  fetch,
                   allowFraming: allowConversationFrame,
                   savePinned,
                   saveWidth: saveConversationWidth,
@@ -367,12 +370,15 @@ const readSavedColumnWidth = (): Promise<unknown> =>
 function commitMessageChoiceOf(savedView: unknown, savedWidth: unknown): CommitMessageChoice {
   // `fallback` covers only a missing value; a corrupt one reads back as stored.
   const known = savedView === "rendered" || savedView === "plaintext";
-  const knownWidth = typeof savedWidth === "number" && Number.isFinite(savedWidth);
   return {
     view: known ? savedView : commitMessageView.fallback,
-    width: knownWidth ? savedWidth : commitColumnWidth.fallback,
+    width: knownWidth(savedWidth, commitColumnWidth.fallback),
   };
 }
+
+/** `saved` when it is a finite number, else `fallback`. */
+const knownWidth = (saved: unknown, fallback: number): number =>
+  typeof saved === "number" && Number.isFinite(saved) ? saved : fallback;
 
 const saveCommitMessage = (view: CommitMessageView) =>
   commitMessageView
@@ -388,7 +394,10 @@ const saveColumnWidth = (width: number) =>
       console.error("gh-prism: saving the commit message column's width failed", error),
     );
 
-/** Whether the Conversation panel was left pinned, unchecked, or the default when storage won't read. */
+/**
+ * Whether the Conversation panel was left pinned, unchecked, or the default when storage won't
+ * read.
+ */
 const readSavedPinned = (): Promise<unknown> =>
   conversationPinned.getValue().catch((error: unknown) => {
     console.error("gh-prism: reading the Conversation panel's pin failed", error);
@@ -412,13 +421,11 @@ function conversationChoiceOf(
   savedWidth: unknown,
   viewport: number,
 ): ConversationChoice {
-  // `fallback` covers only a missing value; a corrupt one reads back as stored.
   const pinned = savedPinned === true;
-  const knownWidth = typeof savedWidth === "number" && Number.isFinite(savedWidth);
   return {
     open: pinned && fitsColumn(viewport),
     pinned,
-    width: knownWidth ? savedWidth : conversationWidth.fallback,
+    width: knownWidth(savedWidth, conversationWidth.fallback),
   };
 }
 

@@ -4,10 +4,11 @@
 it.*
 
 gh-prism is a Chrome extension built with WXT, a framework for browser extensions. It has
-two parts: a service worker that fetches pull request data, and a content script that
-reshapes GitHub's Files view and reads a pull request's code owners and reviewers itself.
-Each section below names the module behind its claims, so you can read the code next.
-Terms such as visit, page, intent, and landing are defined in
+two parts: a service worker that fetches pull request data and lets the Conversation panel
+frame a pull request's Conversation tab, and content scripts. One reshapes GitHub's Files
+view and reads a pull request's code owners and reviewers itself; the other dresses the
+Conversation panel's frame. Each section below names the module behind its claims, so you
+can read the code next. Terms such as visit, page, intent, and landing are defined in
 [`CONTEXT.md`](../CONTEXT.md).
 
 ## Overview
@@ -18,10 +19,11 @@ long-lived message port, defined in
 [`utils/github/pr-port.ts`](../utils/github/pr-port.ts). Over a second port, defined in
 [`utils/github/conversation-frame.ts`](../utils/github/conversation-frame.ts), it installs
 a per-tab session rule that lets only the Conversation panel's frame load the pull
-request's Conversation tab, and removes it when the port closes or the tab does. It also
-clears the intent cache whenever the extension is installed, updated, or reloaded in
-development, and on a fresh install it marks the installed version's what's-new notes
-dismissed.
+request's Conversation tab. Removing it when the port closes is best effort: a worker
+stopped while idle never hears the port close. Closing the tab removes it always, and a
+leftover rule still matches only that tab's marked URL. It also clears the intent cache
+whenever the extension is installed, updated, or reloaded in development, and on a fresh
+install it marks the installed version's what's-new notes dismissed.
 
 The content script in [`entrypoints/content/index.ts`](../entrypoints/content/index.ts)
 runs on every github.com page at `document_start`, so its watcher is in place before
@@ -137,18 +139,23 @@ re-creating an `<iframe>` reloads it. Its first open in a visit loads the frame 
 3. `allowConversationFrame` in
    [`utils/github/conversation-frame.ts`](../utils/github/conversation-frame.ts) sends the
    policy to the service worker over a port, which installs the tab's framing rule. The
-   port stays open, and the rule with it, until the visit ends.
+   port stays open until the visit ends, but the rule may outlive it: the worker stops
+   about 30 s after its last event and then never hears the port close, so the rule stays
+   until the tab closes or the tab's next open replaces it.
 4. Once the top page has fired `load`, it sets the frame's `src` to the marked URL.
 
 If the `HEAD` fails or carries no policy, the rule is refused, or the loaded frame's
 `contentDocument` is `null`, the panel shows one sentence linking to the Conversation tab
-instead. Closing hides the panel and keeps the frame, so reopening is instant.
+instead. A refused load after a good one re-points the frame at the marked URL once; a
+second refused load in a row shows that sentence. Closing hides the panel and keeps the
+frame, so reopening is instant.
 
 The content script creates the frame and sets its `src`, never a script in the page's main
 world, whose `frame-src` would refuse it. It hears only messages from its own frame on
 github.com. When the reader clicks a link in the frame that points away from the
 Conversation, the frame posts its URL, and the panel clicks a temporary link to it in the
-page, so GitHub's router can take it without a reload.
+page, so GitHub's router can take it without a reload. A link to the same pull request,
+such as a comment's permalink, only moves the frame's hash, so the panel stays put.
 
 These close the overlay:
 
@@ -166,7 +173,8 @@ which sets the width, saved as `conversationWidth` in
 `fitsColumn` judges, the pin control hides and a pinned panel draws as the overlay; a
 `resize` listener switches between the two. Pinning and unpinning only change attributes
 and styles, never the frame, and the page moves through a view transition from
-[`ui/glide.ts`](../entrypoints/content/ui/glide.ts), which the sidebar's glides share.
+[`ui/glide.ts`](../entrypoints/content/ui/glide.ts), which the sidebar's glides share. A
+glide started while another runs applies its change at once, with no second transition.
 
 A tab-wide `ConversationChoice` object carries whether the panel is open and pinned and
 its width, so a soft navigation to another pull request's Files changed opens the new
@@ -682,7 +690,7 @@ entrypoints/
   conversation-frame.content.ts  content script in the Conversation panel's frame
   content/
     index.ts             content script entry: wires the watchers, intent, and views
-    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; a commit's message box and the row its message column joins
+    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; a commit's message box and the row its message column joins; the toolbar row the Conversation button starts
     commit/              a commit's message rendered as Markdown in GitHub's box's place, or in a resizable column beside the diffs, with its switch back to GitHub's box and its hide button
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
@@ -690,7 +698,7 @@ entrypoints/
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
     header/              diffstat breakout
     conversation/        a code owner's files popup and gh-prism's reviewer shield, in the Reviewers lists; the Conversation panel and its button, dressing its frame, and the messages the frame posts
-    ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, Tailwind tokens
+    ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, column separator, view-transition glide, Tailwind tokens
 utils/
   github/                routes, diff parsing, the PR data port and source, code owners and reviewers
     conversation-frame.ts  the per-tab session rule that lets only the Conversation panel frame a PR's Conversation tab, and the panel's request for it

@@ -11,7 +11,7 @@ import githubCsp from "../../fixtures/github-csp.txt?raw";
 
 const POLICY = githubCsp.split("\n")[1] ?? "";
 const PR: PrRef = { kind: "pr", owner: "o", repo: "r", number: 7 };
-const REQUEST = { owner: "o", repo: "r", number: 7, policy: POLICY };
+const REQUEST = { pr: PR, policy: POLICY };
 
 const directives = (policy: string) => policy.split("; ");
 
@@ -35,6 +35,12 @@ describe("withoutFrameAncestors", () => {
     expect(withoutFrameAncestors("Frame-Ancestors 'none' ;  default-src 'none' ;")).toBe(
       "default-src 'none'",
     );
+  });
+
+  it("filters each policy of a combined header on its own", () => {
+    expect(
+      withoutFrameAncestors("default-src 'none'; frame-ancestors 'none', script-src 'self'"),
+    ).toBe("default-src 'none', script-src 'self'");
   });
 
   it("leaves a directive that only starts with the name", () => {
@@ -112,10 +118,11 @@ describe("conversationFraming", () => {
   });
 
   it.each([
-    ["an invalid owner", { ...REQUEST, owner: ".." }],
-    ["an invalid repo", { ...REQUEST, repo: "a/b" }],
-    ["a non-positive number", { ...REQUEST, number: 0 }],
-    ["a fractional number", { ...REQUEST, number: 1.5 }],
+    ["an invalid owner", { ...REQUEST, pr: { ...PR, owner: ".." } }],
+    ["an invalid repo", { ...REQUEST, pr: { ...PR, repo: "a/b" } }],
+    ["a non-positive number", { ...REQUEST, pr: { ...PR, number: 0 } }],
+    ["a fractional number", { ...REQUEST, pr: { ...PR, number: 1.5 } }],
+    ["a missing pr", { policy: POLICY }],
     ["a policy with a line break", { ...REQUEST, policy: `${POLICY}\r\nx-evil: 1` }],
     ["an oversized policy", { ...REQUEST, policy: `default-src 'none'; ${"a".repeat(16384)}` }],
     ["a policy of only frame-ancestors", { ...REQUEST, policy: "frame-ancestors 'none'" }],
@@ -182,6 +189,32 @@ describe("conversationFraming", () => {
     expect(update).not.toHaveBeenCalled();
   });
 
+  it("answers nothing once the port disconnects while the rule installs", async () => {
+    const { framing } = setup();
+    const port = fakePort(3);
+    port.postMessage.mockImplementation(() => {
+      throw new Error("Attempting to use a disconnected port object");
+    });
+    framing.serve(port);
+
+    const sent = port.send(REQUEST);
+    port.drop();
+
+    await expect(sent).resolves.toBeUndefined();
+  });
+
+  it("installs no rule for a port the tab has since replaced", async () => {
+    const { update, framing } = setup();
+    const previous = fakePort(3);
+    framing.serve(previous);
+    framing.serve(fakePort(3));
+
+    await previous.send(REQUEST);
+
+    expect(update).not.toHaveBeenCalled();
+    expect(previous.postMessage).toHaveBeenCalledWith({ allowed: false });
+  });
+
   it("revokes a closed tab's rule", () => {
     const { update, framing } = setup();
 
@@ -229,5 +262,14 @@ describe("requestFraming", () => {
     controller.abort();
 
     expect(port.disconnect).toHaveBeenCalled();
+  });
+
+  it("refuses without connecting when the signal already aborted", async () => {
+    const connect = vi.fn(fakePort);
+
+    const allowed = requestFraming(connect, PR, POLICY, AbortSignal.abort());
+
+    await expect(allowed).resolves.toBe(false);
+    expect(connect).not.toHaveBeenCalled();
   });
 });

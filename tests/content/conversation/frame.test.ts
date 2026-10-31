@@ -74,11 +74,33 @@ describe("dressConversationFrame", () => {
     expect(hidden('header[class*="PageLayout-Header"]')).toBe(true);
   });
 
-  it.each(["#jump-comment", "#conversation"])("keeps %s, a link within the Conversation", (id) => {
+  it("lets a fragment link scroll the Conversation", () => {
     const { win, posted } = frameWindow();
     dressConversationFrame(win);
-    expect(click(id).defaultPrevented).toBe(false);
+    expect(click("#jump-comment").defaultPrevented).toBe(false);
     expect(posted).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "an absolute permalink",
+      "https://github.com/macintacos/gh-prism-sandbox/pull/1#issuecomment-1",
+      "#issuecomment-1",
+    ],
+    [
+      "a root-relative permalink",
+      "/macintacos/gh-prism-sandbox/pull/1#pullrequestreview-1",
+      "#pullrequestreview-1",
+    ],
+    ["a plain link to the Conversation", "/macintacos/gh-prism-sandbox/pull/1", ""],
+  ])("keeps %s in the panel, moving only the hash", (_, href, hash) => {
+    document.body.insertAdjacentHTML("beforeend", `<a id="same-pr" href="${href}">x</a>`);
+    const { win, posted } = frameWindow();
+    dressConversationFrame(win);
+    expect(click("#same-pr").defaultPrevented).toBe(true);
+    expect(posted).not.toHaveBeenCalled();
+    expect(win.location.hash).toBe(hash);
+    expect(win.location.search).toBe("?gh-prism-panel=1");
   });
 
   it.each([

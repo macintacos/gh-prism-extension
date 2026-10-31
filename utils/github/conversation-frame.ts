@@ -1,5 +1,5 @@
 import { type Browser, browser } from "wxt/browser";
-import { isOwnerOrRepo } from "./pr-port";
+import { asPrRef, type PrDataPort } from "./pr-port";
 import type { PrRef } from "./pr-ref";
 
 type Rule = Browser.declarativeNetRequest.Rule;
@@ -7,25 +7,39 @@ type Rule = Browser.declarativeNetRequest.Rule;
 /** The `runtime.connect` port name the Conversation panel opens and the service worker serves. */
 export const CONVERSATION_FRAME_PORT = "gh-prism:conversation-frame";
 
-const MAX_POLICY_LENGTH = 16384;
+const PANEL_MARKER = "gh-prism-panel";
+
+/** The PR's Conversation tab on github.com. */
+export const conversationUrl = (pr: PrRef): string =>
+  `https://github.com/${pr.owner}/${pr.repo}/pull/${pr.number}`;
 
 /** The URL the panel frames: the Conversation tab plus the marker the framing rule matches. */
 export const conversationFrameUrl = (pr: PrRef): string =>
-  `https://github.com/${pr.owner}/${pr.repo}/pull/${pr.number}?gh-prism-panel=1`;
+  `${conversationUrl(pr)}?${PANEL_MARKER}=1`;
 
 /** Whether `url` carries the marker of the URL the panel frames. */
 export const isConversationFrame = (url: URL): boolean =>
-  url.searchParams.get("gh-prism-panel") === "1";
+  url.searchParams.get(PANEL_MARKER) === "1";
 
-/** `policy` without its frame-ancestors directive; every other directive kept as sent. */
+/**
+ * `policy` without its frame-ancestors directive; every other directive kept as sent. A combined
+ * header's policies, joined with `", "`, are each filtered on their own.
+ */
 export function withoutFrameAncestors(policy: string): string {
   return policy
-    .split(";")
-    .map((directive) => directive.trim())
-    .filter(
-      (directive) => directive && directive.split(/\s+/)[0]?.toLowerCase() !== "frame-ancestors",
+    .split(",")
+    .map((single) =>
+      single
+        .split(";")
+        .map((directive) => directive.trim())
+        .filter(
+          (directive) =>
+            directive && directive.split(/\s+/)[0]?.toLowerCase() !== "frame-ancestors",
+        )
+        .join("; "),
     )
-    .join("; ");
+    .filter(Boolean)
+    .join(", ");
 }
 
 /**
@@ -35,6 +49,7 @@ export function withoutFrameAncestors(policy: string): string {
  */
 export function framingRule(tabId: number, pr: PrRef, policy: string): Rule {
   return {
+    // One rule per tab, keyed by the tab's id: any other session rule must not use tab-sized ids.
     id: tabId,
     priority: 1,
     action: {
@@ -59,28 +74,30 @@ export function framingRule(tabId: number, pr: PrRef, policy: string): Rule {
 }
 
 /** The slice of `browser.runtime.Port` the service worker uses. */
-export interface ConversationFramePort {
+export type ConversationFramePort = Omit<PrDataPort, "disconnect"> & {
   readonly sender?: { tab?: { id?: number } };
-  postMessage(message: unknown): void;
-  onMessage: { addListener(listener: (message: unknown) => void): void };
-  onDisconnect: { addListener(listener: () => void): void };
+};
+
+/** What the panel sends over {@link CONVERSATION_FRAME_PORT}; the worker answers `{ allowed }`. */
+export interface FramingRequest {
+  readonly pr: PrRef;
+  readonly policy: string;
 }
 
-interface FramingRequest {
-  pr: PrRef;
-  policy: string;
-}
+// The policy goes into a response header: CR or LF would let it add headers of its own, and the
+// cap sits well above GitHub's few-KB policy while bounding what a page can make the worker store.
+const MAX_POLICY_LENGTH = 16384;
 
 // A content script shares a renderer with the page, so its messages are untrusted.
 function asFramingRequest(value: unknown): FramingRequest | undefined {
   if (typeof value !== "object" || value === null) return undefined;
-  const { owner, repo, number, policy } = value as Record<string, unknown>;
-  if (!isOwnerOrRepo(owner) || !isOwnerOrRepo(repo)) return undefined;
-  if (typeof number !== "number" || !Number.isSafeInteger(number) || number < 1) return undefined;
+  const { pr: maybePr, policy } = value as Record<string, unknown>;
+  const pr = asPrRef(maybePr);
+  if (!pr) return undefined;
   if (typeof policy !== "string" || policy.length > MAX_POLICY_LENGTH || /[\r\n]/.test(policy))
     return undefined;
   if (!withoutFrameAncestors(policy)) return undefined;
-  return { pr: { kind: "pr", owner, repo, number }, policy };
+  return { pr, policy };
 }
 
 /**
@@ -94,20 +111,29 @@ export function conversationFraming(rules: {
 
   function revoke(tabId: number): void {
     current.delete(tabId);
-    rules.update({ removeRuleIds: [tabId] }).catch(console.error);
+    rules
+      .update({ removeRuleIds: [tabId] })
+      .catch((error) =>
+        console.error("gh-prism: revoking the Conversation frame rule failed", error),
+      );
   }
 
   return {
     serve(port) {
       const tabId = port.sender?.tab?.id;
+      let closed = false;
       if (tabId !== undefined) current.set(tabId, port);
+      const answer = (allowed: boolean) => {
+        if (!closed) port.postMessage({ allowed });
+      };
       port.onDisconnect.addListener(() => {
+        closed = true;
         if (tabId !== undefined && current.get(tabId) === port) revoke(tabId);
       });
       port.onMessage.addListener(async (message) => {
         const request = asFramingRequest(message);
-        if (tabId === undefined || !request) {
-          port.postMessage({ allowed: false });
+        if (tabId === undefined || current.get(tabId) !== port || !request) {
+          answer(false);
           return;
         }
         try {
@@ -117,22 +143,14 @@ export function conversationFraming(rules: {
           });
         } catch (error) {
           console.error("gh-prism: installing the Conversation frame rule failed", error);
-          port.postMessage({ allowed: false });
+          answer(false);
           return;
         }
-        port.postMessage({ allowed: true });
+        answer(true);
       });
     },
     forget: revoke,
   };
-}
-
-/** The slice of `browser.runtime.Port` the panel uses. */
-export interface ConversationFrameClientPort {
-  postMessage(message: unknown): void;
-  disconnect(): void;
-  onMessage: { addListener(listener: (message: unknown) => void): void };
-  onDisconnect: { addListener(listener: () => void): void };
 }
 
 /**
@@ -140,11 +158,12 @@ export interface ConversationFrameClientPort {
  * `policy`, resolving whether it did. The port stays open, keeping the rule, until `signal` aborts.
  */
 export function requestFraming(
-  connect: () => ConversationFrameClientPort,
+  connect: () => PrDataPort,
   pr: PrRef,
   policy: string,
   signal: AbortSignal,
 ): Promise<boolean> {
+  if (signal.aborted) return Promise.resolve(false);
   const port = connect();
   signal.addEventListener("abort", () => port.disconnect(), { once: true });
   return new Promise((resolve) => {
@@ -157,7 +176,7 @@ export function requestFraming(
       ),
     );
     port.onDisconnect.addListener(() => resolve(false));
-    port.postMessage({ owner: pr.owner, repo: pr.repo, number: pr.number, policy });
+    port.postMessage({ pr, policy } satisfies FramingRequest);
   });
 }
 

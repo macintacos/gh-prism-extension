@@ -1,4 +1,4 @@
-import { isConversationFrame } from "../../../utils/github/conversation-frame";
+import { isConversationFrame } from "@/utils/github/conversation-frame";
 import { isEditable } from "../ui/dom";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./frame.css?inline";
@@ -22,10 +22,14 @@ export function dressConversationFrame(win: Window): void {
   doc.addEventListener(
     "click",
     (event) => {
-      const href = leavingHref(event, win.location);
-      if (!href) return;
+      const url = followedLink(event, win.location);
+      if (!url) return;
+      const samePage = url.origin === win.location.origin && url.pathname === win.location.pathname;
+      if (samePage && url.search === win.location.search) return;
       event.preventDefault();
-      post({ type: CONVERSATION_LEAVE, href });
+      // Same PR without the marker: the framing rule wouldn't match, so stay and only scroll.
+      if (!samePage) post({ type: CONVERSATION_LEAVE, href: url.href });
+      else if (url.hash) win.location.hash = url.hash;
     },
     { capture: true },
   );
@@ -36,7 +40,8 @@ export function dressConversationFrame(win: Window): void {
   });
 }
 
-function leavingHref(event: MouseEvent, here: Location | URL): string | undefined {
+/** The URL a plain left click on a same-tab link would navigate to, resolved against `here`. */
+function followedLink(event: MouseEvent, here: Location | URL): URL | undefined {
   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
     return undefined;
   const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
@@ -46,7 +51,5 @@ function leavingHref(event: MouseEvent, here: Location | URL): string | undefine
     link.hasAttribute("download")
   )
     return undefined;
-  const url = new URL(link.getAttribute("href") ?? "", here.href);
-  if (url.origin === here.origin && url.pathname === here.pathname) return undefined;
-  return url.href;
+  return new URL(link.getAttribute("href") ?? "", here.href);
 }

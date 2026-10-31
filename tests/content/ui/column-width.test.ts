@@ -1,12 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { columnSeparator } from "../../../entrypoints/content/ui/column-width";
-
-type Size = { width: number; height: number };
-const setViewport = (size: Size) =>
-  (window as unknown as { happyDOM: { setViewport: (size: Size) => void } }).happyDOM.setViewport(
-    size,
-  );
+import { setViewport } from "../../fixtures/viewport";
 
 describe("columnSeparator", () => {
   beforeEach(() => setViewport({ width: 1400, height: 768 }));
