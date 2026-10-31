@@ -9,6 +9,7 @@ export default defineConfig({
     css: {
       include: [
         /diffs\/order\.css/,
+        /conversation\/frame\.css/,
         /diffstat-view\.css/,
         /message-view\.css/,
         /loading-view\.css/,

@@ -520,6 +520,72 @@ Below 1012px, a pull request's tree toggle opens the file tree as a "Files" over
   changed tab below 1012px wide, click `[class*="MobileTreeToggle"]`, and read
   `#__primerPortalRoot__`'s markup.
 
+## The Conversation frame
+
+- **Create and navigate the frame from the content script, never the page's main world.**
+  Files changed's
+  `frame-src viewscreen.githubusercontent.com notebooks.githubusercontent.com` refuses a
+  frame created from the main world, but not one created from the content script's
+  isolated world.
+- **Expect a pull request page to answer a `HEAD` with its full
+  `content-security-policy`**, plus `x-frame-options: deny` and `frame-ancestors 'none'`.
+  The policy carries no nonce, only a sha256 hash, so a policy fetched just before the
+  frame loads is valid for that load.
+- **Find the framed page's chrome as `.js-header-wrapper` and
+  `header[class*="prc-PageLayout-Header-"]:has(nav[class*="TabNav__"])`.** The title bar,
+  its sticky copy, and the tab row all sit in that one header.
+- **Find the framed page's site footer as `footer.footer[role="contentinfo"]`.** It is the
+  page's only `<footer>`, a sibling after `.application-main`, so hiding it leaves no
+  wrapper or spacing behind.
+- **Find Files changed's toolbar row as
+  `section[class*="toolbar__"]:has([class*="RegularTreeToggle"])`.** A press on a button
+  prepended to it can make React hydrate the toolbar and re-mount the button mid-press, so
+  no `click` fires; `panel.ts`'s `attach` handles the press itself.
+- **Expect the toolbar row to space exactly two `[data-component="Stack"]` groups apart
+  with `justify-content: space-between`:** the start group holds the tree toggles and All
+  commits, the end group the review controls. A third item prepended to the row splits the
+  free space and strands the start group mid-row, so `panel.css` gives the end group
+  `margin-inline-start: auto`.
+- **Expect the `diffComparisonViewer` container to carry 32px of inline padding against
+  its `width >= 1012px` query.** GitHub swaps `RegularTreeToggle` for `MobileTreeToggle`
+  and undocks the tree below a 1076px page, not a 1012px one. Both toggles stay in the
+  DOM; the hidden one is `display: none`. A commit page has no such container and docks
+  its tree down to a 768px window.
+- **Expect Primer's Dialog to read `<html>`'s padding into `--prc-dialog-scrollgutter` on
+  `<body>`.** `panel.css` accounts for it.
+- **Expect GitHub to wrap its whole app in `[data-turbo-body]` with `isolation: isolate`,
+  `#__primerPortalRoot__` (`z-index: 1000`) included.** Every menu, drawer, dialog, and
+  hovercard GitHub opens sits in that one stacking context, so a fixed element in `<body>`
+  outside it draws above all of them at any positive `z-index`. `panel.css` sets the
+  wrapper's `isolation` back to `auto` and stacks the panel at
+  `calc(var(--zIndex-sticky) - 1)`, Primer's `--zIndex-sticky` being 100 on `:root`.
+  Nothing in the page outside the portal root stacks between 11 and 100 apart from the
+  hovercard (100).
+- **Expect GitHub's router to take a link appended to Files changed's `<body>` and clicked
+  as a soft navigation.** `panel.ts`'s `follow` relies on it, as the commit card does.
+- **Override the framed page's container, `#diff-comparison-viewer-container`, with
+  `!important`.** It carries Primer's `tmp-mt-4`, a `margin-top` that is `!important`, so
+  `frame.css` loses without it.
+- **Find the framed merge box's checks as
+  `[data-testid="mergebox-partial"] section[aria-label="Checks"]`.** A merged pull
+  request's merge box has none. The hook keys on the English label `Checks`.
+- **Find the framed sidebar as `#partial-discussion-sidebar` and the timeline as
+  `.js-discussion`.** GitHub draws the sidebar below the timeline in a narrow frame, and
+  beside it from about a 780px panel width.
+- **Read the framed page through the frame's `contentDocument`.** The frame is
+  same-origin, so the content script reads and scrolls it directly, with no message relay.
+- **Re-check:** curl `HEAD` on a pull request and read the three headers. Signed in with
+  the saved `storageState`, add an `<iframe>` to Files changed from `page.evaluate`, then
+  from the extension, and compare the console's CSP refusal. Read the header's and the tab
+  row's markup on the Conversation tab. In the open panel, read the container's computed
+  `margin-top`, query the checks, sidebar, and timeline hooks on an open and a merged pull
+  request, and compare the sidebar's left edge to the timeline's right edge as you widen
+  the panel past 780px. Read the toolbar row's `justify-content` and children, and the
+  container's padding and the window at which `RegularTreeToggle` turns `display: none`.
+  With the panel pinned, open the ☰ drawer and use `elementFromPoint` inside it to check
+  that it draws above the panel. Read `#__primerPortalRoot__`'s ancestors for `isolation`,
+  and read `--zIndex-sticky` on `:root`.
+
 ## Files changed filters
 
 - **Expect GitHub's filter menu to rewrite the URL with one `replaceState`.** "Only files

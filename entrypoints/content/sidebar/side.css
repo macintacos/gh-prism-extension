@@ -7,7 +7,59 @@
    request's diffComparisonViewer container (this sheet names a commit's), and PageLayout's
    --region-order-pane-end custom property. */
 @import "../ui/tailwind.css" prefix(tw);
+@import "../ui/keycap.css";
 @source "./side.ts";
+@source "../ui/keycap.ts";
+
+/* GitHub's tree toggle drawn as Primer's small default Button, with room at its end for the key.
+   :root[data-gh-prism-side] outranks Primer's invisible-variant rules. */
+:root[data-gh-prism-side]
+:is([class*="RegularTreeToggle"], [class*="MobileTreeToggle"], [aria-controls="diff_file_tree"]) {
+  anchor-name: --gh-prism-tree-toggle;
+  height: var(--control-small-size, 28px);
+  border: var(--borderWidth-thin, 1px) solid var(--button-default-borderColor-rest);
+  background-color: var(--button-default-bgColor-rest);
+  box-shadow: var(--button-default-shadow-resting);
+
+  &:hover {
+    background-color: var(--button-default-bgColor-hover);
+    border-color: var(--button-default-borderColor-hover);
+  }
+
+  /* Expanded keeps the pressed fill it had as an invisible Button. */
+  &:active,
+  &[aria-expanded="true"] {
+    background-color: var(--button-default-bgColor-active);
+    border-color: var(--button-default-borderColor-active);
+  }
+}
+
+/* Touch screens hide the key, so the toggle keeps its icon-only width there. */
+@media not ((hover: none) and (pointer: coarse)) {
+  :root[data-gh-prism-side]
+  :is([class*="RegularTreeToggle"], [class*="MobileTreeToggle"], [aria-controls="diff_file_tree"]) {
+    width: auto;
+    padding-inline-end: calc(var(--base-size-8, 8px) + var(--base-size-4, 4px) + 20px);
+  }
+}
+
+/* The key sits inside the toggle's end padding. It is no control, so a click on it lands on the
+   toggle underneath. Anchored, not a child, so nothing React renders gains a child. */
+.gh-prism-tree-key {
+  position: absolute;
+  position-anchor: --gh-prism-tree-toggle;
+  position-visibility: anchors-visible;
+  top: anchor(center);
+  right: calc(anchor(right) + var(--base-size-8, 8px));
+  translate: 0 -50%;
+  /* Above the toggle even when a docked-right row reorders it after the key. */
+  z-index: 1;
+  box-sizing: border-box;
+  min-inline-size: 20px;
+  text-align: center;
+  color: var(--fgColor-muted);
+  pointer-events: none;
+}
 
 /* Hidden until a rule below shows it: CSS, not tw:hidden, which a later sheet's copy would let
    outrank those rules. */
@@ -29,9 +81,43 @@ section[class*="toolbar__"]:has([class*="MobileTreeToggle"]) .gh-prism-side-swit
   & [class*="prc-Dialog-Dialog-"]:has(#pr-file-tree) {
     border-radius: var(--borderRadius-large) 0 0 var(--borderRadius-large);
   }
+}
 
-  /* Point the toggle's icon where the overlay opens. */
-  & [class*="MobileTreeToggle"] svg {
+/* Docked right, the switch ends the toolbar, so its tooltip opens leftward. */
+[data-gh-prism-side="right"] .gh-prism-side-switch::after {
+  inset-inline: auto 0;
+}
+
+/* The toolbar's left group dissolves into the row, so the toggle and switch can end it. */
+[data-gh-prism-side="right"] section[class*="toolbar__"]:has([class*="RegularTreeToggle"]) {
+  & > :has(> * > [class*="RegularTreeToggle"]) {
+    display: contents;
+  }
+
+  & > [data-component="Stack"]:not(:has([class*="RegularTreeToggle"])) {
+    margin-inline-start: auto;
+  }
+
+  & :has(> [class*="RegularTreeToggle"]) {
+    order: 2;
+  }
+
+  /* Set apart from the side-panel toggles by a divider like the toolbar's own. */
+  & .gh-prism-side-switch {
+    order: 1;
+    margin-inline-start: 17px;
+  }
+
+  & .gh-prism-side-switch::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: -13px;
+    border-inline-start: var(--borderWidth-thin, 1px) solid var(--borderColor-default);
+  }
+
+  /* Point the toggle's icon at the tree. */
+  & [class*="TreeToggle"] svg {
     scale: -1 1;
   }
 }
@@ -166,11 +252,6 @@ section[class*="toolbar__"]:has([class*="MobileTreeToggle"]) .gh-prism-side-swit
     display: inline-grid;
   }
 
-  /* Docked right, the switch ends the toolbar, so its tooltip opens leftward. */
-  [data-gh-prism-side="right"] .gh-prism-side-switch::after {
-    inset-inline: auto 0;
-  }
-
   /* Primer's own end-position styles: after the diffs, its divider on the inner edge. */
   [data-gh-prism-side="right"]
   [class*="PageLayout-PaneWrapper"]:has(:is(#pr-file-tree, #diff_file_tree)) {
@@ -190,40 +271,6 @@ section[class*="toolbar__"]:has([class*="MobileTreeToggle"]) .gh-prism-side-swit
 
   [data-gh-prism-side="right"] :where(#pr-file-tree) .gh-prism-sections {
     margin-inline: var(--base-size-16) 0;
-  }
-
-  /* The toolbar's left group dissolves into the row, so the toggle and switch can end it. */
-  [data-gh-prism-side="right"] section[class*="toolbar__"]:has([class*="RegularTreeToggle"]) {
-    & > :has(> * > [class*="RegularTreeToggle"]) {
-      display: contents;
-    }
-
-    & > [data-component="Stack"]:not(:has([class*="RegularTreeToggle"])) {
-      margin-inline-start: auto;
-    }
-
-    & :has(> [class*="RegularTreeToggle"]) {
-      order: 2;
-    }
-
-    /* Set apart from the side-panel toggles by a divider like the toolbar's own. */
-    & .gh-prism-side-switch {
-      order: 1;
-      margin-inline-start: 17px;
-    }
-
-    & .gh-prism-side-switch::before {
-      content: "";
-      position: absolute;
-      inset-block: 0;
-      inset-inline-start: -13px;
-      border-inline-start: var(--borderWidth-thin, 1px) solid var(--borderColor-default);
-    }
-
-    /* Point the toggle's icon at the tree. */
-    & [class*="TreeToggle"] svg {
-      scale: -1 1;
-    }
   }
 
   /* A commit's toolbar: the toggle and switch end it, after its full-width search. */

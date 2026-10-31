@@ -4,10 +4,11 @@
 it.*
 
 gh-prism is a Chrome extension built with WXT, a framework for browser extensions. It has
-two parts: a service worker that fetches pull request data, and a content script that
-reshapes GitHub's Files view and reads a pull request's code owners and reviewers itself.
-Each section below names the module behind its claims, so you can read the code next.
-Terms such as visit, page, intent, and landing are defined in
+two parts: a service worker that fetches pull request data and lets the Conversation panel
+frame a pull request's Conversation tab, and content scripts. One reshapes GitHub's Files
+view and reads a pull request's code owners and reviewers itself; the other dresses the
+Conversation panel's frame. Each section below names the module behind its claims, so you
+can read the code next. Terms such as visit, page, intent, and landing are defined in
 [`CONTEXT.md`](../CONTEXT.md).
 
 ## Overview
@@ -15,7 +16,12 @@ Terms such as visit, page, intent, and landing are defined in
 The service worker in [`entrypoints/background.ts`](../entrypoints/background.ts) reads
 diffs and file contents from github.com. It serves them to content scripts over a
 long-lived message port, defined in
-[`utils/github/pr-port.ts`](../utils/github/pr-port.ts). It also clears the intent cache
+[`utils/github/pr-port.ts`](../utils/github/pr-port.ts). Over a second port, defined in
+[`utils/github/conversation-frame.ts`](../utils/github/conversation-frame.ts), it installs
+a per-tab session rule that lets only the Conversation panel's frame load the pull
+request's Conversation tab. Removing it when the port closes is best effort: a worker
+stopped while idle never hears the port close. Closing the tab removes it always, and a
+leftover rule still matches only that tab's marked URL. It also clears the intent cache
 whenever the extension is installed, updated, or reloaded in development, and on a fresh
 install it marks the installed version's what's-new notes dismissed.
 
@@ -27,6 +33,17 @@ matched to pull request URLs would never be injected when you click through to o
 Instead, it watches every page for a Files view to appear, for a pull request's header
 tabs, where it shows the diffstat and, on Conversation, a code owner's files, and for a
 pull request's classic page, where it opens a dialog instead.
+
+That script runs in the top frame only, so nothing of gh-prism's, the Conversation button
+included, shows inside the Conversation panel. A second content script,
+[`entrypoints/conversation-frame.content.ts`](../entrypoints/conversation-frame.content.ts),
+runs in every frame of a pull request URL at `document_start` and acts only in a sub-frame
+whose URL carries the panel's `gh-prism-panel=1` marker. There,
+[`conversation/frame.ts`](../entrypoints/content/conversation/frame.ts) hides GitHub's
+site header, PR title bar, tab row, and site footer, posts each link that leaves the
+Conversation to the parent page to load, and relays an Escape GitHub didn't handle. The
+messages' shapes live in
+[`conversation/frame-messages.ts`](../entrypoints/content/conversation/frame-messages.ts).
 
 ## Page kinds
 
@@ -103,6 +120,101 @@ view through `shownIn` before it re-lists. One visit reads intent once: `index.t
 the read in `shareIntent`, so every page of the visit joins the same read. A header tab's
 visit reads intent the same way, and `showHeaderTab` mounts only the diffstat on each of
 its pages once the read lands, skipping a page dropped before then.
+
+## The Conversation panel
+
+On a pull request's Files changed tab,
+[`conversation/panel.ts`](../entrypoints/content/conversation/panel.ts) shows the pull
+request's Conversation tab in a panel on the left edge. `index.ts` builds the panel per
+visit, only for a pull request. On each page, `showConversationButton` puts its button
+first in the toolbar row that `findFilesToolbar` in
+[`files-page.ts`](../entrypoints/content/files-page.ts) finds.
+
+The panel is one fixed `<aside>` appended to `<body>` and never moved, because moving or
+re-creating an `<iframe>` reloads it. Its first open in a visit loads the frame in order:
+
+1. It shows a skeleton, which appears only if the frame hasn't loaded 150 ms later.
+2. It fetches the Conversation URL with gh-prism's `gh-prism-panel=1` marker, by `HEAD`,
+   for GitHub's live Content-Security-Policy.
+3. `allowConversationFrame` in
+   [`utils/github/conversation-frame.ts`](../utils/github/conversation-frame.ts) sends the
+   policy to the service worker over a port, which installs the tab's framing rule. The
+   port stays open until the visit ends, but the rule may outlive it: the worker stops
+   about 30 s after its last event and then never hears the port close, so the rule stays
+   until the tab closes or the tab's next open replaces it.
+4. Once the top page has fired `load`, it sets the frame's `src` to the marked URL.
+
+If the `HEAD` fails or carries no policy, the rule is refused, or the loaded frame's
+`contentDocument` is `null`, the panel shows one sentence linking to the Conversation tab
+instead. A refused load after a good one re-points the frame at the marked URL once; a
+second refused load in a row shows that sentence. Closing hides the panel and keeps the
+frame, so reopening is instant.
+
+The content script creates the frame and sets its `src`, never a script in the page's main
+world, whose `frame-src` would refuse it. It hears only messages from its own frame on
+github.com. When the reader clicks a link in the frame that points away from the
+Conversation, the frame posts its URL, and the panel clicks a temporary link to it in the
+page, so GitHub's router can take it without a reload. A link to the same pull request,
+such as a comment's permalink, only moves the frame's hash, so the panel stays put.
+
+Two controls in the panel's header jump the frame to its merge box's checks and to its
+sidebar of reviewers, labels, and projects. The frame is a same-origin page, so on each
+load `panel.ts` reads its `contentDocument` directly, with no message relay. A
+`MutationObserver` on that document and the frame window's `resize` keep each control
+shown only while its section exists, and the sidebar's only while GitHub draws the sidebar
+below the timeline rather than beside it. A click scrolls the frame's window, smoothly
+unless the reader prefers reduced motion.
+
+Shift+\ toggles the panel as the toolbar button does, and the button shows the key as a
+keycap. `panel.ts` listens for it on the document, in the capture phase, until the visit
+aborts. `toggleKeyOf` in [`ui/toggle-keys.ts`](../entrypoints/content/ui/toggle-keys.ts)
+reads the key: Shift held with `event.key === "|"`, because Shift+\ types `|` on US and UK
+layouts, and `event.key === "\\"` without Shift for the tree key. It ignores a key typed
+into a field, a key pressed with Alt, Ctrl, or Meta, and a held key's repeats.
+
+A key pressed inside the frame never reaches the top page, so the frame relays `\` and
+Shift+\ to it. It relays only a key whose event GitHub didn't `preventDefault`, and never
+one typed into a field. The panel then dispatches the same keydown on the page, where the
+panel's listener and the file tree's key take it.
+
+That tree key is `\`, which `dockSidebar` in
+[`sidebar/side.ts`](../entrypoints/content/sidebar/side.ts) binds on a pull request and a
+commit alike. It clicks whichever of GitHub's tree toggles is shown: the regular one, or
+the narrow layout's overlay toggle. The click runs the tree's glide and GitHub's handler,
+as a reader's click does. gh-prism shows the key as its own keycap, a sibling of the
+toggle, because a sibling moves and mutates nothing React renders. `side.css` anchors the
+keycap over the toggle's end padding and gives it no pointer events. gh-prism also sets
+`aria-keyshortcuts` on GitHub's toggles, an attribute React doesn't own.
+
+These close the overlay:
+
+- the toolbar button, its Shift+\, or the panel's ✕;
+- Escape on the page, or an Escape the frame relays;
+- a pointerdown outside the panel and its button.
+
+The pin control in the panel's header pins it. Pinned, the panel stays put and sets
+`data-gh-prism-conversation="pinned"` and `--gh-prism-conversation-width` on `<html>`, and
+`panel.css` pads `<html>` by that width, so the whole page, GitHub's own layout included,
+sits right of the panel whichever side the sidebar docks on. Only the toolbar button and ✕
+close a pinned panel. Its right edge carries `columnSeparator` from `ui/column-width.ts`,
+pinned or not, which sets the panel's one width, saved as `conversationWidth` in
+[`utils/prefs.ts`](../utils/prefs.ts). Each mode holds that width to its own bound: the
+column's what the window, less a classic scrollbar, has past 1076px, where GitHub undocks
+a pull request's tree (its 1012px query plus the diff viewer's 32px padding a side), and
+the overlay's at the window less 48px. Only the column sets
+`--gh-prism-conversation-width`, so the overlay never moves the page, and switching modes
+redraws the width without saving it. On a window too narrow for that column, as
+`fitsPinned` judges, the pin control hides and a pinned panel draws as the overlay; a
+`resize` listener switches between the two. Pinning and unpinning only change attributes
+and styles, never the frame. When the page's padding changes, `panel.ts` animates it from
+its old width with the Web Animations API, timed to the panel's own slide in `panel.css`,
+so the panel and the page move as one. A view transition would snapshot the page and
+cross-fade it between two places, drawing GitHub's header and the diffs twice.
+
+A tab-wide `ConversationChoice` object carries whether the panel is open and pinned and
+its width, so a soft navigation to another pull request's Files changed opens the new
+one's panel without taking focus. `conversationPinned` is saved too, and a full load opens
+the panel only when it was left pinned and the window fits the column.
 
 ## The classic page notice
 
@@ -195,13 +307,13 @@ never sees the rendering first.
 
 On a window with room for it, the view moves the message and its switch into
 `aside.gh-prism-commit-column`, a sticky column it prepends to the flex row around the
-sidebar that `findCommitColumnRow` finds. GitHub docks its file tree beside the diffs from
-1012px, so the column takes only what a window has past that, and the diffs never get
-narrower than GitHub makes them there. The column takes the tree pane's geometry and sorts
-first by `order`, wherever the pane is docked. The window stays the scroller, so GitHub's
-sticky file headers and lazy diff loading are untouched; the message scrolls inside the
-column. While the message is in the column, a hidden `span.gh-prism-commit-slot` stands
-just before GitHub's box and hides it in the message's place, in both views. The column's
+sidebar that `findCommitColumnRow` finds. The column takes only what a window has past
+1012px, so the diffs keep the room a pull request's docked layout gives them; a commit's
+own tree docks down to 768px. The column takes the tree pane's geometry and sorts first by
+`order`, wherever the pane is docked. The window stays the scroller, so GitHub's sticky
+file headers and lazy diff loading are untouched; the message scrolls inside the column.
+While the message is in the column, a hidden `span.gh-prism-commit-slot` stands just
+before GitHub's box and hides it in the message's place, in both views. The column's
 plaintext view shows `div.gh-prism-commit-message-plain` instead: copies of the box's
 children, taken when the message mounts, laid out as the box is, as a flex column.
 
@@ -212,14 +324,15 @@ as GitHub insets its file tree and diffs. Above the diffs, they float beside the
 first line, and the message keeps GitHub's box's 8px 12px inset.
 
 The column is 320px wide until the reader resizes it. `columnSeparator` in
-[`entrypoints/content/commit/column-width.ts`](../entrypoints/content/commit/column-width.ts)
-builds a `role="separator"` on the column's inner edge, copying the Primer pane divider on
-GitHub's file tree: dragging it, or its arrow keys at 3px a press, sets the width, which
-saves as `commitColumnWidth` in [`utils/prefs.ts`](../utils/prefs.ts) and carries to every
-commit in the tab. The width holds between Primer's 256px pane minimum and what the window
-has past 1012px, so the column narrows with the window, and moves back above the diffs
-once the window can't spare 256px, below 1268px. A `resize` listener applies both, and a
-commit page with no row keeps the message above the diffs at any width.
+[`entrypoints/content/ui/column-width.ts`](../entrypoints/content/ui/column-width.ts),
+which the pinned Conversation panel shares, builds a `role="separator"` on the column's
+inner edge, styled by the `ui/column-width.css` partial, copying the Primer pane divider
+on GitHub's file tree: dragging it, or its arrow keys at 3px a press, sets the width,
+which saves as `commitColumnWidth` in [`utils/prefs.ts`](../utils/prefs.ts) and carries to
+every commit in the tab. The width holds between Primer's 256px pane minimum and what the
+window has past 1012px, so the column narrows with the window, and moves back above the
+diffs once the window can't spare 256px, below 1268px. A `resize` listener applies both,
+and a commit page with no row keeps the message above the diffs at any width.
 
 A hide button beside the switch takes the message off the page, column and all, and puts
 `div.gh-prism-commit-restore` in GitHub's box's place, before the slot that keeps the box
@@ -277,11 +390,12 @@ from the map with no request. So Older then Newer returns to where the reader st
 as long as the tab's content script runs; a full reload clears the map.
 
 Shift+J follows Older and Shift+K follows Newer. Each link names its key in
-`aria-keyshortcuts` and shows it as a keycap that GitHub's own `kbd` rule draws.
-`showStepLinks` listens for `keydown` on the document, in the capture phase as the `j` and
-`k` file keys do, until the visit aborts. It clicks the link whose `aria-keyshortcuts`
-matches the key, so GitHub's router follows it as it follows a click. It ignores a key
-pressed in a text field, which `isEditable` in
+`aria-keyshortcuts` and shows it as a keycap that GitHub's own `kbd` rule draws. `keycap`
+in [`ui/keycap.ts`](../entrypoints/content/ui/keycap.ts) builds it, and the Conversation
+button and the tree toggle use it too. `showStepLinks` listens for `keydown` on the
+document, in the capture phase as the `j` and `k` file keys do, until the visit aborts. It
+clicks the link whose `aria-keyshortcuts` matches the key, so GitHub's router follows it
+as it follows a click. It ignores a key pressed in a text field, which `isEditable` in
 [`ui/dom.ts`](../entrypoints/content/ui/dom.ts) detects for both the step links and the
 file keys. It also ignores a key pressed with Alt, Ctrl, or Meta, a held key's repeats, a
 capital letter typed without Shift, and a held-off link. The file keys compare `event.key`
@@ -608,20 +722,22 @@ these surfaces' sheets `@import`s the mark's partial, `ui/mark.css`.
 
 ```text
 entrypoints/
-  background.ts          service worker: PR data port, cache clearing and what's-new mark on install
+  background.ts          service worker: PR data port, the Conversation panel's framing rule, cache clearing and what's-new mark on install
+  conversation-frame.content.ts  content script in the Conversation panel's frame
   content/
     index.ts             content script entry: wires the watchers, intent, and views
-    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; a commit's message box and the row its message column joins
+    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; a commit's message box and the row its message column joins; the toolbar row the Conversation button starts
     commit/              a commit's message rendered as Markdown in GitHub's box's place, or in a resizable column beside the diffs, with its switch back to GitHub's box and its hide button
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
     header/              diffstat breakout
-    conversation/        a code owner's files popup and gh-prism's reviewer shield, in the Reviewers lists
-    ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, Tailwind tokens
+    conversation/        a code owner's files popup and gh-prism's reviewer shield, in the Reviewers lists; the Conversation panel and its button, dressing its frame, and the messages the frame posts
+    ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, column separator, view-transition glide, Tailwind tokens
 utils/
   github/                routes, diff parsing, the PR data port and source, code owners and reviewers
+    conversation-frame.ts  the per-tab session rule that lets only the Conversation panel frame a PR's Conversation tab, and the panel's request for it
   intent/                reading, caching, and landing intent
   hunk-rules/            the docstring and inline-test rules
   sections.ts            path rules for the five sections

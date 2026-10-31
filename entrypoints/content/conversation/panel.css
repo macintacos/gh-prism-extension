@@ -1,0 +1,243 @@
+/* GitHub hooks: Primer's --prc-dialog-scrollgutter and --zIndex-sticky; [data-turbo-body]'s
+   isolation: isolate, wrapping #__primerPortalRoot__; section[class*="toolbar__"], a
+   justify-content: space-between row of two [data-component="Stack"] groups, the end one last.
+   In the framed Conversation, panel.ts reads [data-testid="mergebox-partial"]
+   section[aria-label="Checks"], #partial-discussion-sidebar, and .js-discussion. */
+@import "../ui/tailwind.css" prefix(tw);
+@import "../ui/column-width.css";
+@import "../ui/mark.css";
+@import "../ui/keycap.css";
+@source "./panel.ts";
+@source "../ui/keycap.ts";
+
+/* GitHub's toolbar row spaces its two groups apart; the button makes a third item, so the end
+   group takes the free space and the start group stays beside the button. */
+section[class*="toolbar__"]:has(> .gh-prism-conversation-button)
+  > [data-component="Stack"]:last-child {
+  margin-inline-start: auto;
+}
+
+/* Primer's tooltip, opening rightward from the toolbar's start. */
+.gh-prism-conversation-button::after {
+  content: attr(aria-label) " (" attr(aria-keyshortcuts) ")";
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline-start: 0;
+  z-index: 100;
+  padding: 4px 8px;
+  border-radius: var(--borderRadius-medium);
+  background: var(--tooltip-bgColor);
+  color: var(--tooltip-fgColor);
+  font-size: var(--text-body-size-small);
+  font-weight: var(--base-text-weight-normal);
+  line-height: var(--text-body-lineHeight-small);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 120ms ease-out,
+    visibility 120ms;
+}
+
+.gh-prism-conversation-button:is(:hover, :focus-visible)::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* GitHub isolates its app, portal root and overlays included, so nothing outside could stack
+   between its content and its overlays. Undone, the panel goes just under Primer's sticky layer:
+   above the page's sticky headers, below its drawers, menus, dialogs, and hovercards. :root
+   outranks GitHub's rule wherever its sheet loads. */
+:root [data-turbo-body] {
+  isolation: auto;
+}
+
+/* A floating surface along the left edge: its shadow's ring draws its one edge. */
+.gh-prism-conversation {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-start: 0;
+  z-index: calc(var(--zIndex-sticky, 100) - 1);
+  display: flex;
+  flex-direction: column;
+  /* The framed Conversation's own canvas, so the header and frame read as one surface. */
+  background: var(--bgColor-default);
+  box-shadow: var(--shadow-floating-small);
+  color: var(--fgColor-default);
+  outline: none;
+  translate: 0;
+  transition:
+    translate 160ms ease-out,
+    display 160ms allow-discrete;
+}
+
+/* The author display above beats the user-agent sheet's [hidden]. */
+.gh-prism-conversation[hidden] {
+  display: none;
+  translate: -100%;
+}
+
+.gh-prism-conversation:not([hidden]) {
+  transition-duration: 280ms;
+  transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@starting-style {
+  .gh-prism-conversation:not([hidden]) {
+    translate: -100%;
+  }
+}
+
+/* Pinned, the whole page moves right of the panel, whatever GitHub's layout does inside it. */
+:root[data-gh-prism-conversation="pinned"] {
+  padding-inline-start: var(--gh-prism-conversation-width);
+}
+
+/* Primer's dialog measures the page's padding as scrollbar and pads <body> by it; keep only the
+   scrollbar. The !important beats the inline value Primer sets. */
+:root[data-gh-prism-conversation="pinned"] body {
+  --prc-dialog-scrollgutter: calc(100vw - 100% - var(--gh-prism-conversation-width)) !important;
+}
+
+/* Pinned, a column beside the page rather than a surface over it: a hairline in place of the
+   shadow. */
+:root[data-gh-prism-conversation="pinned"] .gh-prism-conversation {
+  box-shadow: 1px 0 0 var(--borderColor-default);
+}
+
+/* CSS, not tw:inline-grid, so the [hidden] the panel toggles still hides it. */
+.gh-prism-conversation-tool:not([hidden]) {
+  display: inline-grid;
+}
+
+/* Primer's tooltip, opening below the header and inward from the control's end. */
+:is(.gh-prism-conversation-checks, .gh-prism-conversation-sidebar)::after {
+  content: attr(aria-label);
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline-end: 0;
+  z-index: 1;
+  padding: 4px 8px;
+  border-radius: var(--borderRadius-medium);
+  background: var(--tooltip-bgColor);
+  color: var(--tooltip-fgColor);
+  font-size: var(--text-body-size-small);
+  font-weight: var(--base-text-weight-normal);
+  line-height: var(--text-body-lineHeight-small);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 120ms ease-out,
+    visibility 120ms;
+}
+
+:is(.gh-prism-conversation-checks, .gh-prism-conversation-sidebar):is(
+    :hover,
+    :focus-visible
+  )::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+.gh-prism-conversation-pin[aria-pressed="true"] {
+  color: var(--fgColor-accent);
+}
+
+/* A border, not a shadow below the box: the positioned body paints over anything outside it. */
+.gh-prism-conversation-header {
+  border-bottom: var(--borderWidth-thin, 1px) solid var(--borderColor-default);
+}
+
+/* The header sits at the top edge, so the mark's tooltip opens below it. */
+.gh-prism-conversation-header > .gh-prism-mark::after {
+  top: calc(100% + 4px);
+  bottom: auto;
+}
+
+.gh-prism-conversation-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.gh-prism-conversation-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+
+[data-state="loaded"] .gh-prism-conversation-frame {
+  opacity: 1;
+}
+
+/* Over the frame until it loads; held back 150 ms so a quick load never flashes it. */
+.gh-prism-conversation-skeleton {
+  position: absolute;
+  inset: 0;
+  padding: 16px;
+  animation: gh-prism-conversation-appear 150ms ease-out 150ms backwards;
+}
+
+[data-state="loaded"] .gh-prism-conversation-skeleton {
+  display: none;
+}
+
+.gh-prism-conversation-skeleton > span {
+  display: block;
+  height: 10px;
+  margin: 9px 0;
+  border-radius: 5px;
+  background: var(--borderColor-muted);
+  animation: gh-prism-conversation-pulse 1.2s ease-in-out infinite alternate;
+}
+
+.gh-prism-conversation-skeleton > span:first-child {
+  width: 64%;
+  height: 16px;
+  margin: 4px 0 20px;
+  border-radius: 8px;
+}
+
+.gh-prism-conversation-skeleton > span:nth-child(2) {
+  width: 92%;
+}
+
+.gh-prism-conversation-skeleton > span:nth-child(3) {
+  width: 84%;
+}
+
+.gh-prism-conversation-skeleton > span:nth-child(4) {
+  width: 46%;
+}
+
+@keyframes gh-prism-conversation-appear {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes gh-prism-conversation-pulse {
+  to {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-prism-conversation,
+  .gh-prism-conversation:not([hidden]),
+  .gh-prism-conversation-frame,
+  .gh-prism-conversation-button::after {
+    transition: none;
+  }
+
+  .gh-prism-conversation-skeleton,
+  .gh-prism-conversation-skeleton > span {
+    animation: none;
+  }
+}

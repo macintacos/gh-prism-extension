@@ -59,6 +59,11 @@
   visibility: visible;
 }
 
+/* The mark's tooltip never opens here; laid out, it would widen the page past the window's edge. */
+.gh-prism-tip .gh-prism-mark::after {
+  content: none;
+}
+
 .gh-prism-tip strong {
   font-weight: var(--base-text-weight-semibold);
 }

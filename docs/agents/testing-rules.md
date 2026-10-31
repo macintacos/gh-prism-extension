@@ -69,6 +69,8 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   way back in Chromium: [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "a commit's message
   switches to GitHub's box from the keyboard, and opens there after a reload with no flash
   of the rendering" covers the commit message's switch.
+- **Stub an iframe's `contentWindow`.** happy-dom's `disableIframePageLoading` means an
+  iframe never gets one.
 
 ## Test bodies
 
@@ -117,6 +119,13 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   where the diffs sit gives the layout row GitHub's flex and the tree a fixed width.
   [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "a commit's message holds its column from
   its first frame…" is the pattern.
+- **Wait for `data-gh-prism-glide` to clear before a test clicks after a glide.** A view
+  transition's pseudo-elements take the pointer until it clears.
+  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `openPinned` is the pattern.
+- **Read session rules through `worker.evaluate` on `chrome.declarativeNetRequest`.**
+  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `sessionRules` is the pattern.
+- **Keep a live check's screenshots outside `test-results/`.** Playwright empties it at
+  the start of every run.
 - **Keep each end-to-end test independent of the others.** `playwright.config.ts` sets
   `fullyParallel`, so the tests in one file run across workers in no fixed order. The
   `context` fixture gives each test its own browser profile.

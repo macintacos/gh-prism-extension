@@ -5,13 +5,13 @@
    .markdown-body's headings, which the body's heading rules outrank. Every other rule selects
    only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
+@import "../ui/column-width.css";
 @import "../ui/mark.css";
 @source "./message-view.ts";
-@source "./column-width.ts";
 
 /* GitHub's box, while the rendered message stands in for it; in the column, the separator follows
    the message instead. */
-.gh-prism-commit-message[data-view="rendered"] + :not(.gh-prism-commit-column-separator) {
+.gh-prism-commit-message[data-view="rendered"] + :not(.gh-prism-column-separator) {
   display: none !important;
 }
 
@@ -84,35 +84,6 @@
   padding: 24px;
 }
 
-/* Primer's pane divider: a 5px grip centred on the column's edge, washed on hover and while
-   dragged. Its 24px target reaches outward over the next pane's padding, clear of the message's
-   scroll bar. */
-.gh-prism-commit-column-separator {
-  position: absolute;
-  inset-block: 0;
-  inset-inline-end: -21px;
-  width: 24px;
-  cursor: col-resize;
-  touch-action: none;
-  user-select: none;
-}
-
-.gh-prism-commit-column-separator::before {
-  content: "";
-  position: absolute;
-  inset-block: 0;
-  inset-inline-start: 0;
-  width: 5px;
-  background: var(--bgColor-neutral-muted);
-  opacity: 0;
-  transition: opacity 150ms ease-out;
-}
-
-.gh-prism-commit-column-separator:hover::before,
-.gh-prism-commit-column-separator[data-dragging]::before {
-  opacity: 1;
-}
-
 /* Held back a moment, so a rendering that lands at once never flashes it. message-view.ts sets
    --gh-prism-commit-elapsed, so a skeleton shown again mid-visit doesn't fade in or pulse anew. */
 .gh-prism-commit-skeleton {
@@ -172,9 +143,5 @@
   .gh-prism-commit-skeleton,
   .gh-prism-commit-skeleton > span {
     animation: none;
-  }
-
-  .gh-prism-commit-column-separator::before {
-    transition: none;
   }
 }

@@ -8,6 +8,7 @@ import {
   type Locator,
   type Page,
 } from "@playwright/test";
+import type { Browser, WxtBrowser } from "wxt/browser";
 import { commitPage } from "../entrypoints/content/files-page";
 import { LANGUAGE_ICONS } from "../entrypoints/content/sidebar/language-icons";
 
@@ -2078,7 +2079,7 @@ test("the overlay slides in from the right only beside the page, not as a fullsc
   await expect.poll(dialogAnimation).not.toBe("gh-prism-overlay-in");
 });
 
-test("the narrow layout shows the side switch beside its tree toggle", async ({
+test("the narrow layout shows the side switch beside its tree toggle and the toggle's keycap", async ({
   context,
   page,
 }) => {
@@ -2087,9 +2088,14 @@ test("the narrow layout shows the side switch beside its tree toggle", async ({
   await page.goto(PR_URL);
   const sideSwitch = page.locator(".gh-prism-side-switch");
   await expect(sideSwitch).toBeVisible();
+  await expect(page.locator(".gh-prism-tree-key")).toBeVisible();
   expect(
     await sideSwitch.evaluate(
-      (el) => el.previousElementSibling?.querySelector('[class*="MobileTreeToggle"]') != null,
+      (el) =>
+        el.previousElementSibling?.classList.contains("gh-prism-tree-key") &&
+        el.previousElementSibling.previousElementSibling?.querySelector(
+          '[class*="MobileTreeToggle"]',
+        ) != null,
     ),
   ).toBe(true);
 });
@@ -2103,7 +2109,7 @@ test("the narrow side switch opens its tooltip toward the page's middle", async 
   await page.goto(PR_URL);
   await expect
     .poll(() =>
-      page.locator(".gh-prism-side-switch").evaluate((el) => getComputedStyle(el, "::after").left),
+      page.locator(".gh-prism-side-switch").evaluate((el) => getComputedStyle(el, "::after").right),
     )
     .toBe("0px");
 });
@@ -3143,4 +3149,851 @@ test("Tab from a code owner's shield enters their long list's filter action, whi
         !!document.activeElement?.closest("#partial-discussion-sidebar"),
     ),
   ).toBe(true);
+});
+
+const CONVERSATION_FRAME_URL = "https://github.com/o/r/pull/1?gh-prism-panel=1";
+// GitHub's policy, cut to what a routed page needs, with no frame-ancestors to refuse the frame.
+const CONVERSATION_CSP = "default-src 'none'; style-src 'unsafe-inline'";
+
+/** Serves the Files changed fixture and the panel's marked Conversation, framable. */
+async function serveConversation(
+  context: BrowserContext,
+  conversation = `<main id="conversation">A pull request's Conversation <a href="${CLASSIC_URL}">Files</a></main>`,
+): Promise<void> {
+  await serve(context, PR_URL, PR_BODY);
+  await context.route(
+    (url) => url.href === CONVERSATION_FRAME_URL,
+    (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        headers: { "content-security-policy": CONVERSATION_CSP },
+        body: `<!doctype html>${conversation}`,
+      }),
+  );
+}
+
+const conversationButton = (page: Page) =>
+  page.getByRole("button", { name: "Conversation", exact: true });
+
+/** The extension's session rules, read from its service worker. */
+async function sessionRules(
+  context: BrowserContext,
+): Promise<Browser.declarativeNetRequest.Rule[]> {
+  const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
+  // e2e's tsconfig has no extension globals; the worker has `chrome`.
+  return worker.evaluate(() =>
+    (
+      globalThis as unknown as {
+        chrome: WxtBrowser;
+      }
+    ).chrome.declarativeNetRequest.getSessionRules(),
+  );
+}
+
+// GitHub's toolbar row, which spaces its two groups apart, inside the diffComparisonViewer
+// container whose content box swaps the regular tree toggle for the narrow layout's at 1012px.
+const PR_TOOLBAR_BODY = PR_BODY.replace(
+  '<section class="toolbar__ztHN6">',
+  '<style>body { margin: 0; } .viewer-x { container: diffComparisonViewer / inline-size; padding-inline: 32px; } section[class*="toolbar__"], section [data-component="Stack"] { display: flex; align-items: center; gap: 8px; } section[class*="toolbar__"] { justify-content: space-between; } [class*="TreeToggle"] { height: 28px; } [class*="RegularTreeToggle"] { display: none; } @container diffComparisonViewer (width >= 1012px) { [class*="MobileTreeToggle"] { display: none; } [class*="RegularTreeToggle"] { display: flex; } }</style><div class="viewer-x"><section class="toolbar__ztHN6">',
+).replace("</section>", "</section></div>");
+
+const boxRight = (box: { x: number; width: number } | null) => (box ? box.x + box.width : NaN);
+
+for (const [width, layout] of [
+  [1280, "regular"],
+  [1000, "narrow"],
+] as const) {
+  test(`the tree toggle ends the toolbar docked right and follows the Conversation button docked left, in GitHub's ${layout} layout`, async ({
+    context,
+    page,
+  }) => {
+    await serve(context, PR_URL, PR_TOOLBAR_BODY);
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(PR_URL);
+    const toggle = page.locator(
+      layout === "regular" ? '[class*="RegularTreeToggle"]' : '[class*="MobileTreeToggle"]',
+    );
+    const toolbar = page.locator('section[class*="toolbar__"]');
+    const sideSwitch = page.getByRole("button", { name: "Move file tree to the left" });
+    await expect(sideSwitch).toBeVisible();
+    const toggleBox = await toggle.boundingBox();
+    expect(boxRight(toggleBox)).toBeCloseTo(boxRight(await toolbar.boundingBox()), 0);
+    expect(boxRight(await sideSwitch.boundingBox())).toBeLessThan(toggleBox?.x ?? NaN);
+
+    await sideSwitch.click();
+    await expect(page.locator("html")).toHaveAttribute("data-gh-prism-side", "left");
+    await expect
+      .poll(
+        async () =>
+          ((await toggle.boundingBox())?.x ?? NaN) -
+          boxRight(await conversationButton(page).boundingBox()),
+      )
+      .toBe(8);
+  });
+}
+
+test("the Conversation button opens an overlay framing the pull request's Conversation", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  await page.goto(PR_URL);
+  await expect(page.locator("html")).toHaveAttribute("data-gh-prism-side", "right");
+  // Docked right, side.css reorders the toolbar's items; the button still leads the row.
+  const leads = await conversationButton(page).evaluate((button) => {
+    const toolbar = button.closest('section[class*="toolbar__"]');
+    const lefts = [...(toolbar?.querySelectorAll("button") ?? [])]
+      .filter((other) => other.getClientRects().length)
+      .map((other) => other.getBoundingClientRect().left);
+    return button.getBoundingClientRect().left === Math.min(...lefts);
+  });
+  expect(leads).toBe(true);
+
+  await conversationButton(page).click();
+
+  const panel = page.getByRole("complementary", { name: "Conversation" });
+  await expect(panel).toBeVisible();
+  await expect(conversationButton(page)).toHaveAttribute("aria-expanded", "true");
+  const frame = page.frameLocator("#gh-prism-conversation iframe");
+  await expect(frame.locator("#conversation")).toBeVisible();
+  await expect(frame.locator(".gh-prism-conversation-button")).toHaveCount(0);
+});
+
+test("Escape inside the Conversation frame closes the overlay, handing focus back to its button", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  await page.goto(PR_URL);
+
+  await conversationButton(page).click();
+  // The centre can land on the fixture's leaving "Files" link.
+  await page
+    .frameLocator("#gh-prism-conversation iframe")
+    .locator("#conversation")
+    .click({ position: { x: 4, y: 4 } });
+  await page.keyboard.press("Escape");
+
+  await expect(page.locator("#gh-prism-conversation")).toBeHidden();
+  await expect(conversationButton(page)).toBeFocused();
+});
+
+test("Shift+\\ opens the Conversation panel and closes it, from the page and from inside its frame, while a text field types it", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  await page.goto(PR_URL);
+  const panel = page.locator("#gh-prism-conversation");
+  const filter = page.getByRole("textbox", { name: /^Filter files/ });
+  await expect(conversationButton(page).locator("kbd")).toBeVisible();
+  await expectInside(conversationButton(page).locator("kbd"), conversationButton(page));
+  expect(
+    await conversationButton(page).evaluate(
+      (button) => getComputedStyle(button, "::after").content,
+    ),
+  ).toContain("Shift+\\");
+
+  await filter.press("Shift+Backslash");
+  await expect(filter).toHaveValue("|");
+  await expect(panel).toBeHidden();
+
+  await filter.blur();
+  await page.keyboard.press("Shift+Backslash");
+  await expect(panel).toBeVisible();
+  await expect(panel).toBeFocused();
+
+  await page.keyboard.press("Shift+Backslash");
+  await expect(panel).toBeHidden();
+  await expect(conversationButton(page)).toBeFocused();
+
+  await page.keyboard.press("Shift+Backslash");
+  // The centre can land on the fixture's leaving "Files" link.
+  await page
+    .frameLocator("#gh-prism-conversation iframe")
+    .locator("#conversation")
+    .click({ position: { x: 4, y: 4 } });
+  await page.keyboard.press("Shift+Backslash");
+  await expect(panel).toBeHidden();
+  await expect(conversationButton(page)).toBeFocused();
+});
+
+test("Shift+\\ moves focus into the Conversation panel and back to its button without a focus ring", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  await page.goto(PR_URL);
+  const panel = page.locator("#gh-prism-conversation");
+  await expect(conversationButton(page)).toBeVisible();
+
+  await page.keyboard.press("Shift+Backslash");
+  await expect(panel).toBeFocused();
+  expect(await panel.evaluate((aside) => getComputedStyle(aside).outlineStyle)).toBe("none");
+
+  await page.keyboard.press("Shift+Backslash");
+  await expect(conversationButton(page)).toBeFocused();
+  expect(await conversationButton(page).evaluate((b) => b.matches(":focus-visible"))).toBe(false);
+});
+
+test("Tab rings the Conversation button", async ({ context, page }) => {
+  await serveConversation(context);
+  await page.goto(PR_URL);
+  await conversationButton(page).focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+
+  await expect(conversationButton(page)).toBeFocused();
+  expect(await conversationButton(page).evaluate((b) => getComputedStyle(b).outlineStyle)).toBe(
+    "solid",
+  );
+});
+
+test("\\ leaves no focus ring on the tree toggle GitHub focuses", async ({ context, page }) => {
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+  const button = page.locator('[class*="RegularTreeToggle"]');
+  await expect(page.locator(".gh-prism-tree-key")).toBeVisible();
+  // A routed page runs none of GitHub's scripts; GitHub focuses the toggle after its click.
+  await button.evaluate((b) => b.addEventListener("click", () => setTimeout(() => b.focus())));
+
+  await page.keyboard.press("Backslash");
+
+  await expect(button).toBeFocused();
+  expect(await button.evaluate((b) => b.matches(":focus-visible"))).toBe(false);
+});
+
+test("\\ presses GitHub's tree toggle, which shows it as a keycap, while a text field types it", async ({
+  context,
+  page,
+}) => {
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+  const toggle = page.locator('[class*="RegularTreeToggle"]');
+  const filter = page.getByRole("textbox", { name: /^Filter files/ });
+  const key = page.locator(".gh-prism-tree-key");
+  await expect(key).toBeVisible();
+  await expectInside(key, toggle);
+  await expect(toggle).toHaveAttribute("aria-keyshortcuts", "\\");
+  // A routed page runs none of GitHub's scripts, so the toggle's clicks are counted instead.
+  await toggle.evaluate((button) => {
+    button.addEventListener("click", () => {
+      button.dataset.clicks = String(Number(button.dataset.clicks ?? 0) + 1);
+    });
+  });
+
+  await filter.press("Backslash");
+  await expect(filter).toHaveValue("\\");
+
+  await filter.blur();
+  await page.keyboard.press("Backslash");
+  await expect(toggle).toHaveAttribute("data-clicks", "1");
+  await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-glide");
+  await page.keyboard.press("Backslash");
+  await expect(toggle).toHaveAttribute("data-clicks", "2");
+
+  const box = await key.boundingBox();
+  if (!box) throw new Error("the tree key has no box");
+  // A glide's view transition takes every pointer event until it ends.
+  await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-glide");
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(toggle).toHaveAttribute("data-clicks", "3");
+});
+
+async function expectInside(inner: Locator, outer: Locator): Promise<void> {
+  const [a, b] = await Promise.all([inner.boundingBox(), outer.boundingBox()]);
+  if (!a || !b) throw new Error("a box is missing");
+  expect(a.x).toBeGreaterThanOrEqual(b.x);
+  expect(a.y).toBeGreaterThanOrEqual(b.y);
+  expect(a.x + a.width).toBeLessThanOrEqual(b.x + b.width);
+  expect(a.y + a.height).toBeLessThanOrEqual(b.y + b.height);
+}
+
+test("a link in the Conversation frame that leaves the Conversation loads in the page", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  await serve(context, CLASSIC_URL, CLASSIC_BODY);
+  await page.goto(PR_URL);
+
+  const frameUrls: string[] = [];
+  page.on("framenavigated", (frame) => {
+    if (frame !== page.mainFrame() && frame.url() !== "about:blank") frameUrls.push(frame.url());
+  });
+
+  await conversationButton(page).click();
+  await page
+    .frameLocator("#gh-prism-conversation iframe")
+    .getByRole("link", { name: "Files" })
+    .click();
+
+  await expect(page).toHaveURL(CLASSIC_URL);
+  expect(frameUrls).toEqual([CONVERSATION_FRAME_URL]);
+});
+
+test("a commit's page has no Conversation button", async ({ context, page }) => {
+  await serve(context, COMMIT_URL, COMMIT_BODY);
+  await page.goto(COMMIT_URL);
+
+  await expect(page.locator(".gh-prism-side-switch")).toBeAttached();
+  await expect(page.locator(".gh-prism-conversation-button")).toHaveCount(0);
+});
+
+test("Escape and a click outside close the Conversation overlay, handing focus back to its button", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  await page.goto(PR_URL);
+  const panel = page.locator("#gh-prism-conversation");
+
+  await conversationButton(page).click();
+  await expect(panel).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(panel).toBeHidden();
+  await expect(conversationButton(page)).toBeFocused();
+
+  await conversationButton(page).click();
+  await expect(panel).toBeVisible();
+  await page.mouse.click(1200, 400);
+  await expect(panel).toBeHidden();
+  await expect(conversationButton(page)).toHaveAttribute("aria-expanded", "false");
+});
+
+test("the Conversation frame's rule is scoped to its tab and URL, and leaves with the page", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  await serve(context, COMMIT_URL, COMMIT_BODY);
+  await page.goto(PR_URL);
+
+  await conversationButton(page).click();
+  // The frame loads only once its rule is in.
+  await expect(
+    page.frameLocator("#gh-prism-conversation iframe").locator("#conversation"),
+  ).toBeVisible();
+
+  const rules = await sessionRules(context);
+  expect(rules).toHaveLength(1);
+  const [rule] = rules;
+  expect(rule?.condition.tabIds).toHaveLength(1);
+  expect(rule?.condition.resourceTypes).toEqual(["sub_frame"]);
+  expect(rule?.condition.urlFilter).toBe(`|${CONVERSATION_FRAME_URL}|`);
+  const policy = rule?.action.responseHeaders?.find(
+    (header) => header.header === "content-security-policy",
+  )?.value;
+  expect(policy).toBe(CONVERSATION_CSP);
+
+  await page.goto(COMMIT_URL);
+
+  await expect.poll(async () => (await sessionRules(context)).length).toBe(0);
+});
+
+test("a Conversation that won't load says so and links to its tab", async ({ context, page }) => {
+  // Only Files changed is served, so the catch-all answers the Conversation's HEAD with a 404.
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+
+  await conversationButton(page).click();
+
+  await expect(
+    page.locator("#gh-prism-conversation").getByRole("link", { name: "Open the Conversation tab" }),
+  ).toHaveAttribute("href", "https://github.com/o/r/pull/1");
+  await expect(page.locator("#gh-prism-conversation iframe")).toHaveCount(0);
+});
+
+test("under reduced motion the Conversation overlay opens without moving", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(PR_URL);
+
+  await conversationButton(page).click();
+
+  const panel = page.locator("#gh-prism-conversation");
+  await expect(panel).toBeVisible();
+  expect(await panel.evaluate((el) => el.getAnimations().length)).toBe(0);
+});
+
+// The Files changed fixture inside GitHub's flex row and diffComparisonViewer container, with the
+// tree at a fixed width, for a test that reads where the panel, tree, and diffs sit.
+const PR_LAYOUT_BODY = `${PR_BODY.replace(
+  '<div id="pr-file-tree">',
+  '<style>.prc-PageLayout-PageLayoutContent-x { display: flex; align-items: flex-start; container: diffComparisonViewer / inline-size; } .prc-PageLayout-PaneWrapper-x { flex: none; width: 300px; } .prc-PageLayout-ContentWrapper-x { flex: 1; min-width: 0; }</style><div class="prc-PageLayout-PageLayoutContent-x"><div class="prc-PageLayout-PaneWrapper-x"><div id="pr-file-tree">',
+).replace(
+  '<div data-testid="diff-content">',
+  '</div><div class="prc-PageLayout-ContentWrapper-x"><div data-testid="diff-content">',
+)}</div></div>`;
+
+/** Serves the laid-out Files changed fixture and the panel's marked Conversation, framable. */
+async function serveLaidOutConversation(context: BrowserContext): Promise<void> {
+  await serveConversation(context);
+  // Routed after serveConversation's copy, so this one answers.
+  await serve(context, PR_URL, PR_LAYOUT_BODY);
+}
+
+const pinControl = (page: Page) =>
+  page.locator("#gh-prism-conversation").getByRole("button", { name: "Pin Conversation" });
+
+/** The panel's, tree's, and diffs' left and right edges. */
+const columns = (page: Page) =>
+  page.evaluate(() => {
+    const edges = (selector: string) => {
+      const element = document.querySelector(selector);
+      if (!element?.getClientRects().length) return null;
+      const { left, right } = element.getBoundingClientRect();
+      return { left: Math.round(left), right: Math.round(right) };
+    };
+    return {
+      panel: edges("#gh-prism-conversation"),
+      pane: edges('[class*="PageLayout-PaneWrapper"]'),
+      diffs: edges('[data-testid="diff-content"]'),
+    };
+  });
+
+/** Opens the panel and pins it, once the frame has loaded. */
+async function openPinned(page: Page): Promise<void> {
+  await conversationButton(page).click();
+  await expect(
+    page.frameLocator("#gh-prism-conversation iframe").locator("#conversation"),
+  ).toBeVisible();
+  await pinControl(page).click();
+  await expect(page.locator("html")).toHaveAttribute("data-gh-prism-conversation", "pinned");
+  // The page slides beside the panel; measure it where it settles.
+  await page
+    .locator("html")
+    .evaluate((html) => Promise.allSettled(html.getAnimations().map((slide) => slide.finished)));
+}
+
+test("the widest pinned Conversation panel leaves GitHub its docked layout", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  // Routed after serveConversation's copy, so this one answers.
+  await serve(context, PR_URL, PR_TOOLBAR_BODY);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  await openPinned(page);
+
+  const edge = await page.getByRole("separator", { name: "Resize Conversation" }).boundingBox();
+  if (!edge) throw new Error("no separator box");
+  await page.mouse.move(edge.x + edge.width / 2, edge.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(1500, edge.y + 200, { steps: 4 });
+  await page.mouse.up();
+
+  await expect(page.locator("#gh-prism-conversation")).toHaveCSS("width", "524px");
+  await expect(page.locator('[class*="RegularTreeToggle"]')).toBeVisible();
+});
+
+test("a pinned Conversation panel pushes the tree and diffs over, whichever side the tree docks on", async ({
+  context,
+  page,
+}) => {
+  await serveLaidOutConversation(context);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+
+  await openPinned(page);
+  await expect(pinControl(page)).toHaveAttribute("aria-pressed", "true");
+
+  const right = await columns(page);
+  expect(right.panel?.left).toBe(0);
+  expect(right.diffs?.left).toBeGreaterThanOrEqual(right.panel?.right ?? Infinity);
+  expect(right.pane?.left).toBeGreaterThanOrEqual(right.diffs?.right ?? Infinity);
+
+  await page.getByRole("button", { name: "Move file tree to the left" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-gh-prism-side", "left");
+  await expect
+    .poll(async () => (await columns(page)).pane?.left)
+    .toBeLessThan(right.diffs?.right ?? 0);
+  const left = await columns(page);
+  expect(left.panel?.left).toBe(0);
+  expect(left.pane?.left).toBeGreaterThanOrEqual(left.panel?.right ?? Infinity);
+  expect(left.diffs?.left).toBeGreaterThanOrEqual(left.pane?.right ?? Infinity);
+
+  // A routed fixture runs no GitHub script, so the tree collapses as GitHub's toggle leaves it.
+  await page
+    .locator('[class*="PageLayout-PaneWrapper"]')
+    .evaluate((pane) => pane.setAttribute("hidden", ""));
+  const collapsed = await columns(page);
+  expect(collapsed.pane).toBeNull();
+  expect(collapsed.panel?.left).toBe(0);
+  expect(collapsed.diffs?.left).toBeGreaterThanOrEqual(collapsed.panel?.right ?? Infinity);
+});
+
+test("a pinned Conversation panel resizes from its edge by mouse and keyboard, and keeps its width and pin after a reload", async ({
+  context,
+  page,
+}) => {
+  await serveLaidOutConversation(context);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  const panel = page.locator("#gh-prism-conversation");
+  const separator = page.getByRole("separator", { name: "Resize Conversation" });
+
+  await openPinned(page);
+  await expect(panel).toHaveCSS("width", "524px");
+  const edge = await separator.boundingBox();
+  if (!edge) throw new Error("no separator box");
+  const x = edge.x + edge.width / 2;
+  const y = edge.y + 200;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - 40, y, { steps: 4 });
+  await page.mouse.up();
+  await expect(panel).toHaveCSS("width", "484px");
+  expect((await columns(page)).pane?.left).toBeGreaterThanOrEqual(484);
+
+  await separator.focus();
+  await page.keyboard.press("ArrowLeft");
+  await expect(panel).toHaveCSS("width", "481px");
+
+  // The pin and width save asynchronously; reload until a load reads them back.
+  await expect(async () => {
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-gh-prism-conversation", "pinned", {
+      timeout: 5000,
+    });
+    await expect(panel).toHaveCSS("width", "481px", { timeout: 5000 });
+  }).toPass({ timeout: 20_000 });
+  await expect(panel).not.toBeFocused();
+});
+
+test("an unpinned Conversation panel resizes from its edge by mouse and keyboard, staying open, and keeps its width after a reload", async ({
+  context,
+  page,
+}) => {
+  await serveLaidOutConversation(context);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  const panel = page.locator("#gh-prism-conversation");
+  const separator = page.getByRole("separator", { name: "Resize Conversation" });
+
+  await conversationButton(page).click();
+  await expect(panel).toHaveCSS("width", "560px");
+  // The overlay slides in; measure its edge where it settles.
+  await panel.evaluate((aside) =>
+    Promise.allSettled(aside.getAnimations().map((slide) => slide.finished)),
+  );
+  const edge = await separator.boundingBox();
+  if (!edge) throw new Error("no separator box");
+  const x = edge.x + edge.width / 2;
+  const y = edge.y + 200;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 240, y, { steps: 4 });
+  await page.mouse.up();
+  await expect(panel).toHaveCSS("width", "800px");
+  await expect(panel).toBeVisible();
+  await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-conversation");
+
+  await separator.focus();
+  await page.keyboard.press("ArrowLeft");
+  await expect(panel).toHaveCSS("width", "797px");
+  await expect(panel).toBeVisible();
+
+  // The width saves asynchronously; reload until a load reads it back.
+  await expect(async () => {
+    await page.reload();
+    await conversationButton(page).click();
+    await expect(panel).toHaveCSS("width", "797px", { timeout: 5000 });
+  }).toPass({ timeout: 20_000 });
+});
+
+test("a GitHub dialog opened beside a pinned Conversation panel keeps the page's width", async ({
+  context,
+  page,
+}) => {
+  await serveLaidOutConversation(context);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  await openPinned(page);
+  const before = await columns(page);
+
+  // What Primer's Dialog does on open: it reads the page's padding as a scrollbar to replace.
+  await page.evaluate(() => {
+    const gutter = window.innerWidth - document.body.clientWidth;
+    document.body.style.setProperty("--prc-dialog-scrollgutter", `${gutter}px`);
+    document.body.style.paddingRight = "var(--prc-dialog-scrollgutter)";
+  });
+
+  expect(await columns(page)).toEqual(before);
+});
+
+test("the header counter's hidden tooltips never widen the page, closed or pinned", async ({
+  context,
+  page,
+}) => {
+  await serveLaidOutConversation(context);
+  // A landed intent mounts the counter; the page's pin finds it in the cache, with no fetch.
+  const [base, head] = ["a".repeat(40), "b".repeat(40)];
+  const embedded = {
+    payload: {
+      pullRequestsLayoutRoute: {
+        pullRequest: { number: 1, headSha: head },
+        repository: { ownerLogin: "o", name: "r" },
+      },
+      pullRequestsChangesRoute: { diffContents: [{ oldCommitOid: base }] },
+    },
+  };
+  await serve(
+    context,
+    PR_URL,
+    PR_LAYOUT_BODY.replace(
+      "<!doctype html>",
+      `<!doctype html><script type="application/json" data-target="react-app.embeddedData">${JSON.stringify(embedded)}</script>`,
+    ),
+  );
+  const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
+  await worker.evaluate(
+    (key) =>
+      (globalThis as unknown as { chrome: WxtBrowser }).chrome.storage.local.set({
+        "intent.v2": [key],
+        [`intent.v2:${key}`]: {
+          placements: [
+            ["README.md", { kind: "whole", section: "docs" }],
+            ["src/lib.rs", { kind: "whole", section: "implementation" }],
+          ],
+          lines: [
+            ["README.md", { added: 3, removed: 1 }],
+            ["src/lib.rs", { added: 12, removed: 4 }],
+          ],
+          commentLines: [],
+        },
+      }),
+    `${base}...${head}`,
+  );
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  const counter = page.locator(".gh-prism-diffstat");
+  await expect(counter).toBeVisible();
+  // Puts the counter at the window's right edge, where GitHub's header leaves it.
+  await counter.evaluate((element) => {
+    Object.assign((element as HTMLElement).style, {
+      position: "absolute",
+      right: "40px",
+      top: "0",
+    });
+  });
+  const overflow = () =>
+    page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+
+  expect(await overflow()).toBeLessThanOrEqual(0);
+  await openPinned(page);
+  expect(await overflow()).toBeLessThanOrEqual(0);
+});
+
+/**
+ * Wraps the page as GitHub does, in an isolated `[data-turbo-body]`, and opens GitHub's ☰ drawer
+ * as Primer does: a fixed dialog at the window's left edge in the z-index 1000 portal root, beside
+ * a z-index 11 header stuck across the window's top. Returns whether `elementFromPoint` hits the
+ * drawer at its point, and the panel at the header's.
+ */
+const openGitHubDrawer = (page: Page) =>
+  page.evaluate(() => {
+    const wrapper = document.createElement("div");
+    wrapper.dataset.turboBody = "";
+    wrapper.innerHTML = `<style>[data-turbo-body] { isolation: isolate; }</style>
+      <div id="sticky" style="position: fixed; inset: 0 0 auto; z-index: 11; height: 60px; background: gray"></div>
+      <div id="__primerPortalRoot__" style="z-index: 1000; position: absolute; width: 100%">
+        <div style="position: relative; z-index: 1">
+          <div role="dialog" style="position: fixed; inset-block: 0; left: 0; width: 320px; background: white"></div>
+        </div>
+      </div>`;
+    wrapper.append(
+      ...[...document.body.children].filter((child) => child.id !== "gh-prism-conversation"),
+    );
+    document.body.prepend(wrapper);
+    const drawer = document.querySelector('[role="dialog"]');
+    const sticky = document.getElementById("sticky");
+    const panel = document.getElementById("gh-prism-conversation");
+    const { right } = panel?.getBoundingClientRect() ?? { right: NaN };
+    return {
+      drawerOnTop: drawer?.contains(document.elementFromPoint(160, 500)),
+      panelOverSticky: panel?.contains(document.elementFromPoint(right - 20, 30)),
+    };
+  });
+
+test("GitHub's drawer draws above a pinned Conversation panel, which draws above the page's sticky header", async ({
+  context,
+  page,
+}) => {
+  await serveLaidOutConversation(context);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  await openPinned(page);
+
+  expect(await openGitHubDrawer(page)).toEqual({ drawerOnTop: true, panelOverSticky: true });
+});
+
+test("GitHub's drawer draws above the Conversation overlay, which draws above the page's sticky header", async ({
+  context,
+  page,
+}) => {
+  await serveLaidOutConversation(context);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  await conversationButton(page).click();
+  await expect(
+    page.frameLocator("#gh-prism-conversation iframe").locator("#conversation"),
+  ).toBeVisible();
+  await page
+    .locator("#gh-prism-conversation")
+    .evaluate((panel) => Promise.allSettled(panel.getAnimations().map((slide) => slide.finished)));
+
+  expect(await openGitHubDrawer(page)).toEqual({ drawerOnTop: true, panelOverSticky: true });
+});
+
+test("an unpinned Conversation panel starts closed after a reload", async ({ context, page }) => {
+  await serveLaidOutConversation(context);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+
+  await openPinned(page);
+  await pinControl(page).click();
+  await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-conversation");
+
+  // The unpin saves asynchronously; reload until a load starts closed.
+  await expect(async () => {
+    await page.reload();
+    await expect(conversationButton(page)).toHaveAttribute("aria-expanded", "false", {
+      timeout: 5000,
+    });
+    await expect(page.locator("#gh-prism-conversation")).toHaveCount(0);
+  }).toPass({ timeout: 20_000 });
+});
+
+test("on a window too narrow for the column, the Conversation panel offers no pin and opens as the overlay", async ({
+  context,
+  page,
+}) => {
+  await serveLaidOutConversation(context);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  await openPinned(page);
+
+  await page.setViewportSize({ width: 1200, height: 900 });
+
+  await expect(pinControl(page)).toBeHidden();
+  await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-conversation");
+  await expect(page.locator("#gh-prism-conversation")).toBeVisible();
+  expect((await columns(page)).diffs?.left).toBeLessThan(100);
+});
+
+test("pinning and unpinning keep the Conversation frame's document", async ({ context, page }) => {
+  await serveLaidOutConversation(context);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  await conversationButton(page).click();
+  const frame = page.frameLocator("#gh-prism-conversation iframe");
+  await frame.locator("#conversation").evaluate(() => Object.assign(window, { kept: "yes" }));
+
+  await pinControl(page).click();
+  await expect(page.locator("html")).toHaveAttribute("data-gh-prism-conversation", "pinned");
+  await pinControl(page).click();
+  await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-conversation");
+
+  expect(
+    await frame
+      .locator("#conversation")
+      .evaluate(() => (window as unknown as { kept?: string }).kept),
+  ).toBe("yes");
+});
+
+// GitHub's Conversation, cut to its page container, a tall timeline holding the merge box's checks,
+// and the sidebar, which wraps below the timeline in a narrow frame as GitHub's layout does.
+const JUMPING_CONVERSATION = `<style>
+  body { margin: 0; }
+  .tmp-mt-4 { margin-top: 24px !important; }
+  .layout { display: flex; flex-wrap: wrap; gap: 16px; }
+  .js-discussion { flex: 1 0 480px; }
+</style>
+<div id="diff-comparison-viewer-container" class="tmp-mt-4">
+  <div class="layout">
+    <div class="js-discussion" id="conversation">
+      <div style="height: 2000px">The timeline</div>
+      <div data-testid="mergebox-partial"><section aria-label="Checks">Checks</section></div>
+      <div style="height: 600px"></div>
+    </div>
+    <div id="partial-discussion-sidebar" style="flex: 0 0 296px; height: 2000px">Reviewers</div>
+  </div>
+</div>
+<footer class="footer" role="contentinfo">Terms Privacy GitHub, Inc.</footer>`;
+
+const frameTop = (page: Page, selector: string) =>
+  page
+    .frameLocator("#gh-prism-conversation iframe")
+    .locator(selector)
+    .evaluate((node) => Math.round(node.getBoundingClientRect().top));
+
+test("the Conversation frame's first item sits right under the panel's header, without the page container's top margin", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context, JUMPING_CONVERSATION);
+  await page.goto(PR_URL);
+
+  await conversationButton(page).click();
+
+  await expect(page.locator("#gh-prism-conversation")).toHaveAttribute("data-state", "loaded");
+  expect(await frameTop(page, "#diff-comparison-viewer-container")).toBe(0);
+});
+
+test("the Conversation frame ends with the Conversation, without GitHub's site footer", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context, JUMPING_CONVERSATION);
+  await page.goto(PR_URL);
+
+  await conversationButton(page).click();
+
+  const frame = page.frameLocator("#gh-prism-conversation iframe");
+  await expect(frame.locator("#conversation")).toBeVisible();
+  await expect(frame.getByRole("contentinfo")).toBeHidden();
+});
+
+test("the Conversation panel's checks control scrolls its frame to the checks", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context, JUMPING_CONVERSATION);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  await conversationButton(page).click();
+
+  const control = page.getByRole("button", { name: "Jump to checks" });
+
+  await control.click();
+
+  await expect.poll(() => frameTop(page, 'section[aria-label="Checks"]')).toBe(0);
+  await expect(control).toBeFocused();
+});
+
+test("the Conversation panel's sidebar control scrolls to a sidebar below the timeline, and hides once the panel is wide enough to put it beside", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context, JUMPING_CONVERSATION);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  await conversationButton(page).click();
+  const control = page.getByRole("button", { name: "Jump to reviewers, labels, and projects" });
+
+  await control.click();
+
+  await expect.poll(() => frameTop(page, "#partial-discussion-sidebar")).toBe(0);
+
+  await page.getByRole("separator", { name: "Resize Conversation" }).focus();
+  for (let press = 0; press < 100; press++) await page.keyboard.press("ArrowRight");
+
+  await expect(control).toBeHidden();
 });

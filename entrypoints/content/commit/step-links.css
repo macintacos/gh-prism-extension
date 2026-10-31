@@ -1,6 +1,8 @@
 /* No GitHub hooks: every rule selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
+@import "../ui/keycap.css";
 @source "./step-links.ts";
+@source "../ui/keycap.ts";
 
 /* Primer's disabled default Button. Compound, to outrank the link's hover utilities. */
 .gh-prism-commit-steps .gh-prism-commit-step[aria-disabled="true"] {
@@ -51,12 +53,5 @@
 @media (prefers-reduced-motion: reduce) {
   .gh-prism-commit-step::after {
     transition: none;
-  }
-}
-
-/* A touch screen has no keyboard to press the key on. */
-@media (hover: none) and (pointer: coarse) {
-  .gh-prism-commit-key {
-    display: none;
   }
 }
