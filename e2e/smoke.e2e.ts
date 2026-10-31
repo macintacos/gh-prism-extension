@@ -3222,7 +3222,11 @@ test("Escape inside the Conversation frame closes the overlay, handing focus bac
   await page.goto(PR_URL);
 
   await conversationButton(page).click();
-  await page.frameLocator("#gh-prism-conversation iframe").locator("#conversation").click();
+  // The centre can land on the fixture's leaving "Files" link.
+  await page
+    .frameLocator("#gh-prism-conversation iframe")
+    .locator("#conversation")
+    .click({ position: { x: 4, y: 4 } });
   await page.keyboard.press("Escape");
 
   await expect(page.locator("#gh-prism-conversation")).toBeHidden();
@@ -3259,7 +3263,11 @@ test("Shift+\\ opens the Conversation panel and closes it, from the page and fro
   await expect(conversationButton(page)).toBeFocused();
 
   await page.keyboard.press("Shift+Backslash");
-  await page.frameLocator("#gh-prism-conversation iframe").locator("#conversation").click();
+  // The centre can land on the fixture's leaving "Files" link.
+  await page
+    .frameLocator("#gh-prism-conversation iframe")
+    .locator("#conversation")
+    .click({ position: { x: 4, y: 4 } });
   await page.keyboard.press("Shift+Backslash");
   await expect(panel).toBeHidden();
   await expect(conversationButton(page)).toBeFocused();
