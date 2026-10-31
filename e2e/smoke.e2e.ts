@@ -3791,6 +3791,67 @@ test("the header counter's hidden tooltips never widen the page, closed or pinne
   expect(await overflow()).toBeLessThanOrEqual(0);
 });
 
+/**
+ * Wraps the page as GitHub does, in an isolated `[data-turbo-body]`, and opens GitHub's ☰ drawer
+ * as Primer does: a fixed dialog at the window's left edge in the z-index 1000 portal root, beside
+ * a z-index 11 header stuck across the window's top. Returns whether `elementFromPoint` hits the
+ * drawer at its point, and the panel at the header's.
+ */
+const openGitHubDrawer = (page: Page) =>
+  page.evaluate(() => {
+    const wrapper = document.createElement("div");
+    wrapper.dataset.turboBody = "";
+    wrapper.innerHTML = `<style>[data-turbo-body] { isolation: isolate; }</style>
+      <div id="sticky" style="position: fixed; inset: 0 0 auto; z-index: 11; height: 60px; background: gray"></div>
+      <div id="__primerPortalRoot__" style="z-index: 1000; position: absolute; width: 100%">
+        <div style="position: relative; z-index: 1">
+          <div role="dialog" style="position: fixed; inset-block: 0; left: 0; width: 320px; background: white"></div>
+        </div>
+      </div>`;
+    wrapper.append(
+      ...[...document.body.children].filter((child) => child.id !== "gh-prism-conversation"),
+    );
+    document.body.prepend(wrapper);
+    const drawer = document.querySelector('[role="dialog"]');
+    const sticky = document.getElementById("sticky");
+    const panel = document.getElementById("gh-prism-conversation");
+    const { right } = panel?.getBoundingClientRect() ?? { right: NaN };
+    return {
+      drawerOnTop: drawer?.contains(document.elementFromPoint(160, 500)),
+      panelOverSticky: panel?.contains(document.elementFromPoint(right - 20, 30)),
+    };
+  });
+
+test("GitHub's drawer draws above a pinned Conversation panel, which draws above the page's sticky header", async ({
+  context,
+  page,
+}) => {
+  await serveLaidOutConversation(context);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  await openPinned(page);
+
+  expect(await openGitHubDrawer(page)).toEqual({ drawerOnTop: true, panelOverSticky: true });
+});
+
+test("GitHub's drawer draws above the Conversation overlay, which draws above the page's sticky header", async ({
+  context,
+  page,
+}) => {
+  await serveLaidOutConversation(context);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  await conversationButton(page).click();
+  await expect(
+    page.frameLocator("#gh-prism-conversation iframe").locator("#conversation"),
+  ).toBeVisible();
+  await page
+    .locator("#gh-prism-conversation")
+    .evaluate((panel) => Promise.allSettled(panel.getAnimations().map((slide) => slide.finished)));
+
+  expect(await openGitHubDrawer(page)).toEqual({ drawerOnTop: true, panelOverSticky: true });
+});
+
 test("an unpinned Conversation panel starts closed after a reload", async ({ context, page }) => {
   await serveLaidOutConversation(context);
   await page.setViewportSize({ width: 1600, height: 900 });

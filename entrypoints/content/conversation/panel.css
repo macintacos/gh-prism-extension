@@ -1,4 +1,5 @@
-/* GitHub hooks: Primer's --prc-dialog-scrollgutter; section[class*="toolbar__"], a
+/* GitHub hooks: Primer's --prc-dialog-scrollgutter and --zIndex-sticky; [data-turbo-body]'s
+   isolation: isolate, wrapping #__primerPortalRoot__; section[class*="toolbar__"], a
    justify-content: space-between row of two [data-component="Stack"] groups, the end one last.
    In the framed Conversation, panel.ts reads [data-testid="mergebox-partial"]
    section[aria-label="Checks"], #partial-discussion-sidebar, and .js-discussion. */
@@ -44,12 +45,20 @@ section[class*="toolbar__"]:has(> .gh-prism-conversation-button)
   visibility: visible;
 }
 
+/* GitHub isolates its app, portal root and overlays included, so nothing outside could stack
+   between its content and its overlays. Undone, the panel goes just under Primer's sticky layer:
+   above the page's sticky headers, below its drawers, menus, dialogs, and hovercards. :root
+   outranks GitHub's rule wherever its sheet loads. */
+:root [data-turbo-body] {
+  isolation: auto;
+}
+
 /* A floating surface along the left edge: its shadow's ring draws its one edge. */
 .gh-prism-conversation {
   position: fixed;
   inset-block: 0;
   inset-inline-start: 0;
-  z-index: 100;
+  z-index: calc(var(--zIndex-sticky, 100) - 1);
   display: flex;
   flex-direction: column;
   /* The framed Conversation's own canvas, so the header and frame read as one surface. */

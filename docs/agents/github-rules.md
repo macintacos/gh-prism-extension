@@ -553,6 +553,14 @@ Below 1012px, a pull request's tree toggle opens the file tree as a "Files" over
   its tree down to a 768px window.
 - **Expect Primer's Dialog to read `<html>`'s padding into `--prc-dialog-scrollgutter` on
   `<body>`.** `panel.css` accounts for it.
+- **Expect GitHub to wrap its whole app in `[data-turbo-body]` with `isolation: isolate`,
+  `#__primerPortalRoot__` (`z-index: 1000`) included.** Every menu, drawer, dialog, and
+  hovercard GitHub opens sits in that one stacking context, so a fixed element in `<body>`
+  outside it draws above all of them at any positive `z-index`. `panel.css` sets the
+  wrapper's `isolation` back to `auto` and stacks the panel at
+  `calc(var(--zIndex-sticky) - 1)`, Primer's `--zIndex-sticky` being 100 on `:root`.
+  Nothing in the page outside the portal root stacks between 11 and 100 apart from the
+  hovercard (100).
 - **Expect GitHub's router to take a link appended to Files changed's `<body>` and clicked
   as a soft navigation.** `panel.ts`'s `follow` relies on it, as the commit card does.
 - **Override the framed page's container, `#diff-comparison-viewer-container`, with
@@ -574,6 +582,9 @@ Below 1012px, a pull request's tree toggle opens the file tree as a "Files" over
   request, and compare the sidebar's left edge to the timeline's right edge as you widen
   the panel past 780px. Read the toolbar row's `justify-content` and children, and the
   container's padding and the window at which `RegularTreeToggle` turns `display: none`.
+  With the panel pinned, open the ☰ drawer and use `elementFromPoint` inside it to check
+  that it draws above the panel. Read `#__primerPortalRoot__`'s ancestors for `isolation`,
+  and read `--zIndex-sticky` on `:root`.
 
 ## Files changed filters
 
