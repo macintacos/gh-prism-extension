@@ -107,10 +107,10 @@ function asFramingRequest(value: unknown): FramingRequest | undefined {
 export function conversationFraming(rules: {
   update(options: { removeRuleIds: number[]; addRules?: Rule[] }): Promise<void>;
 }): { serve(port: ConversationFramePort): void; forget(tabId: number): void } {
-  const current = new Map<number, ConversationFramePort>();
+  const currentPorts = new Map<number, ConversationFramePort>();
 
   function revoke(tabId: number): void {
-    current.delete(tabId);
+    currentPorts.delete(tabId);
     rules
       .update({ removeRuleIds: [tabId] })
       .catch((error) =>
@@ -122,17 +122,17 @@ export function conversationFraming(rules: {
     serve(port) {
       const tabId = port.sender?.tab?.id;
       let closed = false;
-      if (tabId !== undefined) current.set(tabId, port);
+      if (tabId !== undefined) currentPorts.set(tabId, port);
       const answer = (allowed: boolean) => {
         if (!closed) port.postMessage({ allowed });
       };
       port.onDisconnect.addListener(() => {
         closed = true;
-        if (tabId !== undefined && current.get(tabId) === port) revoke(tabId);
+        if (tabId !== undefined && currentPorts.get(tabId) === port) revoke(tabId);
       });
       port.onMessage.addListener(async (message) => {
         const request = asFramingRequest(message);
-        if (tabId === undefined || current.get(tabId) !== port || !request) {
+        if (tabId === undefined || currentPorts.get(tabId) !== port || !request) {
           answer(false);
           return;
         }

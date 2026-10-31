@@ -13,7 +13,7 @@ const PARENT_ORIGIN = "https://github.com";
 export function dressConversationFrame(win: Window): void {
   if (win.top === win || !isConversationFrame(new URL(win.location.href))) return;
   const doc = win.document;
-  const post = (message: FrameMessage) => win.parent.postMessage(message, PARENT_ORIGIN);
+  const postToParent = (message: FrameMessage) => win.parent.postMessage(message, PARENT_ORIGIN);
 
   doc.documentElement.setAttribute("data-gh-prism-panel", "");
   // At document_start the head may not exist yet.
@@ -28,7 +28,7 @@ export function dressConversationFrame(win: Window): void {
       if (samePage && url.search === win.location.search) return;
       event.preventDefault();
       // Same PR without the marker: the framing rule wouldn't match, so stay and only scroll.
-      if (!samePage) post({ type: CONVERSATION_LEAVE, href: url.href });
+      if (!samePage) postToParent({ type: CONVERSATION_LEAVE, href: url.href });
       else if (url.hash) win.location.hash = url.hash;
     },
     { capture: true },
@@ -36,7 +36,7 @@ export function dressConversationFrame(win: Window): void {
 
   doc.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !event.defaultPrevented && !isEditable(event.target))
-      post({ type: CONVERSATION_ESCAPE });
+      postToParent({ type: CONVERSATION_ESCAPE });
   });
 }
 

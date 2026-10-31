@@ -86,10 +86,10 @@ export function conversationPanel(
   let view: PanelView | undefined;
   let frame: HTMLIFrameElement | undefined;
   let button: HTMLElement | undefined;
-  let pressed: HTMLElement | undefined;
+  let pressedButton: HTMLElement | undefined;
   let open = false;
 
-  const sync = () => button?.setAttribute("aria-expanded", String(open));
+  const syncExpanded = () => button?.setAttribute("aria-expanded", String(open));
   const fits = () => fitsColumn(doc.defaultView?.innerWidth ?? 0);
   /** How the panel should be drawn, as `open`, the choice, and the window allow. */
   const mode = (): Mode => (!open ? "closed" : choice.pinned && fits() ? "column" : "overlay");
@@ -125,7 +125,7 @@ export function conversationPanel(
     open = choice.open = true;
     // Shown before relayout, so a glide's old snapshot already holds the panel.
     view.aside.hidden = false;
-    sync();
+    syncExpanded();
     return view;
   }
 
@@ -147,7 +147,7 @@ export function conversationPanel(
     const heldFocus = view.aside.contains(doc.activeElement);
     open = choice.open = false;
     relayout();
-    sync();
+    syncExpanded();
     if (heldFocus) button?.focus();
   }
 
@@ -171,12 +171,12 @@ export function conversationPanel(
     attach(next) {
       button = next;
       // Hydrating the toolbar on a press can swap the button mid-press, and then no click fires.
-      next.addEventListener("pointerdown", () => (pressed = next));
+      next.addEventListener("pointerdown", () => (pressedButton = next));
       next.addEventListener("pointerup", () => {
-        if (pressed && !pressed.isConnected) panel.toggle();
+        if (pressedButton && !pressedButton.isConnected) panel.toggle();
       });
       next.setAttribute("aria-controls", PANEL_ID);
-      sync();
+      syncExpanded();
     },
   };
 
@@ -197,9 +197,9 @@ export function conversationPanel(
     visit,
   );
   // After each button's own pointerup, so a press released elsewhere is forgotten.
-  const forget = () => (pressed = undefined);
-  doc.addEventListener("pointerup", forget, { signal: visit });
-  doc.addEventListener("pointercancel", forget, { signal: visit });
+  const forgetPress = () => (pressedButton = undefined);
+  doc.addEventListener("pointerup", forgetPress, { signal: visit });
+  doc.addEventListener("pointercancel", forgetPress, { signal: visit });
   followFrameMessages(doc, () => frame, dismiss, visit);
   if (choice.open) restore();
   return panel;
@@ -295,7 +295,7 @@ function loadFrame(
   view.aside.dataset.state = "loading";
   view.body.append(skeleton(doc), frame);
 
-  const fail = () => {
+  const showFailure = () => {
     view.aside.dataset.state = "failed";
     view.body.replaceChildren(failure(doc, pr));
   };
@@ -312,19 +312,19 @@ function loadFrame(
       // Left the marked URL, so the framing rule no longer matched.
       loadedSincePoint = false;
       frame.src = url;
-    } else fail();
+    } else showFailure();
   });
 
   void (async () => {
     const response = await fetch(url, { method: "HEAD", signal: visit });
     const policy = response.ok ? response.headers.get("content-security-policy") : null;
-    if (!policy || !(await allowFraming(pr, policy, visit))) return fail();
+    if (!policy || !(await allowFraming(pr, policy, visit))) return showFailure();
     await loaded(doc);
     if (!visit.aborted) frame.src = url;
   })().catch((error: unknown) => {
     if (visit.aborted) return;
     console.error("gh-prism: loading the Conversation panel failed", error);
-    fail();
+    showFailure();
   });
   return frame;
 }
@@ -410,8 +410,8 @@ function followFrameMessages(
   doc.defaultView?.addEventListener(
     "message",
     (event) => {
-      const source = frameOf()?.contentWindow;
-      if (!source || event.source !== source || event.origin !== ORIGIN) return;
+      const frameWindow = frameOf()?.contentWindow;
+      if (!frameWindow || event.source !== frameWindow || event.origin !== ORIGIN) return;
       if (!isFrameMessage(event.data)) return;
       if (event.data.type === CONVERSATION_ESCAPE) close();
       else follow(doc, event.data.href);
