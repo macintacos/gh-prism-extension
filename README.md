@@ -171,6 +171,10 @@ It asks Chrome for access to only these hosts:
 - `https://patch-diff.githubusercontent.com/*`: where GitHub redirects diff downloads.
 - `https://raw.githubusercontent.com/*`: where GitHub redirects raw-file downloads.
 
+It also lets the Conversation panel show a pull request's Conversation tab in Files
+changed. GitHub refuses to be shown inside another page, so gh-prism lifts that refusal
+only for the panel's frame in that tab, and keeps the rest of GitHub's security policy.
+
 It also uses Chrome's extension storage. When Chrome sync is on, it syncs these to your
 other computers:
 

@@ -15,9 +15,13 @@ Terms such as visit, page, intent, and landing are defined in
 The service worker in [`entrypoints/background.ts`](../entrypoints/background.ts) reads
 diffs and file contents from github.com. It serves them to content scripts over a
 long-lived message port, defined in
-[`utils/github/pr-port.ts`](../utils/github/pr-port.ts). It also clears the intent cache
-whenever the extension is installed, updated, or reloaded in development, and on a fresh
-install it marks the installed version's what's-new notes dismissed.
+[`utils/github/pr-port.ts`](../utils/github/pr-port.ts). Over a second port, defined in
+[`utils/github/conversation-frame.ts`](../utils/github/conversation-frame.ts), it installs
+a per-tab session rule that lets only the Conversation panel's frame load the pull
+request's Conversation tab, and removes it when the port closes or the tab does. It also
+clears the intent cache whenever the extension is installed, updated, or reloaded in
+development, and on a fresh install it marks the installed version's what's-new notes
+dismissed.
 
 The content script in [`entrypoints/content/index.ts`](../entrypoints/content/index.ts)
 runs on every github.com page at `document_start`, so its watcher is in place before
@@ -608,7 +612,7 @@ these surfaces' sheets `@import`s the mark's partial, `ui/mark.css`.
 
 ```text
 entrypoints/
-  background.ts          service worker: PR data port, cache clearing and what's-new mark on install
+  background.ts          service worker: PR data port, the Conversation panel's framing rule, cache clearing and what's-new mark on install
   content/
     index.ts             content script entry: wires the watchers, intent, and views
     files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; a commit's message box and the row its message column joins
@@ -622,6 +626,7 @@ entrypoints/
     ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, Tailwind tokens
 utils/
   github/                routes, diff parsing, the PR data port and source, code owners and reviewers
+    conversation-frame.ts  the per-tab session rule that lets only the Conversation panel frame a PR's Conversation tab
   intent/                reading, caching, and landing intent
   hunk-rules/            the docstring and inline-test rules
   sections.ts            path rules for the five sections

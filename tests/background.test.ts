@@ -1,10 +1,13 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import background from "../entrypoints/background";
+import { CONVERSATION_FRAME_PORT } from "../utils/github/conversation-frame";
 import { PR_DATA_PORT, type PrDataPort } from "../utils/github/pr-port";
 import { whatsNewSeen } from "../utils/prefs";
 
-type Serve = (port: PrDataPort & { readonly name: string }) => void;
+type Serve = (
+  port: PrDataPort & { readonly name: string; readonly sender?: { tab?: { id?: number } } },
+) => void;
 
 const fakePort = (name: string) => ({
   name,
@@ -16,6 +19,7 @@ const fakePort = (name: string) => ({
 
 describe("background", () => {
   let serve: Serve;
+  let updateSessionRules: MockInstance;
 
   beforeEach(() => {
     fakeBrowser.reset();
@@ -29,6 +33,10 @@ describe("background", () => {
     vi.spyOn(fakeBrowser.runtime.onConnect, "addListener").mockImplementation((listener) => {
       serve = listener as Serve;
     });
+    // fakeBrowser leaves declarativeNetRequest unmocked.
+    updateSessionRules = vi
+      .spyOn(fakeBrowser.declarativeNetRequest, "updateSessionRules")
+      .mockResolvedValue(undefined);
     background.main();
   });
 
@@ -76,6 +84,24 @@ describe("background", () => {
     const port = fakePort(PR_DATA_PORT);
     serve(port);
     expect(port.onMessage.addListener).toHaveBeenCalledOnce();
+  });
+
+  it("lets the Conversation panel's port frame its pull request", async () => {
+    const port = { ...fakePort(CONVERSATION_FRAME_PORT), sender: { tab: { id: 4 } } };
+    serve(port);
+    const [send] = port.onMessage.addListener.mock.calls[0] ?? [];
+
+    await send({ owner: "o", repo: "r", number: 1, policy: "default-src 'none'" });
+
+    expect(updateSessionRules).toHaveBeenCalledWith(
+      expect.objectContaining({ removeRuleIds: [4], addRules: [expect.anything()] }),
+    );
+  });
+
+  it("revokes a closed tab's framing rule", async () => {
+    await fakeBrowser.tabs.onRemoved.trigger(4, { windowId: 1, isWindowClosing: false });
+
+    expect(updateSessionRules).toHaveBeenCalledWith({ removeRuleIds: [4] });
   });
 
   it("ignores any other port", () => {

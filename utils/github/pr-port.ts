@@ -72,7 +72,7 @@ export interface PrDataClient {
 const OWNER_OR_REPO = /^[A-Za-z0-9_.-]+$/;
 const FAILED: PrFailure = { ok: false, problem: "failed" };
 
-function isOwnerOrRepo(value: unknown): value is string {
+export function isOwnerOrRepo(value: unknown): value is string {
   return typeof value === "string" && OWNER_OR_REPO.test(value) && value !== "." && value !== "..";
 }
 
