@@ -3573,6 +3573,71 @@ test("a GitHub dialog opened beside a pinned Conversation panel keeps the page's
   expect(await columns(page)).toEqual(before);
 });
 
+test("the header counter's hidden tooltips never widen the page, closed or pinned", async ({
+  context,
+  page,
+}) => {
+  await serveLaidOutConversation(context);
+  // A landed intent mounts the counter; the page's pin finds it in the cache, with no fetch.
+  const [base, head] = ["a".repeat(40), "b".repeat(40)];
+  const embedded = {
+    payload: {
+      pullRequestsLayoutRoute: {
+        pullRequest: { number: 1, headSha: head },
+        repository: { ownerLogin: "o", name: "r" },
+      },
+      pullRequestsChangesRoute: { diffContents: [{ oldCommitOid: base }] },
+    },
+  };
+  await serve(
+    context,
+    PR_URL,
+    PR_LAYOUT_BODY.replace(
+      "<!doctype html>",
+      `<!doctype html><script type="application/json" data-target="react-app.embeddedData">${JSON.stringify(embedded)}</script>`,
+    ),
+  );
+  const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
+  await worker.evaluate(
+    (key) =>
+      (globalThis as unknown as { chrome: WxtBrowser }).chrome.storage.local.set({
+        "intent.v2": [key],
+        [`intent.v2:${key}`]: {
+          placements: [
+            ["README.md", { kind: "whole", section: "docs" }],
+            ["src/lib.rs", { kind: "whole", section: "implementation" }],
+          ],
+          lines: [
+            ["README.md", { added: 3, removed: 1 }],
+            ["src/lib.rs", { added: 12, removed: 4 }],
+          ],
+          commentLines: [],
+        },
+      }),
+    `${base}...${head}`,
+  );
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  const counter = page.locator(".gh-prism-diffstat");
+  await expect(counter).toBeVisible();
+  // Puts the counter at the window's right edge, where GitHub's header leaves it.
+  await counter.evaluate((element) => {
+    Object.assign((element as HTMLElement).style, {
+      position: "absolute",
+      right: "40px",
+      top: "0",
+    });
+  });
+  const overflow = () =>
+    page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+
+  expect(await overflow()).toBeLessThanOrEqual(0);
+  await openPinned(page);
+  expect(await overflow()).toBeLessThanOrEqual(0);
+});
+
 test("an unpinned Conversation panel starts closed after a reload", async ({ context, page }) => {
   await serveLaidOutConversation(context);
   await page.setViewportSize({ width: 1600, height: 900 });
