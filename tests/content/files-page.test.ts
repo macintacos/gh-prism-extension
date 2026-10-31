@@ -16,6 +16,7 @@ import {
   findDiffList,
   findDiffstat,
   findFilesPage,
+  findFilesToolbar,
   findFilterMenu,
   findFilterOptions,
   findHeaderPage,
@@ -729,6 +730,10 @@ describe("the pull request kind", () => {
     expect(findTreeToggle(foundPage())).toBe(toggleButton().parentElement);
   });
 
+  it("finds the toolbar row holding the tree toggle", () => {
+    expect(findFilesToolbar(foundPage())).toBe(toggleButton().closest("section"));
+  });
+
   it("takes the regular tree toggle as collapsing the tree in place", () => {
     expect(treeToggleButtonOf(foundPage(), toggleButton())).toBe(toggleButton());
   });
@@ -878,6 +883,10 @@ describe("the commit kind", () => {
 
   it("finds the filter row's child holding the filter-options button", () => {
     expect(findFilterOptions(foundPage())).toBe(filterOptionsButton(document).parentElement);
+  });
+
+  it("finds no toolbar row for a Conversation button on a commit's page", () => {
+    expect(findFilesToolbar(foundPage())).toBeUndefined();
   });
 
   it("finds the toolbar's tree toggle, not the copy inside the sidebar", () => {

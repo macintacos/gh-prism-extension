@@ -1,10 +1,15 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import contentScript from "../../entrypoints/content";
 import { showCommitMessage } from "../../entrypoints/content/commit/message-view";
 import { showStepLinks } from "../../entrypoints/content/commit/step-links";
+import {
+  type ConversationChoice,
+  type ConversationPanel,
+  conversationPanel,
+} from "../../entrypoints/content/conversation/panel";
 import { showOwnerSection } from "../../entrypoints/content/sidebar/owner-section";
 import { dockSidebar, type Side } from "../../entrypoints/content/sidebar/side";
 import { showHeaderTab, showVisit } from "../../entrypoints/content/visit/land";
@@ -23,6 +28,7 @@ import {
   loadViewedFixture,
   VIEWED_APP_TOML,
 } from "../fixtures/files-page";
+import { setViewport } from "../fixtures/viewport";
 
 // Only leaves are faked: intentFor needs a port fakeBrowser lacks; the views' DOM has own tests.
 vi.mock(import("../../utils/intent/read"), async (importOriginal) => ({
@@ -58,6 +64,11 @@ vi.mock(import("../../entrypoints/content/sidebar/owner-section"), async (import
 vi.mock(import("../../entrypoints/content/sidebar/side"), async (importOriginal) => ({
   ...(await importOriginal()),
   dockSidebar: vi.fn(),
+}));
+
+vi.mock(import("../../entrypoints/content/conversation/panel"), async (importOriginal) => ({
+  ...(await importOriginal()),
+  conversationPanel: vi.fn(),
 }));
 
 const PR = "/o/r/pull/1/changes";
@@ -197,6 +208,50 @@ describe("content script", () => {
     await run();
 
     expect(views).toEqual([opens]);
+  });
+
+  it.each<{ pinned?: unknown; left?: unknown; viewport: number; open: boolean }>([
+    { pinned: true, left: true, viewport: 1400, open: true },
+    { pinned: true, left: false, viewport: 1400, open: false },
+    { pinned: true, viewport: 1400, open: false },
+    { pinned: true, left: true, viewport: 1024, open: false },
+    { pinned: "yes", left: true, viewport: 1400, open: false },
+    { left: true, viewport: 1400, open: false },
+  ])(
+    "on a full load, opens the Conversation panel only when left open and pinned and the window fits it (pinned: $pinned, open: $left, $viewport px)",
+    async ({ pinned, left, viewport, open }) => {
+      // Raw keys on purpose, so the test outlives a move to typed storage items.
+      if (pinned !== undefined) await fakeBrowser.storage.sync.set({ conversationPinned: pinned });
+      if (left !== undefined) await fakeBrowser.storage.sync.set({ conversationOpen: left });
+      await fakeBrowser.storage.local.set({ conversationWidth: 520 });
+      setViewport({ width: viewport, height: 768 });
+      onTestFinished(() => setViewport({ width: 1024, height: 768 }));
+      const choices: ConversationChoice[] = [];
+      vi.mocked(conversationPanel).mockImplementationOnce((_doc, { choice }) => {
+        choices.push({ ...choice });
+        return undefined as unknown as ConversationPanel;
+      });
+
+      await run();
+
+      expect(choices).toEqual([{ open, pinned: pinned === true, width: 520 }]);
+    },
+  );
+
+  it("saves the Conversation panel's pin and width", async () => {
+    await run();
+    const [[, options] = []] = vi.mocked(conversationPanel).mock.calls;
+    options?.savePinned(true);
+    options?.saveWidth(600);
+
+    await vi.waitFor(async () => {
+      expect(await fakeBrowser.storage.sync.get("conversationPinned")).toEqual({
+        conversationPinned: true,
+      });
+      expect(await fakeBrowser.storage.local.get("conversationWidth")).toEqual({
+        conversationWidth: 600,
+      });
+    });
   });
 
   it("carries a commit's message view to the next commit in the tab", async () => {

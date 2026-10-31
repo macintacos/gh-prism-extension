@@ -14,9 +14,9 @@ import {
   findCommitColumnRow,
   findCommitMessage,
 } from "../files-page";
+import { type ColumnWidthChoice, columnSeparator, fitsColumn } from "../ui/column-width";
 import { el, icon } from "../ui/dom";
 import { prismMark } from "../ui/mark";
-import { type ColumnWidthChoice, columnSeparator, fitsColumn } from "./column-width";
 import { renderCommitMessage, withinCaps } from "./message";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./message-view.css?inline";
@@ -175,7 +175,11 @@ function mountMessage(
   const win = doc.defaultView;
   const slot = Object.assign(el(doc, "span", "gh-prism-commit-slot"), { hidden: true });
   const column = messageColumn(doc);
-  const { separator, size } = columnSeparator(column, { choice, saveWidth });
+  const { separator, size } = columnSeparator(column, {
+    choice,
+    saveWidth,
+    label: "Resize commit message",
+  });
   column.append(separator);
   const mark = prismMark(doc);
   // Holds the controls row's buttons at its end, as its justify-end did alone.

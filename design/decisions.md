@@ -6,6 +6,271 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-31: The pinned Conversation panel makes room for GitHub's right-hand panel
+
+- **Compared:** keeping the pinned column at its width beside Merge status and the panels
+  its dropdown switches to; and counting GitHub's open right-hand panel against the
+  column's room.
+- **Won:** counting it. Beside an open right-hand panel the column narrows to fit, or
+  draws as the overlay when no room is left, until that panel closes. The switch has no
+  slide and saves nothing, so the column comes back at its saved width.
+- **Why:** the maintainer: "when I click on the "Merge status" button in the github
+  interface, which brings up its on sidebar on the right, if you have the conversation
+  sidebar on the left pinned, everything looks super cramped and the UI kinda blows up - a
+  lot of stuff gets overlapped and whatnot".
+- **Settled with it:** on a full load with a right-hand panel already open, a panel left
+  open and pinned opens without focus, drawn for the room beside that panel (narrowed, or
+  as the overlay when none is left), and comes back at its saved width when that panel
+  closes. An overlay forced by room keeps the overlay's rules: an outside click, one
+  inside Merge status included, closes it and saves closed, as on a narrow window.
+
+## 2026-10-31: A full load restores the Conversation panel as it was left
+
+- **Compared:** opening the panel on a full load whenever it was pinned and the window fit
+  the column, as planned; and opening it only when it was also left open.
+- **Won:** left open, pinned, and fitting. The reader's own opens and closes are saved; an
+  open on arrival saves nothing.
+- **Why:** the maintainer pinned the panel, closed it, and found it open again after a
+  commit link: "I want it to always remember the last position I had it in."
+- **Settled with it:** an unpinned overlay still starts closed after a full load, since it
+  would cover the diffs. A window too narrow for the column starts closed and keeps the
+  saved state for the next wide load. Dismissing the narrow overlay with an outside click
+  saves closed, as the last position the reader saw.
+
+## 2026-10-31: The framed Conversation ends without GitHub's site footer
+
+- **Compared:** leaving GitHub's site footer, its Terms, Privacy, and other links over a
+  copyright line, below the framed Conversation, or hiding it with the site header, PR
+  title bar, and tab row.
+- **Won:** hidden. The panel's content ends with the Conversation's own last item, the
+  layout's 16px gap below it.
+- **Why:** the maintainer: "the conversation sidebar doesn't need this footer stuff at the
+  bottom, can we remove that". The footer added about 160px of links that belong to the
+  site, not the pull request.
+
+## 2026-10-31: A sidebar shortcut moves focus without a ring
+
+- **Compared:** letting Shift+\ and `\` draw the focus ring Chrome shows after a key on
+  the element they focus, or moving focus there without one.
+- **Won:** no ring. Shift+\ focuses the Conversation panel, which no longer draws a ring
+  of its own, and returns focus to its button with `focusVisible: false`. `\` focuses
+  GitHub's tree toggle the same way before clicking it, so the toggle GitHub then focuses
+  stays ringless too. Tab still rings every control it reaches.
+- **Why:** the maintainer: "I don't like the focus ring that comes up when you use the
+  keyboard shortcut to open these sidebars." Chrome before 145 ignores `focusVisible` and
+  still rings the button and the tree toggle.
+
+## 2026-10-31: The pinned Conversation panel stops at GitHub's real breakpoint
+
+- **Compared:** bounding the pinned panel at the window less 1012px, letting its widest
+  width tip GitHub into its narrow layout and undock the file tree, or at the window less
+  1076px, where GitHub actually undocks it.
+- **Won:** 1076px, the window less a classic scrollbar. On a 1600px window the widest pin
+  is 524px, so the 560px default draws at 524 there. The commit message column keeps
+  1012px: a commit's tree docks down to 768px.
+- **Why:** GitHub measures its 1012px query against its diff viewer's content box, inside
+  32px of padding a side. The maintainer saw the tree toggle and side switch jump mid-row
+  as a wide pinned panel crossed it; the docked layout must hold beside any pinned width.
+
+## 2026-10-31: The Conversation panel's header jumps to the checks and the sidebar
+
+- **Compared:**
+  - for the jump controls, Primer's small invisible Button with a text label, or its small
+    invisible IconButton with a tooltip, like the pin beside them;
+  - for the header's edge, a stronger border token, or the same `--borderColor-default`
+    drawn where nothing covers it;
+  - for the gap above the timeline, GitHub's 40px, or Primer's 16px content gap.
+- **Won:**
+  - IconButtons: Octicons' checklist, "Jump to checks", and people, "Jump to reviewers,
+    labels, and projects", each with Primer's tooltip opening below the header. The title
+    truncates to fit the mark, both controls, the pin, and ✕ at the 256px minimum.
+  - `--borderColor-default` as a 1px bottom border.
+  - 16px.
+- **Why:**
+  - The maintainer asked to reach the checks and the reviewers / projects / labels list
+    without scrolling, and two text labels don't fit the header at 256px.
+  - The edge was a 1px shadow below the header, which the positioned body painted over; as
+    a border inside the header it shows in both themes at the default token.
+  - The maintainer saw the gap as whitespace for no reason: it was the page container's
+    top margin, left under the hidden header.
+
+## 2026-10-31: The Conversation panel's overlay resizes, with one width
+
+This widens the 2026-10-30 pinned-panel entry below, which put the separator on the pinned
+panel's edge only.
+
+- **Compared:**
+  - a fixed overlay, or one that resizes from its right edge;
+  - a width per mode, or one width both modes share;
+  - 480px, as before, or 560px as the default.
+- **Won:**
+  - The overlay takes the pinned column's separator, by drag and arrow keys, held between
+    256px and the window less 48px.
+  - One width, saved as `conversationWidth`, which each mode holds to its own bound.
+    Switching modes redraws it and never saves it.
+  - 560px.
+- **Why:**
+  - The maintainer asked for the overlay to resize without pinning it.
+  - A reader sizes the panel once, so both modes keep the size they set.
+  - The overlay floats, so it only needs the strip of page that a click outside it uses.
+  - The maintainer asked for a default a little wider than 480px, and 560px still fits the
+    pinned column's bound of 588px on a 1600px window.
+
+## 2026-10-31: The Conversation button and tree toggle hold their keycaps
+
+This replaces the button forms in the 2026-10-30 keys-and-keycaps entry below. The keys,
+`aria-keyshortcuts`, and tooltips stay as that entry picked them.
+
+- **Compared:**
+  - for both controls, Primer's small invisible Button, as before, or its small default
+    Button, as GitHub draws "All commits" beside them;
+  - for placing the tree keycap inside the toggle's padded border, a negative margin on
+    the keycap, or CSS anchor positioning.
+- **Won:**
+  - Both are Primer's small default Button (`--button-default-*` tokens, medium radius,
+    28px tall, Primer's focus ring). Each holds its icon, then its keycap.
+  - GitHub's tree toggle stays the control, drawn as that Button through `side.css`, with
+    inline-end padding for the keycap. Expanded, it takes the default Button's pressed
+    fill, `--button-default-bgColor-active`, so expanded and collapsed still look
+    different.
+  - The keycap stays gh-prism's sibling `<kbd>`, anchored over that padding and taking no
+    pointer. On touch screens, where the keycap is hidden, the toggle drops that padding.
+- **Why:**
+  - The maintainer asked, while checking the build by hand, for each control to read as
+    one button holding its icon and keycap.
+  - A negative margin depends on the toolbar's gap and on the row's order, both of which
+    change when the sidebar docks right or the page is a commit's. An anchored keycap is
+    out of the row's flow, so it sits in the same place in every layout.
+  - The keycap takes no pointer, so a click on it reaches GitHub's toggle, and hover and
+    active cover the whole button.
+
+## 2026-10-30: `\` and Shift+\ for the file tree and the Conversation panel, with keycaps
+
+- **Compared:**
+  - for the keys, the maintainer's `\` for the file tree and Shift+\ for the Conversation
+    panel, against no keys;
+  - for the Conversation button, the 28px icon button as it was, with the key only in its
+    tooltip, or Primer's small invisible Button holding the icon and then the keycap;
+  - for the tree toggle's keycap, a child of GitHub's button, or gh-prism's own `<kbd>`
+    beside it at the toolbar's 8px gap or 4px closer, in the button's colour or muted.
+- **Won:**
+  - `\` toggles the file tree and Shift+\ the Conversation panel, matched as `event.key`
+    `"\"` without Shift and `"|"` with Shift held.
+  - The Conversation button is Primer's small invisible Button: the icon, a 4px gap, then
+    the keycap reading "⇧\", 28px tall like the toolbar's other controls. Its tooltip
+    reads "Conversation (Shift+\)".
+  - The tree toggle's keycap is gh-prism's own `<kbd>` after GitHub's toggle, 4px closer
+    than the toolbar's gap, centred on the toggle, in `--fgColor-muted`, taking no
+    pointer. Docked right, and on a commit's toolbar, it takes the toggle's place in the
+    reordered row, so it still follows the toggle.
+- **Why:**
+  - The maintainer asked for these keys and keycaps at the hand check.
+  - Both keys are free. Checked with gh-prism not loaded, signed in, on
+    macintacos/gh-prism-sandbox's Files changed tab, a commit page, and the Conversation
+    tab: neither key moved focus, opened a dialog, or fired a hotkey, and no `data-hotkey`
+    holds `\` or `|`.
+  - Shift+\ types `|` on US and UK layouts, so `event.key` is `|`, not `\`. Matching `|`
+    with Shift held reads the key the reader pressed, and `\` without Shift keeps the two
+    keys apart.
+  - A child of GitHub's button would mutate what React renders. Beside it, the keycap
+    survives React's re-renders and reads as the toggle's because it sits closer than the
+    gap to the next control. Muted matches the toggle's icon, so the pair reads as one.
+- **Known limits:** GitHub's tooltip on the tree toggle doesn't name the key, because
+  gh-prism doesn't change GitHub's tooltips. Assistive technology hears it from
+  `aria-keyshortcuts`. A live check confirmed the attribute stays on GitHub's toggle after
+  four collapses and expands.
+
+## 2026-10-30: The pinned Conversation panel moves the page with it
+
+- **Compared:** for opening, closing, pinning, and unpinning the pinned panel, the page's
+  view-transition cross-fade beside the panel's own slide; sliding the page's snapshot by
+  the panel's width; or animating the page's padding alongside the panel's slide.
+- **Won:** Animating the padding on `<html>` with the Web Animations API, on the panel's
+  own timing: 280 ms on the Spatial row to open, pin, and unpin, and 160 ms `ease-out` to
+  close. Under reduced motion the page takes its new place at once. This replaces the
+  cross-fade in the pick below.
+- **Why:**
+  - The cross-fade moved the page at once while the panel slid, and drew GitHub's header,
+    title, and diffs twice, half-faded, 480 px apart. The maintainer found it jarring.
+  - A sliding snapshot can't show the page reflowing to its new width, so its far edge
+    opens on an empty strip.
+  - Animating the padding reflows the real page each frame, so nothing is drawn twice and
+    the panel pushes the page aside and draws it back as one motion.
+
+## 2026-10-30: The pinned Conversation panel's pin, edge, and motion
+
+- **Compared:**
+  - for the pin control, a menu item, or a header button before ✕;
+  - for its state, a name that flips between "Pin" and "Unpin", or one name with
+    `aria-pressed`;
+  - for the pinned edge, the overlay's shadow, or a hairline;
+  - for the resize handle, a new grip, or the commit message column's separator;
+  - for pinning's motion, sliding the page by the panel's width, or a cross-fade with the
+    panel held still.
+- **Won:**
+  - A header button between the title and ✕: the same small IconButton, in Primer's
+    `invisible` variant, as the sidebar's side switch, with Octicons `pin`, named "Pin
+    Conversation" in both states.
+  - Pressed, the icon takes `--fgColor-accent`.
+  - Pinned, the panel drops its shadow for a 1px `--borderColor-default` hairline on its
+    right edge.
+  - The commit message column's separator, shared from `ui/column-width.ts`, on the pinned
+    panel's right edge only.
+  - Pinning and unpinning cross-fade the page over 280 ms on
+    `cubic-bezier(0.2, 0.7, 0.2, 1)`, the Spatial row in `tokens.md`, while the panel
+    holds still. Under reduced motion the page takes its new place at once, with no fade.
+- **Why:**
+  - The pin is used often enough to sit in reach rather than in a menu, and the header
+    already holds ✕.
+  - The control is a toggle, so `aria-pressed` carries the state and its name stays put,
+    as the Conversation button's does.
+  - The accent colour shows the pressed state, since the name doesn't change.
+  - Pinned, the panel is a column beside the page, not a surface above it. The hairline
+    matches the commit message column's edge.
+  - A second grip would teach a second way to resize a column.
+  - A slide needs the panel's width before and after the toggle, but unpinning removes the
+    width from the page. The cross-fade shows the page making room while the panel stays
+    put, because moving the panel's iframe would reload the Conversation.
+
+## 2026-10-30: The Conversation panel's overlay, button, loading, and failure
+
+- **Compared:**
+  - for the surface, a modal `<dialog>` like the code owner details dialog, or a fixed
+    `<aside>` on the floating-surface form;
+  - for the mark, the header's start, before the title, or its end, before ✕;
+  - for loading, the spectrum's loading view, or a skeleton like the commit message's;
+  - for the motion, a fade, or a slide from the left edge;
+  - for the button's name, one that flips with the state, as a switch's does, or one name
+    in both states;
+  - for failure, a notice sentence, or Chrome's error page left in the frame.
+- **Won:**
+  - A fixed `<aside>` on `--bgColor-default` with `--shadow-floating-small`, under a
+    header of the mark, "Conversation" in semibold, and ✕, ruled off by a hairline.
+    `--overlay-bgColor` was tried and dropped: in dark mode it set the header a shade off
+    the framed Conversation's own canvas, splitting the panel in two.
+  - The mark at the header's start, its tooltip opening downward.
+  - A skeleton of a title bar and three lines, which appears only if the frame hasn't
+    loaded 150 ms later, then pulses. The frame fades in over 150 ms once it loads.
+  - The panel slides in from the left on the Spatial row and back out on the State,
+    closing row. Under reduced motion it appears and disappears in place.
+  - On failure, one muted sentence: "The Conversation didn't load here. Open the
+    Conversation tab." The second sentence is the link.
+  - The toolbar button is the side switch's small invisible IconButton with Octicons
+    `comment-discussion`, named "Conversation" in both states. Its tooltip opens
+    rightward.
+- **Why:**
+  - A dialog can't become the pinned column, and re-creating its frame would reload the
+    Conversation.
+  - At the header's start, the mark's tooltip opens into the panel, never off its edge.
+  - The spectrum's loading view counts progress gh-prism doesn't have here, and the
+    skeleton matches the commit message's, the other wait on a rendered page.
+  - A slide from the edge says where the panel lives, as the sidebar's overlay does
+    mirrored.
+  - The button is a disclosure, not a switch between views, so its `aria-expanded` carries
+    the state and its name stays put.
+  - Chrome's error page for a refused frame says nothing a reviewer can act on. The notice
+    names what happened and links where the Conversation still loads.
+
 ## 2026-10-29: Header tooltips and the owner popup carry the mark; the column's moves up
 
 This entry replaces the placement half of "The mark sweeps the spectrum, not the icon's

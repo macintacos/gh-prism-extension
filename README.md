@@ -171,16 +171,22 @@ It asks Chrome for access to only these hosts:
 - `https://patch-diff.githubusercontent.com/*`: where GitHub redirects diff downloads.
 - `https://raw.githubusercontent.com/*`: where GitHub redirects raw-file downloads.
 
+It also lets the Conversation panel show a pull request's Conversation tab in Files
+changed. GitHub refuses to be shown inside another page, so gh-prism lifts that refusal
+only for the panel's frame in that tab, and keeps the rest of GitHub's security policy.
+
 It also uses Chrome's extension storage. When Chrome sync is on, it syncs these to your
 other computers:
 
 - Which side the sidebar is on.
 - Whether the header shows lines changed by section or GitHub's total.
 - Whether a commit's message shows as Markdown or plain text.
+- Whether the Conversation panel is pinned, and whether it's open.
 
 It keeps these on this computer only:
 
 - The width of the commit message column.
+- The width of the pinned Conversation panel.
 - The commits you hid the message on, up to the 100 most recent.
 - Whether you closed the dialog on GitHub's classic Files changed tab.
 - Which version's release notes, shown in the sidebar after an update, you dismissed or

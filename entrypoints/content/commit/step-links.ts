@@ -8,6 +8,7 @@ import type { NextCommit } from "@/utils/github/next-commit";
 import type { CommitHead } from "@/utils/github/pr-ref";
 import { type FilesPage, findCommitHeader } from "../files-page";
 import { el, icon, isEditable } from "../ui/dom";
+import { keycap } from "../ui/keycap";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./step-links.css?inline";
 
@@ -52,7 +53,7 @@ export function showStepLinks(
     "gh-prism-commit-previous",
     "J",
     icon(doc, CHEVRON_LEFT, { class: "tw:text-fg-muted" }),
-    keycap(doc, "J"),
+    keycap(doc, "J", { shift: true }),
     "Older",
   );
   const following = stepLink(
@@ -60,7 +61,7 @@ export function showStepLinks(
     "gh-prism-commit-next",
     "K",
     "Newer",
-    keycap(doc, "K"),
+    keycap(doc, "K", { shift: true }),
     icon(doc, CHEVRON_RIGHT, { class: "tw:text-fg-muted" }),
   );
   // Primer's ButtonGroup, but not isolated: isolation traps the tooltips under the content below.
@@ -116,16 +117,6 @@ function stepLink(
   link.classList.add(name);
   link.setAttribute("aria-keyshortcuts", `Shift+${key}`);
   return link;
-}
-
-/** A keycap reading Shift and `key`, hidden from assistive technology. */
-function keycap(doc: Document, key: string): HTMLElement {
-  // GitHub's monospace stack draws ⇧ at half the letter's height; its sans stack, at full height.
-  const shift = el(doc, "span", "tw:[font-family:var(--fontStack-sansSerif)]", "⇧");
-  // GitHub's own kbd rule, which Markdown's <kbd> takes too, draws the keycap.
-  const cap = el(doc, "kbd", "gh-prism-commit-key tw:text-inherit", shift, key);
-  cap.setAttribute("aria-hidden", "true");
-  return cap;
 }
 
 /**

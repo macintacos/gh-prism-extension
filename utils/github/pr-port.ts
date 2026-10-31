@@ -80,7 +80,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function asPrRef(value: unknown): PrRef | undefined {
+export function asPrRef(value: unknown): PrRef | undefined {
   if (!isObject(value) || value.kind !== "pr") return undefined;
   const { owner, repo, number } = value;
   if (!isOwnerOrRepo(owner) || !isOwnerOrRepo(repo)) return undefined;

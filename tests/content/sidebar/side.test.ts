@@ -51,10 +51,10 @@ afterEach(() => {
   Reflect.deleteProperty(document, "startViewTransition");
 });
 
-it("docks on the chosen side, with a switch to the other just after GitHub's tree toggle", () => {
+it("docks on the chosen side, with a switch to the other just after GitHub's tree toggle and its keycap", () => {
   dock("right");
   expect(docked()).toBe("right");
-  expect(switcher()?.previousElementSibling?.id).toBe("tree-toggle");
+  expect(switcher()?.previousElementSibling?.previousElementSibling?.id).toBe("tree-toggle");
   expect(switcher()?.getAttribute("aria-label")).toBe("Move file tree to the left");
 });
 
@@ -70,6 +70,19 @@ it("switches sides on click, keeping the tab's choice and saving it", () => {
   switcher()?.click();
   expect(docked()).toBe("right");
   expect(save).toHaveBeenLastCalledWith("right");
+});
+
+it("switches at once while another glide runs, leaving that glide its names", () => {
+  const start = stubViewTransitions();
+  dock("right");
+  document.documentElement.dataset.ghPrismGlide = "toggle";
+
+  switcher()?.click();
+
+  expect(docked()).toBe("left");
+  expect(start).not.toHaveBeenCalled();
+  expect(gliding()).toBe("toggle");
+  delete document.documentElement.dataset.ghPrismGlide;
 });
 
 it("replaces a switch a restored snapshot carries", () => {
@@ -134,7 +147,7 @@ it("docks a commit page's sidebar, with the switch just after its tree toggle", 
   document.body.innerHTML = COMMIT_TOOLBAR;
   dock("right", commitPage);
   expect(docked()).toBe("right");
-  expect(switcher()?.previousElementSibling?.id).toBe("commit-tree-toggle");
+  expect(switcher()?.previousElementSibling?.previousElementSibling?.id).toBe("commit-tree-toggle");
 });
 
 // Trimmed from a commit page: the tree is Primer's start pane, sized by its divider's handle.
@@ -186,4 +199,62 @@ it("replays a commit page's tree toggle click inside a glide, but not its narrow
 
   expect(start).toHaveBeenCalledOnce();
   await start.mock.results[0]?.value.finished;
+});
+
+const treeKeycap = () => document.querySelector<HTMLElement>(".gh-prism-tree-key");
+const pressKey = (init: KeyboardEventInit, target: EventTarget = document.body) =>
+  target.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init }));
+
+it("shows \\ as a keycap beside GitHub's tree toggle, hidden from assistive technology", () => {
+  dock("left");
+  expect(treeKeycap()?.previousElementSibling?.id).toBe("tree-toggle");
+  expect(treeKeycap()?.textContent).toBe("\\");
+  expect(treeKeycap()?.getAttribute("aria-hidden")).toBe("true");
+});
+
+it("names \\ on GitHub's tree toggles for assistive technology", () => {
+  dock("left");
+  for (const toggle of document.querySelectorAll("#tree-toggle button"))
+    expect(toggle.getAttribute("aria-keyshortcuts")).toBe("\\");
+});
+
+it("clicks GitHub's tree toggle on \\, as a click does", () => {
+  dock("left");
+  const github = vi.fn();
+  treeToggle()?.addEventListener("click", github);
+  pressKey({ key: "\\" });
+  expect(github).toHaveBeenCalledOnce();
+});
+
+it("clicks the narrow layout's overlay toggle on \\ while the regular toggle is hidden", () => {
+  dock("left");
+  const regular = treeToggle();
+  if (regular) regular.style.display = "none";
+  const github = vi.fn();
+  document.querySelector('[class*="MobileTreeToggle"]')?.addEventListener("click", github);
+  pressKey({ key: "\\" });
+  expect(github).toHaveBeenCalledOnce();
+});
+
+it("leaves \\ alone in a field, with a modifier, on a repeat, or with Shift", () => {
+  dock("left");
+  const github = vi.fn();
+  treeToggle()?.addEventListener("click", github);
+  const field = document.body.appendChild(document.createElement("input"));
+  pressKey({ key: "\\" }, field);
+  pressKey({ key: "\\", ctrlKey: true });
+  pressKey({ key: "\\", repeat: true });
+  pressKey({ key: "\\", shiftKey: true });
+  expect(github).not.toHaveBeenCalled();
+});
+
+it("takes the keycap and the key away once the signal aborts", () => {
+  dock("left");
+  const github = vi.fn();
+  treeToggle()?.addEventListener("click", github);
+  controller.abort();
+  pressKey({ key: "\\" });
+  expect(treeKeycap()).toBeNull();
+  expect(treeToggle()?.hasAttribute("aria-keyshortcuts")).toBe(false);
+  expect(github).not.toHaveBeenCalled();
 });

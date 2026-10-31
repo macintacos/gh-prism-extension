@@ -11,6 +11,7 @@ import {
   teamMembersReader,
   withMemberTeams,
 } from "@/utils/github/code-owners";
+import { allowConversationFrame } from "@/utils/github/conversation-frame";
 import { ownerFilterLink, ownerOf } from "@/utils/github/files-route";
 import { type NextCommit, readNextCommit } from "@/utils/github/next-commit";
 import { connectPrData } from "@/utils/github/pr-port";
@@ -28,6 +29,9 @@ import {
   classicNoticeDismissed,
   commitColumnWidth,
   commitMessageView,
+  conversationOpen,
+  conversationPinned,
+  conversationWidth,
   type DiffstatView,
   diffstatView,
   hiddenCommitMessages,
@@ -47,8 +51,15 @@ import {
   showCommitMessage,
 } from "./commit/message-view";
 import { type StepLinksOptions, showStepLinks } from "./commit/step-links";
+import {
+  type ConversationChoice,
+  conversationPanel,
+  fitsPinned,
+  showConversationButton,
+} from "./conversation/panel";
 import { showReviewerFiles } from "./conversation/reviewer-files";
 import { visitViewed } from "./diffs/viewed";
+import { followRightPanel } from "./files-page";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
 import { showOwnerSection } from "./sidebar/owner-section";
 import { showReportLink } from "./sidebar/report";
@@ -63,12 +74,13 @@ const CACHED_DIFFS = 50;
  * On every Files view on github.com, shows the sidebar's sections, narrowed on a pull request to
  * the `gh-prism-owner` owner's files when set, orders the diffs to match, stands in for the
  * diffstat, docks the sidebar on the saved side with a switch, adds a link to report a
- * miscategorized file, adds an "Only files owned by…" section to GitHub's filter menu, and, after
- * an update, opens the sidebar with that release's notes. On a pull request's header tabs, stands
- * in for the diffstat, and on Conversation lists a code owner's files from their Reviewers sidebar
- * shield. On a commit's page, shows its message rendered as Markdown, above the diffs or in a
- * column beside them, with a switch to its plain text. On its classic Files changed page,
- * explains why gh-prism is off there.
+ * miscategorized file, adds an "Only files owned by…" section to GitHub's filter menu, on a pull
+ * request adds a button opening its Conversation in a panel, and, after an update, opens the
+ * sidebar with that release's notes. On a pull request's header tabs, stands in for the diffstat,
+ * and on Conversation lists a code owner's files from their Reviewers sidebar shield. On a
+ * commit's page, shows its message rendered as Markdown, above the diffs or in a column beside
+ * them, with a switch to its plain text. On its classic Files changed page, explains why gh-prism
+ * is off there.
  */
 export default defineContentScript({
   // Every GitHub page: soft navigation reaches a pull request without re-injecting the script.
@@ -89,6 +101,9 @@ export default defineContentScript({
       savedCommitMessage,
       savedColumnWidth,
       savedHidden,
+      savedPinned,
+      savedOpen,
+      savedConversationWidth,
       dismissed,
       whatsNewForPage,
     ] = await Promise.all([
@@ -97,6 +112,9 @@ export default defineContentScript({
       readSavedCommitMessage(),
       readSavedColumnWidth(),
       readHiddenMessages(),
+      readSavedPinned(),
+      readSavedOpen(),
+      readSavedConversationWidth(),
       readNoticeDismissed(),
       release && followWhatsNew(release, ctx),
     ]);
@@ -110,6 +128,10 @@ export default defineContentScript({
       save: saveDiffstat,
     } satisfies DiffstatOptions;
     const notice: NoticeChoice = { dismissed };
+    const conversation = conversationChoiceOf(
+      { pinned: savedPinned, open: savedOpen, width: savedConversationWidth },
+      fitsPinned(window),
+    );
     const navigate = (href: string) => location.assign(href);
     let fullLoad = true;
     // Registered before watchFilesPages, so the flag clears before a navigation's visit runs.
@@ -148,6 +170,22 @@ export default defineContentScript({
             route.diff.kind === "commit"
               ? stepLinksFor(route.diff, seenChildren, { after: afterLanding(intent), visit })
               : undefined;
+          // ponytail: the panel lives per visit, so a same-PR route change that starts a new
+          // visit (e.g. into one commit's diff) reloads the frame; key the panel by PR if that
+          // bites.
+          const panel =
+            route.diff.kind === "pr"
+              ? conversationPanel(document, {
+                  pr: route.diff,
+                  choice: conversation,
+                  fetch,
+                  allowFraming: allowConversationFrame,
+                  savePinned,
+                  saveOpen,
+                  saveWidth: saveConversationWidth,
+                  visit,
+                })
+              : undefined;
           return (page, signal) => {
             const owner = route.diff.kind === "pr" ? ownerOf(location.search) : undefined;
             showReportLink(page, signal, reportOptions);
@@ -179,6 +217,10 @@ export default defineContentScript({
             });
             if (steps) showStepLinks(page, signal, steps);
             dockSidebar(page, signal, { choice: side, save: saveSide });
+            if (panel) {
+              showConversationButton(page, signal, panel);
+              followRightPanel(document, panel.refit, { signal });
+            }
           };
         },
         onMissing: () =>
@@ -339,12 +381,15 @@ const readSavedColumnWidth = (): Promise<unknown> =>
 function commitMessageChoiceOf(savedView: unknown, savedWidth: unknown): CommitMessageChoice {
   // `fallback` covers only a missing value; a corrupt one reads back as stored.
   const known = savedView === "rendered" || savedView === "plaintext";
-  const knownWidth = typeof savedWidth === "number" && Number.isFinite(savedWidth);
   return {
     view: known ? savedView : commitMessageView.fallback,
-    width: knownWidth ? savedWidth : commitColumnWidth.fallback,
+    width: knownWidth(savedWidth, commitColumnWidth.fallback),
   };
 }
+
+/** `saved` when it is a finite number, else `fallback`. */
+const knownWidth = (saved: unknown, fallback: number): number =>
+  typeof saved === "number" && Number.isFinite(saved) ? saved : fallback;
 
 const saveCommitMessage = (view: CommitMessageView) =>
   commitMessageView
@@ -358,6 +403,71 @@ const saveColumnWidth = (width: number) =>
     .setValue(width)
     .catch((error: unknown) =>
       console.error("gh-prism: saving the commit message column's width failed", error),
+    );
+
+/**
+ * Whether the Conversation panel was left pinned, unchecked, or the default when storage won't
+ * read.
+ */
+const readSavedPinned = (): Promise<unknown> =>
+  conversationPinned.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading the Conversation panel's pin failed", error);
+    return conversationPinned.fallback;
+  });
+
+/**
+ * Whether the Conversation panel was left open, unchecked, or the default when storage won't
+ * read.
+ */
+const readSavedOpen = (): Promise<unknown> =>
+  conversationOpen.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading whether the Conversation panel is open failed", error);
+    return conversationOpen.fallback;
+  });
+
+/** The stored Conversation panel width, unchecked, or the default when storage won't read. */
+const readSavedConversationWidth = (): Promise<unknown> =>
+  conversationWidth.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading the Conversation panel's width failed", error);
+    return conversationWidth.fallback;
+  });
+
+/**
+ * The Conversation panel's start on a full load: pinned and its width from `saved`, when each
+ * is one, else the defaults, and open only when it was left open and pinned and the window
+ * `fits` the column.
+ */
+function conversationChoiceOf(
+  saved: { pinned: unknown; open: unknown; width: unknown },
+  fits: boolean,
+): ConversationChoice {
+  const pinned = saved.pinned === true;
+  return {
+    open: saved.open === true && pinned && fits,
+    pinned,
+    width: knownWidth(saved.width, conversationWidth.fallback),
+  };
+}
+
+const saveOpen = (open: boolean) =>
+  conversationOpen
+    .setValue(open)
+    .catch((error: unknown) =>
+      console.error("gh-prism: saving whether the Conversation panel is open failed", error),
+    );
+
+const savePinned = (pinned: boolean) =>
+  conversationPinned
+    .setValue(pinned)
+    .catch((error: unknown) =>
+      console.error("gh-prism: saving the Conversation panel's pin failed", error),
+    );
+
+const saveConversationWidth = (width: number) =>
+  conversationWidth
+    .setValue(width)
+    .catch((error: unknown) =>
+      console.error("gh-prism: saving the Conversation panel's width failed", error),
     );
 
 /** The commits whose message this tab knows are hidden, kept current as its visits hide them. */
