@@ -6,6 +6,17 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-31: The framed Conversation ends without GitHub's site footer
+
+- **Compared:** leaving GitHub's site footer, its Terms, Privacy, and other links over a
+  copyright line, below the framed Conversation, or hiding it with the site header, PR
+  title bar, and tab row.
+- **Won:** hidden. The panel's content ends with the Conversation's own last item, the
+  layout's 16px gap below it.
+- **Why:** the maintainer: "the conversation sidebar doesn't need this footer stuff at the
+  bottom, can we remove that". The footer added about 160px of links that belong to the
+  site, not the pull request.
+
 ## 2026-10-31: A sidebar shortcut moves focus without a ring
 
 - **Compared:** letting Shift+\ and `\` draw the focus ring Chrome shows after a key on

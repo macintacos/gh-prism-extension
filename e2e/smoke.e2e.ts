@@ -3864,7 +3864,8 @@ const JUMPING_CONVERSATION = `<style>
     </div>
     <div id="partial-discussion-sidebar" style="flex: 0 0 296px; height: 2000px">Reviewers</div>
   </div>
-</div>`;
+</div>
+<footer class="footer" role="contentinfo">Terms Privacy GitHub, Inc.</footer>`;
 
 const frameTop = (page: Page, selector: string) =>
   page
@@ -3883,6 +3884,20 @@ test("the Conversation frame's first item sits right under the panel's header, w
 
   await expect(page.locator("#gh-prism-conversation")).toHaveAttribute("data-state", "loaded");
   expect(await frameTop(page, "#diff-comparison-viewer-container")).toBe(0);
+});
+
+test("the Conversation frame ends with the Conversation, without GitHub's site footer", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context, JUMPING_CONVERSATION);
+  await page.goto(PR_URL);
+
+  await conversationButton(page).click();
+
+  const frame = page.frameLocator("#gh-prism-conversation iframe");
+  await expect(frame.locator("#conversation")).toBeVisible();
+  await expect(frame.getByRole("contentinfo")).toBeHidden();
 });
 
 test("the Conversation panel's checks control scrolls its frame to the checks", async ({

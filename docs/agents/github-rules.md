@@ -534,6 +534,9 @@ Below 1012px, a pull request's tree toggle opens the file tree as a "Files" over
 - **Find the framed page's chrome as `.js-header-wrapper` and
   `header[class*="prc-PageLayout-Header-"]:has(nav[class*="TabNav__"])`.** The title bar,
   its sticky copy, and the tab row all sit in that one header.
+- **Find the framed page's site footer as `footer.footer[role="contentinfo"]`.** It is the
+  page's only `<footer>`, a sibling after `.application-main`, so hiding it leaves no
+  wrapper or spacing behind.
 - **Find Files changed's toolbar row as
   `section[class*="toolbar__"]:has([class*="RegularTreeToggle"])`.** A press on a button
   prepended to it can make React hydrate the toolbar and re-mount the button mid-press, so

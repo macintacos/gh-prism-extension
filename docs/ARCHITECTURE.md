@@ -40,9 +40,9 @@ included, shows inside the Conversation panel. A second content script,
 runs in every frame of a pull request URL at `document_start` and acts only in a sub-frame
 whose URL carries the panel's `gh-prism-panel=1` marker. There,
 [`conversation/frame.ts`](../entrypoints/content/conversation/frame.ts) hides GitHub's
-site header, PR title bar, and tab row, posts each link that leaves the Conversation to
-the parent page to load, and relays an Escape GitHub didn't handle. The messages' shapes
-live in
+site header, PR title bar, tab row, and site footer, posts each link that leaves the
+Conversation to the parent page to load, and relays an Escape GitHub didn't handle. The
+messages' shapes live in
 [`conversation/frame-messages.ts`](../entrypoints/content/conversation/frame-messages.ts).
 
 ## Page kinds
