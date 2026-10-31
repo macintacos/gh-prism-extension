@@ -6,6 +6,28 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-31: The Conversation panel's header jumps to the checks and the sidebar
+
+- **Compared:**
+  - for the jump controls, Primer's small invisible Button with a text label, or its small
+    invisible IconButton with a tooltip, like the pin beside them;
+  - for the header's edge, a stronger border token, or the same `--borderColor-default`
+    drawn where nothing covers it;
+  - for the gap above the timeline, GitHub's 40px, or Primer's 16px content gap.
+- **Won:**
+  - IconButtons: Octicons' checklist, "Jump to checks", and people, "Jump to reviewers,
+    labels, and projects", each with Primer's tooltip opening below the header. The title
+    truncates to fit the mark, both controls, the pin, and ✕ at the 256px minimum.
+  - `--borderColor-default` as a 1px bottom border.
+  - 16px.
+- **Why:**
+  - The maintainer asked to reach the checks and the reviewers / projects / labels list
+    without scrolling, and two text labels don't fit the header at 256px.
+  - The edge was a 1px shadow below the header, which the positioned body painted over; as
+    a border inside the header it shows in both themes at the default token.
+  - The maintainer saw the gap as whitespace for no reason: it was the page container's
+    top margin, left under the hidden header.
+
 ## 2026-10-31: The Conversation panel's overlay resizes, with one width
 
 This widens the 2026-10-30 pinned-panel entry below, which put the separator on the pinned

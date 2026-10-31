@@ -542,10 +542,24 @@ Below 1012px, a pull request's tree toggle opens the file tree as a "Files" over
   `<body>`.** `panel.css` accounts for it.
 - **Expect GitHub's router to take a link appended to Files changed's `<body>` and clicked
   as a soft navigation.** `panel.ts`'s `follow` relies on it, as the commit card does.
+- **Override the framed page's container, `#diff-comparison-viewer-container`, with
+  `!important`.** It carries Primer's `tmp-mt-4`, a `margin-top` that is `!important`, so
+  `frame.css` loses without it.
+- **Find the framed merge box's checks as
+  `[data-testid="mergebox-partial"] section[aria-label="Checks"]`.** A merged pull
+  request's merge box has none. The hook keys on the English label `Checks`.
+- **Find the framed sidebar as `#partial-discussion-sidebar` and the timeline as
+  `.js-discussion`.** GitHub draws the sidebar below the timeline in a narrow frame, and
+  beside it from about a 780px panel width.
+- **Read the framed page through the frame's `contentDocument`.** The frame is
+  same-origin, so the content script reads and scrolls it directly, with no message relay.
 - **Re-check:** curl `HEAD` on a pull request and read the three headers. Signed in with
   the saved `storageState`, add an `<iframe>` to Files changed from `page.evaluate`, then
   from the extension, and compare the console's CSP refusal. Read the header's and the tab
-  row's markup on the Conversation tab.
+  row's markup on the Conversation tab. In the open panel, read the container's computed
+  `margin-top`, query the checks, sidebar, and timeline hooks on an open and a merged pull
+  request, and compare the sidebar's left edge to the timeline's right edge as you widen
+  the panel past 780px.
 
 ## Files changed filters
 

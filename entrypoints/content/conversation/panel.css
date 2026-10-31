@@ -1,4 +1,6 @@
-/* GitHub hooks: Primer's --prc-dialog-scrollgutter. */
+/* GitHub hooks: Primer's --prc-dialog-scrollgutter. In the framed Conversation, panel.ts reads
+   [data-testid="mergebox-partial"] section[aria-label="Checks"], #partial-discussion-sidebar,
+   and .js-discussion. */
 @import "../ui/tailwind.css" prefix(tw);
 @import "../ui/column-width.css";
 @import "../ui/mark.css";
@@ -88,8 +90,39 @@
 }
 
 /* CSS, not tw:inline-grid, so the [hidden] the panel toggles still hides it. */
-.gh-prism-conversation-pin:not([hidden]) {
+.gh-prism-conversation-tool:not([hidden]) {
   display: inline-grid;
+}
+
+/* Primer's tooltip, opening below the header and inward from the control's end. */
+:is(.gh-prism-conversation-checks, .gh-prism-conversation-sidebar)::after {
+  content: attr(aria-label);
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline-end: 0;
+  z-index: 1;
+  padding: 4px 8px;
+  border-radius: var(--borderRadius-medium);
+  background: var(--tooltip-bgColor);
+  color: var(--tooltip-fgColor);
+  font-size: var(--text-body-size-small);
+  font-weight: var(--base-text-weight-normal);
+  line-height: var(--text-body-lineHeight-small);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 120ms ease-out,
+    visibility 120ms;
+}
+
+:is(.gh-prism-conversation-checks, .gh-prism-conversation-sidebar):is(
+    :hover,
+    :focus-visible
+  )::after {
+  opacity: 1;
+  visibility: visible;
 }
 
 .gh-prism-conversation-pin[aria-pressed="true"] {
@@ -104,8 +137,9 @@
   outline-offset: -2px;
 }
 
+/* A border, not a shadow below the box: the positioned body paints over anything outside it. */
 .gh-prism-conversation-header {
-  box-shadow: 0 1px 0 var(--borderColor-default);
+  border-bottom: var(--borderWidth-thin, 1px) solid var(--borderColor-default);
 }
 
 /* The header sits at the top edge, so the mark's tooltip opens below it. */

@@ -157,6 +157,14 @@ Conversation, the frame posts its URL, and the panel clicks a temporary link to 
 page, so GitHub's router can take it without a reload. A link to the same pull request,
 such as a comment's permalink, only moves the frame's hash, so the panel stays put.
 
+Two controls in the panel's header jump the frame to its merge box's checks and to its
+sidebar of reviewers, labels, and projects. The frame is a same-origin page, so on each
+load `panel.ts` reads its `contentDocument` directly, with no message relay. A
+`MutationObserver` on that document and the frame window's `resize` keep each control
+shown only while its section exists, and the sidebar's only while GitHub draws the sidebar
+below the timeline rather than beside it. A click scrolls the frame's window, smoothly
+unless the reader prefers reduced motion.
+
 Shift+\ toggles the panel as the toolbar button does, and the button shows the key as a
 keycap. `panel.ts` listens for it on the document, in the capture phase, until the visit
 aborts. `toggleKeyOf` in [`ui/toggle-keys.ts`](../entrypoints/content/ui/toggle-keys.ts)

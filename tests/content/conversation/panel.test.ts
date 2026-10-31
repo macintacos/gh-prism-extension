@@ -83,7 +83,11 @@ function post(data: unknown, init: { source?: unknown; origin?: string } = {}) {
 }
 
 // happy-dom can't load a frame from github.com, so a loaded frame's window is a stand-in.
-const frameWindow = {} as Window;
+const frameWindow = Object.assign(new EventTarget(), {
+  scrollY: 0,
+  scrollTo: vi.fn(),
+  requestAnimationFrame: (callback: FrameRequestCallback) => setTimeout(callback, 16),
+}) as unknown as Window;
 
 beforeEach(() => {
   (
@@ -827,5 +831,139 @@ describe("resizing the overlay", () => {
     separator()?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 }));
 
     expect(panel.open).toBe(true);
+  });
+});
+
+describe("jumping in the frame", () => {
+  const checks = () => aside()?.querySelector<HTMLButtonElement>(".gh-prism-conversation-checks");
+  const sidebar = () => aside()?.querySelector<HTMLButtonElement>(".gh-prism-conversation-sidebar");
+  const placeAt = (node: Element | null | undefined, rect: Partial<DOMRect>) => {
+    if (node)
+      node.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, ...rect }) as DOMRect;
+  };
+  const CHECKS =
+    '<div data-testid="mergebox-partial"><section aria-label="Checks"></section></div>';
+  const SIDEBAR = '<div class="js-discussion"></div><div id="partial-discussion-sidebar"></div>';
+
+  /** Opens the panel on a loaded frame whose document holds `html`. */
+  async function loaded(html: string): Promise<Document> {
+    const framed = document.implementation.createHTMLDocument();
+    framed.body.innerHTML = html;
+    vi.spyOn(HTMLIFrameElement.prototype, "contentDocument", "get").mockReturnValue(framed);
+    const { panel } = setup();
+    mountButton(panel)?.click();
+    await vi.waitFor(() => expect(frame()?.getAttribute("src")).toBeTruthy());
+    frame()?.dispatchEvent(new Event("load"));
+    return framed;
+  }
+
+  const preferReducedMotion = (preference: "reduce" | "no-preference") => {
+    const { happyDOM } = window as unknown as {
+      happyDOM: { settings: { device: { prefersReducedMotion: string } } };
+    };
+    happyDOM.settings.device.prefersReducedMotion = preference;
+  };
+
+  afterEach(() => preferReducedMotion("no-preference"));
+
+  it("shows the checks control while the frame has a checks section", async () => {
+    const framed = await loaded("");
+    const hiddenWithout = checks()?.hidden;
+
+    framed.body.insertAdjacentHTML("beforeend", CHECKS);
+
+    expect(hiddenWithout).toBe(true);
+    await vi.waitFor(() => expect(checks()?.hidden).toBe(false));
+  });
+
+  it("hides the checks control once its section goes", async () => {
+    const framed = await loaded(CHECKS);
+
+    framed.querySelector('[data-testid="mergebox-partial"]')?.remove();
+
+    await vi.waitFor(() => expect(checks()?.hidden).toBe(true));
+  });
+
+  it("shows the sidebar control while the sidebar sits below the timeline", async () => {
+    const framed = await loaded("");
+    placeAt(framed.querySelector(".js-discussion"), {});
+
+    framed.body.insertAdjacentHTML("beforeend", SIDEBAR);
+    placeAt(framed.querySelector(".js-discussion"), { right: 500 });
+    placeAt(framed.querySelector("#partial-discussion-sidebar"), { left: 16 });
+
+    await vi.waitFor(() => expect(sidebar()?.hidden).toBe(false));
+  });
+
+  it("hides the sidebar control once the frame draws the sidebar beside the timeline", async () => {
+    const framed = await loaded(SIDEBAR);
+    placeAt(framed.querySelector(".js-discussion"), { right: 500 });
+    placeAt(framed.querySelector("#partial-discussion-sidebar"), { left: 16 });
+    frameWindow.dispatchEvent(new Event("resize"));
+    const shownBelow = sidebar()?.hidden === false;
+
+    placeAt(framed.querySelector("#partial-discussion-sidebar"), { left: 520 });
+    frameWindow.dispatchEvent(new Event("resize"));
+
+    expect(shownBelow).toBe(true);
+    expect(sidebar()?.hidden).toBe(true);
+  });
+
+  it("reads the frame's layout once per frame however often its DOM changes", async () => {
+    const framed = await loaded(SIDEBAR);
+    let reads = 0;
+    const timeline = framed.querySelector(".js-discussion");
+    if (timeline)
+      timeline.getBoundingClientRect = () => {
+        reads++;
+        return { right: 500 } as DOMRect;
+      };
+
+    for (let i = 0; i < 3; i++) {
+      framed.body.append(framed.createElement("p"));
+      await Promise.resolve();
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(reads).toBe(1);
+  });
+
+  it("hides both controls once the frame fails to show the Conversation", async () => {
+    const framed = await loaded(CHECKS + SIDEBAR);
+    placeAt(framed.querySelector(".js-discussion"), { right: 500 });
+    placeAt(framed.querySelector("#partial-discussion-sidebar"), { left: 16 });
+    frameWindow.dispatchEvent(new Event("resize"));
+    const shown = checks()?.hidden === false && sidebar()?.hidden === false;
+
+    vi.spyOn(HTMLIFrameElement.prototype, "contentDocument", "get").mockReturnValue(null);
+    frame()?.dispatchEvent(new Event("load"));
+    frame()?.dispatchEvent(new Event("load"));
+
+    expect(shown).toBe(true);
+    expect([checks()?.hidden, sidebar()?.hidden]).toEqual([true, true]);
+  });
+
+  it("scrolls the frame smoothly to put the section's top at its own top", async () => {
+    const framed = await loaded(CHECKS);
+    placeAt(framed.querySelector('section[aria-label="Checks"]'), { top: 300 });
+    Object.assign(frameWindow, { scrollY: 100 });
+    await vi.waitFor(() => expect(checks()?.hidden).toBe(false));
+
+    checks()?.click();
+
+    expect(frameWindow.scrollTo).toHaveBeenCalledWith({ top: 400, behavior: "smooth" });
+  });
+
+  it("jumps at once under reduced motion", async () => {
+    preferReducedMotion("reduce");
+    const framed = await loaded(SIDEBAR);
+    placeAt(framed.querySelector(".js-discussion"), { right: 500 });
+    placeAt(framed.querySelector("#partial-discussion-sidebar"), { top: 50, left: 16 });
+    Object.assign(frameWindow, { scrollY: 0 });
+    frameWindow.dispatchEvent(new Event("resize"));
+
+    sidebar()?.click();
+
+    expect(frameWindow.scrollTo).toHaveBeenCalledWith({ top: 50, behavior: "instant" });
   });
 });

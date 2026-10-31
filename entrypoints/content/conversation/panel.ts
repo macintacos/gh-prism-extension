@@ -56,6 +56,20 @@ const PIN =
 const COMMENT_DISCUSSION =
   "M1.75 1h8.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 10.25 10H7.061l-2.574 2.573A1.458 1.458 0 0 1 2 11.543V10h-.25A1.75 1.75 0 0 1 0 8.25v-5.5C0 1.784.784 1 1.75 1ZM1.5 2.75v5.5c0 .138.112.25.25.25h1a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h3.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25h-8.5a.25.25 0 0 0-.25.25Zm13 2a.25.25 0 0 0-.25-.25h-.5a.75.75 0 0 1 0-1.5h.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 14.25 12H14v1.543a1.458 1.458 0 0 1-2.487 1.03L9.22 12.28a.749.749 0 0 1 1.06-1.06l2.22 2.22v-2.19a.75.75 0 0 1 .75-.75h1a.25.25 0 0 0 .25-.25Z";
 
+/** Octicons 19.15.0 (MIT, GitHub Inc.): checklist. */
+const CHECKLIST =
+  "M2.5 1.75v11.5c0 .138.112.25.25.25h3.17a.75.75 0 0 1 0 1.5H2.75A1.75 1.75 0 0 1 1 13.25V1.75C1 .784 1.784 0 2.75 0h8.5C12.216 0 13 .784 13 1.75v7.736a.75.75 0 0 1-1.5 0V1.75a.25.25 0 0 0-.25-.25h-8.5a.25.25 0 0 0-.25.25Zm13.274 9.537v-.001l-4.557 4.45a.75.75 0 0 1-1.055-.008l-1.943-1.95a.75.75 0 0 1 1.062-1.058l1.419 1.425 4.026-3.932a.75.75 0 1 1 1.048 1.074ZM4.75 4h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM4 7.75A.75.75 0 0 1 4.75 7h2a.75.75 0 0 1 0 1.5h-2A.75.75 0 0 1 4 7.75Z";
+
+/** Octicons 19.15.0 (MIT, GitHub Inc.): people. */
+const PEOPLE =
+  "M2 5.5a3.5 3.5 0 1 1 5.898 2.549 5.508 5.508 0 0 1 3.034 4.084.75.75 0 1 1-1.482.235 4 4 0 0 0-7.9 0 .75.75 0 0 1-1.482-.236A5.507 5.507 0 0 1 3.102 8.05 3.493 3.493 0 0 1 2 5.5ZM11 4a3.001 3.001 0 0 1 2.22 5.018 5.01 5.01 0 0 1 2.56 3.012.749.749 0 0 1-.885.954.752.752 0 0 1-.549-.514 3.507 3.507 0 0 0-2.522-2.372.75.75 0 0 1-.574-.73v-.352a.75.75 0 0 1 .416-.672A1.5 1.5 0 0 0 11 5.5.75.75 0 0 1 11 4Zm-5.5-.5a2 2 0 1 0-.001 3.999A2 2 0 0 0 5.5 3.5Z";
+
+// The framed Conversation's merge-box checks, its sidebar of reviewers, labels, and the rest, and
+// the timeline the sidebar sits beside or below. Listed in panel.css's GitHub hooks.
+const FRAME_CHECKS = '[data-testid="mergebox-partial"] section[aria-label="Checks"]';
+const FRAME_SIDEBAR = "#partial-discussion-sidebar";
+const FRAME_TIMELINE = ".js-discussion";
+
 /** What `conversationPanel` frames, and how it reaches storage and the framing rule. */
 export interface ConversationPanelOptions {
   pr: PrRef;
@@ -77,6 +91,10 @@ interface PanelView {
   readonly aside: HTMLElement;
   readonly body: HTMLElement;
   readonly pin: HTMLElement;
+  /** Jumps the frame to the checks, shown while it has them. */
+  readonly checks: HTMLElement;
+  /** Jumps the frame to its sidebar, shown while that sits below the timeline. */
+  readonly sidebar: HTMLElement;
   readonly separator: HTMLElement;
   /** Sizes the panel to the choice's width, and the page's room for it when pinned. */
   readonly size: () => void;
@@ -261,16 +279,22 @@ function mountPanel(
   },
   visit: AbortSignal,
 ): PanelView {
-  // Primer's small invisible IconButton, as the sidebar's side switch draws it.
-  const pin = el(
-    doc,
-    "button",
-    "gh-prism-conversation-pin tw:relative tw:shrink-0 tw:place-content-center tw:size-[var(--control-small-size,28px)] tw:p-0 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-iconColor-rest)] tw:[font:inherit] tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:hover:text-[color:var(--button-invisible-iconColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
-    icon(doc, PIN, {}),
-  );
-  pin.type = "button";
-  pin.setAttribute("aria-label", "Pin Conversation");
+  const pin = hideableIconButton(doc, "gh-prism-conversation-pin", "Pin Conversation", PIN);
   pin.addEventListener("click", togglePin);
+
+  const checks = hideableIconButton(
+    doc,
+    "gh-prism-conversation-checks",
+    "Jump to checks",
+    CHECKLIST,
+  );
+  const sidebar = hideableIconButton(
+    doc,
+    "gh-prism-conversation-sidebar",
+    "Jump to reviewers, labels, and projects",
+    PEOPLE,
+  );
+  checks.hidden = sidebar.hidden = true;
 
   const closeButton = el(
     doc,
@@ -287,7 +311,14 @@ function mountPanel(
     "header",
     "gh-prism-conversation-header tw:flex tw:items-center tw:gap-2 tw:px-3 tw:py-2",
     prismMark(doc),
-    el(doc, "h2", "tw:m-0 tw:flex-1 tw:text-body-medium tw:font-semibold", "Conversation"),
+    el(
+      doc,
+      "h2",
+      "tw:m-0 tw:min-w-0 tw:flex-1 tw:truncate tw:text-body-medium tw:font-semibold",
+      "Conversation",
+    ),
+    checks,
+    sidebar,
     pin,
     closeButton,
   );
@@ -312,7 +343,77 @@ function mountPanel(
   doc.getElementById(PANEL_ID)?.remove();
   doc.body.append(aside);
   visit.addEventListener("abort", () => aside.remove());
-  return { aside, body, pin, separator, size };
+  return { aside, body, pin, checks, sidebar, separator, size };
+}
+
+/**
+ * Primer's small invisible IconButton, as the sidebar's side switch draws it, named by `label`.
+ * panel.css displays it, so the `hidden` attribute still hides it.
+ */
+function hideableIconButton(
+  doc: Document,
+  className: string,
+  label: string,
+  path: string,
+): HTMLButtonElement {
+  const button = el(
+    doc,
+    "button",
+    `${className} gh-prism-conversation-tool tw:relative tw:shrink-0 tw:place-content-center tw:size-[var(--control-small-size,28px)] tw:p-0 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-iconColor-rest)] tw:[font:inherit] tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:hover:text-[color:var(--button-invisible-iconColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2`,
+    icon(doc, path, {}),
+  );
+  button.type = "button";
+  button.setAttribute("aria-label", label);
+  return button;
+}
+
+/**
+ * Shows each jump control while its section is in `frame`'s loaded Conversation, the sidebar's
+ * only while it sits below the timeline, following the frame's DOM and width until `visit` aborts.
+ */
+function followJumpTargets(view: PanelView, frame: HTMLIFrameElement, visit: AbortSignal): void {
+  const framed = frame.contentDocument;
+  if (!framed) return;
+  const sync = () => {
+    view.checks.hidden = !framed.querySelector(FRAME_CHECKS);
+    const sidebar = framed.querySelector(FRAME_SIDEBAR);
+    const timeline = framed.querySelector(FRAME_TIMELINE);
+    view.sidebar.hidden =
+      !sidebar ||
+      !timeline ||
+      sidebar.getBoundingClientRect().left >= timeline.getBoundingClientRect().right;
+  };
+
+  // GitHub's Conversation mutates often, so mutations share one layout read per frame.
+  let queued = false;
+  const syncNextFrame = () => {
+    if (queued) return;
+    queued = true;
+    frame.contentWindow?.requestAnimationFrame(() => {
+      queued = false;
+      sync();
+    });
+  };
+
+  sync();
+  const observer = new MutationObserver(syncNextFrame);
+  observer.observe(framed, { childList: true, subtree: true });
+  visit.addEventListener("abort", () => observer.disconnect());
+  frame.contentWindow?.addEventListener("resize", sync, { signal: visit });
+}
+
+/** Scrolls `frame` to put the top of its `selector` at the frame's top, smoothly if motion's on. */
+function jumpTo(frame: HTMLIFrameElement, selector: string): void {
+  const target = frame.contentDocument?.querySelector(selector);
+  const win = frame.contentWindow;
+  if (!target || !win) return;
+  const still = frame.ownerDocument.defaultView?.matchMedia(
+    "(prefers-reduced-motion: reduce)",
+  ).matches;
+  win.scrollTo({
+    top: target.getBoundingClientRect().top + win.scrollY,
+    behavior: still ? "instant" : "smooth",
+  });
 }
 
 /**
@@ -330,9 +431,13 @@ function loadFrame(
   frame.title = "Conversation";
   view.aside.dataset.state = "loading";
   view.body.append(skeleton(doc), frame);
+  view.checks.addEventListener("click", () => jumpTo(frame, FRAME_CHECKS));
+  view.sidebar.addEventListener("click", () => jumpTo(frame, FRAME_SIDEBAR));
 
   const showFailure = () => {
     view.aside.dataset.state = "failed";
+    view.checks.hidden = true;
+    view.sidebar.hidden = true;
     view.body.replaceChildren(failure(doc, pr));
   };
   // Whether a load has succeeded since the frame was last pointed at `url`, so a refused load
@@ -344,6 +449,7 @@ function loadFrame(
     if (frame.contentDocument) {
       loadedSincePoint = true;
       view.aside.dataset.state = "loaded";
+      followJumpTargets(view, frame, visit);
     } else if (loadedSincePoint) {
       // Left the marked URL, so the framing rule no longer matched.
       loadedSincePoint = false;

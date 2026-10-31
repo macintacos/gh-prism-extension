@@ -1,8 +1,16 @@
 /* GitHub hooks: .js-header-wrapper (the site header), and header[class*="prc-PageLayout-Header-"]
    holding nav[class*="TabNav__"], which carries the PR title bar, its sticky copy
-   [class*="prHeader__"] (hidden through that ancestor), and the tab row. Every rule is keyed on gh-prism's data-gh-prism-panel. */
+   [class*="prHeader__"] (hidden through that ancestor), and the tab row.
+   #diff-comparison-viewer-container, the page's container, whose top margin sat under the hidden
+   header. Every rule is keyed on gh-prism's data-gh-prism-panel. */
 
 html[data-gh-prism-panel] .js-header-wrapper,
 html[data-gh-prism-panel] header[class*="prc-PageLayout-Header-"]:has(nav[class*="TabNav__"]) {
   display: none;
+}
+
+/* PageLayout's own 16px gap above the content stays as the timeline's gap below the panel's
+   header. !important to beat Primer's !important tmp-mt-4. */
+html[data-gh-prism-panel] #diff-comparison-viewer-container {
+  margin-top: 0 !important;
 }

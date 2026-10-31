@@ -185,8 +185,10 @@ the state. Focus stays on it across the flip. It holds one Octicon in both state
 A toggle that opens or holds something keeps one name in both states and carries its state
 in ARIA instead, so the name says what it controls. The Conversation button keeps
 "Conversation" and sets `aria-expanded` while the panel is open; the panel's pin keeps
-"Pin Conversation" and sets `aria-pressed` while pinned. `conversation/panel.ts` builds
-both.
+"Pin Conversation" and sets `aria-pressed` while pinned. Between its title and pin, the
+panel's header holds two jump controls in the pin's form, "Jump to checks" and "Jump to
+reviewers, labels, and projects", each with a tooltip opening below the header and shown
+only while the frame has its section. `conversation/panel.ts` builds them all.
 
 The Older and Newer links beside a commit's SHA take Primer's ButtonGroup, not a switch's
 form, as a pull request's commit view pairs its Prev and Next: two small default Buttons

@@ -3156,7 +3156,10 @@ const CONVERSATION_FRAME_URL = "https://github.com/o/r/pull/1?gh-prism-panel=1";
 const CONVERSATION_CSP = "default-src 'none'; style-src 'unsafe-inline'";
 
 /** Serves the Files changed fixture and the panel's marked Conversation, framable. */
-async function serveConversation(context: BrowserContext): Promise<void> {
+async function serveConversation(
+  context: BrowserContext,
+  conversation = `<main id="conversation">A pull request's Conversation <a href="${CLASSIC_URL}">Files</a></main>`,
+): Promise<void> {
   await serve(context, PR_URL, PR_BODY);
   await context.route(
     (url) => url.href === CONVERSATION_FRAME_URL,
@@ -3164,7 +3167,7 @@ async function serveConversation(context: BrowserContext): Promise<void> {
       route.fulfill({
         contentType: "text/html",
         headers: { "content-security-policy": CONVERSATION_CSP },
-        body: `<!doctype html><main id="conversation">A pull request's Conversation <a href="${CLASSIC_URL}">Files</a></main>`,
+        body: `<!doctype html>${conversation}`,
       }),
   );
 }
@@ -3733,4 +3736,79 @@ test("pinning and unpinning keep the Conversation frame's document", async ({ co
       .locator("#conversation")
       .evaluate(() => (window as unknown as { kept?: string }).kept),
   ).toBe("yes");
+});
+
+// GitHub's Conversation, cut to its page container, a tall timeline holding the merge box's checks,
+// and the sidebar, which wraps below the timeline in a narrow frame as GitHub's layout does.
+const JUMPING_CONVERSATION = `<style>
+  body { margin: 0; }
+  .tmp-mt-4 { margin-top: 24px !important; }
+  .layout { display: flex; flex-wrap: wrap; gap: 16px; }
+  .js-discussion { flex: 1 0 480px; }
+</style>
+<div id="diff-comparison-viewer-container" class="tmp-mt-4">
+  <div class="layout">
+    <div class="js-discussion" id="conversation">
+      <div style="height: 2000px">The timeline</div>
+      <div data-testid="mergebox-partial"><section aria-label="Checks">Checks</section></div>
+      <div style="height: 600px"></div>
+    </div>
+    <div id="partial-discussion-sidebar" style="flex: 0 0 296px; height: 2000px">Reviewers</div>
+  </div>
+</div>`;
+
+const frameTop = (page: Page, selector: string) =>
+  page
+    .frameLocator("#gh-prism-conversation iframe")
+    .locator(selector)
+    .evaluate((node) => Math.round(node.getBoundingClientRect().top));
+
+test("the Conversation frame's first item sits right under the panel's header, without the page container's top margin", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context, JUMPING_CONVERSATION);
+  await page.goto(PR_URL);
+
+  await conversationButton(page).click();
+
+  await expect(page.locator("#gh-prism-conversation")).toHaveAttribute("data-state", "loaded");
+  expect(await frameTop(page, "#diff-comparison-viewer-container")).toBe(0);
+});
+
+test("the Conversation panel's checks control scrolls its frame to the checks", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context, JUMPING_CONVERSATION);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  await conversationButton(page).click();
+
+  const control = page.getByRole("button", { name: "Jump to checks" });
+
+  await control.click();
+
+  await expect.poll(() => frameTop(page, 'section[aria-label="Checks"]')).toBe(0);
+  await expect(control).toBeFocused();
+});
+
+test("the Conversation panel's sidebar control scrolls to a sidebar below the timeline, and hides once the panel is wide enough to put it beside", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context, JUMPING_CONVERSATION);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  await conversationButton(page).click();
+  const control = page.getByRole("button", { name: "Jump to reviewers, labels, and projects" });
+
+  await control.click();
+
+  await expect.poll(() => frameTop(page, "#partial-discussion-sidebar")).toBe(0);
+
+  await page.getByRole("separator", { name: "Resize Conversation" }).focus();
+  for (let press = 0; press < 100; press++) await page.keyboard.press("ArrowRight");
+
+  await expect(control).toBeHidden();
 });
