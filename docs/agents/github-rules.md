@@ -538,6 +538,16 @@ Below 1012px, a pull request's tree toggle opens the file tree as a "Files" over
   `section[class*="toolbar__"]:has([class*="RegularTreeToggle"])`.** A press on a button
   prepended to it can make React hydrate the toolbar and re-mount the button mid-press, so
   no `click` fires; `panel.ts`'s `attach` handles the press itself.
+- **Expect the toolbar row to space exactly two `[data-component="Stack"]` groups apart
+  with `justify-content: space-between`:** the start group holds the tree toggles and All
+  commits, the end group the review controls. A third item prepended to the row splits the
+  free space and strands the start group mid-row, so `panel.css` gives the end group
+  `margin-inline-start: auto`.
+- **Expect the `diffComparisonViewer` container to carry 32px of inline padding against
+  its `width >= 1012px` query.** GitHub swaps `RegularTreeToggle` for `MobileTreeToggle`
+  and undocks the tree below a 1076px page, not a 1012px one. Both toggles stay in the
+  DOM; the hidden one is `display: none`. A commit page has no such container and docks
+  its tree down to a 768px window.
 - **Expect Primer's Dialog to read `<html>`'s padding into `--prc-dialog-scrollgutter` on
   `<body>`.** `panel.css` accounts for it.
 - **Expect GitHub's router to take a link appended to Files changed's `<body>` and clicked
@@ -559,7 +569,8 @@ Below 1012px, a pull request's tree toggle opens the file tree as a "Files" over
   row's markup on the Conversation tab. In the open panel, read the container's computed
   `margin-top`, query the checks, sidebar, and timeline hooks on an open and a merged pull
   request, and compare the sidebar's left edge to the timeline's right edge as you widen
-  the panel past 780px.
+  the panel past 780px. Read the toolbar row's `justify-content` and children, and the
+  container's padding and the window at which `RegularTreeToggle` turns `display: none`.
 
 ## Files changed filters
 

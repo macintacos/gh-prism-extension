@@ -6,20 +6,25 @@
 
 import { el } from "./dom";
 
-// GitHub docks its file tree beside the diffs from 1012px, so the column takes only what a window
-// has past that, and the diffs never get less room than GitHub gives them there.
+// The column takes only what a window has past the width at which GitHub docks its file tree
+// beside the diffs, so the diffs never get less room than GitHub gives them there. A commit's tree
+// docks from a 768px window, so 1012px leaves its diffs room to spare.
 const DOCKED_FROM = 1012;
 // Primer's pane minimum.
 const MIN_WIDTH = 256;
 // Primer's pane divider steps 3px a key press.
 const STEP = 3;
 
-/** Whether a `viewport`-wide window has room for the column beside GitHub's docked layout. */
-export const fitsColumn = (viewport: number): boolean => viewport - DOCKED_FROM >= MIN_WIDTH;
+/**
+ * Whether a `viewport`-wide window has room for the column beside GitHub's docked layout, which
+ * needs `dockedFrom` px of window.
+ */
+export const fitsColumn = (viewport: number, dockedFrom = DOCKED_FROM): boolean =>
+  viewport - dockedFrom >= MIN_WIDTH;
 
 /** The widest the column can be on a `viewport`-wide window. */
-export const widestColumn = (viewport: number): number =>
-  Math.max(MIN_WIDTH, viewport - DOCKED_FROM);
+export const widestColumn = (viewport: number, dockedFrom = DOCKED_FROM): number =>
+  Math.max(MIN_WIDTH, viewport - dockedFrom);
 
 /** The width a reader picked, shared by every page in the tab. */
 export interface ColumnWidthChoice {

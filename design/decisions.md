@@ -6,6 +6,18 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-31: The pinned Conversation panel stops at GitHub's real breakpoint
+
+- **Compared:** bounding the pinned panel at the window less 1012px, letting its widest
+  width tip GitHub into its narrow layout and undock the file tree, or at the window less
+  1076px, where GitHub actually undocks it.
+- **Won:** 1076px, the window less a classic scrollbar. On a 1600px window the widest pin
+  is 524px, so the 560px default draws at 524 there. The commit message column keeps
+  1012px: a commit's tree docks down to 768px.
+- **Why:** GitHub measures its 1012px query against its diff viewer's content box, inside
+  32px of padding a side. The maintainer saw the tree toggle and side switch jump mid-row
+  as a wide pinned panel crossed it; the docked layout must hold beside any pinned width.
+
 ## 2026-10-31: The Conversation panel's header jumps to the checks and the sidebar
 
 - **Compared:**

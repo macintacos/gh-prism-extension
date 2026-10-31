@@ -689,6 +689,17 @@ describe("pinning", () => {
     expect(root.dataset.ghPrismConversation).toBe("pinned");
   });
 
+  // GitHub docks the tree while its diff viewer, padded 32px a side, is 1012px wide.
+  it("offers the pin only while the column leaves GitHub's docked layout 1076px of window", () => {
+    openPinned();
+
+    setViewport({ width: 1076 + 255, height: 768 });
+    expect(pin()?.hidden).toBe(true);
+
+    setViewport({ width: 1076 + 256, height: 768 });
+    expect(pin()?.hidden).toBe(false);
+  });
+
   it("stays open, pinned, on Escape and a pointerdown outside it", () => {
     const { panel } = openPinned();
 
@@ -722,7 +733,7 @@ describe("pinning", () => {
         new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
       );
 
-    expect(pinnedWidth()).toBe("388px");
+    expect(pinnedWidth()).toBe(`${WIDE.width - 1076}px`);
   });
 
   it("opens pinned on a visit whose choice is open, without taking focus", () => {
@@ -819,9 +830,9 @@ describe("resizing the overlay", () => {
     pin()?.click();
 
     expect(choice.width).toBe(410);
-    expect(aside()?.style.width).toBe(`${WIDE.width - 1012}px`);
+    expect(aside()?.style.width).toBe(`${WIDE.width - 1076}px`);
     expect(root.style.getPropertyValue("--gh-prism-conversation-width")).toBe(
-      `${WIDE.width - 1012}px`,
+      `${WIDE.width - 1076}px`,
     );
   });
 

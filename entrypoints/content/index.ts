@@ -53,6 +53,7 @@ import { type StepLinksOptions, showStepLinks } from "./commit/step-links";
 import {
   type ConversationChoice,
   conversationPanel,
+  fitsPinned,
   showConversationButton,
 } from "./conversation/panel";
 import { showReviewerFiles } from "./conversation/reviewer-files";
@@ -62,7 +63,6 @@ import { showOwnerSection } from "./sidebar/owner-section";
 import { showReportLink } from "./sidebar/report";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar/side";
 import type { WhatsNew } from "./sidebar/whats-new";
-import { fitsColumn } from "./ui/column-width";
 import { showHeaderTab, showVisit } from "./visit/land";
 import { watchClassicPages, watchFilesPages, watchHeaderPages } from "./visit/watch";
 
@@ -124,7 +124,11 @@ export default defineContentScript({
       save: saveDiffstat,
     } satisfies DiffstatOptions;
     const notice: NoticeChoice = { dismissed };
-    const conversation = conversationChoiceOf(savedPinned, savedConversationWidth, innerWidth);
+    const conversation = conversationChoiceOf(
+      savedPinned,
+      savedConversationWidth,
+      fitsPinned(window),
+    );
     const navigate = (href: string) => location.assign(href);
     let fullLoad = true;
     // Registered before watchFilesPages, so the flag clears before a navigation's visit runs.
@@ -413,17 +417,17 @@ const readSavedConversationWidth = (): Promise<unknown> =>
 
 /**
  * The Conversation panel's start on a full load: pinned and its width from `savedPinned` and
- * `savedWidth`, when each is one, else the defaults, and open only when pinned and a
- * `viewport`-wide window has room for the column.
+ * `savedWidth`, when each is one, else the defaults, and open only when pinned and the window
+ * `fits` the column.
  */
 function conversationChoiceOf(
   savedPinned: unknown,
   savedWidth: unknown,
-  viewport: number,
+  fits: boolean,
 ): ConversationChoice {
   const pinned = savedPinned === true;
   return {
-    open: pinned && fitsColumn(viewport),
+    open: pinned && fits,
     pinned,
     width: knownWidth(savedWidth, conversationWidth.fallback),
   };

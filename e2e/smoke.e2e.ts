@@ -2109,7 +2109,7 @@ test("the narrow side switch opens its tooltip toward the page's middle", async 
   await page.goto(PR_URL);
   await expect
     .poll(() =>
-      page.locator(".gh-prism-side-switch").evaluate((el) => getComputedStyle(el, "::after").left),
+      page.locator(".gh-prism-side-switch").evaluate((el) => getComputedStyle(el, "::after").right),
     )
     .toBe("0px");
 });
@@ -3190,6 +3190,48 @@ async function sessionRules(
   );
 }
 
+// GitHub's toolbar row, which spaces its two groups apart, inside the diffComparisonViewer
+// container whose content box swaps the regular tree toggle for the narrow layout's at 1012px.
+const PR_TOOLBAR_BODY = PR_BODY.replace(
+  '<section class="toolbar__ztHN6">',
+  '<style>body { margin: 0; } .viewer-x { container: diffComparisonViewer / inline-size; padding-inline: 32px; } section[class*="toolbar__"], section [data-component="Stack"] { display: flex; align-items: center; gap: 8px; } section[class*="toolbar__"] { justify-content: space-between; } [class*="TreeToggle"] { height: 28px; } [class*="RegularTreeToggle"] { display: none; } @container diffComparisonViewer (width >= 1012px) { [class*="MobileTreeToggle"] { display: none; } [class*="RegularTreeToggle"] { display: flex; } }</style><div class="viewer-x"><section class="toolbar__ztHN6">',
+).replace("</section>", "</section></div>");
+
+const boxRight = (box: { x: number; width: number } | null) => (box ? box.x + box.width : NaN);
+
+for (const [width, layout] of [
+  [1280, "regular"],
+  [1000, "narrow"],
+] as const) {
+  test(`the tree toggle ends the toolbar docked right and follows the Conversation button docked left, in GitHub's ${layout} layout`, async ({
+    context,
+    page,
+  }) => {
+    await serve(context, PR_URL, PR_TOOLBAR_BODY);
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(PR_URL);
+    const toggle = page.locator(
+      layout === "regular" ? '[class*="RegularTreeToggle"]' : '[class*="MobileTreeToggle"]',
+    );
+    const toolbar = page.locator('section[class*="toolbar__"]');
+    const sideSwitch = page.getByRole("button", { name: "Move file tree to the left" });
+    await expect(sideSwitch).toBeVisible();
+    const toggleBox = await toggle.boundingBox();
+    expect(boxRight(toggleBox)).toBeCloseTo(boxRight(await toolbar.boundingBox()), 0);
+    expect(boxRight(await sideSwitch.boundingBox())).toBeLessThan(toggleBox?.x ?? NaN);
+
+    await sideSwitch.click();
+    await expect(page.locator("html")).toHaveAttribute("data-gh-prism-side", "left");
+    await expect
+      .poll(
+        async () =>
+          ((await toggle.boundingBox())?.x ?? NaN) -
+          boxRight(await conversationButton(page).boundingBox()),
+      )
+      .toBe(8);
+  });
+}
+
 test("the Conversation button opens an overlay framing the pull request's Conversation", async ({
   context,
   page,
@@ -3482,6 +3524,28 @@ async function openPinned(page: Page): Promise<void> {
     .evaluate((html) => Promise.allSettled(html.getAnimations().map((slide) => slide.finished)));
 }
 
+test("the widest pinned Conversation panel leaves GitHub its docked layout", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  // Routed after serveConversation's copy, so this one answers.
+  await serve(context, PR_URL, PR_TOOLBAR_BODY);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  await openPinned(page);
+
+  const edge = await page.getByRole("separator", { name: "Resize Conversation" }).boundingBox();
+  if (!edge) throw new Error("no separator box");
+  await page.mouse.move(edge.x + edge.width / 2, edge.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(1500, edge.y + 200, { steps: 4 });
+  await page.mouse.up();
+
+  await expect(page.locator("#gh-prism-conversation")).toHaveCSS("width", "524px");
+  await expect(page.locator('[class*="RegularTreeToggle"]')).toBeVisible();
+});
+
 test("a pinned Conversation panel pushes the tree and diffs over, whichever side the tree docks on", async ({
   context,
   page,
@@ -3529,7 +3593,7 @@ test("a pinned Conversation panel resizes from its edge by mouse and keyboard, a
   const separator = page.getByRole("separator", { name: "Resize Conversation" });
 
   await openPinned(page);
-  await expect(panel).toHaveCSS("width", "560px");
+  await expect(panel).toHaveCSS("width", "524px");
   const edge = await separator.boundingBox();
   if (!edge) throw new Error("no separator box");
   const x = edge.x + edge.width / 2;
@@ -3538,12 +3602,12 @@ test("a pinned Conversation panel resizes from its edge by mouse and keyboard, a
   await page.mouse.down();
   await page.mouse.move(x - 40, y, { steps: 4 });
   await page.mouse.up();
-  await expect(panel).toHaveCSS("width", "520px");
-  expect((await columns(page)).pane?.left).toBeGreaterThanOrEqual(520);
+  await expect(panel).toHaveCSS("width", "484px");
+  expect((await columns(page)).pane?.left).toBeGreaterThanOrEqual(484);
 
   await separator.focus();
   await page.keyboard.press("ArrowLeft");
-  await expect(panel).toHaveCSS("width", "517px");
+  await expect(panel).toHaveCSS("width", "481px");
 
   // The pin and width save asynchronously; reload until a load reads them back.
   await expect(async () => {
@@ -3551,7 +3615,7 @@ test("a pinned Conversation panel resizes from its edge by mouse and keyboard, a
     await expect(page.locator("html")).toHaveAttribute("data-gh-prism-conversation", "pinned", {
       timeout: 5000,
     });
-    await expect(panel).toHaveCSS("width", "517px", { timeout: 5000 });
+    await expect(panel).toHaveCSS("width", "481px", { timeout: 5000 });
   }).toPass({ timeout: 20_000 });
   await expect(panel).not.toBeFocused();
 });

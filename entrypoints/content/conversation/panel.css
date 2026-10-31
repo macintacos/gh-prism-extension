@@ -1,12 +1,20 @@
-/* GitHub hooks: Primer's --prc-dialog-scrollgutter. In the framed Conversation, panel.ts reads
-   [data-testid="mergebox-partial"] section[aria-label="Checks"], #partial-discussion-sidebar,
-   and .js-discussion. */
+/* GitHub hooks: Primer's --prc-dialog-scrollgutter; section[class*="toolbar__"], a
+   justify-content: space-between row of two [data-component="Stack"] groups, the end one last.
+   In the framed Conversation, panel.ts reads [data-testid="mergebox-partial"]
+   section[aria-label="Checks"], #partial-discussion-sidebar, and .js-discussion. */
 @import "../ui/tailwind.css" prefix(tw);
 @import "../ui/column-width.css";
 @import "../ui/mark.css";
 @import "../ui/keycap.css";
 @source "./panel.ts";
 @source "../ui/keycap.ts";
+
+/* GitHub's toolbar row spaces its two groups apart; the button makes a third item, so the end
+   group takes the free space and the start group stays beside the button. */
+section[class*="toolbar__"]:has(> .gh-prism-conversation-button)
+  > [data-component="Stack"]:last-child {
+  margin-inline-start: auto;
+}
 
 /* Primer's tooltip, opening rightward from the toolbar's start. */
 .gh-prism-conversation-button::after {

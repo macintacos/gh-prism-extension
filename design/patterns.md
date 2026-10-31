@@ -226,11 +226,13 @@ covers. The Conversation panel in `conversation/panel.css` is the one such pane;
 
 A column on the left of the page takes a separator on its inner edge, copying Primer's
 pane divider: drag it, or step it 3px with the arrow keys, between Primer's 256px pane
-minimum and what the window has past GitHub's 1012px docked layout. Every page in the tab
-shares the width the reader picked. `ui/column-width.ts` and `ui/column-width.css` build
-it for the commit message column and the Conversation panel. The Conversation panel's
-overlay takes the same separator but floats over the page, so its bound is the window less
-48px, the strip left to click outside it.
+minimum and what the window has past GitHub's docked layout: 1076px on a pull request,
+where GitHub's 1012px query meets its diff viewer's 32px padding a side, and 1012px for a
+commit's message, whose tree docks down to 768px. Every page in the tab shares the width
+the reader picked. `ui/column-width.ts` and `ui/column-width.css` build it for the commit
+message column and the Conversation panel. The Conversation panel's overlay takes the same
+separator but floats over the page, so its bound is the window less 48px, the strip left
+to click outside it.
 
 ## Code owner's files
 

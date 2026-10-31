@@ -81,9 +81,43 @@ section[class*="toolbar__"]:has([class*="MobileTreeToggle"]) .gh-prism-side-swit
   & [class*="prc-Dialog-Dialog-"]:has(#pr-file-tree) {
     border-radius: var(--borderRadius-large) 0 0 var(--borderRadius-large);
   }
+}
 
-  /* Point the toggle's icon where the overlay opens. */
-  & [class*="MobileTreeToggle"] svg {
+/* Docked right, the switch ends the toolbar, so its tooltip opens leftward. */
+[data-gh-prism-side="right"] .gh-prism-side-switch::after {
+  inset-inline: auto 0;
+}
+
+/* The toolbar's left group dissolves into the row, so the toggle and switch can end it. */
+[data-gh-prism-side="right"] section[class*="toolbar__"]:has([class*="RegularTreeToggle"]) {
+  & > :has(> * > [class*="RegularTreeToggle"]) {
+    display: contents;
+  }
+
+  & > [data-component="Stack"]:not(:has([class*="RegularTreeToggle"])) {
+    margin-inline-start: auto;
+  }
+
+  & :has(> [class*="RegularTreeToggle"]) {
+    order: 2;
+  }
+
+  /* Set apart from the side-panel toggles by a divider like the toolbar's own. */
+  & .gh-prism-side-switch {
+    order: 1;
+    margin-inline-start: 17px;
+  }
+
+  & .gh-prism-side-switch::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: -13px;
+    border-inline-start: var(--borderWidth-thin, 1px) solid var(--borderColor-default);
+  }
+
+  /* Point the toggle's icon at the tree. */
+  & [class*="TreeToggle"] svg {
     scale: -1 1;
   }
 }
@@ -218,11 +252,6 @@ section[class*="toolbar__"]:has([class*="MobileTreeToggle"]) .gh-prism-side-swit
     display: inline-grid;
   }
 
-  /* Docked right, the switch ends the toolbar, so its tooltip opens leftward. */
-  [data-gh-prism-side="right"] .gh-prism-side-switch::after {
-    inset-inline: auto 0;
-  }
-
   /* Primer's own end-position styles: after the diffs, its divider on the inner edge. */
   [data-gh-prism-side="right"]
   [class*="PageLayout-PaneWrapper"]:has(:is(#pr-file-tree, #diff_file_tree)) {
@@ -242,40 +271,6 @@ section[class*="toolbar__"]:has([class*="MobileTreeToggle"]) .gh-prism-side-swit
 
   [data-gh-prism-side="right"] :where(#pr-file-tree) .gh-prism-sections {
     margin-inline: var(--base-size-16) 0;
-  }
-
-  /* The toolbar's left group dissolves into the row, so the toggle and switch can end it. */
-  [data-gh-prism-side="right"] section[class*="toolbar__"]:has([class*="RegularTreeToggle"]) {
-    & > :has(> * > [class*="RegularTreeToggle"]) {
-      display: contents;
-    }
-
-    & > [data-component="Stack"]:not(:has([class*="RegularTreeToggle"])) {
-      margin-inline-start: auto;
-    }
-
-    & :has(> [class*="RegularTreeToggle"]) {
-      order: 2;
-    }
-
-    /* Set apart from the side-panel toggles by a divider like the toolbar's own. */
-    & .gh-prism-side-switch {
-      order: 1;
-      margin-inline-start: 17px;
-    }
-
-    & .gh-prism-side-switch::before {
-      content: "";
-      position: absolute;
-      inset-block: 0;
-      inset-inline-start: -13px;
-      border-inline-start: var(--borderWidth-thin, 1px) solid var(--borderColor-default);
-    }
-
-    /* Point the toggle's icon at the tree. */
-    & [class*="TreeToggle"] svg {
-      scale: -1 1;
-    }
   }
 
   /* A commit's toolbar: the toggle and switch end it, after its full-width search. */

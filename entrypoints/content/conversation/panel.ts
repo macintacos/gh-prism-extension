@@ -47,6 +47,16 @@ const ORIGIN = "https://github.com";
 const WIDTH_PROPERTY = "--gh-prism-conversation-width";
 // The strip of page left beside the widest overlay, to click outside it.
 const OVERLAY_GUTTER = 48;
+// GitHub docks a pull request's tree while its diff viewer's content box, inside 32px of padding
+// a side, is 1012px wide.
+const DOCKED_FROM = 1012 + 2 * 32;
+
+/** The window's width less a classic scrollbar, which GitHub's diff viewer never gets. */
+const pageWidth = (win: Window | null): number =>
+  win ? win.document.documentElement.clientWidth || win.innerWidth : 0;
+
+/** Whether `win` has room for the pinned panel beside GitHub's docked layout. */
+export const fitsPinned = (win: Window | null): boolean => fitsColumn(pageWidth(win), DOCKED_FROM);
 
 /** Octicons (MIT, GitHub Inc.): pin. */
 const PIN =
@@ -117,7 +127,7 @@ export function conversationPanel(
   let open = false;
 
   const syncExpanded = () => button?.setAttribute("aria-expanded", String(open));
-  const fits = () => fitsColumn(doc.defaultView?.innerWidth ?? 0);
+  const fits = () => fitsPinned(doc.defaultView);
   /** How the panel should be drawn, as `open`, the choice, and the window allow. */
   const mode = (): Mode => (!open ? "closed" : choice.pinned && fits() ? "column" : "overlay");
   let drawn: Mode = "closed";
@@ -331,7 +341,10 @@ function mountPanel(
     onSize: (width) => {
       if (isColumn()) doc.documentElement.style.setProperty(WIDTH_PROPERTY, `${width}px`);
     },
-    widest: (viewport) => (isColumn() ? widestColumn(viewport) : viewport - OVERLAY_GUTTER),
+    widest: (viewport) =>
+      isColumn()
+        ? widestColumn(pageWidth(doc.defaultView), DOCKED_FROM)
+        : viewport - OVERLAY_GUTTER,
   });
   aside.append(separator);
   aside.id = PANEL_ID;
