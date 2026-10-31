@@ -3323,3 +3323,201 @@ test("under reduced motion the Conversation overlay opens without moving", async
   await expect(panel).toBeVisible();
   expect(await panel.evaluate((el) => el.getAnimations().length)).toBe(0);
 });
+
+// The Files changed fixture inside GitHub's flex row and diffComparisonViewer container, with the
+// tree at a fixed width, for a test that reads where the panel, tree, and diffs sit.
+const PR_LAYOUT_BODY = `${PR_BODY.replace(
+  '<div id="pr-file-tree">',
+  '<style>.prc-PageLayout-PageLayoutContent-x { display: flex; align-items: flex-start; container: diffComparisonViewer / inline-size; } .prc-PageLayout-PaneWrapper-x { flex: none; width: 300px; } .prc-PageLayout-ContentWrapper-x { flex: 1; min-width: 0; }</style><div class="prc-PageLayout-PageLayoutContent-x"><div class="prc-PageLayout-PaneWrapper-x"><div id="pr-file-tree">',
+).replace(
+  '<div data-testid="diff-content">',
+  '</div><div class="prc-PageLayout-ContentWrapper-x"><div data-testid="diff-content">',
+)}</div></div>`;
+
+/** Serves the laid-out Files changed fixture and the panel's marked Conversation, framable. */
+async function serveLaidOutConversation(context: BrowserContext): Promise<void> {
+  await serveConversation(context);
+  // Routed after serveConversation's copy, so this one answers.
+  await serve(context, PR_URL, PR_LAYOUT_BODY);
+}
+
+const pinControl = (page: Page) =>
+  page.locator("#gh-prism-conversation").getByRole("button", { name: "Pin Conversation" });
+
+/** The panel's, tree's, and diffs' left and right edges. */
+const columns = (page: Page) =>
+  page.evaluate(() => {
+    const edges = (selector: string) => {
+      const element = document.querySelector(selector);
+      if (!element || !element.getClientRects().length) return null;
+      const { left, right } = element.getBoundingClientRect();
+      return { left: Math.round(left), right: Math.round(right) };
+    };
+    return {
+      panel: edges("#gh-prism-conversation"),
+      pane: edges('[class*="PageLayout-PaneWrapper"]'),
+      diffs: edges('[data-testid="diff-content"]'),
+    };
+  });
+
+/** Opens the panel and pins it, once the frame has loaded. */
+async function openPinned(page: Page): Promise<void> {
+  await conversationButton(page).click();
+  await expect(
+    page.frameLocator("#gh-prism-conversation iframe").locator("#conversation"),
+  ).toBeVisible();
+  await pinControl(page).click();
+  await expect(page.locator("html")).toHaveAttribute("data-gh-prism-conversation", "pinned");
+  // A view transition's pseudo-elements take the pointer until the page settles.
+  await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-glide");
+}
+
+test("a pinned Conversation panel pushes the tree and diffs over, whichever side the tree docks on", async ({
+  context,
+  page,
+}) => {
+  await serveLaidOutConversation(context);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+
+  await openPinned(page);
+  await expect(pinControl(page)).toHaveAttribute("aria-pressed", "true");
+
+  const right = await columns(page);
+  expect(right.panel?.left).toBe(0);
+  expect(right.diffs?.left).toBeGreaterThanOrEqual(right.panel?.right ?? Infinity);
+  expect(right.pane?.left).toBeGreaterThanOrEqual(right.diffs?.right ?? Infinity);
+
+  await page.getByRole("button", { name: "Move file tree to the left" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-gh-prism-side", "left");
+  await expect
+    .poll(async () => (await columns(page)).pane?.left)
+    .toBeLessThan(right.diffs?.right ?? 0);
+  const left = await columns(page);
+  expect(left.panel?.left).toBe(0);
+  expect(left.pane?.left).toBeGreaterThanOrEqual(left.panel?.right ?? Infinity);
+  expect(left.diffs?.left).toBeGreaterThanOrEqual(left.pane?.right ?? Infinity);
+
+  // A routed fixture runs no GitHub script, so the tree collapses as GitHub's toggle leaves it.
+  await page
+    .locator('[class*="PageLayout-PaneWrapper"]')
+    .evaluate((pane) => pane.setAttribute("hidden", ""));
+  const collapsed = await columns(page);
+  expect(collapsed.pane).toBeNull();
+  expect(collapsed.panel?.left).toBe(0);
+  expect(collapsed.diffs?.left).toBeGreaterThanOrEqual(collapsed.panel?.right ?? Infinity);
+});
+
+test("a pinned Conversation panel resizes from its edge by mouse and keyboard, and keeps its width and pin after a reload", async ({
+  context,
+  page,
+}) => {
+  await serveLaidOutConversation(context);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  const panel = page.locator("#gh-prism-conversation");
+  const separator = page.getByRole("separator", { name: "Resize Conversation" });
+
+  await openPinned(page);
+  await expect(panel).toHaveCSS("width", "480px");
+  const edge = await separator.boundingBox();
+  if (!edge) throw new Error("no separator box");
+  const x = edge.x + edge.width / 2;
+  const y = edge.y + 200;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 40, y, { steps: 4 });
+  await page.mouse.up();
+  await expect(panel).toHaveCSS("width", "520px");
+  expect((await columns(page)).pane?.left).toBeGreaterThanOrEqual(520);
+
+  await separator.focus();
+  await page.keyboard.press("ArrowLeft");
+  await expect(panel).toHaveCSS("width", "517px");
+
+  // The pin and width save asynchronously; reload until a load reads them back.
+  await expect(async () => {
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-gh-prism-conversation", "pinned", {
+      timeout: 5000,
+    });
+    await expect(panel).toHaveCSS("width", "517px", { timeout: 5000 });
+  }).toPass({ timeout: 20_000 });
+  await expect(panel).not.toBeFocused();
+});
+
+test("a GitHub dialog opened beside a pinned Conversation panel keeps the page's width", async ({
+  context,
+  page,
+}) => {
+  await serveLaidOutConversation(context);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  await openPinned(page);
+  const before = await columns(page);
+
+  // What Primer's Dialog does on open: it reads the page's padding as a scrollbar to replace.
+  await page.evaluate(() => {
+    const gutter = window.innerWidth - document.body.clientWidth;
+    document.body.style.setProperty("--prc-dialog-scrollgutter", `${gutter}px`);
+    document.body.style.paddingRight = "var(--prc-dialog-scrollgutter)";
+  });
+
+  expect(await columns(page)).toEqual(before);
+});
+
+test("an unpinned Conversation panel starts closed after a reload", async ({ context, page }) => {
+  await serveLaidOutConversation(context);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+
+  await openPinned(page);
+  await pinControl(page).click();
+  await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-conversation");
+
+  // The unpin saves asynchronously; reload until a load starts closed.
+  await expect(async () => {
+    await page.reload();
+    await expect(conversationButton(page)).toHaveAttribute("aria-expanded", "false", {
+      timeout: 5000,
+    });
+    await expect(page.locator("#gh-prism-conversation")).toHaveCount(0);
+  }).toPass({ timeout: 20_000 });
+});
+
+test("on a window too narrow for the column, the Conversation panel offers no pin and opens as the overlay", async ({
+  context,
+  page,
+}) => {
+  await serveLaidOutConversation(context);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  await openPinned(page);
+
+  await page.setViewportSize({ width: 1200, height: 900 });
+
+  await expect(pinControl(page)).toBeHidden();
+  await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-conversation");
+  await expect(page.locator("#gh-prism-conversation")).toBeVisible();
+  expect((await columns(page)).diffs?.left).toBeLessThan(100);
+});
+
+test("pinning and unpinning keep the Conversation frame's document", async ({ context, page }) => {
+  await serveLaidOutConversation(context);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+  await conversationButton(page).click();
+  const frame = page.frameLocator("#gh-prism-conversation iframe");
+  await frame.locator("#conversation").evaluate(() => Object.assign(window, { kept: "yes" }));
+
+  await pinControl(page).click();
+  await expect(page.locator("html")).toHaveAttribute("data-gh-prism-conversation", "pinned");
+  await pinControl(page).click();
+  await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-conversation");
+
+  expect(
+    await frame
+      .locator("#conversation")
+      .evaluate(() => (window as unknown as { kept?: string }).kept),
+  ).toBe("yes");
+});

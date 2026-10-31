@@ -47,6 +47,22 @@ export const commitColumnWidth = storage.defineItem<number>("local:commitColumnW
 });
 
 /**
+ * Whether the user last left the Conversation panel pinned beside Files changed; Chrome sync
+ * carries it to their other computers when on.
+ */
+export const conversationPinned = storage.defineItem<boolean>("sync:conversationPinned", {
+  fallback: false,
+});
+
+/**
+ * The width, in pixels, the user last set the pinned Conversation panel to; kept on this computer
+ * only, since it fits this computer's screen.
+ */
+export const conversationWidth = storage.defineItem<number>("local:conversationWidth", {
+  fallback: 480,
+});
+
+/**
  * The commits whose message the user hid, newest last, keyed as `utils/hidden-commits.ts` keys
  * them; kept on this computer only.
  */

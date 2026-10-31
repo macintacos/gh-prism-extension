@@ -1,5 +1,6 @@
-/* GitHub hooks: [class*="toolbar__"], [class*="RegularTreeToggle"]. */
+/* GitHub hooks: [class*="toolbar__"], [class*="RegularTreeToggle"], Primer's --prc-dialog-scrollgutter. */
 @import "../ui/tailwind.css" prefix(tw);
+@import "../ui/column-width.css";
 @import "../ui/mark.css";
 @source "./panel.ts";
 
@@ -71,6 +72,43 @@ section[class*="toolbar__"]:has([class*="RegularTreeToggle"]) > .gh-prism-conver
   .gh-prism-conversation:not([hidden]) {
     translate: -100%;
   }
+}
+
+/* Pinned, the whole page moves right of the panel, whatever GitHub's layout does inside it. */
+:root[data-gh-prism-conversation="pinned"] {
+  padding-inline-start: var(--gh-prism-conversation-width);
+}
+
+/* Primer's dialog measures the page's padding as scrollbar and pads <body> by it; keep only the
+   scrollbar. The !important beats the inline value Primer sets. */
+:root[data-gh-prism-conversation="pinned"] body {
+  --prc-dialog-scrollgutter: calc(100vw - 100% - var(--gh-prism-conversation-width)) !important;
+}
+
+/* Pinned, a column beside the page rather than a surface over it: a hairline in place of the
+   shadow. panel.ts sets the width inline. */
+:root[data-gh-prism-conversation="pinned"] .gh-prism-conversation {
+  box-shadow: 1px 0 0 var(--borderColor-default);
+}
+
+/* The button's inline-grid utility beats the user-agent sheet's [hidden]. */
+.gh-prism-conversation-pin[hidden] {
+  display: none;
+}
+
+.gh-prism-conversation-pin[aria-pressed="true"] {
+  color: var(--fgColor-accent);
+}
+
+/* The page cross-fades to its new place while the panel holds still. */
+:root[data-gh-prism-glide="pin"] .gh-prism-conversation {
+  view-transition-name: gh-prism-conversation;
+}
+
+:root[data-gh-prism-glide="pin"]::view-transition-old(root),
+:root[data-gh-prism-glide="pin"]::view-transition-new(root) {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
 .gh-prism-conversation:focus-visible {

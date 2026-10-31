@@ -6,6 +6,41 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-30: The pinned Conversation panel's pin, edge, and motion
+
+- **Compared:**
+  - for the pin control, a menu item, or a header button before ✕;
+  - for its state, a name that flips between "Pin" and "Unpin", or one name with
+    `aria-pressed`;
+  - for the pinned edge, the overlay's shadow, or a hairline;
+  - for the resize handle, a new grip, or the commit message column's separator;
+  - for pinning's motion, sliding the page by the panel's width, or a cross-fade with the
+    panel held still.
+- **Won:**
+  - A header button between the title and ✕: the same small IconButton, in Primer's
+    `invisible` variant, as the sidebar's side switch, with Octicons `pin`, named "Pin
+    Conversation" in both states.
+  - Pressed, the icon takes `--fgColor-accent`.
+  - Pinned, the panel drops its shadow for a 1px `--borderColor-default` hairline on its
+    right edge.
+  - The commit message column's separator, shared from `ui/column-width.ts`, on the pinned
+    panel's right edge only.
+  - Pinning and unpinning cross-fade the page over 280 ms on
+    `cubic-bezier(0.2, 0.7, 0.2, 1)`, the Spatial row in `tokens.md`, while the panel
+    holds still. Under reduced motion the page takes its new place at once, with no fade.
+- **Why:**
+  - The pin is used often enough to sit in reach rather than in a menu, and the header
+    already holds ✕.
+  - The control is a toggle, so `aria-pressed` carries the state and its name stays put,
+    as the Conversation button's does.
+  - The accent colour shows the pressed state, since the name doesn't change.
+  - Pinned, the panel is a column beside the page, not a surface above it. The hairline
+    matches the commit message column's edge.
+  - A second grip would teach a second way to resize a column.
+  - A slide needs the panel's width before and after the toggle, but unpinning removes the
+    width from the page. The cross-fade shows the page making room while the panel stays
+    put, because moving the panel's iframe would reload the Conversation.
+
 ## 2026-10-30: The Conversation panel's overlay, button, loading, and failure
 
 - **Compared:**

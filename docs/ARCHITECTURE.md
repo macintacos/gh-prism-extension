@@ -156,9 +156,22 @@ These close the overlay:
 - Escape on the page, or an Escape the frame relays;
 - a pointerdown outside the panel and its button.
 
-A tab-wide `ConversationChoice` object carries whether the panel is open, so a soft
-navigation to another pull request's Files changed opens the new one's panel without
-taking focus.
+The pin control in the panel's header pins it. Pinned, the panel stays put and sets
+`data-gh-prism-conversation="pinned"` and `--gh-prism-conversation-width` on `<html>`, and
+`panel.css` pads `<html>` by that width, so the whole page, GitHub's own layout included,
+sits right of the panel whichever side the sidebar docks on. Only the toolbar button and ✕
+close a pinned panel. Its right edge carries `columnSeparator` from `ui/column-width.ts`,
+which sets the width, saved as `conversationWidth` in
+[`utils/prefs.ts`](../utils/prefs.ts). On a window too narrow for that column, as
+`fitsColumn` judges, the pin control hides and a pinned panel draws as the overlay; a
+`resize` listener switches between the two. Pinning and unpinning only change attributes
+and styles, never the frame, and the page moves through a view transition from
+[`ui/glide.ts`](../entrypoints/content/ui/glide.ts), which the sidebar's glides share.
+
+A tab-wide `ConversationChoice` object carries whether the panel is open and pinned and
+its width, so a soft navigation to another pull request's Files changed opens the new
+one's panel without taking focus. `conversationPinned` is saved too, and a full load opens
+the panel only when it was left pinned and the window fits the column.
 
 ## The classic page notice
 
@@ -268,14 +281,15 @@ as GitHub insets its file tree and diffs. Above the diffs, they float beside the
 first line, and the message keeps GitHub's box's 8px 12px inset.
 
 The column is 320px wide until the reader resizes it. `columnSeparator` in
-[`entrypoints/content/commit/column-width.ts`](../entrypoints/content/commit/column-width.ts)
-builds a `role="separator"` on the column's inner edge, copying the Primer pane divider on
-GitHub's file tree: dragging it, or its arrow keys at 3px a press, sets the width, which
-saves as `commitColumnWidth` in [`utils/prefs.ts`](../utils/prefs.ts) and carries to every
-commit in the tab. The width holds between Primer's 256px pane minimum and what the window
-has past 1012px, so the column narrows with the window, and moves back above the diffs
-once the window can't spare 256px, below 1268px. A `resize` listener applies both, and a
-commit page with no row keeps the message above the diffs at any width.
+[`entrypoints/content/ui/column-width.ts`](../entrypoints/content/ui/column-width.ts),
+which the pinned Conversation panel shares, builds a `role="separator"` on the column's
+inner edge, styled by the `ui/column-width.css` partial, copying the Primer pane divider
+on GitHub's file tree: dragging it, or its arrow keys at 3px a press, sets the width,
+which saves as `commitColumnWidth` in [`utils/prefs.ts`](../utils/prefs.ts) and carries to
+every commit in the tab. The width holds between Primer's 256px pane minimum and what the
+window has past 1012px, so the column narrows with the window, and moves back above the
+diffs once the window can't spare 256px, below 1268px. A `resize` listener applies both,
+and a commit page with no row keeps the message above the diffs at any width.
 
 A hide button beside the switch takes the message off the page, column and all, and puts
 `div.gh-prism-commit-restore` in GitHub's box's place, before the slot that keeps the box

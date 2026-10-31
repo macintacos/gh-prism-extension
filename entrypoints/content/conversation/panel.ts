@@ -7,15 +7,21 @@
 import { conversationFrameUrl } from "@/utils/github/conversation-frame";
 import type { PrRef } from "@/utils/github/pr-ref";
 import { type FilesPage, findFilesToolbar } from "../files-page";
+import { type ColumnWidthChoice, columnSeparator, fitsColumn } from "../ui/column-width";
 import { el, icon, X_ICON } from "../ui/dom";
+import { glide } from "../ui/glide";
 import { prismMark } from "../ui/mark";
 import { CONVERSATION_ESCAPE, isFrameMessage } from "./frame-messages";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./panel.css?inline";
 
-/** Whether the panel is open. One per tab, so an open panel carries to the next pull request. */
-export interface ConversationChoice {
+/**
+ * Whether the panel is open and pinned, and its pinned width. One per tab, so an open panel
+ * carries to the next pull request.
+ */
+export interface ConversationChoice extends ColumnWidthChoice {
   open: boolean;
+  pinned: boolean;
 }
 
 /** A visit's Conversation panel, as `conversationPanel` builds it. */
@@ -30,6 +36,12 @@ export interface ConversationPanel {
 
 const PANEL_ID = "gh-prism-conversation";
 const ORIGIN = "https://github.com";
+// Read by panel.css's padding on <html>, which makes the pinned panel's room.
+const WIDTH_PROPERTY = "--gh-prism-conversation-width";
+
+/** Octicons (MIT, GitHub Inc.): pin. */
+const PIN =
+  "m11.294.984 3.722 3.722a1.75 1.75 0 0 1-.504 2.826l-1.327.613a3.09 3.09 0 0 0-1.707 2.084l-.584 2.454c-.317 1.332-1.972 1.8-2.94.832L5.75 11.311 1.78 15.28a.749.749 0 1 1-1.06-1.06l3.969-3.97-2.204-2.204c-.968-.968-.5-2.623.832-2.94l2.454-.584a3.08 3.08 0 0 0 2.084-1.707l.613-1.327a1.75 1.75 0 0 1 2.826-.504M6.283 9.723l2.732 2.731a.25.25 0 0 0 .42-.119l.584-2.454a4.59 4.59 0 0 1 2.537-3.098l1.328-.613a.25.25 0 0 0 .072-.404l-3.722-3.722a.25.25 0 0 0-.404.072l-.613 1.328a4.58 4.58 0 0 1-3.098 2.537l-2.454.584a.25.25 0 0 0-.119.42l2.731 2.732Z";
 
 /** Octicons 19.15.0 (MIT, GitHub Inc.): comment-discussion. */
 const COMMENT_DISCUSSION =
@@ -43,6 +55,10 @@ const ICON_BUTTON =
 interface PanelView {
   readonly aside: HTMLElement;
   readonly body: HTMLElement;
+  readonly pin: HTMLElement;
+  readonly separator: HTMLElement;
+  /** Sizes the pinned panel, and the page's room for it, to the choice's width. */
+  readonly size: () => void;
 }
 
 /**
@@ -56,34 +72,81 @@ export function conversationPanel(
     choice: ConversationChoice;
     fetch: typeof fetch;
     allowFraming: (pr: PrRef, policy: string, signal: AbortSignal) => Promise<boolean>;
+    /** Remembers whether the reader pinned the panel. */
+    savePinned: (pinned: boolean) => void;
+    /** Remembers a width the pinned panel was set to. */
+    saveWidth: (width: number) => void;
     visit: AbortSignal;
   },
 ): ConversationPanel {
-  const { pr, choice, visit } = options;
+  const { choice, savePinned, saveWidth, visit } = options;
+  const root = doc.documentElement;
   let view: PanelView | undefined;
   let frame: HTMLIFrameElement | undefined;
   let button: HTMLElement | undefined;
+  let pressed: HTMLElement | undefined;
   let open = false;
 
   const sync = () => button?.setAttribute("aria-expanded", String(open));
+  const fits = () => fitsColumn(doc.defaultView?.innerWidth ?? 0);
+  const pinned = () => open && choice.pinned && fits();
+
+  /** Draws the panel pinned or as the overlay, as the choice and the window allow. */
+  function layout(): void {
+    if (!view) return;
+    view.aside.hidden = !open;
+    view.pin.hidden = !fits();
+    view.pin.setAttribute("aria-pressed", String(choice.pinned));
+    view.separator.hidden = !pinned();
+    if (pinned()) {
+      root.dataset.ghPrismConversation = "pinned";
+      view.size();
+    } else {
+      unpinPage(root);
+      view.aside.style.removeProperty("width");
+    }
+  }
+
+  /** Runs `layout`, gliding the page when it moves, unless the sidebar is already gliding. */
+  function relayout(): void {
+    const moves = (root.dataset.ghPrismConversation === "pinned") !== pinned();
+    if (moves && root.dataset.ghPrismGlide === undefined) glide(doc, "pin", layout);
+    else layout();
+  }
 
   function show(focus: boolean): void {
-    view ??= mountPanel(doc, () => panel.close(), visit);
+    view ??= mountPanel(doc, { close: () => panel.close(), togglePin, choice, saveWidth }, visit);
     frame ??= loadFrame(doc, view, options);
     open = choice.open = true;
     view.aside.hidden = false;
     sync();
-    if (focus) view.aside.focus({ preventScroll: true });
+    if (!focus) {
+      layout();
+      return;
+    }
+    relayout();
+    view.aside.focus({ preventScroll: true });
   }
 
   function hide(): void {
     if (!view || !open) return;
     const heldFocus = view.aside.contains(doc.activeElement);
     open = choice.open = false;
-    view.aside.hidden = true;
+    relayout();
     sync();
     if (heldFocus) button?.focus();
   }
+
+  function togglePin(): void {
+    choice.pinned = !choice.pinned;
+    savePinned(choice.pinned);
+    relayout();
+  }
+
+  /** Closes the overlay; a pinned panel stays until its own close or the toolbar button. */
+  const dismiss = () => {
+    if (!pinned()) hide();
+  };
 
   const panel: ConversationPanel = {
     toggle: () => (open ? hide() : show(true)),
@@ -93,6 +156,12 @@ export function conversationPanel(
     },
     attach(next) {
       button = next;
+      // Hydrating the toolbar on a press can swap the button mid-press, and then no click fires.
+      next.addEventListener("pointerdown", () => (pressed = next));
+      next.addEventListener("pointerup", () => {
+        if (pressed && !pressed.isConnected) panel.toggle();
+        pressed = undefined;
+      });
       next.setAttribute("aria-controls", PANEL_ID);
       sync();
     },
@@ -103,21 +172,49 @@ export function conversationPanel(
   doc.head.append(style);
   visit.addEventListener("abort", () => style.remove());
 
-  dismissOnEscape(doc, () => open, hide, visit);
+  visit.addEventListener("abort", () => unpinPage(root));
+  doc.defaultView?.addEventListener("resize", layout, { signal: visit });
+
+  dismissOnEscape(doc, () => open, dismiss, visit);
   dismissOnOutsidePointer(
     doc,
     (target) => target === button || !!view?.aside.contains(target),
     () => open,
-    hide,
+    dismiss,
     visit,
   );
-  followFrameMessages(doc, () => frame, hide, visit);
+  followFrameMessages(doc, () => frame, dismiss, visit);
   if (choice.open) show(false);
   return panel;
 }
 
+/** Lets the page back from a pinned panel's column. */
+function unpinPage(root: HTMLElement): void {
+  delete root.dataset.ghPrismConversation;
+  root.style.removeProperty(WIDTH_PROPERTY);
+}
+
 /** Appends the panel's `<aside>`, hidden, until `visit` aborts. */
-function mountPanel(doc: Document, close: () => void, visit: AbortSignal): PanelView {
+function mountPanel(
+  doc: Document,
+  {
+    close,
+    togglePin,
+    choice,
+    saveWidth,
+  }: {
+    close: () => void;
+    togglePin: () => void;
+    choice: ColumnWidthChoice;
+    saveWidth: (width: number) => void;
+  },
+  visit: AbortSignal,
+): PanelView {
+  const pin = el(doc, "button", `gh-prism-conversation-pin ${ICON_BUTTON}`, icon(doc, PIN, {}));
+  pin.type = "button";
+  pin.setAttribute("aria-label", "Pin Conversation");
+  pin.addEventListener("click", togglePin);
+
   const closeButton = el(
     doc,
     "button",
@@ -134,10 +231,19 @@ function mountPanel(doc: Document, close: () => void, visit: AbortSignal): Panel
     "gh-prism-conversation-header tw:flex tw:items-center tw:gap-2 tw:px-3 tw:py-2",
     prismMark(doc),
     el(doc, "h2", "tw:m-0 tw:flex-1 tw:text-body-medium tw:font-semibold", "Conversation"),
+    pin,
     closeButton,
   );
   const body = el(doc, "div", "gh-prism-conversation-body");
   const aside = el(doc, "aside", "gh-prism-conversation", header, body);
+  const { separator, size } = columnSeparator(aside, {
+    choice,
+    saveWidth,
+    label: "Resize Conversation",
+    onSize: (width) => doc.documentElement.style.setProperty(WIDTH_PROPERTY, `${width}px`),
+  });
+  separator.hidden = true;
+  aside.append(separator);
   aside.id = PANEL_ID;
   aside.tabIndex = -1;
   aside.hidden = true;
@@ -147,7 +253,7 @@ function mountPanel(doc: Document, close: () => void, visit: AbortSignal): Panel
   doc.getElementById(PANEL_ID)?.remove();
   doc.body.append(aside);
   visit.addEventListener("abort", () => aside.remove());
-  return { aside, body };
+  return { aside, body, pin, separator, size };
 }
 
 /**

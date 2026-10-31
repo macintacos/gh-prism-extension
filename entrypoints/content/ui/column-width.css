@@ -1,0 +1,43 @@
+/* No GitHub hooks: every rule selects only gh-prism's own classes. */
+
+/* Primer's pane divider: a 5px grip centred on the column's edge, washed on hover and while
+   dragged. Its 24px target reaches outward over the next pane's padding, clear of the column's
+   scroll bar. */
+.gh-prism-column-separator {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: -21px;
+  width: 24px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+/* Longhands, so a page without Primer's colour still draws the ring. */
+.gh-prism-column-separator:focus-visible {
+  outline-style: solid;
+  outline-width: 2px;
+  outline-color: var(--focus-outlineColor);
+}
+
+.gh-prism-column-separator::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 5px;
+  background: var(--bgColor-neutral-muted);
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+
+.gh-prism-column-separator:hover::before,
+.gh-prism-column-separator[data-dragging]::before {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-prism-column-separator::before {
+    transition: none;
+  }
+}

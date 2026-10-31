@@ -14,6 +14,7 @@ import {
   treeToggleButtonOf,
 } from "../files-page";
 import { el, icon } from "../ui/dom";
+import { glide, glides } from "../ui/glide";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./side.css?inline";
 
@@ -41,26 +42,6 @@ const LABEL: Record<Side, string> = {
 };
 
 const other = (side: Side): Side => (side === "left" ? "right" : "left");
-
-/** What moves the sidebar; the stylesheet animates each its own way. */
-type Glide = "switch" | "toggle";
-
-const glides = (doc: Document): boolean =>
-  !doc.defaultView?.matchMedia("(prefers-reduced-motion: reduce)").matches &&
-  Boolean(doc.startViewTransition);
-
-/** Runs `change` as a view transition that glides the pane and diffs to where it leaves them. */
-function glide(doc: Document, kind: Glide, change: () => void | Promise<void>): void {
-  if (!glides(doc)) {
-    void change();
-    return;
-  }
-  const root = doc.documentElement;
-  // Named only while gliding: a view-transition-name makes GitHub's sticky pane a stacking context.
-  root.dataset.ghPrismGlide = kind;
-  const { finished } = doc.startViewTransition(change);
-  void finished.finally(() => delete root.dataset.ghPrismGlide);
-}
 
 /**
  * Glides the tree as GitHub's toggle collapses and expands it, rather than letting it jump, until

@@ -181,10 +181,12 @@ other computers:
 - Which side the sidebar is on.
 - Whether the header shows lines changed by section or GitHub's total.
 - Whether a commit's message shows as Markdown or plain text.
+- Whether the Conversation panel is pinned.
 
 It keeps these on this computer only:
 
 - The width of the commit message column.
+- The width of the pinned Conversation panel.
 - The commits you hid the message on, up to the 100 most recent.
 - Whether you closed the dialog on GitHub's classic Files changed tab.
 - Which version's release notes, shown in the sidebar after an update, you dismissed or

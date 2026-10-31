@@ -29,6 +29,8 @@ import {
   classicNoticeDismissed,
   commitColumnWidth,
   commitMessageView,
+  conversationPinned,
+  conversationWidth,
   type DiffstatView,
   diffstatView,
   hiddenCommitMessages,
@@ -60,6 +62,7 @@ import { showOwnerSection } from "./sidebar/owner-section";
 import { showReportLink } from "./sidebar/report";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar/side";
 import type { WhatsNew } from "./sidebar/whats-new";
+import { fitsColumn } from "./ui/column-width";
 import { showHeaderTab, showVisit } from "./visit/land";
 import { watchClassicPages, watchFilesPages, watchHeaderPages } from "./visit/watch";
 
@@ -96,6 +99,8 @@ export default defineContentScript({
       savedCommitMessage,
       savedColumnWidth,
       savedHidden,
+      savedPinned,
+      savedConversationWidth,
       dismissed,
       whatsNewForPage,
     ] = await Promise.all([
@@ -104,6 +109,8 @@ export default defineContentScript({
       readSavedCommitMessage(),
       readSavedColumnWidth(),
       readHiddenMessages(),
+      readSavedPinned(),
+      readSavedConversationWidth(),
       readNoticeDismissed(),
       release && followWhatsNew(release, ctx),
     ]);
@@ -117,7 +124,7 @@ export default defineContentScript({
       save: saveDiffstat,
     } satisfies DiffstatOptions;
     const notice: NoticeChoice = { dismissed };
-    const conversation: ConversationChoice = { open: false };
+    const conversation = conversationChoiceOf(savedPinned, savedConversationWidth, innerWidth);
     const navigate = (href: string) => location.assign(href);
     let fullLoad = true;
     // Registered before watchFilesPages, so the flag clears before a navigation's visit runs.
@@ -163,6 +170,8 @@ export default defineContentScript({
                   choice: conversation,
                   fetch: (input, init) => fetch(input, init),
                   allowFraming: allowConversationFrame,
+                  savePinned,
+                  saveWidth: saveConversationWidth,
                   visit,
                 })
               : undefined;
@@ -377,6 +386,54 @@ const saveColumnWidth = (width: number) =>
     .setValue(width)
     .catch((error: unknown) =>
       console.error("gh-prism: saving the commit message column's width failed", error),
+    );
+
+/** Whether the Conversation panel was left pinned, unchecked, or the default when storage won't read. */
+const readSavedPinned = (): Promise<unknown> =>
+  conversationPinned.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading the Conversation panel's pin failed", error);
+    return conversationPinned.fallback;
+  });
+
+/** The stored Conversation panel width, unchecked, or the default when storage won't read. */
+const readSavedConversationWidth = (): Promise<unknown> =>
+  conversationWidth.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading the Conversation panel's width failed", error);
+    return conversationWidth.fallback;
+  });
+
+/**
+ * The Conversation panel's start on a full load: pinned and its width from `savedPinned` and
+ * `savedWidth`, when each is one, else the defaults, and open only when pinned and a
+ * `viewport`-wide window has room for the column.
+ */
+function conversationChoiceOf(
+  savedPinned: unknown,
+  savedWidth: unknown,
+  viewport: number,
+): ConversationChoice {
+  // `fallback` covers only a missing value; a corrupt one reads back as stored.
+  const pinned = savedPinned === true;
+  const knownWidth = typeof savedWidth === "number" && Number.isFinite(savedWidth);
+  return {
+    open: pinned && fitsColumn(viewport),
+    pinned,
+    width: knownWidth ? savedWidth : conversationWidth.fallback,
+  };
+}
+
+const savePinned = (pinned: boolean) =>
+  conversationPinned
+    .setValue(pinned)
+    .catch((error: unknown) =>
+      console.error("gh-prism: saving the Conversation panel's pin failed", error),
+    );
+
+const saveConversationWidth = (width: number) =>
+  conversationWidth
+    .setValue(width)
+    .catch((error: unknown) =>
+      console.error("gh-prism: saving the Conversation panel's width failed", error),
     );
 
 /** The commits whose message this tab knows are hidden, kept current as its visits hide them. */

@@ -1,9 +1,10 @@
 /**
- * The width of a commit message's column: its bounds on a window, and the separator on its inner
- * edge that a reader drags, or steps with the arrow keys, to set it.
+ * The width of a column on the left of the page, such as a commit's message or the Conversation
+ * panel: its bounds on a window, and the separator on its inner edge that a reader drags, or steps
+ * with the arrow keys, to set it.
  */
 
-import { el } from "../ui/dom";
+import { el } from "./dom";
 
 // GitHub docks its file tree beside the diffs from 1012px, so the column takes only what a window
 // has past that, and the diffs never get less room than GitHub gives them there.
@@ -22,7 +23,7 @@ const widest = (viewport: number): number => Math.max(MIN_WIDTH, viewport - DOCK
 const heldWidth = (width: number, viewport: number): number =>
   Math.min(Math.max(width, MIN_WIDTH), widest(viewport));
 
-/** The width a reader picked, shared by every commit in the tab. */
+/** The width a reader picked, shared by every page in the tab. */
 export interface ColumnWidthChoice {
   width: number;
 }
@@ -30,26 +31,34 @@ export interface ColumnWidthChoice {
 /**
  * Builds the separator for `column`, which `size` then sizes to `choice.width` held to the
  * window's bounds. Dragging the separator, or its arrow keys, records the width in `choice` and
- * `saveWidth`s it: a drag once on release, a key at each press.
+ * `saveWidth`s it: a drag once on release, a key at each press. `onSize` hears each width the
+ * column takes. The separator's rules are in `column-width.css`, which the column's sheet imports.
  */
 export function columnSeparator(
   column: HTMLElement,
-  { choice, saveWidth }: { choice: ColumnWidthChoice; saveWidth: (width: number) => void },
+  {
+    choice,
+    saveWidth,
+    label,
+    onSize,
+  }: {
+    choice: ColumnWidthChoice;
+    saveWidth: (width: number) => void;
+    label: string;
+    onSize?: (width: number) => void;
+  },
 ): { readonly separator: HTMLElement; readonly size: () => void } {
   const doc = column.ownerDocument;
-  const separator = el(
-    doc,
-    "div",
-    "gh-prism-commit-column-separator tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline",
-  );
+  const separator = el(doc, "div", "gh-prism-column-separator");
   Object.assign(separator, { tabIndex: 0 });
   separator.setAttribute("role", "separator");
   separator.setAttribute("aria-orientation", "vertical");
-  separator.setAttribute("aria-label", "Resize commit message");
+  separator.setAttribute("aria-label", label);
 
   const viewport = () => doc.defaultView?.innerWidth ?? 0;
   const show = (width: number) => {
     column.style.width = `${width}px`;
+    onSize?.(width);
     separator.setAttribute("aria-valuenow", String(width));
     separator.setAttribute("aria-valuemin", String(MIN_WIDTH));
     separator.setAttribute("aria-valuemax", String(widest(viewport())));

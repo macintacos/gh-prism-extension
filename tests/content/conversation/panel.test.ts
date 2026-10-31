@@ -22,22 +22,36 @@ const headOk = () =>
       new Response(null, { status: 200, headers: { "content-security-policy": POLICY } }),
   );
 
+const closed = (): ConversationChoice => ({ open: false, pinned: false, width: 300 });
+
 function setup({
-  choice = { open: false } as ConversationChoice,
+  choice = closed(),
   fetch = headOk(),
   allowFraming = vi.fn(async () => true),
   pr = PR,
 } = {}) {
   const visit = new AbortController();
+  const savePinned = vi.fn();
+  const saveWidth = vi.fn();
   const panel = conversationPanel(document, {
     pr,
     choice,
     fetch: fetch as unknown as typeof globalThis.fetch,
     allowFraming,
+    savePinned,
+    saveWidth,
     visit: visit.signal,
   });
-  return { panel, visit, choice, fetch, allowFraming };
+  return { panel, visit, choice, fetch, allowFraming, savePinned, saveWidth };
 }
+
+type Size = { width: number; height: number };
+const setViewport = (size: Size) =>
+  (window as unknown as { happyDOM: { setViewport: (size: Size) => void } }).happyDOM.setViewport(
+    size,
+  );
+const WIDE = { width: 1400, height: 768 };
+const NARROW = { width: 1024, height: 768 };
 
 function page(): FilesPage {
   const found = findFilesPage(document);
@@ -128,6 +142,34 @@ describe("the button's expanded state", () => {
 
     expect(document.querySelectorAll(".gh-prism-conversation-button")).toHaveLength(1);
     expect(button()?.getAttribute("aria-expanded")).toBe("true");
+  });
+});
+
+describe("a press the page re-mounts the button under", () => {
+  // GitHub hydrates the toolbar on the first press and re-renders it, so the press starts on one
+  // button and ends on its replacement, and the browser fires no click.
+  it("opens the panel when released on the replacement", () => {
+    const { panel } = setup();
+    const first = new AbortController();
+    mountButton(panel, first.signal)?.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true }),
+    );
+
+    first.abort();
+    mountButton(panel)?.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+
+    expect(shown()).toBe(true);
+  });
+
+  it("still opens the panel once for a press on an unchanged button", () => {
+    const { panel } = setup();
+    const control = mountButton(panel);
+
+    control?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    control?.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+    control?.click();
+
+    expect(shown()).toBe(true);
   });
 });
 
@@ -311,7 +353,7 @@ describe("the visit's lifetime", () => {
   });
 
   it("opens on the next visit's pull request without taking focus", async () => {
-    const choice: ConversationChoice = { open: false };
+    const choice = closed();
     const first = setup({ choice });
     mountButton(first.panel)?.click();
     first.visit.abort();
@@ -325,5 +367,133 @@ describe("the visit's lifetime", () => {
     await vi.waitFor(() =>
       expect(frame()?.getAttribute("src")).toBe("https://github.com/o/r/pull/8?gh-prism-panel=1"),
     );
+  });
+});
+
+describe("pinning", () => {
+  const pin = () => aside()?.querySelector<HTMLButtonElement>(".gh-prism-conversation-pin");
+  const separator = () => aside()?.querySelector<HTMLElement>('[role="separator"]');
+  const root = document.documentElement;
+  const pinnedWidth = () => root.style.getPropertyValue("--gh-prism-conversation-width");
+  const pressEscape = () =>
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  const openPinned = () => {
+    const parts = setup({ choice: { open: false, pinned: true, width: 300 } });
+    mountButton(parts.panel)?.click();
+    return parts;
+  };
+
+  beforeEach(() => setViewport(WIDE));
+  afterEach(() => {
+    setViewport(NARROW);
+    delete root.dataset.ghPrismConversation;
+    root.style.removeProperty("--gh-prism-conversation-width");
+  });
+
+  it("pins from its header, pushing the page over by its width and saying so", () => {
+    const { panel, choice, savePinned } = setup();
+    mountButton(panel)?.click();
+
+    pin()?.click();
+
+    expect(pin()?.getAttribute("aria-pressed")).toBe("true");
+    expect(root.dataset.ghPrismConversation).toBe("pinned");
+    expect(pinnedWidth()).toBe("300px");
+    expect(separator()?.hidden).toBe(false);
+    expect(choice.pinned).toBe(true);
+    expect(savePinned).toHaveBeenCalledWith(true);
+  });
+
+  it("unpins back to the overlay, letting the page back", () => {
+    const { savePinned } = openPinned();
+
+    pin()?.click();
+
+    expect(pin()?.getAttribute("aria-pressed")).toBe("false");
+    expect(root.dataset.ghPrismConversation).toBeUndefined();
+    expect(pinnedWidth()).toBe("");
+    expect(separator()?.hidden).toBe(true);
+    expect(savePinned).toHaveBeenLastCalledWith(false);
+  });
+
+  it("keeps its frame through pinning and unpinning", () => {
+    setup().panel.toggle();
+    const framed = frame();
+
+    pin()?.click();
+    pin()?.click();
+
+    expect(frame()).toBe(framed);
+  });
+
+  it("offers no pin on a window too narrow for the column, drawing a pinned panel as the overlay", () => {
+    const { choice } = openPinned();
+
+    setViewport(NARROW);
+
+    expect(pin()?.hidden).toBe(true);
+    expect(root.dataset.ghPrismConversation).toBeUndefined();
+    expect(choice.pinned).toBe(true);
+
+    setViewport(WIDE);
+
+    expect(pin()?.hidden).toBe(false);
+    expect(root.dataset.ghPrismConversation).toBe("pinned");
+  });
+
+  it("stays open, pinned, on Escape and a pointerdown outside it", () => {
+    const { panel } = openPinned();
+
+    pressEscape();
+    document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+
+    expect(panel.open).toBe(true);
+  });
+
+  it("closes, pinned, from its close button, letting the page back", () => {
+    const { panel, choice } = openPinned();
+
+    aside()?.querySelector<HTMLButtonElement>(".gh-prism-conversation-close")?.click();
+
+    expect(panel.open).toBe(false);
+    expect(root.dataset.ghPrismConversation).toBeUndefined();
+    expect(choice.pinned).toBe(true);
+  });
+
+  it("steps its pinned width by arrow key within the window's bounds, saving each width", () => {
+    const { choice, saveWidth } = openPinned();
+
+    separator()?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+
+    expect(pinnedWidth()).toBe("303px");
+    expect(choice.width).toBe(303);
+    expect(saveWidth).toHaveBeenCalledWith(303);
+
+    for (let i = 0; i < 40; i++)
+      separator()?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+      );
+
+    expect(pinnedWidth()).toBe("388px");
+  });
+
+  it("opens pinned on a visit whose choice is open, without taking focus", () => {
+    const control = document.createElement("button");
+    document.body.append(control);
+    control.focus();
+
+    setup({ choice: { open: true, pinned: true, width: 300 } });
+
+    expect(root.dataset.ghPrismConversation).toBe("pinned");
+    expect(document.activeElement).toBe(control);
+  });
+
+  it("lets the page back when the visit ends", () => {
+    const { visit } = openPinned();
+
+    visit.abort();
+
+    expect(root.dataset.ghPrismConversation).toBeUndefined();
+    expect(pinnedWidth()).toBe("");
   });
 });
