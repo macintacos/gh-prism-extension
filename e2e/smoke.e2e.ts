@@ -3378,8 +3378,10 @@ async function openPinned(page: Page): Promise<void> {
   ).toBeVisible();
   await pinControl(page).click();
   await expect(page.locator("html")).toHaveAttribute("data-gh-prism-conversation", "pinned");
-  // A view transition's pseudo-elements take the pointer until the page settles.
-  await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-glide");
+  // The page slides beside the panel; measure it where it settles.
+  await page
+    .locator("html")
+    .evaluate((html) => Promise.allSettled(html.getAnimations().map((slide) => slide.finished)));
 }
 
 test("a pinned Conversation panel pushes the tree and diffs over, whichever side the tree docks on", async ({

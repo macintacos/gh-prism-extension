@@ -75,13 +75,13 @@ it("switches sides on click, keeping the tab's choice and saving it", () => {
 it("switches at once while another glide runs, leaving that glide its names", () => {
   const start = stubViewTransitions();
   dock("right");
-  document.documentElement.dataset.ghPrismGlide = "pin";
+  document.documentElement.dataset.ghPrismGlide = "toggle";
 
   switcher()?.click();
 
   expect(docked()).toBe("left");
   expect(start).not.toHaveBeenCalled();
-  expect(gliding()).toBe("pin");
+  expect(gliding()).toBe("toggle");
   delete document.documentElement.dataset.ghPrismGlide;
 });
 

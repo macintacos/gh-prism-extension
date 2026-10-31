@@ -6,6 +6,23 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-10-30: The pinned Conversation panel moves the page with it
+
+- **Compared:** for opening, closing, pinning, and unpinning the pinned panel, the page's
+  view-transition cross-fade beside the panel's own slide; sliding the page's snapshot by
+  the panel's width; or animating the page's padding alongside the panel's slide.
+- **Won:** Animating the padding on `<html>` with the Web Animations API, on the panel's
+  own timing: 280 ms on the Spatial row to open, pin, and unpin, and 160 ms `ease-out` to
+  close. Under reduced motion the page takes its new place at once. This replaces the
+  cross-fade in the pick below.
+- **Why:**
+  - The cross-fade moved the page at once while the panel slid, and drew GitHub's header,
+    title, and diffs twice, half-faded, 480 px apart. The maintainer found it jarring.
+  - A sliding snapshot can't show the page reflowing to its new width, so its far edge
+    opens on an empty strip.
+  - Animating the padding reflows the real page each frame, so nothing is drawn twice and
+    the panel pushes the page aside and draws it back as one motion.
+
 ## 2026-10-30: The pinned Conversation panel's pin, edge, and motion
 
 - **Compared:**

@@ -3,8 +3,8 @@
  * Each feature's stylesheet animates its own kind, keyed on `data-gh-prism-glide` on `<html>`.
  */
 
-/** What moves: the sidebar switching sides or collapsing, or the Conversation panel pinning. */
-export type Glide = "switch" | "toggle" | "pin";
+/** What moves: the sidebar switching sides or collapsing. */
+export type Glide = "switch" | "toggle";
 
 /** Whether a change on `doc` glides: not under reduced motion, nor without view transitions. */
 export const glides = (doc: Document): boolean =>

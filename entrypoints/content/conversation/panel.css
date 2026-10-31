@@ -97,17 +97,6 @@
   color: var(--fgColor-accent);
 }
 
-/* The page cross-fades to its new place while the panel holds still. */
-:root[data-gh-prism-glide="pin"] .gh-prism-conversation {
-  view-transition-name: gh-prism-conversation;
-}
-
-:root[data-gh-prism-glide="pin"]::view-transition-old(root),
-:root[data-gh-prism-glide="pin"]::view-transition-new(root) {
-  animation-duration: 280ms;
-  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
-}
-
 /* Longhands, so a page without Primer's colour still draws the ring in currentColor. */
 .gh-prism-conversation:focus-visible {
   outline-style: solid;

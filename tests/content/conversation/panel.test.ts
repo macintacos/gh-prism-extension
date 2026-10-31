@@ -497,6 +497,72 @@ describe("pinning", () => {
     expect(savePinned).toHaveBeenLastCalledWith(false);
   });
 
+  describe("the page's slide", () => {
+    const animate = vi.fn();
+    beforeEach(() => Object.assign(root, { animate }));
+    afterEach(() => {
+      Reflect.deleteProperty(root, "animate");
+      animate.mockReset();
+    });
+    const slide = (from: string, to: string, duration: number) =>
+      expect(animate).toHaveBeenLastCalledWith(
+        [{ paddingInlineStart: from }, { paddingInlineStart: to }],
+        expect.objectContaining({ duration }),
+      );
+
+    it("pushes the page over as the panel pins", () => {
+      const { panel } = setup();
+      mountButton(panel)?.click();
+
+      pin()?.click();
+
+      slide("0px", "300px", 280);
+    });
+
+    it("draws the page back as the panel unpins", () => {
+      openPinned();
+
+      pin()?.click();
+
+      slide("300px", "0px", 280);
+    });
+
+    it("draws the page back quicker as a pinned panel closes", () => {
+      const { panel } = openPinned();
+
+      panel.close();
+
+      slide("300px", "0px", 160);
+    });
+
+    it("stops sliding when the window narrows past the column mid-slide", () => {
+      const finish = vi.fn();
+      animate.mockReturnValue({ finish });
+      openPinned();
+
+      setViewport(NARROW);
+      window.dispatchEvent(new Event("resize"));
+
+      expect(finish).toHaveBeenCalled();
+    });
+
+    it("holds still under reduced motion", () => {
+      const matchMedia = vi
+        .spyOn(window, "matchMedia")
+        .mockReturnValue({ matches: true } as MediaQueryList);
+      openPinned();
+      matchMedia.mockRestore();
+
+      expect(animate).not.toHaveBeenCalled();
+    });
+
+    it("holds still when a visit opens it pinned", () => {
+      setup({ choice: { open: true, pinned: true, width: 300 } });
+
+      expect(animate).not.toHaveBeenCalled();
+    });
+  });
+
   it("keeps its frame through pinning and unpinning", () => {
     setup().panel.toggle();
     const framed = frame();

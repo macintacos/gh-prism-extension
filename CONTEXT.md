@@ -187,8 +187,8 @@ of the page over instead of covering it. _Avoid_: docked, which is the sidebar's
 - "Intent" also names the pending read and the rule sections. Intent is the result; say
   pending intent and rule section for the others.
 - "Glide" also names the sidebar's move. The sidebar slides; a reveal glides. The
-  view-transition helper in `ui/glide.ts`, which runs the sidebar's slide and the
-  Conversation panel's pin cross-fade, is not the reveal's glide.
+  view-transition helper in `ui/glide.ts`, which runs the sidebar's slide, is not the
+  reveal's glide.
 - "Source" names both the background's fetcher of diffs and file contents, and where
   intent is read from and cached. Keep it for the fetcher.
 - "Pin" also names a diff head's one commit and the Conversation panel's Pinned mode. Say

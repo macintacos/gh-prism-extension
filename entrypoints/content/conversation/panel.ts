@@ -9,7 +9,6 @@ import type { PrRef } from "@/utils/github/pr-ref";
 import { type FilesPage, findFilesToolbar } from "../files-page";
 import { type ColumnWidthChoice, columnSeparator, fitsColumn } from "../ui/column-width";
 import { el, icon, isEditable, X_ICON } from "../ui/dom";
-import { glide } from "../ui/glide";
 import { prismMark } from "../ui/mark";
 import { CONVERSATION_ESCAPE, isFrameMessage } from "./frame-messages";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
@@ -94,9 +93,11 @@ export function conversationPanel(
   /** How the panel should be drawn, as `open`, the choice, and the window allow. */
   const mode = (): Mode => (!open ? "closed" : choice.pinned && fits() ? "column" : "overlay");
   let drawn: Mode = "closed";
+  let slide: Animation | undefined;
 
   function layout(): void {
     if (!view) return;
+    slide?.finish();
     drawn = mode();
     view.aside.hidden = drawn === "closed";
     view.pin.hidden = !fits();
@@ -111,11 +112,19 @@ export function conversationPanel(
     }
   }
 
-  /** Runs `layout`, gliding the page when it moves. */
+  /** Runs `layout`, sliding the page alongside the panel when it moves. */
   function relayout(): void {
     const moves = (drawn === "column") !== (mode() === "column");
-    if (moves) glide(doc, "pin", layout);
-    else layout();
+    const from = root.style.getPropertyValue(WIDTH_PROPERTY) || "0px";
+    layout();
+    if (!moves || doc.defaultView?.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const to = root.style.getPropertyValue(WIDTH_PROPERTY) || "0px";
+    // Keep in sync with the panel's own translate in panel.css, so the two move as one.
+    const timing =
+      drawn === "closed"
+        ? { duration: 160, easing: "ease-out" }
+        : { duration: 280, easing: "cubic-bezier(0.2, 0.7, 0.2, 1)" };
+    slide = root.animate?.([{ paddingInlineStart: from }, { paddingInlineStart: to }], timing);
   }
 
   /** Mounts the panel and its frame once, and marks it open, before it's laid out. */
@@ -123,8 +132,6 @@ export function conversationPanel(
     view ??= mountPanel(doc, { close: () => panel.close(), togglePin, choice, saveWidth }, visit);
     frame ??= loadFrame(doc, view, options);
     open = choice.open = true;
-    // Shown before relayout, so a glide's old snapshot already holds the panel.
-    view.aside.hidden = false;
     syncExpanded();
     return view;
   }
