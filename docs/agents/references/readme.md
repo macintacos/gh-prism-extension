@@ -36,6 +36,7 @@ Appearance is "Sync with system" with Light default and Dark default. Compress t
 | --- | --- |
 | `hero`, `sections`, `viewed` | Files changed of pull request #3 (`complicated-change`) in a sandbox from `scripts/create-sandbox.sh` |
 | `lines-changed` | the Conversation tab of that pull request |
+| `conversation` | Files changed of that pull request with the Conversation panel pinned, cropped from the window's top so the panel's header shows |
 | `code-owners` | pull request #1 in `excessive-dev/gh-prism-codeowners-sandbox` |
 | `commit` | this repository's commit `f98efef`: the sandbox's commits have one-line messages, and a message with no body renders no column |
 

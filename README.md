@@ -104,6 +104,27 @@ The lines-changed count in the header splits into one count per section.
 
 </details>
 
+### Conversation panel
+
+On Files changed, the Conversation button at the left end of the toolbar, or
+<kbd>Shift</kbd>+<kbd>\</kbd>, opens the pull request's Conversation tab in a panel on the
+left, so you can read and reply to it without leaving the diffs.
+
+- Pin the panel to keep it open as a column beside the diffs, and drag its edge to resize
+  it. Unpinned, it covers the page, and a click outside it or <kbd>Esc</kbd> closes it.
+- Buttons in its header jump to the pull request's checks, and to its reviewers, labels,
+  and projects.
+
+<details>
+<summary>Screenshot: the Conversation tab pinned beside a pull request's diffs</summary>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/conversation-dark.png">
+  <img src="docs/images/conversation-light.png" width="950" alt="Files changed with the Conversation panel pinned on the left. Its header holds the reviewers jump, the pressed pin, and close, over the pull request's description and its three commits. Beside it, the toolbar starts with the Conversation button and its Shift+backslash keycap.">
+</picture>
+
+</details>
+
 ### Commit pages
 
 A commit message longer than its subject line renders as Markdown in a column beside its
