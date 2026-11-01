@@ -18,6 +18,8 @@ export default defineConfig({
     },
   },
   manifest: {
+    // The Chrome Web Store's title, which its search weighs. The release zip keeps package.json's name.
+    name: "gh-prism: Sectioned Pull Request Review",
     // storage holds preferences, the what's-new state, and the intent cache.
     // declarativeNetRequestWithHostAccess lifts GitHub's framing refusal for the Conversation
     // panel's frame only; unlike declarativeNetRequest it adds no install warning, so an update
