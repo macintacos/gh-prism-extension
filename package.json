@@ -1,7 +1,7 @@
 {
   "name": "gh-prism",
   "description": "Review GitHub pull requests one part at a time. Sorts changed files into Implementation, Tests, Docs, Config, and Generated.",
-  "version": "0.6.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
