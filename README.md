@@ -107,8 +107,8 @@ The lines-changed count in the header splits into one count per section.
 ### Conversation panel
 
 On Files changed, the Conversation button at the left end of the toolbar, or
-<kbd>Shift</kbd>+<kbd>\</kbd>, opens the pull request's Conversation tab in a panel on the
-left, so you can read and reply to it without leaving the diffs.
+<kbd>Shift</kbd>+<kbd>&#92;</kbd>, opens the pull request's Conversation tab in a panel on
+the left, so you can read and reply to it without leaving the diffs.
 
 - Pin the panel to keep it open as a column beside the diffs, and drag its edge to resize
   it. Unpinned, it covers the page, and a click outside it or <kbd>Esc</kbd> closes it.
