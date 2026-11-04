@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   conversationFrameUrl,
   conversationFraming,
   framingRule,
   requestFraming,
+  untilPagehide,
   withoutFrameAncestors,
 } from "../../../utils/github/conversation-frame";
 import type { PrRef } from "../../../utils/github/pr-ref";
@@ -49,6 +50,8 @@ describe("withoutFrameAncestors", () => {
 });
 
 describe("framingRule", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   it("lets only the tab's github.com sub-frame load the marked Conversation, keeping the policy", () => {
     expect(framingRule(3, PR, POLICY)).toEqual({
       id: 3,
@@ -71,6 +74,18 @@ describe("framingRule", () => {
         requestDomains: ["github.com"],
         urlFilter: "|https://github.com/o/r/pull/7?gh-prism-panel=1|",
       },
+    });
+  });
+
+  it("lets the tab's sub-frame load the marked Conversation in Firefox, unless a GitHub sandbox origin started it", () => {
+    vi.stubEnv("BROWSER", "firefox");
+
+    expect(framingRule(3, PR, POLICY).condition).toEqual({
+      tabIds: [3],
+      resourceTypes: ["sub_frame"],
+      excludedInitiatorDomains: ["githubusercontent.com"],
+      requestDomains: ["github.com"],
+      urlFilter: "|https://github.com/o/r/pull/7?gh-prism-panel=1|",
     });
   });
 });
@@ -260,6 +275,16 @@ describe("requestFraming", () => {
 
     void requestFraming(() => port, PR, POLICY, controller.signal);
     controller.abort();
+
+    expect(port.disconnect).toHaveBeenCalled();
+  });
+
+  it("disconnects when the page is hidden", () => {
+    const port = fakePort();
+    const page = new EventTarget();
+
+    void requestFraming(() => port, PR, POLICY, untilPagehide(page, new AbortController().signal));
+    page.dispatchEvent(new Event("pagehide"));
 
     expect(port.disconnect).toHaveBeenCalled();
   });

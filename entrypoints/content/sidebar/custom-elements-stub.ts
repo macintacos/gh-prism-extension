@@ -1,10 +1,9 @@
-// Chrome content scripts run in an isolated world whose `customElements` is null, and
-// @pierre/trees calls `customElements.get` as it loads. Its trees mount into our own elements,
-// which needs only `attachShadow`, so an empty registry will do. Import before @pierre/trees.
-if (globalThis.customElements == null) {
-  const registry: Pick<CustomElementRegistry, "define" | "get"> = {
-    define: () => {},
-    get: () => undefined,
-  };
-  Object.defineProperty(globalThis, "customElements", { configurable: true, value: registry });
-}
+// @pierre/trees calls `customElements` as it loads, but its trees mount into our own elements with
+// `attachShadow`, so an empty registry will do. Chrome's isolated world has none, and Firefox hands
+// a content script the page's, where a definition gives the script its own Element and Node and
+// fails every `instanceof Element` on a page node. Import before @pierre/trees.
+const registry: Pick<CustomElementRegistry, "define" | "get"> = {
+  define: () => {},
+  get: () => undefined,
+};
+Object.defineProperty(globalThis, "customElements", { configurable: true, value: registry });

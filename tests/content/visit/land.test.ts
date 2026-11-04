@@ -40,12 +40,6 @@ import {
   view,
 } from "../../fixtures/visit";
 
-// Chrome content scripts run in an isolated world whose `customElements` is null. Hoisted above
-// the imports, which load @pierre/trees.
-vi.hoisted(() => {
-  Object.defineProperty(window, "customElements", { configurable: true, value: null });
-});
-
 let controller: AbortController;
 let page: FilesPage;
 let log: string[];

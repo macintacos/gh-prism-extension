@@ -19,6 +19,7 @@ jobs:
           restore-keys: bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
       - run: mise run preflight
+      - run: mise run lint-firefox
   e2e:
     runs-on: ubuntu-latest
     steps:

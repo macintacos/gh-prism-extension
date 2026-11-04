@@ -4,9 +4,7 @@
 
 [`AGENTS.md`](../../../AGENTS.md) is the code-change router. Its digraph has one edge per
 rule file, labeled with the paths and concepts that file governs, and it says how to
-verify a change. [`CLAUDE.md`](../../../CLAUDE.md) holds only its H1, its audience line,
-and an `@AGENTS.md` import, so Claude Code loads the router too. Never add content to
-`CLAUDE.md`.
+verify a change.
 
 When to edit it:
 

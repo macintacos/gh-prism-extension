@@ -227,6 +227,47 @@ export function readPrReviewers(
   );
 }
 
+/** The visit's code owners and PR reviewers, each `undefined` when its read failed. */
+export interface Ownership {
+  readonly codeOwners: PrCodeOwners | undefined;
+  readonly prReviewers: readonly PrReviewer[] | undefined;
+}
+
+/** How the ownership reads reach GitHub, and until when. */
+export interface OwnershipReads {
+  readonly fetchFn: typeof fetch;
+  readonly teamMembers: TeamMembersOf;
+  readonly signal: AbortSignal;
+}
+
+/**
+ * `diff`'s PR reviewers through `fetchFn`, each with the owning teams in `codeOwners` that list
+ * them as members, read until `signal` aborts. Never rejects; `undefined` when the reviewers'
+ * read failed.
+ */
+export async function readReviewersWithTeams(
+  diff: DiffRef,
+  codeOwners: Promise<PrCodeOwners | undefined>,
+  { fetchFn, teamMembers, signal }: OwnershipReads,
+): Promise<readonly PrReviewer[] | undefined> {
+  const [reviewers, owners] = await Promise.all([
+    readPrReviewers(diff, fetchFn, signal),
+    codeOwners,
+  ]);
+  if (!reviewers || !owners) return reviewers;
+  return withMemberTeams(reviewers, owners, async (team) => (await teamMembers(team))?.members);
+}
+
+/**
+ * `diff`'s code owners and PR reviewers, read through `fetchFn` until `signal` aborts. Never
+ * rejects; each field is `undefined` when its read failed.
+ */
+export async function readOwnership(diff: DiffRef, reads: OwnershipReads): Promise<Ownership> {
+  const codeOwners = readCodeOwners(diff, reads.fetchFn, reads.signal);
+  const prReviewers = readReviewersWithTeams(diff, codeOwners, reads);
+  return { codeOwners: await codeOwners, prReviewers: await prReviewers };
+}
+
 interface PageDataRead<T> {
   readonly endpoint: string;
   readonly parse: (json: unknown) => T | undefined;

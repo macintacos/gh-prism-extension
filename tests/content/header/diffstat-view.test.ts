@@ -9,12 +9,6 @@ import type { FileLines, Placement } from "../../../utils/intent/read";
 import { landedWith, pendingIntent, whole } from "../../fixtures/intent";
 import { afterDebounce, mountsVisit, sectionKeys, sheetsStyling } from "../../fixtures/visit";
 
-// Chrome content scripts run in an isolated world whose `customElements` is null, so every test
-// here mounts the view that way. Hoisted above the imports, which load @pierre/trees.
-vi.hoisted(() => {
-  Object.defineProperty(window, "customElements", { configurable: true, value: null });
-});
-
 const { remountWith, landed, abort } = mountsVisit();
 
 function sectionToggle(section: string): HTMLButtonElement {

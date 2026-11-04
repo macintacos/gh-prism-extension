@@ -66,7 +66,11 @@ export function framingRule(tabId: number, pr: PrRef, policy: string): Rule {
     condition: {
       tabIds: [tabId],
       resourceTypes: ["sub_frame"],
-      initiatorDomains: ["github.com"],
+      // Firefox names no initiator for a frame load the content script starts, so it can only
+      // shut out GitHub's sandbox origins, which render files the PR author controls.
+      ...(import.meta.env.BROWSER === "firefox"
+        ? { excludedInitiatorDomains: ["githubusercontent.com"] }
+        : { initiatorDomains: ["github.com"] }),
       requestDomains: ["github.com"],
       urlFilter: `|${conversationFrameUrl(pr)}|`,
     },
@@ -180,7 +184,19 @@ export function requestFraming(
   });
 }
 
-/** `requestFraming` over the extension's own Conversation frame port. */
+/**
+ * `signal`, also aborting on `page`'s `pagehide`: Firefox keeps a page in its back-forward cache
+ * with its ports open, which would keep the framing rule alive for whatever loads next in the tab.
+ */
+// ponytail: a page restored from bfcache keeps its loaded frame but loses the rule, so a later
+// re-point fails; re-request framing on a persisted pageshow if that bites.
+export const untilPagehide = (page: EventTarget, signal: AbortSignal): AbortSignal => {
+  const hidden = new AbortController();
+  page.addEventListener("pagehide", () => hidden.abort(), { once: true, signal });
+  return AbortSignal.any([signal, hidden.signal]);
+};
+
+/** `requestFraming` over the extension's own Conversation frame port, until the page hides. */
 export const allowConversationFrame = (
   pr: PrRef,
   policy: string,
@@ -190,5 +206,5 @@ export const allowConversationFrame = (
     () => browser.runtime.connect({ name: CONVERSATION_FRAME_PORT }),
     pr,
     policy,
-    signal,
+    untilPagehide(window, signal),
   );

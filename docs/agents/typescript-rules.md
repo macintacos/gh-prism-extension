@@ -26,3 +26,13 @@ imports a sheet or writes `tw:` classes are in [`styling-rules.md`](styling-rule
 - **List a new kind of stored data in
   [`README.md` § Permissions](../../README.md#permissions) in the same change.** The
   `storage` permission already exists, so that line is the only other change needed.
+
+## Firefox
+
+- **Never let a content script define a custom element.** Firefox hands content scripts
+  the page's registry, and a definition there gives the script its own `Element` and
+  `Node`. Every `instanceof` against a page node then fails.
+  [`sidebar/custom-elements-stub.ts`](../../entrypoints/content/sidebar/custom-elements-stub.ts)
+  stubs the registry.
+- **Branch on `import.meta.env.BROWSER === "firefox"`, never `import.meta.env.FIREFOX`.**
+  Vitest reads `FIREFOX` as the string `"false"`, which is truthy.

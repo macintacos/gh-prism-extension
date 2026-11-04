@@ -1,12 +1,10 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  type Ownership,
-  showReviewerFiles,
-} from "../../../entrypoints/content/conversation/reviewer-files";
+import { showReviewerFiles } from "../../../entrypoints/content/conversation/reviewer-files";
 import type { OwnerFilter } from "../../../entrypoints/content/ui/owners-dialog";
 import {
   codeOwnerOf,
+  type Ownership,
   type PrCodeOwners,
   type PrReviewer,
   readCodeOwners,
@@ -24,14 +22,6 @@ import { routedFetch } from "../../fixtures/fetch";
 import { outline } from "../../fixtures/file-list";
 import nodeReviewRequests from "../../fixtures/review-requests-node.json?raw";
 import sandboxMembers from "../../fixtures/team-members-sandbox.json?raw";
-
-// Chrome content scripts run in an isolated world whose `customElements` is null.
-vi.hoisted(() => {
-  Object.defineProperty(window, "customElements", {
-    configurable: true,
-    value: null,
-  });
-});
 
 // happy-dom has no Popover API.
 HTMLElement.prototype.showPopover = () => {};

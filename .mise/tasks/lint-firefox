@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Build the extension and lint the Firefox build with web-ext, the linter AMO runs on every upload"
+
+set -euo pipefail
+
+bun run build
+bunx --no-install web-ext lint --source-dir .output/firefox-mv3

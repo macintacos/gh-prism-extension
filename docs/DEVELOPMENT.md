@@ -2,8 +2,9 @@
 
 *Audience: people building, testing, and changing gh-prism on their own machine.*
 
-This page covers everything past the first run: the dev browser, the task catalog, tests,
-the benchmark, git hooks, CI, and patched dependencies.
+gh-prism is a Chrome and Firefox extension. This page covers everything past the first
+run: the dev browser, the task catalog, tests, the benchmark, git hooks, CI, and patched
+dependencies.
 
 ## Setup
 
@@ -19,26 +20,40 @@ mise install && mise run setup
 generate WXT's types. Later, `mise run setup` alone is enough: it repeats `mise install`
 first, so it also picks up a changed tool pin.
 
+`mise run dev` needs both Chrome and Firefox installed, unless a `web-ext.config.ts` turns
+launching off (see [The dev browser](#the-dev-browser)).
+
 ## The dev browser
 
-`mise run dev` builds the extension, opens it in Chrome, and reloads it when a file
-changes. Chrome runs on a dedicated profile at
-`~/.local/share/gh-prism-extension/chrome-profile`, set in
-[`wxt.config.ts`](../wxt.config.ts). The profile lives outside the repository, so your
-GitHub sign-in survives `wxt clean` and is shared by every worktree. Because every
-worktree uses the same profile, only one dev session runs at a time.
+`mise run dev` builds the extension twice, opens one build in Chrome and the other in
+Firefox, and reloads both when a file changes. Each browser runs on a dedicated profile,
+set in [`wxt.config.ts`](../wxt.config.ts): Chrome at
+`~/.local/share/gh-prism-extension/chrome-profile` and Firefox at
+`~/.local/share/gh-prism-extension/firefox-profile`. The profiles live outside the
+repository, so your GitHub sign-in survives `wxt clean` and is shared by every worktree.
+Because every worktree uses the same profiles, only one dev session runs at a time.
 
-If another Chrome already has the dev profile open, `mise run dev` names its process ID
-and offers to close it before it builds, because Chrome won't open a profile twice. That
-Chrome is either another dev session or a dev window an earlier `mise run dev` left open.
-`mise run dev --yes` closes it without asking. Without a terminal to ask in, the task
-exits instead, unless you pass `--yes`.
+If a Chrome or Firefox already has its dev profile open, `mise run dev` names its process
+ID and offers to close it before it builds, because neither browser opens a profile twice.
+That browser is either another dev session or a dev window an earlier `mise run dev` left
+open. `mise run dev --yes` closes it without asking. Without a terminal to ask in, the
+task exits instead, unless you pass `--yes`.
+
+To build without opening either browser, create a gitignored `web-ext.config.ts` at the
+repository root:
+
+```ts
+import { defineWebExtConfig } from "wxt";
+
+export default defineWebExtConfig({ disabled: true });
+```
 
 To preview the sidebar's what's-new block, pass release notes into the build:
 `WXT_RELEASE_NOTES="$(cat notes.md)" mise run dev`. A fresh install, a dismissal, or a
 3-day-old first view hides it. If it doesn't show, run
-`chrome.storage.local.remove("whatsNewSeen")` in the extension's service-worker console,
-then reload a Files view.
+`chrome.storage.local.remove("whatsNewSeen")` in the extension's service-worker console in
+Chrome, or `browser.storage.local.remove("whatsNewSeen")` in the console that gh-prism's
+**Inspect** opens in Firefox's `about:debugging`. Then reload a Files view.
 
 ## Tasks
 
@@ -48,14 +63,15 @@ then reload a Files view.
 | Task | What it does |
 | --- | --- |
 | `mise run setup` | Installs the pinned tools and dependencies, and registers the git hooks. |
-| `mise run dev [--yes]` | Builds the extension and opens it in the dev profile, reloading on change; `--yes` closes a Chrome already using that profile without asking. |
-| `mise run build` | Builds the extension into `.output/chrome-mv3`, ready for Chrome's **Load unpacked**. |
+| `mise run dev [--yes]` | Builds the extension and opens it in the dev Chrome and Firefox profiles, reloading on change; `--yes` closes a Chrome or Firefox already using its profile without asking. |
+| `mise run build` | Builds the extension into `.output/chrome-mv3` and `.output/firefox-mv3`, ready to load in Chrome or Firefox. |
 | `mise run test [filter] [-w]` | Runs Vitest, only on test files whose path contains `filter`; `-w` reruns on change. |
 | `mise run e2e` | Builds the extension and runs the Playwright smoke suite against it. |
 | `mise run bench [--entry-size n]` | Times the diff order, section trees, a sidebar resize, and intent read on large synthetic diffs. |
 | `mise run format` | Formats every file. |
 | `mise run format-check` | Checks formatting without writing. |
 | `mise run lint` | Runs the linters, read-only. |
+| `mise run lint-firefox` | Builds the extension and lints the Firefox build with `web-ext lint`, the linter AMO runs on every upload. |
 | `mise run preflight` | Runs `format-check`, `lint`, and `test`; run it before you push. |
 | `mise run release <patch\|minor\|major> [--notes-file <path>]` | Dispatches the release workflow on trunk; see [Releases](#releases). |
 
@@ -90,9 +106,9 @@ Go, and Lua), mix code with comment and docstring lines. The last two add files 
 paths and a long file name, for checking how the comment-lines sub-section's tree and
 Implementation show them. The bodies of these six list the counts gh-prism should show for
 Implementation, Tests, and Docs & Comments, worked out by hand, so you can check them
-against the sidebar. It needs the `gh` CLI signed in. It skips the repository and each
-pull request that already exists, so a rerun picks up where it left off. A pull request
-that failed midway is the exception: fix it by hand.
+against the sidebar in either dev browser. It needs the `gh` CLI signed in. It skips the
+repository and each pull request that already exists, so a rerun picks up where it left
+off. A pull request that failed midway is the exception: fix it by hand.
 
 `scripts/create-codeowners-sandbox.sh excessive-dev/gh-prism-codeowners-sandbox` creates
 the code-owners sandbox, a public repository under the `excessive-dev` organization. It is
@@ -127,10 +143,11 @@ hk, a git hook manager configured in [`hk.pkl`](../hk.pkl), runs two hooks:
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push and pull
 request, as three parallel jobs. Two of them install the pinned tools and dependencies:
-`check` runs `mise run preflight`, and `e2e` runs `mise run e2e`. Both cache bun's package
-cache, and `e2e` also caches Playwright's browsers, each keyed on `bun.lock`. `e2e` skips
-`playwright install-deps`: the runner image already has Chromium's system libraries, and
-that step's apt downloads sometimes stall for minutes.
+`check` runs `mise run preflight` then `mise run lint-firefox`, and `e2e` runs
+`mise run e2e`. Both cache bun's package cache, and `e2e` also caches Playwright's
+browsers, each keyed on `bun.lock`. `e2e` skips `playwright install-deps`: the runner
+image already has Chromium's system libraries, and that step's apt downloads sometimes
+stall for minutes.
 
 The third, `lockfile`, runs `gh actions-lock --verify`. The workflows reference actions by
 tag, and [`.github/workflows/actions.lock`](../.github/workflows/actions.lock) pins each

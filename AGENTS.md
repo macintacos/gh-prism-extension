@@ -3,8 +3,8 @@
 *Audience: coding agents changing gh-prism, and the contributors who maintain their
 rules.*
 
-gh-prism is a Chrome extension that splits a GitHub pull request's or commit's changed
-files into sections. The rules each code area follows live in
+gh-prism is a Chrome and Firefox extension that splits a GitHub pull request's or commit's
+changed files into sections. The rules each code area follows live in
 [`docs/agents/`](docs/agents/), and you load them on demand. This file decides which ones
 a change needs. A new rule goes in its area's rule file. A new area gets its own
 `docs/agents/<area>-rules.md` and an edge here; see
@@ -28,7 +28,7 @@ digraph gh_prism_rules_router {
     "What does the change touch?" -> "Read design/README.md" [label="how gh-prism looks, moves, or reads (its wording): colour, type, radius, motion, key hints, a new control, view, or notice"];
     "What does the change touch?" -> "Load docs/agents/github-rules.md" [label="GitHub's pages: files-page.ts selectors, a stylesheet's GitHub hooks: header comment, entrypoints/content/diffs/, entrypoints/content/visit/, utils/github/"];
     "What does the change touch?" -> "Load docs/agents/testing-rules.md" [label="tests: tests/, e2e/, bench/, vitest.config.ts, playwright.config.ts, checking a change in a real browser"];
-    "What does the change touch?" -> "Load docs/agents/typescript-rules.md" [label="TypeScript under entrypoints/ or utils/: function-body shape, persisted state"];
+    "What does the change touch?" -> "Load docs/agents/typescript-rules.md" [label="TypeScript under entrypoints/ or utils/: function-body shape, persisted state, Firefox-only branches, custom elements in content scripts"];
     "What does the change touch?" -> "Load docs/agents/documentation-rules.md" [label="any doc change; renaming or removing a module, function, or constant that docs/ARCHITECTURE.md names; changing .mise/tasks/, hk.pkl, .github/workflows/, patches/, package.json, or wxt.config.ts; or a change that makes a loaded rule wrong or teaches you something about this repo"];
     "What does the change touch?" -> "Read CONTEXT.md" [label="naming a domain concept: visit, intent, section, placement"];
 }
@@ -40,3 +40,5 @@ digraph gh_prism_rules_router {
   change as done.
 - `mise run test <filter>` runs only the test files whose path contains `filter`.
 - `mise run e2e` builds the extension and runs the Playwright smoke suite against it.
+- `mise run lint-firefox` builds and runs AMO's linter on the Firefox build; CI runs it
+  after preflight. Run it after a manifest change.
