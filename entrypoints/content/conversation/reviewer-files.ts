@@ -1,21 +1,16 @@
 /**
- * The popup a code-owner shield in a pull request's Reviewers list opens on the Conversation tab,
- * listing that code owner's files, the code owner details dialog its click opens, and the shield
+ * The popup a code-owner shield in a pull request's Reviewers list opens on the Conversation tab
+ * and in the Conversation panel's frame, listing that code owner's files, the code owner details dialog its click opens, and the shield
  * gh-prism adds beside a PR reviewer who owns files where GitHub draws none.
  */
 
 import {
   codeOwnerOf,
+  type Ownership,
   ownerFilter,
-  type PrCodeOwners,
-  type PrReviewer,
-  readCodeOwners,
-  readPrReviewers,
   reviewerOf,
   type TeamMembersOf,
-  withMemberTeams,
 } from "@/utils/github/code-owners";
-import type { DiffRef } from "@/utils/github/pr-ref";
 import {
   findReviewerRows,
   followReviewerRows,
@@ -40,47 +35,6 @@ import css from "./reviewer-files.css?inline";
 
 const ID = "gh-prism-reviewer-files";
 const OWN_SHIELD = "button[data-gh-prism-owner]";
-
-/** The visit's code owners and PR reviewers, each `undefined` when its read failed. */
-export interface Ownership {
-  readonly codeOwners: PrCodeOwners | undefined;
-  readonly prReviewers: readonly PrReviewer[] | undefined;
-}
-
-/**
- * `diff`'s PR reviewers through `fetchFn`, each with the owning teams in `codeOwners` that list
- * them as members, read until `signal` aborts.
- */
-export async function readReviewersWithTeams(
-  diff: DiffRef,
-  codeOwners: Promise<PrCodeOwners | undefined>,
-  {
-    fetchFn,
-    teamMembers,
-    signal,
-  }: { fetchFn: typeof fetch; teamMembers: TeamMembersOf; signal: AbortSignal },
-): Promise<readonly PrReviewer[] | undefined> {
-  const [reviewers, owners] = await Promise.all([
-    readPrReviewers(diff, fetchFn, signal),
-    codeOwners,
-  ]);
-  if (!reviewers || !owners) return reviewers;
-  return withMemberTeams(reviewers, owners, async (team) => (await teamMembers(team))?.members);
-}
-
-/** `diff`'s code owners and PR reviewers, read through `fetchFn` until `signal` aborts. */
-export async function readOwnership(
-  diff: DiffRef,
-  {
-    fetchFn,
-    teamMembers,
-    signal,
-  }: { fetchFn: typeof fetch; teamMembers: TeamMembersOf; signal: AbortSignal },
-): Promise<Ownership> {
-  const codeOwners = readCodeOwners(diff, fetchFn, signal);
-  const prReviewers = readReviewersWithTeams(diff, codeOwners, { fetchFn, teamMembers, signal });
-  return { codeOwners: await codeOwners, prReviewers: await prReviewers };
-}
 
 /**
  * Until `signal` aborts, opens a popup below a code-owner shield in a pull request's Reviewers

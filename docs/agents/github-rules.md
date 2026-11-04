@@ -597,12 +597,13 @@ Below 1012px, a pull request's tree toggle opens the file tree as a "Files" over
 - **Read the framed page through the frame's `contentDocument`.** The frame is
   same-origin, so the content script reads and scrolls it directly, with no message relay.
 - **Expect Firefox's declarativeNetRequest to name no initiator for a frame whose `src`
-  the content script sets.** `initiatorDomains` never matches that load, though
-  `excludedInitiatorDomains` does, so the framing rule drops `initiatorDomains` in
-  Firefox. The tab, the marked URL, and the rule's lifetime bound it there.
-- **Expect Firefox to keep a hidden page's extension ports open in its back-forward
-  cache.** The background never hears that page's port close, so `allowConversationFrame`
-  ends the framing port on `pagehide` (`untilPagehide` in
+  the content script sets (Firefox 159, checked 2026-11).** `initiatorDomains` never
+  matches that load, though `excludedInitiatorDomains` does, so in Firefox the framing
+  rule drops `initiatorDomains` and excludes githubusercontent.com initiators, GitHub's
+  sandbox frames. The tab, the marked URL, and the rule's lifetime bound it there.
+- **Expect Firefox to keep a hidden page's extension ports open in its back-forward cache
+  (Firefox 159, checked 2026-11).** The background never hears that page's port close, so
+  `allowConversationFrame` ends the framing port on `pagehide` (`untilPagehide` in
   [`utils/github/conversation-frame.ts`](../../utils/github/conversation-frame.ts)).
 - **Re-check:** curl `HEAD` on a pull request and read the three headers. Signed in with
   the saved `storageState`, add an `<iframe>` to Files changed from `page.evaluate`, then
@@ -614,7 +615,9 @@ Below 1012px, a pull request's tree toggle opens the file tree as a "Files" over
   container's padding and the window at which `RegularTreeToggle` turns `display: none`.
   With the panel pinned, open the ☰ drawer and use `elementFromPoint` inside it to check
   that it draws above the panel. Read `#__primerPortalRoot__`'s ancestors for `isolation`,
-  and read `--zIndex-sticky` on `:root`.
+  and read `--zIndex-sticky` on `:root`. In Firefox, with the panel open, read
+  `browser.declarativeNetRequest.getSessionRules()` from gh-prism's Inspect console in
+  `about:debugging`; leave the pull request by a full load and read it again.
 
 ## Files changed filters
 

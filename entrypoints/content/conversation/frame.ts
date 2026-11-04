@@ -1,4 +1,4 @@
-import { teamMembersReader } from "@/utils/github/code-owners";
+import { readOwnership, teamMembersReader } from "@/utils/github/code-owners";
 import { isConversationFrame } from "@/utils/github/conversation-frame";
 import { readHeaderTabPr } from "@/utils/github/files-route";
 import { isEditable } from "../ui/dom";
@@ -11,7 +11,7 @@ import {
   CONVERSATION_LEAVE,
   type FrameMessage,
 } from "./frame-messages";
-import { readOwnership, showReviewerFiles } from "./reviewer-files";
+import { showReviewerFiles } from "./reviewer-files";
 
 const PARENT_ORIGIN = "https://github.com";
 
@@ -53,8 +53,8 @@ export function dressConversationFrame(win: Window): void {
 }
 
 /**
- * When `win` is the Conversation panel's frame, lists a code owner's files from their Reviewers
- * shield, read through `fetchFn` until `signal` aborts, as the Conversation tab does but without
+ * When `win` is the Conversation panel's frame, opens gh-prism's files popup and code owner
+ * details dialog from a code-owner shield in its Reviewers list, read through `fetchFn` until `signal` aborts, as the Conversation tab does but without
  * the filter link. Does nothing elsewhere.
  */
 export function showFrameReviewerFiles(
@@ -64,12 +64,15 @@ export function showFrameReviewerFiles(
 ): void {
   const pr = isPanelFrame(win) ? readHeaderTabPr(win.location.pathname) : undefined;
   if (!pr) return;
+
   const teamMembers = teamMembersReader(fetchFn, signal);
   const show = () =>
     showReviewerFiles(win.document, signal, {
       read: () => readOwnership(pr, { fetchFn, teamMembers, signal }),
       teamMembers,
     });
+
+  // showReviewerFiles mounts its sheet in the head, which document_start precedes.
   if (win.document.readyState === "loading")
     win.document.addEventListener("DOMContentLoaded", show, { once: true });
   else show();

@@ -2,7 +2,12 @@ import { browser } from "wxt/browser";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { storage } from "wxt/utils/storage";
-import { readCodeOwners, teamMembersReader } from "@/utils/github/code-owners";
+import {
+  readCodeOwners,
+  readOwnership,
+  readReviewersWithTeams,
+  teamMembersReader,
+} from "@/utils/github/code-owners";
 import { allowConversationFrame } from "@/utils/github/conversation-frame";
 import { ownerFilterLink, ownerOf } from "@/utils/github/files-route";
 import { type NextCommit, readNextCommit } from "@/utils/github/next-commit";
@@ -49,11 +54,7 @@ import {
   fitsPinned,
   showConversationButton,
 } from "./conversation/panel";
-import {
-  readOwnership,
-  readReviewersWithTeams,
-  showReviewerFiles,
-} from "./conversation/reviewer-files";
+import { showReviewerFiles } from "./conversation/reviewer-files";
 import { visitViewed } from "./diffs/viewed";
 import { followRightPanel } from "./files-page";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";

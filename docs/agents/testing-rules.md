@@ -179,3 +179,14 @@ To check behavior live, build the extension and drive Playwright's bundled Chrom
   page's embedded data (`pageHeadSha` in
   [`utils/github/pr-port.ts`](../../utils/github/pr-port.ts)), which a full load of Files
   changed or a soft navigation from Conversation provides.
+- **In Firefox, drive a stock headless Firefox over WebDriver BiDi.** Playwright's own
+  Firefox can't load extensions. Start Firefox with `--remote-debugging-port` on a fresh
+  temporary profile, never your own or the dev profile, and drive it from a Node script on
+  the global `WebSocket`: `session.new`, then `webExtension.install` with a copy of
+  `.output/firefox-mv3`, since a rebuild mid-check changes what Firefox reads. Set the
+  GitHub cookies from the saved `storageState` with `storage.setCookie`, then use
+  `browsingContext.navigate`, `script.evaluate`, `input.performActions`, and the
+  `log.entryAdded` and `network.*` events for evidence. By hand, load the build as a
+  temporary add-on from `about:debugging#/runtime/this-firefox`, and read session rules
+  with `await browser.declarativeNetRequest.getSessionRules()` in gh-prism's Inspect
+  console.

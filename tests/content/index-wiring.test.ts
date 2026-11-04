@@ -13,7 +13,11 @@ import {
 import { showOwnerSection } from "../../entrypoints/content/sidebar/owner-section";
 import { dockSidebar, type Side } from "../../entrypoints/content/sidebar/side";
 import { showHeaderTab, showVisit } from "../../entrypoints/content/visit/land";
-import { readCodeOwners, readPrReviewers } from "../../utils/github/code-owners";
+import {
+  readCodeOwners,
+  readOwnership,
+  readReviewersWithTeams,
+} from "../../utils/github/code-owners";
 import { readFilesRoute } from "../../utils/github/files-route";
 import { readNextCommit } from "../../utils/github/next-commit";
 import { intentFor } from "../../utils/intent/read";
@@ -38,7 +42,8 @@ vi.mock(import("../../utils/intent/read"), async (importOriginal) => ({
 vi.mock(import("../../utils/github/code-owners"), async (importOriginal) => ({
   ...(await importOriginal()),
   readCodeOwners: vi.fn(() => new Promise<never>(() => {})),
-  readPrReviewers: vi.fn(() => new Promise<never>(() => {})),
+  readReviewersWithTeams: vi.fn(() => new Promise<never>(() => {})),
+  readOwnership: vi.fn(() => new Promise<never>(() => {})),
 }));
 vi.mock(import("../../entrypoints/content/visit/land"), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -371,12 +376,12 @@ describe("content script", () => {
     sidebar.replaceWith(sidebar.cloneNode(true));
     await afterMutations();
 
-    expect(readPrReviewers).toHaveBeenCalledExactlyOnceWith(
-      readFilesRoute(PR)?.diff,
-      expect.any(Function),
-      expect.any(AbortSignal),
-    );
     const codeOwners = vi.mocked(readCodeOwners).mock.results[0]?.value;
+    expect(readReviewersWithTeams).toHaveBeenCalledExactlyOnceWith(
+      readFilesRoute(PR)?.diff,
+      codeOwners,
+      expect.objectContaining({ fetchFn: expect.any(Function), signal: expect.any(AbortSignal) }),
+    );
     const given = vi.mocked(showOwnerSection).mock.calls.map(([, , options]) => options);
     expect(given).toHaveLength(2);
     for (const options of given) {
@@ -394,7 +399,7 @@ describe("content script", () => {
       "../../utils/github/code-owners",
     );
     vi.mocked(readCodeOwners).mockImplementation(actual.readCodeOwners);
-    vi.mocked(readPrReviewers).mockImplementation(actual.readPrReviewers);
+    vi.mocked(readReviewersWithTeams).mockImplementation(actual.readReviewersWithTeams);
     vi.stubGlobal("fetch", routedFetch(routes));
 
     await run();
@@ -447,8 +452,8 @@ describe("content script", () => {
     const pr2 = readFilesRoute("/o/r/pull/2/changes")?.diff;
     expect(readCodeOwners).toHaveBeenCalledTimes(2);
     expect(vi.mocked(readCodeOwners).mock.calls[1]?.[0]).toEqual(pr2);
-    expect(readPrReviewers).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(readPrReviewers).mock.calls[1]?.[0]).toEqual(pr2);
+    expect(readReviewersWithTeams).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(readReviewersWithTeams).mock.calls[1]?.[0]).toEqual(pr2);
   });
 
   it("narrows each page to the owner its URL names, if any", async () => {
@@ -582,7 +587,7 @@ describe("content script", () => {
       await run();
 
       expect(readCodeOwners).not.toHaveBeenCalled();
-      expect(readPrReviewers).not.toHaveBeenCalled();
+      expect(readOwnership).not.toHaveBeenCalled();
     });
 
     describe("with a Reviewers list", () => {
@@ -604,9 +609,12 @@ describe("content script", () => {
         await showReviewers();
 
         const pr = { kind: "pr", owner: "o", repo: "r", number: 3 };
-        expect(readCodeOwners).toHaveBeenCalledExactlyOnceWith(pr, fetch, expect.any(AbortSignal));
-        expect(readPrReviewers).toHaveBeenCalledExactlyOnceWith(pr, fetch, expect.any(AbortSignal));
-        expect(vi.mocked(readCodeOwners).mock.calls[0]?.[2].aborted).toBe(false);
+        expect(readOwnership).toHaveBeenCalledExactlyOnceWith(pr, {
+          fetchFn: fetch,
+          teamMembers: expect.any(Function),
+          signal: expect.any(AbortSignal),
+        });
+        expect(vi.mocked(readOwnership).mock.calls[0]?.[1].signal.aborted).toBe(false);
       });
 
       it("reads again on a fresh visit", async () => {
@@ -621,10 +629,10 @@ describe("content script", () => {
         loadHeaderFixture();
         document.dispatchEvent(new Event("soft-nav:end"));
         await afterMutations();
-        vi.mocked(readCodeOwners).mockClear();
+        vi.mocked(readOwnership).mockClear();
         await showReviewers();
 
-        expect(readCodeOwners).toHaveBeenCalledOnce();
+        expect(readOwnership).toHaveBeenCalledOnce();
       });
     });
 

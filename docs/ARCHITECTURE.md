@@ -22,12 +22,14 @@ long-lived message port, defined in
 [`utils/github/conversation-frame.ts`](../utils/github/conversation-frame.ts), it installs
 a per-tab session rule that lets only the Conversation panel's frame load the pull
 request's Conversation tab. In Firefox the rule can't require a github.com initiator,
-because Firefox names none for a frame the content script loads. There, only the tab, the
-marked URL, and the rule's lifetime bound it. Removing it when the port closes is best
-effort: a worker stopped while idle never hears the port close. Closing the tab removes it
-always, and a leftover rule still matches only that tab's marked URL. It also clears the
-intent cache whenever the extension is installed, updated, or reloaded in development, and
-on a fresh install it marks the installed version's what's-new notes dismissed.
+because Firefox names none for a frame the content script loads. There it excludes
+githubusercontent.com initiators instead, GitHub's sandbox frames, and the tab, the marked
+URL, and the rule's lifetime bound it. Its lifetime ends when the port closes, which the
+content script forces on `pagehide`. Removing it when the port closes is best effort: a
+worker stopped while idle never hears the port close. Closing the tab removes it always,
+and a leftover rule still matches only that tab's marked URL. It also clears the intent
+cache whenever the extension is installed, updated, or reloaded in development, and on a
+fresh install it marks the installed version's what's-new notes dismissed.
 
 The content script in [`entrypoints/content/index.ts`](../entrypoints/content/index.ts)
 runs on every github.com page at `document_start`, so its watcher is in place before
@@ -145,9 +147,11 @@ re-creating an `<iframe>` reloads it. Its first open in a visit loads the frame 
 3. `allowConversationFrame` in
    [`utils/github/conversation-frame.ts`](../utils/github/conversation-frame.ts) sends the
    policy to the service worker over a port, which installs the tab's framing rule. The
-   port stays open until the visit ends, but the rule may outlive it: the worker stops
-   about 30 s after its last event and then never hears the port close, so the rule stays
-   until the tab closes or the tab's next open replaces it.
+   port stays open until the visit ends or the page hides. Firefox keeps a page that a
+   full navigation left in its back-forward cache with its ports open, so the content
+   script closes it on `pagehide`. The rule may still outlive it: the worker stops about
+   30 s after its last event and then never hears the port close, so the rule stays until
+   the tab closes or the tab's next open replaces it.
 4. Once the top page has fired `load`, it sets the frame's `src` to the marked URL.
 
 If the `HEAD` fails or carries no policy, the rule is refused, or the loaded frame's

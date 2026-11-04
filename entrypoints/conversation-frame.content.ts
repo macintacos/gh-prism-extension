@@ -5,9 +5,8 @@ export default defineContentScript({
   matches: ["https://github.com/*/*/pull/*"],
   allFrames: true,
   runAt: "document_start",
-  main: () => {
+  main: (ctx) => {
     dressConversationFrame(window);
-    // Never aborts: the frame's document never navigates, as its links out go to the parent.
-    showFrameReviewerFiles(window, fetch, new AbortController().signal);
+    showFrameReviewerFiles(window, fetch, ctx.signal);
   },
 });

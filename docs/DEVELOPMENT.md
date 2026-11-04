@@ -21,7 +21,7 @@ generate WXT's types. Later, `mise run setup` alone is enough: it repeats `mise 
 first, so it also picks up a changed tool pin.
 
 `mise run dev` needs both Chrome and Firefox installed, unless a `web-ext.config.ts` turns
-launching off (see below).
+launching off (see [The dev browser](#the-dev-browser)).
 
 ## The dev browser
 

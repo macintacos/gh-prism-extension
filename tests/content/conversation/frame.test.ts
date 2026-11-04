@@ -207,7 +207,9 @@ describe("showFrameReviewerFiles", () => {
   let controller: AbortController;
   beforeEach(() => {
     vi.useFakeTimers();
+
     document.body.innerHTML = conversationPage;
+
     controller = new AbortController();
   });
   afterEach(() => {
@@ -216,12 +218,11 @@ describe("showFrameReviewerFiles", () => {
   });
 
   it("lists a code owner's files from their shield in the panel's frame", async () => {
-    showFrameReviewerFiles(
-      frameWindow(`${SANDBOX_PR}?gh-prism-panel=1`).win,
-      sandboxFetch(),
-      controller.signal,
-    );
+    const win = frameWindow(`${SANDBOX_PR}?gh-prism-panel=1`).win;
+
+    showFrameReviewerFiles(win, sandboxFetch(), controller.signal);
     await hoverFrontendShield();
+
     expect(document.querySelector(".gh-prism-reviewer-files")?.textContent).toContain(
       "Code owner of 2 files in this pull request",
     );
@@ -229,8 +230,10 @@ describe("showFrameReviewerFiles", () => {
 
   it("leaves a frame without the marker to GitHub's shield", async () => {
     const fetchFn = sandboxFetch();
+
     showFrameReviewerFiles(frameWindow(SANDBOX_PR).win, fetchFn, controller.signal);
     await hoverFrontendShield();
+
     expect(document.querySelector(".gh-prism-reviewer-files")).toBeNull();
     expect(fetchFn).not.toHaveBeenCalled();
   });

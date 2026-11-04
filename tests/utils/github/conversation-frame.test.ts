@@ -77,13 +77,13 @@ describe("framingRule", () => {
     });
   });
 
-  // Firefox names no initiator for a frame load the content script starts.
-  it("lets the tab's sub-frame load the marked Conversation in Firefox, whatever started it", () => {
+  it("lets the tab's sub-frame load the marked Conversation in Firefox, unless a GitHub sandbox origin started it", () => {
     vi.stubEnv("BROWSER", "firefox");
 
     expect(framingRule(3, PR, POLICY).condition).toEqual({
       tabIds: [3],
       resourceTypes: ["sub_frame"],
+      excludedInitiatorDomains: ["githubusercontent.com"],
       requestDomains: ["github.com"],
       urlFilter: "|https://github.com/o/r/pull/7?gh-prism-panel=1|",
     });
@@ -279,7 +279,6 @@ describe("requestFraming", () => {
     expect(port.disconnect).toHaveBeenCalled();
   });
 
-  // Firefox keeps a hidden page's port open in its back-forward cache.
   it("disconnects when the page is hidden", () => {
     const port = fakePort();
     const page = new EventTarget();

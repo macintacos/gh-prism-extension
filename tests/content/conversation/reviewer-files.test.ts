@@ -1,12 +1,10 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  type Ownership,
-  showReviewerFiles,
-} from "../../../entrypoints/content/conversation/reviewer-files";
+import { showReviewerFiles } from "../../../entrypoints/content/conversation/reviewer-files";
 import type { OwnerFilter } from "../../../entrypoints/content/ui/owners-dialog";
 import {
   codeOwnerOf,
+  type Ownership,
   type PrCodeOwners,
   type PrReviewer,
   readCodeOwners,

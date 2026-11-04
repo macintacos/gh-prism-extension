@@ -7,12 +7,14 @@ set -euo pipefail
 # Keep in sync with chromeProfile and firefoxProfile in wxt.config.ts.
 chrome_profile="$HOME/.local/share/gh-prism-extension/chrome-profile"
 firefox_profile="$HOME/.local/share/gh-prism-extension/firefox-profile"
+firefox_arg='-profile '
+firefox_dev=
 
 # The browser process launched with <launch-arg><profile>, if any. Chrome's helpers carry --type=,
 # Firefox's -contentproc or plugin-container.
 profile_holder() {
-	local listing rc=0
-	listing=$(pgrep -lf -- "$1$2( |\$)") || rc=$?
+	local launch_arg=$1 profile=$2 listing rc=0
+	listing=$(pgrep -lf -- "$launch_arg$profile( |\$)") || rc=$?
 	# pgrep exits 1 when nothing matches.
 	((rc <= 1)) || return "$rc"
 	awk 'NF && !/ --type=| -contentproc|plugin-container/ { print $1; exit }' <<<"$listing"
@@ -22,8 +24,8 @@ profile_holder() {
 # A second Chrome on a held profile hands off to the first and exits, which web-ext reports only as
 # "CDP connection closed before response to Extensions.loadUnpacked". A second Firefox refuses to start.
 free_profile() {
-	local browser=$1 pid answer
-	pid=$(profile_holder "$2" "$3")
+	local browser=$1 launch_arg=$2 profile=$3 pid answer
+	pid=$(profile_holder "$launch_arg" "$profile")
 	[[ -n $pid ]] || return 0
 
 	printf '%s\n' "! The dev profile is already open in $browser (pid $pid), and $browser won't open a profile twice." >&2
@@ -49,20 +51,23 @@ free_profile() {
 	exit 1
 }
 
+# A background job ignores Ctrl-C's SIGINT, and fx-runner closes Firefox only on Node's exit event, which
+# SIGTERM skips, so stop the server and then the browser.
 stop_firefox() {
-	kill "$firefox_dev" 2>/dev/null || :
+	[[ -z $firefox_dev ]] || kill "$firefox_dev" 2>/dev/null || :
 	local pid
-	pid=$(profile_holder "-profile " "$firefox_profile") || return 0
+	pid=$(profile_holder "$firefox_arg" "$firefox_profile") || return 0
 	[[ -z $pid ]] || kill "$pid" 2>/dev/null || :
 }
 
 main() {
 	free_profile Chrome --user-data-dir= "$chrome_profile"
-	free_profile Firefox "-profile " "$firefox_profile"
+	free_profile Firefox "$firefox_arg" "$firefox_profile"
 	# A fresh clone may skip setup; postinstall (wxt prepare) generates .wxt/.
 	bun install
 	# Run wxt itself, not through bun run, so $! is the process the trap must stop.
-	node_modules/.bin/wxt -b firefox --port 3001 &
+	# Its own port, outside the 3000-3010 range Chrome's server probes, so the two never race for one.
+	node_modules/.bin/wxt -b firefox --port 3011 &
 	firefox_dev=$!
 	trap stop_firefox EXIT
 	bun run dev

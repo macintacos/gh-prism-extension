@@ -16,7 +16,8 @@ export default defineConfig({
   // WXT defaults Firefox to MV2.
   manifestVersion: 3,
   hooks: {
-    // web-ext fails with ENOENT unless the profile directory already exists.
+    // web-ext needs each profile directory to exist: Chrome fails with ENOENT, and Firefox reads a missing path
+    // as a profile name.
     "server:created": () => {
       for (const profile of [chromeProfile, firefoxProfile])
         mkdirSync(profile, { recursive: true, mode: 0o700 });
@@ -42,8 +43,7 @@ export default defineConfig({
             gecko: {
               // Permanent: Firefox keys stored data and the AMO listing to it.
               id: "gh-prism@excessive.dev",
-              // CSS anchor positioning (sidebar/side.css) needs 147, the highest of gh-prism's floors:
-              // DNR session rules with header changes 113, light-dark() 120, data_collection_permissions 140.
+              // CSS anchor positioning (sidebar/side.css) needs 147, gh-prism's highest floor.
               strict_min_version: "147.0",
               data_collection_permissions: { required: ["none"] },
             },
