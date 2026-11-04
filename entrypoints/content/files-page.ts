@@ -474,14 +474,14 @@ interface ReviewerList {
 }
 
 // The classic shield's id prefixes; keep in sync with reviewer-files.css's tool-tip hook.
-const SHIELD_IDS = ["codeowner-", "assigned-codeowner-"] as const;
+const SHIELD_ID_PREFIXES = ["codeowner-", "assigned-codeowner-"] as const;
 const SHIELD_LABEL = " is a code owner";
 
 const REVIEWER_LISTS: readonly ReviewerList[] = [
   {
     kind: "classic",
     row: '#partial-discussion-sidebar form[id^="pull-request-reviewers-form-"] .css-truncate > div',
-    shield: `button:is(${SHIELD_IDS.map((id) => `[id^="${id}"]`).join(",")})`,
+    shield: `button:is(${SHIELD_ID_PREFIXES.map((prefix) => `[id^="${prefix}"]`).join(",")})`,
   },
   {
     kind: "overview",
@@ -551,7 +551,7 @@ export const reviewerShieldOf = (target: Element): HTMLElement | null =>
 
 /** The code owner token (`@login`, `@org/team`) that GitHub's `shield` marks. */
 export function shieldOwner(shield: Element): string {
-  const prefix = SHIELD_IDS.find((id) => shield.id.startsWith(id));
+  const prefix = SHIELD_ID_PREFIXES.find((candidate) => shield.id.startsWith(candidate));
   if (prefix) return `@${shield.id.slice(prefix.length)}`;
   return `@${shield.getAttribute("aria-label")?.slice(0, -SHIELD_LABEL.length) ?? ""}`;
 }
