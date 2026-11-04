@@ -44,12 +44,15 @@ export function amoFetch(
   };
 }
 
+export const credentialsRefused = (status: number) =>
+  `AMO refused FIREFOX_JWT_ISSUER and FIREFOX_JWT_SECRET (HTTP ${status}); generate new ones at ${AMO_KEYS_PAGE}`;
+
 /** Why AMO can't take a release (or a Firefox-only re-run of `firefoxOnly`), or null. */
 export async function checkAmo(amo: AmoFetch, firefoxOnly?: string): Promise<string | null> {
   const addon = `/addons/addon/${ADDON_GUID}/`;
   const { status } = await amo(addon);
   if (status === 401 || status === 403) {
-    return `AMO refused FIREFOX_JWT_ISSUER and FIREFOX_JWT_SECRET (HTTP ${status}); generate new ones at ${AMO_KEYS_PAGE}`;
+    return credentialsRefused(status);
   }
   if (status === 404) {
     return `AMO has no add-on ${ADDON_GUID} yet; create it once with: gh workflow run amo-listing.yml --ref trunk`;

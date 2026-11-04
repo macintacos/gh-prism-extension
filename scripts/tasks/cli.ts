@@ -3,7 +3,15 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Argument, Command } from "@commander-js/extra-typings";
-import { amoFetch, checkAmo } from "./amo/api";
+import { ADDON_GUID, AMO_PAGE, amoFetch, checkAmo } from "./amo/api";
+import {
+  createListing,
+  licenseSlug,
+  listingExists,
+  listingPayload,
+  readmeDescription,
+  readmeScreenshots,
+} from "./amo/listing";
 import { sourcesZipProblems } from "./amo/sources";
 import {
   missingSecrets,
@@ -118,13 +126,83 @@ const checkSources = () => {
   if (status !== 0) {
     program.error("rebuilding from the sources zip gives a different .output/firefox-mv3");
   }
-  console.log(`${zip} rebuilds .output/firefox-mv3 identically`);
+  // stderr keeps create-amo-listing --dry-run's stdout pure JSON.
+  console.error(`${zip} rebuilds .output/firefox-mv3 identically`);
 };
 
 program
   .command("check-sources")
   .description("Check the Firefox sources zip rebuilds .output/firefox-mv3 (CI only)")
   .action(checkSources);
+
+const listingInputs = () => {
+  run("bunx", ["wxt", "zip", "-b", "firefox"]);
+  checkSources();
+  const pkg = JSON.parse(readFileSync("package.json", "utf8")) as {
+    description: string;
+    homepage: string;
+    bugs: { url: string };
+    version: string;
+  };
+  const manifest = JSON.parse(readFileSync(".output/firefox-mv3/manifest.json", "utf8")) as {
+    name: string;
+  };
+  const readme = readFileSync("README.md", "utf8");
+  return {
+    version: pkg.version,
+    xpi: `.output/gh-prism-${pkg.version}-firefox.zip`,
+    sourcesZip: `.output/gh-prism-${pkg.version}-sources.zip`,
+    screenshots: readmeScreenshots(readme),
+    fields: {
+      manifestName: manifest.name,
+      summary: pkg.description,
+      description: readmeDescription(readme, pkg.homepage),
+      homepage: pkg.homepage,
+      supportUrl: pkg.bugs.url,
+      license: licenseSlug(readFileSync("LICENSE", "utf8")),
+    },
+  };
+};
+
+program
+  .command("create-amo-listing")
+  .description("Create gh-prism's AMO listing with its first version, once (CI only)")
+  .option("--dry-run", "build and print the listing's payload without contacting AMO")
+  .action(async ({ dryRun }) => {
+    if (dryRun) {
+      const { fields, sourcesZip, xpi, screenshots } = listingInputs();
+      const payload = listingPayload({ ...fields, uploadUuid: "<upload uuid>" });
+      console.log(JSON.stringify({ payload, sourcesZip, xpi, screenshots }, null, 2));
+      return;
+    }
+
+    const missing = ["FIREFOX_JWT_ISSUER", "FIREFOX_JWT_SECRET"].filter(
+      (name) => !process.env[name],
+    );
+    if (missing.length > 0) {
+      program.error(`missing ${missing.join(", ")}`);
+    }
+    const amo = amoFetch(
+      {
+        issuer: process.env.FIREFOX_JWT_ISSUER ?? "",
+        secret: process.env.FIREFOX_JWT_SECRET ?? "",
+      },
+      fetch,
+      () => Math.floor(Date.now() / 1000),
+      () => crypto.randomUUID(),
+    );
+    if (await listingExists(amo)) {
+      console.log(`${ADDON_GUID} already exists on AMO: ${AMO_PAGE}; nothing changed`);
+      return;
+    }
+    await createListing({
+      ...listingInputs(),
+      amo,
+      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      readFile: (path) => readFileSync(path),
+      log: console.log,
+    });
+  });
 
 program
   .command("compute")
