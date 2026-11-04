@@ -3,12 +3,14 @@
 *Audience: contributors and coding agents learning how gh-prism works before they change
 it.*
 
-gh-prism is a Chrome extension built with WXT, a framework for browser extensions. It has
-two parts: a service worker that fetches pull request data and lets the Conversation panel
-frame a pull request's Conversation tab, and content scripts. One reshapes GitHub's Files
-view and reads a pull request's code owners and reviewers itself; the other dresses the
-Conversation panel's frame. Each section below names the module behind its claims, so you
-can read the code next. Terms such as visit, page, intent, and landing are defined in
+gh-prism is a Chrome and Firefox extension built with WXT, a framework for browser
+extensions. It has two parts: a background script that fetches pull request data and lets
+the Conversation panel frame a pull request's Conversation tab, and content scripts. One
+content script reshapes GitHub's Files view and reads a pull request's code owners and
+reviewers itself; the other dresses the Conversation panel's frame. The background runs as
+a service worker in Chrome and as an event page in Firefox. Each section below names the
+module behind its claims, so you can read the code next. Terms such as visit, page,
+intent, and landing are defined in
 [`CONTEXT.md`](../CONTEXT.md).
 
 ## Overview
@@ -19,11 +21,13 @@ long-lived message port, defined in
 [`utils/github/pr-port.ts`](../utils/github/pr-port.ts). Over a second port, defined in
 [`utils/github/conversation-frame.ts`](../utils/github/conversation-frame.ts), it installs
 a per-tab session rule that lets only the Conversation panel's frame load the pull
-request's Conversation tab. Removing it when the port closes is best effort: a worker
-stopped while idle never hears the port close. Closing the tab removes it always, and a
-leftover rule still matches only that tab's marked URL. It also clears the intent cache
-whenever the extension is installed, updated, or reloaded in development, and on a fresh
-install it marks the installed version's what's-new notes dismissed.
+request's Conversation tab. In Firefox the rule can't require a github.com initiator,
+because Firefox names none for a frame the content script loads. There, only the tab, the
+marked URL, and the rule's lifetime bound it. Removing it when the port closes is best
+effort: a worker stopped while idle never hears the port close. Closing the tab removes it
+always, and a leftover rule still matches only that tab's marked URL. It also clears the
+intent cache whenever the extension is installed, updated, or reloaded in development, and
+on a fresh install it marks the installed version's what's-new notes dismissed.
 
 The content script in [`entrypoints/content/index.ts`](../entrypoints/content/index.ts)
 runs on every github.com page at `document_start`, so its watcher is in place before
@@ -34,14 +38,16 @@ Instead, it watches every page for a Files view to appear, for a pull request's 
 tabs, where it shows the diffstat and, on Conversation, a code owner's files, and for a
 pull request's classic page, where it opens a dialog instead.
 
-That script runs in the top frame only, so nothing of gh-prism's, the Conversation button
-included, shows inside the Conversation panel. A second content script,
+That script runs in the top frame only, so the Conversation button and the sidebar don't
+show inside the Conversation panel. A second content script,
 [`entrypoints/conversation-frame.content.ts`](../entrypoints/conversation-frame.content.ts),
 runs in every frame of a pull request URL at `document_start` and acts only in a sub-frame
 whose URL carries the panel's `gh-prism-panel=1` marker. There,
 [`conversation/frame.ts`](../entrypoints/content/conversation/frame.ts) hides GitHub's
 site header, PR title bar, tab row, and site footer, posts each link that leaves the
-Conversation to the parent page to load, and relays an Escape GitHub didn't handle. The
+Conversation to the parent page to load, and relays an Escape GitHub didn't handle. It
+also opens gh-prism's popup and code owner details dialog from a code-owner shield in the
+frame's Reviewers list, without the owner filter, which belongs to the parent page. The
 messages' shapes live in
 [`conversation/frame-messages.ts`](../entrypoints/content/conversation/frame-messages.ts).
 

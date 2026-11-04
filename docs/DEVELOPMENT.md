@@ -2,8 +2,9 @@
 
 *Audience: people building, testing, and changing gh-prism on their own machine.*
 
-This page covers everything past the first run: the dev browser, the task catalog, tests,
-the benchmark, git hooks, CI, and patched dependencies.
+gh-prism is a Chrome and Firefox extension. This page covers everything past the first
+run: the dev browser, the task catalog, tests, the benchmark, git hooks, CI, and patched
+dependencies.
 
 ## Setup
 
@@ -50,8 +51,9 @@ export default defineWebExtConfig({ disabled: true });
 To preview the sidebar's what's-new block, pass release notes into the build:
 `WXT_RELEASE_NOTES="$(cat notes.md)" mise run dev`. A fresh install, a dismissal, or a
 3-day-old first view hides it. If it doesn't show, run
-`chrome.storage.local.remove("whatsNewSeen")` in the extension's service-worker console,
-then reload a Files view.
+`chrome.storage.local.remove("whatsNewSeen")` in the extension's service-worker console in
+Chrome, or `browser.storage.local.remove("whatsNewSeen")` in the console that gh-prism's
+**Inspect** opens in Firefox's `about:debugging`. Then reload a Files view.
 
 ## Tasks
 
@@ -104,9 +106,9 @@ Go, and Lua), mix code with comment and docstring lines. The last two add files 
 paths and a long file name, for checking how the comment-lines sub-section's tree and
 Implementation show them. The bodies of these six list the counts gh-prism should show for
 Implementation, Tests, and Docs & Comments, worked out by hand, so you can check them
-against the sidebar. It needs the `gh` CLI signed in. It skips the repository and each
-pull request that already exists, so a rerun picks up where it left off. A pull request
-that failed midway is the exception: fix it by hand.
+against the sidebar in either dev browser. It needs the `gh` CLI signed in. It skips the
+repository and each pull request that already exists, so a rerun picks up where it left
+off. A pull request that failed midway is the exception: fix it by hand.
 
 `scripts/create-codeowners-sandbox.sh excessive-dev/gh-prism-codeowners-sandbox` creates
 the code-owners sandbox, a public repository under the `excessive-dev` organization. It is

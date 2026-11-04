@@ -2,9 +2,10 @@
 
 *Audience: people contributing code or docs to gh-prism.*
 
-This page gets you set up and points you onward. [`README.md`](README.md) describes what
-gh-prism does, the pages under [`docs/`](docs/README.md) explain how it works and how to
-develop it, and `docs/agents/` holds the rules each code area follows.
+gh-prism is a Chrome and Firefox extension. This page gets you set up and points you
+onward. [`README.md`](README.md) describes what gh-prism does, the pages under
+[`docs/`](docs/README.md) explain how it works and how to develop it, and `docs/agents/`
+holds the rules each code area follows.
 
 ## Setup
 

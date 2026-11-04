@@ -3,8 +3,8 @@
 *Audience: coding agents changing gh-prism, and the contributors who maintain their
 rules.*
 
-gh-prism is a Chrome extension that splits a GitHub pull request's or commit's changed
-files into sections. The rules each code area follows live in
+gh-prism is a Chrome and Firefox extension that splits a GitHub pull request's or commit's
+changed files into sections. The rules each code area follows live in
 [`docs/agents/`](docs/agents/), and you load them on demand. This file decides which ones
 a change needs. A new rule goes in its area's rule file. A new area gets its own
 `docs/agents/<area>-rules.md` and an edge here; see

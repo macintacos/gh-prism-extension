@@ -1,9 +1,9 @@
 # gh-prism
 
-gh-prism is a Chrome extension that sorts a GitHub pull request's changed files into
-sections, so you can review one part at a time. It started by copying how other review
-tools split a pull request's lines changed, and has grown from there: it now also works on
-commit pages and on a pull request's Conversation tab.
+gh-prism is a Chrome and Firefox extension that sorts a GitHub pull request's changed
+files into sections, so you can review one part at a time. It started by copying how other
+review tools split a pull request's lines changed, and has grown from there: it now also
+works on commit pages and on a pull request's Conversation tab.
 
 AI-assisted pull requests often look large when only a small part of them is
 implementation, and gh-prism lets you review that part first. See
@@ -148,11 +148,12 @@ diffs, and Older and Newer links step through its history.
 ## Install
 
 [Install gh-prism from the Chrome Web Store](https://chromewebstore.google.com/detail/nbgincngpiakbeihobifpdahbhflplgh),
-then reload any GitHub tabs that were already open.
+then reload any GitHub tabs that were already open. Firefox has no store listing yet, so
+[build it from source](#build-from-source).
 
 ### Build from source
 
-You need Git, Bun (a JavaScript runtime and package manager), and Chrome.
+You need Git, Bun (a JavaScript runtime and package manager), and Chrome or Firefox.
 
 1. Clone the repository, install its dependencies, and build it:
 
@@ -165,22 +166,29 @@ You need Git, Bun (a JavaScript runtime and package manager), and Chrome.
 
    If Bun comes from mise, a tool version manager, and fails with an untrusted-config
    error, run `mise trust` in the clone, then rerun the command.
-2. In Chrome, open `chrome://extensions` and turn on **Developer mode**.
-3. Click **Load unpacked** and choose the clone's `.output/chrome-mv3` folder. The picker
-   hides folders whose names start with a dot. Press
-   <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>.</kbd> on macOS, or <kbd>Ctrl</kbd>+<kbd>H</kbd>
-   on Linux, to show them.
-4. Reload any GitHub tabs that were already open.
+2. Load the build into your browser:
+   - **Chrome:** open `chrome://extensions` and turn on **Developer mode**. Click
+     **Load unpacked** and choose the clone's `.output/chrome-mv3` folder. The picker
+     hides folders whose names start with a dot. Press
+     <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>.</kbd> on macOS, or
+     <kbd>Ctrl</kbd>+<kbd>H</kbd> on Linux, to show them.
+   - **Firefox:** open `about:debugging#/runtime/this-firefox`, click
+     **Load Temporary Add-on…**, and choose the clone's
+     `.output/firefox-mv3/manifest.json`. Firefox removes a temporary add-on when it
+     quits, so load it again after a restart. If Firefox lists gh-prism without access to
+     github.com, turn it on in `about:addons` → gh-prism → **Permissions**.
+3. Reload any GitHub tabs that were already open.
 
 To update, run `git pull`, `bun install`, and `bun run build` in the clone. Then click the
-reload button on gh-prism's card in `chrome://extensions`, and reload your GitHub tabs.
+reload button on gh-prism's card in `chrome://extensions`, or **Reload** on gh-prism's
+entry in `about:debugging`, and reload your GitHub tabs.
 
 ## Permissions
 
 gh-prism needs no token or setup, because it reads through your signed-in GitHub session.
 It sees only what your account can see.
 
-It asks Chrome for access to only these hosts:
+It asks your browser for access to only these hosts:
 
 - `https://github.com/*`: it runs on every GitHub page, so it catches GitHub's in-page
   navigation, and acts only on pull request and commit pages. It reads a pull request's or
@@ -196,8 +204,8 @@ It also lets the Conversation panel show a pull request's Conversation tab in Fi
 changed. GitHub refuses to be shown inside another page, so gh-prism lifts that refusal
 only for the panel's frame in that tab, and keeps the rest of GitHub's security policy.
 
-It also uses Chrome's extension storage. When Chrome sync is on, it syncs these to your
-other computers:
+It also uses the browser's extension storage. When Chrome sync or Firefox Sync is on, it
+syncs these to your other computers:
 
 - Which side the sidebar is on.
 - Whether the header shows lines changed by section or GitHub's total.
@@ -229,6 +237,12 @@ It keeps these on this computer only:
 - **gh-prism asks you to sign in while you're signed in.** Check that you're signed in to
   GitHub in the Chrome profile gh-prism is installed in, then reload. Chrome's "Block
   third-party cookies" setting is untested with gh-prism.
+- **Firefox groups files by path and asks you to sign in.** gh-prism reads GitHub with the
+  sign-in cookie Firefox sends to github.com. When Firefox withholds it, as in a container
+  tab not signed in to GitHub or under strict Enhanced Tracking Protection, gh-prism
+  groups files by path instead of sorting them into sections. Sign in to GitHub in that
+  container, or turn off Enhanced Tracking Protection for github.com from the shield in
+  the address bar, then reload.
 - **gh-prism put a file in the wrong section.** Click **Report a miscategorized file**,
   the report icon beside the file tree's filter button. It opens a new-issue form on
   gh-prism's repository with your gh-prism version filled in, and, on a public repository

@@ -596,6 +596,14 @@ Below 1012px, a pull request's tree toggle opens the file tree as a "Files" over
   beside it from about a 780px panel width.
 - **Read the framed page through the frame's `contentDocument`.** The frame is
   same-origin, so the content script reads and scrolls it directly, with no message relay.
+- **Expect Firefox's declarativeNetRequest to name no initiator for a frame whose `src`
+  the content script sets.** `initiatorDomains` never matches that load, though
+  `excludedInitiatorDomains` does, so the framing rule drops `initiatorDomains` in
+  Firefox. The tab, the marked URL, and the rule's lifetime bound it there.
+- **Expect Firefox to keep a hidden page's extension ports open in its back-forward
+  cache.** The background never hears that page's port close, so `allowConversationFrame`
+  ends the framing port on `pagehide` (`untilPagehide` in
+  [`utils/github/conversation-frame.ts`](../../utils/github/conversation-frame.ts)).
 - **Re-check:** curl `HEAD` on a pull request and read the three headers. Signed in with
   the saved `storageState`, add an `<iframe>` to Files changed from `page.evaluate`, then
   from the extension, and compare the console's CSP refusal. Read the header's and the tab
