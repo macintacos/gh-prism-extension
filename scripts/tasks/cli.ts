@@ -1,7 +1,10 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Argument, Command } from "@commander-js/extra-typings";
 import { amoFetch, checkAmo } from "./amo/api";
+import { sourcesZipProblems } from "./amo/sources";
 import {
   missingSecrets,
   parseCommits,
@@ -79,13 +82,49 @@ program
     }
   });
 
-const run = (command: string, args: string[]): string => {
-  const { status, stdout, stderr } = spawnSync(command, args, { encoding: "utf8" });
+const run = (command: string, args: string[], cwd?: string): string => {
+  const { status, stdout, stderr } = spawnSync(command, args, { encoding: "utf8", cwd });
   if (status !== 0) {
     throw new Error(`${command} ${args.join(" ")} failed: ${stderr.trim()}`);
   }
   return stdout.trim();
 };
+
+const lines = (text: string) => text.split("\n").filter(Boolean);
+
+const checkSources = () => {
+  const { version } = JSON.parse(readFileSync("package.json", "utf8")) as { version: string };
+  const zip = `.output/gh-prism-${version}-sources.zip`;
+  const problems = sourcesZipProblems(
+    lines(run("unzip", ["-Z1", zip])),
+    lines(run("git", ["ls-files"])),
+  );
+  if (problems.length > 0) {
+    program.error(problems.join("\n"));
+  }
+
+  const dir = mkdtempSync(join(tmpdir(), "gh-prism-sources-"));
+  run("unzip", ["-q", zip, "-d", dir]);
+  run("bun", ["install", "--frozen-lockfile"], dir);
+  run("bun", ["run", "build"], dir);
+
+  const { status } = spawnSync(
+    "diff",
+    ["-r", join(dir, ".output/firefox-mv3"), ".output/firefox-mv3"],
+    {
+      stdio: "inherit",
+    },
+  );
+  if (status !== 0) {
+    program.error("rebuilding from the sources zip gives a different .output/firefox-mv3");
+  }
+  console.log(`${zip} rebuilds .output/firefox-mv3 identically`);
+};
+
+program
+  .command("check-sources")
+  .description("Check the Firefox sources zip rebuilds .output/firefox-mv3 (CI only)")
+  .action(checkSources);
 
 program
   .command("compute")
