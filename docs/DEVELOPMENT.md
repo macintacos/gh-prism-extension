@@ -147,12 +147,13 @@ hk, a git hook manager configured in [`hk.pkl`](../hk.pkl), runs two hooks:
 ## CI
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push and pull
-request, as three parallel jobs. Two of them install the pinned tools and dependencies:
-`check` runs `mise run preflight` then `mise run lint-firefox`, and `e2e` runs
-`mise run e2e`. Both cache bun's package cache, and `e2e` also caches Playwright's
-browsers, each keyed on `bun.lock`. `e2e` skips `playwright install-deps`: the runner
-image already has Chromium's system libraries, and that step's apt downloads sometimes
-stall for minutes.
+request, as three jobs, and `e2e` fans out to one job per browser. `check` and `e2e`
+install the pinned tools and dependencies and cache bun's package cache, keyed on
+`bun.lock`. `check` runs `mise run preflight` then `mise run lint-firefox`. `e2e` runs as
+`e2e (chromium)` and `e2e (firefox)`, each with `mise run e2e <browser>`, and each caches
+only its own Playwright browser, keyed on the browser and `bun.lock`. Both skip
+`playwright install-deps`: the runner image already has Chromium's and Firefox's system
+libraries, and that step's apt downloads sometimes stall for minutes.
 
 The third, `lockfile`, runs `gh actions-lock --verify`. The workflows reference actions by
 tag, and [`.github/workflows/actions.lock`](../.github/workflows/actions.lock) pins each
