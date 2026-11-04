@@ -27,12 +27,6 @@ import {
   view,
 } from "../../fixtures/visit";
 
-// Chrome content scripts run in an isolated world whose `customElements` is null, so every test
-// here mounts the view that way. Hoisted above the imports, which load @pierre/trees.
-vi.hoisted(() => {
-  Object.defineProperty(window, "customElements", { configurable: true, value: null });
-});
-
 patchShadowActiveElement();
 
 // happy-dom has no Popover API: these stand in for the calls the popover makes, closing with a

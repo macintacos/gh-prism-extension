@@ -28,12 +28,6 @@ import {
   treeHost,
 } from "../../fixtures/visit";
 
-// Chrome content scripts run in an isolated world whose `customElements` is null, so every test
-// here mounts the view that way. Hoisted above the imports, which load @pierre/trees.
-vi.hoisted(() => {
-  Object.defineProperty(window, "customElements", { configurable: true, value: null });
-});
-
 // Spied so tests can reach the hooks of the sidebar showVisit mounted.
 vi.mock(import("../../../entrypoints/content/sidebar/sections-view"), async (importOriginal) => {
   const original = await importOriginal();

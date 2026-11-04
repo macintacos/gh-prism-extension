@@ -25,14 +25,6 @@ import { outline } from "../../fixtures/file-list";
 import nodeReviewRequests from "../../fixtures/review-requests-node.json?raw";
 import sandboxMembers from "../../fixtures/team-members-sandbox.json?raw";
 
-// Chrome content scripts run in an isolated world whose `customElements` is null.
-vi.hoisted(() => {
-  Object.defineProperty(window, "customElements", {
-    configurable: true,
-    value: null,
-  });
-});
-
 // happy-dom has no Popover API.
 HTMLElement.prototype.showPopover = () => {};
 HTMLElement.prototype.hidePopover = () => {};

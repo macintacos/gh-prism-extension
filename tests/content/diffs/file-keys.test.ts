@@ -4,12 +4,6 @@ import { showStepLinks } from "../../../entrypoints/content/commit/step-links";
 import { foundPage, linkTo, loadCommitFixture } from "../../fixtures/files-page";
 import { afterDebounce, mountsVisit } from "../../fixtures/visit";
 
-// Chrome content scripts run in an isolated world whose `customElements` is null, so every test
-// here mounts the view that way. Hoisted above the imports, which load @pierre/trees.
-vi.hoisted(() => {
-  Object.defineProperty(window, "customElements", { configurable: true, value: null });
-});
-
 const { remountWith } = mountsVisit();
 
 /** Presses `key` on `target` with `init`'s modifiers, as a reviewer does. */
