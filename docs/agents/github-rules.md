@@ -470,8 +470,8 @@ pull request, taken 2026-10-28, not from a capture.
   sandbox. A user's `codeowner-<login>`, for a user CODEOWNERS names, is inferred, not
   observed. Either button is `mr-2 btn-link muted-icon` around
   `span.reviewers-status-icon` and a 16px `octicon-shield-lock`, placed in the row after
-  the status icon's `tool-tip`, which flex order puts it before. The assigned button has
-  no `aria-label`.
+  the status icon's `tool-tip`, which flex order puts it before. Neither button has an
+  `aria-label`, so its id is the only place its reviewer can be read from.
 - **Expect the classic shield's `tool-tip` to name it.** A Primer
   `<tool-tip for="codeowner-…" popover="manual">` reads "… is a code owner", and an
   assigned member's `<tool-tip for="assigned-codeowner-<login>">` reads "<login> is a code
@@ -488,10 +488,10 @@ pull request, taken 2026-10-28, not from a capture.
   last.
 - **Expect GitHub to shield only a pending code owner.** The overview draws its shield
   from a pending request's `isCodeOwner`, and not for a request assigned from a team, so a
-  code owner who has reviewed has none. The classic sidebar differs: it shields a member
-  assigned from a team, with `assigned-codeowner-<login>`. The maintainer's screenshot
-  shows reviewed code owners with only the re-request and status icons, and a pending one
-  with the shield.
+  code owner who has reviewed has none. The maintainer's screenshot shows reviewed code
+  owners with only the re-request and status icons, and a pending one with the shield. The
+  classic sidebar differs: on the code-owners sandbox it shields a member assigned from a
+  team, with `assigned-codeowner-<login>`.
 - **Expect `page_data/codeowners` to answer from the Conversation page**, with the same
   JSON as from Files changed.
 - **Re-check:** signed in with the saved `storageState`, load the Conversation view of the

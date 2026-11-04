@@ -134,7 +134,10 @@ function addGitHubShield(login: string) {
   );
 }
 
-/** Gives `login`'s classic row the shield GitHub draws once nodejs/crypto's review assignment picks them, and returns it. */
+/**
+ * Gives `login`'s classic row the shield GitHub draws once nodejs/crypto's review assignment
+ * picks them, and returns it.
+ */
 function addAssignedShield(login: string): HTMLElement {
   const id = `assigned-codeowner-${login}`;
   const row = document.querySelector(`[data-assignee-name="${login}"]`)?.parentElement;

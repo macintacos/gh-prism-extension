@@ -3132,7 +3132,8 @@ test("a user's code-owner shield lists their team's files when assigned on its b
   expect((await popup.locator("li li").allTextContents()).sort()).toEqual(NODE_CRYPTO_FILES);
   await expect(page.locator("button[data-gh-prism-owner]")).toHaveCount(0);
   const tip = page.locator('tool-tip[for="assigned-codeowner-jasnell"]');
-  // Primer's script, which opens GitHub's tooltip on hover, doesn't run on the fixture.
+  // A closed popover is display: none anyway; open it as Primer's hover script, which the
+  // fixture doesn't run, would.
   await tip.evaluate((el) => (el as HTMLElement).showPopover());
   await expect(tip).toHaveCSS("display", "none");
 });
