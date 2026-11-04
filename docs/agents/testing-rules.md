@@ -122,8 +122,19 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
 - **Wait for `data-gh-prism-glide` to clear before a test clicks after a glide.** A view
   transition's pseudo-elements take the pointer until it clears.
   [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `openPinned` is the pattern.
-- **Read session rules through `worker.evaluate` on `chrome.declarativeNetRequest`.**
-  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `sessionRules` is the pattern.
+- **In Chromium, read session rules through `worker.evaluate` on
+  `chrome.declarativeNetRequest`.** [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s
+  `sessionRules` is the pattern. Playwright's Firefox has no `context.serviceWorkers()`.
+- **Run the one suite in both browsers.** It runs as the `chromium` and `firefox`
+  projects, and the `context` fixture picks the launcher and build from `browserName`.
+  There is no Firefox copy of a test, and no assertion branches on the browser.
+- **Skip a test in Firefox only for a harness limit,** something Playwright can't reach in
+  Firefox. Use `test.skip(browserName === "firefox", "<the limit>")` as the test's first
+  statement. Fix any other Firefox failure in gh-prism, or make the test browser-neutral.
+- **Firefox loads the build through playwright-webextext,** which needs a real profile
+  directory, and `tslib` beside it, since 0.0.5 requires it without declaring it. If the
+  package breaks, install the add-on over Firefox's remote debugging protocol instead of
+  switching harnesses.
 - **Keep a live check's screenshots outside `test-results/`.** Playwright empties it at
   the start of every run.
 - **Keep each end-to-end test independent of the others.** `playwright.config.ts` sets
@@ -179,8 +190,9 @@ To check behavior live, build the extension and drive Playwright's bundled Chrom
   page's embedded data (`pageHeadSha` in
   [`utils/github/pr-port.ts`](../../utils/github/pr-port.ts)), which a full load of Files
   changed or a soft navigation from Conversation provides.
-- **In Firefox, drive a stock headless Firefox over WebDriver BiDi.** Playwright's own
-  Firefox can't load extensions. Start Firefox with `--remote-debugging-port` on a fresh
+- **In Firefox, drive a stock headless Firefox over WebDriver BiDi.** The e2e fixture
+  loads the build into Playwright's Firefox through playwright-webextext; for a live
+  check, use a stock Firefox. Start Firefox with `--remote-debugging-port` on a fresh
   temporary profile, never your own or the dev profile, and drive it from a Node script on
   the global `WebSocket`: `session.new`, then `webExtension.install` with a copy of
   `.output/firefox-mv3`, since a rebuild mid-check changes what Firefox reads. Set the

@@ -1,18 +1,23 @@
 import { readFileSync } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   type BrowserContext,
   test as base,
   chromium,
   expect,
+  firefox,
   type Locator,
   type Page,
 } from "@playwright/test";
+import { withExtension } from "playwright-webextext";
 import type { Browser, WxtBrowser } from "wxt/browser";
 import { commitPage } from "../entrypoints/content/files-page";
 import { LANGUAGE_ICONS } from "../entrypoints/content/sidebar/language-icons";
 
-const EXTENSION = join(import.meta.dirname, "../.output/chrome-mv3");
+const CHROME_EXTENSION = join(import.meta.dirname, "../.output/chrome-mv3");
+const FIREFOX_EXTENSION = join(import.meta.dirname, "../.output/firefox-mv3");
 const PR_URL = "https://github.com/o/r/pull/1/changes";
 const COMMIT_URL = "https://github.com/o/r/commit/dd95cdc0d7a9a6817998ee6663563e888761f329";
 
@@ -64,18 +69,32 @@ const scrollSidebarToBulkRow = (page: Page, n: number): Promise<void> =>
 // The fixture's row is GitHub's layout container; the side switch's container query needs ≥ 1012 px (default viewport: 1280).
 const COMMIT_BODY = `<!doctype html>${readFixture("commit-page.html")}`;
 
+const launchChromium = (profile: string) =>
+  chromium.launchPersistentContext(profile, {
+    // The headless shell can't load extensions; `mise run e2e` installs only full Chromium.
+    channel: "chromium",
+    args: [
+      `--disable-extensions-except=${CHROME_EXTENSION}`,
+      `--load-extension=${CHROME_EXTENSION}`,
+    ],
+  });
+
+// playwright-webextext installs the build as a temporary add-on over Firefox's remote debugging
+// protocol, and grants its content scripts' origins in the profile before launch.
+const launchFirefox = (profile: string) =>
+  withExtension(firefox, FIREFOX_EXTENSION).launchPersistentContext(profile, {});
+
 const test = base.extend<{ context: BrowserContext }>({
-  // biome-ignore lint/correctness/noEmptyPattern: Playwright reads fixture dependencies from this pattern.
-  context: async ({}, use) => {
-    const context = await chromium.launchPersistentContext("", {
-      // The headless shell can't load extensions; `mise run e2e` installs only full Chromium.
-      channel: "chromium",
-      args: [`--disable-extensions-except=${EXTENSION}`, `--load-extension=${EXTENSION}`],
-    });
+  context: async ({ browserName }, use) => {
+    const profile = await mkdtemp(join(tmpdir(), "gh-prism-e2e-"));
+    const context = await (browserName === "firefox" ? launchFirefox : launchChromium)(profile);
     // Also answers the extension worker's fetches so intent settles offline; each serve() registers later and wins.
     await context.route("https://github.com/**", (route) => route.fulfill({ status: 404 }));
+
     await use(context);
+
     await context.close();
+    await rm(profile, { recursive: true, force: true });
   },
 });
 
@@ -3462,9 +3481,14 @@ test("Escape and a click outside close the Conversation overlay, handing focus b
 });
 
 test("the Conversation frame's rule is scoped to its tab and URL, and leaves with the page", async ({
+  browserName,
   context,
   page,
 }) => {
+  test.skip(
+    browserName === "firefox",
+    "Playwright's Firefox has no context.serviceWorkers(), so this test can't read gh-prism's session rules",
+  );
   await serveConversation(context);
   await serve(context, COMMIT_URL, COMMIT_BODY);
   await page.goto(PR_URL);
@@ -3758,9 +3782,14 @@ test("a GitHub dialog opened beside a pinned Conversation panel keeps the page's
 });
 
 test("the header counter's hidden tooltips never widen the page, closed or pinned", async ({
+  browserName,
   context,
   page,
 }) => {
+  test.skip(
+    browserName === "firefox",
+    "Playwright's Firefox has no context.serviceWorkers(), so this test can't seed the intent cache",
+  );
   await serveLaidOutConversation(context);
   // A landed intent mounts the counter; the page's pin finds it in the cache, with no fetch.
   const [base, head] = ["a".repeat(40), "b".repeat(40)];

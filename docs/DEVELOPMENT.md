@@ -66,7 +66,7 @@ Chrome, or `browser.storage.local.remove("whatsNewSeen")` in the console that gh
 | `mise run dev [--yes]` | Builds the extension and opens it in the dev Chrome and Firefox profiles, reloading on change; `--yes` closes a Chrome or Firefox already using its profile without asking. |
 | `mise run build` | Builds the extension into `.output/chrome-mv3` and `.output/firefox-mv3`, ready to load in Chrome or Firefox. |
 | `mise run test [filter] [-w]` | Runs Vitest, only on test files whose path contains `filter`; `-w` reruns on change. |
-| `mise run e2e` | Builds the extension and runs the Playwright smoke suite against it. |
+| `mise run e2e [browser]` | Builds the extension and runs the Playwright smoke suite against it in Chromium and Firefox, or only in `browser`. |
 | `mise run bench [--entry-size n]` | Times the diff order, section trees, a sidebar resize, and intent read on large synthetic diffs. |
 | `mise run format` | Formats every file. |
 | `mise run format-check` | Checks formatting without writing. |
@@ -81,9 +81,14 @@ Unit tests use Vitest with happy-dom as the DOM. They live in `tests/`, mirrorin
 source tree, and read HTML fixtures from `tests/fixtures/`. Run them with `mise run test`.
 
 End-to-end tests use Playwright. They live in `e2e/` as `*.e2e.ts` files, so Vitest does
-not collect them. `mise run e2e` builds the extension into `.output/chrome-mv3`, installs
-Chromium, and loads the extension there. The smoke suite routes GitHub URLs to local
-fixtures, so it needs no network or sign-in.
+not collect them. `mise run e2e` builds `.output/chrome-mv3` and `.output/firefox-mv3`,
+installs Chromium and Firefox, and runs the one suite once per browser, as the `chromium`
+and `firefox` projects. `mise run e2e firefox` runs one browser. Firefox loads the add-on
+as a temporary add-on through playwright-webextext. A test skips in Firefox only for a
+harness limit, something Playwright can't reach in Firefox; the two known limits are the
+tests that read gh-prism's service worker, which Playwright's Firefox doesn't expose.
+Every other Firefox failure is fixed, never skipped. The smoke suite routes GitHub URLs to
+local fixtures, so it needs no network or sign-in.
 
 The rules for writing tests are in
 [`docs/agents/testing-rules.md`](agents/testing-rules.md).
