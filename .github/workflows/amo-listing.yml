@@ -1,0 +1,29 @@
+name: AMO listing
+on:
+  workflow_dispatch: {}
+permissions: {}
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  listing:
+    if: github.ref == 'refs/heads/trunk' && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: chrome-web-store # holds the AMO keys too
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@v5.1.1
+        with:
+          cache: false
+        env:
+          MISE_GITHUB_TOKEN: ${{ github.token }}
+      - run: bun install --frozen-lockfile
+      - name: Create the AMO listing
+        run: bun scripts/tasks/cli.ts create-amo-listing
+        env:
+          FIREFOX_JWT_ISSUER: ${{ secrets.FIREFOX_JWT_ISSUER }}
+          FIREFOX_JWT_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}

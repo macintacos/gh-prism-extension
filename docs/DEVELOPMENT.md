@@ -73,7 +73,7 @@ Chrome, or `browser.storage.local.remove("whatsNewSeen")` in the console that gh
 | `mise run lint` | Runs the linters, read-only. |
 | `mise run lint-firefox` | Builds the extension and lints the Firefox build with `web-ext lint`, the linter AMO runs on every upload. |
 | `mise run preflight` | Runs `format-check`, `lint`, and `test`; run it before you push. |
-| `mise run release <patch\|minor\|major> [--notes-file <path>]` | Dispatches the release workflow on trunk; see [Releases](#releases). |
+| `mise run release <patch\|minor\|major> [--notes-file <path>]`, `mise run release --firefox-only <version> [--notes-file <path>]` | Dispatches the release workflow on trunk, or a Firefox-only re-run of an existing version; see [Releases](#releases). |
 
 ## Tests
 
@@ -173,21 +173,45 @@ below and reports the GitHub Release.
 
 `mise run release <bump> [--notes-file <path>]` runs `gh workflow run` on
 [`.github/workflows/release.yml`](../.github/workflows/release.yml). On trunk, the
-workflow runs `preflight` and bumps `package.json`'s version. It then resolves the release
-notes: the notes file, or GitHub's generated notes when you pass none. It zips the
-extension with those notes inside, so the sidebar can show them under "What's new". It
-commits `chore: bump version to X.Y.Z` to trunk through GitHub's API so GitHub signs it,
-tags it `vX.Y.Z`, then submits the zip to the Chrome Web Store with `wxt submit`. Last, it
-creates the `vX.Y.Z` GitHub Release with the same notes as its body.
+workflow runs these steps in order:
+
+1. Check the stores. It stops when a store secret is missing, naming each one, or when AMO
+   refuses the Firefox credentials or has no gh-prism listing yet.
+2. Run `preflight`, then bump `package.json`'s version.
+3. Resolve the release notes: the notes file, or GitHub's generated notes when you pass
+   none.
+4. Zip the extension for Chrome and for Firefox with those notes inside, so the sidebar
+   can show them under "What's new". The Firefox zip comes with a sources zip, which AMO
+   reviewers build from.
+5. Check the sources zip. It unzips the sources zip, rebuilds the extension from it, and
+   fails unless the result matches `.output/firefox-mv3`.
+6. Commit `chore: bump version to X.Y.Z` to trunk through GitHub's API so GitHub signs it,
+   and tag it `vX.Y.Z`.
+7. Submit the Chrome zip to the Chrome Web Store with `wxt submit`.
+8. Submit the Firefox zip and its sources zip to AMO (addons.mozilla.org) with
+   `wxt submit`, as a listed version, which AMO reviews and shows on the add-on's public
+   page.
+9. Create the `vX.Y.Z` GitHub Release with the same notes as its body. A failed submit
+   stops the run first, so the Release exists only when both stores took the version.
+
+When the Chrome submit went through but the AMO submit failed, finish that version with a
+Firefox-only re-run: `mise run release --firefox-only <version> --notes-file <path>`. It
+checks out `v<version>` and skips the bump, the commit and tag, and the Chrome submit. It
+still runs preflight and checks the sources zip. It fails early, at "Check the stores",
+when AMO already has that version. Pass the same notes file, so the Firefox build and the
+Release carry the notes Chrome shipped. If AMO took the version before the submit failed,
+the re-run stops there, so create the Release by hand:
+`gh release create v<version> --verify-tag --notes-file <path>`.
 
 Only the repository owner can run it. It uses the `chrome-web-store` environment, which
-allows only trunk and holds four secrets: `CHROME_EXTENSION_ID`, `CHROME_PUBLISHER_ID`,
-`CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL`, and `CHROME_SERVICE_ACCOUNT_PRIVATE_KEY`. The
-workflow uses the store's v2 API with a Google Cloud service account.
+allows only trunk and holds six secrets: `CHROME_EXTENSION_ID`, `CHROME_PUBLISHER_ID`,
+`CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL`, `CHROME_SERVICE_ACCOUNT_PRIVATE_KEY`,
+`FIREFOX_JWT_ISSUER`, and `FIREFOX_JWT_SECRET`. The workflow uses the Chrome Web Store's
+v2 API with a Google Cloud service account, and AMO's API with the two Firefox keys.
 
-To rotate the key, create a new JSON key for the service account in Google Cloud, set
-`CHROME_SERVICE_ACCOUNT_PRIVATE_KEY` in the environment to its `private_key`, then delete
-the old key.
+To rotate the Chrome key, create a new JSON key for the service account in Google Cloud,
+set `CHROME_SERVICE_ACCOUNT_PRIVATE_KEY` in the environment to its `private_key`, then
+delete the old key.
 
 ## Patched dependencies
 

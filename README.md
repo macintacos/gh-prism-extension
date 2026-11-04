@@ -153,7 +153,8 @@ then reload any GitHub tabs that were already open. Firefox has no store listing
 
 ### Build from source
 
-You need Git, Bun (a JavaScript runtime and package manager), and Chrome or Firefox.
+You need Git, Bun (a JavaScript runtime and package manager), and Chrome or Firefox. The
+build uses Bun 1.4.2 and Node 24.21.0, the versions pinned in `mise.lock`.
 
 1. Clone the repository, install its dependencies, and build it:
 
@@ -182,6 +183,13 @@ You need Git, Bun (a JavaScript runtime and package manager), and Chrome or Fire
 To update, run `git pull`, `bun install`, and `bun run build` in the clone. Then click the
 reload button on gh-prism's card in `chrome://extensions`, or **Reload** on gh-prism's
 entry in `about:debugging`, and reload your GitHub tabs.
+
+To rebuild a release from its sources zip, unzip it, then run
+`bun install --frozen-lockfile` and `bun run build`. The Firefox build is
+`.output/firefox-mv3`. A release build also sets `WXT_RELEASE_NOTES` to that version's
+GitHub Release notes, which only fill the sidebar's What's new in
+`content-scripts/content.js`. To match a release byte for byte, build with
+`WXT_RELEASE_NOTES` set to that version's GitHub Release notes.
 
 ## Permissions
 

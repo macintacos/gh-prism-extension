@@ -29,8 +29,30 @@ export function releaseTagError(previousTag: string | null, currentVersion: stri
   return null;
 }
 
+/** The release job's environment; release.yml and amo-listing.yml name it in `environment:`. */
+export const STORE_ENVIRONMENT = "chrome-web-store";
+
+/** The store secrets; release.yml's "Check the stores" step must pass each one in `env:`. */
+export const STORE_SECRETS = [
+  "CHROME_EXTENSION_ID",
+  "CHROME_PUBLISHER_ID",
+  "CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL",
+  "CHROME_SERVICE_ACCOUNT_PRIVATE_KEY",
+  "FIREFOX_JWT_ISSUER",
+  "FIREFOX_JWT_SECRET",
+] as const;
+
+/** The store secrets absent from `present`, in `STORE_SECRETS` order. */
+export function missingSecrets(present: ReadonlySet<string>): string[] {
+  return STORE_SECRETS.filter((name) => !present.has(name));
+}
+
 /** `gh` arguments that dispatch the release workflow on trunk. */
-export function workflowRunArgs(bump: BumpLevel, notesFile?: string): string[] {
-  const args = ["workflow", "run", "release.yml", "--ref", "trunk", "-f", `bump=${bump}`];
+export function workflowRunArgs(
+  target: { bump: BumpLevel } | { firefoxOnly: string },
+  notesFile?: string,
+): string[] {
+  const field = "bump" in target ? `bump=${target.bump}` : `firefox-only=${target.firefoxOnly}`;
+  const args = ["workflow", "run", "release.yml", "--ref", "trunk", "-f", field];
   return notesFile === undefined ? args : [...args, "-F", `notes=@${notesFile}`];
 }
