@@ -213,49 +213,6 @@ To rotate the Chrome key, create a new JSON key for the service account in Googl
 set `CHROME_SERVICE_ACCOUNT_PRIVATE_KEY` in the environment to its `private_key`, then
 delete the old key.
 
-### One-time Firefox setup
-
-Releases need AMO API keys and an AMO listing before their first Firefox submit. The
-repository owner does these steps by hand, once:
-
-1. Sign in at <https://addons.mozilla.org/developers/> with a Mozilla account. Create one
-   there if you have none.
-2. Accept the Firefox Add-on Distribution Agreement at
-   <https://addons.mozilla.org/developers/addon/api/key/>. The page asks before it shows
-   keys.
-3. On that page, click **Generate new credentials**. Keep the page open for the next
-   step's **JWT issuer** (`user:<n>:<n>`) and **JWT secret**.
-4. Add both to the release job's environment. Each command prompts for its value, so it
-   never lands in your shell history; paste the JWT issuer, then the JWT secret:
-
-   ```sh
-   gh secret set FIREFOX_JWT_ISSUER --env chrome-web-store
-   gh secret set FIREFOX_JWT_SECRET --env chrome-web-store
-   ```
-
-   Or add them at
-   <https://github.com/macintacos/gh-prism-extension/settings/environments>, under
-   `chrome-web-store`, with **Add secret**.
-5. Create the listing once with
-   [`.github/workflows/amo-listing.yml`](../.github/workflows/amo-listing.yml). To preview
-   the listing's fields first, run `bun scripts/tasks/cli.ts create-amo-listing --dry-run`
-   on trunk. It builds the Firefox zip, checks the sources zip, and prints the payload as
-   JSON without contacting AMO. Then run `gh workflow run amo-listing.yml --ref trunk` and
-   follow it with `gh run watch`. It builds the Firefox zip from trunk, checks that the
-   sources zip rebuilds it, and creates the listed add-on `gh-prism` with trunk's current
-   version, its sources zip, and README's light screenshots. When it finishes, it prints
-   the AMO page. If you run it again, it says the add-on exists and changes nothing.
-
-   That first AMO version is trunk as it stands when the workflow runs, listed under
-   `package.json`'s current version and built without release notes, so it matches no tag.
-   The next release supersedes it.
-6. If it names a screenshot AMO refused, or says the sources zip didn't attach, add those
-   at <https://addons.mozilla.org/developers/addon/gh-prism/edit>.
-
-AMO reviews that first version. Until it does, releases still submit later versions, and
-once AMO approves it, link the AMO page from README.md § Install in place of "Firefox has
-no store listing yet".
-
 ## Patched dependencies
 
 Two dependencies carry local patches in [`patches/`](../patches/), which Bun applies on

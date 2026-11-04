@@ -33,7 +33,6 @@ If CI on `trunkSha` isn't green, say so in the gate question. Don't stop on it.
 
 If `missingSecrets` is non-empty, the gate question lists those names and marks "Cancel"
 (Recommended), because the run's "Check the stores" step would stop before the bump.
-`docs/DEVELOPMENT.md` § One-time Firefox setup says how to add the Firefox ones.
 
 ## 3. Write the notes
 
