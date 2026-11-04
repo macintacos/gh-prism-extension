@@ -7,8 +7,8 @@ set -euo pipefail
 # Keep in sync with chromeProfile and firefoxProfile in wxt.config.ts.
 chrome_profile="$HOME/.local/share/gh-prism-extension/chrome-profile"
 firefox_profile="$HOME/.local/share/gh-prism-extension/firefox-profile"
-firefox_arg='-profile '
-firefox_dev=
+firefox_launch_arg='-profile '
+firefox_dev_server=
 
 # The browser process launched with <launch-arg><profile>, if any. Chrome's helpers carry --type=,
 # Firefox's -contentproc or plugin-container.
@@ -54,21 +54,21 @@ free_profile() {
 # A background job ignores Ctrl-C's SIGINT, and fx-runner closes Firefox only on Node's exit event, which
 # SIGTERM skips, so stop the server and then the browser.
 stop_firefox() {
-	[[ -z $firefox_dev ]] || kill "$firefox_dev" 2>/dev/null || :
+	[[ -z $firefox_dev_server ]] || kill "$firefox_dev_server" 2>/dev/null || :
 	local pid
-	pid=$(profile_holder "$firefox_arg" "$firefox_profile") || return 0
+	pid=$(profile_holder "$firefox_launch_arg" "$firefox_profile") || return 0
 	[[ -z $pid ]] || kill "$pid" 2>/dev/null || :
 }
 
 main() {
 	free_profile Chrome --user-data-dir= "$chrome_profile"
-	free_profile Firefox "$firefox_arg" "$firefox_profile"
+	free_profile Firefox "$firefox_launch_arg" "$firefox_profile"
 	# A fresh clone may skip setup; postinstall (wxt prepare) generates .wxt/.
 	bun install
 	# Run wxt itself, not through bun run, so $! is the process the trap must stop.
 	# Its own port, outside the 3000-3010 range Chrome's server probes, so the two never race for one.
 	node_modules/.bin/wxt -b firefox --port 3011 &
-	firefox_dev=$!
+	firefox_dev_server=$!
 	trap stop_firefox EXIT
 	bun run dev
 }
