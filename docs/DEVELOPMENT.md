@@ -19,20 +19,33 @@ mise install && mise run setup
 generate WXT's types. Later, `mise run setup` alone is enough: it repeats `mise install`
 first, so it also picks up a changed tool pin.
 
+`mise run dev` needs both Chrome and Firefox installed, unless a `web-ext.config.ts` turns
+launching off (see below).
+
 ## The dev browser
 
-`mise run dev` builds the extension, opens it in Chrome, and reloads it when a file
-changes. Chrome runs on a dedicated profile at
-`~/.local/share/gh-prism-extension/chrome-profile`, set in
-[`wxt.config.ts`](../wxt.config.ts). The profile lives outside the repository, so your
-GitHub sign-in survives `wxt clean` and is shared by every worktree. Because every
-worktree uses the same profile, only one dev session runs at a time.
+`mise run dev` builds the extension twice, opens one build in Chrome and the other in
+Firefox, and reloads both when a file changes. Each browser runs on a dedicated profile,
+set in [`wxt.config.ts`](../wxt.config.ts): Chrome at
+`~/.local/share/gh-prism-extension/chrome-profile` and Firefox at
+`~/.local/share/gh-prism-extension/firefox-profile`. The profiles live outside the
+repository, so your GitHub sign-in survives `wxt clean` and is shared by every worktree.
+Because every worktree uses the same profiles, only one dev session runs at a time.
 
-If another Chrome already has the dev profile open, `mise run dev` names its process ID
-and offers to close it before it builds, because Chrome won't open a profile twice. That
-Chrome is either another dev session or a dev window an earlier `mise run dev` left open.
-`mise run dev --yes` closes it without asking. Without a terminal to ask in, the task
-exits instead, unless you pass `--yes`.
+If a Chrome or Firefox already has its dev profile open, `mise run dev` names its process
+ID and offers to close it before it builds, because neither browser opens a profile twice.
+That browser is either another dev session or a dev window an earlier `mise run dev` left
+open. `mise run dev --yes` closes it without asking. Without a terminal to ask in, the
+task exits instead, unless you pass `--yes`.
+
+To build without opening either browser, create a gitignored `web-ext.config.ts` at the
+repository root:
+
+```ts
+import { defineWebExtConfig } from "wxt";
+
+export default defineWebExtConfig({ disabled: true });
+```
 
 To preview the sidebar's what's-new block, pass release notes into the build:
 `WXT_RELEASE_NOTES="$(cat notes.md)" mise run dev`. A fresh install, a dismissal, or a
@@ -48,7 +61,7 @@ then reload a Files view.
 | Task | What it does |
 | --- | --- |
 | `mise run setup` | Installs the pinned tools and dependencies, and registers the git hooks. |
-| `mise run dev [--yes]` | Builds the extension and opens it in the dev profile, reloading on change; `--yes` closes a Chrome already using that profile without asking. |
+| `mise run dev [--yes]` | Builds the extension and opens it in the dev Chrome and Firefox profiles, reloading on change; `--yes` closes a Chrome or Firefox already using its profile without asking. |
 | `mise run build` | Builds the extension into `.output/chrome-mv3` and `.output/firefox-mv3`, ready to load in Chrome or Firefox. |
 | `mise run test [filter] [-w]` | Runs Vitest, only on test files whose path contains `filter`; `-w` reruns on change. |
 | `mise run e2e` | Builds the extension and runs the Playwright smoke suite against it. |

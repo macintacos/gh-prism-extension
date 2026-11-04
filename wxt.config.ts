@@ -5,9 +5,11 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "wxt";
 
 // Outside the repo so the GitHub login survives `wxt clean` and is shared by every worktree, so only one
-// `mise run dev` can hold it at a time. web-ext passes --use-mock-keychain: its cookies are not Keychain-protected.
-// Keep in sync with .mise/tasks/dev, which closes a Chrome already holding it.
+// `mise run dev` can hold each at a time. Keep in sync with .mise/tasks/dev, which closes a browser already
+// holding one.
+// web-ext passes Chrome --use-mock-keychain: its cookies are not Keychain-protected.
 const chromeProfile = join(homedir(), ".local/share/gh-prism-extension/chrome-profile");
+const firefoxProfile = join(homedir(), ".local/share/gh-prism-extension/firefox-profile");
 
 export default defineConfig({
   imports: false,
@@ -16,7 +18,8 @@ export default defineConfig({
   hooks: {
     // web-ext fails with ENOENT unless the profile directory already exists.
     "server:created": () => {
-      mkdirSync(chromeProfile, { recursive: true, mode: 0o700 });
+      for (const profile of [chromeProfile, firefoxProfile])
+        mkdirSync(profile, { recursive: true, mode: 0o700 });
     },
   },
   manifest: ({ browser }) => ({
@@ -68,6 +71,7 @@ export default defineConfig({
   }),
   webExt: {
     chromiumProfile: chromeProfile,
+    firefoxProfile,
     keepProfileChanges: true,
   },
 });

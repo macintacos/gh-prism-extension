@@ -16,9 +16,9 @@ mise install && mise run setup
 
 ## Everyday tasks
 
-- `mise run dev` builds gh-prism and opens it in its own Chrome profile, reloading on
-  change. Only one dev session runs at a time. If a Chrome already has its profile open,
-  `mise run dev` offers to close it.
+- `mise run dev` builds gh-prism and opens it in Chrome and Firefox, each in its own
+  profile, reloading on change. Only one dev session runs at a time. If a Chrome or
+  Firefox already has its profile open, `mise run dev` offers to close it.
 - `mise run preflight` checks formatting, lint, and tests. Run it before you push.
 
 The full task catalog, the benchmark, and CI are in
