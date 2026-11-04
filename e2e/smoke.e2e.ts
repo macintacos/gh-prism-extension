@@ -3364,9 +3364,9 @@ test("Shift+\\ moves focus into the Conversation panel and back to its button wi
 test("Tab rings the Conversation button", async ({ context, page }) => {
   await serveConversation(context);
   await page.goto(PR_URL);
-  await conversationButton(page).focus();
+  // From the control after it: Firefox keeps focus on the page's first control on Shift+Tab.
+  await page.locator('[class*="MobileTreeToggle"]').focus();
   await page.keyboard.press("Shift+Tab");
-  await page.keyboard.press("Tab");
 
   await expect(conversationButton(page)).toBeFocused();
   expect(await conversationButton(page).evaluate((b) => getComputedStyle(b).outlineStyle)).toBe(
