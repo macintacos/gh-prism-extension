@@ -143,6 +143,10 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   it. A parent's `focus()` doesn't take while a child frame holds focus, until the frame
   is blurred. Removing the focused element fires no `focusout`. Tab enters any scroll
   container, where Chromium enters only one with no control inside.
+- **Expect Firefox to route only the page's own requests.** `context.route` never sees an
+  add-on background script's fetch, such as the commit's `.diff`, which reaches real
+  github.com instead. A content script's fetch is routed, but Firefox holds it to the
+  page's CSP, so a routed page's policy keeps GitHub's `connect-src 'self'`.
 - **Keep a live check's screenshots outside `test-results/`.** Playwright empties it at
   the start of every run.
 - **Keep each end-to-end test independent of the others.** `playwright.config.ts` sets

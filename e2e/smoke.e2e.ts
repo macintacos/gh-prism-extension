@@ -20,6 +20,8 @@ const CHROME_EXTENSION = join(import.meta.dirname, "../.output/chrome-mv3");
 const FIREFOX_EXTENSION = join(import.meta.dirname, "../.output/firefox-mv3");
 const PR_URL = "https://github.com/o/r/pull/1/changes";
 const COMMIT_URL = "https://github.com/o/r/commit/dd95cdc0d7a9a6817998ee6663563e888761f329";
+const BACKGROUND_ROUTE_LIMIT =
+  "Playwright's Firefox can't route an add-on's background fetch, so this test can't serve the commit's .diff";
 
 const readFixture = (name: string) =>
   readFileSync(join(import.meta.dirname, "../tests/fixtures", name), "utf8");
@@ -282,9 +284,11 @@ test("a commit's message renders as Markdown in GitHub's box's place, after the 
 });
 
 test("a commit's message holds its column from its first frame, through GitHub's re-render, with nothing moving as it lands", async ({
+  browserName,
   context,
   page,
 }) => {
+  test.skip(browserName === "firefox", BACKGROUND_ROUTE_LIMIT);
   // Only the message could move the diffs.
   await serve(
     context,
@@ -1970,9 +1974,11 @@ const COMMIT_WITH_COMMENTS = COMMIT_BODY.replace(
 );
 
 test("a row short of room for its decoration drops whole parts from its start, never part of one", async ({
+  browserName,
   context,
   page,
 }) => {
+  test.skip(browserName === "firefox", BACKGROUND_ROUTE_LIMIT);
   const path = "src/adapters/opencode/paths.ts";
   await serve(
     context,
@@ -3174,7 +3180,8 @@ test("Tab from a code owner's shield enters their long list's filter action, whi
 
 const CONVERSATION_FRAME_URL = "https://github.com/o/r/pull/1?gh-prism-panel=1";
 // GitHub's policy, cut to what a routed page needs, with no frame-ancestors to refuse the frame.
-const CONVERSATION_CSP = "default-src 'none'; style-src 'unsafe-inline'";
+// Firefox holds a content script's fetch to the page's connect-src.
+const CONVERSATION_CSP = "default-src 'none'; style-src 'unsafe-inline'; connect-src 'self'";
 
 /** Serves the Files changed fixture and the panel's marked Conversation, framable. */
 async function serveConversation(
