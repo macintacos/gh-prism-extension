@@ -1,6 +1,6 @@
 ---
 name: release-gh-prism
-description: Use when the operator wants to release gh-prism to the Chrome Web Store — "/release-gh-prism", "release gh-prism", "cut a gh-prism release", "ship gh-prism". Computes the next version, writes the release notes, confirms both in one question, then dispatches the CI release and reports the published GitHub Release. Not for changing the release workflow itself, which is ordinary code work under .github/workflows/ and scripts/tasks/.
+description: Use when the operator wants to release gh-prism to the Chrome Web Store and AMO (addons.mozilla.org) — "/release-gh-prism", "release gh-prism", "cut a gh-prism release", "ship gh-prism". Computes the next version, writes the release notes, confirms both in one question, then dispatches the CI release and reports the published GitHub Release. Not for changing the release workflow itself, which is ordinary code work under .github/workflows/ and scripts/tasks/.
 argument-hint: "[patch|minor|major] [dry run]"
 ---
 
@@ -19,16 +19,21 @@ bun scripts/tasks/cli.ts compute
 It reads `origin/trunk`, so it works from any checkout or branch. It prints one JSON
 object: `currentVersion`, `next.{patch,minor,major}`, `previousTag`, `trunkSha`,
 `repoSlug`, and `commits` (newest first, each with `sha`, `subject`, and `pr`, which is
-null for a commit without a PR). On a non-zero exit, show its stderr and stop. If
+null for a commit without a PR), and `missingSecrets` (the store secrets absent from the
+`chrome-web-store` environment). On a non-zero exit, show its stderr and stop. If
 `commits` is empty, say there is nothing to release since `<previousTag>` and stop.
 
-## 2. Check CI
+## 2. Check CI and the secrets
 
 ```sh
 gh run list --workflow ci.yml --commit <trunkSha> --json conclusion,url
 ```
 
 If CI on `trunkSha` isn't green, say so in the gate question. Don't stop on it.
+
+If `missingSecrets` is non-empty, the gate question lists those names and marks "Cancel"
+(Recommended), because the run's "Check the stores" step would stop before the bump.
+`docs/DEVELOPMENT.md` § One-time Firefox setup says how to add the Firefox ones.
 
 ## 3. Write the notes
 
@@ -85,10 +90,11 @@ release option. On "Cancel", stop.
 mise run release <bump> --notes-file <path>
 ```
 
-The workflow on trunk runs preflight, bumps the version, commits it to trunk and tags it
-`v<version>`, submits to the Chrome Web Store, then creates the GitHub Release with your
-notes. Take the run's ID from the `.../actions/runs/<id>` URL the command prints. Only
-when it prints none, fall back to
+The workflow on trunk checks the store secrets and AMO, runs preflight, bumps the version,
+zips both browsers, and checks the sources zip rebuilds the Firefox build. It then commits
+the bump to trunk and tags it `v<version>`, submits to the Chrome Web Store, then to AMO,
+and creates the GitHub Release with your notes. Take the run's ID from the
+`.../actions/runs/<id>` URL the command prints. Only when it prints none, fall back to
 `gh run list --workflow release.yml --limit 1 --json databaseId,url`, which can return an
 older run.
 
@@ -96,27 +102,39 @@ older run.
 
 Run `gh run watch <id> --exit-status` as a background command and wait for it to finish.
 
-On failure, show the failed step's log tail from `gh run view <id> --log-failed`, then say
-which side effects happened:
+On failure, read the failed step's name with
+`gh run view <id> --json jobs -q '.jobs[].steps[] | select(.conclusion == "failure") | .name'`,
+show its log tail from `gh run view <id> --log-failed`, then say which side effects
+happened:
 
-- **Before "Commit and tag":** nothing changed. The operator can release again.
+- **Before "Commit and tag":** nothing changed. The operator can release again. A "Check
+  the stores" failure names the missing secret or what AMO refused; fix that first.
 - **At "Commit and tag":** the bump commit may be on trunk without its `v<version>` tag.
   Check with `git ls-remote --tags origin v<version>`. If the tag is missing, the operator
   tags the bump commit by hand before releasing again.
-- **After "Commit and tag":** the tag and bump commit exist, but the store upload or the
-  Release may not. A new release skips to the next version number.
+- **"Submit to AMO":** the Chrome submit went through and `v<version>` exists. Ask one
+  `AskUserQuestion` offering a Firefox-only re-run of `v<version>` with the same notes
+  file. On yes, run `mise run release --firefox-only <version> --notes-file <path>` and
+  follow that run the same way. On no, stop.
+- **After "Commit and tag", any other step:** the tag and bump commit exist, but the store
+  upload or the Release may not. A new release skips to the next version number.
 
-Never re-run the workflow yourself.
+When a Firefox-only run fails, report it and stop. If it failed because AMO already has
+the version, tell the operator to create the Release by hand with
+`gh release create v<version> --verify-tag --notes-file <path>`. Never re-run the workflow
+yourself outside the offer above.
 
 ## 7. Report
 
-Report the Release URL from `gh release view v<version> --json url -q .url`, and that the
-new version is pending Chrome Web Store review. If the current checkout is `trunk` with a
+Report the Release URL from `gh release view v<version> --json url -q .url`, the AMO page
+<https://addons.mozilla.org/firefox/addon/gh-prism/>, and that the new version is pending
+review on both the Chrome Web Store and AMO. If the current checkout is `trunk` with a
 clean tree, run `git pull --ff-only`.
 
 ## Guardrails
 
 - The CLI owns the version.
-- One question authorizes the release; ask no other.
+- One question authorizes the release. §6's Firefox-only re-run offer is the only other
+  question.
 - Never re-run a failed workflow without the operator.
 - Never write the notes file inside the repo.

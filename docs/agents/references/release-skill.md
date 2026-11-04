@@ -10,11 +10,12 @@ When to edit it:
 
 - `compute`'s JSON, or `release`'s arguments, in `scripts/tasks/cli.ts` change.
 - `.github/workflows/release.yml` changes its steps or inputs, which moves the line
-  between a failure with no side effects and one after the push.
+  between a failure with no side effects and one after the push. That includes the "Check
+  the stores" (`check-stores`) and "Check the sources zip" (`check-sources`) steps.
 - The release-notes rules change.
 
-Keep the skill short, keep the single confirmation, and keep the CLI as the only source of
-the version.
+Keep the skill short, keep the single confirmation plus §6's Firefox-only re-run offer as
+its only questions, and keep the CLI as the only source of the version.
 
 Maintenance: the skill is a node on the documentation map. Adding, removing, or renaming
 it, or this pointer, follows the maintenance rule in
