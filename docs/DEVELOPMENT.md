@@ -56,6 +56,7 @@ then reload a Files view.
 | `mise run format` | Formats every file. |
 | `mise run format-check` | Checks formatting without writing. |
 | `mise run lint` | Runs the linters, read-only. |
+| `mise run lint-firefox` | Builds the extension and lints the Firefox build with `web-ext lint`, the linter AMO runs on every upload. |
 | `mise run preflight` | Runs `format-check`, `lint`, and `test`; run it before you push. |
 | `mise run release <patch\|minor\|major> [--notes-file <path>]` | Dispatches the release workflow on trunk; see [Releases](#releases). |
 
@@ -127,10 +128,11 @@ hk, a git hook manager configured in [`hk.pkl`](../hk.pkl), runs two hooks:
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push and pull
 request, as three parallel jobs. Two of them install the pinned tools and dependencies:
-`check` runs `mise run preflight`, and `e2e` runs `mise run e2e`. Both cache bun's package
-cache, and `e2e` also caches Playwright's browsers, each keyed on `bun.lock`. `e2e` skips
-`playwright install-deps`: the runner image already has Chromium's system libraries, and
-that step's apt downloads sometimes stall for minutes.
+`check` runs `mise run preflight` then `mise run lint-firefox`, and `e2e` runs
+`mise run e2e`. Both cache bun's package cache, and `e2e` also caches Playwright's
+browsers, each keyed on `bun.lock`. `e2e` skips `playwright install-deps`: the runner
+image already has Chromium's system libraries, and that step's apt downloads sometimes
+stall for minutes.
 
 The third, `lockfile`, runs `gh actions-lock --verify`. The workflows reference actions by
 tag, and [`.github/workflows/actions.lock`](../.github/workflows/actions.lock) pins each
