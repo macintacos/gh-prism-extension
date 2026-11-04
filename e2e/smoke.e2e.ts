@@ -21,7 +21,7 @@ const FIREFOX_EXTENSION = join(import.meta.dirname, "../.output/firefox-mv3");
 const PR_URL = "https://github.com/o/r/pull/1/changes";
 const COMMIT_URL = "https://github.com/o/r/commit/dd95cdc0d7a9a6817998ee6663563e888761f329";
 const BACKGROUND_ROUTE_LIMIT =
-  "Playwright's Firefox can't route an add-on's background fetch, so this test can't serve the commit's .diff";
+  "Playwright's Firefox can't route an add-on's background fetch, so this test can't route the commit's .diff";
 
 const readFixture = (name: string) =>
   readFileSync(join(import.meta.dirname, "../tests/fixtures", name), "utf8");
@@ -90,7 +90,9 @@ const test = base.extend<{ context: BrowserContext }>({
   context: async ({ browserName }, use) => {
     const profile = await mkdtemp(join(tmpdir(), "gh-prism-e2e-"));
     const context = await (browserName === "firefox" ? launchFirefox : launchChromium)(profile);
-    // Also answers the extension worker's fetches so intent settles offline; each serve() registers later and wins.
+    // In Chromium, also answers the service worker's fetches, so intent settles offline; Firefox's
+    // background fetches skip context.route and reach the real github.com. Each serve() registers
+    // later and wins.
     await context.route("https://github.com/**", (route) => route.fulfill({ status: 404 }));
 
     await use(context);
@@ -3179,8 +3181,8 @@ test("Tab from a code owner's shield enters their long list's filter action, whi
 });
 
 const CONVERSATION_FRAME_URL = "https://github.com/o/r/pull/1?gh-prism-panel=1";
-// GitHub's policy, cut to what a routed page needs, with no frame-ancestors to refuse the frame.
-// Firefox holds a content script's fetch to the page's connect-src.
+// GitHub's policy, cut to what a routed page needs: connect-src for a content script's fetch,
+// which Firefox holds to the page's policy, and no frame-ancestors to refuse the frame.
 const CONVERSATION_CSP = "default-src 'none'; style-src 'unsafe-inline'; connect-src 'self'";
 
 /** Serves the Files changed fixture and the panel's marked Conversation, framable. */
@@ -3227,7 +3229,7 @@ const PR_TOOLBAR_BODY = PR_BODY.replace(
 
 const boxRight = (box: { x: number; width: number } | null) => (box ? box.x + box.width : NaN);
 
-/** Firefox reports box coordinates as float32, so a whole-pixel distance can come back 2⁻¹⁷ short. */
+/** Firefox reports box coordinates as float32, so a whole-pixel distance can come back a few millionths of a pixel off. */
 const toHundredths = (px: number) => Math.round(px * 100) / 100;
 
 for (const [width, layout] of [
@@ -3368,9 +3370,10 @@ test("Shift+\\ moves focus into the Conversation panel and back to its button wi
   expect(await conversationButton(page).evaluate((b) => b.matches(":focus-visible"))).toBe(false);
 });
 
-test("Tab rings the Conversation button", async ({ context, page }) => {
+test("Shift+Tab rings the Conversation button", async ({ context, page }) => {
   await serveConversation(context);
   await page.goto(PR_URL);
+  await expect(conversationButton(page)).toBeVisible();
   // From the control after it: Firefox keeps focus on the page's first control on Shift+Tab.
   await page.locator('[class*="MobileTreeToggle"]').focus();
   await page.keyboard.press("Shift+Tab");

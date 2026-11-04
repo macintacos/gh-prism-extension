@@ -85,10 +85,13 @@ not collect them. `mise run e2e` builds `.output/chrome-mv3` and `.output/firefo
 installs Chromium and Firefox, and runs the one suite once per browser, as the `chromium`
 and `firefox` projects. `mise run e2e firefox` runs one browser. Firefox loads the add-on
 as a temporary add-on through playwright-webextext. A test skips in Firefox only for a
-harness limit, something Playwright can't reach in Firefox; the two known limits are the
-tests that read gh-prism's service worker, which Playwright's Firefox doesn't expose.
-Every other Firefox failure is fixed, never skipped. The smoke suite routes GitHub URLs to
-local fixtures, so it needs no network or sign-in.
+harness limit, something Playwright can't reach in Firefox. Two limits skip four tests.
+Playwright's Firefox exposes no service worker, so the tests that read gh-prism's session
+rules or seed its intent cache skip. It also can't route an add-on's background fetch, so
+the two commit tests that route the commit's `.diff` skip. Those background fetches reach
+the real github.com instead. Every other Firefox failure is fixed, never skipped. The
+smoke suite routes GitHub pages to local fixtures, so it needs no sign-in, and the
+Chromium run needs no network.
 
 The rules for writing tests are in
 [`docs/agents/testing-rules.md`](agents/testing-rules.md).
@@ -151,7 +154,7 @@ request, as three jobs, and `e2e` fans out to one job per browser. `check` and `
 install the pinned tools and dependencies and cache bun's package cache, keyed on
 `bun.lock`. `check` runs `mise run preflight` then `mise run lint-firefox`. `e2e` runs as
 `e2e (chromium)` and `e2e (firefox)`, each with `mise run e2e <browser>`, and each caches
-only its own Playwright browser, keyed on the browser and `bun.lock`. Both skip
+only its own Playwright browser, keyed on the browser and `bun.lock`. Both e2e jobs skip
 `playwright install-deps`: the runner image already has Chromium's and Firefox's system
 libraries, and that step's apt downloads sometimes stall for minutes.
 
@@ -205,3 +208,6 @@ isolated linker trips on `bun patch --commit`: it leaves `node_modules/<pkg>` a 
 directory, so the package's own dependencies stop resolving, and it adds a `.bun-tag-*`
 file to the patch. Delete that file's hunk from the patch, then run
 `rm -rf node_modules/<pkg> && bun install` to restore the link.
+
+`tslib` is a devDependency only because playwright-webextext 0.0.5 requires it at runtime
+without declaring it; drop it once playwright-webextext declares it.

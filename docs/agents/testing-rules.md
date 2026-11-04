@@ -146,7 +146,8 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
 - **Expect Firefox to route only the page's own requests.** `context.route` never sees an
   add-on background script's fetch, such as the commit's `.diff`, which reaches real
   github.com instead. A content script's fetch is routed, but Firefox holds it to the
-  page's CSP, so a routed page's policy keeps GitHub's `connect-src 'self'`.
+  page's CSP, so a routed page's policy keeps GitHub's `connect-src 'self'`. A test that
+  routes such a fetch skips in Firefox with `BACKGROUND_ROUTE_LIMIT`.
 - **Keep a live check's screenshots outside `test-results/`.** Playwright empties it at
   the start of every run.
 - **Keep each end-to-end test independent of the others.** `playwright.config.ts` sets
@@ -204,13 +205,14 @@ To check behavior live, build the extension and drive Playwright's bundled Chrom
   changed or a soft navigation from Conversation provides.
 - **In Firefox, drive a stock headless Firefox over WebDriver BiDi.** The e2e fixture
   loads the build into Playwright's Firefox through playwright-webextext; for a live
-  check, use a stock Firefox. Start Firefox with `--remote-debugging-port` on a fresh
-  temporary profile, never your own or the dev profile, and drive it from a Node script on
-  the global `WebSocket`: `session.new`, then `webExtension.install` with a copy of
-  `.output/firefox-mv3`, since a rebuild mid-check changes what Firefox reads. Set the
-  GitHub cookies from the saved `storageState` with `storage.setCookie`, then use
-  `browsingContext.navigate`, `script.evaluate`, `input.performActions`, and the
-  `log.entryAdded` and `network.*` events for evidence. By hand, load the build as a
-  temporary add-on from `about:debugging#/runtime/this-firefox`, and read session rules
-  with `await browser.declarativeNetRequest.getSessionRules()` in gh-prism's Inspect
-  console.
+  check, use a stock Firefox: Playwright's Firefox can't route or observe the background
+  script's requests, and this recipe's `network.*` events are how a live check sees them.
+  Start Firefox with `--remote-debugging-port` on a fresh temporary profile, never your
+  own or the dev profile, and drive it from a Node script on the global `WebSocket`:
+  `session.new`, then `webExtension.install` with a copy of `.output/firefox-mv3`, since a
+  rebuild mid-check changes what Firefox reads. Set the GitHub cookies from the saved
+  `storageState` with `storage.setCookie`, then use `browsingContext.navigate`,
+  `script.evaluate`, `input.performActions`, and the `log.entryAdded` and `network.*`
+  events for evidence. By hand, load the build as a temporary add-on from
+  `about:debugging#/runtime/this-firefox`, and read session rules with
+  `await browser.declarativeNetRequest.getSessionRules()` in gh-prism's Inspect console.

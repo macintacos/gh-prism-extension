@@ -209,6 +209,7 @@ export function conversationPanel(
     open = choice.open = false;
     relayout();
     syncExpanded();
+
     // Firefox won't move focus out of a focused frame until the frame lets go of it.
     if (heldFocus) {
       frame?.blur();

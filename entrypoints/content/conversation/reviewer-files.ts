@@ -80,6 +80,7 @@ export function showReviewerFiles(
     ({ target }) => (focusedShield = target instanceof Element ? shieldAt(target) : null),
     { signal },
   );
+  doc.addEventListener("focusout", () => (focusedShield = null), { signal });
 
   followReviewerRows(
     doc,
@@ -252,7 +253,8 @@ function show(shield: HTMLElement, owned: OwnedFiles, action: HTMLElement | unde
   );
   popover.id = ID;
   popover.popover = "manual";
-  // Firefox tabs into any scroller, Chromium only into one with no control to scroll it from.
+  // Firefox tabs into any scroller. Keep this one a Tab stop only where Chromium does: when no
+  // control inside can scroll it.
   if (popover.querySelector("a[href], button")) popover.tabIndex = -1;
   doc.body.append(popover);
   // source: Tab from the shield enters it, and Tab past its end goes on from the shield.
