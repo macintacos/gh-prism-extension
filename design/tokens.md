@@ -51,8 +51,8 @@ Unlike every other Primer colour here, the edge picks a different Primer variabl
 theme, with `light-dark()`. That follows GitHub's theme, not the OS, because GitHub sets
 `color-scheme` on the page; `sidebar/section-tree.css` relies on the same fact when it
 inherits `color-scheme`. `light-dark()` is also why `build.cssTarget` in `wxt.config.ts`
-is Chrome 123: under an older target, the build rewrites it into a fallback that ignores
-GitHub's theme.
+is Chrome 123 and Firefox 147: under an older target, the build rewrites it into a
+fallback that ignores GitHub's theme.
 
 ## Type
 

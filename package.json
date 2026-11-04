@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "wxt",
-    "build": "wxt build",
+    "build": "wxt build && wxt build -b firefox",
     "postinstall": "wxt prepare"
   },
   "devDependencies": {

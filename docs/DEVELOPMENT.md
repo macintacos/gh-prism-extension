@@ -49,7 +49,7 @@ then reload a Files view.
 | --- | --- |
 | `mise run setup` | Installs the pinned tools and dependencies, and registers the git hooks. |
 | `mise run dev [--yes]` | Builds the extension and opens it in the dev profile, reloading on change; `--yes` closes a Chrome already using that profile without asking. |
-| `mise run build` | Builds the extension into `.output/chrome-mv3`, ready for Chrome's **Load unpacked**. |
+| `mise run build` | Builds the extension into `.output/chrome-mv3` and `.output/firefox-mv3`, ready to load in Chrome or Firefox. |
 | `mise run test [filter] [-w]` | Runs Vitest, only on test files whose path contains `filter`; `-w` reruns on change. |
 | `mise run e2e` | Builds the extension and runs the Playwright smoke suite against it. |
 | `mise run bench [--entry-size n]` | Times the diff order, section trees, a sidebar resize, and intent read on large synthetic diffs. |
