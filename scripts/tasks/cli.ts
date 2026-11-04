@@ -1,7 +1,15 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { Argument, Command } from "@commander-js/extra-typings";
-import { parseCommits, releaseTagError, workflowRunArgs } from "./release/compute";
+import { amoFetch, checkAmo } from "./amo/api";
+import {
+  missingSecrets,
+  parseCommits,
+  releaseTagError,
+  STORE_ENVIRONMENT,
+  STORE_SECRETS,
+  workflowRunArgs,
+} from "./release/compute";
 import { BUMP_LEVELS, nextVersion } from "./release/version";
 
 const bumpArgument = () => new Argument("<bump>", "which semver part to bump").choices(BUMP_LEVELS);
@@ -11,13 +19,21 @@ const program = new Command("tasks").description("gh-prism's task CLI");
 program
   .command("release")
   .description("Dispatch the release workflow on trunk, which bumps, tags, and publishes")
-  .addArgument(bumpArgument())
+  .addArgument(new Argument("[bump]", "which semver part to bump").choices(BUMP_LEVELS))
+  .option(
+    "--firefox-only <version>",
+    "an existing version whose Chrome submit went through; submit only it to AMO, then create its GitHub Release",
+  )
   .option("--notes-file <path>", "release notes for the GitHub Release")
-  .action((bump, { notesFile }) => {
+  .action((bump, { firefoxOnly, notesFile }) => {
+    if ((bump === undefined) === (firefoxOnly === undefined)) {
+      program.error("give either a bump or --firefox-only <version>");
+    }
     if (notesFile !== undefined && !existsSync(notesFile)) {
       program.error(`notes file not found: ${notesFile}`);
     }
-    const { status } = spawnSync("gh", workflowRunArgs(bump, notesFile), { stdio: "inherit" });
+    const run = bump === undefined ? { firefoxOnly: firefoxOnly as string } : { bump };
+    const { status } = spawnSync("gh", workflowRunArgs(run, notesFile), { stdio: "inherit" });
     if (status === 0) {
       console.log("Follow it with: gh run watch (or gh run list --workflow release.yml)");
     }
@@ -34,6 +50,33 @@ program
     const next = nextVersion(version, bump);
     writeFileSync("package.json", text.replace(`"version": "${version}"`, `"version": "${next}"`));
     console.log(next);
+  });
+
+program
+  .command("check-stores")
+  .description("Check the store secrets and AMO before a release (CI only)")
+  .option("--firefox-only <version>", "the version a Firefox-only run would submit")
+  .action(async ({ firefoxOnly }) => {
+    const missing = missingSecrets(new Set(STORE_SECRETS.filter((name) => process.env[name])));
+    if (missing.length > 0) {
+      program.error(
+        `missing store secrets in the ${STORE_ENVIRONMENT} environment: ${missing.join(", ")}`,
+      );
+    }
+    const credentials = {
+      issuer: process.env.FIREFOX_JWT_ISSUER ?? "",
+      secret: process.env.FIREFOX_JWT_SECRET ?? "",
+    };
+    const amo = amoFetch(
+      credentials,
+      fetch,
+      () => Math.floor(Date.now() / 1000),
+      () => crypto.randomUUID(),
+    );
+    const problem = await checkAmo(amo, firefoxOnly);
+    if (problem !== null) {
+      program.error(problem);
+    }
   });
 
 const run = (command: string, args: string[]): string => {
@@ -73,6 +116,22 @@ program
           commits: parseCommits(
             run("git", ["log", "--format=%H%x09%s", `${previousTag}..origin/trunk`]),
           ),
+          missingSecrets: missingSecrets(
+            new Set(
+              run("gh", [
+                "secret",
+                "list",
+                "--env",
+                STORE_ENVIRONMENT,
+                "--json",
+                "name",
+                "-q",
+                ".[].name",
+              ])
+                .split("\n")
+                .filter(Boolean),
+            ),
+          ),
         },
         null,
         2,
@@ -80,4 +139,4 @@ program
     );
   });
 
-program.parse();
+await program.parseAsync();

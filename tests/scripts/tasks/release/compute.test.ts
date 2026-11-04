@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  missingSecrets,
   parseCommits,
   releaseTagError,
+  STORE_SECRETS,
   workflowRunArgs,
 } from "../../../../scripts/tasks/release/compute";
 
@@ -39,9 +41,26 @@ describe("releaseTagError", () => {
   });
 });
 
+describe("missingSecrets", () => {
+  it("lists the store secrets that are absent, in STORE_SECRETS order", () => {
+    const present = new Set(["FIREFOX_JWT_SECRET", "CHROME_EXTENSION_ID", "UNRELATED"]);
+
+    expect(missingSecrets(present)).toEqual([
+      "CHROME_PUBLISHER_ID",
+      "CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL",
+      "CHROME_SERVICE_ACCOUNT_PRIVATE_KEY",
+      "FIREFOX_JWT_ISSUER",
+    ]);
+  });
+
+  it("returns nothing when every store secret is present", () => {
+    expect(missingSecrets(new Set(STORE_SECRETS))).toEqual([]);
+  });
+});
+
 describe("workflowRunArgs", () => {
   it("dispatches the release workflow on trunk with the bump", () => {
-    expect(workflowRunArgs("minor")).toEqual([
+    expect(workflowRunArgs({ bump: "minor" })).toEqual([
       "workflow",
       "run",
       "release.yml",
@@ -53,7 +72,7 @@ describe("workflowRunArgs", () => {
   });
 
   it("passes the notes file as a field read from disk", () => {
-    expect(workflowRunArgs("patch", "/tmp/n.md")).toEqual([
+    expect(workflowRunArgs({ bump: "patch" }, "/tmp/n.md")).toEqual([
       "workflow",
       "run",
       "release.yml",
@@ -61,6 +80,20 @@ describe("workflowRunArgs", () => {
       "trunk",
       "-f",
       "bump=patch",
+      "-F",
+      "notes=@/tmp/n.md",
+    ]);
+  });
+
+  it("dispatches a Firefox-only run of an existing version", () => {
+    expect(workflowRunArgs({ firefoxOnly: "1.2.3" }, "/tmp/n.md")).toEqual([
+      "workflow",
+      "run",
+      "release.yml",
+      "--ref",
+      "trunk",
+      "-f",
+      "firefox-only=1.2.3",
       "-F",
       "notes=@/tmp/n.md",
     ]);

@@ -29,8 +29,28 @@ export function releaseTagError(previousTag: string | null, currentVersion: stri
   return null;
 }
 
+export const STORE_ENVIRONMENT = "chrome-web-store";
+
+export const STORE_SECRETS = [
+  "CHROME_EXTENSION_ID",
+  "CHROME_PUBLISHER_ID",
+  "CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL",
+  "CHROME_SERVICE_ACCOUNT_PRIVATE_KEY",
+  "FIREFOX_JWT_ISSUER",
+  "FIREFOX_JWT_SECRET",
+] as const;
+
+/** The store secrets absent from `present`, in `STORE_SECRETS` order. */
+export function missingSecrets(present: ReadonlySet<string>): string[] {
+  return STORE_SECRETS.filter((name) => !present.has(name));
+}
+
 /** `gh` arguments that dispatch the release workflow on trunk. */
-export function workflowRunArgs(bump: BumpLevel, notesFile?: string): string[] {
-  const args = ["workflow", "run", "release.yml", "--ref", "trunk", "-f", `bump=${bump}`];
+export function workflowRunArgs(
+  run: { bump: BumpLevel } | { firefoxOnly: string },
+  notesFile?: string,
+): string[] {
+  const field = "bump" in run ? `bump=${run.bump}` : `firefox-only=${run.firefoxOnly}`;
+  const args = ["workflow", "run", "release.yml", "--ref", "trunk", "-f", field];
   return notesFile === undefined ? args : [...args, "-F", `notes=@${notesFile}`];
 }
