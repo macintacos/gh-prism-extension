@@ -138,6 +138,11 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   directory, and `tslib` beside it, since 0.0.5 requires it without declaring it. If the
   package breaks, install the add-on over Firefox's remote debugging protocol instead of
   switching harnesses.
+- **Expect Firefox's focus to differ from Chromium's in four ways.** Shift+Tab from the
+  page's first control keeps focus there, so start a keyboard move from a control after
+  it. A parent's `focus()` doesn't take while a child frame holds focus, until the frame
+  is blurred. Removing the focused element fires no `focusout`. Tab enters any scroll
+  container, where Chromium enters only one with no control inside.
 - **Keep a live check's screenshots outside `test-results/`.** Playwright empties it at
   the start of every run.
 - **Keep each end-to-end test independent of the others.** `playwright.config.ts` sets

@@ -209,7 +209,11 @@ export function conversationPanel(
     open = choice.open = false;
     relayout();
     syncExpanded();
-    if (heldFocus) button?.focus({ focusVisible: false });
+    // Firefox won't move focus out of a focused frame until the frame lets go of it.
+    if (heldFocus) {
+      frame?.blur();
+      button?.focus({ focusVisible: false });
+    }
   }
 
   function togglePin(): void {
