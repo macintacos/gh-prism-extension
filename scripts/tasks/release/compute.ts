@@ -49,10 +49,10 @@ export function missingSecrets(present: ReadonlySet<string>): string[] {
 
 /** `gh` arguments that dispatch the release workflow on trunk. */
 export function workflowRunArgs(
-  run: { bump: BumpLevel } | { firefoxOnly: string },
+  target: { bump: BumpLevel } | { firefoxOnly: string },
   notesFile?: string,
 ): string[] {
-  const field = "bump" in run ? `bump=${run.bump}` : `firefox-only=${run.firefoxOnly}`;
+  const field = "bump" in target ? `bump=${target.bump}` : `firefox-only=${target.firefoxOnly}`;
   const args = ["workflow", "run", "release.yml", "--ref", "trunk", "-f", field];
   return notesFile === undefined ? args : [...args, "-F", `notes=@${notesFile}`];
 }

@@ -73,11 +73,11 @@ export async function checkAmo(amo: AmoFetch, firefoxOnly?: string): Promise<str
     return null;
   }
 
-  const version = await amo(`${ADDON_PATH}versions/${firefoxOnly}/`);
-  if (version.status === 200) {
+  const versionResponse = await amo(`${ADDON_PATH}versions/${firefoxOnly}/`);
+  if (versionResponse.status === 200) {
     return `AMO already has gh-prism ${firefoxOnly}; nothing to re-run`;
   }
-  return version.status === 404
+  return versionResponse.status === 404
     ? null
-    : `AMO answered HTTP ${version.status} for version ${firefoxOnly}`;
+    : `AMO answered HTTP ${versionResponse.status} for version ${firefoxOnly}`;
 }

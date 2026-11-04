@@ -148,22 +148,25 @@ const errorCount = (validation: unknown) => {
 };
 
 async function processedUpload(deps: CreateListingDeps): Promise<Upload> {
-  const sent = await requireOk(
+  const uploadResponse = await requireOk(
     await deps.amo("/addons/upload/", {
       method: "POST",
       body: form({ upload: [deps.readFile(deps.xpi), basename(deps.xpi)], channel: "listed" }),
     }),
     "the upload",
   );
-  const body: unknown = await sent.json();
+  const body: unknown = await uploadResponse.json();
   const uuid = isRecord(body) ? body.uuid : undefined;
   if (typeof uuid !== "string") {
     throw new Error(`AMO's upload answer has no uuid: ${JSON.stringify(body)}`);
   }
 
   for (let waited = 0; waited <= UPLOAD_TIMEOUT_MS; waited += UPLOAD_POLL_MS) {
-    const check = await requireOk(await deps.amo(`/addons/upload/${uuid}/`), "the upload check");
-    const upload: unknown = await check.json();
+    const checkResponse = await requireOk(
+      await deps.amo(`/addons/upload/${uuid}/`),
+      "the upload check",
+    );
+    const upload: unknown = await checkResponse.json();
     if (isRecord(upload) && upload.processed === true) {
       return {
         uuid,
@@ -202,14 +205,14 @@ export async function createListing(deps: CreateListingDeps): Promise<void> {
   );
 
   const problems: string[] = [];
-  const source = await attachmentProblem(
+  const sourcesProblem = await attachmentProblem(
     deps.amo(`${ADDON_PATH}versions/${deps.version}/`, {
       method: "PATCH",
       body: form({ source: [deps.readFile(deps.sourcesZip), basename(deps.sourcesZip)] }),
     }),
     `the sources zip ${deps.sourcesZip}`,
   );
-  if (source) problems.push(source);
+  if (sourcesProblem) problems.push(sourcesProblem);
   for (const [position, path] of deps.screenshots.entries()) {
     const problem = await attachmentProblem(
       deps.amo(`${ADDON_PATH}previews/`, {

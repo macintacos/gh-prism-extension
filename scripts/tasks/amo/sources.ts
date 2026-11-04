@@ -5,12 +5,12 @@ export const sourcesZipProblems = (
   entries: readonly string[],
   tracked: readonly string[],
 ): string[] => {
-  const files = new Set(entries.filter((entry) => !entry.endsWith("/")));
-  const known = new Set(tracked);
+  const zippedFiles = new Set(entries.filter((entry) => !entry.endsWith("/")));
+  const trackedFiles = new Set(tracked);
 
-  const untracked = [...files].filter((file) => !known.has(file));
+  const untracked = [...zippedFiles].filter((file) => !trackedFiles.has(file));
   const required = [...REQUIRED, ...tracked.filter((path) => path.startsWith("patches/"))];
-  const missing = required.filter((path) => !files.has(path));
+  const missing = required.filter((path) => !zippedFiles.has(path));
 
   return [
     ...(untracked.length > 0
