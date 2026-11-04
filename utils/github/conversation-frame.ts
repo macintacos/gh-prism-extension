@@ -66,7 +66,8 @@ export function framingRule(tabId: number, pr: PrRef, policy: string): Rule {
     condition: {
       tabIds: [tabId],
       resourceTypes: ["sub_frame"],
-      initiatorDomains: ["github.com"],
+      // Firefox names no initiator for a frame load the content script starts.
+      ...(import.meta.env.BROWSER === "firefox" ? {} : { initiatorDomains: ["github.com"] }),
       requestDomains: ["github.com"],
       urlFilter: `|${conversationFrameUrl(pr)}|`,
     },

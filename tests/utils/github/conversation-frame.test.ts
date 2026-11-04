@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   conversationFrameUrl,
   conversationFraming,
@@ -49,6 +49,8 @@ describe("withoutFrameAncestors", () => {
 });
 
 describe("framingRule", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   it("lets only the tab's github.com sub-frame load the marked Conversation, keeping the policy", () => {
     expect(framingRule(3, PR, POLICY)).toEqual({
       id: 3,
@@ -71,6 +73,18 @@ describe("framingRule", () => {
         requestDomains: ["github.com"],
         urlFilter: "|https://github.com/o/r/pull/7?gh-prism-panel=1|",
       },
+    });
+  });
+
+  // Firefox names no initiator for a frame load the content script starts.
+  it("lets the tab's sub-frame load the marked Conversation in Firefox, whatever started it", () => {
+    vi.stubEnv("BROWSER", "firefox");
+
+    expect(framingRule(3, PR, POLICY).condition).toEqual({
+      tabIds: [3],
+      resourceTypes: ["sub_frame"],
+      requestDomains: ["github.com"],
+      urlFilter: "|https://github.com/o/r/pull/7?gh-prism-panel=1|",
     });
   });
 });
