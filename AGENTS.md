@@ -39,6 +39,7 @@ digraph gh_prism_rules_router {
 - `mise run preflight` runs `format-check`, `lint`, and `test`. Run it before you report a
   change as done.
 - `mise run test <filter>` runs only the test files whose path contains `filter`.
-- `mise run e2e` builds the extension and runs the Playwright smoke suite against it.
+- `mise run e2e [browser]` builds the extension and runs the Playwright smoke suite in
+  Chromium and Firefox, or only in `browser`.
 - `mise run lint-firefox` builds and runs AMO's linter on the Firefox build; CI runs it
   after preflight. Run it after a manifest change.

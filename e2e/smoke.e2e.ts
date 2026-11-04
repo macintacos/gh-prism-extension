@@ -1,20 +1,27 @@
 import { readFileSync } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   type BrowserContext,
   test as base,
   chromium,
   expect,
+  firefox,
   type Locator,
   type Page,
 } from "@playwright/test";
+import { withExtension } from "playwright-webextext";
 import type { Browser, WxtBrowser } from "wxt/browser";
 import { commitPage } from "../entrypoints/content/files-page";
 import { LANGUAGE_ICONS } from "../entrypoints/content/sidebar/language-icons";
 
-const EXTENSION = join(import.meta.dirname, "../.output/chrome-mv3");
+const CHROME_EXTENSION = join(import.meta.dirname, "../.output/chrome-mv3");
+const FIREFOX_EXTENSION = join(import.meta.dirname, "../.output/firefox-mv3");
 const PR_URL = "https://github.com/o/r/pull/1/changes";
 const COMMIT_URL = "https://github.com/o/r/commit/dd95cdc0d7a9a6817998ee6663563e888761f329";
+const BACKGROUND_ROUTE_LIMIT =
+  "Playwright's Firefox can't route an add-on's background fetch, so this test can't route the commit's .diff";
 
 const readFixture = (name: string) =>
   readFileSync(join(import.meta.dirname, "../tests/fixtures", name), "utf8");
@@ -64,18 +71,34 @@ const scrollSidebarToBulkRow = (page: Page, n: number): Promise<void> =>
 // The fixture's row is GitHub's layout container; the side switch's container query needs ≥ 1012 px (default viewport: 1280).
 const COMMIT_BODY = `<!doctype html>${readFixture("commit-page.html")}`;
 
+const launchChromium = (profile: string) =>
+  chromium.launchPersistentContext(profile, {
+    // The headless shell can't load extensions; `mise run e2e` installs only full Chromium.
+    channel: "chromium",
+    args: [
+      `--disable-extensions-except=${CHROME_EXTENSION}`,
+      `--load-extension=${CHROME_EXTENSION}`,
+    ],
+  });
+
+// playwright-webextext installs the build as a temporary add-on over Firefox's remote debugging
+// protocol, and grants its content scripts' origins in the profile before launch.
+const launchFirefox = (profile: string) =>
+  withExtension(firefox, FIREFOX_EXTENSION).launchPersistentContext(profile, {});
+
 const test = base.extend<{ context: BrowserContext }>({
-  // biome-ignore lint/correctness/noEmptyPattern: Playwright reads fixture dependencies from this pattern.
-  context: async ({}, use) => {
-    const context = await chromium.launchPersistentContext("", {
-      // The headless shell can't load extensions; `mise run e2e` installs only full Chromium.
-      channel: "chromium",
-      args: [`--disable-extensions-except=${EXTENSION}`, `--load-extension=${EXTENSION}`],
-    });
-    // Also answers the extension worker's fetches so intent settles offline; each serve() registers later and wins.
+  context: async ({ browserName }, use) => {
+    const profile = await mkdtemp(join(tmpdir(), "gh-prism-e2e-"));
+    const context = await (browserName === "firefox" ? launchFirefox : launchChromium)(profile);
+    // In Chromium, also answers the service worker's fetches, so intent settles offline; Firefox's
+    // background fetches skip context.route and reach the real github.com. Each serve() registers
+    // later and wins.
     await context.route("https://github.com/**", (route) => route.fulfill({ status: 404 }));
+
     await use(context);
+
     await context.close();
+    await rm(profile, { recursive: true, force: true });
   },
 });
 
@@ -263,9 +286,11 @@ test("a commit's message renders as Markdown in GitHub's box's place, after the 
 });
 
 test("a commit's message holds its column from its first frame, through GitHub's re-render, with nothing moving as it lands", async ({
+  browserName,
   context,
   page,
 }) => {
+  test.skip(browserName === "firefox", BACKGROUND_ROUTE_LIMIT);
   // Only the message could move the diffs.
   await serve(
     context,
@@ -1951,9 +1976,11 @@ const COMMIT_WITH_COMMENTS = COMMIT_BODY.replace(
 );
 
 test("a row short of room for its decoration drops whole parts from its start, never part of one", async ({
+  browserName,
   context,
   page,
 }) => {
+  test.skip(browserName === "firefox", BACKGROUND_ROUTE_LIMIT);
   const path = "src/adapters/opencode/paths.ts";
   await serve(
     context,
@@ -2894,7 +2921,9 @@ test("a code owner's files sit indented below their folder after another sheet m
   const folder = await card.getByText("api/generated/", { exact: true }).boundingBox();
   const file = await card.getByText("client.ts", { exact: true }).boundingBox();
   expect((file?.x ?? 0) - (folder?.x ?? 0)).toBeGreaterThan(15);
-  expect((file?.y ?? 0) - ((folder?.y ?? 0) + (folder?.height ?? 0))).toBeGreaterThanOrEqual(4);
+  expect(
+    toHundredths((file?.y ?? 0) - ((folder?.y ?? 0) + (folder?.height ?? 0))),
+  ).toBeGreaterThanOrEqual(4);
 });
 
 test("a code owner's files card stays inside a narrow viewport", async ({ context, page }) => {
@@ -3152,8 +3181,9 @@ test("Tab from a code owner's shield enters their long list's filter action, whi
 });
 
 const CONVERSATION_FRAME_URL = "https://github.com/o/r/pull/1?gh-prism-panel=1";
-// GitHub's policy, cut to what a routed page needs, with no frame-ancestors to refuse the frame.
-const CONVERSATION_CSP = "default-src 'none'; style-src 'unsafe-inline'";
+// GitHub's policy, cut to what a routed page needs: connect-src for a content script's fetch,
+// which Firefox holds to the page's policy, and no frame-ancestors to refuse the frame.
+const CONVERSATION_CSP = "default-src 'none'; style-src 'unsafe-inline'; connect-src 'self'";
 
 /** Serves the Files changed fixture and the panel's marked Conversation, framable. */
 async function serveConversation(
@@ -3199,6 +3229,9 @@ const PR_TOOLBAR_BODY = PR_BODY.replace(
 
 const boxRight = (box: { x: number; width: number } | null) => (box ? box.x + box.width : NaN);
 
+/** Firefox reports box coordinates as float32, so a whole-pixel distance can come back a few millionths of a pixel off. */
+const toHundredths = (px: number) => Math.round(px * 100) / 100;
+
 for (const [width, layout] of [
   [1280, "regular"],
   [1000, "narrow"],
@@ -3223,10 +3256,11 @@ for (const [width, layout] of [
     await sideSwitch.click();
     await expect(page.locator("html")).toHaveAttribute("data-gh-prism-side", "left");
     await expect
-      .poll(
-        async () =>
+      .poll(async () =>
+        toHundredths(
           ((await toggle.boundingBox())?.x ?? NaN) -
-          boxRight(await conversationButton(page).boundingBox()),
+            boxRight(await conversationButton(page).boundingBox()),
+        ),
       )
       .toBe(8);
   });
@@ -3336,12 +3370,13 @@ test("Shift+\\ moves focus into the Conversation panel and back to its button wi
   expect(await conversationButton(page).evaluate((b) => b.matches(":focus-visible"))).toBe(false);
 });
 
-test("Tab rings the Conversation button", async ({ context, page }) => {
+test("Shift+Tab rings the Conversation button", async ({ context, page }) => {
   await serveConversation(context);
   await page.goto(PR_URL);
-  await conversationButton(page).focus();
+  await expect(conversationButton(page)).toBeVisible();
+  // From the control after it: Firefox keeps focus on the page's first control on Shift+Tab.
+  await page.locator('[class*="MobileTreeToggle"]').focus();
   await page.keyboard.press("Shift+Tab");
-  await page.keyboard.press("Tab");
 
   await expect(conversationButton(page)).toBeFocused();
   expect(await conversationButton(page).evaluate((b) => getComputedStyle(b).outlineStyle)).toBe(
@@ -3462,9 +3497,14 @@ test("Escape and a click outside close the Conversation overlay, handing focus b
 });
 
 test("the Conversation frame's rule is scoped to its tab and URL, and leaves with the page", async ({
+  browserName,
   context,
   page,
 }) => {
+  test.skip(
+    browserName === "firefox",
+    "Playwright's Firefox has no context.serviceWorkers(), so this test can't read gh-prism's session rules",
+  );
   await serveConversation(context);
   await serve(context, COMMIT_URL, COMMIT_BODY);
   await page.goto(PR_URL);
@@ -3758,9 +3798,14 @@ test("a GitHub dialog opened beside a pinned Conversation panel keeps the page's
 });
 
 test("the header counter's hidden tooltips never widen the page, closed or pinned", async ({
+  browserName,
   context,
   page,
 }) => {
+  test.skip(
+    browserName === "firefox",
+    "Playwright's Firefox has no context.serviceWorkers(), so this test can't seed the intent cache",
+  );
   await serveLaidOutConversation(context);
   // A landed intent mounts the counter; the page's pin finds it in the cache, with no fetch.
   const [base, head] = ["a".repeat(40), "b".repeat(40)];

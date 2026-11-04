@@ -327,6 +327,34 @@ describe("showReviewerFiles", () => {
     expect(shieldOf("frontend").hasAttribute("aria-describedby")).toBe(false);
   });
 
+  it("closes when the page removes the focused shield", async () => {
+    show();
+    const shield = shieldOf("frontend");
+    shield.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    shield.replaceWith(shield.cloneNode(true));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(popups()).toHaveLength(0);
+  });
+
+  it("keeps a hovered shield's popup when the page removes a shield focus has left", async () => {
+    show();
+    const shield = shieldOf("frontend");
+    shield.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(0);
+    shield.dispatchEvent(
+      new FocusEvent("focusout", { bubbles: true, relatedTarget: document.body }),
+    );
+    await hoverOpen("platform");
+
+    shield.replaceWith(shield.cloneNode(true));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(popups()).toHaveLength(1);
+  });
+
   it("closes once the pointer has left the shield and popup for the grace period", async () => {
     show();
     await hoverOpen("frontend");

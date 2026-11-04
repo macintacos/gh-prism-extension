@@ -66,7 +66,7 @@ Chrome, or `browser.storage.local.remove("whatsNewSeen")` in the console that gh
 | `mise run dev [--yes]` | Builds the extension and opens it in the dev Chrome and Firefox profiles, reloading on change; `--yes` closes a Chrome or Firefox already using its profile without asking. |
 | `mise run build` | Builds the extension into `.output/chrome-mv3` and `.output/firefox-mv3`, ready to load in Chrome or Firefox. |
 | `mise run test [filter] [-w]` | Runs Vitest, only on test files whose path contains `filter`; `-w` reruns on change. |
-| `mise run e2e` | Builds the extension and runs the Playwright smoke suite against it. |
+| `mise run e2e [browser]` | Builds the extension and runs the Playwright smoke suite against it in Chromium and Firefox, or only in `browser`. |
 | `mise run bench [--entry-size n]` | Times the diff order, section trees, a sidebar resize, and intent read on large synthetic diffs. |
 | `mise run format` | Formats every file. |
 | `mise run format-check` | Checks formatting without writing. |
@@ -81,9 +81,17 @@ Unit tests use Vitest with happy-dom as the DOM. They live in `tests/`, mirrorin
 source tree, and read HTML fixtures from `tests/fixtures/`. Run them with `mise run test`.
 
 End-to-end tests use Playwright. They live in `e2e/` as `*.e2e.ts` files, so Vitest does
-not collect them. `mise run e2e` builds the extension into `.output/chrome-mv3`, installs
-Chromium, and loads the extension there. The smoke suite routes GitHub URLs to local
-fixtures, so it needs no network or sign-in.
+not collect them. `mise run e2e` builds `.output/chrome-mv3` and `.output/firefox-mv3`,
+installs Chromium and Firefox, and runs the one suite once per browser, as the `chromium`
+and `firefox` projects. `mise run e2e firefox` runs one browser. Firefox loads the add-on
+as a temporary add-on through playwright-webextext. A test skips in Firefox only for a
+harness limit, something Playwright can't reach in Firefox. Two limits skip four tests.
+Playwright's Firefox exposes no service worker, so the tests that read gh-prism's session
+rules or seed its intent cache skip. It also can't route an add-on's background fetch, so
+the two commit tests that route the commit's `.diff` skip. Those background fetches reach
+the real github.com instead. Every other Firefox failure is fixed, never skipped. The
+smoke suite routes GitHub pages to local fixtures, so it needs no sign-in, and the
+Chromium run needs no network.
 
 The rules for writing tests are in
 [`docs/agents/testing-rules.md`](agents/testing-rules.md).
@@ -142,12 +150,13 @@ hk, a git hook manager configured in [`hk.pkl`](../hk.pkl), runs two hooks:
 ## CI
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push and pull
-request, as three parallel jobs. Two of them install the pinned tools and dependencies:
-`check` runs `mise run preflight` then `mise run lint-firefox`, and `e2e` runs
-`mise run e2e`. Both cache bun's package cache, and `e2e` also caches Playwright's
-browsers, each keyed on `bun.lock`. `e2e` skips `playwright install-deps`: the runner
-image already has Chromium's system libraries, and that step's apt downloads sometimes
-stall for minutes.
+request, as three jobs, and `e2e` fans out to one job per browser. `check` and `e2e`
+install the pinned tools and dependencies and cache bun's package cache, keyed on
+`bun.lock`. `check` runs `mise run preflight` then `mise run lint-firefox`. `e2e` runs as
+`e2e (chromium)` and `e2e (firefox)`, each with `mise run e2e <browser>`, and each caches
+only its own Playwright browser, keyed on the browser and `bun.lock`. Both e2e jobs skip
+`playwright install-deps`: the runner image already has Chromium's and Firefox's system
+libraries, and that step's apt downloads sometimes stall for minutes.
 
 The third, `lockfile`, runs `gh actions-lock --verify`. The workflows reference actions by
 tag, and [`.github/workflows/actions.lock`](../.github/workflows/actions.lock) pins each
@@ -199,3 +208,6 @@ isolated linker trips on `bun patch --commit`: it leaves `node_modules/<pkg>` a 
 directory, so the package's own dependencies stop resolving, and it adds a `.bun-tag-*`
 file to the patch. Delete that file's hunk from the patch, then run
 `rm -rf node_modules/<pkg> && bun install` to restore the link.
+
+`tslib` is a devDependency only because playwright-webextext 0.0.5 requires it at runtime
+without declaring it; drop it once playwright-webextext declares it.

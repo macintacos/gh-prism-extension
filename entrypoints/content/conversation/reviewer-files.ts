@@ -70,9 +70,25 @@ export function showReviewerFiles(
     for (const shield of doc.querySelectorAll(OWN_SHIELD)) shield.remove();
   });
 
+  const shieldAt = (target: Element) =>
+    target.closest<HTMLElement>(OWN_SHIELD) ?? reviewerShieldOf(target);
+  let closeCard = () => {};
+  // Firefox fires no focusout when the page removes the focused shield, so watch for it.
+  let focusedShield: HTMLElement | null = null;
+  doc.addEventListener(
+    "focusin",
+    ({ target }) => (focusedShield = target instanceof Element ? shieldAt(target) : null),
+    { signal },
+  );
+  doc.addEventListener("focusout", () => (focusedShield = null), { signal });
+
   followReviewerRows(
     doc,
     (rows) => {
+      if (focusedShield && !focusedShield.isConnected) {
+        focusedShield = null;
+        closeCard();
+      }
       if (ownership) addShields(rows, ownership);
       else if (rows.length > 0 && !reading)
         void readOnce().then((settled) => {
@@ -82,9 +98,6 @@ export function showReviewerFiles(
     { signal },
   );
 
-  const shieldAt = (target: Element) =>
-    target.closest<HTMLElement>(OWN_SHIELD) ?? reviewerShieldOf(target);
-  let closeCard = () => {};
   followHoverIntent(doc, signal, {
     triggerOf: shieldAt,
     show: async (shield) => {
@@ -240,6 +253,9 @@ function show(shield: HTMLElement, owned: OwnedFiles, action: HTMLElement | unde
   );
   popover.id = ID;
   popover.popover = "manual";
+  // Firefox tabs into any scroller. Keep this one a Tab stop only where Chromium does: when no
+  // control inside can scroll it.
+  if (popover.querySelector("a[href], button")) popover.tabIndex = -1;
   doc.body.append(popover);
   // source: Tab from the shield enters it, and Tab past its end goes on from the shield.
   popover.showPopover({ source: shield });

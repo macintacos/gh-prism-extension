@@ -7,4 +7,8 @@ export default defineConfig({
   fullyParallel: true,
   // One per CPU on CI's runner; Playwright's default is half the CPUs.
   workers: process.env.CI ? 4 : undefined,
+  projects: [
+    { name: "chromium", use: { browserName: "chromium" } },
+    { name: "firefox", use: { browserName: "firefox" } },
+  ],
 });

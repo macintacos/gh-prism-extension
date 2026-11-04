@@ -86,6 +86,9 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
 - **Route fixtures to a github.com URL.** The content script matches github.com, so
   [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts) serves each fixture at a pull request or
   commit URL.
+- **Round a measured distance to 0.01 px before comparing it exactly.** Firefox reports
+  box coordinates as float32, so an 8 px gap between two boxes can come back as 7.99999
+  px. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `toHundredths` does it.
 - **Never let a `bench/` file match a test glob** (`*.{test,spec}.*` or `*.e2e.ts`). The
   benchmark stays out of Vitest, Playwright, and CI.
 - **Let the sections' reveal finish before a test clicks in the sidebar and reads its
@@ -122,8 +125,29 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
 - **Wait for `data-gh-prism-glide` to clear before a test clicks after a glide.** A view
   transition's pseudo-elements take the pointer until it clears.
   [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `openPinned` is the pattern.
-- **Read session rules through `worker.evaluate` on `chrome.declarativeNetRequest`.**
-  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `sessionRules` is the pattern.
+- **In Chromium, read session rules through `worker.evaluate` on
+  `chrome.declarativeNetRequest`.** [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s
+  `sessionRules` is the pattern. Playwright's Firefox has no `context.serviceWorkers()`.
+- **Run the one suite in both browsers.** It runs as the `chromium` and `firefox`
+  projects, and the `context` fixture picks the launcher and build from `browserName`.
+  There is no Firefox copy of a test, and no assertion branches on the browser.
+- **Skip a test in Firefox only for a harness limit,** something Playwright can't reach in
+  Firefox. Use `test.skip(browserName === "firefox", "<the limit>")` as the test's first
+  statement. Fix any other Firefox failure in gh-prism, or make the test browser-neutral.
+- **Firefox loads the build through playwright-webextext,** which needs a real profile
+  directory, and `tslib` beside it, since 0.0.5 requires it without declaring it. If the
+  package breaks, install the add-on over Firefox's remote debugging protocol instead of
+  switching harnesses.
+- **Expect Firefox's focus to differ from Chromium's in four ways.** Shift+Tab from the
+  page's first control keeps focus there, so start a keyboard move from a control after
+  it. A parent's `focus()` doesn't take while a child frame holds focus, until the frame
+  is blurred. Removing the focused element fires no `focusout`. Tab enters any scroll
+  container, where Chromium enters only one with no control inside.
+- **Expect Firefox to route only the page's own requests.** `context.route` never sees an
+  add-on background script's fetch, such as the commit's `.diff`, which reaches real
+  github.com instead. A content script's fetch is routed, but Firefox holds it to the
+  page's CSP, so a routed page's policy keeps GitHub's `connect-src 'self'`. A test that
+  routes such a fetch skips in Firefox with `BACKGROUND_ROUTE_LIMIT`.
 - **Keep a live check's screenshots outside `test-results/`.** Playwright empties it at
   the start of every run.
 - **Keep each end-to-end test independent of the others.** `playwright.config.ts` sets
@@ -179,14 +203,16 @@ To check behavior live, build the extension and drive Playwright's bundled Chrom
   page's embedded data (`pageHeadSha` in
   [`utils/github/pr-port.ts`](../../utils/github/pr-port.ts)), which a full load of Files
   changed or a soft navigation from Conversation provides.
-- **In Firefox, drive a stock headless Firefox over WebDriver BiDi.** Playwright's own
-  Firefox can't load extensions. Start Firefox with `--remote-debugging-port` on a fresh
-  temporary profile, never your own or the dev profile, and drive it from a Node script on
-  the global `WebSocket`: `session.new`, then `webExtension.install` with a copy of
-  `.output/firefox-mv3`, since a rebuild mid-check changes what Firefox reads. Set the
-  GitHub cookies from the saved `storageState` with `storage.setCookie`, then use
-  `browsingContext.navigate`, `script.evaluate`, `input.performActions`, and the
-  `log.entryAdded` and `network.*` events for evidence. By hand, load the build as a
-  temporary add-on from `about:debugging#/runtime/this-firefox`, and read session rules
-  with `await browser.declarativeNetRequest.getSessionRules()` in gh-prism's Inspect
-  console.
+- **In Firefox, drive a stock headless Firefox over WebDriver BiDi.** The e2e fixture
+  loads the build into Playwright's Firefox through playwright-webextext; for a live
+  check, use a stock Firefox: Playwright's Firefox can't route or observe the background
+  script's requests, and this recipe's `network.*` events are how a live check sees them.
+  Start Firefox with `--remote-debugging-port` on a fresh temporary profile, never your
+  own or the dev profile, and drive it from a Node script on the global `WebSocket`:
+  `session.new`, then `webExtension.install` with a copy of `.output/firefox-mv3`, since a
+  rebuild mid-check changes what Firefox reads. Set the GitHub cookies from the saved
+  `storageState` with `storage.setCookie`, then use `browsingContext.navigate`,
+  `script.evaluate`, `input.performActions`, and the `log.entryAdded` and `network.*`
+  events for evidence. By hand, load the build as a temporary add-on from
+  `about:debugging#/runtime/this-firefox`, and read session rules with
+  `await browser.declarativeNetRequest.getSessionRules()` in gh-prism's Inspect console.
