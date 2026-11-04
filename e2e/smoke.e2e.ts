@@ -3114,22 +3114,27 @@ test("a user's code-owner shield lists their team's files when assigned on its b
         isCodeOwnerFromDelegation: true,
       });
     },
-    // GitHub's user shield, shaped as it draws a team's, which a viewer outside nodejs never gets.
+    // GitHub's shield for a member nodejs/crypto's review assignment picked, as the code-owners
+    // sandbox drew it, which a viewer outside nodejs never gets.
     (html) =>
       html.replace(
-        '</button><tool-tip id="tooltip-f3e317d4-edf8-45a1-8341-07956ffcced5"',
-        '</button><button type="button" id="codeowner-jasnell" class="mr-2 btn-link muted-icon"><span class="reviewers-status-icon">⛨</span></button><tool-tip id="tooltip-f3e317d4-edf8-45a1-8341-07956ffcced5"',
+        "Awaiting requested review from jasnell</tool-tip>",
+        'Awaiting requested review from jasnell</tool-tip><button name="button" type="button" id="assigned-codeowner-jasnell" class="mr-2 btn-link muted-icon" aria-labelledby="tooltip-assigned-codeowner-jasnell"><span class="reviewers-status-icon">⛨</span></button><tool-tip id="tooltip-assigned-codeowner-jasnell" for="assigned-codeowner-jasnell" popover="manual" data-direction="nw" data-type="label" class="sr-only position-absolute" aria-hidden="true" role="tooltip">jasnell is a code owner automatically assigned from nodejs/crypto</tool-tip>',
       ),
   );
   await page.goto(NODE_PR);
   const popup = page.locator(".gh-prism-reviewer-files");
 
-  await page.locator('[id="codeowner-jasnell"]').hover();
+  await page.locator('[id="assigned-codeowner-jasnell"]').hover();
 
   await expect(popup).toContainText("Through @nodejs/crypto");
   await expect(popup.locator("ul > li > div").first()).toHaveText("src/crypto/");
   expect((await popup.locator("li li").allTextContents()).sort()).toEqual(NODE_CRYPTO_FILES);
   await expect(page.locator("button[data-gh-prism-owner]")).toHaveCount(0);
+  const tip = page.locator('tool-tip[for="assigned-codeowner-jasnell"]');
+  // Primer's script, which opens GitHub's tooltip on hover, doesn't run on the fixture.
+  await tip.evaluate((el) => (el as HTMLElement).showPopover());
+  await expect(tip).toHaveCSS("display", "none");
 });
 
 test("Tab from a code owner's shield enters their long list's filter action, which scrolls it, then moves on through the sidebar", async ({
