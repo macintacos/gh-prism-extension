@@ -86,6 +86,9 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
 - **Route fixtures to a github.com URL.** The content script matches github.com, so
   [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts) serves each fixture at a pull request or
   commit URL.
+- **Round a measured distance to 0.01 px before comparing it exactly.** Firefox reports
+  box coordinates as float32, so an 8 px gap between two boxes can come back as 7.99999
+  px. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `toHundredths` does it.
 - **Never let a `bench/` file match a test glob** (`*.{test,spec}.*` or `*.e2e.ts`). The
   benchmark stays out of Vitest, Playwright, and CI.
 - **Let the sections' reveal finish before a test clicks in the sidebar and reads its

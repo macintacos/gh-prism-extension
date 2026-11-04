@@ -2913,7 +2913,9 @@ test("a code owner's files sit indented below their folder after another sheet m
   const folder = await card.getByText("api/generated/", { exact: true }).boundingBox();
   const file = await card.getByText("client.ts", { exact: true }).boundingBox();
   expect((file?.x ?? 0) - (folder?.x ?? 0)).toBeGreaterThan(15);
-  expect((file?.y ?? 0) - ((folder?.y ?? 0) + (folder?.height ?? 0))).toBeGreaterThanOrEqual(4);
+  expect(
+    toHundredths((file?.y ?? 0) - ((folder?.y ?? 0) + (folder?.height ?? 0))),
+  ).toBeGreaterThanOrEqual(4);
 });
 
 test("a code owner's files card stays inside a narrow viewport", async ({ context, page }) => {
@@ -3218,6 +3220,9 @@ const PR_TOOLBAR_BODY = PR_BODY.replace(
 
 const boxRight = (box: { x: number; width: number } | null) => (box ? box.x + box.width : NaN);
 
+/** Firefox reports box coordinates as float32, so a whole-pixel distance can come back 2⁻¹⁷ short. */
+const toHundredths = (px: number) => Math.round(px * 100) / 100;
+
 for (const [width, layout] of [
   [1280, "regular"],
   [1000, "narrow"],
@@ -3242,10 +3247,11 @@ for (const [width, layout] of [
     await sideSwitch.click();
     await expect(page.locator("html")).toHaveAttribute("data-gh-prism-side", "left");
     await expect
-      .poll(
-        async () =>
+      .poll(async () =>
+        toHundredths(
           ((await toggle.boundingBox())?.x ?? NaN) -
-          boxRight(await conversationButton(page).boundingBox()),
+            boxRight(await conversationButton(page).boundingBox()),
+        ),
       )
       .toBe(8);
   });
