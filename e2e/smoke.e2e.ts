@@ -4025,6 +4025,33 @@ test("the Conversation frame ends with the Conversation, without GitHub's site f
   await expect(frame.getByRole("contentinfo")).toBeHidden();
 });
 
+test("a code owner reviewer's shield in the Conversation panel opens their files and details", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context, readFixture("conversation-page.html"));
+  await context.route("https://github.com/o/r/pull/1/page_data/codeowners", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: readFixture("codeowners-sandbox.json"),
+    }),
+  );
+  await page.goto(PR_URL);
+  await conversationButton(page).click();
+  const frame = page.frameLocator("#gh-prism-conversation iframe");
+  const shield = frame.locator('[id="codeowner-excessive-dev/frontend"]');
+
+  await shield.hover();
+  const popup = frame.locator(".gh-prism-reviewer-files");
+  await expect(popup).toContainText("api/generated/client.ts");
+  await expect(popup).not.toContainText("Show only");
+
+  await shield.click();
+  await expect(frame.getByRole("dialog", { name: "@excessive-dev/frontend" })).toContainText(
+    "web/app.ts",
+  );
+});
+
 test("the Conversation panel's checks control scrolls its frame to the checks", async ({
   context,
   page,

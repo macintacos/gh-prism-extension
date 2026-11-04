@@ -9,9 +9,13 @@ import {
   ownerFilter,
   type PrCodeOwners,
   type PrReviewer,
+  readCodeOwners,
+  readPrReviewers,
   reviewerOf,
   type TeamMembersOf,
+  withMemberTeams,
 } from "@/utils/github/code-owners";
+import type { DiffRef } from "@/utils/github/pr-ref";
 import {
   findReviewerRows,
   followReviewerRows,
@@ -41,6 +45,41 @@ const OWN_SHIELD = "button[data-gh-prism-owner]";
 export interface Ownership {
   readonly codeOwners: PrCodeOwners | undefined;
   readonly prReviewers: readonly PrReviewer[] | undefined;
+}
+
+/**
+ * `diff`'s PR reviewers through `fetchFn`, each with the owning teams in `codeOwners` that list
+ * them as members, read until `signal` aborts.
+ */
+export async function readReviewersWithTeams(
+  diff: DiffRef,
+  codeOwners: Promise<PrCodeOwners | undefined>,
+  {
+    fetchFn,
+    teamMembers,
+    signal,
+  }: { fetchFn: typeof fetch; teamMembers: TeamMembersOf; signal: AbortSignal },
+): Promise<readonly PrReviewer[] | undefined> {
+  const [reviewers, owners] = await Promise.all([
+    readPrReviewers(diff, fetchFn, signal),
+    codeOwners,
+  ]);
+  if (!reviewers || !owners) return reviewers;
+  return withMemberTeams(reviewers, owners, async (team) => (await teamMembers(team))?.members);
+}
+
+/** `diff`'s code owners and PR reviewers, read through `fetchFn` until `signal` aborts. */
+export async function readOwnership(
+  diff: DiffRef,
+  {
+    fetchFn,
+    teamMembers,
+    signal,
+  }: { fetchFn: typeof fetch; teamMembers: TeamMembersOf; signal: AbortSignal },
+): Promise<Ownership> {
+  const codeOwners = readCodeOwners(diff, fetchFn, signal);
+  const prReviewers = readReviewersWithTeams(diff, codeOwners, { fetchFn, teamMembers, signal });
+  return { codeOwners: await codeOwners, prReviewers: await prReviewers };
 }
 
 /**

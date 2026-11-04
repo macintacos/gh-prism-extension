@@ -1,12 +1,23 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { dressConversationFrame } from "../../../entrypoints/content/conversation/frame";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  dressConversationFrame,
+  showFrameReviewerFiles,
+} from "../../../entrypoints/content/conversation/frame";
 import {
   CONVERSATION_ESCAPE,
   CONVERSATION_KEY,
   CONVERSATION_LEAVE,
 } from "../../../entrypoints/content/conversation/frame-messages";
+import codeowners from "../../fixtures/codeowners-sandbox.json?raw";
 import chrome from "../../fixtures/conversation-chrome.html?raw";
+import conversationPage from "../../fixtures/conversation-page.html?raw";
+import { routedFetch } from "../../fixtures/fetch";
+import reviewRequests from "../../fixtures/review-requests-sandbox.json?raw";
+
+// happy-dom has no Popover API.
+HTMLElement.prototype.showPopover = () => {};
+HTMLElement.prototype.hidePopover = () => {};
 
 const MARKED = "https://github.com/macintacos/gh-prism-sandbox/pull/1?gh-prism-panel=1";
 
@@ -174,5 +185,53 @@ describe("dressConversationFrame", () => {
     );
     expect(typed.defaultPrevented).toBe(false);
     expect(posted).not.toHaveBeenCalled();
+  });
+});
+
+describe("showFrameReviewerFiles", () => {
+  const SANDBOX_PR = "https://github.com/excessive-dev/gh-prism-codeowners-sandbox/pull/1";
+  const sandboxFetch = () =>
+    routedFetch({
+      [`${SANDBOX_PR}/page_data/codeowners`]: () => Promise.resolve(new Response(codeowners)),
+      [`${SANDBOX_PR}/page_data/review_requests`]: () =>
+        Promise.resolve(new Response(reviewRequests)),
+    });
+  const hoverFrontendShield = async () => {
+    await vi.advanceTimersByTimeAsync(0);
+    document
+      .getElementById("codeowner-excessive-dev/frontend")
+      ?.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(200);
+  };
+
+  let controller: AbortController;
+  beforeEach(() => {
+    vi.useFakeTimers();
+    document.body.innerHTML = conversationPage;
+    controller = new AbortController();
+  });
+  afterEach(() => {
+    controller.abort();
+    vi.useRealTimers();
+  });
+
+  it("lists a code owner's files from their shield in the panel's frame", async () => {
+    showFrameReviewerFiles(
+      frameWindow(`${SANDBOX_PR}?gh-prism-panel=1`).win,
+      sandboxFetch(),
+      controller.signal,
+    );
+    await hoverFrontendShield();
+    expect(document.querySelector(".gh-prism-reviewer-files")?.textContent).toContain(
+      "Code owner of 2 files in this pull request",
+    );
+  });
+
+  it("leaves a frame without the marker to GitHub's shield", async () => {
+    const fetchFn = sandboxFetch();
+    showFrameReviewerFiles(frameWindow(SANDBOX_PR).win, fetchFn, controller.signal);
+    await hoverFrontendShield();
+    expect(document.querySelector(".gh-prism-reviewer-files")).toBeNull();
+    expect(fetchFn).not.toHaveBeenCalled();
   });
 });

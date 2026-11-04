@@ -2,20 +2,12 @@ import { browser } from "wxt/browser";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { storage } from "wxt/utils/storage";
-import {
-  type PrCodeOwners,
-  type PrReviewer,
-  readCodeOwners,
-  readPrReviewers,
-  type TeamMembersOf,
-  teamMembersReader,
-  withMemberTeams,
-} from "@/utils/github/code-owners";
+import { readCodeOwners, teamMembersReader } from "@/utils/github/code-owners";
 import { allowConversationFrame } from "@/utils/github/conversation-frame";
 import { ownerFilterLink, ownerOf } from "@/utils/github/files-route";
 import { type NextCommit, readNextCommit } from "@/utils/github/next-commit";
 import { connectPrData } from "@/utils/github/pr-port";
-import { type CommitHead, type DiffRef, readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
+import { type CommitHead, readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
 import { hiddenKeyOf, hiddenKeysOf, isHidden, withHidden } from "@/utils/hidden-commits";
 import { storedIntents } from "@/utils/intent/cache";
 import {
@@ -57,7 +49,11 @@ import {
   fitsPinned,
   showConversationButton,
 } from "./conversation/panel";
-import { showReviewerFiles } from "./conversation/reviewer-files";
+import {
+  readOwnership,
+  readReviewersWithTeams,
+  showReviewerFiles,
+} from "./conversation/reviewer-files";
 import { visitViewed } from "./diffs/viewed";
 import { followRightPanel } from "./files-page";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
@@ -147,6 +143,7 @@ export default defineContentScript({
           const codeOwners = readCodeOwners(route.diff, fetch, visit);
           const teamMembers = teamMembersReader(fetch, visit);
           const prReviewers = readReviewersWithTeams(route.diff, codeOwners, {
+            fetchFn: fetch,
             teamMembers,
             signal: visit,
           });
@@ -237,14 +234,7 @@ export default defineContentScript({
         const teamMembers = teamMembersReader(fetch, visit);
         // Rides the header visit, so it runs only where findHeaderPage finds the counter's slot.
         showReviewerFiles(document, visit, {
-          read: async () => {
-            const codeOwners = readCodeOwners(pr, fetch, visit);
-            const prReviewers = readReviewersWithTeams(pr, codeOwners, {
-              teamMembers,
-              signal: visit,
-            });
-            return { codeOwners: await codeOwners, prReviewers: await prReviewers };
-          },
+          read: () => readOwnership(pr, { fetchFn: fetch, teamMembers, signal: visit }),
           teamMembers,
           filter: {
             linkOf: (token) =>
@@ -267,20 +257,6 @@ export default defineContentScript({
     );
   },
 });
-
-/**
- * `diff`'s PR reviewers, each with the owning teams in `codeOwners` that list them as members,
- * read until `signal` aborts.
- */
-async function readReviewersWithTeams(
-  diff: DiffRef,
-  codeOwners: Promise<PrCodeOwners | undefined>,
-  { teamMembers, signal }: { teamMembers: TeamMembersOf; signal: AbortSignal },
-): Promise<readonly PrReviewer[] | undefined> {
-  const [reviewers, owners] = await Promise.all([readPrReviewers(diff, fetch, signal), codeOwners]);
-  if (!reviewers || !owners) return reviewers;
-  return withMemberTeams(reviewers, owners, async (team) => (await teamMembers(team))?.members);
-}
 
 // Keeps a slow intent read from holding GitHub's message box up.
 const INTENT_WAIT_MS = 1000;
