@@ -4,6 +4,7 @@ import {
   conversationFraming,
   framingRule,
   requestFraming,
+  untilPagehide,
   withoutFrameAncestors,
 } from "../../../utils/github/conversation-frame";
 import type { PrRef } from "../../../utils/github/pr-ref";
@@ -274,6 +275,17 @@ describe("requestFraming", () => {
 
     void requestFraming(() => port, PR, POLICY, controller.signal);
     controller.abort();
+
+    expect(port.disconnect).toHaveBeenCalled();
+  });
+
+  // Firefox keeps a hidden page's port open in its back-forward cache.
+  it("disconnects when the page is hidden", () => {
+    const port = fakePort();
+    const page = new EventTarget();
+
+    void requestFraming(() => port, PR, POLICY, untilPagehide(page, new AbortController().signal));
+    page.dispatchEvent(new Event("pagehide"));
 
     expect(port.disconnect).toHaveBeenCalled();
   });

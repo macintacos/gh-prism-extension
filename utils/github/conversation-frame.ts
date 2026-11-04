@@ -181,7 +181,17 @@ export function requestFraming(
   });
 }
 
-/** `requestFraming` over the extension's own Conversation frame port. */
+/**
+ * `signal`, also aborting on `page`'s `pagehide`: Firefox keeps a page in its back-forward cache
+ * with its ports open, which would keep the framing rule alive for whatever loads next in the tab.
+ */
+export const untilPagehide = (page: EventTarget, signal: AbortSignal): AbortSignal => {
+  const hidden = new AbortController();
+  page.addEventListener("pagehide", () => hidden.abort(), { once: true, signal });
+  return AbortSignal.any([signal, hidden.signal]);
+};
+
+/** `requestFraming` over the extension's own Conversation frame port, until the page hides. */
 export const allowConversationFrame = (
   pr: PrRef,
   policy: string,
@@ -191,5 +201,5 @@ export const allowConversationFrame = (
     () => browser.runtime.connect({ name: CONVERSATION_FRAME_PORT }),
     pr,
     policy,
-    signal,
+    untilPagehide(window, signal),
   );
