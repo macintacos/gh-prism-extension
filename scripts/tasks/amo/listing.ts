@@ -1,5 +1,5 @@
 import { basename } from "node:path";
-import { ADDON_GUID, AMO_PAGE, type AmoFetch, credentialsRefused } from "./api";
+import { ADDON_PATH, AMO_PAGE, type AmoFetch } from "./api";
 
 /** A public pull request AMO's reviewers can open; the other sandbox repository is private. */
 export const SANDBOX_PR =
@@ -9,6 +9,7 @@ const DEVELOPER_HUB = "https://addons.mozilla.org/developers/addon/gh-prism/edit
 const UPLOAD_POLL_MS = 5000;
 const UPLOAD_TIMEOUT_MS = 10 * 60 * 1000;
 
+/** AMO reviewer notes, sent once with the listing's first version; later versions carry none. */
 export const REVIEWER_NOTES = `gh-prism sorts a GitHub pull request's changed files into sections on its Files changed tab, and works on commit pages too. Reviewing it needs a GitHub sign-in (any free account): gh-prism runs on GitHub's new Files changed tab, a feature preview you turn on while signed in (README.md, section "Troubleshooting", in the sources zip).
 
 To try it, sign in to github.com and open this public pull request: ${SANDBOX_PR}. The sidebar lists its files under Implementation, Tests, Docs & Comments, Config, and Generated / lockfiles, and a file with code owners shows a shield on hover.
@@ -61,8 +62,10 @@ export function readmeDescription(readme: string, homepage: string): string {
     }
   }
 
+  // AMO escapes raw HTML and allows no <kbd>, so keys become code spans.
   return out
     .join("\n")
+    .replace(/<kbd>(.*?)<\/kbd>/g, (_, key: string) => `\`${key.replaceAll("&#92;", "\\")}\``)
     .replace(/\n{3,}/g, "\n\n")
     .replaceAll("](#", `](${homepage}#`)
     .trim();
@@ -98,17 +101,6 @@ export function listingPayload(input: ListingFields & { uploadUuid: string }) {
   };
 }
 
-const ADDON_PATH = `/addons/addon/${ADDON_GUID}/`;
-
-/** Whether AMO already has gh-prism's add-on; throws when AMO refuses the credentials. */
-export async function listingExists(amo: AmoFetch): Promise<boolean> {
-  const { status } = await amo(ADDON_PATH);
-  if (status === 200) return true;
-  if (status === 404) return false;
-  if (status === 401 || status === 403) throw new Error(credentialsRefused(status));
-  throw new Error(`AMO answered HTTP ${status} for ${ADDON_GUID}`);
-}
-
 export interface CreateListingDeps {
   amo: AmoFetch;
   sleep: (ms: number) => Promise<void>;
@@ -123,60 +115,84 @@ export interface CreateListingDeps {
 
 interface Upload {
   uuid: string;
-  processed: boolean;
   valid: boolean;
   url?: string;
-  validation?: { messages?: { type: string }[] };
+  errors: number;
 }
 
 const form = (entries: Record<string, string | [Buffer, string]>) => {
   const body = new FormData();
   for (const [name, value] of Object.entries(entries)) {
     if (typeof value === "string") body.append(name, value);
+    // Buffer<ArrayBufferLike> isn't a BlobPart under TS's lib types; a Uint8Array copy is.
     else body.append(name, new Blob([new Uint8Array(value[0])]), value[1]);
   }
   return body;
 };
 
-async function ok(response: Response, what: string): Promise<Response> {
+async function requireOk(response: Response, what: string): Promise<Response> {
   if (!response.ok) {
     throw new Error(`AMO refused ${what} (HTTP ${response.status}): ${await response.text()}`);
   }
   return response;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const errorCount = (validation: unknown) => {
+  const messages = isRecord(validation) ? validation.messages : undefined;
+  return Array.isArray(messages)
+    ? messages.filter((m) => isRecord(m) && m.type === "error").length
+    : 0;
+};
+
 async function processedUpload(deps: CreateListingDeps): Promise<Upload> {
-  const sent = await ok(
+  const sent = await requireOk(
     await deps.amo("/addons/upload/", {
       method: "POST",
       body: form({ upload: [deps.readFile(deps.xpi), basename(deps.xpi)], channel: "listed" }),
     }),
     "the upload",
   );
-  const { uuid } = (await sent.json()) as Upload;
+  const body: unknown = await sent.json();
+  const uuid = isRecord(body) ? body.uuid : undefined;
+  if (typeof uuid !== "string") {
+    throw new Error(`AMO's upload answer has no uuid: ${JSON.stringify(body)}`);
+  }
+
   for (let waited = 0; waited <= UPLOAD_TIMEOUT_MS; waited += UPLOAD_POLL_MS) {
-    const upload = (await (
-      await ok(await deps.amo(`/addons/upload/${uuid}/`), "the upload check")
-    ).json()) as Upload;
-    if (upload.processed) return { ...upload, uuid };
+    const check = await requireOk(await deps.amo(`/addons/upload/${uuid}/`), "the upload check");
+    const upload: unknown = await check.json();
+    if (isRecord(upload) && upload.processed === true) {
+      return {
+        uuid,
+        valid: upload.valid === true,
+        url: typeof upload.url === "string" ? upload.url : undefined,
+        errors: errorCount(upload.validation),
+      };
+    }
     await deps.sleep(UPLOAD_POLL_MS);
   }
-  throw new Error(`AMO did not process upload ${uuid} within 10 minutes`);
+  throw new Error(
+    `AMO did not process upload ${uuid} within ${UPLOAD_TIMEOUT_MS / 60_000} minutes`,
+  );
 }
 
-async function attachmentProblem(response: Response, part: string): Promise<string | null> {
-  return response.ok ? null : `${part}: ${await response.text()}`;
-}
+const attachmentProblem = (request: Promise<Response>, part: string): Promise<string | null> =>
+  request.then(
+    async (response) => (response.ok ? null : `${part}: ${await response.text()}`),
+    (error: unknown) => `${part}: ${String(error)}`,
+  );
 
 /** Creates gh-prism's AMO listing with its first version, sources zip, and screenshots. */
 export async function createListing(deps: CreateListingDeps): Promise<void> {
   const upload = await processedUpload(deps);
   if (!upload.valid) {
-    const errors = (upload.validation?.messages ?? []).filter((m) => m.type === "error").length;
-    throw new Error(`AMO found ${errors} errors in the upload: ${upload.url}`);
+    throw new Error(`AMO found ${upload.errors} errors in the upload: ${upload.url}`);
   }
 
-  await ok(
+  await requireOk(
     await deps.amo("/addons/addon/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -187,7 +203,7 @@ export async function createListing(deps: CreateListingDeps): Promise<void> {
 
   const problems: string[] = [];
   const source = await attachmentProblem(
-    await deps.amo(`${ADDON_PATH}versions/${deps.version}/`, {
+    deps.amo(`${ADDON_PATH}versions/${deps.version}/`, {
       method: "PATCH",
       body: form({ source: [deps.readFile(deps.sourcesZip), basename(deps.sourcesZip)] }),
     }),
@@ -196,7 +212,7 @@ export async function createListing(deps: CreateListingDeps): Promise<void> {
   if (source) problems.push(source);
   for (const [position, path] of deps.screenshots.entries()) {
     const problem = await attachmentProblem(
-      await deps.amo(`${ADDON_PATH}previews/`, {
+      deps.amo(`${ADDON_PATH}previews/`, {
         method: "POST",
         body: form({ image: [deps.readFile(path), basename(path)], position: String(position) }),
       }),

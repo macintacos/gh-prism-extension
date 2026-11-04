@@ -29,8 +29,10 @@ export function releaseTagError(previousTag: string | null, currentVersion: stri
   return null;
 }
 
+/** The release job's environment; release.yml and amo-listing.yml name it in `environment:`. */
 export const STORE_ENVIRONMENT = "chrome-web-store";
 
+/** The store secrets; release.yml's "Check the stores" step must pass each one in `env:`. */
 export const STORE_SECRETS = [
   "CHROME_EXTENSION_ID",
   "CHROME_PUBLISHER_ID",

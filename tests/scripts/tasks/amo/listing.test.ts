@@ -1,16 +1,16 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import { AMO_API, amoFetch } from "../../../../scripts/tasks/amo/api";
+import { AMO_API } from "../../../../scripts/tasks/amo/api";
 import {
   createListing,
   licenseSlug,
-  listingExists,
   listingPayload,
   readmeDescription,
   readmeScreenshots,
   SANDBOX_PR,
 } from "../../../../scripts/tasks/amo/listing";
-import { routedFetch } from "../../../fixtures/fetch";
+import { amoWith, status } from "../../../fixtures/amo";
+import type { routedFetch } from "../../../fixtures/fetch";
 
 const HOMEPAGE = "https://github.com/macintacos/gh-prism-extension";
 const ADDON = `${AMO_API}/addons/addon/gh-prism@excessive.dev/`;
@@ -18,24 +18,7 @@ const UPLOAD = `${AMO_API}/addons/upload/`;
 const README = readFileSync("README.md", "utf8");
 const pkg = JSON.parse(readFileSync("package.json", "utf8")) as { description: string };
 
-const status =
-  (code: number, body = "") =>
-  () =>
-    Promise.resolve(new Response(body, { status: code }));
 const json = (value: unknown, code = 200) => status(code, JSON.stringify(value));
-
-const amoWith = (routes: Record<string, () => Promise<Response>>) => {
-  const fetch = routedFetch(routes);
-  return {
-    fetch,
-    amo: amoFetch(
-      { issuer: "i", secret: "s" },
-      fetch,
-      () => 1000,
-      () => "nonce",
-    ),
-  };
-};
 
 const payloadFields = {
   manifestName: "gh-prism: Sectioned Pull Request Review",
@@ -61,7 +44,7 @@ describe("readmeDescription", () => {
     "# gh-prism",
     "",
     "First paragraph",
-    "<kbd>Esc</kbd> wraps here.",
+    "<kbd>Shift</kbd>+<kbd>&#92;</kbd> wraps here.",
     "",
     "<picture>",
     '  <img src="x.png">',
@@ -84,7 +67,7 @@ describe("readmeDescription", () => {
   it("flattens README.md's opening into AMO's Markdown subset", () => {
     expect(readmeDescription(fixture, HOMEPAGE)).toBe(
       [
-        "First paragraph <kbd>Esc</kbd> wraps here.",
+        "First paragraph `Shift`+`\\` wraps here.",
         "",
         "**What it does**",
         "",
@@ -101,6 +84,7 @@ describe("readmeDescription", () => {
     const description = readmeDescription(README, HOMEPAGE);
 
     expect(description.split("\n").some((line) => line.startsWith("<"))).toBe(false);
+    expect(description).not.toContain("<kbd>");
     expect(description).not.toContain("](#");
     expect(description).toContain("**Sections in a sidebar**");
   });
@@ -140,32 +124,12 @@ describe("listingPayload", () => {
   });
 });
 
-describe("listingExists", () => {
-  it("is true when AMO has the add-on, after a single GET", async () => {
-    const { amo, fetch } = amoWith({ [ADDON]: status(200) });
-
-    await expect(listingExists(amo)).resolves.toBe(true);
-    expect(fetch).toHaveBeenCalledTimes(1);
-    expect(fetch.mock.calls[0]?.[1]?.method ?? "GET").toBe("GET");
-  });
-
-  it("is false when AMO has no such add-on", async () => {
-    const { amo } = amoWith({ [ADDON]: status(404) });
-
-    await expect(listingExists(amo)).resolves.toBe(false);
-  });
-
-  it("throws the credentials message when AMO refuses them", async () => {
-    const { amo } = amoWith({ [ADDON]: status(401) });
-
-    await expect(listingExists(amo)).rejects.toThrow(/refused FIREFOX_JWT_ISSUER/);
-  });
-});
-
 describe("createListing", () => {
   const screenshots = ["docs/images/a-light.png", "docs/images/b-light.png"];
+
   const VERSION = `${ADDON}versions/1.0.0/`;
   const PREVIEWS = `${ADDON}previews/`;
+
   const flowRoutes = (previews: () => Promise<Response>) => ({
     [UPLOAD]: json({ uuid: "uuid-1" }),
     [`${UPLOAD}uuid-1/`]: json({ processed: true, valid: true }),
@@ -173,6 +137,7 @@ describe("createListing", () => {
     [VERSION]: json({}),
     [PREVIEWS]: previews,
   });
+
   const deps = (amo: ReturnType<typeof amoWith>["amo"]) => ({
     amo,
     sleep: vi.fn(() => Promise.resolve()),
@@ -184,6 +149,7 @@ describe("createListing", () => {
     fields: payloadFields,
     log: vi.fn(),
   });
+
   const calls = (fetch: ReturnType<typeof routedFetch>) =>
     fetch.mock.calls.map(([url, init]) => `${init?.method ?? "GET"} ${String(url)}`);
 
@@ -204,13 +170,72 @@ describe("createListing", () => {
     expect(JSON.parse(String(create?.body)).version.upload).toBe("uuid-1");
   });
 
+  it("uploads the xpi by its file name to the listed channel", async () => {
+    const { amo, fetch } = amoWith(flowRoutes(json({})));
+
+    await createListing(deps(amo));
+
+    const body = fetch.mock.calls[0]?.[1]?.body as FormData;
+    expect(body.get("channel")).toBe("listed");
+    expect((body.get("upload") as File).name).toBe("gh-prism-1.0.0-firefox.zip");
+  });
+
+  it("attaches the sources zip and each screenshot at its position", async () => {
+    const { amo, fetch } = amoWith(flowRoutes(json({})));
+
+    await createListing(deps(amo));
+
+    const [source, ...previews] = fetch.mock.calls
+      .slice(3)
+      .map(([, init]) => init?.body as FormData);
+    expect((source?.get("source") as File | undefined)?.name).toBe("gh-prism-1.0.0-sources.zip");
+    expect(previews.map((b) => [(b.get("image") as File).name, b.get("position")])).toEqual([
+      ["a-light.png", "0"],
+      ["b-light.png", "1"],
+    ]);
+  });
+
+  it("polls an unprocessed upload every 5 seconds", async () => {
+    let checks = 0;
+    const processing = () =>
+      json(checks++ === 0 ? { processed: false } : { processed: true, valid: true })();
+    const { amo } = amoWith({ ...flowRoutes(json({})), [`${UPLOAD}uuid-1/`]: processing });
+    const listingDeps = deps(amo);
+
+    await createListing(listingDeps);
+
+    expect(listingDeps.sleep.mock.calls).toEqual([[5000]]);
+  });
+
+  it("stops at an upload answer without a uuid", async () => {
+    const { amo, fetch } = amoWith({ ...flowRoutes(json({})), [UPLOAD]: json({}) });
+
+    await expect(createListing(deps(amo))).rejects.toThrow(/no uuid/);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("still sends every screenshot, then names the one AMO refused", async () => {
     let n = 0;
-    const { amo, fetch } = amoWith(
-      flowRoutes(() => (n++ === 0 ? status(400, "too small")() : json({})())),
-    );
+    const refuseFirst = () => (n++ === 0 ? status(400, "too small")() : json({})());
+    const { amo, fetch } = amoWith(flowRoutes(refuseFirst));
 
     await expect(createListing(deps(amo))).rejects.toThrow(/docs\/images\/a-light\.png: too small/);
+    expect(calls(fetch).filter((call) => call === `POST ${PREVIEWS}`)).toHaveLength(2);
+  });
+
+  it("still sends every screenshot, then names a refused sources zip", async () => {
+    const { amo, fetch } = amoWith({ ...flowRoutes(json({})), [VERSION]: status(400, "bad zip") });
+
+    await expect(createListing(deps(amo))).rejects.toThrow(/sources\.zip: bad zip/);
+    expect(calls(fetch).filter((call) => call === `POST ${PREVIEWS}`)).toHaveLength(2);
+  });
+
+  it("still sends every screenshot, then names one whose request failed", async () => {
+    let n = 0;
+    const dropFirst = () => (n++ === 0 ? Promise.reject(new Error("ECONNRESET")) : json({})());
+    const { amo, fetch } = amoWith(flowRoutes(dropFirst));
+
+    await expect(createListing(deps(amo))).rejects.toThrow(/a-light\.png: Error: ECONNRESET/);
     expect(calls(fetch).filter((call) => call === `POST ${PREVIEWS}`)).toHaveLength(2);
   });
 

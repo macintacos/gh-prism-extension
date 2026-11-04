@@ -1,8 +1,10 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   missingSecrets,
   parseCommits,
   releaseTagError,
+  STORE_ENVIRONMENT,
   STORE_SECRETS,
   workflowRunArgs,
 } from "../../../../scripts/tasks/release/compute";
@@ -97,5 +99,20 @@ describe("workflowRunArgs", () => {
       "-F",
       "notes=@/tmp/n.md",
     ]);
+  });
+});
+
+describe("the release workflows", () => {
+  it("pass every store secret to release.yml's store check", () => {
+    const workflow = readFileSync(".github/workflows/release.yml", "utf8");
+    for (const name of STORE_SECRETS) {
+      expect(workflow).toContain(`${name}: \${{ secrets.${name} }}`);
+    }
+  });
+
+  it.each(["release.yml", "amo-listing.yml"])("%s runs in the store environment", (file) => {
+    expect(readFileSync(`.github/workflows/${file}`, "utf8")).toContain(
+      `environment: ${STORE_ENVIRONMENT}`,
+    );
   });
 });

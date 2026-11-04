@@ -175,16 +175,16 @@ below and reports the GitHub Release.
 [`.github/workflows/release.yml`](../.github/workflows/release.yml). On trunk, the
 workflow runs these steps in order:
 
-1. **Check the stores.** It stops when a store secret is missing, naming each one, or when
-   AMO refuses the Firefox credentials or has no gh-prism listing yet.
+1. Check the stores. It stops when a store secret is missing, naming each one, or when AMO
+   refuses the Firefox credentials or has no gh-prism listing yet.
 2. Run `preflight`, then bump `package.json`'s version.
 3. Resolve the release notes: the notes file, or GitHub's generated notes when you pass
    none.
 4. Zip the extension for Chrome and for Firefox with those notes inside, so the sidebar
    can show them under "What's new". The Firefox zip comes with a sources zip, which AMO
    reviewers build from.
-5. **Check the sources zip.** It unzips the sources zip, rebuilds the extension from it,
-   and fails unless the result matches `.output/firefox-mv3`.
+5. Check the sources zip. It unzips the sources zip, rebuilds the extension from it, and
+   fails unless the result matches `.output/firefox-mv3`.
 6. Commit `chore: bump version to X.Y.Z` to trunk through GitHub's API so GitHub signs it,
    and tag it `vX.Y.Z`.
 7. Submit the Chrome zip to the Chrome Web Store with `wxt submit`.
@@ -236,16 +236,25 @@ repository owner does these steps by hand, once:
    Or add them at
    <https://github.com/macintacos/gh-prism-extension/settings/environments>, under
    `chrome-web-store`, with **Add secret**.
-5. Create the listing once with `gh workflow run amo-listing.yml --ref trunk`, then follow
-   it with `gh run watch`. It builds the Firefox zip from trunk, checks that the sources
-   zip rebuilds it, and creates the listed add-on `gh-prism` with trunk's current version,
-   its sources zip, and README's light screenshots. When it finishes, it prints the AMO
-   page. If you run it again, it says the add-on exists and changes nothing.
+5. Create the listing once with
+   [`.github/workflows/amo-listing.yml`](../.github/workflows/amo-listing.yml). To preview
+   the listing's fields first, run `bun scripts/tasks/cli.ts create-amo-listing --dry-run`
+   on trunk. It builds the Firefox zip, checks the sources zip, and prints the payload as
+   JSON without contacting AMO. Then run `gh workflow run amo-listing.yml --ref trunk` and
+   follow it with `gh run watch`. It builds the Firefox zip from trunk, checks that the
+   sources zip rebuilds it, and creates the listed add-on `gh-prism` with trunk's current
+   version, its sources zip, and README's light screenshots. When it finishes, it prints
+   the AMO page. If you run it again, it says the add-on exists and changes nothing.
+
+   That first AMO version is trunk as it stands when the workflow runs, listed under
+   `package.json`'s current version and built without release notes, so it matches no tag.
+   The next release supersedes it.
 6. If it names a screenshot AMO refused, or says the sources zip didn't attach, add those
    at <https://addons.mozilla.org/developers/addon/gh-prism/edit>.
 
 AMO reviews that first version. Until it does, releases still submit later versions, and
-once AMO approves it, README.md's Install section links the AMO page.
+once AMO approves it, link the AMO page from README.md § Install in place of "Firefox has
+no store listing yet".
 
 ## Patched dependencies
 

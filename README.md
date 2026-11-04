@@ -188,7 +188,8 @@ To rebuild a release from its sources zip, unzip it, then run
 `bun install --frozen-lockfile` and `bun run build`. The Firefox build is
 `.output/firefox-mv3`. A release build also sets `WXT_RELEASE_NOTES` to that version's
 GitHub Release notes, which only fill the sidebar's What's new in
-`content-scripts/content.js`.
+`content-scripts/content.js`. To match a release byte for byte, build with
+`WXT_RELEASE_NOTES` set to that version's GitHub Release notes.
 
 ## Permissions
 

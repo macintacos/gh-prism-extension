@@ -9,7 +9,7 @@ jobs:
   listing:
     if: github.ref == 'refs/heads/trunk' && github.triggering_actor == github.repository_owner
     runs-on: ubuntu-latest
-    environment: chrome-web-store
+    environment: chrome-web-store # holds the AMO keys too
     permissions:
       contents: read
     steps:

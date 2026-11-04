@@ -3,31 +3,18 @@ import { describe, expect, it } from "vitest";
 import {
   AMO_API,
   AMO_KEYS_PAGE,
+  addonStatus,
   amoFetch,
   amoJwt,
   checkAmo,
 } from "../../../../scripts/tasks/amo/api";
+import { amoWith, status } from "../../../fixtures/amo";
 import { routedFetch } from "../../../fixtures/fetch";
 
 const credentials = { issuer: "user:1:2", secret: "s3cret" };
 const ADDON = `${AMO_API}/addons/addon/gh-prism@excessive.dev/`;
 
 const decode = (part: string) => JSON.parse(Buffer.from(part, "base64url").toString("utf8"));
-
-const status = (code: number) => () => Promise.resolve(new Response("", { status: code }));
-
-const amoWith = (routes: Record<string, () => Promise<Response>>) => {
-  const fetch = routedFetch(routes);
-  return {
-    fetch,
-    amo: amoFetch(
-      credentials,
-      fetch,
-      () => 1000,
-      () => "nonce",
-    ),
-  };
-};
 
 describe("amoJwt", () => {
   it("signs an HS256 token whose claims expire 60 seconds after issue", () => {
@@ -54,6 +41,52 @@ describe("amoFetch", () => {
     expect(new Headers(init?.headers).get("Authorization")).toBe(
       `JWT ${amoJwt(credentials, 1000, "nonce")}`,
     );
+  });
+
+  it("signs every call with its own token", async () => {
+    const fetch = routedFetch({ [`${AMO_API}/x/`]: status(200) });
+    let n = 0;
+    const amo = amoFetch(
+      credentials,
+      fetch,
+      () => 1000,
+      () => `nonce-${n++}`,
+    );
+
+    await amo("/x/");
+    await amo("/x/");
+
+    const tokens = fetch.mock.calls.map(([, init]) =>
+      new Headers(init?.headers).get("Authorization"),
+    );
+    expect(tokens).toEqual([
+      `JWT ${amoJwt(credentials, 1000, "nonce-0")}`,
+      `JWT ${amoJwt(credentials, 1000, "nonce-1")}`,
+    ]);
+  });
+});
+
+describe("addonStatus", () => {
+  it("is listed when AMO has the add-on, after a single GET", async () => {
+    const { amo, fetch } = amoWith({ [ADDON]: status(200) });
+
+    expect(await addonStatus(amo)).toEqual({ listed: true });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0]?.[1]?.method ?? "GET").toBe("GET");
+  });
+
+  it("is unlisted when AMO has no such add-on", async () => {
+    const { amo } = amoWith({ [ADDON]: status(404) });
+
+    expect(await addonStatus(amo)).toEqual({ listed: false });
+  });
+
+  it("names the credentials problem when AMO refuses them", async () => {
+    const { amo } = amoWith({ [ADDON]: status(401) });
+
+    const result = await addonStatus(amo);
+
+    expect("problem" in result && result.problem).toMatch(/refused FIREFOX_JWT_ISSUER/);
   });
 });
 

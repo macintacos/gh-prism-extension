@@ -1,13 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Argument, Command } from "@commander-js/extra-typings";
-import { ADDON_GUID, AMO_PAGE, amoFetch, checkAmo } from "./amo/api";
+import { ADDON_GUID, AMO_PAGE, addonStatus, amoFetch, checkAmo } from "./amo/api";
 import {
   createListing,
   licenseSlug,
-  listingExists,
   listingPayload,
   readmeDescription,
   readmeScreenshots,
@@ -23,28 +22,53 @@ import {
 } from "./release/compute";
 import { BUMP_LEVELS, nextVersion } from "./release/version";
 
-const bumpArgument = () => new Argument("<bump>", "which semver part to bump").choices(BUMP_LEVELS);
+const bumpArgument = <Name extends "<bump>" | "[bump]">(name: Name) =>
+  new Argument(name, "which semver part to bump").choices(BUMP_LEVELS);
 
 const program = new Command("tasks").description("gh-prism's task CLI");
 
+// Deletes the AMO keys from process.env once read, so no process spawned later inherits them.
+const amoFromEnv = () => {
+  const { FIREFOX_JWT_ISSUER: issuer, FIREFOX_JWT_SECRET: secret } = process.env;
+  if (!issuer || !secret) {
+    return program.error("missing FIREFOX_JWT_ISSUER or FIREFOX_JWT_SECRET");
+  }
+  delete process.env.FIREFOX_JWT_ISSUER;
+  delete process.env.FIREFOX_JWT_SECRET;
+  return amoFetch(
+    { issuer, secret },
+    fetch,
+    () => Math.floor(Date.now() / 1000),
+    () => crypto.randomUUID(),
+  );
+};
+
 program
   .command("release")
-  .description("Dispatch the release workflow on trunk, which bumps, tags, and publishes")
-  .addArgument(new Argument("[bump]", "which semver part to bump").choices(BUMP_LEVELS))
+  .description(
+    "Dispatch the release workflow on trunk, which bumps, tags, and publishes to both stores, or finishes a version's Firefox submit",
+  )
+  .addArgument(bumpArgument("[bump]"))
   .option(
     "--firefox-only <version>",
     "an existing version whose Chrome submit went through; submit only it to AMO, then create its GitHub Release",
   )
   .option("--notes-file <path>", "release notes for the GitHub Release")
   .action((bump, { firefoxOnly, notesFile }) => {
-    if ((bump === undefined) === (firefoxOnly === undefined)) {
-      program.error("give either a bump or --firefox-only <version>");
+    const usage = "give either a bump or --firefox-only <version>";
+    if (bump !== undefined && firefoxOnly !== undefined) {
+      program.error(usage);
     }
+    const target =
+      bump !== undefined
+        ? { bump }
+        : firefoxOnly !== undefined
+          ? { firefoxOnly }
+          : program.error(usage);
     if (notesFile !== undefined && !existsSync(notesFile)) {
       program.error(`notes file not found: ${notesFile}`);
     }
-    const run = bump === undefined ? { firefoxOnly: firefoxOnly as string } : { bump };
-    const { status } = spawnSync("gh", workflowRunArgs(run, notesFile), { stdio: "inherit" });
+    const { status } = spawnSync("gh", workflowRunArgs(target, notesFile), { stdio: "inherit" });
     if (status === 0) {
       console.log("Follow it with: gh run watch (or gh run list --workflow release.yml)");
     }
@@ -54,7 +78,7 @@ program
 program
   .command("version")
   .description("Bump package.json's version and print the new one (CI only)")
-  .addArgument(bumpArgument())
+  .addArgument(bumpArgument("<bump>"))
   .action((bump) => {
     const text = readFileSync("package.json", "utf8");
     const { version } = JSON.parse(text) as { version: string };
@@ -74,17 +98,7 @@ program
         `missing store secrets in the ${STORE_ENVIRONMENT} environment: ${missing.join(", ")}`,
       );
     }
-    const credentials = {
-      issuer: process.env.FIREFOX_JWT_ISSUER ?? "",
-      secret: process.env.FIREFOX_JWT_SECRET ?? "",
-    };
-    const amo = amoFetch(
-      credentials,
-      fetch,
-      () => Math.floor(Date.now() / 1000),
-      () => crypto.randomUUID(),
-    );
-    const problem = await checkAmo(amo, firefoxOnly);
+    const problem = await checkAmo(amoFromEnv(), firefoxOnly);
     if (problem !== null) {
       program.error(problem);
     }
@@ -100,30 +114,41 @@ const run = (command: string, args: string[], cwd?: string): string => {
 
 const lines = (text: string) => text.split("\n").filter(Boolean);
 
+const environmentSecrets = () =>
+  new Set(
+    lines(
+      run("gh", ["secret", "list", "--env", STORE_ENVIRONMENT, "--json", "name", "-q", ".[].name"]),
+    ),
+  );
+
+const rebuildDiffers = (zip: string): boolean => {
+  const dir = mkdtempSync(join(tmpdir(), "gh-prism-sources-"));
+  try {
+    run("unzip", ["-q", zip, "-d", dir]);
+    run("bun", ["install", "--frozen-lockfile"], dir);
+    run("bun", ["run", "build"], dir);
+    const { status } = spawnSync(
+      "diff",
+      ["-r", join(dir, ".output/firefox-mv3"), ".output/firefox-mv3"],
+      { stdio: "inherit" },
+    );
+    return status !== 0;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+};
+
 const checkSources = () => {
   const { version } = JSON.parse(readFileSync("package.json", "utf8")) as { version: string };
   const zip = `.output/gh-prism-${version}-sources.zip`;
   const problems = sourcesZipProblems(
     lines(run("unzip", ["-Z1", zip])),
-    lines(run("git", ["ls-files"])),
+    lines(run("git", ["-c", "core.quotePath=false", "ls-files"])),
   );
   if (problems.length > 0) {
     program.error(problems.join("\n"));
   }
-
-  const dir = mkdtempSync(join(tmpdir(), "gh-prism-sources-"));
-  run("unzip", ["-q", zip, "-d", dir]);
-  run("bun", ["install", "--frozen-lockfile"], dir);
-  run("bun", ["run", "build"], dir);
-
-  const { status } = spawnSync(
-    "diff",
-    ["-r", join(dir, ".output/firefox-mv3"), ".output/firefox-mv3"],
-    {
-      stdio: "inherit",
-    },
-  );
-  if (status !== 0) {
+  if (rebuildDiffers(zip)) {
     program.error("rebuilding from the sources zip gives a different .output/firefox-mv3");
   }
   // stderr keeps create-amo-listing --dry-run's stdout pure JSON.
@@ -176,22 +201,12 @@ program
       return;
     }
 
-    const missing = ["FIREFOX_JWT_ISSUER", "FIREFOX_JWT_SECRET"].filter(
-      (name) => !process.env[name],
-    );
-    if (missing.length > 0) {
-      program.error(`missing ${missing.join(", ")}`);
+    const amo = amoFromEnv();
+    const addon = await addonStatus(amo);
+    if ("problem" in addon) {
+      return program.error(addon.problem);
     }
-    const amo = amoFetch(
-      {
-        issuer: process.env.FIREFOX_JWT_ISSUER ?? "",
-        secret: process.env.FIREFOX_JWT_SECRET ?? "",
-      },
-      fetch,
-      () => Math.floor(Date.now() / 1000),
-      () => crypto.randomUUID(),
-    );
-    if (await listingExists(amo)) {
+    if (addon.listed) {
       console.log(`${ADDON_GUID} already exists on AMO: ${AMO_PAGE}; nothing changed`);
       return;
     }
@@ -233,22 +248,7 @@ program
           commits: parseCommits(
             run("git", ["log", "--format=%H%x09%s", `${previousTag}..origin/trunk`]),
           ),
-          missingSecrets: missingSecrets(
-            new Set(
-              run("gh", [
-                "secret",
-                "list",
-                "--env",
-                STORE_ENVIRONMENT,
-                "--json",
-                "name",
-                "-q",
-                ".[].name",
-              ])
-                .split("\n")
-                .filter(Boolean),
-            ),
-          ),
+          missingSecrets: missingSecrets(environmentSecrets()),
         },
         null,
         2,

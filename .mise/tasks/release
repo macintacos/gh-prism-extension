@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Release gh-prism: dispatch the CI workflow that bumps, tags, and publishes"
+#MISE description="Release gh-prism: dispatch the CI workflow that bumps, tags, and publishes to both stores, or finishes a version's Firefox submit"
 #MISE raw_args=true
 # raw_args passes a bare --help through, so it shows the CLI's help, not mise's.
 exec bun scripts/tasks/cli.ts release "$@"
