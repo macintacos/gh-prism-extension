@@ -6,6 +6,7 @@ import {
   readCodeOwners,
   readOwnership,
   readReviewersWithTeams,
+  teamAvatarReader,
   teamMembersReader,
 } from "@/utils/github/code-owners";
 import { allowConversationFrame } from "@/utils/github/conversation-frame";
@@ -143,6 +144,7 @@ export default defineContentScript({
           const intent = shareIntent((onProgress) => intentFor(route, visit, sources, onProgress));
           const codeOwners = readCodeOwners(route.diff, fetch, visit);
           const teamMembers = teamMembersReader(fetch, visit);
+          const teamAvatar = teamAvatarReader(fetch, visit);
           const prReviewers = readReviewersWithTeams(route.diff, codeOwners, {
             fetchFn: fetch,
             teamMembers,
@@ -195,6 +197,7 @@ export default defineContentScript({
               codeOwners,
               prReviewers,
               teamMembers,
+              teamAvatar,
               owner,
               filter:
                 route.diff.kind === "pr"
@@ -237,6 +240,7 @@ export default defineContentScript({
         showReviewerFiles(document, visit, {
           read: () => readOwnership(pr, { fetchFn: fetch, teamMembers, signal: visit }),
           teamMembers,
+          teamAvatar: teamAvatarReader(fetch, visit),
           filter: {
             linkOf: (token) =>
               ownerFilterLink(

@@ -2403,15 +2403,15 @@ test("a shield lists its file's code owners in a popover, and Tab walks its link
       return [style.position, style.padding, style.maxHeight !== "none", style.boxSizing];
     }),
   ).toEqual(["fixed", "12px 12px 0px", true, "border-box"]);
-  const links = popover.locator("a");
-  await expect(links).toHaveCount(2);
-  expect(await links.evaluateAll((all) => all.map((link) => link.getAttribute("href")))).toEqual([
-    "https://github.com/orgs/o/teams/team",
-    "https://github.com/someone",
-  ]);
-  expect(await links.evaluateAll((all) => all.map((link) => link.getAttribute("target")))).toEqual([
-    "_blank",
-    "_blank",
+  const avatars = popover.locator("a.gh-prism-owner");
+  await expect(avatars).toHaveCount(2);
+  expect(
+    await avatars.evaluateAll((all) =>
+      all.map((link) => [link.getAttribute("href"), link.getAttribute("target")]),
+    ),
+  ).toEqual([
+    ["https://github.com/orgs/o/teams/team", "_blank"],
+    ["https://github.com/someone", "_blank"],
   ]);
   await expect(popover.locator("li").nth(2)).toHaveText("dev@example.com");
   await expect(popover.locator("li").nth(2).locator("a")).toHaveCount(0);
@@ -2436,6 +2436,57 @@ test("a shield lists its file's code owners in a popover, and Tab walks its link
   await page.keyboard.press("Tab");
   await expect(popover).toHaveCount(0);
   expect(await focusedControl(page)).not.toContain("gh-prism-owners");
+});
+
+// GitHub's own directives for the reads and images a popover makes; its img-src lists
+// avatars.githubusercontent.com among many hosts.
+const AVATAR_CSP =
+  "default-src 'none'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob: avatars.githubusercontent.com";
+const PIXEL_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+  "base64",
+);
+
+test("an owner popover's avatars load under GitHub's content security policy", async ({
+  context,
+  page,
+}) => {
+  await context.route("https://avatars.githubusercontent.com/**", (route) =>
+    route.fulfill({ contentType: "image/png", body: PIXEL_PNG }),
+  );
+  await context.route("https://github.com/orgs/o/teams/team/hovercard", (route) =>
+    route.fulfill({ contentType: "text/html", body: readFixture("team-hovercard-platform.html") }),
+  );
+  await routeCodeOwners(context, ownedBy());
+  await context.route(PR_URL, (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      headers: { "content-security-policy": AVATAR_CSP },
+      body: PR_BODY,
+    }),
+  );
+  await page.goto(PR_URL);
+  await expect(shieldOf(page, "README.md")).toHaveCount(1);
+  await revealSettled(page);
+
+  await treeRow(page, "README.md").hover();
+  await shieldOf(page, "README.md").hover();
+
+  const images = page.locator(".gh-prism-owners:popover-open a.gh-prism-owner img");
+  await expect(images).toHaveCount(2);
+  await expect
+    .poll(() =>
+      images.evaluateAll((all) =>
+        (all as HTMLImageElement[]).map((image) => [
+          image.getAttribute("src"),
+          image.complete && image.naturalWidth > 0,
+        ]),
+      ),
+    )
+    .toEqual([
+      ["https://avatars.githubusercontent.com/t/20376992?s=32&v=4", true],
+      ["https://avatars.githubusercontent.com/octocat?s=32", true],
+    ]);
 });
 
 test("an owned file's shield opens its owners on hover, and closes as the pointer leaves", async ({
@@ -2589,8 +2640,29 @@ test("a shield's click swaps its hover popover for the code owner details dialog
   await expect(dialog).toBeVisible();
   expect(await dialog.evaluate((element) => element.matches(":modal"))).toBe(true);
   await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(0);
-  await expect(dialog.getByRole("link", { name: /^@member-/ })).toHaveCount(15);
+  await expect(dialog.getByRole("heading", { name: "o/team", exact: true })).toBeVisible();
+  await expect(dialog.getByRole("link", { name: /^member-\d+$/ })).toHaveCount(15);
   await expect(dialog.getByRole("link", { name: "See all 214 members" })).toBeVisible();
+  // Each member's photo fills its avatar's ring, and a member row copies as its login.
+  const members = await dialog.locator("li.gh-prism-member").evaluateAll((items) =>
+    items.map((item) => {
+      const box = (element: Element | null) => {
+        const r = element?.getBoundingClientRect();
+        return r && [r.left, r.top, r.width, r.height];
+      };
+      const selection = getSelection();
+      selection?.selectAllChildren(item);
+      const copied = selection?.toString();
+      selection?.removeAllRanges();
+      return {
+        imgFillsRing:
+          JSON.stringify(box(item.querySelector(".gh-prism-avatar img"))) ===
+          JSON.stringify(box(item.querySelector(".gh-prism-avatar"))),
+        copiesLogin: copied === item.textContent,
+      };
+    }),
+  );
+  expect(members).toEqual(members.map(() => ({ imgFillsRing: true, copiesLogin: true })));
 
   // Off the shield, so hover intent can't reopen its popover.
   await page.mouse.move(1, 1);
@@ -2646,7 +2718,7 @@ test("a folder shield's click opens the code owner details of its files", async 
   await expect(
     dialog
       .getByRole("listitem")
-      .filter({ has: page.getByRole("heading", { name: "Owned by @o/team", exact: true }) }),
+      .filter({ has: page.getByRole("heading", { name: "Owned by o/team", exact: true }) }),
   ).toContainText("schema.rs");
 });
 
@@ -2725,11 +2797,12 @@ test("a folder shield's popover lists its files until Escape returns to the row"
   await shieldOf(page, "src/generated/").focus();
 
   await expect(popover).toHaveAttribute("aria-label", "Code owners of files in src/generated");
-  await expect(
-    popover
-      .getByRole("listitem")
-      .filter({ has: page.getByRole("heading", { name: "Owned by @o/team", exact: true }) }),
-  ).toContainText("schema.rs");
+  const heading = page.getByRole("heading", { name: "Owned by o/team", exact: true });
+  await expect(popover.getByRole("listitem").filter({ has: heading })).toContainText("schema.rs");
+  // What copying the heading gives.
+  expect(
+    await popover.locator(heading).evaluate((element) => (element as HTMLElement).innerText),
+  ).toBe("Owned by o/team");
   await expect(folder).toHaveAttribute("aria-expanded", expanded ?? "");
 
   await page.keyboard.press("Tab");
@@ -2739,6 +2812,24 @@ test("a folder shield's popover lists its files until Escape returns to the row"
   expect(
     await folder.evaluate((row) => (row.getRootNode() as ShadowRoot).activeElement === row),
   ).toBe(true);
+});
+
+test("a folder shield's two-owner heading copies as one spaced line", async ({ context, page }) => {
+  await openOwned(context, page);
+  const folder = treeRow(page, "src/generated/");
+  await folder.hover();
+  await shieldOf(page, "src/generated/").focus();
+
+  const heading = page
+    .locator(".gh-prism-owners:popover-open")
+    .getByRole("heading", { name: "Owned by o/team, octocat", exact: true });
+  expect(
+    await heading.evaluate((element) => {
+      const selection = getSelection();
+      selection?.selectAllChildren(element);
+      return selection?.toString();
+    }),
+  ).toBe("Owned by o/team, octocat");
 });
 
 test("a folder shield's popover too tall for either side of it pins without covering it", async ({
@@ -2826,7 +2917,7 @@ test("a code owner reviewer's shield click opens their team's details", async ({
 
   const dialog = page.getByRole("dialog", { name: "@excessive-dev/frontend" });
   await expect(dialog).toContainText("api/generated/client.ts");
-  await expect(dialog.getByRole("link", { name: "@sandbox-user" })).toBeVisible();
+  await expect(dialog.getByRole("link", { name: "sandbox-user", exact: true })).toBeVisible();
   expect(await dialog.evaluate((element) => element.matches(":modal"))).toBe(true);
   expect(hits.count).toBe(1);
   await page.mouse.move(1, 1);
@@ -3055,10 +3146,14 @@ test("a code owner who reviewed for a team keeps a shield that opens their team'
   await expect(shield).toHaveAccessibleName("pimterry is a code owner through nodejs/crypto");
   await shield.hover();
 
-  await expect(popup).toContainText("Through @nodejs/crypto");
+  const through = popup.locator("p", { hasText: "Through" });
+  // What copying the line gives.
+  await expect
+    .poll(() => through.evaluate((element) => (element as HTMLElement).innerText))
+    .toBe("Through nodejs/crypto");
   await expect(popup.locator("ul > li > div").first()).toHaveText("src/crypto/");
   expect((await popup.locator("li li").allTextContents()).sort()).toEqual(NODE_CRYPTO_FILES);
-  await expect(popup.getByRole("link", { name: "@nodejs/crypto" })).toHaveAttribute(
+  await expect(popup.getByRole("link", { name: "nodejs/crypto", exact: true })).toHaveAttribute(
     "href",
     "https://github.com/orgs/nodejs/teams/crypto",
   );
@@ -3081,7 +3176,7 @@ test("gh-prism's shield for a code owner who reviewed for a team opens their det
   await shield.click();
 
   const dialog = page.getByRole("dialog", { name: "@pimterry" });
-  await expect(dialog).toContainText("Through @nodejs/crypto");
+  await expect(dialog).toContainText("Through nodejs/crypto");
   await expect(dialog).toContainText("GitHub doesn't show you this team's members.");
 });
 
@@ -3103,7 +3198,7 @@ test("Tab from a code owner reviewer's shield reaches their card's team link, an
 
   await page.keyboard.press("Tab");
 
-  await expect(popup.getByRole("link", { name: "@nodejs/crypto" })).toBeFocused();
+  await expect(popup.getByRole("link", { name: "nodejs/crypto", exact: true })).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(popup).toHaveCount(0);
   await expect(shield).toBeFocused();
@@ -3140,7 +3235,7 @@ test("a user's code-owner shield lists their team's files when assigned on its b
 
   await page.locator('[id="assigned-codeowner-jasnell"]').hover();
 
-  await expect(popup).toContainText("Through @nodejs/crypto");
+  await expect(popup).toContainText("Through nodejs/crypto");
   await expect(popup.locator("ul > li > div").first()).toHaveText("src/crypto/");
   expect((await popup.locator("li li").allTextContents()).sort()).toEqual(NODE_CRYPTO_FILES);
   await expect(page.locator("button[data-gh-prism-owner]")).toHaveCount(0);

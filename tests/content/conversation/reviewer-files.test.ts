@@ -179,7 +179,12 @@ function show(
   teamMembers: TeamMembersOf = teamMembersReader(membersFetch, controller.signal),
   filter?: OwnerFilter,
 ) {
-  showReviewerFiles(document, controller.signal, { read, teamMembers, filter });
+  showReviewerFiles(document, controller.signal, {
+    read,
+    teamMembers,
+    teamAvatar: async () => undefined,
+    filter,
+  });
 }
 
 /** Shows the popups on nodejs/node#67056's `page`, read after `edits`, once its reads settle. */
@@ -583,6 +588,18 @@ describe("showReviewerFiles", () => {
       expect(action()?.href).toBe(`${FILES}?gh-prism-owner=@jasnell`);
     });
 
+    it("shows only a team's files from its filter icon on the Through line", async () => {
+      await showNode({ reviewRequests: assignedFromCrypto }, undefined, filter);
+
+      await hoverOn(addAssignedShield("jasnell"));
+
+      expect(
+        popup()
+          ?.querySelector<HTMLAnchorElement>("p a.gh-prism-owner-filter-icon")
+          ?.getAttribute("href"),
+      ).toBe(`${FILES}?gh-prism-owner=@nodejs/crypto`);
+    });
+
     it("follows gh-prism's mark in the popup's footer", async () => {
       show(undefined, undefined, filter);
 
@@ -660,10 +677,10 @@ describe("showReviewerFiles", () => {
 
       expect(ownShieldOf("@jasnell")).toBeNull();
       expect(sortedAfterFolder(listed())).toEqual(cryptoListing);
-      const teamLink = popup()?.querySelector("a");
-      expect(teamLink?.textContent).toBe("@nodejs/crypto");
-      expect(teamLink?.href).toBe("https://github.com/orgs/nodejs/teams/crypto");
-      expect(popup()?.textContent).toContain("Through @nodejs/crypto");
+      expect(
+        [...(popup()?.querySelectorAll("a") ?? [])].map((link) => link.getAttribute("href")),
+      ).toEqual(["https://github.com/orgs/nodejs/teams/crypto"]);
+      expect(popup()?.textContent).toContain("Through nodejs/crypto");
     });
 
     it("says why it lists nothing when GitHub names no team", async () => {
@@ -721,7 +738,7 @@ describe("showReviewerFiles", () => {
       expect(dialog()?.textContent).toMatch(/Code owner of \d+ files? in this pull request/);
       expect(cardListing.length).toBeGreaterThan(0);
       expect(outline(dialog()?.querySelector("ul"))).toEqual(cardListing);
-      expect(dialogItems()).toContain("@sandbox-user");
+      expect(dialogItems()).toContain("sandbox-user");
       expect(dialog()?.textContent).not.toContain("See all");
     });
 
@@ -754,9 +771,9 @@ describe("showReviewerFiles", () => {
       await clickOn(addAssignedShield("jasnell"));
 
       expect(dialogName()).toBe("@jasnell");
-      expect(dialog()?.textContent).toContain("Through @nodejs/crypto");
+      expect(dialog()?.textContent).toContain("Through nodejs/crypto");
       const block = dialog()?.querySelector("section");
-      expect(block?.querySelector("h3")?.textContent).toBe("@nodejs/crypto");
+      expect(block?.querySelector("h3")?.textContent).toBe("nodejs/crypto");
       expect(block?.textContent).toContain("GitHub doesn't show you this team's members.");
     });
 
@@ -838,7 +855,7 @@ describe("showReviewerFiles", () => {
       await hoverOn(ownShieldOf("@pimterry"));
 
       expect(sortedAfterFolder(listed())).toEqual(cryptoListing);
-      expect(popup()?.textContent).toContain("Through @nodejs/crypto");
+      expect(popup()?.textContent).toContain("Through nodejs/crypto");
       expect(ownShieldOf("@pimterry").getAttribute("aria-describedby")).toBe(
         "gh-prism-reviewer-files",
       );

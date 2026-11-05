@@ -175,6 +175,7 @@ describe("showSections", () => {
       diffstat: { choice: { view: "breakout" }, save: () => {} },
       viewed: visitViewed(undefined),
       teamMembers: async () => undefined,
+      teamAvatar: async () => undefined,
     });
     expect(document.querySelectorAll(".gh-prism-sections")).toHaveLength(1);
     expect(document.querySelectorAll(".gh-prism-sections .gh-prism-mark")).toHaveLength(1);

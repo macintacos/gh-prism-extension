@@ -9,6 +9,7 @@ import {
   type Ownership,
   ownerFilter,
   reviewerOf,
+  type TeamAvatarOf,
   type TeamMembersOf,
 } from "@/utils/github/code-owners";
 import {
@@ -23,11 +24,16 @@ import { el, icon } from "../ui/dom";
 import { fileList } from "../ui/file-list";
 import { type Card, followHoverIntent } from "../ui/hover-intent";
 import {
+  followOwnerTooltips,
+  type OwnerIdentities,
+  ownerIdentity,
+  ownerSeparator,
+} from "../ui/owner-identity";
+import {
   detailsHint,
   type OwnerFilter,
   openOwnersDialog,
   ownerFilterAction,
-  ownerLink,
 } from "../ui/owners-dialog";
 import { place } from "../ui/place";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
@@ -46,9 +52,9 @@ const OWN_SHIELD = "button[data-gh-prism-owner]";
  * from the shield enters the popup. Closes 150 ms after the pointer leaves shield and popup, and
  * at once on Escape, focus leaving both, or a scroll outside it, moving focus it held to the
  * shield. A click on the shield opens the code owner details dialog instead, excerpting owning
- * teams' members through `teamMembers`. Calls `read` at most once, when a Reviewers list first
- * shows. Given `filter`, popup and dialog offer to show only the code owner's files, when they
- * list any.
+ * teams' members through `teamMembers`. Draws teams' avatars through `teamAvatar`. Calls `read`
+ * at most once, when a Reviewers list first shows. Given `filter`, popup and dialog offer to show
+ * only the code owner's files, when they list any, and each team they name filters from its name.
  */
 export function showReviewerFiles(
   doc: Document,
@@ -56,9 +62,16 @@ export function showReviewerFiles(
   {
     read,
     teamMembers,
+    teamAvatar,
     filter,
-  }: { read: () => Promise<Ownership>; teamMembers: TeamMembersOf; filter?: OwnerFilter },
+  }: {
+    read: () => Promise<Ownership>;
+    teamMembers: TeamMembersOf;
+    teamAvatar: TeamAvatarOf;
+    filter?: OwnerFilter;
+  },
 ): void {
+  const identities: OwnerIdentities = { teamAvatar, filter };
   let ownership: Ownership | undefined;
   let reading: Promise<Ownership> | undefined;
   const readOnce = () => (reading ??= read().then((settled) => (ownership = settled)));
@@ -107,7 +120,7 @@ export function showReviewerFiles(
         filter && owned && owned.paths.length > 0
           ? ownerFilterAction(doc, token, filter)
           : undefined;
-      const card = owned && show(shield, owned, action);
+      const card = owned && show(shield, popupBody(doc, owned, identities), action);
       if (card) closeCard = card.close;
       return card;
     },
@@ -129,9 +142,10 @@ export function showReviewerFiles(
       closeCard();
       openOwnersDialog(doc, {
         title: token,
-        summary: popupBody(doc, owned),
+        summary: popupBody(doc, owned, identities),
         teams: token.includes("/") ? [token] : owned.teams,
         teamMembers,
+        teamAvatar,
         filter: owned.paths.length > 0 ? filter : undefined,
         owner: token,
         // Focus back on the shield opens its card again, as focus does anywhere here.
@@ -239,20 +253,21 @@ function shieldFor(
 const bare = (token: string) => token.replace(/^@/, "");
 
 /**
- * Shows the popup listing `owned` below `shield`, ending in `action` if given, and names it as
+ * Shows the popup holding `body` below `shield`, ending in `action` if given, and names it as
  * `shield`'s description, closing it on a scroll outside it.
  */
-function show(shield: HTMLElement, owned: OwnedFiles, action: HTMLElement | undefined): Card {
+function show(shield: HTMLElement, body: readonly Node[], action: HTMLElement | undefined): Card {
   const doc = shield.ownerDocument;
   const popover = el(
     doc,
     "div",
     "gh-prism-reviewer-files tw:inset-auto tw:m-0 tw:w-max tw:max-w-[min(440px,calc(100vw-16px))] tw:box-border tw:max-h-[min(320px,calc(100vh-16px))] tw:overflow-y-auto tw:pt-4 tw:px-4 tw:pb-0 tw:text-body-medium tw:leading-body-medium tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:border tw:border-border-default tw:rounded-medium tw:wrap-anywhere",
-    ...popupBody(doc, owned),
+    ...body,
     detailsHint(doc, "medium", action),
   );
   popover.id = ID;
   popover.popover = "manual";
+  followOwnerTooltips(popover);
   // Firefox tabs into any scroller. Keep this one a Tab stop only where Chromium does: when no
   // control inside can scroll it.
   if (popover.querySelector("a[href], button")) popover.tabIndex = -1;
@@ -283,10 +298,14 @@ function show(shield: HTMLElement, owned: OwnedFiles, action: HTMLElement | unde
 }
 
 /**
- * The popup's content: the count, the teams that make them an owner, and the files grouped under
- * their folders; or why there are none.
+ * The popup's content: the count, the teams that make them an owner, drawn by `identities`, and
+ * the files grouped under their folders; or why there are none.
  */
-function popupBody(doc: Document, { paths, teams, direct }: OwnedFiles): Node[] {
+function popupBody(
+  doc: Document,
+  { paths, teams, direct }: OwnedFiles,
+  identities: OwnerIdentities,
+): Node[] {
   if (paths.length === 0)
     return [
       el(
@@ -299,17 +318,18 @@ function popupBody(doc: Document, { paths, teams, direct }: OwnedFiles): Node[] 
 
   const files = paths.length === 1 ? "1 file" : `${paths.length} files`;
   const through = teams.flatMap((team, i) => [
-    i > 0 ? ", " : "",
-    ownerLink(doc, codeOwnerOf(team)),
+    i > 0 ? ownerSeparator(doc) : "",
+    ownerIdentity(doc, codeOwnerOf(team), identities),
   ]);
   return [
     el(doc, "p", "tw:mt-0 tw:mb-2 tw:font-semibold", `Code owner of ${files} in this pull request`),
     ...(teams.length > 0
       ? [
+          // A 24px line, the avatars' height; -6px keeps it under the count line.
           el(
             doc,
             "p",
-            "tw:-mt-1 tw:mb-2 tw:text-body-small tw:leading-body-small tw:text-fg-muted",
+            "tw:-mt-1.5 tw:mb-2 tw:text-body-small tw:leading-6 tw:text-fg-muted",
             direct ? "Directly and through " : "Through ",
             ...through,
           ),
