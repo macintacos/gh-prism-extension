@@ -6,6 +6,72 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-04: Code owners drawn with avatars, linked names, filter icons, and a box per team
+
+- **Compared:** three ways to show that a team's members in the code owner details dialog
+  belong to that team:
+  - a "Members of" heading before each team, with its members indented under the team's
+    name;
+  - a bordered box per team, with the team and its member count in the box's header and
+    its members inside;
+  - a line from the team's avatar down the side of its members.
+
+  All three put each account's avatar in place of "@". For what a click on a code owner's
+  name does, it compared two options: the name filters Files changed to that owner's
+  files, with the avatar alone linking to the account; and the avatar and name link to the
+  account together, with a filter icon after the name.
+- **Won:** the box per team, and the linked name with a filter icon after it.
+- **Why:** the maintainer, of the team blocks: "it needs to be more obvious that the two
+  things are related - that the users are members of the team that is being called out."
+  Under a hairline, a team's name and its members read as two separate things. The box
+  closes each team's members inside one edge, under a header that names the team and
+  counts its members, the way GitHub's team page boxes them. Shown the three, the
+  maintainer: "I think I like B honestly". Everywhere on GitHub, a name opens its account.
+  A name that filtered surprised people, and it needed a dotted underline and a tooltip to
+  explain itself. A filter icon after the name says what it does at rest, and leaves the
+  name doing what GitHub's names do.
+- **Settled with it:**
+  - **The link.** Every account gh-prism names shows its 16px avatar in place of "@": a
+    rounded square with a 4px radius for a team, a circle for a user, on
+    `--avatar-bgColor` inside a 1px `--avatar-borderColor` ring. The avatar and the name
+    are one link to the team page or profile, in a new tab, named by the name. A code
+    owner's name is semibold `--fgColor-default`, a member's login normal weight, and
+    either underlines on hover. The link's target is 24px tall, reaching 4px above, below,
+    and after the avatar's glyph. A token with no page, such as an email, stays plain text
+    with no avatar. The link has no tooltip, because its visible name says where it goes.
+  - **The filter icon.** Octicons `filter` at 16px in `--fgColor-muted`, drawn as Primer's
+    small invisible IconButton with a 24px target, follows a code owner's name wherever
+    the surface filters: the folder popover's "Owned by" headings, a file shield's owner
+    list, the dialog's summary and team boxes, and the Conversation popup's "Through"
+    line. Its name and tooltip read "Show only files owned by <name>", because a heading
+    can hold several icons. A plain click loads Files changed with only that owner's
+    files, and Cmd-click or Ctrl-click opens it in a new tab. On hover the icon turns
+    `--fgColor-default`. No icon follows a team member, a commit page's owners, the
+    Conversation popup inside the Conversation panel, or the box for the dialog's own code
+    owner in the dialog opened from a Conversation shield, because the footer already
+    offers that filter.
+  - **The filtered state.** On a page filtered to an owner, that owner's icon reads "Show
+    all files", clears the filter on a click, and takes the selected fill,
+    `--control-transparent-bgColor-selected`, with the icon in `--fgColor-default`.
+  - **The team box.** Each team is one box with Primer's Box border, 1px
+    `--borderColor-default`, and the medium radius. Its header is a row on
+    `--bgColor-muted`, with 6px by 12px padding and a 1px `--borderColor-default` rule
+    below it. The team's avatar and name sit at its start in body-medium, and the member
+    count sits at its end in muted body-small, "1 member" or "N members". The count is
+    blank for a hidden or empty team. The body, with 8px by 12px padding, holds the
+    members in columns at least 180px wide, 16px apart, with 4px between rows, so the
+    dialog's 480px width fits two to a row. A hidden or empty team's body holds its muted
+    sentence instead. A team past 15 members ends in a footer below a 1px
+    `--borderColor-muted` rule, with "See all N members" linked to its team page. The
+    boxes stack 12px apart, 16px below the summary, with no hairline above them.
+  - **The hidden team.** When gh-prism can't read a team's avatar, as for a team GitHub
+    hides, the avatar is the rounded square on `--bgColor-neutral-muted` with Octicons
+    `people` at 10px in `--fgColor-muted`. It still sits inside the link to the team page.
+  - **The buttons that stay.** "Show only their files" stays only in the Conversation
+    popup's footer and the footer of the dialog it opens, both for the reviewer the popup
+    is about, because neither surface draws a filter icon for that reviewer. Every other
+    one goes, the team blocks' buttons included.
+
 ## 2026-11-04: A folder's code owners, grouped by owner set
 
 - **Compared:** each file with its owners on a line under its name (the 2026-10-28 pick);

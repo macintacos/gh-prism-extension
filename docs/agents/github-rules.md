@@ -429,6 +429,17 @@ on a private one.
   team bigger than its list shows the rest as "N more" in GitHub's own tooltip, so the
   list holds only the first members. A viewer outside the organization gets 404, from the
   team's `/hovercard` too, and a user's hovercard names organizations, not teams.
+- **Read a team's avatar from `/orgs/<org>/teams/<slug>/hovercard` with
+  `X-Requested-With: XMLHttpRequest`.** Without the header it answers 406. With it, it
+  answers about 1 KB of HTML, where the team page is 164 KB. Its first
+  `https://avatars.githubusercontent.com/t/<id>` is the team's avatar, because the members
+  it shows are `/u/<id>`. A team avatar has no URL by name, only by that ID. It ignores
+  `s=32`: the avatar answered 420px wide on 2026-11-04, so the browser scales it. A team
+  that doesn't exist answers 404, as does one the viewer can't see.
+- **Build a user's avatar URL from the login, with no read:
+  `https://avatars.githubusercontent.com/<login>?s=32`.** It answers a 32px image. The
+  page's `content-security-policy` lists `avatars.githubusercontent.com` in `img-src`, so
+  an `<img>` gh-prism adds loads.
 - **Re-check:** compare
 
   ```sh
@@ -444,7 +455,13 @@ on a private one.
   `gh api repos/<owner>/<repo>/pulls/<n>/reviews`. Grep GitHub's assets for
   `onBehalfOfTeams` and `delegatedFromTeam`, as
   [§ Re-checking GitHub](#re-checking-github) describes, to find the reviewer list that
-  reads them.
+  reads them. Signed in with the saved `storageState`, on the code-owners sandbox's PR #6,
+  fetch `/orgs/excessive-dev/teams/platform/hovercard` with the header and without it, and
+  a team that doesn't exist with it. Read each status and the first `t/<id>`, which was
+  `t/20376992` on 2026-11-04. Load that avatar and
+  `https://avatars.githubusercontent.com/<login>?s=32` as images and read their
+  `naturalWidth`. Curl a pull request's headers and find `avatars.githubusercontent.com`
+  in its policy's `img-src`.
 
 ## The Reviewers lists
 

@@ -444,8 +444,8 @@ zone skips only disabled ones. "Me" shows only when GitHub's item does. The revi
 those who own a changed file, directly or through a team they review for, leaving out your
 own login. A reviewer stays after submitting a review, since `review_requests` lists
 reviews as well as requests. A code owner the page's owner filter names who isn't among
-them, as a team block's action can set, follows them, checked. Without the PR reviewers
-the section offers "Me" alone; without the code owners it adds nothing.
+them, as a code owner's filter icon can set, follows them, checked. Without the PR
+reviewers the section offers "Me" alone; without the code owners it adds nothing.
 
 A reviewer pick loads the page, through `withOwner` in
 [`utils/github/files-route.ts`](../utils/github/files-route.ts), because the owner filter
@@ -539,7 +539,11 @@ and hands every reader the result, so every reader sees the same teams. `withMem
 and the code owner details dialog both read through the visit's `teamMembersReader`, so
 the dialog reuses a read already made. Each read also carries the team's member count,
 which the dialog's "See all N members" link shows when the team has more members than it
-lists.
+lists. A team's avatar takes a read of its own, once a visit, through the visit's
+`teamAvatarReader`, when a surface first draws the team: `readTeamAvatar` finds the team's
+avatar ID in the hovercard GitHub's team mentions open, a small HTML answer. For a team
+the viewer can't see, GitHub answers 404 and the surface draws a placeholder. A user's
+avatar URL comes from their login, with no read.
 
 Each read settles on its own: one that fails, or whose response misses a field it expects,
 resolves to `undefined` and logs one warning naming it, and the other read is unaffected.
@@ -585,11 +589,11 @@ section or the diffstat.
 Clicking a shield, or Enter or Space on it, closes the popover and opens the code owner
 details dialog, built by
 [`ui/owners-dialog.ts`](../entrypoints/content/ui/owners-dialog.ts). The dialog repeats
-the popover's list, then shows each owning team's first 15 members and a link to the
-team's page for the rest. It mounts in the page's body with its own stylesheet, so a
-shield in a shadow root and one in the light DOM can share it. Opening it moves focus to
-the shield's row first. The dialog then hands focus back to the row, never the shield,
-whose focus would reopen the popover.
+the popover's list, then gives each owning team a box with its member count, its first 15
+members, and a link to the team's page for the rest. It mounts in the page's body with its
+own stylesheet, so a shield in a shadow root and one in the light DOM can share it.
+Opening it moves focus to the shield's row first. The dialog then hands focus back to the
+row, never the shield, whose focus would reopen the popover.
 
 On the Conversation tab, a code-owner shield beside a PR reviewer in a Reviewers list
 opens a popup listing the changed files that code owner owns, built by
@@ -610,13 +614,13 @@ document serves both shields, because GitHub replaces the classic sidebar's node
 mid-visit, and a listener on a shield would go with them.
 
 The popup lists the files `ownerFilter` gives the shield's `@user` or `@org/team` token,
-counting the teams GitHub names for that reviewer, and names those teams, each linked to
-its team page. A code owner GitHub marks without naming a team, and whose own token owns
-nothing, gets one sentence saying GitHub hides the team. Any other code owner who owns no
-changed file opens nothing. It rides the header visit, so it runs only where
-`findHeaderPage` finds the counter's slot. The popup's listeners sit on the document for
-the whole visit, because GitHub replaces the classic sidebar's nodes mid-visit. When to
-open and close it is `followHoverIntent` in
+counting the teams GitHub names for that reviewer, and names those teams, each with its
+avatar and name linking to its team page. A code owner GitHub marks without naming a team,
+and whose own token owns nothing, gets one sentence saying GitHub hides the team. Any
+other code owner who owns no changed file opens nothing. It rides the header visit, so it
+runs only where `findHeaderPage` finds the counter's slot. The popup's listeners sit on
+the document for the whole visit, because GitHub replaces the classic sidebar's nodes
+mid-visit. When to open and close it is `followHoverIntent` in
 [`ui/hover-intent.ts`](../entrypoints/content/ui/hover-intent.ts). The popup and the file
 and folder shields' popover share one placer,
 [`ui/place.ts`](../entrypoints/content/ui/place.ts): below, else above, else on the
@@ -624,17 +628,25 @@ roomier side, capped so it never covers its anchor. They also share one file lis
 [`ui/file-list.ts`](../entrypoints/content/ui/file-list.ts), which groups their files
 under folders as the sidebar's tree flattens them.
 
-On a pull request, the popup and the dialog also offer "Show only their files": a link,
-built by `ownerFilterAction` in `ui/owners-dialog.ts`, that sets the owner filter. The
-popup puts it beside its hint, and the dialog in its footer and in each other team block's
-heading. On Files changed it reads "Show all files" for the code owner the page already
-filters by, and clears the filter. `index.ts` hands each surface an `OwnerFilter`, the
-links from `ownerFilterLink` in
+Every account the popover, the popup, and the dialog name is drawn by
+[`ui/owner-identity.ts`](../entrypoints/content/ui/owner-identity.ts): its avatar and
+name, as one link to the account's page. On a pull request a filter icon follows a code
+owner's name: a link that sets the owner filter, named "Show only files owned by
+`<owner>`". On Files changed it says "Show all files" for the code owner the page already
+filters by, and clears the filter. The module also holds the one tooltip each surface
+shows for those icons, in the top layer, so it never widens a scrolling surface.
+
+The popup, and the dialog it opens, offer the same filter for the reviewer they are about:
+"Show only their files", a link built by `ownerFilterAction` in `ui/owners-dialog.ts`.
+Neither draws a filter icon for that reviewer. The popup puts the link beside its hint,
+and the dialog in its footer. The dialog's box for that reviewer has no filter icon, so
+the footer's link and an icon never both filter to them. `index.ts` hands each surface an
+`OwnerFilter`, the links from `ownerFilterLink` in
 [`utils/github/files-route.ts`](../utils/github/files-route.ts) and a `navigate` that
-loads a plain click's link as a new page, so the popup and the dialog never read
-`location`. On the Conversation tab the link goes to the pull request's `/files`, which
-GitHub redirects to `/changes`. A commit page gets no `OwnerFilter`, so it shows no
-action.
+loads a plain click's link as a new page, so the surfaces never read `location`. On the
+Conversation tab the link goes to the pull request's `/files`, which GitHub redirects to
+`/changes`. A commit page, and the Conversation panel's frame, get no `OwnerFilter`, so
+they show no filter icon and no action.
 
 The owner section is the third: it lists the reviewers who own a changed file (§ The owner
 section).

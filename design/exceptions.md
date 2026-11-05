@@ -54,3 +54,12 @@ the departure as intended.
   The short rules between the header counter's pills only echo the spacing and icons that
   already separate the sections, so they stay `--borderColor-default`. `decisions.md` has
   the pick.
+- **Team box edges: Primer's Box border, below the 3:1 floor.** The floor holds non-text
+  UI to 3:1. Each team's box in the code owner details dialog takes Primer's Box border,
+  `--borderColor-default`, which is 1.43:1 against `--overlay-bgColor` in a light theme
+  and 2.09:1 in a dark one. The rules inside the box stay below the floor too: the
+  header's bottom border takes the same token, and the footer's `--borderColor-muted` rule
+  is 1.28:1 and 1.57:1. The box is no control, and the edge isn't what groups the team.
+  The header row puts the team's avatar, name, and member count above its members, and the
+  boxes sit 12px apart where the rows inside sit 4px apart. The header's `--bgColor-muted`
+  fill only echoes the edge, at 1.06:1 and 1.19:1. `decisions.md` has the pick.

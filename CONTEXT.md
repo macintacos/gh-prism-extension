@@ -116,8 +116,9 @@ which names the person reading the diff
 
 **Owner filter**: gh-prism's narrowing of a pull request's files, in the sidebar and the
 diff list, to the files one code owner owns, set by the `gh-prism-owner` query parameter,
-which the owner section and the code-owner popup and dialog's "Show only their files" set.
-_Avoid_: owned by, which names GitHub's own filter to the viewer's files
+which the owner section, a code owner's filter icon, and the code-owner popup and dialog's
+"Show only their files" set. _Avoid_: owned by, which names GitHub's own filter to the
+viewer's files
 
 **Owner section**: The "Only files owned by…" group gh-prism adds to GitHub's file-tree
 filter menu: "Me", standing in for GitHub's "Only files owned by you", then each PR

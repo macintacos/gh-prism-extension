@@ -53,12 +53,13 @@ entries in `ICON_SPRITE` and their colour rules.
 An owned file's icon gives way to a shield while its row is hovered or focused, as a
 folder's icon gives way to its chevron. The shield is Octicons `shield-lock`, muted at
 rest and `--fgColor-default` on hover. Resting the pointer on it opens a popover listing
-the file's code owners, with the code owner's files popup's timing below, and so does
-focusing it. The popover ends in a footer that stays put while the list scrolls. Below a
-hairline, the footer holds one small muted sentence, "Click the shield for details".
-Clicking the shield, or Enter or Space on it, closes the popover and opens the code owner
-details dialog (§ Dialogs). `sidebar/section-tree.css` swaps the icon for the shield;
-`sidebar/owners-popover.ts` builds the popover.
+the file's code owners, one per 24px row, each drawn as § Owner identities says, with the
+code owner's files popup's timing below, and so does focusing it. The popover ends in a
+footer that stays put while the list scrolls. Below a hairline, the footer holds one small
+muted sentence, "Click the shield for details". Clicking the shield, or Enter or Space on
+it, closes the popover and opens the code owner details dialog (§ Dialogs).
+`sidebar/section-tree.css` swaps the icon for the shield; `sidebar/owners-popover.ts`
+builds the popover.
 
 A folder holding an owned file shows the same shield while its row is hovered or focused,
 at its row's end, centred on the file rows' Viewed box column, because its icon already
@@ -66,12 +67,13 @@ gives way to its chevron. A flattened chain's shield stands for its deepest fold
 holds the same files. `sidebar/section-tree.css` places it. Its popover lists every file
 the section shows under that folder, nested ones included, grouped by owner set. Each
 distinct set of code owners, whatever their order, heads one group with a muted "Owned by"
-followed by its linked owners in semibold. The group's files sit indented below it as a
-tree relative to the folder, laid out as the code owner's files popup lays them out (§
-Code owner's files). Groups follow the tree order of their first files, and files without
-a code owner come last under a muted "No code owner". The popover is at most 400px wide.
-It ends in the same hint, and a click on the shield opens the code owner details dialog
-too. `sidebar/owners-popover.ts` builds it.
+followed by its owners, comma-separated, as § Owner identities draws them. The heading's
+line is 24px, so its words line up with the identities when it wraps. The group's files
+sit indented below it as a tree relative to the folder, laid out as the code owner's files
+popup lays them out (§ Code owner's files). Groups follow the tree order of their first
+files, and files without a code owner come last under a muted "No code owner". The popover
+is at most 400px wide. It ends in the same hint, and a click on the shield opens the code
+owner details dialog too. `sidebar/owners-popover.ts` builds it.
 
 A folder chain short of room keeps its first folder and as many trailing folders as fit
 around one `…`. With room for less, it shows `…` and the deepest folder alone. Only the
@@ -131,6 +133,15 @@ clips at an edge. `sidebar/side.css`, `sidebar/report.css`, `commit/step-links.c
 hover alone, since the mark takes no focus. Inside the header counter's tooltips, which
 take no pointer, the mark's own tooltip never opens.
 
+The owner filter icons' tooltips (§ Owner identities) look the same but sit in the top
+layer, because their surfaces scroll, and an `::after` there would widen the scroller's
+overflow even while hidden. Each surface holds one `popover="manual"` tooltip that reads
+the hovered or keyboard-focused icon's `data-tooltip`. When the pointer leaves an icon
+while another holds keyboard focus, the tooltip shows the focused icon's text again.
+`ui/place.ts` places it 4px below the icon, start-aligned, or above it where the viewport
+has no room below. It is hidden from assistive technology, because the icon's `aria-label`
+already says the same. `ui/owner-identity.ts` builds it.
+
 A control that takes a key names it in its tooltip, after the action's name, and sets
 `aria-keyshortcuts`, so assistive technology announces the key. Three sets of controls
 take keys:
@@ -181,6 +192,9 @@ the state. Focus stays on it across the flip. It holds one Octicon in both state
   a visible label that is its name, so it needs no tooltip. The message's hide button and
   the button that shows the message again take the same form. `commit/message-view.ts`
   builds all three.
+- **After a code owner's name,** it is a link drawn as Primer's small invisible
+  IconButton, named by an `aria-label` that its tooltip shows. Its flip is a page load,
+  and it takes the selected fill in its second state. `ui/owner-identity.ts` builds it.
 - **In the code-owner popup and dialog,** it is a link drawn as the same small invisible
   Button. Its flip is a page load, so focus doesn't carry across it. `ui/owners-dialog.ts`
   builds it.
@@ -258,13 +272,16 @@ and name keep GitHub's own hovercard, so the two cards never share a trigger.
   back to the shield. One is open at a time.
 - **Content:** the count line "Code owner of N files in this pull request", in GitHub's
   own words from its user hovercard. When teams make them an owner, a small muted line
-  under it says "Through" and names each team, linked to its team page, or "Directly and
-  through" when CODEOWNERS names them too. Then the files, grouped under their folders,
-  with a folder that holds only another folder merged into it, as the sidebar's tree
-  flattens them. Each folder's path is in muted monospace and breaks only after a slash,
-  unless one folder name alone is wider than the popup. Its files sit indented below it in
-  monospace. `ui/file-list.ts` builds this tree for the popup, the folder popover (§ File
-  rows), and through them the details dialog. A long list scrolls inside the popup.
+  under it says "Through", or "Directly and through" when CODEOWNERS names them too, then
+  each team as § Owner identities draws it. Each team's filter icon shows only that team's
+  files, except in the Conversation panel, where nothing filters. The line is 24px tall,
+  so its words line up with the avatars, and a −6px top margin keeps it close under the
+  count line. Then the files, grouped under their folders, with a folder that holds only
+  another folder merged into it, as the sidebar's tree flattens them. Each folder's path
+  is in muted monospace and breaks only after a slash, unless one folder name alone is
+  wider than the popup. Its files sit indented below it in monospace. `ui/file-list.ts`
+  builds this tree for the popup, the folder popover (§ File rows), and through them the
+  details dialog. A long list scrolls inside the popup.
 - **The hint:** like a file row's code owners popover (§ File rows), the popup ends in a
   footer that stays put while the list scrolls: below a hairline, "Click the shield for
   details" in small muted text. gh-prism's mark sits in the same footer (§ The mark).
@@ -273,8 +290,11 @@ and name keep GitHub's own hovercard, so the two cards never share a trigger.
   vertically. The footer's vertical padding drops to 4px, so the row stays 36px tall. The
   action is a link drawn as Primer's small invisible Button, with Octicons `filter` before
   its label, and it opens Files changed narrowed to that code owner's files. A plain click
-  loads it as a new page; Cmd-click opens a new tab. The "GitHub hides the team" popup has
-  no action. On a commit page there is no owner filter, so no surface shows the action.
+  loads it as a new page; Cmd-click or Ctrl-click opens a new tab. The popup and the
+  dialog filter to the reviewer through this action rather than a filter icon: the popup
+  never draws the reviewer's name, and the dialog's box for them has no icon (§ Dialogs).
+  The "GitHub hides the team" popup has no action. On a commit page there is no owner
+  filter, so no surface shows the action.
 - **The click:** clicking the shield, or Enter or Space on it, closes the popup and opens
   the code owner details dialog (§ Dialogs), headed by the code owner's `@user` or
   `@org/team` name. Closing the dialog returns focus to the shield. Focus opens the popup
@@ -290,6 +310,56 @@ body text and 16px padding. It is at most 440px wide, and never wider than the v
 less 8px a side. That is wider than GitHub's 360px hovercard, so a deep folder path fits
 on one line. `conversation/reviewer-files.ts` and `conversation/reviewer-files.css` hold
 it.
+
+## Owner identities
+
+Every account a code owner surface names takes one form: its 16px avatar, then its name
+without the "@". The avatar and the name are one link to the account's page. Where the
+surface filters, a filter icon follows the name. The folder popover's headings, a file
+shield's owner list, the code owner details dialog, and the code owner's files popup all
+draw it.
+
+- **The link:** one link per account holds its avatar and its name, so the name alone
+  names the link. It opens the team page or profile in a new tab, as a name does
+  everywhere on GitHub. A code owner's name is semibold `--fgColor-default`, a team
+  member's login is normal weight, and either underlines on hover. Its target is its 24px
+  line, so a wrapped name's lines don't overlap. A token with no page, such as an email,
+  is plain text with no avatar or icon.
+- **The avatar:** a circle for a user and a square with a 4px radius for a team, on
+  `--avatar-bgColor` inside a 1px `--avatar-borderColor` ring. The link's target reaches
+  4px above, below, and after the glyph, so it fills the 24px line. A team whose avatar
+  gh-prism can't read, such as one GitHub hides, shows Octicons `people` on
+  `--bgColor-neutral-muted`, at 10px in `--fgColor-muted`, instead, still inside its link.
+- **The filter icon:** Octicons `filter` at 16px in `--fgColor-muted`, drawn as Primer's
+  small invisible IconButton with a 24px target, right after the name and never on a line
+  of its own. It follows a code owner's name in the "Owned by" headings, a file shield's
+  owner list, the dialog's summary and team boxes, and the popup's "Through" line. Its
+  name and tooltip say whose files it shows, "Show only files owned by <name>", the name
+  as the link shows it, such as `octo/web` or `mona`, because a heading can hold several.
+  It is a link: a plain click loads Files changed with only that owner's files, and
+  Cmd-click or Ctrl-click opens it in a new tab. On hover it takes
+  `--control-transparent-bgColor-hover` and the icon turns `--fgColor-default`. On a page
+  already filtered to that owner, it reads "Show all files", clears the filter, and takes
+  the selected fill, `--control-transparent-bgColor-selected`, with the icon in
+  `--fgColor-default`. The flipped name carries the state, as § Switches says, so it takes
+  no `aria-pressed`. Where the surface has no filter, as on a commit page or in the
+  Conversation panel, no icon follows. Nor does one follow the dialog's box for its own
+  code owner (§ Dialogs) or a team member.
+- **Spacing:** an identity is inline text, so a line of them copies as one line, and the
+  icon adds no text. A space sets it apart from the words before it, such as "Owned by" or
+  "Through", and a comma and a space separate two identities. The avatar sits 4px before
+  its name. The icon's box starts 4px after the name, so its fill and focus ring clear the
+  name, and its glyph sits 8px from the name's last glyph. A comma after the icon starts
+  at the icon's box, outside its fill and focus ring, and 4px follow the comma's space
+  before the next owner, so the comma closes the owner before it.
+- **Headings:** a heading that holds identities is named by its text alone, never by its
+  icons' labels. An "Owned by" heading sets its own text as its `aria-label`. A box header
+  holds the link inside its heading and the icon just after it.
+- **The tooltips:** only the filter icons take one (§ Tooltips). The link needs none,
+  because its visible name says where it goes.
+
+`ui/owner-identity.ts` builds them. Its sheet, `ui/owner-identity.css`, takes no `tw:`
+classes, and each host's sheet imports it.
 
 ## Loading
 
@@ -389,23 +459,35 @@ while the spectrum sweeps across its top edge, and its backdrop is Primer's
 The code owner details dialog copies that dialog's shell, its header, ✕ button, entrance,
 and backdrop, but has no spectrum. ✕, Escape, and a click outside close it. Under its
 heading, it repeats what the shield's popover lists, built by the same code. Then each
-owning team gets a block below a hairline: its `@org/team` name linked to its team page,
-then at most 15 members as `@login` links. A team with more members ends in a "See all N
-members" link to its team page. A team the viewer can't see reads "GitHub doesn't show you
-this team's members.", and an empty one reads "This team has no members."
+owning team gets a box, 16px below that list, with 12px between boxes and no hairline
+above them:
 
-The dialog carries the popup's filter action (§ Code owner's files) in two places:
+- **The box:** Primer's Box border, 1px `--borderColor-default`, with the medium radius.
+  `exceptions.md` says why its edges sit below the 3:1 floor.
+- **The header:** a row on `--bgColor-muted` with 6px by 12px padding. The team's identity
+  (§ Owner identities) sits at its start in body-medium, and its member count at its end
+  in muted body-small: "1 member" or "N members", blank for a hidden or empty team. Its
+  top corners sit 1px inside the box's, so the fill meets the border without clipping.
+- **The body:** below a 1px `--borderColor-default` rule, with 8px by 12px padding. It
+  holds at most 15 members, each an avatar and login linked to their profile (§ Owner
+  identities), in columns at least 180px wide, 16px apart, with 4px between rows. A login
+  too long for its column wraps, with the avatar beside its first line. A team the viewer
+  can't see reads "GitHub doesn't show you this team's members.", and an empty one reads
+  "This team has no members."
+- **The footer:** a team with more members ends below a 1px `--borderColor-muted` rule in
+  "See all N members", linked to its team page.
 
-- **The footer:** the dialog always ends in a footer below the scrolling body, so it stays
-  put. A hairline sits above it, drawn as `box-shadow: 0 -1px 0` in
-  `--borderColor-default` to mirror the header's. It has 8px padding and holds gh-prism's
-  mark (§ The mark) at its start corner; opened from a Reviewers shield whose popup lists
-  files, it also holds the action for the dialog's own code owner, at the end.
-- **Each team block:** the block's heading is a row, the linked team name on the left and
-  the action for that team on the right, centred vertically. The block for the dialog's
-  own code owner skips it, so the dialog never offers the same action twice.
+Each team's filter icon shows only that team's files, as § Owner identities says. A team
+named both in the list above the boxes and in its box header offers that filter twice, by
+design. The box for the dialog's own code owner is the exception: it has no filter icon,
+so the footer's filter action and an icon never both filter to that code owner. Its name
+still links to the team page.
 
-The action is a switch, so its label names what it does and flips with the state: on a
-Files changed page already filtered to that code owner, it reads "Show all files" and
-clears the filter. The icon stays the same. `ui/owners-dialog.ts` and
-`ui/owners-dialog.css` hold it.
+The dialog always ends in a footer below the scrolling body, so it stays put. A hairline
+sits above it, drawn as `box-shadow: 0 -1px 0` in `--borderColor-default` to mirror the
+header's. It has 8px padding and holds gh-prism's mark (§ The mark) at its start corner.
+Opened from a Reviewers shield whose popup lists files, it also holds the popup's filter
+action (§ Code owner's files) for the dialog's own code owner, at the end. The action is a
+switch, so its label names what it does and flips with the state: on a Files changed page
+already filtered to that code owner, it reads "Show all files" and clears the filter. The
+icon stays the same. `ui/owners-dialog.ts` and `ui/owners-dialog.css` hold it.
