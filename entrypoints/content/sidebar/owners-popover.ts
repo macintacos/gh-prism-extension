@@ -98,7 +98,7 @@ function folderList(doc: Document, folder: string, files: readonly FileOwnersAt[
 
 /**
  * `files` by owner set, ignoring the owners' order and case: in the order of each set's first file,
- * headed by that file's owners, with files that have none last.
+ * with that file's owners in their CODEOWNERS order, and files that have none last.
  */
 function byOwnerSet(files: readonly FileOwnersAt[]) {
   const sets = [...Map.groupBy(files, ownerSetKey).values()].map((group) => ({
@@ -108,7 +108,7 @@ function byOwnerSet(files: readonly FileOwnersAt[]) {
   return sets.toSorted((a, b) => Number(a.owners.length === 0) - Number(b.owners.length === 0));
 }
 
-// CODEOWNERS tokens hold no whitespace, and owners compare case-insensitively.
+// CODEOWNERS tokens hold no whitespace, and owners compare ignoring case, as isOwner does.
 const ownerSetKey = ({ owners }: FileOwnersAt) =>
   owners
     .map(({ token }) => token.toLowerCase())
@@ -121,13 +121,13 @@ function ownersHeading(doc: Document, owners: readonly CodeOwner[]): HTMLElement
     ? el(
         doc,
         "h3",
-        "tw:m-0 tw:mb-1 tw:text-body-small tw:leading-body-small tw:font-semibold",
+        "tw:mt-0 tw:mb-1 tw:text-body-small tw:leading-body-small tw:font-semibold",
         ...owners.flatMap((owner, i) => [i > 0 ? ", " : "", ownerLink(doc, owner)]),
       )
     : el(
         doc,
         "h3",
-        "tw:m-0 tw:mb-1 tw:text-body-small tw:leading-body-small tw:font-semibold tw:text-fg-muted",
+        "tw:mt-0 tw:mb-1 tw:text-body-small tw:leading-body-small tw:font-semibold tw:text-fg-muted",
         "No code owner",
       );
 }
