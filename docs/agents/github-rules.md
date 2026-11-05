@@ -476,7 +476,8 @@ pull request, taken 2026-10-28, not from a capture.
   `<tool-tip for="codeowner-…" popover="manual">` reads "… is a code owner", and an
   assigned member's `<tool-tip for="assigned-codeowner-<login>">` reads "<login> is a code
   owner automatically assigned from <org>/<team>". Either is the shield's accessible name
-  through `aria-labelledby`.
+  through `aria-labelledby`. Primer opens it as soon as the pointer enters the shield,
+  before gh-prism's popup opens, as observed on the code-owners sandbox on 2026-11-04.
 - **Expect GitHub's hovercard on the reviewer's `span[data-hovercard-url]`, never on the
   shield.** The span wraps the avatar and name; the shield sits outside it, after the
   status dot.

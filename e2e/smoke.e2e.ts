@@ -3124,6 +3124,11 @@ test("a user's code-owner shield lists their team's files when assigned on its b
   );
   await page.goto(NODE_PR);
   const popup = page.locator(".gh-prism-reviewer-files");
+  const tip = page.locator('tool-tip[for="assigned-codeowner-jasnell"]');
+  // A closed popover is display: none anyway; open it as Primer's hover script, which the
+  // fixture doesn't run, would.
+  await tip.evaluate((el) => (el as HTMLElement).showPopover());
+  await expect(tip).toHaveCSS("display", "none");
 
   await page.locator('[id="assigned-codeowner-jasnell"]').hover();
 
@@ -3131,11 +3136,6 @@ test("a user's code-owner shield lists their team's files when assigned on its b
   await expect(popup.locator("ul > li > div").first()).toHaveText("src/crypto/");
   expect((await popup.locator("li li").allTextContents()).sort()).toEqual(NODE_CRYPTO_FILES);
   await expect(page.locator("button[data-gh-prism-owner]")).toHaveCount(0);
-  const tip = page.locator('tool-tip[for="assigned-codeowner-jasnell"]');
-  // A closed popover is display: none anyway; open it as Primer's hover script, which the
-  // fixture doesn't run, would.
-  await tip.evaluate((el) => (el as HTMLElement).showPopover());
-  await expect(tip).toHaveCSS("display", "none");
 });
 
 test("Tab from a code owner's shield enters their long list's filter action, which scrolls it, then moves on through the sidebar", async ({
