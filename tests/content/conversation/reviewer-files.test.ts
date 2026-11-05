@@ -7,8 +7,7 @@ import {
   type Ownership,
   type PrCodeOwners,
   type PrReviewer,
-  readCodeOwners,
-  readPrReviewers,
+  readOwnership,
   type TeamMembersOf,
   teamMembersReader,
 } from "../../../utils/github/code-owners";
@@ -73,10 +72,19 @@ interface NodeEdits {
     pendingReviewRequests: Json[];
     completedReviews: Json[];
   }) => void;
+  /** The members nodejs/crypto lists; unset, its members can't be read. */
+  readonly cryptoMembers?: readonly string[];
 }
 
-/** nodejs/node#67056's code owners and PR reviewers, read from its captures after `edits`. */
-async function nodeOwnership({ ownership, reviewRequests }: NodeEdits = {}): Promise<Ownership> {
+/**
+ * nodejs/node#67056's code owners and PR reviewers, read from its captures after `edits` as a
+ * visit reads them, owning teams' members included.
+ */
+async function nodeOwnership({
+  ownership,
+  reviewRequests,
+  cryptoMembers,
+}: NodeEdits = {}): Promise<Ownership> {
   const codeowners = JSON.parse(nodeCodeowners);
   ownership?.(codeowners.ownershipByPath);
   const requests = JSON.parse(nodeReviewRequests);
@@ -86,12 +94,15 @@ async function nodeOwnership({ ownership, reviewRequests }: NodeEdits = {}): Pro
       Promise.resolve(new Response(JSON.stringify(codeowners))),
     "https://github.com/nodejs/node/pull/67056/page_data/review_requests": () =>
       Promise.resolve(new Response(JSON.stringify(requests))),
+    ...(cryptoMembers && {
+      "https://github.com/orgs/nodejs/teams/crypto/members": () =>
+        Promise.resolve(
+          new Response(JSON.stringify({ total: cryptoMembers.length, members: cryptoMembers })),
+        ),
+    }),
   });
   const { signal } = new AbortController();
-  return {
-    codeOwners: await readCodeOwners(node, fetchFn, signal),
-    prReviewers: await readPrReviewers(node, fetchFn, signal),
-  };
+  return readOwnership(node, { fetchFn, teamMembers: teamMembersReader(fetchFn, signal), signal });
 }
 
 /** A team as review_requests names one. */
@@ -847,6 +858,15 @@ describe("showReviewerFiles", () => {
         "pimterry is a code owner through nodejs/crypto",
       );
       expect(shield.querySelector("svg")).not.toBeNull();
+    });
+
+    it("marks a reviewer who owns files only through a team when GitHub shows no team among the reviewers", async () => {
+      await showNode({ cryptoMembers: ["jasnell"] });
+
+      expect(ownShields()).toEqual(["@jasnell"]);
+      expect(ownShieldOf("@jasnell").getAttribute("aria-label")).toBe(
+        "jasnell is a code owner through nodejs/crypto",
+      );
     });
 
     it("opens the reviewer's files, naming the team, on hover", async () => {

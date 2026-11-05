@@ -3,6 +3,7 @@ import {
   codeOwnerOf,
   isOwner,
   ownerFilter,
+  ownershipOf,
   owningReviewers,
   owningTeams,
   type PrCodeOwners,
@@ -589,22 +590,125 @@ describe("owningTeams", () => {
   });
 });
 
-describe("withMemberTeams", () => {
-  const owners: PrCodeOwners = new Map([
-    ["web/app.ts", { owners: [codeOwnerOf("@o/frontend")], ownedByViewer: false }],
-    ["infra/main.tf", { owners: [codeOwnerOf("@o/platform")], ownedByViewer: false }],
-    ["docs/guide.md", { owners: [codeOwnerOf("@ada")], ownedByViewer: false }],
-  ]);
-  const reviewer = (token: string, extra: Partial<PrReviewer> = {}): PrReviewer => ({
-    token,
-    teams: [],
-    codeOwner: false,
-    ...extra,
-  });
-  /** Members by team: `@o/frontend` lists `@Grace`, every other team no one. */
-  const readMembers = vi.fn(async (team: string) => (team === "@o/frontend" ? ["Grace"] : []));
+const owners: PrCodeOwners = new Map([
+  ["web/app.ts", { owners: [codeOwnerOf("@o/frontend")], ownedByViewer: false }],
+  ["infra/main.tf", { owners: [codeOwnerOf("@o/platform")], ownedByViewer: false }],
+  ["docs/guide.md", { owners: [codeOwnerOf("@ada")], ownedByViewer: false }],
+]);
 
-  beforeEach(() => readMembers.mockClear());
+/** Members by lowercased team token, as `TeamMembersOf`; every other team lists no one. */
+const membersFrom = (byTeam: Record<string, readonly string[]>) =>
+  vi.fn(async (team: string) => {
+    const members = byTeam[team.toLowerCase()] ?? [];
+    return { total: members.length, members };
+  });
+
+const reviewer = (token: string, extra: Partial<PrReviewer> = {}): PrReviewer => ({
+  token,
+  teams: [],
+  codeOwner: false,
+  ...extra,
+});
+
+describe("ownershipOf", () => {
+  const frontendUrl = "https://github.com/orgs/o/teams/frontend/members";
+  const platformUrl = "https://github.com/orgs/o/teams/platform/members";
+  const readerOver = (routes: Parameters<typeof routedFetch>[0]) => {
+    const fetchFn = routedFetch(routes);
+    return { fetchFn, reader: teamMembersReader(fetchFn, new AbortController().signal) };
+  };
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it("owns the files CODEOWNERS names a user for", async () => {
+    const teamMembers = membersFrom({});
+
+    const result = await ownershipOf(owners, "@Ada", teamMembers);
+
+    expect(result).toEqual({ paths: ["docs/guide.md"], teams: [], direct: true });
+  });
+
+  it("owns a team's files through its members, naming the team", async () => {
+    const teamMembers = membersFrom({ "@o/frontend": ["Grace"] });
+
+    const result = await ownershipOf(owners, "@grace", teamMembers);
+
+    expect(result).toEqual({ paths: ["web/app.ts"], teams: ["@o/frontend"], direct: false });
+  });
+
+  it("owns nothing when neither CODEOWNERS nor an owning team names the user", async () => {
+    const teamMembers = membersFrom({ "@o/frontend": ["Grace"] });
+
+    const result = await ownershipOf(owners, "@linus", teamMembers);
+
+    expect(result).toEqual({ paths: [], teams: [], direct: false });
+  });
+
+  it.each([
+    ["hidden from the viewer", 404],
+    ["rate-limited", 429],
+  ])("owns nothing, quietly, through a team whose members are %s", async (_, status) => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { reader } = readerOver({
+      [frontendUrl]: () => Promise.resolve(new Response("", { status })),
+    });
+
+    const result = await ownershipOf(owners, "@grace", reader);
+
+    expect(result).toEqual({ paths: [], teams: [], direct: false });
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("owns nothing through a team whose read fails, warning once however many logins are checked", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { reader } = readerOver({
+      [frontendUrl]: () => Promise.reject(new TypeError("Failed to fetch")),
+    });
+
+    const results = await Promise.all([
+      ownershipOf(owners, "@grace", reader),
+      ownershipOf(owners, "@linus", reader),
+    ]);
+
+    expect(results.map(({ teams }) => teams)).toEqual([[], []]);
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
+  it("doesn't count a member past the list GitHub returns for a large team", async () => {
+    const { reader } = readerOver({
+      [frontendUrl]: ok(JSON.stringify({ total: 40, members: ["grace"] })),
+    });
+
+    const [linus, grace] = await Promise.all([
+      ownershipOf(owners, "@linus", reader),
+      ownershipOf(owners, "@grace", reader),
+    ]);
+
+    expect(linus.teams).toEqual([]);
+    expect(grace.teams).toEqual(["@o/frontend"]);
+  });
+
+  it("reads each owning team once however many logins are checked", async () => {
+    const { fetchFn, reader } = readerOver({
+      [frontendUrl]: ok(sandboxTeamMembers),
+      [platformUrl]: ok(sandboxTeamMembers),
+    });
+
+    await Promise.all(
+      ["@ada", "@grace", "@linus"].map((login) => ownershipOf(owners, login, reader)),
+    );
+    await withMemberTeams([reviewer("@grace")], owners, reader);
+
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("withMemberTeams", () => {
+  const readMembers = membersFrom({ "@o/frontend": ["Grace"] });
+
+  beforeEach(() => {
+    readMembers.mockClear();
+  });
 
   it("adds each owning team that lists a reviewer who owns nothing yet", async () => {
     const reviewers = [reviewer("@o/platform"), reviewer("@grace", { codeOwner: true })];
@@ -620,8 +724,10 @@ describe("withMemberTeams", () => {
   it("adds each owning team that lists a reviewer who owns files directly", async () => {
     const reviewers = [reviewer("@ada", { codeOwner: true })];
 
-    const result = await withMemberTeams(reviewers, owners, async (team) =>
-      team === "@o/frontend" ? ["ada"] : [],
+    const result = await withMemberTeams(
+      reviewers,
+      owners,
+      membersFrom({ "@o/frontend": ["ada"] }),
     );
 
     expect(result).toEqual([reviewer("@ada", { codeOwner: true, teams: ["@o/frontend"] })]);
@@ -668,13 +774,12 @@ describe("withMemberTeams", () => {
     expect(result).toEqual([reviewer("@grace", { codeOwner: true, teams: ["@o/frontend"] })]);
   });
 
-  it("asks nothing when GitHub shows the viewer no team among the PR reviewers", async () => {
+  it("adds the owning teams that list a reviewer when GitHub shows the viewer no team among the PR reviewers", async () => {
     const reviewers = [reviewer("@grace"), reviewer("@linus")];
 
     const result = await withMemberTeams(reviewers, owners, readMembers);
 
-    expect(result).toEqual(reviewers);
-    expect(readMembers).not.toHaveBeenCalled();
+    expect(result).toEqual([reviewer("@grace", { teams: ["@o/frontend"] }), reviewer("@linus")]);
   });
 
   it("adds nothing from a team whose members can't be read", async () => {

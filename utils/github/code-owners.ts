@@ -94,35 +94,78 @@ export function owningReviewers(
     );
 }
 
+/** What a code owner owns among a pull request's changed files. */
+export interface OwnedFiles {
+  /** The changed files they own. */
+  readonly paths: readonly string[];
+  /** The teams that make them an owner of one of `paths`. */
+  readonly teams: readonly string[];
+  /** Whether CODEOWNERS names them for one of `paths` themselves. */
+  readonly direct: boolean;
+}
+
 /**
- * `reviewers`, giving each `@user` every team owning a changed file in `codeOwners` whose members
- * `readMembers` lists them among, ignoring case, that they don't already name. Asks each owning
- * team once, and only when GitHub shows the viewer a team among `reviewers`, which it does only to
- * a viewer who can see the organization's teams.
+ * The changed files in `codeOwners` that `token` owns, itself or through one of `teams`, ignoring
+ * case, with those of `teams` that own one.
+ */
+export function filesOwnedBy(
+  codeOwners: PrCodeOwners,
+  token: string,
+  teams: readonly string[],
+): OwnedFiles {
+  const changed = [...codeOwners.keys()];
+  const owns = (owner: string) => ownerFilter(codeOwners, owner, []);
+  return {
+    paths: changed.filter((path) => [token, ...teams].some((owner) => owns(owner)(path))),
+    teams: teams.filter((team) => changed.some(owns(team))),
+    direct: changed.some(owns(token)),
+  };
+}
+
+/**
+ * What `token` owns among the changed files in `codeOwners`: the files CODEOWNERS names it for,
+ * and those of each owning team whose members `teamMembers` lists it among, ignoring case. A team
+ * whose members can't be read makes nobody an owner, and a member past the first members GitHub
+ * lists for a large team isn't counted. Reads only through `teamMembers`, so the visit's
+ * `teamMembersReader` asks each team once however many tokens are checked.
+ */
+export async function ownershipOf(
+  codeOwners: PrCodeOwners,
+  token: string,
+  teamMembers: TeamMembersOf,
+): Promise<OwnedFiles> {
+  const teams = owningTeams([...codeOwners.values()].flatMap(({ owners }) => owners));
+  const membersOf = await Promise.all(
+    teams.map(async (team) => ({ team, members: (await teamMembers(team))?.members ?? [] })),
+  );
+  const joined = membersOf.filter(({ members }) =>
+    members.some((login) => isOwner(token, { token: `@${login}` })),
+  );
+  return filesOwnedBy(
+    codeOwners,
+    token,
+    joined.map(({ team }) => team),
+  );
+}
+
+/**
+ * `reviewers`, giving each the owning teams in `codeOwners` that `ownershipOf` finds them a member
+ * of through `teamMembers` and that they don't already name, ignoring case.
  */
 export async function withMemberTeams(
   reviewers: readonly PrReviewer[],
   codeOwners: PrCodeOwners,
-  readMembers: (team: string) => Promise<readonly string[] | undefined>,
+  teamMembers: TeamMembersOf,
 ): Promise<readonly PrReviewer[]> {
-  const seesTeams = reviewers.some(
-    ({ token, teams, codeOwner }) => token.includes("/") || teams.length > 0 || codeOwner,
+  return Promise.all(
+    reviewers.map(async (reviewer) => {
+      const { teams } = await ownershipOf(codeOwners, reviewer.token, teamMembers);
+      const joined = teams.filter(
+        (team) => !reviewer.teams.some((named) => isOwner(named, { token: team })),
+      );
+      return { ...reviewer, teams: [...reviewer.teams, ...joined] };
+    }),
   );
-  if (!seesTeams) return reviewers;
-
-  const teams = owningTeams([...codeOwners.values()].flatMap(({ owners }) => owners));
-  const membersOf = await Promise.all(
-    teams.map(async (team) => ({ team, members: (await readMembers(team)) ?? [] })),
-  );
-
-  return reviewers.map((reviewer) => {
-    const joined = membersOf.filter(
-      ({ team, members }) =>
-        !reviewer.teams.some((named) => isOwner(named, { token: team })) &&
-        members.some((login) => isOwner(reviewer.token, { token: `@${login}` })),
-    );
-    return { ...reviewer, teams: [...reviewer.teams, ...joined.map(({ team }) => team)] };
-  });
 }
 
 /** A team's members as GitHub lists them: its first logins, and how many it has in all. */
@@ -304,7 +347,7 @@ export async function readReviewersWithTeams(
     codeOwners,
   ]);
   if (!reviewers || !owners) return reviewers;
-  return withMemberTeams(reviewers, owners, async (team) => (await teamMembers(team))?.members);
+  return withMemberTeams(reviewers, owners, teamMembers);
 }
 
 /**
