@@ -1,13 +1,13 @@
-/* GitHub hooks: the code-owner shield's tool-tip[for^="codeowner-"]. Every other rule selects only
-   gh-prism's own classes. */
+/* GitHub hooks: the code-owner shield's tool-tip[for^="codeowner-"] and
+   tool-tip[for^="assigned-codeowner-"]. Every other rule selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @import "../ui/mark.css";
 @source "./reviewer-files.ts";
 @source "../ui/owners-dialog.ts";
 @source "../ui/file-list.ts";
 
-/* The popup says more than the shield's tooltip, which stays its accessible name. */
-html:has(.gh-prism-reviewer-files:popover-open) tool-tip[for^="codeowner-"] {
+/* Primer opens this tooltip as the pointer enters, before the popup's hover delay ends. */
+tool-tip:is([for^="codeowner-"], [for^="assigned-codeowner-"]) {
   display: none;
 }
 

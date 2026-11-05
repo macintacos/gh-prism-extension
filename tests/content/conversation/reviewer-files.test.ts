@@ -134,6 +134,20 @@ function addGitHubShield(login: string) {
   );
 }
 
+/**
+ * Gives `login`'s classic row the shield GitHub draws once nodejs/crypto's review assignment
+ * picks them, and returns it.
+ */
+function addAssignedShield(login: string): HTMLElement {
+  const id = `assigned-codeowner-${login}`;
+  const row = document.querySelector(`[data-assignee-name="${login}"]`)?.parentElement;
+  row?.insertAdjacentHTML(
+    "beforeend",
+    `<button name="button" type="button" id="${id}" class="mr-2 btn-link muted-icon" aria-labelledby="tooltip-${id}"><span class="reviewers-status-icon"><svg class="octicon octicon-shield-lock"></svg></span></button><tool-tip id="tooltip-${id}" for="${id}" popover="manual" data-direction="nw" data-type="label" class="sr-only position-absolute" aria-hidden="true" role="tooltip">${login} is a code owner automatically assigned from nodejs/crypto</tool-tip>`,
+  );
+  return document.getElementById(id) as HTMLElement;
+}
+
 let controller: AbortController;
 
 beforeEach(() => {
@@ -564,7 +578,7 @@ describe("showReviewerFiles", () => {
     it("ends a user's popup", async () => {
       await showNode({ reviewRequests: assignedFromCrypto }, undefined, filter);
 
-      await hoverJasnellsShield();
+      await hoverOn(addAssignedShield("jasnell"));
 
       expect(action()?.href).toBe(`${FILES}?gh-prism-owner=@jasnell`);
     });
@@ -642,8 +656,9 @@ describe("showReviewerFiles", () => {
     it("lists the team's files, naming and linking the team, when assigned on its behalf", async () => {
       await showNode({ reviewRequests: assignedFromCrypto });
 
-      await hoverJasnellsShield();
+      await hoverOn(addAssignedShield("jasnell"));
 
+      expect(ownShieldOf("@jasnell")).toBeNull();
       expect(sortedAfterFolder(listed())).toEqual(cryptoListing);
       const teamLink = popup()?.querySelector("a");
       expect(teamLink?.textContent).toBe("@nodejs/crypto");
@@ -736,9 +751,7 @@ describe("showReviewerFiles", () => {
 
     it("names the team a reviewer owns files through, and says when its members are hidden", async () => {
       await showNode({ reviewRequests: assignedFromCrypto });
-      addGitHubShield("jasnell");
-
-      await clickOn(document.getElementById("codeowner-jasnell") as HTMLElement);
+      await clickOn(addAssignedShield("jasnell"));
 
       expect(dialogName()).toBe("@jasnell");
       expect(dialog()?.textContent).toContain("Through @nodejs/crypto");

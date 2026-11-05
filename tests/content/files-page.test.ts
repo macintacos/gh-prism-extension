@@ -287,6 +287,24 @@ describe("reviewerShieldOf", () => {
       "@excessive-dev/platform",
     ]);
   });
+
+  it("finds the shield GitHub draws for a member a team's review assignment picked, under the member's login", () => {
+    document
+      .querySelector(
+        '#partial-discussion-sidebar form[id^="pull-request-reviewers-form-"] .css-truncate > div',
+      )
+      ?.insertAdjacentHTML(
+        "beforeend",
+        '<button name="button" type="button" id="assigned-codeowner-octocat" class="mr-2 btn-link muted-icon" aria-labelledby="tooltip-assigned"><span class="reviewers-status-icon"><svg class="octicon octicon-shield-lock"></svg></span></button><tool-tip id="tooltip-assigned" for="assigned-codeowner-octocat" popover="manual" class="sr-only position-absolute" aria-hidden="true" role="tooltip">octocat is a code owner automatically assigned from excessive-dev/frontend</tool-tip>',
+      );
+
+    const shield = reviewerShieldOf(
+      document.querySelector("#assigned-codeowner-octocat svg") as Element,
+    );
+
+    expect(shield?.id).toBe("assigned-codeowner-octocat");
+    expect(shield && shieldOwner(shield)).toBe("@octocat");
+  });
 });
 
 describe("findFilterMenu", () => {

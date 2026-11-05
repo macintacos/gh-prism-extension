@@ -3114,17 +3114,23 @@ test("a user's code-owner shield lists their team's files when assigned on its b
         isCodeOwnerFromDelegation: true,
       });
     },
-    // GitHub's user shield, shaped as it draws a team's, which a viewer outside nodejs never gets.
+    // GitHub's shield for a member nodejs/crypto's review assignment picked, as the code-owners
+    // sandbox drew it, which a viewer outside nodejs never gets.
     (html) =>
       html.replace(
-        '</button><tool-tip id="tooltip-f3e317d4-edf8-45a1-8341-07956ffcced5"',
-        '</button><button type="button" id="codeowner-jasnell" class="mr-2 btn-link muted-icon"><span class="reviewers-status-icon">⛨</span></button><tool-tip id="tooltip-f3e317d4-edf8-45a1-8341-07956ffcced5"',
+        "Awaiting requested review from jasnell</tool-tip>",
+        'Awaiting requested review from jasnell</tool-tip><button name="button" type="button" id="assigned-codeowner-jasnell" class="mr-2 btn-link muted-icon" aria-labelledby="tooltip-assigned-codeowner-jasnell"><span class="reviewers-status-icon">⛨</span></button><tool-tip id="tooltip-assigned-codeowner-jasnell" for="assigned-codeowner-jasnell" popover="manual" data-direction="nw" data-type="label" class="sr-only position-absolute" aria-hidden="true" role="tooltip">jasnell is a code owner automatically assigned from nodejs/crypto</tool-tip>',
       ),
   );
   await page.goto(NODE_PR);
   const popup = page.locator(".gh-prism-reviewer-files");
+  const tip = page.locator('tool-tip[for="assigned-codeowner-jasnell"]');
+  // A closed popover is display: none anyway; open it as Primer's hover script, which the
+  // fixture doesn't run, would.
+  await tip.evaluate((el) => (el as HTMLElement).showPopover());
+  await expect(tip).toHaveCSS("display", "none");
 
-  await page.locator('[id="codeowner-jasnell"]').hover();
+  await page.locator('[id="assigned-codeowner-jasnell"]').hover();
 
   await expect(popup).toContainText("Through @nodejs/crypto");
   await expect(popup.locator("ul > li > div").first()).toHaveText("src/crypto/");
@@ -4083,6 +4089,11 @@ test("a code owner reviewer's shield in the Conversation panel opens their files
   );
   await page.goto(PR_URL);
   await conversationButton(page).click();
+  // Playwright's stability check can't see the frame slide in with the panel; a hover
+  // mid-slide leaves the shield before its popup opens.
+  await page
+    .locator("#gh-prism-conversation")
+    .evaluate((panel) => Promise.allSettled(panel.getAnimations().map((slide) => slide.finished)));
   const frame = page.frameLocator("#gh-prism-conversation iframe");
   const shield = frame.locator('[id="codeowner-excessive-dev/frontend"]');
 
