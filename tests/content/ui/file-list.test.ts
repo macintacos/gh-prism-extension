@@ -133,19 +133,4 @@ describe("fileList", () => {
     expect(outline(list)).toEqual(["<img src=x>/", "  <b>y<b>.ts"]);
     expect(list.querySelector("img, b")).toBeNull();
   });
-
-  it("adds the nodes `under` returns for a file's full path after its name", () => {
-    const seen: string[] = [];
-    const under = (path: string) => {
-      seen.push(path);
-      return [Object.assign(document.createElement("span"), { textContent: "owner" })];
-    };
-
-    const list = fileList(document, ["web/app.ts"], under);
-
-    const file = list.querySelector("ul ul > li");
-    expect(seen).toEqual(["web/app.ts"]);
-    expect(file?.lastElementChild?.textContent).toBe("owner");
-    expect(file?.firstElementChild?.textContent).toBe("app.ts");
-  });
 });

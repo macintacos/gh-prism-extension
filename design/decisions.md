@@ -6,6 +6,28 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-04: A folder's code owners, grouped by owner set
+
+- **Compared:** each file with its owners on a line under its name (the 2026-10-28 pick);
+  and one group per distinct set of code owners, headed by its owners, over that set's
+  files. For the group heading, it compared two options: a bare line of owners, and the
+  owners after an "Owned by" label.
+- **Won:** grouping by owner set. Owners that differ only in order or case share a group,
+  headed in its first file's order. Overlapping sets stay apart. Files without a code
+  owner come last under a muted "No code owner". Each group keeps the folder tree. Each
+  owner set's heading reads "Owned by" followed by its owners, with the group's tree
+  indented under it.
+- **Why:** when the files share owners, the same team repeats under every file, ten times
+  for a folder one team owns entirely, and that buries the one fact the list exists to
+  show. The bare line of owners, at body-small, was smaller than the monospace file names
+  under it, and the tree started flush with it, so it read as one more row of the list.
+  The label marks the line as a heading over the files, not another file, and "Owned by"
+  is GitHub's own wording.
+- **Settled with it:** the code owner details dialog shows the same grouped list above its
+  unchanged team blocks. Each group heading is an `h3` at the file list's size, with a
+  muted "Owned by" and the owners in semibold, or a muted "No code owner". A file's own
+  shield still lists its owners one per line.
+
 ## 2026-10-31: The pinned Conversation panel makes room for GitHub's right-hand panel
 
 - **Compared:** keeping the pinned column at its width beside Merge status and the panels

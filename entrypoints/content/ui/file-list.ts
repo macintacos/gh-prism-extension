@@ -56,15 +56,8 @@ function merged(folder: string, children: PathNode[]): PathNode {
     : { folder, children };
 }
 
-/**
- * `paths` as nested lists of muted folder paths and their files' names. `under` gets each
- * file's path exactly as given in `paths` and returns rows to show below its name.
- */
-export function fileList(
-  doc: Document,
-  paths: readonly string[],
-  under: (path: string) => readonly Node[] = () => [],
-): HTMLUListElement {
+/** `paths` as nested lists of muted folder paths and their files' names. */
+export function fileList(doc: Document, paths: readonly string[]): HTMLUListElement {
   const item = (node: PathNode): HTMLLIElement =>
     "folder" in node
       ? el(
@@ -79,7 +72,7 @@ export function fileList(
             ...node.children.map(item),
           ),
         )
-      : el(doc, "li", "", el(doc, "div", "tw:font-mono", node.name), ...under(node.path));
+      : el(doc, "li", "", el(doc, "div", "tw:font-mono", node.name));
 
   return el(
     doc,

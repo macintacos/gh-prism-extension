@@ -2643,7 +2643,11 @@ test("a folder shield's click opens the code owner details of its files", async 
   await shieldOf(page, "src/generated/").click();
 
   const dialog = page.getByRole("dialog", { name: "Code owners of files in src/generated" });
-  await expect(dialog.locator("li").filter({ hasText: "schema.rs" })).toContainText("o/team");
+  await expect(
+    dialog
+      .getByRole("listitem")
+      .filter({ has: page.getByRole("heading", { name: "Owned by @o/team", exact: true }) }),
+  ).toContainText("schema.rs");
 });
 
 test("a shield's hover popover hints that a click opens its details", async ({ context, page }) => {
@@ -2721,7 +2725,11 @@ test("a folder shield's popover lists its files until Escape returns to the row"
   await shieldOf(page, "src/generated/").focus();
 
   await expect(popover).toHaveAttribute("aria-label", "Code owners of files in src/generated");
-  await expect(popover.locator("li").filter({ hasText: "schema.rs" })).toContainText("o/team");
+  await expect(
+    popover
+      .getByRole("listitem")
+      .filter({ has: page.getByRole("heading", { name: "Owned by @o/team", exact: true }) }),
+  ).toContainText("schema.rs");
   await expect(folder).toHaveAttribute("aria-expanded", expanded ?? "");
 
   await page.keyboard.press("Tab");

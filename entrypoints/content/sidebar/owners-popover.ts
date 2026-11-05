@@ -1,6 +1,6 @@
 /**
  * The popover a code owners shield opens on hover or focus, listing a file's owners, or a folder's
- * files and theirs; it exists only while open.
+ * files grouped by their owners; it exists only while open.
  *
  * It sits beside its shield, which is marked expanded while it is open. It closes on Escape inside
  * it, on a click outside it, on any scroll outside it, once `signal` aborts, or on a call of the
@@ -75,27 +75,64 @@ function ownersList(doc: Document, owners: readonly CodeOwner[]): HTMLElement {
   );
 }
 
-/**
- * `files` grouped under their folders relative to `folder`, each owned one with its owners below
- * its name.
- */
+/** `files` grouped by owner set, each set's owners heading its files' tree relative to `folder`. */
 function folderList(doc: Document, folder: string, files: readonly FileOwnersAt[]): HTMLElement {
-  const ownersOf = new Map(files.map(({ path, owners }) => [path.slice(folder.length), owners]));
-  return fileList(doc, [...ownersOf.keys()], (path) => ownerLine(doc, ownersOf.get(path) ?? []));
+  return el(
+    doc,
+    "ul",
+    "tw:m-0 tw:p-0 tw:list-none tw:flex tw:flex-col tw:gap-3",
+    ...byOwnerSet(files).map(({ owners, paths }) =>
+      el(
+        doc,
+        "li",
+        "tw:pl-4",
+        ownersHeading(doc, owners),
+        fileList(
+          doc,
+          paths.map((path) => path.slice(folder.length)),
+        ),
+      ),
+    ),
+  );
 }
 
-/** `owners` comma-separated on one line, or nothing when there are none. */
-function ownerLine(doc: Document, owners: readonly CodeOwner[]): HTMLElement[] {
-  return owners.length > 0
-    ? [
-        el(
-          doc,
-          "div",
-          "",
-          ...owners.flatMap((owner, i) => [i > 0 ? ", " : "", ownerLink(doc, owner)]),
-        ),
-      ]
-    : [];
+/**
+ * `files` by owner set, ignoring the owners' order and case: in the order of each set's first file,
+ * with that file's owners in their CODEOWNERS order, and files that have none last.
+ */
+function byOwnerSet(files: readonly FileOwnersAt[]) {
+  const sets = [...Map.groupBy(files, ownerSetKey).values()].map((group) => ({
+    owners: group[0]?.owners ?? [],
+    paths: group.map(({ path }) => path),
+  }));
+  return sets.toSorted((a, b) => Number(a.owners.length === 0) - Number(b.owners.length === 0));
+}
+
+// CODEOWNERS tokens hold no whitespace, and owners compare ignoring case, as isOwner does.
+const ownerSetKey = ({ owners }: FileOwnersAt) =>
+  owners
+    .map(({ token }) => token.toLowerCase())
+    .sort()
+    .join(" ");
+
+/** `Owned by` and `owners` comma-separated, or "No code owner" when there are none. */
+function ownersHeading(doc: Document, owners: readonly CodeOwner[]): HTMLElement {
+  return el(
+    doc,
+    "h3",
+    "tw:mt-0 tw:mb-1 tw:-ml-4 tw:text-body-small tw:leading-body-small tw:font-normal tw:text-fg-muted",
+    ...(owners.length > 0
+      ? [
+          "Owned by ",
+          el(
+            doc,
+            "span",
+            "tw:font-semibold tw:text-fg-default",
+            ...owners.flatMap((owner, i) => [i > 0 ? ", " : "", ownerLink(doc, owner)]),
+          ),
+        ]
+      : ["No code owner"]),
+  );
 }
 
 /** `label` is the popover's accessible name; `body` goes below its heading. */
