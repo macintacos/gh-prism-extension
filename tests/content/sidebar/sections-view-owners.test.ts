@@ -345,7 +345,7 @@ describe("showSections", () => {
       expect(popovers()[0]?.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
     });
 
-    it("lists every owner, linking teams and users in a new tab", async () => {
+    it("lists every owner, linking teams' and users' avatars in a new tab", async () => {
       await landedOwned(tokensOf({ "src/engine.rs": ["@o/team", "@someone", "dev@example.com"] }));
 
       await focusOpen(shieldOf("implementation", "src/engine.rs"));
@@ -354,8 +354,8 @@ describe("showSections", () => {
       expect(popovers()).toHaveLength(1);
       expect(view()?.contains(popover ?? null)).toBe(true);
       expect([...(popover?.querySelectorAll("li") ?? [])].map((item) => item.textContent)).toEqual([
-        "@o/team",
-        "@someone",
+        "o/team",
+        "someone",
         "dev@example.com",
       ]);
       const links = [...(popover?.querySelectorAll("a") ?? [])];
@@ -561,10 +561,10 @@ describe("showSections", () => {
         );
       const src = () => shieldOf("implementation", "src/");
       const LISTED_UNDER_SRC = [
-        "Owned by @o/other",
+        "Owned by o/other",
         "  generated/",
         "    schema.rs",
-        "Owned by @o/team",
+        "Owned by o/team",
         "  engine.rs",
         "No code owner",
         "  helpers.rs",
@@ -610,7 +610,7 @@ describe("showSections", () => {
         await focusOpen(shieldOf("implementation", "a/b/c/"));
 
         expect(outline(popovers()[0]?.querySelector("ul"))).toEqual([
-          "Owned by @o/team",
+          "Owned by o/team",
           "  file.rs",
         ]);
       });
@@ -729,7 +729,7 @@ describe("showSections", () => {
           [...(dialog?.querySelector("ul")?.querySelectorAll("li") ?? [])].map(
             (item) => item.textContent,
           ),
-        ).toEqual(["@o/team", "@someone"]);
+        ).toEqual(["o/team", "someone"]);
         expect(popovers()).toEqual([]);
       });
 
@@ -752,13 +752,13 @@ describe("showSections", () => {
         clickAt(engine(), { detail: 1 });
         await vi.advanceTimersByTimeAsync(0);
 
+        expect(dialogs()[0]?.querySelectorAll("section li.gh-prism-member")).toHaveLength(15);
         const links = [...(dialogs()[0]?.querySelectorAll("a") ?? [])].map((a) => a.textContent);
-        expect(links.filter((text) => text?.startsWith("@member-"))).toHaveLength(15);
         expect(links).toContain("See all 214 members");
         expect(dialogs()[0]?.querySelectorAll("section")).toHaveLength(1);
       });
 
-      it("offers each owning team's files in its block", async () => {
+      it("shows only each owning team's files from its filter icon in its box", async () => {
         const navigate = vi.fn();
         remountWith(() => Promise.resolve(landedWith()), undefined, {
           codeOwners: Promise.resolve(tokensOf({ "src/engine.rs": ["@o/team", "@octocat"] })),
@@ -771,7 +771,7 @@ describe("showSections", () => {
 
         clickAt(engine(), { detail: 1 });
         const action = dialogs()[0]?.querySelector<HTMLAnchorElement>(
-          "section a.gh-prism-owner-filter",
+          "section a.gh-prism-owner-filter-icon",
         );
         action?.click();
 

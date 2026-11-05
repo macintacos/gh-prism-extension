@@ -74,6 +74,7 @@ describe("showSections in the narrow layout's overlay", () => {
       diffstat: { choice: { view: "breakout" }, save: () => {} },
       viewed: visitViewed(undefined),
       teamMembers: async () => undefined,
+      teamAvatar: async () => undefined,
       whatsNew: { version: "1.2.3", notes: "", dismiss: () => {} },
     });
     await open();

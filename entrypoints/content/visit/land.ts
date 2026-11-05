@@ -11,6 +11,7 @@ import {
   ownerFilter,
   type PrCodeOwners,
   type PrReviewer,
+  type TeamAvatarOf,
   type TeamMembersOf,
 } from "@/utils/github/code-owners";
 import { type LandedSection, landingOf, sectionsOf } from "@/utils/intent/landing";
@@ -196,14 +197,14 @@ const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
  * until `signal` aborts. `viewed` is the visit's Viewed state, shared by its pages. `codeOwners`
  * and `prReviewers` are the visit's code owners and PR reviewers, read apart; each can land after
  * the sidebar draws or not at all, and never rejects. The sidebar shows the code owners once they
- * land, reading a team's members through `teamMembers`, the visit's reader. `owner`, the code
- * owner the page's URL names, if any, holds the page pending until the reads its filter needs
- * land, the code owners for a team and the PR reviewers too for a user, or for 10 s at most, then
- * narrows the sidebar and the diffs to that owner's files, counting the teams GitHub names a user
- * as reviewing for. A read still out by then counts as failed: every file shows when the code
- * owners can't be read, and only the owner's own files when the PR reviewers can't. `whatsNew`,
- * when given, opens the sidebar with its block. `filter`, when given, lets the sidebar's code owner
- * dialogs filter by an owning team.
+ * land, reading a team's members through `teamMembers` and its avatar through `teamAvatar`, the
+ * visit's readers. `owner`, the code owner the page's URL names, if any, holds the page pending
+ * until the reads its filter needs land, the code owners for a team and the PR reviewers too for a
+ * user, or for 10 s at most, then narrows the sidebar and the diffs to that owner's files, counting
+ * the teams GitHub names a user as reviewing for. A read still out by then counts as failed: every
+ * file shows when the code owners can't be read, and only the owner's own files when the PR
+ * reviewers can't. `whatsNew`, when given, opens the sidebar with its block. `filter`, when given,
+ * makes each code owner's name in the sidebar's popovers and dialogs filter by that owner.
  */
 export function showVisit(
   page: FilesPage,
@@ -215,6 +216,7 @@ export function showVisit(
     codeOwners,
     prReviewers,
     teamMembers,
+    teamAvatar,
     owner,
     filter,
     whatsNew,
@@ -225,12 +227,13 @@ export function showVisit(
     codeOwners?: Promise<PrCodeOwners | undefined>;
     prReviewers?: Promise<readonly PrReviewer[] | undefined>;
     teamMembers: TeamMembersOf;
+    teamAvatar: TeamAvatarOf;
     owner?: string;
     filter?: OwnerFilter;
     whatsNew?: WhatsNew;
   },
 ): void {
-  const sidebar = showSections(page, signal, { teamMembers, filter });
+  const sidebar = showSections(page, signal, { teamMembers, teamAvatar, filter });
   void codeOwners?.then((read) => {
     if (read && !signal.aborted) sidebar.owners(read);
   });

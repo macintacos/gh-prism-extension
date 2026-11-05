@@ -170,12 +170,61 @@ export async function readTeamMembers(
  * ignoring case. A read that fails stays failed for the visit.
  */
 export function teamMembersReader(fetchFn: typeof fetch, signal: AbortSignal): TeamMembersOf {
-  const reads = new Map<string, Promise<TeamMembers | undefined>>();
+  return oncePerTeam((team) => readTeamMembers(team, fetchFn, signal));
+}
+
+/** Reads an `@org/team` token's avatar URL; `undefined` when it can't be read. Never rejects. */
+export type TeamAvatarOf = (team: string) => Promise<string | undefined>;
+
+/**
+ * `team`'s 32px avatar URL, an `@org/team` token's, read from the hovercard GitHub's team mentions
+ * open, in one request. `undefined` for any other token, for a team the viewer can't see, or once
+ * the read fails; logs one warning when the hovercard holds no team avatar, unless `signal`
+ * aborted.
+ */
+export async function readTeamAvatar(
+  team: string,
+  fetchFn: typeof fetch,
+  signal: AbortSignal,
+): Promise<string | undefined> {
+  const page = codeOwnerOf(team).url;
+  if (!team.includes("/") || !page) return undefined;
+  const url = `${page}/hovercard`;
+
+  try {
+    // Without this header it answers 406.
+    const response = await fetchFn(url, {
+      headers: { "X-Requested-With": "XMLHttpRequest" },
+      signal,
+    });
+    if (!response.ok) return undefined;
+    const id = /https:\/\/avatars\.githubusercontent\.com\/t\/(\d+)/.exec(
+      await response.text(),
+    )?.[1];
+    if (id === undefined) throw new Error(`${url} answered no team avatar`);
+    return `https://avatars.githubusercontent.com/t/${id}?s=32&v=4`;
+  } catch (error) {
+    if (!signal.aborted) console.warn(`gh-prism: couldn't read ${team}'s avatar`, error);
+    return undefined;
+  }
+}
+
+/**
+ * `readTeamAvatar` through `fetchFn` until `signal` aborts, asking each team at most once,
+ * ignoring case. A read that fails stays failed for the visit.
+ */
+export function teamAvatarReader(fetchFn: typeof fetch, signal: AbortSignal): TeamAvatarOf {
+  return oncePerTeam((team) => readTeamAvatar(team, fetchFn, signal));
+}
+
+/** `read`, called at most once per team, ignoring case; later calls share the first's answer. */
+function oncePerTeam<T>(read: (team: string) => Promise<T>): (team: string) => Promise<T> {
+  const reads = new Map<string, Promise<T>>();
   return (team) => {
     const key = team.toLowerCase();
-    const read = reads.get(key) ?? readTeamMembers(team, fetchFn, signal);
-    reads.set(key, read);
-    return read;
+    const answer = reads.get(key) ?? read(team);
+    reads.set(key, answer);
+    return answer;
   };
 }
 

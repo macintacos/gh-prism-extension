@@ -108,6 +108,7 @@ function sectionTrees(count: number, hosts: "sidebar" | "fixed" = "sidebar") {
     );
   const view = showSections(page, new AbortController().signal, {
     teamMembers: async () => undefined,
+    teamAvatar: async () => undefined,
   });
   view.landed?.(NOTHING_PLACED);
   settle();

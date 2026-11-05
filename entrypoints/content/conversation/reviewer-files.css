@@ -2,6 +2,7 @@
    tool-tip[for^="assigned-codeowner-"]. Every other rule selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @import "../ui/mark.css";
+@import "../ui/owner-identity.css";
 @source "./reviewer-files.ts";
 @source "../ui/owners-dialog.ts";
 @source "../ui/file-list.ts";

@@ -9,7 +9,9 @@ import {
   type PrReviewer,
   readCodeOwners,
   readPrReviewers,
+  readTeamAvatar,
   readTeamMembers,
+  teamAvatarReader,
   teamMembersReader,
   withMemberTeams,
 } from "../../../utils/github/code-owners";
@@ -20,6 +22,7 @@ import sandboxCodeowners from "../../fixtures/codeowners-sandbox.json?raw";
 import { routedFetch } from "../../fixtures/fetch";
 import nodeReviewRequests from "../../fixtures/review-requests-node.json?raw";
 import sandboxReviewRequests from "../../fixtures/review-requests-sandbox.json?raw";
+import platformHovercard from "../../fixtures/team-hovercard-platform.html?raw";
 import sandboxTeamMembers from "../../fixtures/team-members-sandbox.json?raw";
 
 const sandbox: DiffRef = {
@@ -512,6 +515,69 @@ describe("teamMembersReader", () => {
     await teamMembersReader(fetchFn, signal)("@o/a");
 
     expect(fetchFn).toHaveBeenCalledWith(teamUrl("a"), expect.objectContaining({ signal }));
+  });
+});
+
+describe("readTeamAvatar", () => {
+  const platformUrl = "https://github.com/orgs/excessive-dev/teams/platform/hovercard";
+  const readAvatar = (fetchFn: typeof fetch) =>
+    readTeamAvatar("@excessive-dev/platform", fetchFn, new AbortController().signal);
+
+  it("reads a team's avatar from its hovercard with the visit's signal", async () => {
+    const fetchFn = routedFetch({ [platformUrl]: ok(platformHovercard) });
+    const signal = new AbortController().signal;
+
+    const result = await readTeamAvatar("@excessive-dev/platform", fetchFn, signal);
+
+    expect(result).toBe("https://avatars.githubusercontent.com/t/20376992?s=32&v=4");
+    expect(fetchFn).toHaveBeenCalledExactlyOnceWith(platformUrl, {
+      headers: { "X-Requested-With": "XMLHttpRequest" },
+      signal,
+    });
+  });
+
+  it("reads nothing, quietly, from a team the viewer can't see", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const result = await readAvatar(routedFetch({ [platformUrl]: notFound }));
+
+    expect(result).toBeUndefined();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("reads nothing and warns once when the hovercard shows no team avatar", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchFn = routedFetch({ [platformUrl]: ok("<div class='tmp-p-3'></div>") });
+
+    const result = await readAvatar(fetchFn);
+
+    expect(result).toBeUndefined();
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
+  it("reads nothing for a token that isn't a team", async () => {
+    const fetchFn = routedFetch({});
+
+    const result = await readTeamAvatar("@octocat", fetchFn, new AbortController().signal);
+
+    expect(result).toBeUndefined();
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+});
+
+describe("teamAvatarReader", () => {
+  it("reads a team once however its token is cased, with the visit's signal", async () => {
+    const fetchFn = vi.fn(async () => new Response(platformHovercard));
+    const signal = new AbortController().signal;
+    const teamAvatar = teamAvatarReader(fetchFn, signal);
+
+    const [first, second] = await Promise.all([teamAvatar("@O/Team"), teamAvatar("@o/team")]);
+
+    expect(second).toBe(first);
+    expect(fetchFn).toHaveBeenCalledExactlyOnceWith(
+      "https://github.com/orgs/O/teams/Team/hovercard",
+      expect.objectContaining({ signal }),
+    );
   });
 });
 

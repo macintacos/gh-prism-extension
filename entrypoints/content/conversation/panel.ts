@@ -13,7 +13,7 @@ import {
   fitsColumn,
   widestColumn,
 } from "../ui/column-width";
-import { el, icon, isEditable, X_ICON } from "../ui/dom";
+import { el, icon, isEditable, PEOPLE_ICON, X_ICON } from "../ui/dom";
 import { keycap } from "../ui/keycap";
 import { prismMark } from "../ui/mark";
 import { toggleKeyInit, toggleKeyOf } from "../ui/toggle-keys";
@@ -75,10 +75,6 @@ const COMMENT_DISCUSSION =
 /** Octicons 19.15.0 (MIT, GitHub Inc.): checklist. */
 const CHECKLIST =
   "M2.5 1.75v11.5c0 .138.112.25.25.25h3.17a.75.75 0 0 1 0 1.5H2.75A1.75 1.75 0 0 1 1 13.25V1.75C1 .784 1.784 0 2.75 0h8.5C12.216 0 13 .784 13 1.75v7.736a.75.75 0 0 1-1.5 0V1.75a.25.25 0 0 0-.25-.25h-8.5a.25.25 0 0 0-.25.25Zm13.274 9.537v-.001l-4.557 4.45a.75.75 0 0 1-1.055-.008l-1.943-1.95a.75.75 0 0 1 1.062-1.058l1.419 1.425 4.026-3.932a.75.75 0 1 1 1.048 1.074ZM4.75 4h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM4 7.75A.75.75 0 0 1 4.75 7h2a.75.75 0 0 1 0 1.5h-2A.75.75 0 0 1 4 7.75Z";
-
-/** Octicons 19.15.0 (MIT, GitHub Inc.): people. */
-const PEOPLE =
-  "M2 5.5a3.5 3.5 0 1 1 5.898 2.549 5.508 5.508 0 0 1 3.034 4.084.75.75 0 1 1-1.482.235 4 4 0 0 0-7.9 0 .75.75 0 0 1-1.482-.236A5.507 5.507 0 0 1 3.102 8.05 3.493 3.493 0 0 1 2 5.5ZM11 4a3.001 3.001 0 0 1 2.22 5.018 5.01 5.01 0 0 1 2.56 3.012.749.749 0 0 1-.885.954.752.752 0 0 1-.549-.514 3.507 3.507 0 0 0-2.522-2.372.75.75 0 0 1-.574-.73v-.352a.75.75 0 0 1 .416-.672A1.5 1.5 0 0 0 11 5.5.75.75 0 0 1 11 4Zm-5.5-.5a2 2 0 1 0-.001 3.999A2 2 0 0 0 5.5 3.5Z";
 
 // The framed Conversation's merge-box checks, its sidebar of reviewers, labels, and the rest, and
 // the timeline the sidebar sits beside or below. Listed in panel.css's GitHub hooks.
@@ -319,7 +315,7 @@ function mountPanel(
     doc,
     "gh-prism-conversation-sidebar",
     "Jump to reviewers, labels, and projects",
-    PEOPLE,
+    PEOPLE_ICON,
   );
   checks.hidden = sidebar.hidden = true;
 

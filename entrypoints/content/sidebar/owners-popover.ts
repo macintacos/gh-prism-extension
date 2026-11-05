@@ -12,7 +12,13 @@ import { type CodeOwner, owningTeams } from "@/utils/github/code-owners";
 import { el } from "../ui/dom";
 import { fileList } from "../ui/file-list";
 import type { Card } from "../ui/hover-intent";
-import { detailsHint, ownerLink } from "../ui/owners-dialog";
+import {
+  followOwnerTooltips,
+  type OwnerIdentities,
+  ownerIdentity,
+  ownerSeparator,
+} from "../ui/owner-identity";
+import { detailsHint } from "../ui/owners-dialog";
 import { place } from "../ui/place";
 
 export interface FileOwnersAt {
@@ -35,19 +41,25 @@ interface PopoverOptions {
   readonly signal: AbortSignal;
   /** Moves focus to the shield's row, as the popover closes while holding focus. */
   readonly returnFocus: () => void;
+  /** How it draws the owners it names. */
+  readonly identities: OwnerIdentities;
 }
 
-/** What `listing` shows: its name, its list, and the teams among its owners. */
-export function describeListing(doc: Document, listing: ShieldListing) {
+/** What `listing` shows, its owners drawn by `identities`: its name, its list, and its teams. */
+export function describeListing(
+  doc: Document,
+  listing: ShieldListing,
+  identities: OwnerIdentities,
+) {
   return "folder" in listing
     ? {
         title: `Code owners of files in ${listing.folder.slice(0, -1)}`,
-        list: folderList(doc, listing.folder, listing.files),
+        list: folderList(doc, listing.folder, listing.files, identities),
         teams: owningTeams(listing.files.flatMap(({ owners }) => owners)),
       }
     : {
         title: `Code owners of ${listing.name}`,
-        list: ownersList(doc, listing.owners),
+        list: ownersList(doc, listing.owners, identities),
         teams: owningTeams(listing.owners),
       };
 }
@@ -61,22 +73,31 @@ export function openListing(
   listing: ShieldListing,
   options: PopoverOptions,
 ): Card {
-  const { title, list } = describeListing(shield.ownerDocument, listing);
+  const { title, list } = describeListing(shield.ownerDocument, listing, options.identities);
   return openPopover(shield, title, list, options);
 }
 
 /** `owners`, one per line. */
-function ownersList(doc: Document, owners: readonly CodeOwner[]): HTMLElement {
+function ownersList(
+  doc: Document,
+  owners: readonly CodeOwner[],
+  identities: OwnerIdentities,
+): HTMLElement {
   return el(
     doc,
     "ul",
-    "tw:m-0 tw:p-0 tw:list-none tw:flex tw:flex-col tw:gap-1",
-    ...owners.map((owner) => el(doc, "li", "", ownerLink(doc, owner))),
+    "tw:m-0 tw:p-0 tw:list-none tw:flex tw:flex-col tw:gap-1 tw:leading-6",
+    ...owners.map((owner) => el(doc, "li", "", ownerIdentity(doc, owner, identities))),
   );
 }
 
 /** `files` grouped by owner set, each set's owners heading its files' tree relative to `folder`. */
-function folderList(doc: Document, folder: string, files: readonly FileOwnersAt[]): HTMLElement {
+function folderList(
+  doc: Document,
+  folder: string,
+  files: readonly FileOwnersAt[],
+  identities: OwnerIdentities,
+): HTMLElement {
   return el(
     doc,
     "ul",
@@ -86,7 +107,7 @@ function folderList(doc: Document, folder: string, files: readonly FileOwnersAt[
         doc,
         "li",
         "tw:pl-4",
-        ownersHeading(doc, owners),
+        ownersHeading(doc, owners, identities),
         fileList(
           doc,
           paths.map((path) => path.slice(folder.length)),
@@ -116,23 +137,29 @@ const ownerSetKey = ({ owners }: FileOwnersAt) =>
     .join(" ");
 
 /** `Owned by` and `owners` comma-separated, or "No code owner" when there are none. */
-function ownersHeading(doc: Document, owners: readonly CodeOwner[]): HTMLElement {
-  return el(
+function ownersHeading(
+  doc: Document,
+  owners: readonly CodeOwner[],
+  identities: OwnerIdentities,
+): HTMLElement {
+  // A 24px line, the avatars' height, so a wrapped heading's lines stay evenly spaced.
+  const heading = el(
     doc,
     "h3",
-    "tw:mt-0 tw:mb-1 tw:-ml-4 tw:text-body-small tw:leading-body-small tw:font-normal tw:text-fg-muted",
+    "tw:mt-0 tw:mb-1 tw:-ml-4 tw:text-body-small tw:leading-6 tw:font-normal tw:text-fg-muted",
     ...(owners.length > 0
       ? [
           "Owned by ",
-          el(
-            doc,
-            "span",
-            "tw:font-semibold tw:text-fg-default",
-            ...owners.flatMap((owner, i) => [i > 0 ? ", " : "", ownerLink(doc, owner)]),
-          ),
+          ...owners.flatMap((owner, i) => [
+            i > 0 ? ownerSeparator(doc) : "",
+            ownerIdentity(doc, owner, identities),
+          ]),
         ]
       : ["No code owner"]),
   );
+  // Named by what it shows: its filter icons' labels would otherwise join the name.
+  heading.setAttribute("aria-label", heading.textContent ?? "");
+  return heading;
 }
 
 /** `label` is the popover's accessible name; `body` goes below its heading. */
@@ -155,6 +182,7 @@ function openPopover(
   popover.setAttribute("role", "dialog");
   popover.setAttribute("aria-label", label);
   popover.tabIndex = -1;
+  followOwnerTooltips(popover);
   root.append(popover);
 
   const closed = new AbortController();

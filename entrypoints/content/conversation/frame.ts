@@ -1,4 +1,4 @@
-import { readOwnership, teamMembersReader } from "@/utils/github/code-owners";
+import { readOwnership, teamAvatarReader, teamMembersReader } from "@/utils/github/code-owners";
 import { isConversationFrame } from "@/utils/github/conversation-frame";
 import { readHeaderTabPr } from "@/utils/github/files-route";
 import { isEditable } from "../ui/dom";
@@ -70,6 +70,7 @@ export function showFrameReviewerFiles(
     showReviewerFiles(win.document, signal, {
       read: () => readOwnership(pr, { fetchFn, teamMembers, signal }),
       teamMembers,
+      teamAvatar: teamAvatarReader(fetchFn, signal),
     });
 
   // showReviewerFiles mounts its sheet in the head, which document_start precedes.

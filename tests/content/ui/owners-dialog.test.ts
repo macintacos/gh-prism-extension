@@ -1,14 +1,24 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type OwnerFilter, openOwnersDialog } from "../../../entrypoints/content/ui/owners-dialog";
-import type { TeamMembers, TeamMembersOf } from "../../../utils/github/code-owners";
+import type { TeamAvatarOf, TeamMembers, TeamMembersOf } from "../../../utils/github/code-owners";
 import large from "../../fixtures/team-members-large.json?raw";
+
+// happy-dom has no Popover API.
+HTMLElement.prototype.showPopover = () => {};
+HTMLElement.prototype.hidePopover = () => {};
 
 let controller: AbortController;
 
 const dialog = () => document.querySelector<HTMLDialogElement>("dialog.gh-prism-owners-dialog");
 const links = () => [...(dialog()?.querySelectorAll("a") ?? [])];
-const memberLinks = () => links().filter((link) => link.textContent?.startsWith("@member-"));
+const boxes = () => [...(dialog()?.querySelectorAll("section") ?? [])];
+const members = (box: Element | undefined) => [
+  ...(box?.querySelectorAll<HTMLElement>("li.gh-prism-member") ?? []),
+];
+/** The member count in `box`'s header, beside its team's heading. */
+const countOf = (box: Element | undefined) =>
+  box?.querySelector("div:has(> h3) + span")?.textContent;
 
 /** Opens the dialog excerpting `teams`, each team's members read through `teamMembers`. */
 function open(
@@ -16,9 +26,16 @@ function open(
   {
     teams = ["@o/team"],
     summary = [document.createTextNode("summary")],
+    teamAvatar = async () => undefined,
     filter,
     owner,
-  }: { teams?: string[]; summary?: Node[]; filter?: OwnerFilter; owner?: string } = {},
+  }: {
+    teams?: string[];
+    summary?: Node[];
+    teamAvatar?: TeamAvatarOf;
+    filter?: OwnerFilter;
+    owner?: string;
+  } = {},
 ) {
   const returnFocus = vi.fn();
   openOwnersDialog(document, {
@@ -26,6 +43,7 @@ function open(
     summary,
     teams,
     teamMembers,
+    teamAvatar,
     returnFocus,
     signal: controller.signal,
     filter,
@@ -66,43 +84,76 @@ describe("openOwnersDialog", () => {
     ).toBeTruthy();
   });
 
-  it("links the first 15 of a large team's members, then the team page for the rest", async () => {
+  it("boxes each team under a header naming it, its avatar and name linking its team page", async () => {
+    const teamAvatar = vi.fn(async () => "https://avatars.githubusercontent.com/t/7?s=32&v=4");
+
+    open(answering({ total: 3, members: ["a", "b", "c"] }), {
+      teams: ["@o/a", "@o/b"],
+      teamAvatar,
+    });
+    await vi.waitFor(() => expect(countOf(boxes()[1])).toBe("3 members"));
+
+    expect(boxes().map((box) => box.querySelector("h3")?.textContent)).toEqual(["o/a", "o/b"]);
+    expect(boxes()[0]?.querySelector("h3 a.gh-prism-owner")?.getAttribute("href")).toBe(
+      "https://github.com/orgs/o/teams/a",
+    );
+    expect(teamAvatar.mock.calls).toEqual([["@o/a"], ["@o/b"]]);
+  });
+
+  it("counts a team of one as one member", async () => {
+    open(answering({ total: 1, members: ["a"] }));
+
+    await vi.waitFor(() => expect(countOf(boxes()[0])).toBe("1 member"));
+  });
+
+  it("lists the first 15 of a large team's members by avatar and login, then links the rest", async () => {
     open(answering(JSON.parse(large)));
-    await vi.waitFor(() => expect(memberLinks().length).toBeGreaterThan(0));
+    await vi.waitFor(() => expect(members(boxes()[0]).length).toBeGreaterThan(0));
 
     expect(
-      memberLinks().map((link) => [link.textContent, link.href, link.target, link.rel]),
+      members(boxes()[0]).map((member) => [
+        member.textContent,
+        member.querySelector("a")?.getAttribute("href"),
+      ]),
     ).toEqual(
       Array.from({ length: 15 }, (_, i) => {
         const login = `member-${String(i + 1).padStart(2, "0")}`;
-        return [`@${login}`, `https://github.com/${login}`, "_blank", "noopener noreferrer"];
+        return [login, `https://github.com/${login}`];
       }),
     );
+    expect(countOf(boxes()[0])).toBe("214 members");
     const all = links().filter((link) => link.textContent === "See all 214 members");
-    expect(all.map((link) => link.href)).toEqual(["https://github.com/orgs/o/teams/team"]);
+    expect(all.map((link) => [link.href, link.target])).toEqual([
+      ["https://github.com/orgs/o/teams/team", "_blank"],
+    ]);
   });
 
-  it("links every member of a team within the cap, and no team page for more", async () => {
+  it("lists every member of a team within the cap, and no team page for more", async () => {
     open(answering({ total: 3, members: ["a", "b", "c"] }));
-    await vi.waitFor(() => expect(links().some((link) => link.textContent === "@a")).toBe(true));
+    await vi.waitFor(() => expect(members(boxes()[0])).toHaveLength(3));
 
-    expect(links().map((link) => link.textContent)).toEqual(["@o/team", "@a", "@b", "@c"]);
+    expect(members(boxes()[0]).map((member) => member.textContent)).toEqual(["a", "b", "c"]);
+    expect(dialog()?.textContent).not.toContain("See all");
   });
 
   it.each([
     [{ total: 0, members: [] }, "This team has no members."],
     [undefined, "GitHub doesn't show you this team's members."],
-  ])("says so in a sentence when a team's members read %j", async (answer, sentence) => {
-    open(answering(answer));
+  ])(
+    "says so in a sentence, counting nothing, when a team's members read %j",
+    async (answer, sentence) => {
+      open(answering(answer));
 
-    await vi.waitFor(() => expect(dialog()?.textContent).toContain(sentence));
-  });
+      await vi.waitFor(() => expect(dialog()?.textContent).toContain(sentence));
+      expect(countOf(boxes()[0])).toBe("");
+    },
+  );
 
   it("shows team tokens and logins as text, never markup", async () => {
     open(answering({ total: 1, members: ["<b>x</b>"] }), {
       teams: ["@o/<b>t</b>"],
     });
-    await vi.waitFor(() => expect(dialog()?.textContent).toContain("@<b>x</b>"));
+    await vi.waitFor(() => expect(dialog()?.textContent).toContain("<b>x</b>"));
 
     expect(dialog()?.textContent).toContain("@o/<b>t</b>");
     expect(dialog()?.querySelector("b")).toBeNull();
@@ -136,16 +187,16 @@ describe("openOwnersDialog", () => {
   });
 });
 
-describe("the owner filter's actions", () => {
+describe("the owner filter in the dialog", () => {
   const FILES = "https://github.com/o/r/pull/1/files";
-  /** Links to `FILES` filtered to each token, the page's filter already naming `current`. */
-  const filtering = (current?: string) => {
+  /** Links to `FILES` filtered to each token. */
+  const filtering = () => {
     const navigate = vi.fn();
     const filter: OwnerFilter = {
-      linkOf: (token) =>
-        token === current
-          ? { href: FILES, shown: true }
-          : { href: `${FILES}?gh-prism-owner=${token.replace(/^@/, "")}`, shown: false },
+      linkOf: (token) => ({
+        href: `${FILES}?gh-prism-owner=${token.replace(/^@/, "")}`,
+        shown: false,
+      }),
       navigate,
     };
     return { filter, navigate };
@@ -154,39 +205,31 @@ describe("the owner filter's actions", () => {
     ...(dialog()?.querySelectorAll<HTMLAnchorElement>("a.gh-prism-owner-filter") ?? []),
   ];
   const footer = () => dialog()?.querySelector(".gh-prism-owners-dialog-footer");
+  const filterIn = (box: Element | undefined) =>
+    box?.querySelector<HTMLElement>("a.gh-prism-owner-filter-icon");
 
-  it("offers each team block's files", () => {
+  it("shows only each team's files from the filter icon after its name", () => {
     open(undefined, { teams: ["@o/a", "@o/b"], filter: filtering().filter });
 
-    expect(
-      actions().map((a) => [a.closest("section")?.querySelector("h3")?.textContent, a.href]),
-    ).toEqual([
-      ["@o/a", `${FILES}?gh-prism-owner=o/a`],
-      ["@o/b", `${FILES}?gh-prism-owner=o/b`],
+    expect(boxes().map((box) => filterIn(box)?.getAttribute("href"))).toEqual([
+      `${FILES}?gh-prism-owner=o/a`,
+      `${FILES}?gh-prism-owner=o/b`,
     ]);
-    expect(actions()[0]?.textContent).toBe("Show only their files");
+    expect(actions()).toEqual([]);
   });
 
-  it("offers its own code owner's files once, in its footer", () => {
+  it("offers its own code owner's files once, in its footer, with no filter icon in that team's box", () => {
     open(undefined, { teams: ["@o/a", "@o/b"], filter: filtering().filter, owner: "@O/A" });
 
-    expect(
-      actions().map((a) => [a.closest("section, .gh-prism-owners-dialog-footer"), a.href]),
-    ).toEqual([
-      [dialog()?.querySelectorAll("section")[1], `${FILES}?gh-prism-owner=o/b`],
+    expect(boxes().map((box) => filterIn(box)?.tagName)).toEqual([undefined, "A"]);
+    expect(actions().map((a) => [a.parentElement, a.href])).toEqual([
       [footer(), `${FILES}?gh-prism-owner=O/A`],
     ]);
   });
 
-  it("switches to showing all files for the code owner the page already filters by", () => {
-    open(undefined, { teams: ["@o/a"], filter: filtering("@o/a").filter });
-
-    expect(actions().map((a) => [a.textContent, a.href])).toEqual([["Show all files", FILES]]);
-  });
-
-  it("loads its link as a new page on a plain click", () => {
+  it("loads its footer action as a new page on a plain click", () => {
     const { filter, navigate } = filtering();
-    open(undefined, { filter });
+    open(undefined, { filter, owner: "@o/team" });
 
     const click = new MouseEvent("click", { bubbles: true, cancelable: true });
     actions()[0]?.dispatchEvent(click);
@@ -195,24 +238,11 @@ describe("the owner filter's actions", () => {
     expect(click.defaultPrevented).toBe(true);
   });
 
-  it.each(["metaKey", "ctrlKey", "shiftKey", "altKey"] as const)(
-    "leaves a click with %s to the browser",
-    (modifier) => {
-      const { filter, navigate } = filtering();
-      open(undefined, { filter });
-
-      const click = new MouseEvent("click", { bubbles: true, cancelable: true, [modifier]: true });
-      actions()[0]?.dispatchEvent(click);
-
-      expect(navigate).not.toHaveBeenCalled();
-      expect(click.defaultPrevented).toBe(false);
-    },
-  );
-
   it("offers nothing, its footer holding only the mark, where the page has no owner filter", () => {
     open(undefined, { owner: "@o/team" });
 
     expect(actions()).toEqual([]);
+    expect(dialog()?.querySelector("a.gh-prism-owner-filter-icon")).toBeNull();
     expect([...(footer()?.children ?? [])].map((child) => child.className)).toEqual([
       "gh-prism-mark",
     ]);

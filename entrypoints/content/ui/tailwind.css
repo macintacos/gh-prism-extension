@@ -26,6 +26,7 @@
     var(--gh-prism-hue) 22%,
     light-dark(var(--borderColor-default), var(--bgColor-inset))
   );
+  --color-bg-muted: var(--bgColor-muted);
   --color-bg-neutral-muted: var(--bgColor-neutral-muted);
   --color-border-default: var(--borderColor-default);
   --color-border-muted: var(--borderColor-muted);

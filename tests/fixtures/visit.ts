@@ -89,6 +89,7 @@ export function mountsVisit() {
       codeOwners,
       prReviewers,
       teamMembers,
+      teamAvatar: async () => undefined,
       filter,
     });
   };

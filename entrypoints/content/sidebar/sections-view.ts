@@ -8,7 +8,7 @@
  */
 
 import type { FileTreeRowDecoration } from "@pierre/trees";
-import type { FileOwners, TeamMembersOf } from "@/utils/github/code-owners";
+import type { FileOwners, TeamAvatarOf, TeamMembersOf } from "@/utils/github/code-owners";
 import type { LineCounts } from "@/utils/github/pr-diff";
 import {
   type CommentLines,
@@ -440,12 +440,17 @@ function followViewport(view: HTMLElement, onMove: () => void, signal: AbortSign
  * in GitHub's order; then a tree per listing, each split file listed in every section its hunks
  * land in, with the lines each share adds and removes. All of it anchors below a leading
  * what's-new block when the nav holds one. A code owners shield's dialog excerpts teams through
- * `teamMembers`, and offers `filter`'s actions when given.
+ * `teamMembers`; its popover and dialog draw teams' avatars through `teamAvatar`, and filter from
+ * each owner's name through `filter` when given.
  */
 export function showSections(
   page: FilesPage,
   signal: AbortSignal,
-  { teamMembers, filter }: { teamMembers: TeamMembersOf; filter?: OwnerFilter },
+  {
+    teamMembers,
+    teamAvatar,
+    filter,
+  }: { teamMembers: TeamMembersOf; teamAvatar: TeamAvatarOf; filter?: OwnerFilter },
 ): SectionsView {
   const doc = page.sidebar.ownerDocument;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
@@ -700,7 +705,12 @@ export function showSections(
     closeOwners();
 
     const { listed, focusRow } = details;
-    const card = openListing(shield, listed, { root: view, signal, returnFocus: focusRow });
+    const card = openListing(shield, listed, {
+      root: view,
+      signal,
+      returnFocus: focusRow,
+      identities: { teamAvatar, filter },
+    });
     closeOwners = card.close;
     return card;
   };
@@ -714,12 +724,13 @@ export function showSections(
     closeOwners();
     focusRow();
 
-    const { title, list, teams } = describeListing(doc, listed);
+    const { title, list, teams } = describeListing(doc, listed, { teamAvatar, filter });
     openOwnersDialog(doc, {
       title,
       summary: [list],
       teams,
       teamMembers,
+      teamAvatar,
       filter,
       returnFocus: focusRow,
       signal,

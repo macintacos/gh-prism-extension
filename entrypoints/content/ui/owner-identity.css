@@ -1,0 +1,191 @@
+/* No GitHub hooks: every rule selects only gh-prism's own classes. The a-qualified rules outrank
+   GitHub's a:hover and :focus-visible rules. An identity is inline content, so a line of them
+   copies as one line of text. */
+
+/* No line break between the name and its filter icon; the name itself still wraps. */
+.gh-prism-identity {
+  white-space: nowrap;
+}
+
+.gh-prism-owner-name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.gh-prism-identity .gh-prism-owner-name {
+  font-weight: var(--base-text-weight-semibold);
+  color: var(--fgColor-default);
+}
+
+/* The padding makes the link's target its 24px line exactly, so a wrapped name's lines don't
+   overlap. It is uneven because the 12px text sits 4px below the line's top. */
+a.gh-prism-owner {
+  padding-block: 4px 5px;
+  border-radius: 4px;
+  color: var(--fgColor-default);
+  text-decoration: none;
+}
+
+a.gh-prism-owner:hover {
+  text-decoration: none;
+}
+
+a.gh-prism-owner:hover > .gh-prism-owner-name {
+  text-decoration: underline;
+}
+
+a.gh-prism-owner:focus-visible {
+  outline: 2px solid var(--focus-outlineColor);
+  outline-offset: 0;
+}
+
+/* Its 4px margins centre it in a 24px line. text-indent: 0, as a member link's hanging indent
+   would otherwise inherit into it and shift its image out of its ring. */
+.gh-prism-avatar {
+  position: relative;
+  display: inline-block;
+  text-indent: 0;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 4px 4px 4px 0;
+  vertical-align: top;
+  line-height: 0;
+  border-radius: 50%;
+  background: var(--avatar-bgColor);
+  box-shadow: 0 0 0 1px var(--avatar-borderColor);
+}
+
+.gh-prism-avatar[data-kind="team"] {
+  border-radius: 4px;
+}
+
+/* The link's target fills the avatar's 24px line, up to where the name starts. */
+.gh-prism-avatar::before {
+  content: "";
+  position: absolute;
+  inset: -4px -4px -4px 0;
+}
+
+/* Primer's small invisible IconButton at a 24px target. Its box starts 4px after the name, so its
+   fill and focus ring clear it, and a following comma starts at its edge, outside them.
+   position: relative keeps its whole box above the separator, which Chromium would otherwise
+   give the box's last pixel. Inline-block with an inline glyph, as a grid would blockify the
+   glyph and break a copied line in Firefox. */
+a.gh-prism-owner-filter-icon {
+  position: relative;
+  display: inline-block;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  margin-inline: 4px 0;
+  padding: 4px;
+  vertical-align: top;
+  border-radius: var(--borderRadius-medium);
+  color: var(--fgColor-muted);
+}
+
+/* The 4px after a comma sets the next owner apart from the icon before it. A margin on the next
+   identity would instead indent a wrapped line that starts with it. */
+.gh-prism-owner-separator {
+  margin-inline-end: 4px;
+}
+
+a.gh-prism-owner-filter-icon > svg {
+  vertical-align: top;
+}
+
+a.gh-prism-owner-filter-icon:hover {
+  background: var(--control-transparent-bgColor-hover);
+  color: var(--fgColor-default);
+}
+
+a.gh-prism-owner-filter-icon.gh-prism-selected {
+  background: var(--control-transparent-bgColor-selected);
+  color: var(--fgColor-default);
+}
+
+a.gh-prism-owner-filter-icon:focus-visible {
+  outline: 2px solid var(--focus-outlineColor);
+  outline-offset: -2px;
+}
+
+/* Inline-level, as a block inside the avatar would break a copied line. */
+.gh-prism-avatar > img,
+.gh-prism-avatar > .gh-prism-avatar-none {
+  width: 16px;
+  height: 16px;
+  vertical-align: top;
+  border-radius: inherit;
+}
+
+/* The 10px glyph, centred by the padding. */
+.gh-prism-avatar > .gh-prism-avatar-none {
+  display: inline-block;
+  box-sizing: border-box;
+  padding: 3px;
+  background: var(--bgColor-neutral-muted);
+  color: var(--fgColor-muted);
+}
+
+.gh-prism-avatar-none > svg {
+  vertical-align: top;
+}
+
+/* A hanging indent keeps the avatar beside the login's first line and a wrapped line aligned
+   under the login; flex would copy the row with a leading line break in Chromium. */
+.gh-prism-member > a {
+  display: block;
+  padding-inline-start: 20px;
+  text-indent: -20px;
+  line-height: 24px;
+  color: var(--fgColor-default);
+  text-decoration: none;
+}
+
+.gh-prism-member > a > span:last-child {
+  overflow-wrap: anywhere;
+}
+
+.gh-prism-member > a:hover > span:last-child {
+  text-decoration: underline;
+}
+
+.gh-prism-member > a:focus-visible {
+  outline: 2px solid var(--focus-outlineColor);
+  outline-offset: 0;
+  border-radius: 4px;
+}
+
+/* Primer's tooltip, in the top layer: placed by script, so the popover's own inset and margin go. */
+.gh-prism-tooltip[popover] {
+  inset: auto;
+  margin: 0;
+  padding: 4px 8px;
+  overflow: visible;
+  border: 0;
+  border-radius: var(--borderRadius-medium);
+  background: var(--tooltip-bgColor);
+  color: var(--tooltip-fgColor);
+  font-size: var(--text-body-size-small);
+  font-weight: var(--base-text-weight-normal);
+  line-height: var(--text-body-lineHeight-small);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.gh-prism-tooltip[popover]:popover-open {
+  transition: opacity 120ms ease-out;
+}
+
+@starting-style {
+  .gh-prism-tooltip[popover]:popover-open {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-prism-tooltip[popover]:popover-open {
+    transition: none;
+  }
+}
