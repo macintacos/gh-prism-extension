@@ -20,7 +20,7 @@ describe("a folder's list", () => {
 
     const list = listOf(files);
 
-    expect(outline(list)).toEqual(["@o/team", "  a.ts", "  b.ts"]);
+    expect(outline(list)).toEqual(["Owned by @o/team", "  a.ts", "  b.ts"]);
     expect(headings(list)).toHaveLength(1);
   });
 
@@ -29,7 +29,7 @@ describe("a folder's list", () => {
 
     const list = listOf(files);
 
-    expect(outline(list)).toEqual(["@o/x", "  a.ts", "  c.ts", "@o/y", "  b.ts"]);
+    expect(outline(list)).toEqual(["Owned by @o/x", "  a.ts", "  c.ts", "Owned by @o/y", "  b.ts"]);
   });
 
   it("groups owners regardless of order or case, headed as the first file lists them", () => {
@@ -37,7 +37,7 @@ describe("a folder's list", () => {
 
     const list = listOf(files);
 
-    expect(outline(list)).toEqual(["@a, @b", "  a.ts", "  b.ts", "  c.ts"]);
+    expect(outline(list)).toEqual(["Owned by @a, @b", "  a.ts", "  b.ts", "  c.ts"]);
   });
 
   it("keeps overlapping sets apart", () => {
@@ -45,18 +45,19 @@ describe("a folder's list", () => {
 
     const list = listOf(files);
 
-    expect(outline(list)).toEqual(["@a", "  a.ts", "@a, @b", "  b.ts"]);
+    expect(outline(list)).toEqual(["Owned by @a", "  a.ts", "Owned by @a, @b", "  b.ts"]);
   });
 
-  it("lists files without a code owner last, under a muted heading", () => {
+  it("lists files without a code owner last, under a heading with no owners", () => {
     const files = [file("a.ts"), file("b.ts", "@o/x")];
 
     const list = listOf(files);
 
-    expect(outline(list)).toEqual(["@o/x", "  b.ts", "No code owner", "  a.ts"]);
-    expect(headings(list).map((heading) => heading.classList.contains("tw:text-fg-muted"))).toEqual(
-      [false, true],
-    );
+    expect(outline(list)).toEqual(["Owned by @o/x", "  b.ts", "No code owner", "  a.ts"]);
+    expect(
+      headings(list).map((heading) => heading.querySelector(".tw\\:font-semibold")?.textContent),
+    ).toEqual(["@o/x", undefined]);
+    expect(headings(list)[1]?.querySelector("a")).toBeNull();
   });
 
   it("lays each group's files out as a tree of muted subfolders", () => {
@@ -65,12 +66,12 @@ describe("a folder's list", () => {
     const list = listOf(files);
 
     expect(outline(list)).toEqual([
-      "@o/x",
+      "Owned by @o/x",
       "  a/",
       "    b/",
       "      c.ts",
       "    d.ts",
-      "@o/y",
+      "Owned by @o/y",
       "  e.ts",
     ]);
     expect(
@@ -87,9 +88,9 @@ describe("a folder's list", () => {
     const list = listOf(files);
 
     expect(headings(list).map((heading) => heading.textContent)).toEqual([
-      "@o/a",
-      "@o/b",
-      "@o/a, @o/b",
+      "Owned by @o/a",
+      "Owned by @o/b",
+      "Owned by @o/a, @o/b",
       "No code owner",
     ]);
     expect(headings(list).map((heading) => heading.nextElementSibling?.children.length)).toEqual([

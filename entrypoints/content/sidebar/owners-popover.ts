@@ -85,7 +85,7 @@ function folderList(doc: Document, folder: string, files: readonly FileOwnersAt[
       el(
         doc,
         "li",
-        "",
+        "tw:pl-4",
         ownersHeading(doc, owners),
         fileList(
           doc,
@@ -115,21 +115,24 @@ const ownerSetKey = ({ owners }: FileOwnersAt) =>
     .sort()
     .join(" ");
 
-/** `owners` comma-separated, or a muted "No code owner" when there are none. */
+/** `Owned by` and `owners` comma-separated, or "No code owner" when there are none. */
 function ownersHeading(doc: Document, owners: readonly CodeOwner[]): HTMLElement {
-  return owners.length > 0
-    ? el(
-        doc,
-        "h3",
-        "tw:mt-0 tw:mb-1 tw:text-body-small tw:leading-body-small tw:font-semibold",
-        ...owners.flatMap((owner, i) => [i > 0 ? ", " : "", ownerLink(doc, owner)]),
-      )
-    : el(
-        doc,
-        "h3",
-        "tw:mt-0 tw:mb-1 tw:text-body-small tw:leading-body-small tw:font-semibold tw:text-fg-muted",
-        "No code owner",
-      );
+  return el(
+    doc,
+    "h3",
+    "tw:mt-0 tw:mb-1 tw:-ml-4 tw:text-body-small tw:leading-body-small tw:font-normal tw:text-fg-muted",
+    ...(owners.length > 0
+      ? [
+          "Owned by ",
+          el(
+            doc,
+            "span",
+            "tw:font-semibold tw:text-fg-default",
+            ...owners.flatMap((owner, i) => [i > 0 ? ", " : "", ownerLink(doc, owner)]),
+          ),
+        ]
+      : ["No code owner"]),
+  );
 }
 
 /** `label` is the popover's accessible name; `body` goes below its heading. */

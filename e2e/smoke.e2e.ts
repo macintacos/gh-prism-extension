@@ -2646,7 +2646,7 @@ test("a folder shield's click opens the code owner details of its files", async 
   await expect(
     dialog
       .getByRole("listitem")
-      .filter({ has: page.getByRole("heading", { name: "@o/team", exact: true }) }),
+      .filter({ has: page.getByRole("heading", { name: "Owned by @o/team", exact: true }) }),
   ).toContainText("schema.rs");
 });
 
@@ -2728,7 +2728,7 @@ test("a folder shield's popover lists its files until Escape returns to the row"
   await expect(
     popover
       .getByRole("listitem")
-      .filter({ has: page.getByRole("heading", { name: "@o/team", exact: true }) }),
+      .filter({ has: page.getByRole("heading", { name: "Owned by @o/team", exact: true }) }),
   ).toContainText("schema.rs");
   await expect(folder).toHaveAttribute("aria-expanded", expanded ?? "");
 

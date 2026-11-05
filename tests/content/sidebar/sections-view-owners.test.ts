@@ -561,10 +561,10 @@ describe("showSections", () => {
         );
       const src = () => shieldOf("implementation", "src/");
       const LISTED_UNDER_SRC = [
-        "@o/other",
+        "Owned by @o/other",
         "  generated/",
         "    schema.rs",
-        "@o/team",
+        "Owned by @o/team",
         "  engine.rs",
         "No code owner",
         "  helpers.rs",
@@ -598,7 +598,7 @@ describe("showSections", () => {
         await focusOpen(src());
 
         const listed = outline(popovers()[0]?.querySelector("ul"));
-        expect(listed).toContain("@o/<b>x</b>");
+        expect(listed).toContain("Owned by @o/<b>x</b>");
         expect(listed).toContain("  <img src=x>.rs");
         expect(popovers()[0]?.querySelector("img, b")).toBeNull();
       });
@@ -609,7 +609,10 @@ describe("showSections", () => {
 
         await focusOpen(shieldOf("implementation", "a/b/c/"));
 
-        expect(outline(popovers()[0]?.querySelector("ul"))).toEqual(["@o/team", "  file.rs"]);
+        expect(outline(popovers()[0]?.querySelector("ul"))).toEqual([
+          "Owned by @o/team",
+          "  file.rs",
+        ]);
       });
 
       it("opens its details without toggling, selecting, or revealing its folder", async () => {
