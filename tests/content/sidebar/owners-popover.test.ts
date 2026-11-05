@@ -54,10 +54,9 @@ describe("a folder's list", () => {
     const list = listOf(files);
 
     expect(outline(list)).toEqual(["@o/x", "  b.ts", "No code owner", "  a.ts"]);
-    expect(headings(list).map((h) => h.classList.contains("tw:text-fg-muted"))).toEqual([
-      false,
-      true,
-    ]);
+    expect(headings(list).map((heading) => heading.classList.contains("tw:text-fg-muted"))).toEqual(
+      [false, true],
+    );
   });
 
   it("lays each group's files out as a tree of muted subfolders", () => {
@@ -75,7 +74,9 @@ describe("a folder's list", () => {
       "  e.ts",
     ]);
     expect(
-      [...list.querySelectorAll(".tw\\:font-mono.tw\\:text-fg-muted")].map((l) => l.textContent),
+      [...list.querySelectorAll(".tw\\:font-mono.tw\\:text-fg-muted")].map(
+        (folder) => folder.textContent,
+      ),
     ).toEqual(["a/", "b/"]);
   });
 
@@ -85,13 +86,13 @@ describe("a folder's list", () => {
 
     const list = listOf(files);
 
-    expect(headings(list).map((h) => h.textContent)).toEqual([
+    expect(headings(list).map((heading) => heading.textContent)).toEqual([
       "@o/a",
       "@o/b",
       "@o/a, @o/b",
       "No code owner",
     ]);
-    expect(headings(list).map((h) => h.nextElementSibling?.children.length)).toEqual([
+    expect(headings(list).map((heading) => heading.nextElementSibling?.children.length)).toEqual([
       750, 750, 750, 750,
     ]);
   });
