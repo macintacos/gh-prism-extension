@@ -618,12 +618,10 @@ describe("ownershipOf", () => {
     return { fetchFn, reader: teamMembersReader(fetchFn, new AbortController().signal) };
   };
 
-  afterEach(() => vi.restoreAllMocks());
-
   it("owns the files CODEOWNERS names a user for", async () => {
     const teamMembers = membersFrom({});
 
-    const result = await ownershipOf(owners, "@Ada", teamMembers);
+    const result = await ownershipOf({ codeOwners: owners }, "@Ada", teamMembers);
 
     expect(result).toEqual({ paths: ["docs/guide.md"], teams: [], direct: true });
   });
@@ -631,7 +629,19 @@ describe("ownershipOf", () => {
   it("owns a team's files through its members, naming the team", async () => {
     const teamMembers = membersFrom({ "@o/frontend": ["Grace"] });
 
-    const result = await ownershipOf(owners, "@grace", teamMembers);
+    const result = await ownershipOf({ codeOwners: owners }, "@grace", teamMembers);
+
+    expect(result).toEqual({ paths: ["web/app.ts"], teams: ["@o/frontend"], direct: false });
+  });
+
+  it("owns a team's files through a team GitHub names for them as a PR reviewer, though its members don't list them", async () => {
+    const prReviewers = [reviewer("@grace", { teams: ["@o/frontend"] })];
+
+    const result = await ownershipOf(
+      { codeOwners: owners, prReviewers },
+      "@grace",
+      membersFrom({}),
+    );
 
     expect(result).toEqual({ paths: ["web/app.ts"], teams: ["@o/frontend"], direct: false });
   });
@@ -639,7 +649,7 @@ describe("ownershipOf", () => {
   it("owns nothing when neither CODEOWNERS nor an owning team names the user", async () => {
     const teamMembers = membersFrom({ "@o/frontend": ["Grace"] });
 
-    const result = await ownershipOf(owners, "@linus", teamMembers);
+    const result = await ownershipOf({ codeOwners: owners }, "@linus", teamMembers);
 
     expect(result).toEqual({ paths: [], teams: [], direct: false });
   });
@@ -653,7 +663,7 @@ describe("ownershipOf", () => {
       [frontendUrl]: () => Promise.resolve(new Response("", { status })),
     });
 
-    const result = await ownershipOf(owners, "@grace", reader);
+    const result = await ownershipOf({ codeOwners: owners }, "@grace", reader);
 
     expect(result).toEqual({ paths: [], teams: [], direct: false });
     expect(warn).not.toHaveBeenCalled();
@@ -666,8 +676,8 @@ describe("ownershipOf", () => {
     });
 
     const results = await Promise.all([
-      ownershipOf(owners, "@grace", reader),
-      ownershipOf(owners, "@linus", reader),
+      ownershipOf({ codeOwners: owners }, "@grace", reader),
+      ownershipOf({ codeOwners: owners }, "@linus", reader),
     ]);
 
     expect(results.map(({ teams }) => teams)).toEqual([[], []]);
@@ -680,8 +690,8 @@ describe("ownershipOf", () => {
     });
 
     const [linus, grace] = await Promise.all([
-      ownershipOf(owners, "@linus", reader),
-      ownershipOf(owners, "@grace", reader),
+      ownershipOf({ codeOwners: owners }, "@linus", reader),
+      ownershipOf({ codeOwners: owners }, "@grace", reader),
     ]);
 
     expect(linus.teams).toEqual([]);
@@ -695,7 +705,9 @@ describe("ownershipOf", () => {
     });
 
     await Promise.all(
-      ["@ada", "@grace", "@linus"].map((login) => ownershipOf(owners, login, reader)),
+      ["@ada", "@grace", "@linus"].map((login) =>
+        ownershipOf({ codeOwners: owners }, login, reader),
+      ),
     );
     await withMemberTeams([reviewer("@grace")], owners, reader);
 
@@ -741,7 +753,7 @@ describe("withMemberTeams", () => {
     expect(result).toEqual(reviewers);
   });
 
-  it("asks each owning team once, ignoring case", async () => {
+  it("asks each owning team once per reviewer, ignoring case", async () => {
     const sharedTeams: PrCodeOwners = new Map([
       ...owners,
       [

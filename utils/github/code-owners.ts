@@ -94,7 +94,7 @@ export function owningReviewers(
     );
 }
 
-/** What a code owner owns among a pull request's changed files. */
+/** What a user or team owns among a pull request's changed files; no `paths` when they own none. */
 export interface OwnedFiles {
   /** The changed files they own. */
   readonly paths: readonly string[];
@@ -105,8 +105,8 @@ export interface OwnedFiles {
 }
 
 /**
- * The changed files in `codeOwners` that `token` owns, itself or through one of `teams`, ignoring
- * case, with those of `teams` that own one.
+ * The changed files in `codeOwners` that `token` owns, itself or through one of `teams`, which it
+ * takes as teams `token` belongs to, ignoring case, with those of `teams` that own one.
  */
 export function filesOwnedBy(
   codeOwners: PrCodeOwners,
@@ -115,42 +115,64 @@ export function filesOwnedBy(
 ): OwnedFiles {
   const changed = [...codeOwners.keys()];
   const owns = (owner: string) => ownerFilter(codeOwners, owner, []);
+  const ownsAny = [token, ...teams].map(owns);
   return {
-    paths: changed.filter((path) => [token, ...teams].some((owner) => owns(owner)(path))),
+    paths: changed.filter((path) => ownsAny.some((ownsPath) => ownsPath(path))),
     teams: teams.filter((team) => changed.some(owns(team))),
     direct: changed.some(owns(token)),
   };
 }
 
-/**
- * What `token` owns among the changed files in `codeOwners`: the files CODEOWNERS names it for,
- * and those of each owning team whose members `teamMembers` lists it among, ignoring case. A team
- * whose members can't be read makes nobody an owner, and a member past the first members GitHub
- * lists for a large team isn't counted. Reads only through `teamMembers`, so the visit's
- * `teamMembersReader` asks each team once however many tokens are checked.
- */
-export async function ownershipOf(
+/** The owning teams in `codeOwners` whose members `teamMembers` lists `token` among, ignoring case. */
+async function memberTeams(
   codeOwners: PrCodeOwners,
   token: string,
   teamMembers: TeamMembersOf,
-): Promise<OwnedFiles> {
+): Promise<string[]> {
   const teams = owningTeams([...codeOwners.values()].flatMap(({ owners }) => owners));
   const membersOf = await Promise.all(
     teams.map(async (team) => ({ team, members: (await teamMembers(team))?.members ?? [] })),
   );
-  const joined = membersOf.filter(({ members }) =>
-    members.some((login) => isOwner(token, { token: `@${login}` })),
-  );
-  return filesOwnedBy(
-    codeOwners,
-    token,
-    joined.map(({ team }) => team),
-  );
+
+  return membersOf
+    .filter(({ members }) => members.some((login) => isOwner(token, { token: `@${login}` })))
+    .map(({ team }) => team);
+}
+
+/** `named`, then each of `found` that `named` doesn't already name, ignoring case. */
+function joinTeams(named: readonly string[], found: readonly string[]): string[] {
+  return [...named, ...found.filter((team) => !named.some((n) => isOwner(n, { token: team })))];
 }
 
 /**
- * `reviewers`, giving each the owning teams in `codeOwners` that `ownershipOf` finds them a member
- * of through `teamMembers` and that they don't already name, ignoring case.
+ * What `token` owns among the changed files in `codeOwners`: the files CODEOWNERS names it for,
+ * and those of each owning team GitHub names for it as one of `prReviewers`, or whose members
+ * `teamMembers` lists it among, ignoring case. A team whose members can't be read, or that lists
+ * `token` past its first members, counts only when GitHub names it for a reviewer. Reads only
+ * through `teamMembers`, so the visit's `teamMembersReader` asks each team once however many
+ * tokens are checked.
+ */
+export async function ownershipOf(
+  {
+    codeOwners,
+    prReviewers,
+  }: {
+    readonly codeOwners: PrCodeOwners;
+    readonly prReviewers?: readonly PrReviewer[] | undefined;
+  },
+  token: string,
+  teamMembers: TeamMembersOf,
+): Promise<OwnedFiles> {
+  const named = reviewerOf(prReviewers ?? [], token)?.teams ?? [];
+  const found = await memberTeams(codeOwners, token, teamMembers);
+
+  return filesOwnedBy(codeOwners, token, joinTeams(named, found));
+}
+
+/**
+ * `reviewers`, giving each the owning teams in `codeOwners` whose members `teamMembers` lists them
+ * among and that they don't already name, ignoring case. Asks `teamMembers` for every owning team
+ * for each reviewer, so pass the visit's `teamMembersReader`, which asks each team once.
  */
 export async function withMemberTeams(
   reviewers: readonly PrReviewer[],
@@ -158,13 +180,10 @@ export async function withMemberTeams(
   teamMembers: TeamMembersOf,
 ): Promise<readonly PrReviewer[]> {
   return Promise.all(
-    reviewers.map(async (reviewer) => {
-      const { teams } = await ownershipOf(codeOwners, reviewer.token, teamMembers);
-      const joined = teams.filter(
-        (team) => !reviewer.teams.some((named) => isOwner(named, { token: team })),
-      );
-      return { ...reviewer, teams: [...reviewer.teams, ...joined] };
-    }),
+    reviewers.map(async (reviewer) => ({
+      ...reviewer,
+      teams: joinTeams(reviewer.teams, await memberTeams(codeOwners, reviewer.token, teamMembers)),
+    })),
   );
 }
 
