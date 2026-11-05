@@ -561,17 +561,20 @@ describe("showSections", () => {
         );
       const src = () => shieldOf("implementation", "src/");
       const LISTED_UNDER_SRC = [
-        "generated/",
-        "  schema.rs@o/other",
-        "engine.rs@o/team",
-        "helpers.rs",
-        "lib.rs",
-        "notes.rs",
-        "parser.rs",
-        "render.rs",
+        "@o/other",
+        "  generated/",
+        "    schema.rs",
+        "@o/team",
+        "  engine.rs",
+        "No code owner",
+        "  helpers.rs",
+        "  lib.rs",
+        "  notes.rs",
+        "  parser.rs",
+        "  render.rs",
       ];
 
-      it("lists every file the section shows under the folder, with its owners", async () => {
+      it("lists every file the section shows under the folder, grouped by owner set", async () => {
         await owned();
 
         await focusOpen(src());
@@ -594,7 +597,9 @@ describe("showSections", () => {
 
         await focusOpen(src());
 
-        expect(outline(popovers()[0]?.querySelector("ul"))).toContain("<img src=x>.rs@o/<b>x</b>");
+        const listed = outline(popovers()[0]?.querySelector("ul"));
+        expect(listed).toContain("@o/<b>x</b>");
+        expect(listed).toContain("  <img src=x>.rs");
         expect(popovers()[0]?.querySelector("img, b")).toBeNull();
       });
 
@@ -604,7 +609,7 @@ describe("showSections", () => {
 
         await focusOpen(shieldOf("implementation", "a/b/c/"));
 
-        expect(outline(popovers()[0]?.querySelector("ul"))).toEqual(["file.rs@o/team"]);
+        expect(outline(popovers()[0]?.querySelector("ul"))).toEqual(["@o/team", "  file.rs"]);
       });
 
       it("opens its details without toggling, selecting, or revealing its folder", async () => {
@@ -659,7 +664,7 @@ describe("showSections", () => {
         expect(popovers()).toHaveLength(1);
       });
 
-      it("opens a dialog of its files, relative to it, with their owners, on a click", async () => {
+      it("opens a dialog of its files, relative to it, grouped by their owners, on a click", async () => {
         await owned();
 
         clickAt(src(), { detail: 1 });
