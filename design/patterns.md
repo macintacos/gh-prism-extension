@@ -65,12 +65,13 @@ at its row's end, centred on the file rows' Viewed box column, because its icon 
 gives way to its chevron. A flattened chain's shield stands for its deepest folder, which
 holds the same files. `sidebar/section-tree.css` places it. Its popover lists every file
 the section shows under that folder, nested ones included, grouped by owner set. Each
-distinct set of code owners, whatever their order, heads one group as a semibold line of
-linked owners, with the group's files below it as a tree relative to the folder, grouped
-as the code owner's files popup groups them (§ Code owner's files). Groups follow the tree
-order of their first files, and files without a code owner come last under a muted "No
-code owner". The popover is at most 400px wide. It ends in the same hint, and a click on
-the shield opens the code owner details dialog too. `sidebar/owners-popover.ts` builds it.
+distinct set of code owners, whatever their order, heads one group with a muted "Owned by"
+followed by its linked owners in semibold. The group's files sit indented below it as a
+tree relative to the folder, laid out as the code owner's files popup lays them out (§
+Code owner's files). Groups follow the tree order of their first files, and files without
+a code owner come last under a muted "No code owner". The popover is at most 400px wide.
+It ends in the same hint, and a click on the shield opens the code owner details dialog
+too. `sidebar/owners-popover.ts` builds it.
 
 A folder chain short of room keeps its first folder and as many trailing folders as fit
 around one `…`. With room for less, it shows `…` and the deepest folder alone. Only the
