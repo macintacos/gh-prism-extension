@@ -4089,6 +4089,11 @@ test("a code owner reviewer's shield in the Conversation panel opens their files
   );
   await page.goto(PR_URL);
   await conversationButton(page).click();
+  // Playwright's stability check can't see the frame slide in with the panel; a hover
+  // mid-slide leaves the shield before its popup opens.
+  await page
+    .locator("#gh-prism-conversation")
+    .evaluate((panel) => Promise.allSettled(panel.getAnimations().map((slide) => slide.finished)));
   const frame = page.frameLocator("#gh-prism-conversation iframe");
   const shield = frame.locator('[id="codeowner-excessive-dev/frontend"]');
 

@@ -98,6 +98,12 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   alignment the click lands on depends on the machine's speed, so the sidebar can stay put
   locally and move on CI. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "ticking a box
   doesn't scroll the sidebar" awaits the animations' `finished` first.
+- **Let the Conversation panel's slide finish before a test hovers or clicks in its
+  frame.** Playwright measures an element's stability inside its own frame, so it can't
+  see the frame sliding in with the panel, and a hover mid-slide lands on a shield that
+  then slides away, whose `pointerout` cancels the popup's open.
+  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "a code owner reviewer's shield in the
+  Conversation panel opens their files and details" awaits the panel's animations first.
 - **After a test scrolls the sidebar, wait for the tree to take pointer events before it
   clicks a row.** @pierre/trees sets `pointer-events: none` on the tree while it scrolls,
   so a click that comes too soon is intercepted and retried, with the same forced scroll.
