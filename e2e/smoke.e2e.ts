@@ -1490,6 +1490,28 @@ test("every tree icon draws a symbol from the tree's sprites", async ({ context,
   expect(hrefs.filter((href) => href.startsWith("unresolved"))).toEqual([]);
 });
 
+test("the tree's guide style text follows the focused row's folder", async ({ context, page }) => {
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+  const row = page.locator('[data-item-path="src/lib.rs"]');
+  await expect(row).toBeVisible();
+  const tree = page.locator(".gh-prism-tree", { has: row });
+  // gh-prism's sheet shows every guide at rest, so read the library's style text;
+  // Playwright's toHaveText reads a <style> as empty.
+  const guideStyle = () =>
+    tree.evaluate(
+      (host) => host.shadowRoot?.querySelector("style[data-file-tree-guide-style]")?.textContent,
+    );
+
+  await row.focus();
+  await expect
+    .poll(guideStyle)
+    .toBe('[data-item-section="spacing-item"][data-ancestor-path="src/"] { opacity: 1; }');
+
+  await tree.locator('[data-item-path="src/"]').focus();
+  await expect.poll(guideStyle).toBe("");
+});
+
 test("each of gh-prism's own file glyphs takes a color of its own", async ({ context, page }) => {
   const extensions = Object.keys(LANGUAGE_ICONS);
   const rows = extensions

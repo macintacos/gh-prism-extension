@@ -215,7 +215,7 @@ delete the old key.
 
 ## Patched dependencies
 
-Three dependencies carry local patches in [`patches/`](../patches/), which Bun applies on
+Four dependencies carry local patches in [`patches/`](../patches/), which Bun applies on
 install through `patchedDependencies` in [`package.json`](../package.json):
 
 - `@pierre/trees` adds a row decoration's title to the row's accessible label, and renders
@@ -223,7 +223,9 @@ install through `patchedDependencies` in [`package.json`](../package.json):
   whose decoration asks for one (over a file's icon, at a folder row's end). It also
   renders a flattened row's folders as whole units around a hidden `…`, and gives every
   row an `aria-hidden` copy of its full name. It parses icon sprite sheets and the header
-  slot's markup with `DOMParser`, not `innerHTML`, which AMO's linter flags.
+  slot's markup with `DOMParser`, not `innerHTML`, which AMO's linter flags. It passes the
+  focused row's guide style to its `<style>` as text, not through
+  `dangerouslySetInnerHTML`, which the `preact` patch below makes render nothing.
 - `mdast-util-from-markdown` binds micromark's document tokenizer to a local before
   calling its `write`. AMO's linter flags any `.write()` call whose object's source text
   contains `document`, so it reads `parse(options).document().write(…)` as a DOM
@@ -231,6 +233,15 @@ install through `patchedDependencies` in [`package.json`](../package.json):
   the package, regenerating its patch, or changing the bundler, check that
   `mise run lint-firefox` reports no `document().write` warning. Drop the patch once the
   package stops chaining `.document().write(…)`.
+- `preact` drops its diff's `dangerouslySetInnerHTML` branch and the `innerHTML = ""`
+  clear before the children diff, so the children diff always runs and the prop renders
+  nothing; nothing in the bundle may pass it. AMO's linter flags that branch's `innerHTML`
+  assignment whether or not anything passes the prop. The patch edits only
+  `dist/preact.mjs`, the build the bundler imports. After upgrading Preact or
+  `@pierre/trees`, regenerating the patch, or changing the bundler, check that
+  `tests/patches.test.ts` passes and that `mise run lint-firefox` reports no
+  `Unsafe assignment to innerHTML` warning. Drop the patch once nothing in the bundle
+  imports Preact.
 - `wxt` escapes the entrypoint path in a regular expression, so a checkout whose path
   holds a character such as `+` still builds.
 
@@ -239,7 +250,7 @@ its patch with `bun patch`, or drop the patch once upstream fixes the issue. Bun
 isolated linker trips on `bun patch --commit`: it leaves `node_modules/<pkg>` a real
 directory, so the package's own dependencies stop resolving, and it adds a `.bun-tag-*`
 file to the patch. Delete that file's hunk from the patch, then run
-`rm -rf node_modules/<pkg> && bun install` to restore the link.
+`rm -rf node_modules/<pkg> && bun install` to restore the isolated layout.
 
 `tslib` is a devDependency only because playwright-webextext 0.0.5 requires it at runtime
 without declaring it; drop it once playwright-webextext declares it.

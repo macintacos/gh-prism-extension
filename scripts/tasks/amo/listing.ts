@@ -16,7 +16,7 @@ To try it, sign in to github.com and open this public pull request: ${SANDBOX_PR
 
 Build instructions are in README.md, section "Build from source", in the sources zip. A release build inlines its release notes from WXT_RELEASE_NOTES into content-scripts/content.js for the sidebar's What's new; this first version was built without them.
 
-web-ext lint's UNSAFE_VAR_ASSIGNMENT warnings all come from libraries bundled into content-scripts/content.js: @pierre/trees, a file-tree library, and the Preact it renders with (three), and micromark, which parses commit messages as Markdown (two: its decode-named-character-reference sets a detached element's innerHTML to an "&name;" entity, and its own document().write is not the DOM's). gh-prism's own code sets no innerHTML.`;
+web-ext lint reports no warnings for this version. gh-prism's own code sets no innerHTML, and the libraries bundled into content-scripts/content.js are patched not to (docs/DEVELOPMENT.md, section "Patched dependencies", in the sources zip).`;
 
 /** AMO's license slug from LICENSE's first line, such as `MIT` from "MIT License". */
 export function licenseSlug(licenseText: string): string {

@@ -15,7 +15,7 @@ index 305714319d9d988bfc025ecaaca662562a3a0ff7..4ebbe8a0e2dd5ac7ffd25662c5949d9f
  }
  function getHeaderSlotHtml(composition) {
 diff --git a/dist/render/FileTreeView.js b/dist/render/FileTreeView.js
-index 7d3b818c43a7621ab9170da32b180232ed3c9472..45594ea233b56e0550b36af3d01b7975f106cbcd 100644
+index 7d3b818c43a7621ab9170da32b180232ed3c9472..3cfe388bd4f714d77d7a98144e1f46ba89e01069 100644
 --- a/dist/render/FileTreeView.js
 +++ b/dist/render/FileTreeView.js
 @@ -25,11 +25,27 @@ function formatFlattenedSegments(row, renameInput = null, dragTargetFlattenedSeg
@@ -131,6 +131,15 @@ index 7d3b818c43a7621ab9170da32b180232ed3c9472..45594ea233b56e0550b36af3d01b7975
  		if (searchInputOwnsFocus && !shouldRestoreTreeFocusAfterSearchClose) {
  			previousFocusedPathRef.current = focusedPath;
  			return;
+@@ -1790,7 +1849,7 @@ function FileTreeView({ composition, controller, gitStatusByPath, ignoredGitDire
+ 		children: [
+ 			/* @__PURE__ */ jsx("style", {
+ 				"data-file-tree-guide-style": "true",
+-				dangerouslySetInnerHTML: { __html: guideStyleText }
++				children: guideStyleText
+ 			}),
+ 			/* @__PURE__ */ jsx("slot", {
+ 				name: HEADER_SLOT_NAME,
 diff --git a/dist/render/slotHost.js b/dist/render/slotHost.js
 index f1dd63f860c954bd33f3c22a835ed1fdb45ddf85..73561e4d4296a154491923ffc9ef1fc913d4695d 100644
 --- a/dist/render/slotHost.js
