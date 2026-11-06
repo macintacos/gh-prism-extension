@@ -206,7 +206,9 @@ on a private one.
   as it mounts, measuring a target gh-prism's cover may hide, and the pull request Files
   view ignores a later `hashchange`. So `retakeHash` lands only commit pages, and
   `holdHashLine` in the same file lands a line link itself and holds it until the user
-  takes the scroll.
+  takes the scroll. On a commit page GitHub's client mount replaces the Files markup and
+  scrolls to the top when the window has scrolled, so the hold lasts the visit, not the
+  render.
 - **Reorder diffs with CSS `order`.** GitHub's tree click scrolls by
   `getBoundingClientRect`, so it stays correct after a CSS reorder.
 - **Expect GitHub to bind `j` and `k` to files only in single-file mode.** They are the
