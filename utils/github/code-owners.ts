@@ -141,7 +141,10 @@ async function memberTeams(
 
 /** `named`, then each of `found` that `named` doesn't already name, ignoring case. */
 function joinTeams(named: readonly string[], found: readonly string[]): string[] {
-  return [...named, ...found.filter((team) => !named.some((n) => isOwner(n, { token: team })))];
+  return [
+    ...named,
+    ...found.filter((team) => !named.some((name) => isOwner(name, { token: team }))),
+  ];
 }
 
 /**
