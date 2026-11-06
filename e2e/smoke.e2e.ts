@@ -1469,6 +1469,27 @@ test("each file's icon takes its type's color in the page's color scheme", async
   expect(onDarkOs.font).toBe(onDarkOs.fontSpan);
 });
 
+test("every tree icon draws a symbol from the tree's sprites", async ({ context, page }) => {
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+  await expect(page.locator('[data-item-path="Cargo.toml"]')).toBeVisible();
+
+  const hrefs = await page.evaluate(() =>
+    [...document.querySelectorAll(".gh-prism-tree")].flatMap((host) => {
+      const root = host.shadowRoot;
+      return [...(root?.querySelectorAll('[data-item-section="icon"] use') ?? [])].map((use) => {
+        const href = use.getAttribute("href") ?? "";
+        const symbol = root?.getElementById(href.slice(1));
+        return symbol instanceof SVGSymbolElement ? href : `unresolved ${href}`;
+      });
+    }),
+  );
+
+  expect(hrefs).toContain("#gh-prism-folder");
+  expect(hrefs.some((href) => href.startsWith("#file-tree-builtin-"))).toBe(true);
+  expect(hrefs.filter((href) => href.startsWith("unresolved"))).toEqual([]);
+});
+
 test("each of gh-prism's own file glyphs takes a color of its own", async ({ context, page }) => {
   const extensions = Object.keys(LANGUAGE_ICONS);
   const rows = extensions

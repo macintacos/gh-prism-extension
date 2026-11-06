@@ -1,3 +1,19 @@
+diff --git a/dist/render/FileTree.js b/dist/render/FileTree.js
+index 305714319d9d988bfc025ecaaca662562a3a0ff7..4ebbe8a0e2dd5ac7ffd25662c5949d9f435e1096 100644
+--- a/dist/render/FileTree.js
++++ b/dist/render/FileTree.js
+@@ -31,9 +31,8 @@ function resolveInitialViewportHeight({ initialVisibleRowCount, itemHeight }) {
+ }
+ function parseSpriteSheet(spriteSheet) {
+ 	if (typeof document === "undefined") return;
+-	const wrapper = document.createElement("div");
+-	wrapper.innerHTML = spriteSheet;
+-	const svg = wrapper.querySelector("svg");
++	// text/html, not image/svg+xml: a sprite needn't be well-formed XML.
++	const svg = new DOMParser().parseFromString(spriteSheet, "text/html").querySelector("svg");
+ 	return svg instanceof SVGElement ? svg : void 0;
+ }
+ function getHeaderSlotHtml(composition) {
 diff --git a/dist/render/FileTreeView.js b/dist/render/FileTreeView.js
 index 7d3b818c43a7621ab9170da32b180232ed3c9472..45594ea233b56e0550b36af3d01b7975f106cbcd 100644
 --- a/dist/render/FileTreeView.js
