@@ -2942,13 +2942,13 @@ test("a code-owning comment author's shield lists their files on hover and opens
   await expectCommentShieldOpensFiles(page, { filterActions: 1 });
 });
 
-for (const { name, url, body, fixture, threads, ready, filterActions } of [
+for (const { name, url, body, fixture, threadParent, ready, filterActions } of [
   {
     name: "the new",
     url: PR_URL,
     body: PR_BODY,
     fixture: "files-page-comments.html",
-    threads: '[data-testid="diff-content"]',
+    threadParent: '[data-testid="diff-content"]',
     ready: async (page: Page) => {
       // The sections' load lays the diffs out anew, sliding the shield out from under the pointer.
       await expect(page.locator(".gh-prism-section").first()).toBeVisible();
@@ -2961,7 +2961,7 @@ for (const { name, url, body, fixture, threads, ready, filterActions } of [
     url: CLASSIC_URL,
     body: CLASSIC_BODY,
     fixture: "classic-files-page-comments.html",
-    threads: "#files",
+    threadParent: "#files",
     ready: async (page: Page) => {
       // gh-prism's classic notice opens modal on load; its backdrop's corner closes it.
       await expect(page.locator("dialog:modal")).toHaveCount(1);
@@ -2983,7 +2983,7 @@ for (const { name, url, body, fixture, threads, ready, filterActions } of [
     // GitHub mounts a review thread after load.
     await page.evaluate(
       ([selector, html]) => document.querySelector(selector)?.insertAdjacentHTML("beforeend", html),
-      [threads, readFixture(fixture)] as const,
+      [threadParent, readFixture(fixture)] as const,
     );
 
     await expectCommentShieldOpensFiles(page, { filterActions });
