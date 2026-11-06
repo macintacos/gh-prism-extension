@@ -1300,6 +1300,20 @@ describe.each([
     ]);
   });
 
+  it("opens the dialog on click when an ancestor stops the click's propagation", async () => {
+    showHere();
+    await settle();
+    const shield = commentShields()[0] as HTMLElement;
+    shield.parentElement?.addEventListener("click", (event) => event.stopPropagation());
+
+    shield.click();
+    await settle();
+
+    expect(document.querySelector("dialog.gh-prism-owners-dialog")?.textContent).toContain(
+      "@sandbox-user",
+    );
+  });
+
   it("removes every comment shield once the signal aborts", async () => {
     showHere();
     await settle();

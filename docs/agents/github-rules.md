@@ -594,6 +594,10 @@ Files changed's review comments, as of 2026-11-05:
   one link per comment.
 - **Expect virtualization to mount a diff's threads on scroll and unmount them when
   scrolled away.** A remount brings fresh nodes, with no shield beside them.
+- **Listen for a click inside the new page's diffs in the capture phase.** Its React root
+  calls `stopPropagation()` on clicks in a review thread, so a bubble listener on
+  `document` never hears them. Re-check with one capture and one bubble `click` listener
+  on `document`, then a click in a thread: only the capture one fires.
 - **Find a classic Files changed comment's author as
   `#files .js-inline-comments-container .review-comment h3 strong > a.author`, with the
   `strong` as its name.** The avatar is an unlinked `<img>`, so there is one profile link

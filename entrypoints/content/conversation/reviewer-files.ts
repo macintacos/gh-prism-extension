@@ -190,7 +190,8 @@ export function showReviewerFiles(
     },
   });
 
-  // On the document: GitHub replaces the classic sidebar's nodes mid-visit.
+  // On the document: GitHub replaces the classic sidebar's nodes mid-visit. In the capture phase:
+  // the new Files changed page's React root stops a review thread's clicks from bubbling.
   let latestClick = 0;
   doc.addEventListener(
     "click",
@@ -217,7 +218,7 @@ export function showReviewerFiles(
         signal,
       });
     },
-    { signal },
+    { capture: true, signal },
   );
 }
 
