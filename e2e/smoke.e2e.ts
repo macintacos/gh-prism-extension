@@ -2994,6 +2994,10 @@ for (const { name, url, body, fixture, threads, classic } of [
       await expect(page.locator("dialog:modal")).toHaveCount(1);
       await page.mouse.click(4, 4);
       await expect(page.locator("dialog:modal")).toHaveCount(0);
+    } else {
+      // The sections' load lays the diffs out anew, sliding the shield out from under the pointer.
+      await expect(page.locator(".gh-prism-section").first()).toBeVisible();
+      await revealSettled(page);
     }
     // GitHub mounts a review thread after load.
     await page.evaluate(
