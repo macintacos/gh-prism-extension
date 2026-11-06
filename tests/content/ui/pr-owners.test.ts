@@ -6,8 +6,9 @@ import {
 } from "../../../entrypoints/content/conversation/panel";
 import { type FilesPage, findFilesPage } from "../../../entrypoints/content/files-page";
 import {
-  followPrOwnersPress,
-  type PrOwnersPress,
+  type PrOwnersPressGuard,
+  prOwnersButton,
+  prOwnersPressGuard,
   showPrOwnersButton,
 } from "../../../entrypoints/content/ui/pr-owners";
 import {
@@ -47,7 +48,7 @@ const panel: ConversationPanel = {
 };
 
 let visit: AbortController;
-let press: PrOwnersPress;
+let guard: PrOwnersPressGuard;
 
 function page(): FilesPage {
   const found = findFilesPage(document);
@@ -74,7 +75,7 @@ function show(
   showPrOwnersButton(anchor, signal, {
     codeOwners,
     prReviewers,
-    press,
+    guard,
     teamMembers: async () => undefined,
     teamAvatar: async () => undefined,
   });
@@ -95,7 +96,7 @@ function showSandbox(fetchFn: typeof fetch) {
   showPrOwnersButton(anchor, visit.signal, {
     codeOwners,
     prReviewers,
-    press,
+    guard,
     teamMembers,
     teamAvatar: async () => undefined,
   });
@@ -117,7 +118,7 @@ const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
 beforeEach(() => {
   document.body.innerHTML = fixture;
   visit = new AbortController();
-  press = followPrOwnersPress(document, visit.signal);
+  guard = prOwnersPressGuard(document, visit.signal);
 });
 
 afterEach(() => {
@@ -136,6 +137,14 @@ describe("showPrOwnersButton", () => {
     await settled();
 
     expect(anchor.nextElementSibling).toBe(ownersButton());
+  });
+
+  it("shows when a changed file has a code owner but the PR reviewers can't be read", async () => {
+    show(Promise.resolve(OWNED), Promise.resolve(undefined));
+
+    await settled();
+
+    expect(ownersButton()).toBeDefined();
   });
 
   it.each<[string, Promise<PrCodeOwners | undefined>]>([
@@ -289,6 +298,15 @@ describe("showPrOwnersButton", () => {
 
   it("is never doubled when the renderer runs again on the same visit", async () => {
     show();
+    show();
+
+    await settled();
+
+    expect(ownersButtons()).toHaveLength(1);
+  });
+
+  it("replaces an earlier button a cloned toolbar carried", async () => {
+    document.body.append(prOwnersButton(document));
     show();
 
     await settled();

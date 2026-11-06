@@ -500,12 +500,12 @@ Opened from a code owners button, the dialog lists the whole pull request instea
 as a folder's popover groups its files (§ File rows). When the reviewers are known, two
 marks join the owner headings, and `sidebar/owners-popover.ts` builds both:
 
-- **The reviewer eye:** a muted `eye` after each owner a current reviewer reviews for. Its
+- **The reviewer eye:** a muted `eye` after each owner a PR reviewer reviews for. Its
   hidden words and tooltip read "Reviewing" when the owner reviews, or "Reviewing through"
   and the reviewers' names when they review for the team. It never says "Reviewed",
   because a request may still be pending.
-- **The "No reviewer" tag:** after a group none of whose owners a current reviewer reviews
-  for, in muted text at the body-small size and medium weight inside a 1px
+- **The "No reviewer" tag:** after a group none of whose owners a PR reviewer reviews for,
+  in muted text at the body-small size and medium weight inside a 1px
   `--borderColor-default` pill, with the 6px padding and `2em` radius of a sidebar
   section's file counter. A one-line call-out with a muted alert icon above the groups
   counts those files.

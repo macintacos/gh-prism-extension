@@ -8,16 +8,13 @@ at the top, dated.
 
 ## 2026-11-05: The whole pull request's code owners
 
-A current reviewer is anyone the pull request lists as a reviewer, requested or already
-reviewing.
-
-- **Compared:** for the mark on an owner a current reviewer reviews for, a green check, an
-  eye, and a "Reviewer" text label after the name. For the tag on a group no current
-  reviewer owns, an attention-coloured outlined label reading "No reviewer", the same
-  label muted, the same words as bare muted text, and an alert icon alone. For the
-  call-out, Primer's Flash banner above the groups, and one line with an alert icon above
-  them. For the layout, a new list with its own grouping, and the sidebar folder popover's
-  "Owned by" groups (`owners-popover.ts`) over every changed file by full path.
+- **Compared:** for the mark on an owner a PR reviewer reviews for, a green check, an eye,
+  and a "Reviewer" text label after the name. For the tag on a group no PR reviewer owns,
+  an attention-coloured outlined label reading "No reviewer", the same label muted, the
+  same words as bare muted text, and an alert icon alone. For the call-out, Primer's Flash
+  banner above the groups, and one line with an alert icon above them. For the layout, a
+  new list with its own grouping, and the sidebar folder popover's "Owned by" groups
+  (`owners-popover.ts`) over every changed file by full path.
 - **Won:** the eye, the muted, outlined "No reviewer" label, the one-line call-out, and
   the folder's groups.
 - **Why the eye:** a check reads as "approved" on GitHub, but a reviewer may not have

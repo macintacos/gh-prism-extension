@@ -132,16 +132,16 @@ describe("the whole pull request's list", () => {
   });
   const describeOf = (codeOwners: PrCodeOwners, prReviewers: readonly PrReviewer[] | undefined) =>
     describePullRequest(document, { codeOwners, prReviewers }, PLAIN);
-  const listIn = (summary: Node[]) => {
+  const listIn = (summary: readonly Node[]) => {
     const list = summary.find((node) => node instanceof HTMLUListElement);
     if (list === undefined) throw new Error("The summary holds no list");
     return list;
   };
-  const tagged = (summary: Node[]) =>
+  const tagged = (summary: readonly Node[]) =>
     headings(listIn(summary))
       .filter((heading) => heading.querySelector("[data-unreviewed]"))
       .map((heading) => heading.nextElementSibling?.textContent);
-  const callOut = (summary: Node[]) =>
+  const callOut = (summary: readonly Node[]) =>
     summary.find((node) => node instanceof HTMLParagraphElement)?.textContent;
 
   const codeOwners = changed(
@@ -205,6 +205,18 @@ describe("the whole pull request's list", () => {
 
     expect(tagged(summary)).toEqual(["src/web/a.tsb.ts", "src/infra/main.tf"]);
     expect(callOut(summary)).toMatch(/3 files/);
+  });
+
+  it("counts in the call-out exactly the files under the tagged groups", () => {
+    const { summary } = describeOf(codeOwners, [reviewer("@ada")]);
+
+    const taggedFiles = headings(listIn(summary))
+      .filter((heading) => heading.querySelector("[data-unreviewed]"))
+      .flatMap((heading) => [...(heading.nextElementSibling?.querySelectorAll("li") ?? [])])
+      .filter((item) => item.querySelector("ul") === null);
+
+    expect(taggedFiles.length).toBeGreaterThan(0);
+    expect(callOut(summary)).toMatch(new RegExp(`^${taggedFiles.length} files? `));
   });
 
   it("tags every owned group when the PR has no reviewers", () => {

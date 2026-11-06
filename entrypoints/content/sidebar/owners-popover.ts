@@ -1,12 +1,13 @@
 /**
  * The popover a code owners shield opens on hover or focus, listing a file's owners, or a folder's
- * files grouped by their owners; it exists only while open. Also `describePullRequest`, the whole
- * pull request's code owner details summary.
+ * files grouped by their owners; it exists only while open.
  *
  * It sits beside its shield, which is marked expanded while it is open. It closes on Escape inside
  * it, on a click outside it, on any scroll outside it, once `signal` aborts, or on a call of the
  * returned card's `close`. Closing removes it with its listeners and clears the shield's mark, and,
  * unless a click closed it, hands focus it held to `returnFocus`.
+ *
+ * Also `describePullRequest`, the whole pull request's code owner details summary.
  */
 
 import {
@@ -16,8 +17,9 @@ import {
   owningTeams,
   type PrReviewer,
   reviewingFor,
+  reviewsFor,
 } from "@/utils/github/code-owners";
-import { ALERT_ICON, EYE_ICON, el, icon } from "../ui/dom";
+import { EYE_ICON, el, icon } from "../ui/dom";
 import { fileList } from "../ui/file-list";
 import type { Card } from "../ui/hover-intent";
 import {
@@ -26,8 +28,12 @@ import {
   ownerIdentity,
   ownerSeparator,
 } from "../ui/owner-identity";
-import { detailsHint } from "../ui/owners-dialog";
+import { detailsHint, type OwnersDialogOptions } from "../ui/owners-dialog";
 import { place } from "../ui/place";
+
+/** Octicons 19.15.0 (MIT, GitHub Inc.): alert. */
+const ALERT_ICON =
+  "M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z";
 
 export interface FileOwnersAt {
   readonly path: string;
@@ -111,16 +117,15 @@ export function describePullRequest(
   doc: Document,
   { codeOwners, prReviewers }: OwnedPullRequest,
   identities: OwnerIdentities,
-): { title: string; summary: Node[]; teams: string[] } {
+): Pick<OwnersDialogOptions, "title" | "summary" | "teams"> {
   const files = [...codeOwners].map(([path, { owners }]) => ({ path, owners }));
-  const unreviewed =
-    prReviewers === undefined
-      ? 0
-      : byOwnerSet(files)
-          .filter(({ owners }) => isUnreviewed(owners, prReviewers))
-          .reduce((sum, { paths }) => sum + paths.length, 0);
-  const list = folderList(doc, "", files, identities, prReviewers);
+  const groups = byOwnerSet(files);
+  const unreviewed = prReviewers
+    ? groups.filter(({ owners }) => isUnreviewed(owners, prReviewers)).flatMap(({ paths }) => paths)
+        .length
+    : 0;
 
+  const list = groupList(doc, "", groups, identities, prReviewers);
   return {
     title: "Code owners of this pull request",
     summary: unreviewed > 0 ? [unreviewedCallOut(doc, unreviewed), list] : [list],
@@ -128,14 +133,11 @@ export function describePullRequest(
   };
 }
 
-/** Whether `owners` has owners and none of `reviewers` reviews for any of them. */
+/** Whether `owners` has owners and no PR reviewer in `reviewers` reviews for any of them. */
 const isUnreviewed = (owners: readonly CodeOwner[], reviewers: readonly PrReviewer[]) =>
   owners.length > 0 && !owners.some((owner) => reviewers.some((r) => reviewsFor(r, owner)));
 
-const reviewsFor = (reviewer: PrReviewer, owner: CodeOwner) =>
-  reviewingFor([reviewer], owner).length > 0;
-
-/** The line counting the `count` files no current reviewer owns, above the groups. */
+/** The line counting the `count` files no PR reviewer owns, above the groups. */
 function unreviewedCallOut(doc: Document, count: number): HTMLElement {
   return el(
     doc,
@@ -148,14 +150,22 @@ function unreviewedCallOut(doc: Document, count: number): HTMLElement {
   );
 }
 
-/**
- * `files` grouped by owner set, each set's owners heading its files' tree relative to `folder`,
- * with `reviewers`' marks and tags when given.
- */
-function folderList(
+/** `files` grouped by owner set, each set's owners heading its files' tree relative to `folder`. */
+const folderList = (
   doc: Document,
   folder: string,
   files: readonly FileOwnersAt[],
+  identities: OwnerIdentities,
+) => groupList(doc, folder, byOwnerSet(files), identities);
+
+/**
+ * `groups`, each set's owners heading its files' tree relative to `folder`, with `reviewers`' marks
+ * and tags when given.
+ */
+function groupList(
+  doc: Document,
+  folder: string,
+  groups: readonly OwnerSetGroup[],
   identities: OwnerIdentities,
   reviewers?: readonly PrReviewer[],
 ): HTMLElement {
@@ -163,7 +173,7 @@ function folderList(
     doc,
     "ul",
     "tw:m-0 tw:p-0 tw:list-none tw:flex tw:flex-col tw:gap-3",
-    ...byOwnerSet(files).map(({ owners, paths }) =>
+    ...groups.map(({ owners, paths }) =>
       el(
         doc,
         "li",
@@ -178,11 +188,16 @@ function folderList(
   );
 }
 
+interface OwnerSetGroup {
+  readonly owners: readonly CodeOwner[];
+  readonly paths: readonly string[];
+}
+
 /**
  * `files` by owner set, ignoring the owners' order and case: in the order of each set's first file,
  * with that file's owners in their CODEOWNERS order, and files that have none last.
  */
-function byOwnerSet(files: readonly FileOwnersAt[]) {
+function byOwnerSet(files: readonly FileOwnersAt[]): OwnerSetGroup[] {
   const sets = [...Map.groupBy(files, ownerSetKey).values()].map((group) => ({
     owners: group[0]?.owners ?? [],
     paths: group.map(({ path }) => path),
@@ -208,11 +223,11 @@ function ownersHeading(
   identities: OwnerIdentities,
   reviewers?: readonly PrReviewer[],
 ): HTMLElement {
-  const reviewing = owners.map((owner) => (reviewers ? reviewingFor(reviewers, owner) : []));
-  const marked = (owner: CodeOwner, i: number) => {
-    const who = reviewing[i] ?? [];
+  const marked = (owner: CodeOwner) => {
+    const who = reviewers ? reviewingFor(reviewers, owner) : [];
     return who.length === 0 ? [] : [reviewerMark(doc, owner, who)];
   };
+
   // A 24px line, the avatars' height, so a wrapped heading's lines stay evenly spaced.
   const heading = el(
     doc,
@@ -224,16 +239,14 @@ function ownersHeading(
           ...owners.flatMap((owner, i) => [
             i > 0 ? ownerSeparator(doc) : "",
             ownerIdentity(doc, owner, identities),
-            ...marked(owner, i),
+            ...marked(owner),
           ]),
-          ...(reviewers !== undefined && reviewing.every((who) => who.length === 0)
-            ? [unreviewedTag(doc)]
-            : []),
+          ...(reviewers && isUnreviewed(owners, reviewers) ? [unreviewedTag(doc)] : []),
         ]
       : ["No code owner"]),
   );
-  // Named by what it shows: its filter icons' labels would otherwise join the name. Each mark and
-  // tag starts with a space, so the name built from text reads apart.
+
+  // Named by what it shows: its filter icons' labels would otherwise join the name.
   heading.setAttribute("aria-label", heading.textContent ?? "");
   return heading;
 }
@@ -250,24 +263,28 @@ function reviewerMark(
   const words = reviewing.some(({ token }) => isOwner(token, owner))
     ? "Reviewing"
     : `Reviewing through ${reviewing.map(({ token }) => token.slice(1)).join(", ")}`;
+
   const mark = el(
     doc,
     "span",
     "tw:inline-flex tw:align-middle tw:ml-1 tw:text-fg-muted",
     icon(doc, EYE_ICON, {}),
+    // Leading space: the heading's name is built from its text.
     el(doc, "span", "tw:sr-only", ` (${words})`),
   );
+
   mark.dataset.reviewing = "";
   mark.dataset.tooltip = words;
   return mark;
 }
 
-/** The tag after a set's owners when no current reviewer reviews for any of them. */
+/** The tag after a set's owners when no PR reviewer reviews for any of them. */
 function unreviewedTag(doc: Document): HTMLElement {
   const tag = el(
     doc,
     "span",
     "tw:inline-block tw:align-middle tw:ml-2 tw:px-1.5 tw:rounded-[2em] tw:text-body-small tw:font-medium tw:leading-body-small tw:text-fg-muted tw:border tw:border-border-default",
+    // Leading space: the heading's name is built from its text.
     " No reviewer",
   );
   tag.dataset.unreviewed = "";

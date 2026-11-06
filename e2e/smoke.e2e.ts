@@ -3729,12 +3729,12 @@ test("a failed code owners read shows no code owners button", async ({ context, 
   await serveConversation(context);
   await routeCodeOwners(context);
   await context.route("**/page_data/codeowners", (route) => route.fulfill({ status: 500 }));
-  const reads = Promise.all([
-    page.waitForResponse("**/page_data/codeowners"),
-    page.waitForResponse("**/page_data/review_requests"),
-  ]);
+  const handled = page.waitForEvent("console", (message) =>
+    message.text().startsWith("gh-prism: couldn't read code owners"),
+  );
+  const reviewers = page.waitForResponse("**/page_data/review_requests");
   await page.goto(PR_URL);
-  await reads;
+  await Promise.all([handled, reviewers]);
 
   await expect(page.locator(".gh-prism-side-switch")).toBeAttached();
   await expect(conversationButton(page)).toBeVisible();

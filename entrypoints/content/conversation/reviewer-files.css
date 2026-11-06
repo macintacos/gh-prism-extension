@@ -66,9 +66,10 @@ tool-tip:is([for^="codeowner-"], [for^="assigned-codeowner-"]) {
    GitHub's full-width heading paints over the float and would take the pointer. */
 .gh-prism-pr-owners[data-gh-prism-list] {
   float: inline-end;
+  position: relative;
   z-index: 1;
-  inline-size: 28px;
-  block-size: 28px;
+  inline-size: var(--control-small-size, 28px);
+  block-size: var(--control-small-size, 28px);
   margin-inline-start: 4px;
 }
 
@@ -76,7 +77,7 @@ tool-tip:is([for^="codeowner-"], [for^="assigned-codeowner-"]) {
 .gh-prism-pr-owners[data-gh-prism-list="classic"] {
   inline-size: 24px;
   block-size: 24px;
-  margin-top: 2px;
+  margin-block-start: 2px;
 }
 
 /* The heading's button floats at the sidebar's inline end, which clips a tooltip opening

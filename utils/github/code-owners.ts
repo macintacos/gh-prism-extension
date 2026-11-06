@@ -60,13 +60,15 @@ export const reviewerOf = (
 ): PrReviewer | undefined => reviewers.find((reviewer) => isOwner(token, reviewer));
 
 /**
- * The PR reviewers in `reviewers` who review as `owner` or for it: `owner` itself, or a reviewer
- * one of whose `teams` it is, ignoring case.
+ * Whether `reviewer` reviews as `owner` or for it: `owner` itself, or a reviewer one of whose
+ * `teams` it is, ignoring case.
  */
+export const reviewsFor = ({ token, teams }: PrReviewer, owner: CodeOwner): boolean =>
+  isOwner(token, owner) || teams.some((team) => isOwner(team, owner));
+
+/** The PR reviewers in `reviewers` who review as `owner` or for it, as `reviewsFor` decides. */
 export const reviewingFor = (reviewers: readonly PrReviewer[], owner: CodeOwner): PrReviewer[] =>
-  reviewers.filter(
-    ({ token, teams }) => isOwner(token, owner) || teams.some((team) => isOwner(team, owner)),
-  );
+  reviewers.filter((reviewer) => reviewsFor(reviewer, owner));
 
 /**
  * A filter keeping the changed files one of whose code owners in `codeOwners` is `token`, or a
@@ -357,7 +359,10 @@ export interface Ownership {
   readonly prReviewers: readonly PrReviewer[] | undefined;
 }
 
-/** Ownership whose code-owner read names an owner for at least one changed file. */
+/**
+ * Ownership with a code-owner read, as `ownsAnyFile` narrows it to one that names an owner for a
+ * changed file.
+ */
 export type OwnedPullRequest = Ownership & { readonly codeOwners: PrCodeOwners };
 
 /** Whether `ownership`'s code-owner read names a code owner for at least one changed file. */

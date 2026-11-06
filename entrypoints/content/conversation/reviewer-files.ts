@@ -20,8 +20,7 @@ import {
 } from "@/utils/github/code-owners";
 import {
   type CommentAuthor,
-  findReviewerRows,
-  findReviewersHeadings,
+  findOwnerSpots,
   followOwnerSpots,
   type OwnerSpots,
   type ReviewerListKind,
@@ -94,12 +93,12 @@ export function showReviewerFiles(
   const identities: OwnerIdentities = { teamAvatar, filter };
   let ownership: Ownership | undefined;
   // Settled with ownership, so a mutation batch never rescans the code owners.
-  let owned: OwnedPullRequest | undefined;
+  let ownedPr: OwnedPullRequest | undefined;
   let reading: Promise<Ownership> | undefined;
   const readOnce = () =>
     (reading ??= read().then((settled) => {
       ownership = settled;
-      if (ownsAnyFile(settled)) owned = settled;
+      if (ownsAnyFile(settled)) ownedPr = settled;
       return settled;
     }));
 
@@ -170,10 +169,14 @@ export function showReviewerFiles(
     return owned === "pending" ? undefined : owned;
   };
 
-  const addEverySpot = ({ rows, authors, headings }: OwnerSpots, settled: Ownership) => {
+  const addEverySpot = (
+    { rows, authors, headings }: OwnerSpots,
+    settled: Ownership,
+    pr: OwnedPullRequest | undefined,
+  ) => {
     addShields(rows, settled);
     addAuthorShields(authors, settled);
-    if (owned) addPrOwnersButtons(headings);
+    if (pr) addPrOwnersButtons(headings);
   };
   followOwnerSpots(
     doc,
@@ -183,18 +186,10 @@ export function showReviewerFiles(
         closeCard();
       }
       const { rows, authors, headings } = spots;
-      if (ownership) addEverySpot(spots, ownership);
+      if (ownership) addEverySpot(spots, ownership, ownedPr);
       else if (!reading && (rows.length > 0 || authors.length > 0 || headings.length > 0))
         void readOnce().then((settled) => {
-          if (!signal.aborted)
-            addEverySpot(
-              {
-                rows: findReviewerRows(doc),
-                authors: findAuthors(doc),
-                headings: findReviewersHeadings(doc),
-              },
-              settled,
-            );
+          if (!signal.aborted) addEverySpot(findOwnerSpots(doc, findAuthors), settled, ownedPr);
         });
     },
     { findAuthors, signal },
@@ -204,9 +199,9 @@ export function showReviewerFiles(
     "click",
     ({ target }) => {
       const button = target instanceof Element ? target.closest(HEADING_BUTTON) : null;
-      if (!button || !owned) return;
+      if (!button || !ownedPr) return;
       const kind = button.getAttribute(PR_OWNERS_KIND);
-      openPrOwners(doc, owned, {
+      openPrOwners(doc, ownedPr, {
         teamMembers,
         teamAvatar,
         filter,

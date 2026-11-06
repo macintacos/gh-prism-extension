@@ -500,11 +500,10 @@ pull request, taken 2026-10-28, not from a capture.
   re-add a control beside the heading from an observer on `document`.
 - **Find the overview Reviewers heading as
   `section[data-overview-sidebar-item]:has([class*="reviewerList__"]) > h4[class*="disclosureHeading__"]`.**
-  It is rebuilt from the bundle's `SidebarSection` and `SidebarDisclosureHeader` (its
-  `wDD` class map, read 2026-11-05), not yet seen on a live page: an `h4` wrapping a
-  full-width "Manage reviewers" button with a trailing gear. Whether the section draws a
-  list while it has no reviewer is unconfirmed, and without one this selector matches
-  nothing.
+  It is rebuilt from the bundle's `SidebarSection` and `SidebarDisclosureHeader` (read
+  2026-11-05), not yet seen on a live page: an `h4` wrapping a full-width "Manage
+  reviewers" button with a trailing gear. Whether the section draws a list while it has no
+  reviewer is unconfirmed, and without one this selector matches nothing.
 - **Find a classic code-owner shield as `button[id^="codeowner-"]` or
   `button[id^="assigned-codeowner-"]`.** Its id names the reviewer:
   `codeowner-<org>/<slug>` for a team, and `assigned-codeowner-<login>` for a member the

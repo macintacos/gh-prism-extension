@@ -1077,6 +1077,21 @@ describe("showReviewerFiles", () => {
       expect(fresh.contains(ownersButton())).toBe(true);
     });
 
+    it("hands focus on close to the button GitHub's replaced form now holds", async () => {
+      show();
+      await vi.advanceTimersByTimeAsync(0);
+      ownersButton()?.click();
+
+      const form = document.querySelector("form") as HTMLFormElement;
+      const fresh = form.cloneNode(true) as HTMLFormElement;
+      for (const stale of fresh.querySelectorAll(".gh-prism-pr-owners")) stale.remove();
+      form.replaceWith(fresh);
+      await vi.advanceTimersByTimeAsync(0);
+      dialog()?.querySelector<HTMLButtonElement>('button[aria-label="Close"]')?.click();
+
+      expect(document.activeElement).toBe(fresh.querySelector(".gh-prism-pr-owners"));
+    });
+
     it("reads the code owners once the heading shows, before any reviewer is requested", async () => {
       for (const row of document.querySelectorAll(".css-truncate")) row.remove();
       const read = vi.fn(async () => ({

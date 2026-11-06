@@ -14,7 +14,7 @@
 /* GitHub's toolbar row spaces its two groups apart; the button makes a third item, so the end
    group takes the free space and the start group stays beside the button. */
 section[class*="toolbar__"]:has(> .gh-prism-conversation-button)
-> [data-component="Stack"]:last-child {
+  > [data-component="Stack"]:last-child {
   margin-inline-start: auto;
 }
 
@@ -154,9 +154,9 @@ section[class*="toolbar__"] > .gh-prism-pr-owners:active {
 }
 
 :is(.gh-prism-conversation-checks, .gh-prism-conversation-sidebar):is(
-  :hover,
-  :focus-visible
-)::after {
+    :hover,
+    :focus-visible
+  )::after {
   opacity: 1;
   visibility: visible;
 }

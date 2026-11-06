@@ -1,5 +1,5 @@
-/* GitHub hooks: no selector; Primer's control, focus, tooltip, and text tokens. Each host sizes
-   and places the button with a rule more specific than these. */
+/* No GitHub hooks: every rule selects only gh-prism's own classes. Each host sizes and places the
+   button with a rule more specific than these. */
 
 /* Primer's invisible IconButton, muted. */
 .gh-prism-pr-owners {

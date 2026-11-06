@@ -63,7 +63,7 @@ import { showOwnerSection } from "./sidebar/owner-section";
 import { showReportLink } from "./sidebar/report";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar/side";
 import type { WhatsNew } from "./sidebar/whats-new";
-import { followPrOwnersPress, showPrOwnersButton } from "./ui/pr-owners";
+import { prOwnersPressGuard, showPrOwnersButton } from "./ui/pr-owners";
 import { showHeaderTab, showVisit } from "./visit/land";
 import { watchClassicPages, watchFilesPages, watchHeaderPages } from "./visit/watch";
 
@@ -206,16 +206,9 @@ export default defineContentScript({
                   visit,
                 })
               : undefined;
-          const prOwnersPress = followPrOwnersPress(document, visit);
+          const prOwnersGuard = panel && prOwnersPressGuard(document, visit);
           return (page, signal) => {
             const owner = route.diff.kind === "pr" ? ownerOf(location.search) : undefined;
-            const filter =
-              route.diff.kind === "pr"
-                ? {
-                    linkOf: (token: string) => ownerFilterLink(location.href, owner, token),
-                    navigate,
-                  }
-                : undefined;
             showReportLink(page, signal, reportOptions);
             showOwnerSection(page, signal, { codeOwners, prReviewers, navigate });
             showVisit(page, signal, {
@@ -242,11 +235,11 @@ export default defineContentScript({
             dockSidebar(page, signal, { choice: side, save: saveSide });
             if (panel) {
               const conversationButton = showConversationButton(page, signal, panel);
-              if (conversationButton)
+              if (conversationButton && prOwnersGuard)
                 showPrOwnersButton(conversationButton, signal, {
                   codeOwners,
                   prReviewers,
-                  press: prOwnersPress,
+                  guard: prOwnersGuard,
                   teamMembers,
                   teamAvatar,
                   filter,
@@ -267,8 +260,9 @@ export default defineContentScript({
           intentFor({ diff: pr, commitFiltered: false }, visit, sources, onProgress),
         );
         const teamMembers = teamMembersReader(fetch, visit);
-        // Shields Reviewers rows and Conversation comment authors. Rides the header visit, so it
-        // runs only where findHeaderPage finds the counter's slot.
+        // Shields Reviewers rows and Conversation comment authors, and adds a code owners button
+        // beside each Reviewers heading. Rides the header visit, so it runs only where
+        // findHeaderPage finds the counter's slot.
         showReviewerFiles(document, visit, {
           read: () => readOwnership(pr, { fetchFn: fetch, teamMembers, signal: visit }),
           teamMembers,

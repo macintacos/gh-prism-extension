@@ -1,10 +1,9 @@
 /**
  * The code owner details dialog a click on a code owners shield or the code owners button opens:
- * its opener's listing,
- * then a box per owning team with an excerpt of its members. It exists only while open, and mounts
- * in the page's body so a shield in a shadow root and one in the light DOM share it. It also holds
- * the hover popups' hint that points here, and `ownerFilterAction`, the link drawn as a button that
- * filters Files changed to the code owner a Reviewers shield marks.
+ * its opener's listing, then a box per owning team with an excerpt of its members. It exists only
+ * while open, and mounts in the page's body so a shield in a shadow root and one in the light DOM
+ * share it. It also holds the hover popups' hint that points here, and `ownerFilterAction`, the
+ * link drawn as a button that filters Files changed to the code owner a Reviewers shield marks.
  */
 
 import {

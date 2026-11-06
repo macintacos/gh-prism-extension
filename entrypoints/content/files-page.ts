@@ -499,12 +499,13 @@ export const viewerLogin = (doc: Document): string | undefined =>
   doc.head.querySelector('meta[name="user-login"]')?.getAttribute("content") || undefined;
 
 /**
- * Which page layout a Reviewers row or comment header is in: GitHub's classic, server-rendered
- * page, or its React one: the PR overview or the new Files changed.
+ * Which page layout a Reviewers row, Reviewers heading, or comment header is in: GitHub's
+ * classic, server-rendered page, or its React one: the PR overview or the new Files changed. A
+ * heading's code owners button carries it as `data-gh-prism-list`.
  */
 export type ReviewerListKind = "classic" | "overview";
 
-/** Where one Reviewers list keeps its rows, and GitHub's code-owner shield in a row. */
+/** Where one Reviewers list keeps its rows, GitHub's code-owner shield in a row, and its heading. */
 interface ReviewerList {
   readonly kind: ReviewerListKind;
   readonly row: string;
@@ -644,16 +645,29 @@ function authorsOf(doc: Document, headers: readonly CommentHeaders[]): CommentAu
   );
 }
 
-/** Where gh-prism may draw a code-owner shield on a pull request page. */
+/**
+ * Where gh-prism may draw a code-owner shield on a pull request page, and the Reviewers headings
+ * its code owners button goes beside.
+ */
 export interface OwnerSpots {
   readonly rows: ReviewerRow[];
   readonly authors: CommentAuthor[];
   readonly headings: ReviewersHeading[];
 }
 
+/** `doc`'s owner spots as they stand now, with the comment authors `findAuthors` finds. */
+export const findOwnerSpots = (
+  doc: Document,
+  findAuthors: (doc: Document) => CommentAuthor[],
+): OwnerSpots => ({
+  rows: findReviewerRows(doc),
+  authors: findAuthors(doc),
+  headings: findReviewersHeadings(doc),
+});
+
 /**
- * Calls `onChange` with `doc`'s reviewer rows, Reviewers headings, and the comment authors
- * `findAuthors` finds now and after each change to `doc`'s body, until `signal` aborts. GitHub
+ * Calls `onChange` with `doc`'s reviewer rows, the comment authors `findAuthors` finds, and its
+ * Reviewers headings now and after each change to `doc`'s body, until `signal` aborts. GitHub
  * replaces the classic sidebar and timeline on soft navigation and on review updates, React
  * re-renders the overview, and Files changed mounts and unmounts review threads with their diffs,
  * so a caller re-checks every spot each time.
@@ -666,12 +680,7 @@ export function followOwnerSpots(
   // ponytail: each mutation batch queries the whole document for the reviewer rows, the comment
   // authors, and the Reviewers heading selectors with their :has(), Files changed's busier page
   // included; observe only the Reviewers lists, timeline, and diffs if it shows up in a profile.
-  const report = () =>
-    onChange({
-      rows: findReviewerRows(doc),
-      authors: findAuthors(doc),
-      headings: findReviewersHeadings(doc),
-    });
+  const report = () => onChange(findOwnerSpots(doc, findAuthors));
   const observer = new MutationObserver(report);
   observer.observe(doc.body, { childList: true, subtree: true });
   signal.addEventListener("abort", () => observer.disconnect());
