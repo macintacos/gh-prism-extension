@@ -225,8 +225,11 @@ install through `patchedDependencies` in [`package.json`](../package.json):
   row an `aria-hidden` copy of its full name.
 - `mdast-util-from-markdown` binds micromark's document tokenizer to a local before
   calling its `write`. AMO's linter flags any `.write()` call whose object's source text
-  contains `document`, so it took `parse(options).document().write(…)` for a DOM
-  `document.write`.
+  contains `document`, so it reads `parse(options).document().write(…)` as a DOM
+  `document.write`; the local's name must not contain `document` either. After upgrading
+  the package, regenerating its patch, or changing the bundler, check that
+  `mise run lint-firefox` reports no `document().write` warning. Drop the patch once the
+  package stops chaining `.document().write(…)`.
 - `wxt` escapes the entrypoint path in a regular expression, so a checkout whose path
   holds a character such as `+` still builds.
 
