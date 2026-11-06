@@ -48,7 +48,9 @@ Implementation, Tests, Docs & Comments, Config, and Generated / lockfiles.
 ### Code owners
 
 On a pull request, a file with code owners shows a shield when you hover or focus its row.
-Rest the pointer on the shield to see who owns the file, or click it for details.
+Rest the pointer on the shield to see who owns the file, or click it for details. The
+shield button right after the Conversation button in the Files changed toolbar lists every
+changed file by its code owners, and marks the files no current reviewer owns.
 
 - On the Conversation tab, the shield beside a team or person in the Reviewers list lists
   the changed files they own.

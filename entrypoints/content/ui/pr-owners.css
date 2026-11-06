@@ -1,0 +1,35 @@
+/* GitHub hooks: no selector; Primer's --tooltip-bgColor, --tooltip-fgColor, and text tokens. */
+
+/* Primer's tooltip, opening rightward from the button's start like the Conversation button's. */
+.gh-prism-pr-owners::after {
+  content: attr(aria-label);
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline-start: 0;
+  z-index: 100;
+  padding: 4px 8px;
+  border-radius: var(--borderRadius-medium);
+  background: var(--tooltip-bgColor);
+  color: var(--tooltip-fgColor);
+  font-size: var(--text-body-size-small);
+  font-weight: var(--base-text-weight-normal);
+  line-height: var(--text-body-lineHeight-small);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 120ms ease-out,
+    visibility 120ms;
+}
+
+.gh-prism-pr-owners:is(:hover, :focus-visible)::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-prism-pr-owners::after {
+    transition: none;
+  }
+}

@@ -610,6 +610,23 @@ own stylesheet, so a shield in a shadow root and one in the light DOM can share 
 Opening it moves focus to the shield's row first. The dialog then hands focus back to the
 row, never the shield, whose focus would reopen the popover.
 
+The same dialog covers the whole pull request from a code owners button, built by
+[`ui/pr-owners.ts`](../entrypoints/content/ui/pr-owners.ts). On Files changed it sits
+right after the toolbar's Conversation button. It shows once the visit's code-owner and PR
+reviewer reads settle and the code-owner read names an owner for at least one changed
+file. A failed read, a pull request with no owned file, and a commit page get no button.
+`describePullRequest` in `sidebar/owners-popover.ts` builds the dialog's summary from
+those reads:
+
+- every changed file, grouped by owner set as a folder's popover groups them;
+- a mark on each owner that a current reviewer is, or reviews on behalf of as a team
+  member;
+- a tag on each group no current reviewer owns, under a call-out counting their files.
+
+Opening it sends GitHub no new request. `conversation/panel.css` imports its stylesheet,
+`ui/pr-owners.css`, so it mounts with the Conversation panel's sheet on every pull
+request's Files changed.
+
 On the Conversation tab, a code-owner shield beside a PR reviewer in a Reviewers list
 opens a popup listing the changed files that code owner owns, built by
 [`conversation/reviewer-files.ts`](../entrypoints/content/conversation/reviewer-files.ts).

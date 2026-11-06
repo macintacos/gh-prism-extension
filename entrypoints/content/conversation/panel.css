@@ -7,8 +7,10 @@
 @import "../ui/column-width.css";
 @import "../ui/mark.css";
 @import "../ui/keycap.css";
+@import "../ui/pr-owners.css";
 @source "./panel.ts";
 @source "../ui/keycap.ts";
+@source "../ui/pr-owners.ts";
 
 /* GitHub's toolbar row spaces its two groups apart; the button makes a third item, so the end
    group takes the free space and the start group stays beside the button. */

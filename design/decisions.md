@@ -43,6 +43,22 @@ reviewing.
   list the same way, with no second grouping to learn.
 - **Why "No code owner" has no tag:** it comes last in its own group, and no reviewer can
   own files that have no code owner.
+- **Compared, for Files changed's button:** for its glyph, Octicons `shield-lock`,
+  `people`, and `law`. For its label, the glyph alone named "Code owners" with a tooltip,
+  and the glyph beside a visible "Code owners". For its look, Primer's small default
+  Button like the Conversation button, and an invisible button.
+- **Won:** `shield-lock` in `--fgColor-muted`, alone on a 28px square small default
+  Button, right after the Conversation button. Its accessible name, "Code owners", is its
+  tooltip, drawn below it as the Conversation button's is.
+- **Why the shield:** gh-prism already draws `shield-lock` on every owned file and
+  reviewer, as GitHub draws its own code-owner shield, so the button reads as the same
+  thing for the whole pull request. `people` already means a team in the owners dialog,
+  and `law` reads as a license or policy, not as owners.
+- **Why a default Button:** an invisible button would sit unlike the bordered Conversation
+  button beside it, so the pair would read as unrelated controls.
+- **Why no visible label:** the Conversation button beside it is an icon with a tooltip,
+  and a word would widen a toolbar GitHub fills. The muted glyph matches the Conversation
+  button's and spends no colour, as `design/brief.md` asks.
 
 ## 2026-11-05: No "Show only their files" from a classic Files changed comment shield
 
