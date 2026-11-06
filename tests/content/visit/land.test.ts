@@ -14,7 +14,12 @@ import {
   type PathFilter,
   showHeaderTab,
 } from "../../../entrypoints/content/visit/land";
-import type { PrCodeOwners, PrReviewer } from "../../../utils/github/code-owners";
+import {
+  codeOwnerOf,
+  type PrCodeOwners,
+  type PrReviewer,
+  type TeamMembersOf,
+} from "../../../utils/github/code-owners";
 import { landingOf, sectionsOf } from "../../../utils/intent/landing";
 import {
   type IntentProgress,
@@ -343,15 +348,16 @@ describe("a visit narrowed to an owner", () => {
     new Map(
       Object.entries(paths).map(([path, token]) => [
         path,
-        { owners: [{ token }], ownedByViewer: false },
+        { owners: [codeOwnerOf(token)], ownedByViewer: false },
       ]),
     );
   const narrowed = async (
     codeOwners?: Promise<PrCodeOwners | undefined>,
     prReviewers?: Promise<readonly PrReviewer[] | undefined>,
     owner = "@octocat",
+    teamMembers?: TeamMembersOf,
   ) => {
-    remountWith(() => result, undefined, { owner, codeOwners, prReviewers });
+    remountWith(() => result, undefined, { owner, codeOwners, prReviewers, teamMembers });
     await afterDebounce();
     return allListed();
   };
@@ -374,7 +380,59 @@ describe("a visit narrowed to an owner", () => {
     expect(listed).toEqual(["src/lib.rs"]);
   });
 
-  it("lists only the owner's own files when the PR reviewers can't be read", async () => {
+  describe("for a user who isn't a PR reviewer", () => {
+    const frontendLists =
+      (...members: string[]): TeamMembersOf =>
+      async (team) =>
+        team === "@o/frontend" ? { total: members.length, members } : undefined;
+
+    it("lists the files of a team whose members list them", async () => {
+      const listed = await narrowed(
+        Promise.resolve(ownedBy({ "src/lib.rs": "@o/frontend", "src/engine.rs": "@hubot" })),
+        Promise.resolve([]),
+        "@other-user",
+        frontendLists("sandbox-user", "Other-User"),
+      );
+      expect(listed).toEqual(["src/lib.rs"]);
+    });
+
+    it("lists their own files with their member teams'", async () => {
+      const listed = await narrowed(
+        Promise.resolve(
+          ownedBy({ "src/lib.rs": "@o/frontend", "src/engine.rs": "@octocat", "src/x.rs": "@x" }),
+        ),
+        Promise.resolve([]),
+        "@octocat",
+        frontendLists("octocat"),
+      );
+      expect(listed.toSorted()).toEqual(["src/engine.rs", "src/lib.rs"]);
+    });
+
+    it("asks each owning team's members once", async () => {
+      const teamMembers = vi.fn(frontendLists("octocat"));
+      await narrowed(
+        Promise.resolve(ownedBy({ "src/lib.rs": "@o/frontend", "src/engine.rs": "@o/frontend" })),
+        Promise.resolve([]),
+        "@octocat",
+        teamMembers,
+      );
+      expect(teamMembers.mock.calls).toEqual([["@o/frontend"]]);
+    });
+
+    it("lists only their own files once the members have kept it waiting 10 s", async () => {
+      await narrowed(
+        Promise.resolve(ownedBy({ "src/lib.rs": "@o/frontend", "src/engine.rs": "@octocat" })),
+        Promise.resolve([]),
+        "@octocat",
+        () => neverRead,
+      );
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      expect(allListed()).toEqual(["src/engine.rs"]);
+    });
+  });
+
+  it("lists the owner's own files, with no member teams, when the PR reviewers can't be read", async () => {
     const listed = await narrowed(
       Promise.resolve(ownedBy({ "src/lib.rs": "@o/core", "src/engine.rs": "@octocat" })),
       Promise.resolve(undefined),
@@ -391,7 +449,7 @@ describe("a visit narrowed to an owner", () => {
     expect(listed).toEqual(["src/lib.rs"]);
   });
 
-  it("lists only a user's own files once the PR reviewers have kept it waiting 10 s", async () => {
+  it("lists a user's own files, with no member teams, once the PR reviewers have kept it waiting 10 s", async () => {
     const before = await narrowed(
       Promise.resolve(ownedBy({ "src/lib.rs": "@o/core", "src/engine.rs": "@octocat" })),
       neverRead,

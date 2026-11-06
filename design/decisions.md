@@ -6,6 +6,25 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-05: The code-owner shield beside a comment's author
+
+- **Compared:** where a Conversation comment's header shows that its author owns changed
+  files: right after the author's name, before "commented" and the time; or in GitHub's
+  right-hand column with the role labels ("Author", "Member"), the classic header's
+  `d-none d-sm-flex` and the overview's badges group. For the look, GitHub's own shield
+  (Octicons `shield-lock` at 16px, muted) against a text label.
+- **Won:** right after the name, drawn as GitHub's shield: in the classic timeline with
+  its `btn-link` class, coloured muted at rest and accent on hover as GitHub colours its
+  sidebar shield (GitHub's `.muted-icon` rule applies only inside the sidebar), and in the
+  overview as Primer's small invisible `IconButton` at the title row's 20px.
+- **Why:** "2026-10-28: A shield for every code owner reviewer" set the precedent that
+  gh-prism's shield looks like GitHub's and sits with the person it marks, so a reader
+  learns one mark. Beside the name it binds to that person, as GitHub's hovercard does.
+  The role-label column hides below 544px, which is the Conversation panel's usual width,
+  so a shield there would vanish in the panel. A text label would add a second way to say
+  "code owner". Picked without a mockup round: the direction already settles the look and
+  the spot.
+
 ## 2026-11-04: Code owners drawn with avatars, linked names, filter icons, and a box per team
 
 - **Compared:** three ways to show that a team's members in the code owner details dialog

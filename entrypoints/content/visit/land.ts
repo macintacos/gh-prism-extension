@@ -9,6 +9,7 @@
 
 import {
   ownerFilter,
+  ownershipOf,
   type PrCodeOwners,
   type PrReviewer,
   type TeamAvatarOf,
@@ -200,11 +201,13 @@ const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
  * land, reading a team's members through `teamMembers` and its avatar through `teamAvatar`, the
  * visit's readers. `owner`, the code owner the page's URL names, if any, holds the page pending
  * until the reads its filter needs land, the code owners for a team and the PR reviewers too for a
- * user, or for 10 s at most, then narrows the sidebar and the diffs to that owner's files, counting
- * the teams GitHub names a user as reviewing for. A read still out by then counts as failed: every
- * file shows when the code owners can't be read, and only the owner's own files when the PR
- * reviewers can't. `whatsNew`, when given, opens the sidebar with its block. `filter`, when given,
- * makes each code owner's name in the sidebar's popovers and dialogs filter by that owner.
+ * user, then the members of the owning teams for a user, each for 10 s at most, then narrows the
+ * sidebar and the diffs to that owner's files, counting the teams GitHub names a user as reviewing
+ * for and the owning teams whose members list them, PR reviewer or not. A read still out by then
+ * counts as failed: every file shows when the code owners can't be read, and when the PR reviewers
+ * can't, a user keeps the files CODEOWNERS names them for and those of the owning teams whose
+ * members list them. `whatsNew`, when given, opens the sidebar with its block. `filter`, when
+ * given, makes each code owner's name in the sidebar's popovers and dialogs filter by that owner.
  */
 export function showVisit(
   page: FilesPage,
@@ -249,7 +252,7 @@ export function showVisit(
   const keep =
     owner === undefined || codeOwners === undefined
       ? undefined
-      : filterOf(owner, codeOwners, prReviewers);
+      : filterOf(owner, codeOwners, prReviewers, teamMembers);
   // The sidebar draws inside the tree's container, so its own changes must not re-list.
   land(page, intent, views, { signal, ignore: sidebar.root, keep });
 }
@@ -262,16 +265,28 @@ const settledWithin = <T>(read: Promise<T | undefined> | undefined): Promise<T |
 
 /**
  * The filter keeping `owner`'s files, once the reads it needs have settled or timed out: a team's
- * files need only `codeOwners`, and a user's need `prReviewers` too, for their teams.
+ * files need only `codeOwners`; a user's also count the teams `prReviewers` names for them and the
+ * owning teams whose members `teamMembers` lists them among, PR reviewer or not. A user whose
+ * teams' members time out keeps the files CODEOWNERS or `prReviewers` give them.
  */
 async function filterOf(
   owner: string,
   codeOwners: Promise<PrCodeOwners | undefined>,
   prReviewers: Promise<readonly PrReviewer[] | undefined> | undefined,
+  teamMembers: TeamMembersOf,
 ): Promise<PathFilter | undefined> {
+  const isTeam = owner.includes("/");
   const [read, reviewers] = await Promise.all([
     settledWithin(codeOwners),
-    owner.includes("/") ? undefined : settledWithin(prReviewers),
+    isTeam ? undefined : settledWithin(prReviewers),
   ]);
-  return read && ownerFilter(read, owner, reviewers ?? []);
+  if (!read) return undefined;
+  const owned = isTeam
+    ? undefined
+    : await settledWithin(
+        ownershipOf({ codeOwners: read, prReviewers: reviewers }, owner, teamMembers),
+      );
+  if (!owned) return ownerFilter(read, owner, reviewers ?? []);
+  const paths = new Set(owned.paths);
+  return (path) => paths.has(path);
 }

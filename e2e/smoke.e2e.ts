@@ -2926,6 +2926,37 @@ test("a code owner reviewer's shield click opens their team's details", async ({
   await expect(shield).toBeFocused();
 });
 
+test("a code-owning comment author's shield lists their files on hover and opens a modal on click", async ({
+  context,
+  page,
+}) => {
+  await routeMembers(context, "@excessive-dev/frontend", "team-members-sandbox.json");
+  await serve(
+    context,
+    "https://github.com/o/r/pull/1",
+    `<!doctype html>${readFixture("conversation-page.html")}${readFixture("conversation-comments.html")}`,
+  );
+  for (const [path, fixture] of [
+    ["codeowners", "codeowners-sandbox.json"],
+    ["review_requests", "review-requests-sandbox.json"],
+  ] as const)
+    await context.route(`https://github.com/o/r/pull/1/page_data/${path}`, (route) =>
+      route.fulfill({ contentType: "application/json", body: readFixture(fixture) }),
+    );
+  await page.goto("https://github.com/o/r/pull/1");
+  const shield = page.locator(".gh-prism-comment-shield").first();
+  const popup = page.locator(".gh-prism-reviewer-files");
+
+  await shield.hover();
+  await expect(popup).toContainText("web/app.ts");
+
+  await shield.click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("web/app.ts");
+  expect(await dialog.evaluate((element) => element.matches(":modal"))).toBe(true);
+});
+
 test("a scrolled code owner reviewer's card keeps its hint flush with its bottom", async ({
   context,
   page,

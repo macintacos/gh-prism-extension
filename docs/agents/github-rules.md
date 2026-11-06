@@ -524,6 +524,64 @@ pull request, taken 2026-10-28, not from a capture.
   approve pull requests" on for the org and the repo. For an assigned member's shield,
   also turn on the team's code review assignment.
 
+## Comment headers
+
+The classic Conversation tab server-renders its timeline. The overview's facts below come
+from GitHub's bundle, not a capture, because no account here can open it.
+
+- **Scope classic comment headers to `.js-discussion`.** It holds the timeline.
+- **Call `findCommentAuthors` only on a Conversation page.** The overview's headers have
+  no timeline scope, unlike the classic's `.js-discussion`.
+- **Colour a shield outside the Reviewers sidebar yourself.** GitHub scopes `.muted-icon`
+  to `.discussion-sidebar-item`, so elsewhere it does nothing and `btn-link` paints a link
+  colour (as of 2026-11-05).
+- **Find a classic comment's author as `.timeline-comment-header h3 strong > a.author`.**
+  That holds for the description, a timeline comment, and a review with a body.
+- **Find an inline thread comment's author as `.review-comment h3 strong > a.author`.** A
+  `.review-comment` (id `discussion_r<id>`) has no `.timeline-comment-header`: its header
+  is its own first child.
+- **Count a review with a body by its comment box's header only.** Its item also carries a
+  `.TimelineItem-body` "commented" line with an author link; skip that line.
+- **Find a body-less review's author on its `.TimelineItem-body > div > strong > a.author`
+  line,** above its threads. It has no `.timeline-comment-header`. A user's link goes to
+  `/<login>` with `data-hovercard-type="user"` and
+  `data-hovercard-url="/users/<login>/hovercard"`. A review's timeline item is
+  `[id^="pullrequestreview-"]`; GitHub repeats the id on a review with a body's comment
+  group, and both hold its `.timeline-comment-header`, so a review item without one is
+  body-less.
+- **Expect an app's author link to go to `/apps/<slug>`, with no `data-hovercard-type`,**
+  and a `span.Label` reading "Bot" after it inside the `<strong>`.
+- **Expect the role label in the header's right column, not beside the author.** "Author"
+  is a `span.Label` inside `div.d-none.d-sm-flex`, after the comment actions, so it is
+  hidden at narrow widths. The description's column is empty.
+- **Expect no code-owner shield in an overview comment header.** GitHub's bundle draws one
+  only in the Reviewers lists, as of 2026-11-05. On the classic tab it is unobserved: the
+  only captures are from a repository without CODEOWNERS.
+- **Expect a soft navigation back to Conversation to re-insert the timeline,** so a
+  header's nodes are new each time.
+- **Find a classic inline thread as `review-thread-collapsible`,** whose `data-resolved`
+  reads `"true"` or `"false"`.
+- **Find an overview comment header as `[data-testid="comment-header"]`.** Issue comments,
+  review summaries, and inline thread comments all render GitHub's shared
+  `ActivityHeader`. Its author link is `[data-testid="avatar-link"]` in
+  `[class*="TitleContainer__"]`, going to `/<login>`, or to `/apps/<slug>` with an
+  `AuthorTypeLabel__` `Label` beside it, reading "Bot", "AI" for an agent, or "mannequin".
+  Role labels (`Member`, `Author`) sit in `[class*="BadgesGroupContainer__"]`, in the
+  right column.
+- **Don't key an overview author on `data-hovercard-type`.** Server-rendered HTML has no
+  hovercard attributes until hydration.
+- **Expect an overview `COMMENTED` review that is not hidden, with no body and one thread,
+  to have no header of its own.** The bundle's condition has two more terms no one has
+  identified. It renders only
+  `div[role="group"][data-testid="review-thread-focus-target"]`, labelled "Review comment
+  by <login>", around its thread, whose comment header carries the author.
+- **Re-check:** signed in with the saved `storageState`, load macintacos/gh-prism-sandbox
+  PRs #1, #3, and #5, and read `.js-discussion`'s timeline items and their
+  `pullrequestreview-` ids. For a classic comment header's code-owner shield, load a
+  commented PR on excessive-dev/gh-prism-codeowners-sandbox once EXC-2257 stocks it. For
+  the overview, grep GitHub's assets for `ActivityHeader`, `comment-header`, and
+  `TitleContainer__`, as [§ Re-checking GitHub](#re-checking-github) describes.
+
 ## The narrow layout's overlay
 
 Below 1012px, a pull request's tree toggle opens the file tree as a "Files" overlay.

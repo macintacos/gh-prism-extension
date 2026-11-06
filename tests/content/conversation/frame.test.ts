@@ -11,9 +11,11 @@ import {
 } from "../../../entrypoints/content/conversation/frame-messages";
 import codeowners from "../../fixtures/codeowners-sandbox.json?raw";
 import chrome from "../../fixtures/conversation-chrome.html?raw";
+import comments from "../../fixtures/conversation-comments.html?raw";
 import conversationPage from "../../fixtures/conversation-page.html?raw";
 import { routedFetch } from "../../fixtures/fetch";
 import reviewRequests from "../../fixtures/review-requests-sandbox.json?raw";
+import sandboxMembers from "../../fixtures/team-members-sandbox.json?raw";
 
 // happy-dom has no Popover API.
 HTMLElement.prototype.showPopover = () => {};
@@ -190,6 +192,7 @@ describe("dressConversationFrame", () => {
 
 describe("showFrameReviewerFiles", () => {
   const SANDBOX_PR = "https://github.com/excessive-dev/gh-prism-codeowners-sandbox/pull/1";
+  const FRONTEND_MEMBERS = "https://github.com/orgs/excessive-dev/teams/frontend/members";
   const sandboxFetch = () =>
     routedFetch({
       [`${SANDBOX_PR}/page_data/codeowners`]: () => Promise.resolve(new Response(codeowners)),
@@ -236,5 +239,32 @@ describe("showFrameReviewerFiles", () => {
 
     expect(document.querySelector(".gh-prism-reviewer-files")).toBeNull();
     expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("lists a comment author's files from their shield, reading each team's members once", async () => {
+    document.body.innerHTML = conversationPage + comments;
+    const fetchFn = routedFetch({
+      [`${SANDBOX_PR}/page_data/codeowners`]: () => Promise.resolve(new Response(codeowners)),
+      [`${SANDBOX_PR}/page_data/review_requests`]: () =>
+        Promise.resolve(new Response(reviewRequests)),
+      [FRONTEND_MEMBERS]: () => Promise.resolve(new Response(sandboxMembers)),
+    });
+
+    showFrameReviewerFiles(
+      frameWindow(`${SANDBOX_PR}?gh-prism-panel=1`).win,
+      fetchFn,
+      controller.signal,
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    document
+      .querySelector(".gh-prism-comment-shield")
+      ?.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(200);
+
+    const popup = document.querySelector(".gh-prism-reviewer-files");
+    expect(popup).not.toBeNull();
+    expect(popup?.querySelector("li")).not.toBeNull();
+    expect(popup?.querySelector("a.gh-prism-owner-filter")).toBeNull();
+    expect(fetchFn.mock.calls.filter(([url]) => String(url) === FRONTEND_MEMBERS)).toHaveLength(1);
   });
 });

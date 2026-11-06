@@ -5,11 +5,11 @@
  * tabs, finds a commit's message box and the row naming its parent, reads its rows, finds the row
  * a commit's message column joins, finds the toolbar row a pull request's Conversation button
  * starts, follows a pull request's narrow-layout overlay and the file-tree filter menu, finds and
- * follows the rows and code-owner shields of a pull request's Reviewers lists, measures and
- * follows GitHub's right-hand panel beside a pull request's Files changed, and copies that
- * menu's group, divider, and item for gh-prism's entries, so the selectors stay in this seam; it
- * builds no UI of its own and imports nothing from WXT. The pull request selectors come from
- * EXC-1662's survey.
+ * follows the rows and code-owner shields of a pull request's Reviewers lists and its Conversation
+ * comments' authors, measures and follows GitHub's right-hand panel beside a pull request's Files
+ * changed, and copies that menu's group, divider, and item for gh-prism's entries, so the
+ * selectors stay in this seam; it builds no UI of its own and imports nothing from WXT. The pull
+ * request selectors come from EXC-1662's survey.
  */
 
 import { LOGIN } from "@/utils/github/code-owners";
@@ -461,7 +461,10 @@ export const isSignedIn = (doc: Document): boolean => viewerLogin(doc) !== undef
 export const viewerLogin = (doc: Document): string | undefined =>
   doc.head.querySelector('meta[name="user-login"]')?.getAttribute("content") || undefined;
 
-/** Which Reviewers list a row is in: GitHub's classic sidebar's, or its PR overview's. */
+/**
+ * Which Conversation layout a Reviewers row or comment header is in: GitHub's classic page, or its
+ * PR overview.
+ */
 export type ReviewerListKind = "classic" | "overview";
 
 /** Where one Reviewers list keeps its rows, and GitHub's code-owner shield in a row. */
@@ -516,8 +519,11 @@ export function findReviewerRows(doc: Document): ReviewerRow[] {
 }
 
 /** The `@user` or `@org/team` the first link in `row` goes to, or `undefined`. */
-function linkedToken(row: Element): string | undefined {
-  const href = row.querySelector("a[href]")?.getAttribute("href") ?? "";
+const linkedToken = (row: Element): string | undefined =>
+  tokenOfHref(row.querySelector("a[href]")?.getAttribute("href") ?? "");
+
+/** The `@user` or `@org/team` a profile or team link goes to, or `undefined` for any other link. */
+function tokenOfHref(href: string): string | undefined {
   const { pathname } = new URL(href, "https://github.com");
   const user = pathname.slice(1);
   if (LOGIN.test(user)) return `@${user}`;
@@ -525,22 +531,85 @@ function linkedToken(row: Element): string | undefined {
   return org && team ? `@${org}/${team}` : undefined;
 }
 
+/** A comment author's name in a Conversation comment's header. */
+export interface CommentAuthor {
+  readonly kind: ReviewerListKind;
+  /** The author's `@login`. */
+  readonly token: string;
+  /** The element gh-prism's shield follows: the author's name. */
+  readonly name: Element;
+}
+
+/** Where one Conversation layout keeps its comment authors' links. */
+interface CommentHeaders {
+  readonly kind: ReviewerListKind;
+  /** Each comment's author link, one per comment. */
+  readonly author: string;
+  /**
+   * What the shield follows: the link's closest match, which may be the link itself. The classic
+   * follows the `<strong>` so the button stays out of GitHub's bold author wrapper.
+   */
+  readonly name: string;
+}
+
+const COMMENT_HEADERS: readonly CommentHeaders[] = [
+  {
+    kind: "classic",
+    author: [
+      ".js-discussion .timeline-comment-header h3 strong > a.author",
+      ".js-discussion .review-comment h3 strong > a.author",
+      // A review with no comment box: its own "commented" line only, never its threads' headers.
+      '.js-discussion [id^="pullrequestreview-"]:not(:has(.timeline-comment-header)) .TimelineItem-body > div > strong > a.author',
+    ].join(", "),
+    name: "strong",
+  },
+  {
+    kind: "overview",
+    // GitHub's ActivityHeader; its test ids outlive the CSS-module hashes.
+    author: '[data-testid="comment-header"] a[data-testid="avatar-link"]',
+    name: 'a[data-testid="avatar-link"]',
+  },
+];
+
 /**
- * Calls `onChange` with `doc`'s reviewer rows now and after each change to `doc`'s body, until
- * `signal` aborts. GitHub replaces the classic sidebar on soft navigation and on review updates,
- * and React re-renders the overview's list, so a caller re-checks every row each time.
+ * Every comment author in `doc`'s Conversation timeline, one per comment, leaving out apps and bots.
+ * Call it only on a Conversation page: the overview's headers have no timeline scope, unlike the
+ * classic's `.js-discussion`.
  */
-export function followReviewerRows(
+export function findCommentAuthors(doc: Document): CommentAuthor[] {
+  return COMMENT_HEADERS.flatMap(({ kind, author, name: nameSelector }) =>
+    [...doc.querySelectorAll(author)].flatMap((link) => {
+      const token = tokenOfHref(link.getAttribute("href") ?? "");
+      const name = link.closest(nameSelector);
+      return token && name ? [{ kind, token, name }] : [];
+    }),
+  );
+}
+
+/** Where gh-prism may draw a code-owner shield on a Conversation page. */
+export interface OwnerSpots {
+  readonly rows: ReviewerRow[];
+  readonly authors: CommentAuthor[];
+}
+
+/**
+ * Calls `onChange` with `doc`'s reviewer rows and comment authors now and after each change to
+ * `doc`'s body, until `signal` aborts. GitHub replaces the classic sidebar and timeline on soft
+ * navigation and on review updates, and React re-renders the overview, so a caller re-checks
+ * every spot each time.
+ */
+export function followOwnerSpots(
   doc: Document,
-  onChange: (rows: ReviewerRow[]) => void,
+  onChange: (spots: OwnerSpots) => void,
   { signal }: { signal: AbortSignal },
 ): void {
-  // ponytail: one querySelectorAll per mutation batch on the whole document; observe only the
-  // Reviewers lists if it shows up in a profile.
-  const observer = new MutationObserver(() => onChange(findReviewerRows(doc)));
+  // ponytail: findReviewerRows and findCommentAuthors query the whole document per mutation
+  // batch; observe only the Reviewers lists and timeline if it shows up in a profile.
+  const report = () => onChange({ rows: findReviewerRows(doc), authors: findCommentAuthors(doc) });
+  const observer = new MutationObserver(report);
   observer.observe(doc.body, { childList: true, subtree: true });
   signal.addEventListener("abort", () => observer.disconnect());
-  onChange(findReviewerRows(doc));
+  report();
 }
 
 /** GitHub's code-owner shield `target` sits in, beside a PR reviewer in a Reviewers list, or `null`. */

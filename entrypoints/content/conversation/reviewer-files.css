@@ -1,5 +1,6 @@
 /* GitHub hooks: the code-owner shield's tool-tip[for^="codeowner-"] and
-   tool-tip[for^="assigned-codeowner-"]. Every other rule selects only gh-prism's own classes. */
+   tool-tip[for^="assigned-codeowner-"], and .btn-link on the classic comment shield. Every other
+   rule selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @import "../ui/mark.css";
 @import "../ui/owner-identity.css";
@@ -12,15 +13,29 @@ tool-tip:is([for^="codeowner-"], [for^="assigned-codeowner-"]) {
   display: none;
 }
 
-/* A 24px target around the 16px glyph, without moving it off GitHub's own shield's spot. */
-.gh-prism-reviewer-shield {
+/* A target 4px past the shield on every side, without moving it: 24px around the classic 16px glyph. */
+.gh-prism-reviewer-shield,
+.gh-prism-comment-shield {
   position: relative;
 }
 
-.gh-prism-reviewer-shield::before {
+.gh-prism-reviewer-shield::before,
+.gh-prism-comment-shield::before {
   content: "";
   position: absolute;
   inset: -4px;
+}
+
+/* GitHub's .muted-icon colours only inside its sidebar, so a header's btn-link would paint link
+   blue. */
+.gh-prism-comment-shield.btn-link {
+  color: var(--fgColor-muted, var(--color-fg-muted));
+}
+
+.gh-prism-comment-shield.btn-link:hover {
+  color: var(--fgColor-accent, var(--color-accent-fg));
+  cursor: pointer;
+  text-decoration: none;
 }
 
 .gh-prism-reviewer-files[popover] {
