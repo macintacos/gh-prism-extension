@@ -1490,28 +1490,26 @@ test("every tree icon draws a symbol from the tree's sprites", async ({ context,
   expect(hrefs.filter((href) => href.startsWith("unresolved"))).toEqual([]);
 });
 
-test("the focused row's folder guide follows focus", async ({ context, page }) => {
+test("the tree's guide style text follows the focused row's folder", async ({ context, page }) => {
   await serve(context, PR_URL, PR_BODY);
   await page.goto(PR_URL);
   const row = page.locator('[data-item-path="src/lib.rs"]');
   await expect(row).toBeVisible();
-  const guideStyles = () =>
-    page.evaluate(() =>
-      [...document.querySelectorAll(".gh-prism-tree")].map(
-        (host) =>
-          host.shadowRoot?.querySelector("style[data-file-tree-guide-style]")?.textContent ?? "",
-      ),
+  const tree = page.locator(".gh-prism-tree", { has: row });
+  // gh-prism's sheet shows every guide at rest, so read the library's style text;
+  // Playwright's toHaveText reads a <style> as empty.
+  const guideStyle = () =>
+    tree.evaluate(
+      (host) => host.shadowRoot?.querySelector("style[data-file-tree-guide-style]")?.textContent,
     );
 
   await row.focus();
   await expect
-    .poll(guideStyles)
-    .toContain('[data-item-section="spacing-item"][data-ancestor-path="src/"] { opacity: 1; }');
+    .poll(guideStyle)
+    .toBe('[data-item-section="spacing-item"][data-ancestor-path="src/"] { opacity: 1; }');
 
-  await page.locator(".gh-prism-tree", { has: row }).locator('[data-item-path="src/"]').focus();
-  await expect
-    .poll(async () => (await guideStyles()).some((text) => text.includes('"src/"')))
-    .toBe(false);
+  await tree.locator('[data-item-path="src/"]').focus();
+  await expect.poll(guideStyle).toBe("");
 });
 
 test("each of gh-prism's own file glyphs takes a color of its own", async ({ context, page }) => {
