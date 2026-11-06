@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
-import { describeListing } from "@/entrypoints/content/sidebar/owners-popover";
+import { describeListing, describePullRequest } from "@/entrypoints/content/sidebar/owners-popover";
 import type { OwnerIdentities } from "@/entrypoints/content/ui/owner-identity";
-import { codeOwnerOf } from "@/utils/github/code-owners";
+import { codeOwnerOf, type PrCodeOwners, type PrReviewer } from "@/utils/github/code-owners";
 import { outline } from "../../fixtures/file-list";
 
 const file = (path: string, ...tokens: string[]) => ({
@@ -119,5 +119,109 @@ describe("a folder's list", () => {
     expect(headings(list).map((heading) => heading.nextElementSibling?.children.length)).toEqual([
       750, 750, 750, 750,
     ]);
+  });
+});
+
+describe("the whole pull request's list", () => {
+  const changed = (...files: ReturnType<typeof file>[]): PrCodeOwners =>
+    new Map(files.map(({ path, owners }) => [path, { owners, ownedByViewer: false }]));
+  const reviewer = (token: string, ...teams: string[]): PrReviewer => ({
+    token,
+    teams,
+    codeOwner: false,
+  });
+  const describeOf = (codeOwners: PrCodeOwners, prReviewers: readonly PrReviewer[] | undefined) =>
+    describePullRequest(document, { codeOwners, prReviewers }, PLAIN);
+  const listIn = (summary: Node[]) =>
+    summary.find((node): node is HTMLUListElement => node instanceof HTMLUListElement);
+  const tagged = (summary: Node[]) =>
+    headings(listIn(summary) as Element)
+      .filter((heading) => heading.querySelector("[data-unreviewed]"))
+      .map((heading) => heading.nextElementSibling?.textContent);
+  const callOut = (summary: Node[]) =>
+    summary.find((node) => node instanceof HTMLParagraphElement)?.textContent;
+
+  const codeOwners = changed(
+    file("web/a.ts", "@o/web"),
+    file("README.md"),
+    file("infra/main.tf", "@ada"),
+    file("web/b.ts", "@o/web"),
+    file("docs/guide.md", "@o/docs", "@ada"),
+  );
+
+  it("groups every changed file by owner set, by full path, with no code owner last", () => {
+    const { summary } = describeOf(codeOwners, undefined);
+
+    expect(outline(listIn(summary))).toEqual([
+      "Owned by o/web",
+      "  src/web/",
+      "    a.ts",
+      "    b.ts",
+      "Owned by ada",
+      "  src/infra/",
+      "    main.tf",
+      "Owned by o/docs, ada",
+      "  src/docs/",
+      "    guide.md",
+      "No code owner",
+      "  src/",
+      "    README.md",
+    ]);
+  });
+
+  it("marks an owner who reviews, and a team a reviewer reviews for, in the heading's name", () => {
+    const { summary } = describeOf(codeOwners, [reviewer("@ada"), reviewer("@grace", "@o/web")]);
+
+    const [web, ada, docs] = headings(listIn(summary) as Element);
+
+    expect(web?.querySelectorAll("[data-reviewing]")).toHaveLength(1);
+    expect(ada?.querySelectorAll("[data-reviewing]")).toHaveLength(1);
+    expect(docs?.querySelectorAll("[data-reviewing]")).toHaveLength(1);
+    const marked = web?.querySelector("[data-reviewing]")?.textContent ?? "";
+    expect(marked).not.toBe("");
+    expect(web?.getAttribute("aria-label")).toContain(marked);
+  });
+
+  it("tags and calls out the groups no current reviewer owns, never files with no code owner", () => {
+    const { summary } = describeOf(codeOwners, [reviewer("@grace", "@o/docs")]);
+
+    expect(tagged(summary)).toEqual(["src/web/a.tsb.ts", "src/infra/main.tf"]);
+    expect(callOut(summary)).toMatch(/3 files/);
+  });
+
+  it("tags every owned group when the PR has no reviewers", () => {
+    const { summary } = describeOf(codeOwners, []);
+
+    expect(tagged(summary)).toHaveLength(3);
+    expect(callOut(summary)).toMatch(/4 files/);
+  });
+
+  it("words the call-out to agree with its count", () => {
+    const one = describeOf(changed(file("infra/main.tf", "@ada")), []);
+    const many = describeOf(codeOwners, []);
+
+    expect(callOut(one.summary)).toMatch(/^1 file has\b.*\bits\b/);
+    expect(callOut(many.summary)).toMatch(/^4 files have\b.*\btheir\b/);
+  });
+
+  it("draws no mark, tag, or call-out when the reviewers are unknown", () => {
+    const { summary } = describeOf(codeOwners, undefined);
+
+    expect(summary).toHaveLength(1);
+    expect(listIn(summary)?.querySelector("[data-reviewing], [data-unreviewed]")).toBeNull();
+  });
+
+  it("calls nothing out when reviewers own every owned group", () => {
+    const { summary } = describeOf(codeOwners, [reviewer("@ada"), reviewer("@o/web")]);
+
+    expect(tagged(summary)).toEqual([]);
+    expect(callOut(summary)).toBeUndefined();
+  });
+
+  it("is titled for the pull request, with every owning team once", () => {
+    const { title, teams } = describeOf(codeOwners, []);
+
+    expect(title).toBe("Code owners of this pull request");
+    expect(teams).toEqual(["@o/web", "@o/docs"]);
   });
 });

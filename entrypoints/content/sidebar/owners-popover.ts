@@ -8,8 +8,14 @@
  * unless a click closed it, hands focus it held to `returnFocus`.
  */
 
-import { type CodeOwner, owningTeams } from "@/utils/github/code-owners";
-import { el } from "../ui/dom";
+import {
+  type CodeOwner,
+  owningTeams,
+  type PrCodeOwners,
+  type PrReviewer,
+  reviewingFor,
+} from "@/utils/github/code-owners";
+import { ALERT_ICON, EYE_ICON, el, icon } from "../ui/dom";
 import { fileList } from "../ui/file-list";
 import type { Card } from "../ui/hover-intent";
 import {
@@ -91,12 +97,61 @@ function ownersList(
   );
 }
 
-/** `files` grouped by owner set, each set's owners heading its files' tree relative to `folder`. */
+/**
+ * What the whole pull request's code owner details dialog shows: every changed file in
+ * `codeOwners`, in its order, grouped by owner set as a folder's are, each owner `prReviewers`
+ * reviews for marked, each group none of them reviews tagged under a call-out, and the owning
+ * teams. Without `prReviewers`, only the groups.
+ */
+export function describePullRequest(
+  doc: Document,
+  {
+    codeOwners,
+    prReviewers,
+  }: { codeOwners: PrCodeOwners; prReviewers: readonly PrReviewer[] | undefined },
+  identities: OwnerIdentities,
+): { title: string; summary: Node[]; teams: string[] } {
+  const files = [...codeOwners].map(([path, { owners }]) => ({ path, owners }));
+  const unreviewed =
+    prReviewers === undefined
+      ? 0
+      : files.filter(({ owners }) => isUnreviewed(owners, prReviewers)).length;
+  const list = folderList(doc, "", files, identities, prReviewers);
+
+  return {
+    title: "Code owners of this pull request",
+    summary: unreviewed > 0 ? [unreviewedCallOut(doc, unreviewed), list] : [list],
+    teams: owningTeams(files.flatMap(({ owners }) => owners)),
+  };
+}
+
+/** Whether `owners` has owners and none of `reviewers` reviews for any of them. */
+const isUnreviewed = (owners: readonly CodeOwner[], reviewers: readonly PrReviewer[]) =>
+  owners.length > 0 && owners.every((owner) => reviewingFor(reviewers, owner).length === 0);
+
+/** The line counting the `count` files no current reviewer owns, above the groups. */
+function unreviewedCallOut(doc: Document, count: number): HTMLElement {
+  return el(
+    doc,
+    "p",
+    "tw:mt-0 tw:mb-3 tw:flex tw:items-center tw:gap-2 tw:text-body-small tw:leading-6",
+    icon(doc, ALERT_ICON, { class: "tw:shrink-0 tw:text-fg-muted" }),
+    count === 1
+      ? "1 file has no current reviewer among its code owners"
+      : `${count} files have no current reviewer among their code owners`,
+  );
+}
+
+/**
+ * `files` grouped by owner set, each set's owners heading its files' tree relative to `folder`,
+ * with `reviewers`' marks and tags when given.
+ */
 function folderList(
   doc: Document,
   folder: string,
   files: readonly FileOwnersAt[],
   identities: OwnerIdentities,
+  reviewers?: readonly PrReviewer[],
 ): HTMLElement {
   return el(
     doc,
@@ -107,7 +162,7 @@ function folderList(
         doc,
         "li",
         "tw:pl-4",
-        ownersHeading(doc, owners, identities),
+        ownersHeading(doc, owners, identities, reviewers),
         fileList(
           doc,
           paths.map((path) => path.slice(folder.length)),
@@ -136,12 +191,21 @@ const ownerSetKey = ({ owners }: FileOwnersAt) =>
     .sort()
     .join(" ");
 
-/** `Owned by` and `owners` comma-separated, or "No code owner" when there are none. */
+/**
+ * `Owned by` and `owners` comma-separated, or "No code owner" when there are none. With
+ * `reviewers`, each owner one of them reviews for is marked, and a set none of them reviews for is
+ * tagged.
+ */
 function ownersHeading(
   doc: Document,
   owners: readonly CodeOwner[],
   identities: OwnerIdentities,
+  reviewers?: readonly PrReviewer[],
 ): HTMLElement {
+  const marked = (owner: CodeOwner) => {
+    const reviewing = reviewers === undefined ? [] : reviewingFor(reviewers, owner);
+    return reviewing.length === 0 ? [] : [reviewerMark(doc, reviewing)];
+  };
   // A 24px line, the avatars' height, so a wrapped heading's lines stay evenly spaced.
   const heading = el(
     doc,
@@ -153,13 +217,46 @@ function ownersHeading(
           ...owners.flatMap((owner, i) => [
             i > 0 ? ownerSeparator(doc) : "",
             ownerIdentity(doc, owner, identities),
+            ...marked(owner),
           ]),
+          ...(reviewers !== undefined && isUnreviewed(owners, reviewers)
+            ? [unreviewedTag(doc)]
+            : []),
         ]
       : ["No code owner"]),
   );
   // Named by what it shows: its filter icons' labels would otherwise join the name.
   heading.setAttribute("aria-label", heading.textContent ?? "");
   return heading;
+}
+
+/**
+ * An eye after an owner the non-empty `reviewing` review for, its words hidden but in the
+ * heading's name.
+ */
+function reviewerMark(doc: Document, reviewing: readonly PrReviewer[]): HTMLElement {
+  const mark = el(
+    doc,
+    "span",
+    "tw:inline-flex tw:align-middle tw:ml-1 tw:text-fg-muted",
+    icon(doc, EYE_ICON, {}),
+    el(doc, "span", "tw:sr-only", " (reviewing)"),
+  );
+  mark.dataset.reviewing = "";
+  mark.dataset.tooltip = `Reviewed by ${reviewing.map(({ token }) => token.slice(1)).join(", ")}`;
+  return mark;
+}
+
+/** The tag after a set's owners when no current reviewer reviews for any of them. */
+function unreviewedTag(doc: Document): HTMLElement {
+  const tag = el(
+    doc,
+    "span",
+    "tw:inline-block tw:align-middle tw:ml-2 tw:px-[7px] tw:leading-[18px] tw:text-[12px] tw:font-medium tw:text-fg-muted tw:rounded-full tw:border tw:border-border-default",
+    " No reviewer",
+  );
+  tag.dataset.unreviewed = "";
+  return tag;
 }
 
 /** `label` is the popover's accessible name; `body` goes below its heading. */

@@ -6,6 +6,44 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-05: The whole pull request's code owners
+
+A current reviewer is anyone the pull request lists as a reviewer, requested or already
+reviewing.
+
+- **Compared:** for the mark on an owner a current reviewer reviews for, a green check, an
+  eye, and a "Reviewer" text label after the name. For the tag on a group no current
+  reviewer owns, an attention-coloured outlined label reading "No reviewer", the same
+  label muted, the same words as bare muted text, and an alert icon alone. For the
+  call-out, Primer's Flash banner above the groups, and one line with an alert icon above
+  them. For the layout, a new list with its own grouping, and the sidebar folder popover's
+  "Owned by" groups (`owners-popover.ts`) over every changed file by full path.
+- **Won:** the eye, the muted, outlined "No reviewer" label, the one-line call-out, and
+  the folder's groups.
+- **Why the eye:** a check reads as "approved" on GitHub, but a reviewer may not have
+  approved yet. The eye says only that someone is looking. A "Reviewer" label after each
+  name would crowd a heading that already holds several owners.
+- **Why the eye is muted:** `--fgColor-muted`, not `--fgColor-success`. `design/brief.md`
+  spends colour on sections, file types, and lines added or removed only, and green would
+  read as lines added.
+- **Why the mark isn't the glyph alone:** the eye's hidden words "(reviewing)" join the
+  owner heading's accessible name. Its tooltip names who reviews: the owner, or the
+  reviewers who review for the team.
+- **Why the tag is words:** "No reviewer", shaped like GitHub's Label, reads without
+  colour. Its text is `--fgColor-muted` inside a `--borderColor-default` outline, GitHub's
+  default Label. `design/brief.md` spends colour on sections, file types, and lines added
+  or removed only, and `--fgColor-attention` is the "Docs & Comments" section's hue, so an
+  attention-coloured tag would read as that section.
+- **Why one line:** a Flash banner would outweigh the list in a dialog that already has a
+  title. One line with a count says where to look: "1 file has no current reviewer among
+  its code owners", or "3 files have no current reviewer among their code owners". Its
+  alert icon is `--fgColor-muted`, because attention would read as the "Docs & Comments"
+  section.
+- **Why the folder's groups:** a reader who knows the folder popover reads the whole-PR
+  list the same way, with no second grouping to learn.
+- **Why "No code owner" has no tag:** it comes last in its own group, and no reviewer can
+  own files that have no code owner.
+
 ## 2026-11-05: No "Show only their files" from a classic Files changed comment shield
 
 - **Compared:** offering "Show only their files" from a review comment author's shield on

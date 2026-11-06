@@ -40,7 +40,8 @@ export interface PrReviewer {
   readonly token: string;
   /**
    * The `@org/team` tokens of the teams one of their reviews was on behalf of, or their pending
-   * request was assigned from. GitHub names a team only to a viewer who can see it.
+   * request was assigned from, which GitHub names only to a viewer who can see it, and the
+   * owning teams whose members list them (`withMemberTeams`).
    */
   readonly teams: readonly string[];
   /** Whether GitHub marks their pending request as a code owner's, even without naming a team. */
@@ -57,6 +58,15 @@ export const reviewerOf = (
   reviewers: readonly PrReviewer[],
   token: string,
 ): PrReviewer | undefined => reviewers.find((reviewer) => isOwner(token, reviewer));
+
+/**
+ * The PR reviewers in `reviewers` who review as `owner` or for it: `owner` itself, or a reviewer
+ * one of whose `teams` it is, ignoring case.
+ */
+export const reviewingFor = (reviewers: readonly PrReviewer[], owner: CodeOwner): PrReviewer[] =>
+  reviewers.filter(
+    ({ token, teams }) => isOwner(token, owner) || teams.some((team) => isOwner(team, owner)),
+  );
 
 /**
  * A filter keeping the changed files one of whose code owners in `codeOwners` is `token`, or a

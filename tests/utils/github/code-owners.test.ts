@@ -12,6 +12,7 @@ import {
   readPrReviewers,
   readTeamAvatar,
   readTeamMembers,
+  reviewingFor,
   teamAvatarReader,
   teamMembersReader,
   withMemberTeams,
@@ -823,6 +824,45 @@ describe("codeOwnerOf", () => {
     `@${"a".repeat(40)}`,
   ])("leaves %s unlinked", (token) => {
     expect(codeOwnerOf(token)).toEqual({ token });
+  });
+});
+
+describe("reviewingFor", () => {
+  const frontend = codeOwnerOf("@o/frontend");
+
+  it("finds a reviewer who is the owner", () => {
+    const reviewers = [reviewer("@ada"), reviewer("@grace")];
+
+    expect(reviewingFor(reviewers, codeOwnerOf("@ada"))).toEqual([reviewer("@ada")]);
+  });
+
+  it("finds a reviewer reviewing for the owning team GitHub named", () => {
+    const reviewers = [reviewer("@grace", { teams: ["@o/frontend"] })];
+
+    expect(reviewingFor(reviewers, frontend)).toEqual(reviewers);
+  });
+
+  it("finds a reviewer reviewing for the owning team through its members", async () => {
+    const reviewers = await withMemberTeams(
+      [reviewer("@grace")],
+      owners,
+      membersFrom({ "@o/frontend": ["grace"] }),
+    );
+
+    expect(reviewingFor(reviewers, frontend).map(({ token }) => token)).toEqual(["@grace"]);
+  });
+
+  it("ignores case", () => {
+    const reviewers = [reviewer("@Ada"), reviewer("@grace", { teams: ["@O/FrontEnd"] })];
+
+    expect(reviewingFor(reviewers, codeOwnerOf("@ada"))).toHaveLength(1);
+    expect(reviewingFor(reviewers, frontend)).toHaveLength(1);
+  });
+
+  it("finds no one when no reviewer reviews for the owner", () => {
+    const reviewers = [reviewer("@grace", { teams: ["@o/platform"] })];
+
+    expect(reviewingFor(reviewers, frontend)).toEqual([]);
   });
 });
 
