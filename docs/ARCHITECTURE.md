@@ -609,7 +609,7 @@ GitHub draws two Reviewers lists: the classic sidebar, server-rendered in
 `findReviewerRows` in [`files-page.ts`](../entrypoints/content/files-page.ts) finds each
 row's reviewer, GitHub's shield, and its column of status icons in either. GitHub shields
 a code owner's pending request only, so a code owner who has reviewed loses the shield.
-`followReviewerRows` reports the rows on each change to the page, and the popup adds
+`followOwnerSpots` reports the rows on each change to the page, and the popup adds
 gh-prism's own shield to every row whose PR reviewer owns a changed file, or whom GitHub
 marks a code owner, but has no shield, and takes it away from a row where GitHub later
 draws its own. That shield is a button drawn as GitHub draws its own in that list, placed

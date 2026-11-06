@@ -532,10 +532,15 @@ from GitHub's bundle, not a capture, because no account here can open it.
 - **Scope classic comment headers to `.js-discussion`.** It holds the timeline, so
   matching inside it keeps a header match away from Files changed's review comments.
 - **Find a classic comment's author as `.timeline-comment-header h3 strong > a.author`.**
-  That holds for the description, a timeline comment, a review with a body, and each
-  inline thread comment. A review with no body has no `.timeline-comment-header`: its
-  author link is `.TimelineItem-body strong > a.author`, above its threads. A user's link
-  goes to `/<login>` with `data-hovercard-type="user"` and
+  That holds for the description, a timeline comment, and a review with a body.
+- **Find an inline thread comment's author as `.review-comment h3 strong > a.author`.** A
+  `.review-comment` (id `discussion_r<id>`) has no `.timeline-comment-header`: its header
+  is its own first child.
+- **Count a review with a body by its comment box's header only.** Its item also carries a
+  `.TimelineItem-body` "commented" line with an author link; skip that line.
+- **Find a body-less review's author on its `.TimelineItem-body > div > strong > a.author`
+  line,** above its threads. It has no `.timeline-comment-header`. A user's link goes to
+  `/<login>` with `data-hovercard-type="user"` and
   `data-hovercard-url="/users/<login>/hovercard"`.
 - **Expect an app's author link to go to `/apps/<slug>`, with no `data-hovercard-type`,**
   and a `span.Label` reading "Bot" after it inside the `<strong>`.

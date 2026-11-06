@@ -15,7 +15,7 @@ import {
 } from "@/utils/github/code-owners";
 import {
   findReviewerRows,
-  followReviewerRows,
+  followOwnerSpots,
   type ReviewerListKind,
   type ReviewerRow,
   reviewerShieldOf,
@@ -96,9 +96,9 @@ export function showReviewerFiles(
   );
   doc.addEventListener("focusout", () => (focusedShield = null), { signal });
 
-  followReviewerRows(
+  followOwnerSpots(
     doc,
-    (rows) => {
+    ({ rows }) => {
       if (focusedShield && !focusedShield.isConnected) {
         focusedShield = null;
         closeCard();

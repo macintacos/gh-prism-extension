@@ -9,6 +9,7 @@ import {
   coveredTop,
   diffEntryOf,
   findClassicPage,
+  findCommentAuthors,
   findCommitColumnRow,
   findCommitHeader,
   findCommitMessage,
@@ -24,6 +25,7 @@ import {
   findTreeToggle,
   followFilterMenu,
   followOverlay,
+  followOwnerSpots,
   headerOf,
   isPublicRepo,
   isSignedIn,
@@ -43,6 +45,8 @@ import {
   viewedToggleOf,
   viewerLogin,
 } from "../../entrypoints/content/files-page";
+import commentsFixture from "../fixtures/conversation-comments.html?raw";
+import overviewCommentsFixture from "../fixtures/conversation-overview-comments.html?raw";
 import conversationFixture from "../fixtures/conversation-page.html?raw";
 import {
   addOwnedByGroup,
@@ -304,6 +308,125 @@ describe("reviewerShieldOf", () => {
 
     expect(shield?.id).toBe("assigned-codeowner-octocat");
     expect(shield && shieldOwner(shield)).toBe("@octocat");
+  });
+});
+
+describe("findCommentAuthors", () => {
+  const authorsOf = () =>
+    findCommentAuthors(document).map(({ kind, token, name }) => ({
+      kind,
+      token,
+      name: name.tagName,
+      comment: name.closest('[id^="issue-"], [id^="pullrequestreview-"], [id^="discussion_r"]')?.id,
+    }));
+
+  describe("on the classic Conversation tab", () => {
+    beforeEach(() => {
+      document.body.innerHTML = commentsFixture;
+    });
+
+    it("finds one author per comment, naming the <strong> around the author link", () => {
+      expect(authorsOf()).toEqual([
+        { kind: "classic", token: "@sandbox-user", name: "STRONG", comment: "issue-5787665306" },
+        {
+          kind: "classic",
+          token: "@sandbox-user",
+          name: "STRONG",
+          comment: "pullrequestreview-5477346551",
+        },
+        {
+          kind: "classic",
+          token: "@sandbox-user",
+          name: "STRONG",
+          comment: "discussion_r4236206972",
+        },
+        {
+          kind: "classic",
+          token: "@sandbox-user",
+          name: "STRONG",
+          comment: "pullrequestreview-5477346023",
+        },
+      ]);
+    });
+
+    it("names a deleted user's comment as @ghost", () => {
+      const link = document.querySelector<HTMLAnchorElement>("a.author[href='/sandbox-user']");
+      link?.setAttribute("href", "/ghost");
+      if (link) link.textContent = "ghost";
+      expect(findCommentAuthors(document)[0]?.token).toBe("@ghost");
+    });
+
+    it("finds an inline thread's author in a resolved, collapsed thread", () => {
+      const thread = document.querySelector("review-thread-collapsible");
+      thread?.setAttribute("data-resolved", "true");
+      thread?.classList.remove("open");
+      thread
+        ?.querySelector('[data-target="review-thread-collapsible.body"]')
+        ?.setAttribute("hidden", "");
+      expect(authorsOf().map(({ comment }) => comment)).toContain("discussion_r4236206972");
+    });
+
+    it("finds the authors of a timeline item appended later", () => {
+      findCommentAuthors(document);
+      const item = document.querySelector(".js-timeline-item")?.cloneNode(true);
+      if (item) document.querySelector(".js-discussion")?.append(item);
+      expect(findCommentAuthors(document)).toHaveLength(6);
+    });
+  });
+
+  it.each([
+    ["Files changed", () => loadFixture()],
+    ["classic Files changed", () => loadClassicFixture("sandbox-user")],
+  ])("finds no authors on %s", (_page, load) => {
+    load();
+    expect(findCommentAuthors(document)).toEqual([]);
+  });
+
+  describe("in the PR overview", () => {
+    beforeEach(() => {
+      document.body.innerHTML = overviewCommentsFixture;
+    });
+
+    it("finds one author per comment header, naming the author link, with or without its hovercard", () => {
+      const authors = findCommentAuthors(document);
+      expect(authors.map(({ name }) => name.closest('[data-testid="comment-header"]')?.id)).toEqual(
+        ["issuecomment-1", "pullrequestreview-1", "discussion_r1", "discussion_r2"],
+      );
+      for (const { kind, token, name } of authors) {
+        expect({ kind, token }).toEqual({ kind: "overview", token: "@sandbox-user" });
+        expect(name.matches('a[data-testid="avatar-link"]')).toBe(true);
+      }
+    });
+  });
+});
+
+describe("followOwnerSpots", () => {
+  const controller = new AbortController();
+  afterEach(() => controller.abort());
+  // MutationObserver callbacks are microtasks.
+  const flush = () => Promise.resolve();
+
+  it("reports Reviewers rows and comment authors together, now and after each change, until aborted", async () => {
+    document.body.innerHTML = conversationFixture + commentsFixture;
+    const onChange = vi.fn();
+    const local = new AbortController();
+    followOwnerSpots(document, onChange, { signal: local.signal });
+    expect(onChange).toHaveBeenLastCalledWith({
+      rows: expect.arrayContaining([expect.objectContaining({ kind: "classic" })]),
+      authors: expect.arrayContaining([expect.objectContaining({ token: "@sandbox-user" })]),
+    });
+    const before = onChange.mock.lastCall?.[0].authors.length;
+
+    const item = document.querySelector(".js-discussion .js-timeline-item")?.cloneNode(true);
+    if (item) document.querySelector(".js-discussion")?.append(item);
+    await flush();
+    expect(onChange.mock.lastCall?.[0].authors.length).toBeGreaterThan(before);
+
+    local.abort();
+    const calls = onChange.mock.calls.length;
+    document.body.append(document.createElement("div"));
+    await flush();
+    expect(onChange).toHaveBeenCalledTimes(calls);
   });
 });
 
