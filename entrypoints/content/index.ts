@@ -63,6 +63,7 @@ import { showOwnerSection } from "./sidebar/owner-section";
 import { showReportLink } from "./sidebar/report";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar/side";
 import type { WhatsNew } from "./sidebar/whats-new";
+import { prOwnersPressGuard, showPrOwnersButton } from "./ui/pr-owners";
 import { showHeaderTab, showVisit } from "./visit/land";
 import { watchClassicPages, watchFilesPages, watchHeaderPages } from "./visit/watch";
 
@@ -205,6 +206,7 @@ export default defineContentScript({
                   visit,
                 })
               : undefined;
+          const prOwnersGuard = panel && prOwnersPressGuard(document, visit);
           return (page, signal) => {
             const owner = route.diff.kind === "pr" ? ownerOf(location.search) : undefined;
             showReportLink(page, signal, reportOptions);
@@ -232,7 +234,16 @@ export default defineContentScript({
             if (steps) showStepLinks(page, signal, steps);
             dockSidebar(page, signal, { choice: side, save: saveSide });
             if (panel) {
-              showConversationButton(page, signal, panel);
+              const conversationButton = showConversationButton(page, signal, panel);
+              if (conversationButton && prOwnersGuard)
+                showPrOwnersButton(conversationButton, signal, {
+                  codeOwners,
+                  prReviewers,
+                  guard: prOwnersGuard,
+                  teamMembers,
+                  teamAvatar,
+                  filter,
+                });
               followRightPanel(document, panel.refit, { signal });
             }
           };
@@ -249,8 +260,9 @@ export default defineContentScript({
           intentFor({ diff: pr, commitFiltered: false }, visit, sources, onProgress),
         );
         const teamMembers = teamMembersReader(fetch, visit);
-        // Shields Reviewers rows and Conversation comment authors. Rides the header visit, so it
-        // runs only where findHeaderPage finds the counter's slot.
+        // Shields Reviewers rows and Conversation comment authors, and adds a code owners button
+        // beside each Reviewers heading. Rides the header visit, so it runs only where
+        // findHeaderPage finds the counter's slot.
         showReviewerFiles(document, visit, {
           read: () => readOwnership(pr, { fetchFn: fetch, teamMembers, signal: visit }),
           teamMembers,

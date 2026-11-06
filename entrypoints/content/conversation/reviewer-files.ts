@@ -1,32 +1,35 @@
 /**
  * The popup a code-owner shield in a pull request's Reviewers list or beside a comment's author
  * opens on the Conversation tab, in its panel's frame, and on Files changed, listing that code
- * owner's files, the code owner details dialog its click opens, and the shields gh-prism adds
- * beside a PR reviewer who owns files where GitHub draws none and beside a comment author who owns
- * files.
+ * owner's files, the code owner details dialog its click opens, the shields gh-prism adds beside a
+ * PR reviewer who owns files where GitHub draws none and beside a comment author who owns files,
+ * and the code owners button beside each Reviewers heading.
  */
 
 import {
   codeOwnerOf,
   filesOwnedBy,
   type OwnedFiles,
+  type OwnedPullRequest,
   type Ownership,
   ownershipOf,
+  ownsAnyFile,
   reviewerOf,
   type TeamAvatarOf,
   type TeamMembersOf,
 } from "@/utils/github/code-owners";
 import {
   type CommentAuthor,
-  findReviewerRows,
+  findOwnerSpots,
   followOwnerSpots,
   type OwnerSpots,
   type ReviewerListKind,
   type ReviewerRow,
+  type ReviewersHeading,
   reviewerShieldOf,
   shieldOwner,
 } from "../files-page";
-import { el, icon } from "../ui/dom";
+import { el, icon, SHIELD_LOCK } from "../ui/dom";
 import { fileList } from "../ui/file-list";
 import { type Card, followHoverIntent } from "../ui/hover-intent";
 import {
@@ -42,11 +45,14 @@ import {
   ownerFilterAction,
 } from "../ui/owners-dialog";
 import { place } from "../ui/place";
+import { openPrOwners, PR_OWNERS, PR_OWNERS_KIND, prOwnersButton } from "../ui/pr-owners";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./reviewer-files.css?inline";
 
 const ID = "gh-prism-reviewer-files";
 const OWN_SHIELD = "button[data-gh-prism-owner]";
+// Keep in sync with reviewer-files.css's [data-gh-prism-list] rules.
+const HEADING_BUTTON = `${PR_OWNERS}[${PR_OWNERS_KIND}]`;
 
 /**
  * Until `signal` aborts, opens a popup below a code-owner shield in a pull request's Reviewers
@@ -61,7 +67,9 @@ const OWN_SHIELD = "button[data-gh-prism-owner]";
  * Closes 150 ms after the pointer leaves shield and popup, and at once on Escape, focus leaving
  * both, or a scroll outside it, moving focus it held to the shield. A click on the shield opens
  * the code owner details dialog instead, excerpting owning teams' members through `teamMembers`.
- * Draws teams' avatars through `teamAvatar`. Calls `read` at most once, when a Reviewers list or
+ * Draws teams' avatars through `teamAvatar`. Puts the code owners button beside each Reviewers
+ * heading once `read` names a code owner for a changed file; it opens the whole pull request's
+ * code owner details dialog. Calls `read` at most once, when a Reviewers list, its heading, or a
  * comment author first shows. Given `filter`, popup and dialog offer to show only the code owner's
  * files, when they list any, and each team they name filters from its name.
  */
@@ -84,14 +92,21 @@ export function showReviewerFiles(
 ): void {
   const identities: OwnerIdentities = { teamAvatar, filter };
   let ownership: Ownership | undefined;
+  // Settled with ownership, so a mutation batch never rescans the code owners.
+  let ownedPr: OwnedPullRequest | undefined;
   let reading: Promise<Ownership> | undefined;
-  const readOnce = () => (reading ??= read().then((settled) => (ownership = settled)));
+  const readOnce = () =>
+    (reading ??= read().then((settled) => {
+      ownership = settled;
+      if (ownsAnyFile(settled)) ownedPr = settled;
+      return settled;
+    }));
 
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   doc.head.append(style);
   signal.addEventListener("abort", () => {
     style.remove();
-    for (const shield of doc.querySelectorAll(OWN_SHIELD)) shield.remove();
+    for (const own of doc.querySelectorAll(`${OWN_SHIELD}, ${HEADING_BUTTON}`)) own.remove();
   });
 
   const shieldAt = (target: Element) =>
@@ -154,9 +169,14 @@ export function showReviewerFiles(
     return owned === "pending" ? undefined : owned;
   };
 
-  const addEveryShield = ({ rows, authors }: OwnerSpots, settled: Ownership) => {
+  const addEverySpot = (
+    { rows, authors, headings }: OwnerSpots,
+    settled: Ownership,
+    ownedPr: OwnedPullRequest | undefined,
+  ) => {
     addShields(rows, settled);
     addAuthorShields(authors, settled);
+    if (ownedPr) addPrOwnersButtons(headings);
   };
   followOwnerSpots(
     doc,
@@ -165,14 +185,33 @@ export function showReviewerFiles(
         focusedShield = null;
         closeCard();
       }
-      if (ownership) addEveryShield(spots, ownership);
-      else if ((spots.rows.length > 0 || spots.authors.length > 0) && !reading)
+      const { rows, authors, headings } = spots;
+      if (ownership) addEverySpot(spots, ownership, ownedPr);
+      else if (!reading && (rows.length > 0 || authors.length > 0 || headings.length > 0))
         void readOnce().then((settled) => {
-          if (!signal.aborted)
-            addEveryShield({ rows: findReviewerRows(doc), authors: findAuthors(doc) }, settled);
+          if (!signal.aborted) addEverySpot(findOwnerSpots(doc, findAuthors), settled, ownedPr);
         });
     },
     { findAuthors, signal },
+  );
+
+  doc.addEventListener(
+    "click",
+    ({ target }) => {
+      const button = target instanceof Element ? target.closest(HEADING_BUTTON) : null;
+      if (!button || !ownedPr) return;
+      const kind = button.getAttribute(PR_OWNERS_KIND);
+      openPrOwners(doc, ownedPr, {
+        teamMembers,
+        teamAvatar,
+        filter,
+        // GitHub may have replaced the form while the dialog was open.
+        returnFocus: () =>
+          doc.querySelector<HTMLElement>(`${PR_OWNERS}[${PR_OWNERS_KIND}="${kind}"]`)?.focus(),
+        signal,
+      });
+    },
+    { signal },
   );
 
   followHoverIntent(doc, signal, {
@@ -271,10 +310,6 @@ const COMMENT_SHIELD_LOOKS: Record<ReviewerListKind, ShieldLook> = {
   },
 };
 
-// Octicons shield-lock-16 (MIT, GitHub Inc.), 19.15.0, as GitHub draws its own shield.
-const SHIELD_LOCK =
-  "m8.533.133 5.25 1.68A1.75 1.75 0 0 1 15 3.48V7c0 1.566-.32 3.182-1.303 4.682-.983 1.498-2.585 2.813-5.032 3.855a1.697 1.697 0 0 1-1.33 0c-2.447-1.042-4.049-2.357-5.032-3.855C1.32 10.182 1 8.566 1 7V3.48a1.75 1.75 0 0 1 1.217-1.667l5.25-1.68a1.748 1.748 0 0 1 1.066 0Zm-.61 1.429.001.001-5.25 1.68a.251.251 0 0 0-.174.237V7c0 1.36.275 2.666 1.057 3.859.784 1.194 2.121 2.342 4.366 3.298a.196.196 0 0 0 .154 0c2.245-.957 3.582-2.103 4.366-3.297C13.225 9.666 13.5 8.358 13.5 7V3.48a.25.25 0 0 0-.174-.238l-5.25-1.68a.25.25 0 0 0-.153 0ZM9.5 6.5c0 .536-.286 1.032-.75 1.3v2.45a.75.75 0 0 1-1.5 0V7.8A1.5 1.5 0 1 1 9.5 6.5Z";
-
 /**
  * Adds gh-prism's shield to each of `rows` whose PR reviewer has something to show in `ownership`
  * and no shield yet, just before the row's last icon, where GitHub puts its own, and removes it
@@ -291,6 +326,16 @@ function addShields(rows: readonly ReviewerRow[], ownership: Ownership): void {
     const last = icons.lastElementChild;
     if (last) last.before(added);
     else icons.append(added);
+  }
+}
+
+/** Adds the code owners button before each of `headings` that lacks one. */
+function addPrOwnersButtons(headings: readonly ReviewersHeading[]): void {
+  for (const { kind, heading } of headings) {
+    if (heading.previousElementSibling?.matches(HEADING_BUTTON)) continue;
+    const button = prOwnersButton(heading.ownerDocument);
+    button.setAttribute(PR_OWNERS_KIND, kind);
+    heading.before(button);
   }
 }
 

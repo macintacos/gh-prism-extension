@@ -1,0 +1,61 @@
+/* No GitHub hooks: every rule selects only gh-prism's own classes. Each host sizes and places the
+   button with a rule more specific than these. */
+
+/* Primer's invisible IconButton, muted. */
+.gh-prism-pr-owners {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--borderRadius-medium);
+  background: none;
+  color: var(--fgColor-muted);
+  cursor: pointer;
+}
+
+.gh-prism-pr-owners:hover {
+  background: var(--control-transparent-bgColor-hover);
+}
+
+.gh-prism-pr-owners:focus-visible {
+  /* Longhands: an unset token would void a shorthand's style and width with it. */
+  outline-style: solid;
+  outline-width: 2px;
+  outline-color: var(--focus-outlineColor);
+  outline-offset: -2px;
+}
+
+/* Primer's tooltip, opening rightward from the button's start like the Conversation button's. */
+.gh-prism-pr-owners::after {
+  content: attr(aria-label);
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline-start: 0;
+  z-index: 100;
+  padding: 4px 8px;
+  border-radius: var(--borderRadius-medium);
+  background: var(--tooltip-bgColor);
+  color: var(--tooltip-fgColor);
+  font-size: var(--text-body-size-small);
+  font-weight: var(--base-text-weight-normal);
+  line-height: var(--text-body-lineHeight-small);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 120ms ease-out,
+    visibility 120ms;
+}
+
+.gh-prism-pr-owners:is(:hover, :focus-visible)::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-prism-pr-owners::after {
+    transition: none;
+  }
+}

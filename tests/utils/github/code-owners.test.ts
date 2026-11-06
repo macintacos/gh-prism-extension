@@ -6,12 +6,14 @@ import {
   ownershipOf,
   owningReviewers,
   owningTeams,
+  ownsAnyFile,
   type PrCodeOwners,
   type PrReviewer,
   readCodeOwners,
   readPrReviewers,
   readTeamAvatar,
   readTeamMembers,
+  reviewingFor,
   teamAvatarReader,
   teamMembersReader,
   withMemberTeams,
@@ -826,6 +828,45 @@ describe("codeOwnerOf", () => {
   });
 });
 
+describe("reviewingFor", () => {
+  const frontend = codeOwnerOf("@o/frontend");
+
+  it("finds a reviewer who is the owner", () => {
+    const reviewers = [reviewer("@ada"), reviewer("@grace")];
+
+    expect(reviewingFor(reviewers, codeOwnerOf("@ada"))).toEqual([reviewer("@ada")]);
+  });
+
+  it("finds a reviewer reviewing for the owning team GitHub named", () => {
+    const reviewers = [reviewer("@grace", { teams: ["@o/frontend"] })];
+
+    expect(reviewingFor(reviewers, frontend)).toEqual(reviewers);
+  });
+
+  it("finds a reviewer reviewing for the owning team through its members", async () => {
+    const reviewers = await withMemberTeams(
+      [reviewer("@grace")],
+      owners,
+      membersFrom({ "@o/frontend": ["grace"] }),
+    );
+
+    expect(reviewingFor(reviewers, frontend).map(({ token }) => token)).toEqual(["@grace"]);
+  });
+
+  it("ignores case", () => {
+    const reviewers = [reviewer("@Ada"), reviewer("@grace", { teams: ["@O/FrontEnd"] })];
+
+    expect(reviewingFor(reviewers, codeOwnerOf("@ada"))).toHaveLength(1);
+    expect(reviewingFor(reviewers, frontend)).toHaveLength(1);
+  });
+
+  it("finds no one when no reviewer reviews for the owner", () => {
+    const reviewers = [reviewer("@grace", { teams: ["@o/platform"] })];
+
+    expect(reviewingFor(reviewers, frontend)).toEqual([]);
+  });
+});
+
 describe("isOwner", () => {
   it("matches the same team ignoring case", () => {
     expect(isOwner("@Excessive-Dev/Frontend", codeOwnerOf("@excessive-dev/frontend"))).toBe(true);
@@ -961,5 +1002,23 @@ describe("owningReviewers", () => {
 
     expect(reviewers).not.toEqual([]);
     expect(owningReviewers(reviewers, owners, undefined)).toEqual([]);
+  });
+});
+
+describe("ownsAnyFile", () => {
+  it.each<[string, PrCodeOwners | undefined, boolean]>([
+    [
+      "a changed file has a code owner",
+      new Map([["a.ts", { owners: [{ token: "@o/web" }], ownedByViewer: false }]]),
+      true,
+    ],
+    [
+      "no changed file has a code owner",
+      new Map([["a.ts", { owners: [], ownedByViewer: false }]]),
+      false,
+    ],
+    ["the code-owner read failed", undefined, false],
+  ])("is %3$s when %1$s", (_, codeOwners, owns) => {
+    expect(ownsAnyFile({ codeOwners, prReviewers: undefined })).toBe(owns);
   });
 });

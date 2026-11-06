@@ -6,6 +6,84 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-06: The classic Reviewers heading's code owners button over the rows' shields
+
+- **Compared:** the button floated to the heading row's end, after GitHub's gear, and the
+  button placed over the rows' code-owner shields, before the gear.
+- **Won:** over the rows' shields. Its glyph centres on the shields' column, and GitHub's
+  gear keeps the row's end, over the rows' status dots. It still sits 2px down, centred on
+  the gear. The overview's button keeps its float, since that layout has never rendered.
+- **Why:** the maintainer's review of the floated button found the heading's two icons
+  swapped against the columns below and 4px off them, since the float pushed the gear in.
+
+## 2026-11-05: The whole pull request's code owners
+
+- **Compared:** for the mark on an owner a PR reviewer reviews for, a green check, an eye,
+  and a "Reviewer" text label after the name. For the tag on a group no PR reviewer owns,
+  an attention-coloured outlined label reading "No reviewer", the same label muted, the
+  same words as bare muted text, and an alert icon alone. For the call-out, Primer's Flash
+  banner above the groups, and one line with an alert icon above them. For the layout, a
+  new list with its own grouping, and the sidebar folder popover's "Owned by" groups
+  (`owners-popover.ts`) over every changed file by full path.
+- **Won:** the eye, the muted, outlined "No reviewer" label, the one-line call-out, and
+  the folder's groups.
+- **Why the eye:** a check reads as "approved" on GitHub, but a reviewer may not have
+  approved yet. The eye says only that someone is looking. A "Reviewer" label after each
+  name would crowd a heading that already holds several owners.
+- **Why the eye is muted:** `--fgColor-muted`, not `--fgColor-success`. `design/brief.md`
+  spends colour on sections, file types, and lines added or removed only, and green would
+  read as lines added.
+- **Why the mark isn't the glyph alone:** the eye takes no focus, so its tooltip can't be
+  its only words. Its hidden words join the owner heading's accessible name instead and
+  match its tooltip exactly. Both read "Reviewing" when the owner reviews, or "Reviewing
+  through grace, ada" when reviewers review for the team. Neither says "Reviewed", because
+  a request may still be pending.
+- **Why the tag is words:** "No reviewer", shaped like GitHub's Label, reads without
+  colour. Its text is `--fgColor-muted` inside a `--borderColor-default` outline, GitHub's
+  default Label. `design/brief.md` spends colour on sections, file types, and lines added
+  or removed only, and `--fgColor-attention` is the "Docs & Comments" section's hue, so an
+  attention-coloured tag would read as that section.
+- **Why one line:** a Flash banner would outweigh the list in a dialog that already has a
+  title. One line with a count says where to look: "1 file has no current reviewer among
+  its code owners", or "3 files have no current reviewer among their code owners". Its
+  alert icon is `--fgColor-muted`, because attention would read as the "Docs & Comments"
+  section.
+- **Why the folder's groups:** a reader who knows the folder popover reads the whole-PR
+  list the same way, with no second grouping to learn.
+- **Why "No code owner" has no tag:** it comes last in its own group, and no reviewer can
+  own files that have no code owner.
+- **Compared, for Files changed's button:** for its glyph, Octicons `shield-lock`,
+  `people`, and `law`. For its label, the glyph alone named "Code owners" with a tooltip,
+  and the glyph beside a visible "Code owners". For its look, Primer's small default
+  Button like the Conversation button, and an invisible button.
+- **Won:** `shield-lock` in `--fgColor-muted`, alone on a 28px square small default
+  Button, right after the Conversation button. Its accessible name, "Code owners", is its
+  tooltip, drawn below it as the Conversation button's is.
+- **Why the shield:** gh-prism already draws `shield-lock` on every owned file and
+  reviewer, as GitHub draws its own code-owner shield, so the button reads as the same
+  thing for the whole pull request. `people` already means a team in the owners dialog,
+  and `law` reads as a license or policy, not as owners.
+- **Why a default Button:** an invisible button would sit unlike the bordered Conversation
+  button beside it, so the pair would read as unrelated controls.
+- **Why no visible label:** the Conversation button beside it is an icon with a tooltip,
+  and a word would widen a toolbar GitHub fills. The muted glyph matches the Conversation
+  button's and spends no colour, as `design/brief.md` asks.
+- **Compared, for the Conversation tab's button beside each Reviewers heading:** the
+  toolbar's bordered small default Button, and an invisible button. For its place: inside
+  GitHub's heading control, or before it, floated to the heading's inline end.
+- **Won:** the same muted `shield-lock` on an invisible button, floated to the inline end
+  of the heading's row. In the classic sidebar it is 24px square, set 2px down so its
+  centre lines up with the gear's centre, inside the heading's row. It stacks above
+  GitHub's heading, whose full-width menu trigger would otherwise take the pointer. In the
+  overview it is 28px, Primer's small invisible IconButton. Its "Code owners" tooltip
+  opens leftward, because the button sits at the sidebar's inline-end edge.
+- **Why invisible:** the classic heading's gear and the overview's heading button are
+  borderless, so a bordered Button would be the only box in the sidebar's headings.
+- **Why outside GitHub's control:** the classic `summary` and the overview's full-width
+  button open GitHub's reviewers menu wherever they're clicked, so a button inside would
+  open both. The cost is that focus reaches gh-prism's button just before GitHub's
+  Reviewers control.
+
 ## 2026-11-05: No "Show only their files" from a classic Files changed comment shield
 
 - **Compared:** offering "Show only their files" from a review comment author's shield on

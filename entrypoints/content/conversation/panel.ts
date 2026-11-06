@@ -610,15 +610,15 @@ function follow(doc: Document, href: string): void {
 
 /**
  * The toolbar's Conversation button for `panel`, first in the toolbar row, removed when `signal`
- * aborts. Without the row, there's nowhere to put it.
+ * aborts, or `undefined` without the row, where there's nowhere to put it.
  */
 export function showConversationButton(
   page: FilesPage,
   signal: AbortSignal,
   panel: ConversationPanel,
-): void {
+): HTMLButtonElement | undefined {
   const toolbar = findFilesToolbar(page);
-  if (!toolbar) return;
+  if (!toolbar) return undefined;
   const doc = toolbar.ownerDocument;
 
   // Primer's small default Button, like "All commits" beside it: the icon, then the keycap.
@@ -639,4 +639,5 @@ export function showConversationButton(
   toolbar.prepend(button);
   panel.attach(button);
   signal.addEventListener("abort", () => button.remove());
+  return button;
 }

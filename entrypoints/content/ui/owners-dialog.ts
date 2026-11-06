@@ -1,9 +1,9 @@
 /**
- * The code owner details dialog a click on a code owners shield opens: the shield's own listing,
- * then a box per owning team with an excerpt of its members. It exists only while open, and mounts
- * in the page's body so a shield in a shadow root and one in the light DOM share it. It also holds
- * the hover popups' hint that points here, and `ownerFilterAction`, the link drawn as a button that
- * filters Files changed to the code owner a Reviewers shield marks.
+ * The code owner details dialog a click on a code owners shield or the code owners button opens:
+ * its opener's listing, then a box per owning team with an excerpt of its members. It exists only
+ * while open, and mounts in the page's body so a shield in a shadow root and one in the light DOM
+ * share it. It also holds the hover popups' hint that points here, and `ownerFilterAction`, the
+ * link drawn as a button that filters Files changed to the code owner a Reviewers shield marks.
  */
 
 import {
@@ -31,7 +31,7 @@ import css from "./owners-dialog.css?inline";
 export interface OwnersDialogOptions {
   /** The dialog's heading, which names it. */
   readonly title: string;
-  /** What the shield's popover lists, built by the shield's own module. */
+  /** What the dialog lists above the teams, built by its opener's module. */
   readonly summary: readonly Node[];
   /** The `@org/team` tokens whose members it excerpts, in order. */
   readonly teams: readonly string[];
