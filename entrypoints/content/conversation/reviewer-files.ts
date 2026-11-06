@@ -258,7 +258,7 @@ const SHIELD_LOOKS: Record<ReviewerListKind, ShieldLook> = {
 /** How a comment header draws gh-prism's shield in each Conversation layout. */
 const COMMENT_SHIELD_LOOKS: Record<ReviewerListKind, ShieldLook> = {
   // GitHub's classic shield, without the Reviewers row's status-icon wrapper.
-  classic: { classes: "gh-prism-comment-shield btn-link muted-icon" },
+  classic: { classes: "gh-prism-comment-shield btn-link" },
   // The overview row's invisible IconButton, at the title row's 20px.
   overview: {
     classes:

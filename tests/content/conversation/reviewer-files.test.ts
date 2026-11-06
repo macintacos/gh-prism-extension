@@ -1322,3 +1322,15 @@ describe.each([
     expect(listed()).toEqual(direct);
   });
 });
+
+it("paints a classic comment author's shield muted, as GitHub paints its own", async () => {
+  document.body.innerHTML = conversationFixture + commentsFixture;
+  // GitHub's .btn-link paints link blue; its .muted-icon rule applies only in the sidebar.
+  document.head.innerHTML =
+    "<style>:root{--fgColor-muted:rgb(89, 99, 110);--fgColor-accent:rgb(9, 105, 218)}.btn-link{color:var(--fgColor-accent)}</style>";
+  show();
+  await vi.advanceTimersByTimeAsync(0);
+
+  const shield = document.querySelector(".gh-prism-comment-shield") as HTMLElement;
+  expect(getComputedStyle(shield).color).toBe("rgb(89, 99, 110)");
+});

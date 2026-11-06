@@ -532,6 +532,9 @@ from GitHub's bundle, not a capture, because no account here can open it.
 - **Scope classic comment headers to `.js-discussion`.** It holds the timeline.
 - **Call `findCommentAuthors` only on a Conversation page.** The overview's headers have
   no timeline scope, unlike the classic's `.js-discussion`.
+- **Colour a shield outside the Reviewers sidebar yourself.** GitHub scopes `.muted-icon`
+  to `.discussion-sidebar-item`, so elsewhere it does nothing and `btn-link` paints a link
+  colour (as of 2026-11-05).
 - **Find a classic comment's author as `.timeline-comment-header h3 strong > a.author`.**
   That holds for the description, a timeline comment, and a review with a body.
 - **Find an inline thread comment's author as `.review-comment h3 strong > a.author`.** A

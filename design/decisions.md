@@ -14,8 +14,9 @@ at the top, dated.
   `d-none d-sm-flex` and the overview's badges group. For the look, GitHub's own shield
   (Octicons `shield-lock` at 16px, muted) against a text label.
 - **Won:** right after the name, drawn as GitHub's shield: in the classic timeline with
-  its `btn-link muted-icon` classes, and in the overview as Primer's small invisible
-  `IconButton` at the title row's 20px.
+  its `btn-link` class, coloured muted at rest and accent on hover as GitHub colours its
+  sidebar shield (GitHub's `.muted-icon` rule applies only inside the sidebar), and in the
+  overview as Primer's small invisible `IconButton` at the title row's 20px.
 - **Why:** "2026-10-28: A shield for every code owner reviewer" set the precedent that
   gh-prism's shield looks like GitHub's and sits with the person it marks, so a reader
   learns one mark. Beside the name it binds to that person, as GitHub's hovercard does.
