@@ -57,7 +57,7 @@ import {
 } from "./conversation/panel";
 import { showReviewerFiles } from "./conversation/reviewer-files";
 import { visitViewed } from "./diffs/viewed";
-import { followRightPanel } from "./files-page";
+import { findCommentAuthors, followRightPanel } from "./files-page";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
 import { showOwnerSection } from "./sidebar/owner-section";
 import { showReportLink } from "./sidebar/report";
@@ -242,6 +242,7 @@ export default defineContentScript({
           read: () => readOwnership(pr, { fetchFn: fetch, teamMembers, signal: visit }),
           teamMembers,
           teamAvatar: teamAvatarReader(fetch, visit),
+          findAuthors: findCommentAuthors,
           filter: {
             linkOf: (token) =>
               ownerFilterLink(

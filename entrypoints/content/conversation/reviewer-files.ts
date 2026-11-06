@@ -1,8 +1,9 @@
 /**
  * The popup a code-owner shield in a pull request's Reviewers list or beside a comment's author
- * opens on the Conversation tab and in the Conversation panel's frame, listing that code owner's
- * files, the code owner details dialog its click opens, and the shields gh-prism adds beside a PR
- * reviewer who owns files where GitHub draws none and beside a comment author who owns files.
+ * opens on the Conversation tab, in its panel's frame, and on Files changed, listing that code
+ * owner's files, the code owner details dialog its click opens, and the shields gh-prism adds
+ * beside a PR reviewer who owns files where GitHub draws none and beside a comment author who owns
+ * files.
  */
 
 import {
@@ -17,7 +18,6 @@ import {
 } from "@/utils/github/code-owners";
 import {
   type CommentAuthor,
-  findCommentAuthors,
   findReviewerRows,
   followOwnerSpots,
   type OwnerSpots,
@@ -53,7 +53,8 @@ const OWN_SHIELD = "button[data-gh-prism-owner]";
  * list, 200 ms after the pointer rests on it or at once on focus, listing the changed files that
  * code owner owns, and describes the shield with it. Opens from GitHub's shield, or from the one
  * this adds beside each PR reviewer who owns a changed file, or whom GitHub marks a code owner,
- * where GitHub draws none, or beside each comment author who owns a changed file: a PR reviewer as
+ * where GitHub draws none, or beside each comment author `findAuthors` finds who owns a changed
+ * file: a PR reviewer as
  * their Reviewers row shows, anyone else looked up once through `teamMembers`. Mounts a
  * stylesheet in `doc`'s head. Opens nothing for a code owner who owns no changed file, unless
  * GitHub marks them one: then it says GitHub hides the team. Tab from the shield enters the popup.
@@ -72,8 +73,10 @@ export function showReviewerFiles(
     teamMembers,
     teamAvatar,
     filter,
+    findAuthors,
   }: {
     read: () => Promise<Ownership>;
+    findAuthors: (doc: Document) => CommentAuthor[];
     teamMembers: TeamMembersOf;
     teamAvatar: TeamAvatarOf;
     filter?: OwnerFilter;
@@ -124,7 +127,7 @@ export function showReviewerFiles(
     authorAnswers.set(key, "pending");
     void ownershipOf({ codeOwners, prReviewers }, token, teamMembers).then((owned) => {
       authorAnswers.set(key, { owned: owned.paths.length > 0 ? owned : undefined });
-      if (!signal.aborted) addAuthorShields(findCommentAuthors(doc), settled);
+      if (!signal.aborted) addAuthorShields(findAuthors(doc), settled);
     });
     return "pending";
   }
@@ -166,13 +169,10 @@ export function showReviewerFiles(
       else if ((spots.rows.length > 0 || spots.authors.length > 0) && !reading)
         void readOnce().then((settled) => {
           if (!signal.aborted)
-            addEveryShield(
-              { rows: findReviewerRows(doc), authors: findCommentAuthors(doc) },
-              settled,
-            );
+            addEveryShield({ rows: findReviewerRows(doc), authors: findAuthors(doc) }, settled);
         });
     },
-    { signal },
+    { findAuthors, signal },
   );
 
   followHoverIntent(doc, signal, {
@@ -258,7 +258,7 @@ const SHIELD_LOOKS: Record<ReviewerListKind, ShieldLook> = {
   },
 };
 
-/** How a comment header draws gh-prism's shield in each Conversation layout. */
+/** How a comment header draws gh-prism's shield in each page layout. */
 const COMMENT_SHIELD_LOOKS: Record<ReviewerListKind, ShieldLook> = {
   // GitHub's classic shield, without the Reviewers row's status-icon wrapper.
   classic: { classes: "gh-prism-comment-shield btn-link" },

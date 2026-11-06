@@ -1,7 +1,12 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { showReviewerFiles } from "../../../entrypoints/content/conversation/reviewer-files";
-import { findCommentAuthors } from "../../../entrypoints/content/files-page";
+import {
+  type CommentAuthor,
+  findCommentAuthors,
+  findFilesCommentAuthors,
+  findReviewerRows,
+} from "../../../entrypoints/content/files-page";
 import type { OwnerFilter } from "../../../entrypoints/content/ui/owners-dialog";
 import {
   codeOwnerOf,
@@ -22,6 +27,13 @@ import overviewCommentsFixture from "../../fixtures/conversation-overview-commen
 import conversationFixture from "../../fixtures/conversation-page.html?raw";
 import { routedFetch } from "../../fixtures/fetch";
 import { outline } from "../../fixtures/file-list";
+import {
+  byId,
+  COMMENT_THREADS,
+  diffList,
+  loadClassicCommentsFixture,
+  loadCommentsFixture,
+} from "../../fixtures/files-page";
 import nodeReviewRequests from "../../fixtures/review-requests-node.json?raw";
 import sandboxMembers from "../../fixtures/team-members-sandbox.json?raw";
 
@@ -192,12 +204,14 @@ function show(
   }),
   teamMembers: TeamMembersOf = teamMembersReader(membersFetch, controller.signal),
   filter?: OwnerFilter,
+  findAuthors: (doc: Document) => CommentAuthor[] = findCommentAuthors,
 ) {
   showReviewerFiles(document, controller.signal, {
     read,
     teamMembers,
     teamAvatar: async () => undefined,
     filter,
+    findAuthors,
   });
 }
 
@@ -1004,26 +1018,81 @@ describe("showReviewerFiles", () => {
   });
 });
 
+/** Appends a fresh copy of `markup`'s first timeline item after the page's timeline items. */
+function mountTimelineItem(markup: string) {
+  const item = '.js-discussion .js-timeline-item, [data-testid="comment-header"]';
+  const template = document.createElement("template");
+  template.innerHTML = markup;
+  const fresh = template.content.querySelector(item)?.closest(".js-timeline-item, article");
+  const live = document.querySelector(item)?.closest(".js-timeline-item, article");
+  if (!fresh || !live) throw new Error("fixture has no timeline item");
+  live.parentElement?.append(fresh);
+}
+
 describe.each([
-  ["the classic timeline", commentsFixture],
-  ["the PR overview", overviewCommentsFixture],
-])("a comment author's shield in %s", (_layout, comments) => {
+  {
+    layout: "the classic timeline",
+    load: () => {
+      document.body.innerHTML = conversationFixture + commentsFixture;
+    },
+    findAuthors: findCommentAuthors,
+    mountThread: () => mountTimelineItem(commentsFixture),
+    sidebar: true,
+  },
+  {
+    layout: "the PR overview",
+    load: () => {
+      document.body.innerHTML = conversationFixture + overviewCommentsFixture;
+    },
+    findAuthors: findCommentAuthors,
+    mountThread: () => mountTimelineItem(overviewCommentsFixture),
+    sidebar: true,
+  },
+  {
+    layout: "the new Files changed page",
+    load: loadCommentsFixture,
+    findAuthors: findFilesCommentAuthors,
+    mountThread: () => diffList().insertAdjacentHTML("beforeend", COMMENT_THREADS.files),
+    sidebar: false,
+  },
+  {
+    layout: "the classic Files changed page",
+    load: () => loadClassicCommentsFixture(""),
+    findAuthors: findFilesCommentAuthors,
+    mountThread: () => byId("files").insertAdjacentHTML("beforeend", COMMENT_THREADS.classic),
+    sidebar: false,
+  },
+])("a comment author's shield in $layout", ({ load, findAuthors, mountThread, sidebar }) => {
+  const authors = () => findAuthors(document);
   beforeEach(() => {
-    document.body.innerHTML = conversationFixture + comments;
+    load();
+
+    expect(authors().length).toBeGreaterThan(0);
   });
 
   const settle = () => vi.advanceTimersByTimeAsync(0);
-  const authors = () => findCommentAuthors(document);
-  const linkOf = (name: Element) =>
-    (name.matches("a") ? name : name.querySelector("a")) as HTMLAnchorElement;
+  const showHere = (
+    read?: () => Promise<Ownership>,
+    teamMembers?: TeamMembersOf,
+    filter?: OwnerFilter,
+  ) => show(read, teamMembers, filter, findAuthors);
   /** Makes `login` the author of `authorsToEdit`, every comment by default. */
   function authoredBy(login: string, authorsToEdit = authors()) {
     for (const { name } of authorsToEdit) {
-      const link = linkOf(name);
+      const link = (name.matches("a") ? name : name.querySelector("a")) as HTMLAnchorElement;
+      const header = name.closest('[data-testid="comment-header"], h3') ?? name;
+      const profile = link.getAttribute("href");
+      for (const a of header.querySelectorAll(`a[href="${profile}"]`))
+        a.setAttribute("href", `/${login}`);
+      for (const img of header.querySelectorAll("img[alt]")) img.setAttribute("alt", `@${login}`);
       link.textContent = login;
-      link.setAttribute("href", `/${login}`);
     }
   }
+  /** The last diff table or timeline item holding a comment author. */
+  const lastThread = () =>
+    authors()
+      .map(({ name }) => name.closest(".js-timeline-item, article, table"))
+      .findLast((thread) => thread !== null) as Element;
   /** Each comment header's shield names, in page order. */
   const headerShields = () =>
     authors().map(({ name }) =>
@@ -1046,17 +1115,16 @@ describe.each([
     fetchFn.mock.calls.filter(([input]) => String(input) === url).length;
 
   it("shields every comment header of an author who owns files directly and through a team", async () => {
-    show();
+    showHere();
     await settle();
 
-    expect(authors().length).toBeGreaterThan(1);
     expect(headerShields()).toEqual(authors().map(() => ["sandbox-user is a code owner"]));
     expect(authors()[0]?.name.nextElementSibling).toBe(commentShields()[0]);
   });
 
   it("names the team for an author whom only its members list makes an owner", async () => {
     authoredBy("other-user");
-    show(undefined, frontendListing(["other-user"]).teamMembers);
+    showHere(undefined, frontendListing(["other-user"]).teamMembers);
     await settle();
 
     expect(headerShields()).toEqual(
@@ -1073,7 +1141,7 @@ describe.each([
     ],
   ])("shields no author who %s", async (_case, login, ownership) => {
     authoredBy(login);
-    show(async () => ownership());
+    showHere(async () => ownership());
     await settle();
 
     expect(commentShields()).toEqual([]);
@@ -1081,7 +1149,7 @@ describe.each([
 
   it("shields no author who owns files only through a team whose members can't be read", async () => {
     authoredBy("other-user");
-    show(undefined, teamMembersReader(routedFetch({}), controller.signal));
+    showHere(undefined, teamMembersReader(routedFetch({}), controller.signal));
     await settle();
 
     expect(commentShields()).toEqual([]);
@@ -1094,7 +1162,7 @@ describe.each([
         content: "sandbox-user",
       }),
     );
-    show();
+    showHere();
     await settle();
 
     expect(commentShields()).toHaveLength(authors().length);
@@ -1103,38 +1171,61 @@ describe.each([
   it("shields no bot or deleted account, and still shields an owner elsewhere on the page", async () => {
     const [first, ...rest] = authors();
     authoredBy("ghost", first ? [first] : []);
-    show();
+    showHere();
     await settle();
 
     expect(headerShields()).toEqual([[], ...rest.map(() => ["sandbox-user is a code owner"])]);
     expect(commentShields()).toHaveLength(rest.length);
   });
 
-  it("keeps the shield on a resolved, collapsed thread", async () => {
+  it.runIf(sidebar)("keeps the shield on a resolved, collapsed thread", async () => {
     const thread = document.querySelector("review-thread-collapsible");
     thread?.setAttribute("data-resolved", "true");
     thread?.classList.remove("open");
-    show();
+    showHere();
     await settle();
 
     expect(headerShields()).toEqual(authors().map(() => ["sandbox-user is a code owner"]));
   });
 
   it("shields a comment appended after the page loaded", async () => {
-    show();
+    showHere();
     await settle();
     const before = authors().length;
 
-    const item = document.querySelector(".js-discussion .js-timeline-item, article");
-    item?.parentElement?.append(item.cloneNode(true));
+    mountThread();
     await settle();
 
     expect(authors().length).toBeGreaterThan(before);
     expect(headerShields()).toEqual(authors().map(() => ["sandbox-user is a code owner"]));
   });
 
+  it("draws a shield on a thread that mounts after the shields settle", async () => {
+    showHere();
+    await settle();
+
+    mountThread();
+    await settle();
+
+    const added = authors().at(-1)?.name;
+    expect(added?.parentElement?.querySelectorAll(".gh-prism-comment-shield")).toHaveLength(1);
+  });
+
+  it("draws one shield on a thread whose diff unmounts and remounts", async () => {
+    showHere();
+    await settle();
+
+    lastThread().remove();
+    mountThread();
+    await settle();
+
+    expect(headerShields()).toEqual(authors().map(() => ["sandbox-user is a code owner"]));
+    for (const { name } of authors())
+      expect(name.nextElementSibling?.matches(".gh-prism-comment-shield")).toBe(true);
+  });
+
   it("draws one fresh shield in a header whose nodes the page replaced", async () => {
-    show();
+    showHere();
     await settle();
 
     const row = authors()[0]?.name.parentElement as Element;
@@ -1149,7 +1240,7 @@ describe.each([
 
   it("draws one shield per header across mutation batches with a lookup settling between them", async () => {
     const members = Promise.withResolvers<{ total: number; members: string[] } | undefined>();
-    show(undefined, () => members.promise);
+    showHere(undefined, () => members.promise);
     await settle();
 
     document.body.append(document.createElement("div"));
@@ -1165,7 +1256,7 @@ describe.each([
 
   it("opens the popup with the filter action on hover", async () => {
     const FILES = "https://github.com/o/r/pull/1/files";
-    show(undefined, undefined, {
+    showHere(undefined, undefined, {
       linkOf: (token) => ({ href: `${FILES}?gh-prism-owner=${token}`, shown: false }),
       navigate: () => {},
     });
@@ -1188,8 +1279,29 @@ describe.each([
     );
   });
 
+  it("opens the code owner details dialog on click, listing the author's files", async () => {
+    showHere();
+    await settle();
+
+    commentShields()[0]?.click();
+    await settle();
+
+    const dialog = document.querySelector<HTMLDialogElement>("dialog.gh-prism-owners-dialog");
+    expect(dialog?.textContent).toContain("@sandbox-user");
+    expect(outline(dialog?.querySelector("ul"))).toEqual([
+      "api/",
+      "  generated/",
+      "    client.ts",
+      "  routes.ts",
+      "docs/",
+      "  guide.md",
+      "web/",
+      "  app.ts",
+    ]);
+  });
+
   it("removes every comment shield once the signal aborts", async () => {
-    show();
+    showHere();
     await settle();
 
     controller.abort();
@@ -1210,6 +1322,7 @@ describe.each([
       dialog()?.querySelector<HTMLButtonElement>('button[aria-label="Close"]')?.click();
 
     beforeEach(() => {
+      if (!sidebar) return;
       const teamRow = shieldOf("frontend").parentElement as Element;
       const row = teamRow.cloneNode(true) as Element;
       row.querySelector('[id^="codeowner-"]')?.remove();
@@ -1221,34 +1334,40 @@ describe.each([
         '.gh-prism-reviewer-shield[data-gh-prism-owner="@sandbox-user"]',
       ) as HTMLElement;
 
-    it("lists the same files from the comment's shield as from the Reviewers row's", async () => {
-      show(ownership);
-      await settle();
+    it.runIf(sidebar)(
+      "lists the same files from the comment's shield as from the Reviewers row's",
+      async () => {
+        showHere(ownership);
+        await settle();
 
-      await hoverOn(rowShield());
-      const fromRow = listed();
-      pointerOut(rowShield());
-      await vi.advanceTimersByTimeAsync(500);
-      await hoverOn(commentShields()[0] as Element);
+        await hoverOn(rowShield());
+        const fromRow = listed();
+        pointerOut(rowShield());
+        await vi.advanceTimersByTimeAsync(500);
+        await hoverOn(commentShields()[0] as Element);
 
-      expect(fromRow.length).toBeGreaterThan(0);
-      expect(listed()).toEqual(fromRow);
-    });
+        expect(fromRow.length).toBeGreaterThan(0);
+        expect(listed()).toEqual(fromRow);
+      },
+    );
 
-    it("opens the same dialog from the comment's shield as from the Reviewers row's", async () => {
-      show(ownership);
-      await settle();
+    it.runIf(sidebar)(
+      "opens the same dialog from the comment's shield as from the Reviewers row's",
+      async () => {
+        showHere(ownership);
+        await settle();
 
-      rowShield().click();
-      await settle();
-      const fromRow = dialog()?.textContent;
-      closeDialog();
-      commentShields()[0]?.click();
-      await settle();
+        rowShield().click();
+        await settle();
+        const fromRow = dialog()?.textContent;
+        closeDialog();
+        commentShields()[0]?.click();
+        await settle();
 
-      expect(fromRow).toContain("frontend");
-      expect(dialog()?.textContent).toBe(fromRow);
-    });
+        expect(fromRow).toContain("frontend");
+        expect(dialog()?.textContent).toBe(fromRow);
+      },
+    );
   });
 
   describe("reads", () => {
@@ -1266,11 +1385,10 @@ describe.each([
       async (_case, prReviewers) => {
         const read = vi.fn(async () => ({ codeOwners: sandboxOwners(), prReviewers }));
         const { fetchFn, teamMembers } = frontendListing(["sandbox-user"]);
-        show(read, teamMembers);
+        showHere(read, teamMembers);
         await settle();
 
-        const item = document.querySelector(".js-discussion .js-timeline-item, article");
-        item?.parentElement?.append(item.cloneNode(true));
+        mountThread();
         await settle();
 
         expect(read).toHaveBeenCalledOnce();
@@ -1280,18 +1398,22 @@ describe.each([
       },
     );
 
-    it("reads the code owners on a page with comments and no Reviewers list", async () => {
-      document.body.innerHTML = comments;
-      const read = vi.fn(async () => ({ codeOwners: sandboxOwners(), prReviewers: [] }));
-      show(read);
-      await settle();
+    it.runIf(sidebar)(
+      "reads the code owners on a page with comments and no Reviewers list",
+      async () => {
+        document.getElementById("partial-discussion-sidebar")?.remove();
+        expect(findReviewerRows(document)).toEqual([]);
+        const read = vi.fn(async () => ({ codeOwners: sandboxOwners(), prReviewers: [] }));
+        showHere(read);
+        await settle();
 
-      expect(read).toHaveBeenCalledOnce();
-      expect(commentShields().length).toBeGreaterThan(0);
-    });
+        expect(read).toHaveBeenCalledOnce();
+        expect(commentShields().length).toBeGreaterThan(0);
+      },
+    );
   });
 
-  it.each([
+  it.runIf(sidebar).each([
     ["isn't among the PR reviewers", []],
     ["sits beside PR reviewers that couldn't be read", undefined],
   ])("lists the direct files of a GitHub-shielded commenter who %s", async (_case, prReviewers) => {
@@ -1302,7 +1424,7 @@ describe.each([
     for (const link of row.querySelectorAll("a")) link.setAttribute("href", "/sandbox-user");
     teamRow.after(row);
     const members = Promise.withResolvers<{ total: number; members: string[] } | undefined>();
-    show(
+    showHere(
       async () => ({ codeOwners: sandboxOwners(), prReviewers }),
       () => members.promise,
     );
@@ -1323,14 +1445,26 @@ describe.each([
   });
 });
 
-it("paints a classic comment author's shield muted, as GitHub paints its own", async () => {
-  document.body.innerHTML = conversationFixture + commentsFixture;
-  // GitHub's .btn-link paints link blue; its .muted-icon rule applies only in the sidebar.
-  document.head.innerHTML =
-    "<style>:root{--fgColor-muted:rgb(89, 99, 110);--fgColor-accent:rgb(9, 105, 218)}.btn-link{color:var(--fgColor-accent)}</style>";
-  show();
-  await vi.advanceTimersByTimeAsync(0);
+it.each([
+  [
+    "the classic timeline",
+    () => {
+      document.body.innerHTML = conversationFixture + commentsFixture;
+    },
+    findCommentAuthors,
+  ],
+  ["the classic Files changed page", () => loadClassicCommentsFixture(""), findFilesCommentAuthors],
+])(
+  "paints a comment author's shield muted in %s, as GitHub paints its own",
+  async (_page, load, findAuthors) => {
+    load();
+    // GitHub's .btn-link paints link blue; its .muted-icon rule applies only in the sidebar.
+    document.head.innerHTML =
+      "<style>:root{--fgColor-muted:rgb(89, 99, 110);--fgColor-accent:rgb(9, 105, 218)}.btn-link{color:var(--fgColor-accent)}</style>";
+    show(undefined, undefined, undefined, findAuthors);
+    await vi.advanceTimersByTimeAsync(0);
 
-  const shield = document.querySelector(".gh-prism-comment-shield") as HTMLElement;
-  expect(getComputedStyle(shield).color).toBe("rgb(89, 99, 110)");
-});
+    const shield = document.querySelector(".gh-prism-comment-shield") as HTMLElement;
+    expect(getComputedStyle(shield).color).toBe("rgb(89, 99, 110)");
+  },
+);

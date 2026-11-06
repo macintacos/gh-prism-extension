@@ -1,6 +1,7 @@
 import { findFilesPage, readChangedFiles } from "../../entrypoints/content/files-page";
 // The `?raw` import is required: `readFileSync` throws under happy-dom.
 import classicFixture from "./classic-files-page.html?raw";
+import classicCommentsFixture from "./classic-files-page-comments.html?raw";
 import commitMessageLinks from "./commit-message-links.html?raw";
 import commitMessageLists from "./commit-message-lists.html?raw";
 import commitMessageMention from "./commit-message-mention.html?raw";
@@ -8,6 +9,7 @@ import commitMessageSha from "./commit-message-sha.html?raw";
 import commitMessageSubject from "./commit-message-subject.html?raw";
 import commitFixture from "./commit-page.html?raw";
 import fixture from "./files-page.html?raw";
+import filesCommentsFixture from "./files-page-comments.html?raw";
 import filterMenuFixture from "./filter-menu.html?raw";
 import filterMenuNotOwnerFixture from "./filter-menu-not-owner.html?raw";
 import overlayFixture from "./pr-overlay.html?raw";
@@ -121,6 +123,24 @@ export function byId(id: string): HTMLElement {
 export function loadClassicFixture(login: string): void {
   document.head.innerHTML = `<meta name="user-login" content="${login}">`;
   document.body.innerHTML = classicFixture;
+}
+
+/** GitHub's captured review threads: the new Files changed page's diff cell and the classic's row. */
+export const COMMENT_THREADS = { files: filesCommentsFixture, classic: classicCommentsFixture };
+
+/** Loads the Files changed fixture with a captured review thread in its diffs. */
+export function loadCommentsFixture(): void {
+  loadFixture();
+  findFilesPage(document)?.diffs.insertAdjacentHTML("beforeend", filesCommentsFixture);
+}
+
+/**
+ * Loads the classic Files changed fixture as `login` sees it, with a captured inline thread in its
+ * diffs.
+ */
+export function loadClassicCommentsFixture(login: string): void {
+  loadClassicFixture(login);
+  byId("files").insertAdjacentHTML("beforeend", classicCommentsFixture);
 }
 
 /**

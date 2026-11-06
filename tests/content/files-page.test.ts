@@ -16,6 +16,7 @@ import {
   findDiff,
   findDiffList,
   findDiffstat,
+  findFilesCommentAuthors,
   findFilesPage,
   findFilesToolbar,
   findFilterMenu,
@@ -51,6 +52,7 @@ import conversationFixture from "../fixtures/conversation-page.html?raw";
 import {
   addOwnedByGroup,
   byId,
+  COMMENT_THREADS,
   COMMIT_MESSAGES,
   closeFilterMenu,
   closeOverlay,
@@ -58,7 +60,9 @@ import {
   foundPage,
   LAUNCHER_DIFF,
   linkTo,
+  loadClassicCommentsFixture,
   loadClassicFixture,
+  loadCommentsFixture,
   loadCommitFixture,
   loadFixture,
   loadHeaderFixture,
@@ -373,11 +377,9 @@ describe("findCommentAuthors", () => {
     });
   });
 
-  it.each([
-    ["Files changed", () => loadFixture()],
-    ["classic Files changed", () => loadClassicFixture("sandbox-user")],
-  ])("finds no authors on %s", (_page, load) => {
-    load();
+  it("finds no authors in classic Files changed's review comments", () => {
+    loadClassicCommentsFixture("");
+
     expect(findCommentAuthors(document)).toEqual([]);
   });
 
@@ -411,7 +413,10 @@ describe("followOwnerSpots", () => {
   it("reports Reviewers rows and comment authors together, now and after each change, until aborted", async () => {
     document.body.innerHTML = conversationFixture + commentsFixture;
     const onChange = vi.fn();
-    followOwnerSpots(document, onChange, { signal: controller.signal });
+    followOwnerSpots(document, onChange, {
+      findAuthors: findCommentAuthors,
+      signal: controller.signal,
+    });
     expect(onChange).toHaveBeenLastCalledWith({
       rows: expect.arrayContaining([expect.objectContaining({ kind: "classic" })]),
       authors: expect.arrayContaining([expect.objectContaining({ token: "@sandbox-user" })]),
@@ -428,6 +433,68 @@ describe("followOwnerSpots", () => {
     document.body.append(document.createElement("div"));
     await flush();
     expect(onChange).toHaveBeenCalledTimes(calls);
+  });
+
+  it("reports the authors `findAuthors` finds, now and once a thread mounts", async () => {
+    loadClassicFixture("");
+    const onChange = vi.fn();
+    followOwnerSpots(document, onChange, {
+      findAuthors: findFilesCommentAuthors,
+      signal: controller.signal,
+    });
+    expect(onChange.mock.lastCall?.[0].authors).toEqual([]);
+
+    byId("files").insertAdjacentHTML("beforeend", COMMENT_THREADS.classic);
+    await flush();
+
+    expect(
+      onChange.mock.lastCall?.[0].authors.map(({ token }: { token: string }) => token),
+    ).toEqual(["@sandbox-user"]);
+  });
+});
+
+describe("findFilesCommentAuthors", () => {
+  it("finds a review comment's author on Files changed, at the name link", () => {
+    loadCommentsFixture();
+
+    expect(findFilesCommentAuthors(document)).toEqual([
+      {
+        kind: "overview",
+        token: "@sandbox-user",
+        name: document.querySelector('[data-testid="review-thread"] a[data-testid="avatar-link"]'),
+      },
+    ]);
+  });
+
+  it("finds a review comment's author on classic Files changed, at its bold wrapper", () => {
+    loadClassicCommentsFixture("");
+
+    expect(findFilesCommentAuthors(document)).toEqual([
+      {
+        kind: "classic",
+        token: "@sandbox-user",
+        name: document.querySelector("#files .review-comment h3 strong"),
+      },
+    ]);
+  });
+
+  it("leaves out the classic pull request header's author", () => {
+    loadClassicCommentsFixture("");
+    byId("partial-discussion-header").insertAdjacentHTML(
+      "beforeend",
+      '<a class="author Link--secondary text-bold" href="/other-user">other-user</a>',
+    );
+
+    expect(findFilesCommentAuthors(document).map(({ token }) => token)).toEqual(["@sandbox-user"]);
+  });
+
+  it.each([
+    ["classic", commentsFixture],
+    ["overview", overviewCommentsFixture],
+  ])("finds none on the Conversation tab's %s comments", (_layout, markup) => {
+    document.body.innerHTML = markup;
+
+    expect(findFilesCommentAuthors(document)).toEqual([]);
   });
 });
 
