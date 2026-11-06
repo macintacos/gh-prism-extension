@@ -367,7 +367,6 @@ describe("findCommentAuthors", () => {
     });
 
     it("finds the authors of a timeline item appended later", () => {
-      findCommentAuthors(document);
       const item = document.querySelector(".js-timeline-item")?.cloneNode(true);
       if (item) document.querySelector(".js-discussion")?.append(item);
       expect(findCommentAuthors(document)).toHaveLength(6);
@@ -401,7 +400,10 @@ describe("findCommentAuthors", () => {
 });
 
 describe("followOwnerSpots", () => {
-  const controller = new AbortController();
+  let controller: AbortController;
+  beforeEach(() => {
+    controller = new AbortController();
+  });
   afterEach(() => controller.abort());
   // MutationObserver callbacks are microtasks.
   const flush = () => Promise.resolve();
@@ -409,8 +411,7 @@ describe("followOwnerSpots", () => {
   it("reports Reviewers rows and comment authors together, now and after each change, until aborted", async () => {
     document.body.innerHTML = conversationFixture + commentsFixture;
     const onChange = vi.fn();
-    const local = new AbortController();
-    followOwnerSpots(document, onChange, { signal: local.signal });
+    followOwnerSpots(document, onChange, { signal: controller.signal });
     expect(onChange).toHaveBeenLastCalledWith({
       rows: expect.arrayContaining([expect.objectContaining({ kind: "classic" })]),
       authors: expect.arrayContaining([expect.objectContaining({ token: "@sandbox-user" })]),
@@ -422,7 +423,7 @@ describe("followOwnerSpots", () => {
     await flush();
     expect(onChange.mock.lastCall?.[0].authors.length).toBeGreaterThan(before);
 
-    local.abort();
+    controller.abort();
     const calls = onChange.mock.calls.length;
     document.body.append(document.createElement("div"));
     await flush();

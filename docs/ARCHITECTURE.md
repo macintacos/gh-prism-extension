@@ -541,15 +541,17 @@ files only through a team is found; a viewer outside the organization gets a sil
 for every team. `withMemberTeams` reads them for each PR reviewer and adds each team it
 finds that GitHub doesn't already name for them to the teams they review for. `index.ts`
 runs that once both reads land, and hands every reader the result, so every reader sees
-the same teams. `ownershipOf` and the code owner details dialog both read through the
-visit's `teamMembersReader`, which asks each team once, so a team is read once a visit
-however many logins are checked, and the dialog reuses a read already made. Each read also
-carries the team's member count, which the dialog's "See all N members" link shows when
-the team has more members than it lists. A team's avatar takes a read of its own, once a
-visit, through the visit's `teamAvatarReader`, when a surface first draws the team:
-`readTeamAvatar` finds the team's avatar ID in the hovercard GitHub's team mentions open,
-a small HTML answer. For a team the viewer can't see, GitHub answers 404 and the surface
-draws a placeholder. A user's avatar URL comes from their login, with no read.
+the same teams. `conversation/reviewer-files.ts` asks `ownershipOf` what a comment author
+who isn't a PR reviewer owns, before drawing their shield. `ownershipOf` and the code
+owner details dialog both read through the visit's `teamMembersReader`, which asks each
+team once, so a team is read once a visit however many logins are checked, and the dialog
+reuses a read already made. Each read also carries the team's member count, which the
+dialog's "See all N members" link shows when the team has more members than it lists. A
+team's avatar takes a read of its own, once a visit, through the visit's
+`teamAvatarReader`, when a surface first draws the team: `readTeamAvatar` finds the team's
+avatar ID in the hovercard GitHub's team mentions open, a small HTML answer. For a team
+the viewer can't see, GitHub answers 404 and the surface draws a placeholder. A user's
+avatar URL comes from their login, with no read.
 
 Each read settles on its own: one that fails, or whose response misses a field it expects,
 resolves to `undefined` and logs one warning naming it, and the other read is unaffected.
@@ -618,6 +620,16 @@ or focusing either shield opens the popup. A click on either closes the popup an
 the code owner details dialog from `ui/owners-dialog.ts`. One click listener on the
 document serves both shields, because GitHub replaces the classic sidebar's nodes
 mid-visit, and a listener on a shield would go with them.
+
+The same shield follows a comment author's name in the Conversation timeline.
+`findCommentAuthors` in `files-page.ts` finds one author per comment in either layout,
+leaving out apps and bots. `followOwnerSpots` hands the authors to `reviewer-files.ts`
+alongside the Reviewers rows. A comment author who is a PR reviewer gets the files their
+Reviewers row shows. Anyone else is looked up once a visit through `ownershipOf`, and gets
+a shield once that lookup finds changed files they own. Drawing is one synchronous pass
+that skips a name already followed by a shield, so overlapping mutation batches never give
+a header two shields. A header GitHub re-renders gets a fresh one. The comment shield
+opens the same popup and dialog as a Reviewers row's.
 
 The popup lists the files `ownerFilter` gives the shield's `@user` or `@org/team` token,
 counting the teams GitHub names for that reviewer, and names those teams, each with its

@@ -264,6 +264,12 @@ and name keep GitHub's own hovercard, so the two cards never share a trigger.
   list, the look of Primer's small invisible `IconButton`. A 24px target surrounds the
   16px glyph without moving it. Its accessible name says, in GitHub's words, "… is a code
   owner", adding "through" and the team when only a team makes them one.
+- **Beside a comment's author:** the shield also follows the name of each Conversation
+  comment author who owns a changed file, reviewer or not, right after the name and before
+  "commented" and the time. In the classic timeline it takes GitHub's
+  `btn-link muted-icon` classes with no status-icon wrapper. In the overview it takes the
+  look of the small invisible `IconButton` at the title row's 20px. Its popup, timing,
+  click, and the Conversation panel's lack of a filter action follow every rule below.
 - **Timing:** it opens 200 ms after the pointer rests on the shield, longer than GitHub's
   card takes to close, and at once when the shield takes keyboard focus. It closes 150 ms
   after the pointer leaves both shield and popup, so the pointer can cross into it. Tab

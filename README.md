@@ -51,6 +51,8 @@ Rest the pointer on the shield to see who owns the file, or click it for details
 
 - On the Conversation tab, the shield beside a team or person in the Reviewers list lists
   the changed files they own.
+- On the Conversation tab, the shield also shows beside a comment author who owns changed
+  files, reviewer or not.
 - **Only files owned by…** in the file tree's filter menu, or `gh-prism-owner=<owner>` in
   the Files changed URL, shows only one owner's files. The owner is a team such as
   `org/team`, or a user's login.

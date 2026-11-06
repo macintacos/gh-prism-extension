@@ -6,11 +6,10 @@
  * a commit's message column joins, finds the toolbar row a pull request's Conversation button
  * starts, follows a pull request's narrow-layout overlay and the file-tree filter menu, finds and
  * follows the rows and code-owner shields of a pull request's Reviewers lists and its Conversation
- * comments' authors, measures and
- * follows GitHub's right-hand panel beside a pull request's Files changed, and copies that
- * menu's group, divider, and item for gh-prism's entries, so the selectors stay in this seam; it
- * builds no UI of its own and imports nothing from WXT. The pull request selectors come from
- * EXC-1662's survey.
+ * comments' authors, measures and follows GitHub's right-hand panel beside a pull request's Files
+ * changed, and copies that menu's group, divider, and item for gh-prism's entries, so the
+ * selectors stay in this seam; it builds no UI of its own and imports nothing from WXT. The pull
+ * request selectors come from EXC-1662's survey.
  */
 
 import { LOGIN } from "@/utils/github/code-owners";
