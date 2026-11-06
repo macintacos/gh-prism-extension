@@ -40,6 +40,8 @@ imports a sheet or writes `tw:` classes are in [`styling-rules.md`](styling-rule
   warns when non-literal markup is assigned to `innerHTML` or `outerHTML`, or passed to
   `insertAdjacentHTML`, `createContextualFragment`, `setHTMLUnsafe`, or `document.write`,
   but not to `DOMParser`, whose nodes survive adoption into a shadow root behind Firefox's
-  Xrays. Prefix a fragment with `<body>` when it may open with `<style>`, `<link>`, or
-  `<meta>`, which the parser otherwise moves into the parsed `<head>`, out of `.body`.
-  `parseSpriteSheet` in the `@pierre/trees` patch is the pattern.
+  Xrays. Prefix a fragment with `<body>` whenever you read its nodes from `.body`: without
+  it the parser moves leading head content, such as `<style>`, `<script>`, `<template>`,
+  or a comment, out of `.body`. `parseSpriteSheet` in the `@pierre/trees` patch is the
+  pattern for querying the parsed document, and `setSlotHtml` for moving a fragment's
+  nodes.

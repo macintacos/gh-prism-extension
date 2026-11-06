@@ -132,7 +132,7 @@ index 7d3b818c43a7621ab9170da32b180232ed3c9472..45594ea233b56e0550b36af3d01b7975
  			previousFocusedPathRef.current = focusedPath;
  			return;
 diff --git a/dist/render/slotHost.js b/dist/render/slotHost.js
-index f1dd63f860c954bd33f3c22a835ed1fdb45ddf85..83065188379b6618cef80b5e005f0ef1388fb7ce 100644
+index f1dd63f860c954bd33f3c22a835ed1fdb45ddf85..73561e4d4296a154491923ffc9ef1fc913d4695d 100644
 --- a/dist/render/slotHost.js
 +++ b/dist/render/slotHost.js
 @@ -48,7 +48,8 @@ var FileTreeManagedSlotHost = class {
@@ -140,7 +140,7 @@ index f1dd63f860c954bd33f3c22a835ed1fdb45ddf85..83065188379b6618cef80b5e005f0ef1
  		}
  		const nextContent = document.createElement("div");
 -		nextContent.innerHTML = normalizedHtml;
-+		// <body> first: the parser moves a leading <style>, <link>, or <meta> into <head>.
++		// <body> first: the parser otherwise hoists leading head content (<style>, <script>, a comment) out of body.
 +		nextContent.append(...new DOMParser().parseFromString(`<body>${normalizedHtml}`, "text/html").body.childNodes);
  		this.setSlotContent(slotName, nextContent);
  	}
