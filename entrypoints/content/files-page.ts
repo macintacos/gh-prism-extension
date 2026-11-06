@@ -5,11 +5,11 @@
  * tabs, finds a commit's message box and the row naming its parent, reads its rows, finds the row
  * a commit's message column joins, finds the toolbar row a pull request's Conversation button
  * starts, follows a pull request's narrow-layout overlay and the file-tree filter menu, finds and
- * follows the rows and code-owner shields of a pull request's Reviewers lists and its Conversation
- * comments' authors, measures and follows GitHub's right-hand panel beside a pull request's Files
- * changed, and copies that menu's group, divider, and item for gh-prism's entries, so the
- * selectors stay in this seam; it builds no UI of its own and imports nothing from WXT. The pull
- * request selectors come from EXC-1662's survey.
+ * follows the rows and code-owner shields of a pull request's Reviewers lists and its comments'
+ * authors on Conversation and Files changed, measures and follows GitHub's right-hand panel beside
+ * a pull request's Files changed, and copies that menu's group, divider, and item for gh-prism's
+ * entries, so the selectors stay in this seam; it builds no UI of its own and imports nothing from
+ * WXT. The pull request selectors come from EXC-1662's survey.
  */
 
 import { LOGIN } from "@/utils/github/code-owners";
@@ -439,7 +439,10 @@ export function copyMenuItem(menu: FilterMenu): { item: HTMLElement; label: HTML
   return { item, label };
 }
 
-/** A pull request's classic Files changed page, which gh-prism leaves alone. */
+/**
+ * A pull request's classic Files changed page, where gh-prism adds only its notice and comment
+ * shields.
+ */
 export interface ClassicPage {
   /** GitHub's toolbar above the diffs. */
   readonly toolbar: Element;
@@ -454,6 +457,40 @@ export function findClassicPage(root: ParentNode): ClassicPage | undefined {
   return toolbar && reviewTools ? { toolbar, reviewTools } : undefined;
 }
 
+/** GitHub's ActivityHeader, which the overview and the new Files changed draw each comment with. */
+const ACTIVITY_HEADER = {
+  kind: "overview",
+  // Its test ids outlive the CSS-module hashes.
+  author: '[data-testid="comment-header"] a[data-testid="avatar-link"]',
+  name: 'a[data-testid="avatar-link"]',
+} as const satisfies CommentHeaders;
+
+/** A classic inline comment's author link, on Conversation and on classic Files changed alike. */
+const REVIEW_COMMENT_AUTHOR = ".review-comment h3 strong > a.author";
+
+/** Where each Files changed page keeps its review comments' author links. */
+const FILES_COMMENT_HEADERS: readonly CommentHeaders[] = [
+  {
+    kind: "classic",
+    // The PR header's author sits outside `#files`.
+    author: `#files .js-inline-comments-container ${REVIEW_COMMENT_AUTHOR}`,
+    name: "strong",
+  },
+  {
+    ...ACTIVITY_HEADER,
+    // Only a diff's review comments count, the same guard as the classic page's `#files`.
+    author: `[data-testid="review-thread"] ${ACTIVITY_HEADER.author}`,
+  },
+];
+
+/**
+ * Every review comment author on `doc`'s Files changed page, new or classic, one per comment,
+ * leaving out apps and bots. Call it only on a Files changed page; Conversation's are
+ * `findCommentAuthors`'s.
+ */
+export const findFilesCommentAuthors = (doc: Document): CommentAuthor[] =>
+  authorsOf(doc, FILES_COMMENT_HEADERS);
+
 /** Whether GitHub served `doc` to a signed-in viewer: it names the viewer's login. */
 export const isSignedIn = (doc: Document): boolean => viewerLogin(doc) !== undefined;
 
@@ -462,8 +499,8 @@ export const viewerLogin = (doc: Document): string | undefined =>
   doc.head.querySelector('meta[name="user-login"]')?.getAttribute("content") || undefined;
 
 /**
- * Which Conversation layout a Reviewers row or comment header is in: GitHub's classic page, or its
- * PR overview.
+ * Which page layout a Reviewers row or comment header is in: GitHub's classic, server-rendered
+ * page, or its React one: the PR overview or the new Files changed.
  */
 export type ReviewerListKind = "classic" | "overview";
 
@@ -531,7 +568,7 @@ function tokenOfHref(href: string): string | undefined {
   return org && team ? `@${org}/${team}` : undefined;
 }
 
-/** A comment author's name in a Conversation comment's header. */
+/** A comment author's name in a Conversation or Files changed comment's header. */
 export interface CommentAuthor {
   readonly kind: ReviewerListKind;
   /** The author's `@login`. */
@@ -540,7 +577,7 @@ export interface CommentAuthor {
   readonly name: Element;
 }
 
-/** Where one Conversation layout keeps its comment authors' links. */
+/** Where one page layout keeps its comment authors' links. */
 interface CommentHeaders {
   readonly kind: ReviewerListKind;
   /** Each comment's author link, one per comment. */
@@ -557,18 +594,13 @@ const COMMENT_HEADERS: readonly CommentHeaders[] = [
     kind: "classic",
     author: [
       ".js-discussion .timeline-comment-header h3 strong > a.author",
-      ".js-discussion .review-comment h3 strong > a.author",
+      `.js-discussion ${REVIEW_COMMENT_AUTHOR}`,
       // A review with no comment box: its own "commented" line only, never its threads' headers.
       '.js-discussion [id^="pullrequestreview-"]:not(:has(.timeline-comment-header)) .TimelineItem-body > div > strong > a.author',
     ].join(", "),
     name: "strong",
   },
-  {
-    kind: "overview",
-    // GitHub's ActivityHeader; its test ids outlive the CSS-module hashes.
-    author: '[data-testid="comment-header"] a[data-testid="avatar-link"]',
-    name: 'a[data-testid="avatar-link"]',
-  },
+  ACTIVITY_HEADER,
 ];
 
 /**
@@ -577,7 +609,11 @@ const COMMENT_HEADERS: readonly CommentHeaders[] = [
  * classic's `.js-discussion`.
  */
 export function findCommentAuthors(doc: Document): CommentAuthor[] {
-  return COMMENT_HEADERS.flatMap(({ kind, author, name: nameSelector }) =>
+  return authorsOf(doc, COMMENT_HEADERS);
+}
+
+function authorsOf(doc: Document, headers: readonly CommentHeaders[]): CommentAuthor[] {
+  return headers.flatMap(({ kind, author, name: nameSelector }) =>
     [...doc.querySelectorAll(author)].flatMap((link) => {
       const token = tokenOfHref(link.getAttribute("href") ?? "");
       const name = link.closest(nameSelector);
@@ -586,26 +622,28 @@ export function findCommentAuthors(doc: Document): CommentAuthor[] {
   );
 }
 
-/** Where gh-prism may draw a code-owner shield on a Conversation page. */
+/** Where gh-prism may draw a code-owner shield on a pull request page. */
 export interface OwnerSpots {
   readonly rows: ReviewerRow[];
   readonly authors: CommentAuthor[];
 }
 
 /**
- * Calls `onChange` with `doc`'s reviewer rows and comment authors now and after each change to
- * `doc`'s body, until `signal` aborts. GitHub replaces the classic sidebar and timeline on soft
- * navigation and on review updates, and React re-renders the overview, so a caller re-checks
- * every spot each time.
+ * Calls `onChange` with `doc`'s reviewer rows and the comment authors `findAuthors` finds now and
+ * after each change to `doc`'s body, until `signal` aborts. GitHub replaces the classic sidebar and
+ * timeline on soft navigation and on review updates, React re-renders the overview, and Files
+ * changed mounts and unmounts review threads with their diffs, so a caller re-checks every spot
+ * each time.
  */
 export function followOwnerSpots(
   doc: Document,
   onChange: (spots: OwnerSpots) => void,
-  { signal }: { signal: AbortSignal },
+  { findAuthors, signal }: { findAuthors: (doc: Document) => CommentAuthor[]; signal: AbortSignal },
 ): void {
-  // ponytail: findReviewerRows and findCommentAuthors query the whole document per mutation
-  // batch; observe only the Reviewers lists and timeline if it shows up in a profile.
-  const report = () => onChange({ rows: findReviewerRows(doc), authors: findCommentAuthors(doc) });
+  // ponytail: findReviewerRows and findAuthors query the whole document per mutation batch,
+  // Files changed's busier page included; observe only the Reviewers lists, timeline, and diffs
+  // if it shows up in a profile.
+  const report = () => onChange({ rows: findReviewerRows(doc), authors: findAuthors(doc) });
   const observer = new MutationObserver(report);
   observer.observe(doc.body, { childList: true, subtree: true });
   signal.addEventListener("abort", () => observer.disconnect());

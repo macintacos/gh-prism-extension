@@ -90,15 +90,16 @@ export const watchFilesPages = (
 ): void => watchPages(win, FILES_VIEW, handlers, signal);
 
 /**
- * Calls `onPage` for each render of a pull request's classic Files changed page in `win`, as
- * `watchFilesPages` follows the new one, until `signal` aborts. Each render's `signal` aborts once
- * it is replaced or removed, or the pathname changes.
+ * Calls `onVisit` for each visit to a pull request's classic Files changed page in `win`, as
+ * `watchFilesPages` follows the new one, until `signal` aborts. `onVisit` returns the handler for
+ * that page and each replacement GitHub renders during the visit, whose `signal` aborts once it is
+ * replaced or removed. Each visit ends once the pathname changes; a hash change never ends it.
  */
 export const watchClassicPages = (
   win: Window,
-  onPage: OnPage<ClassicPage>,
+  onVisit: (route: FilesRoute, signal: AbortSignal) => OnPage<ClassicPage>,
   signal: AbortSignal,
-): void => watchPages(win, CLASSIC, { onVisit: () => onPage, onMissing: () => {} }, signal);
+): void => watchPages(win, CLASSIC, { onVisit, onMissing: () => {} }, signal);
 
 /**
  * Calls `onVisit` for each visit to a pull request's header tabs in `win`, as `watchFilesPages`

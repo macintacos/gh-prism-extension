@@ -6,6 +6,17 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-05: No "Show only their files" from a classic Files changed comment shield
+
+- **Compared:** offering "Show only their files" from a review comment author's shield on
+  GitHub's classic Files changed page, as on Conversation, or leaving it out there.
+- **Won:** leaving it out on the classic page. Its popup and the code owner details dialog
+  still list the owner's files.
+- **Why:** the classic page ignores `gh-prism-owner`, because gh-prism's sections are off
+  there, so the action would reload the same unfiltered page, and a control that does
+  nothing reads as broken. The shield's placement follows "2026-11-05: The code-owner
+  shield beside a comment's author".
+
 ## 2026-11-05: The code-owner shield beside a comment's author
 
 - **Compared:** where a Conversation comment's header shows that its author owns changed

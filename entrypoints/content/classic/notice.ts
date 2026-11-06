@@ -1,7 +1,7 @@
 /**
- * On a pull request's classic Files changed page, which gh-prism leaves alone, explains in a
- * dialog why and how to get the new page: sign in, or turn on GitHub's preview. A button in
- * GitHub's toolbar opens it again.
+ * On a pull request's classic Files changed page, where gh-prism doesn't split files into
+ * sections, explains in a dialog why and how to get the new page: sign in, or turn on GitHub's
+ * preview. A button in GitHub's toolbar opens it again.
  */
 
 import { type ClassicPage, isSignedIn } from "../files-page";

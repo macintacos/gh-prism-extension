@@ -302,7 +302,11 @@ describe("watchClassicPages", () => {
   let pages: { page: ClassicPage; signal: AbortSignal }[];
 
   const watch = () =>
-    watchClassicPages(window, (page, signal) => pages.push({ page, signal }), controller.signal);
+    watchClassicPages(
+      window,
+      () => (page, signal) => pages.push({ page, signal }),
+      controller.signal,
+    );
   const navigate = async (path: string, load: () => void) => {
     history.pushState(null, "", path);
     load();
@@ -359,6 +363,32 @@ describe("watchClassicPages", () => {
 
     expect(pages).toHaveLength(1);
     expect(pages[0]?.signal.aborted).toBe(false);
+  });
+
+  it("keeps one visit while GitHub re-renders the classic page, and ends it on leaving", async () => {
+    const visits: { route: FilesRoute; signal: AbortSignal }[] = [];
+    watchClassicPages(
+      window,
+      (route, signal) => {
+        visits.push({ route, signal });
+        return (page, pageSignal) => pages.push({ page, signal: pageSignal });
+      },
+      controller.signal,
+    );
+
+    const toolbar = document.querySelector("#files_bucket .pr-toolbar");
+    toolbar?.replaceWith(toolbar.cloneNode(true));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(pages).toHaveLength(2);
+    expect(visits).toHaveLength(1);
+    expect(visits[0]?.signal.aborted).toBe(false);
+
+    await navigate("/o/r/pull/1", () => {
+      document.body.innerHTML = "<main></main>";
+    });
+
+    expect(visits[0]?.signal.aborted).toBe(true);
   });
 });
 

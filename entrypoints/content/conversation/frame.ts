@@ -1,6 +1,7 @@
 import { readOwnership, teamAvatarReader, teamMembersReader } from "@/utils/github/code-owners";
 import { isConversationFrame } from "@/utils/github/conversation-frame";
 import { readHeaderTabPr } from "@/utils/github/files-route";
+import { findCommentAuthors } from "../files-page";
 import { isEditable } from "../ui/dom";
 import { toggleKeyOf } from "../ui/toggle-keys";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
@@ -72,6 +73,7 @@ export function showFrameReviewerFiles(
       read: () => readOwnership(pr, { fetchFn, teamMembers, signal }),
       teamMembers,
       teamAvatar: teamAvatarReader(fetchFn, signal),
+      findAuthors: findCommentAuthors,
     });
 
   // showReviewerFiles mounts its sheet in the head, which document_start precedes.

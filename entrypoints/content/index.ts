@@ -57,7 +57,7 @@ import {
 } from "./conversation/panel";
 import { showReviewerFiles } from "./conversation/reviewer-files";
 import { visitViewed } from "./diffs/viewed";
-import { followRightPanel } from "./files-page";
+import { findCommentAuthors, findFilesCommentAuthors, followRightPanel } from "./files-page";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
 import { showOwnerSection } from "./sidebar/owner-section";
 import { showReportLink } from "./sidebar/report";
@@ -75,10 +75,11 @@ const CACHED_DIFFS = 50;
  * miscategorized file, adds an "Only files owned by…" section to GitHub's filter menu, on a pull
  * request adds a button opening its Conversation in a panel, and, after an update, opens the
  * sidebar with that release's notes. On a pull request's header tabs, stands in for the diffstat,
- * and on Conversation lists a code owner's files from their Reviewers sidebar shield or the shield
- * beside their comments. On a commit's page, shows its message rendered as Markdown, above the
- * diffs or in a column beside them, with a switch to its plain text. On its classic Files changed
- * page, explains why gh-prism is off there.
+ * and on Conversation lists a code owner's files from their Reviewers sidebar shield. On
+ * Conversation and Files changed, lists them from the shield beside their comments. On a commit's
+ * page, shows its message rendered as Markdown, above the diffs or in a column beside them, with a
+ * switch to its plain text. On a pull request's classic Files changed page, explains why gh-prism
+ * is off there, and shields its review comment authors.
  */
 export default defineContentScript({
   // Every GitHub page: soft navigation reaches a pull request without re-injecting the script.
@@ -150,6 +151,24 @@ export default defineContentScript({
             teamMembers,
             signal: visit,
           });
+          const filter =
+            route.diff.kind === "pr"
+              ? {
+                  linkOf: (token: string) =>
+                    ownerFilterLink(location.href, ownerOf(location.search), token),
+                  navigate,
+                }
+              : undefined;
+          // Reads the visit's own promises and shares its cached team readers, so badging sends
+          // no request per comment.
+          if (route.diff.kind === "pr")
+            showReviewerFiles(document, visit, {
+              findAuthors: findFilesCommentAuthors,
+              read: async () => ({ codeOwners: await codeOwners, prReviewers: await prReviewers }),
+              teamMembers,
+              teamAvatar,
+              filter,
+            });
           // Route data is fresh only until GitHub's first navigation.
           const viewed = visitViewed(fullLoad ? readViewedSeed(document, route.diff) : undefined);
           fullLoad = false;
@@ -199,13 +218,7 @@ export default defineContentScript({
               teamMembers,
               teamAvatar,
               owner,
-              filter:
-                route.diff.kind === "pr"
-                  ? {
-                      linkOf: (token) => ownerFilterLink(location.href, owner, token),
-                      navigate,
-                    }
-                  : undefined,
+              filter,
               whatsNew: whatsNewForPage?.(),
             });
             showCommitMessage(page, signal, {
@@ -236,12 +249,13 @@ export default defineContentScript({
           intentFor({ diff: pr, commitFiltered: false }, visit, sources, onProgress),
         );
         const teamMembers = teamMembersReader(fetch, visit);
-        // Shields Reviewers rows and comment authors. Rides the header visit, so it runs only
-        // where findHeaderPage finds the counter's slot.
+        // Shields Reviewers rows and Conversation comment authors. Rides the header visit, so it
+        // runs only where findHeaderPage finds the counter's slot.
         showReviewerFiles(document, visit, {
           read: () => readOwnership(pr, { fetchFn: fetch, teamMembers, signal: visit }),
           teamMembers,
           teamAvatar: teamAvatarReader(fetch, visit),
+          findAuthors: findCommentAuthors,
           filter: {
             linkOf: (token) =>
               ownerFilterLink(
@@ -258,7 +272,19 @@ export default defineContentScript({
     );
     watchClassicPages(
       window,
-      (page, signal) => showClassicNotice(page, signal, { choice: notice, save: saveDismissed }),
+      (route, visit) => {
+        const teamMembers = teamMembersReader(fetch, visit);
+        // No filter: the classic page ignores gh-prism-owner, so the action would reload it
+        // unfiltered.
+        showReviewerFiles(document, visit, {
+          findAuthors: findFilesCommentAuthors,
+          read: () => readOwnership(route.diff, { fetchFn: fetch, teamMembers, signal: visit }),
+          teamMembers,
+          teamAvatar: teamAvatarReader(fetch, visit),
+        });
+        return (page, signal) =>
+          showClassicNotice(page, signal, { choice: notice, save: saveDismissed });
+      },
       ctx.signal,
     );
   },

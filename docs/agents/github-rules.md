@@ -530,8 +530,10 @@ The classic Conversation tab server-renders its timeline. The overview's facts b
 from GitHub's bundle, not a capture, because no account here can open it.
 
 - **Scope classic comment headers to `.js-discussion`.** It holds the timeline.
-- **Call `findCommentAuthors` only on a Conversation page.** The overview's headers have
-  no timeline scope, unlike the classic's `.js-discussion`.
+- **Call `findCommentAuthors` only on a Conversation page, and `findFilesCommentAuthors`
+  only on Files changed.** The overview's headers have no timeline scope, unlike the
+  classic's `.js-discussion`, so its selector would also match the new Files changed
+  page's threads.
 - **Colour a shield outside the Reviewers sidebar yourself.** GitHub scopes `.muted-icon`
   to `.discussion-sidebar-item`, so elsewhere it does nothing and `btn-link` paints a link
   colour (as of 2026-11-05).
@@ -581,6 +583,37 @@ from GitHub's bundle, not a capture, because no account here can open it.
   commented PR on excessive-dev/gh-prism-codeowners-sandbox once EXC-2257 stocks it. For
   the overview, grep GitHub's assets for `ActivityHeader`, `comment-header`, and
   `TitleContainer__`, as [§ Re-checking GitHub](#re-checking-github) describes.
+
+Files changed's review comments, as of 2026-11-05:
+
+- **Scope a new Files changed comment header to its `[data-testid="review-thread"]`.**
+  Only a diff's review comments count, the same guard as the classic page's `#files`. Each
+  comment's header is the overview's `ActivityHeader`, and its name link
+  `a[data-testid="avatar-link"]` sits alone in its title container, so its `after()` is
+  right after the author's name.
+- **Expect the new page's avatar link to carry no test id,** so the test-id selector finds
+  one link per comment.
+- **Expect virtualization to mount a diff's threads on scroll and unmount them when
+  scrolled away.** A remount brings fresh nodes, with no shield beside them.
+- **Listen for a click inside the new page's diffs in the capture phase.** Its React root
+  calls `stopPropagation()` on clicks in a review thread, so a bubble listener on
+  `document` never hears them. Re-check with one capture and one bubble `click` listener
+  on `document`, then a click in a thread: only the capture one fires.
+- **Find a classic Files changed comment's author as
+  `#files .js-inline-comments-container .review-comment h3 strong > a.author`, with the
+  `strong` as its name.** The avatar is an unlinked `<img>`, so there is one profile link
+  per comment.
+- **Expect a resolved classic thread to render collapsed, holding only an
+  `include-fragment`.** Its author link is absent until a click fetches and inserts it.
+- **Expect the PR header's author, `#partial-discussion-header a.author`, outside
+  `#files`,** so the `#files` scope leaves it out. A signed-out viewer of a public
+  repository's classic page still sees shields, as
+  [§ Code owners and reviewers](#code-owners-and-reviewers) describes.
+- **Re-check:** signed in with the saved `storageState`, load macintacos/gh-prism-sandbox
+  PR #3's `/changes`, scroll its threads in and out, and read their headers. Signed out,
+  load a public pull request's `/files` with inline comments and read `#files`' threads,
+  and curl its `page_data/codeowners` with no cookies. Once EXC-2257 stocks it, use
+  excessive-dev/gh-prism-codeowners-sandbox for both.
 
 ## The narrow layout's overlay
 
