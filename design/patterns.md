@@ -132,7 +132,7 @@ A tooltip copies Primer's. It is an `::after` on the control that shows the cont
 on hover and focus. It opens toward the inside of the sidebar or the page, so it never
 clips at an edge. `sidebar/side.css`, `sidebar/report.css`, `commit/step-links.css`,
 `conversation/panel.css`, `ui/mark.css`, and `ui/pr-owners.css` hold the six in use. The
-code owners button beside a Reviewers heading floats at the sidebar's inline end, so
+code owners button beside a Reviewers heading sits at the sidebar's inline end, so
 `conversation/reviewer-files.css` overrides `ui/pr-owners.css`'s tooltip for it to open
 leftward from the button's end. Only the mark's opens on hover alone, since the mark takes
 no focus. Inside the header counter's tooltips, which take no pointer, the mark's own

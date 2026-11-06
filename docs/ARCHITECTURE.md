@@ -633,9 +633,9 @@ which `index.ts` passes it from `showConversationButton`. Its stylesheet,
 sizes and places it with its own rules. `conversation/panel.css` imports it, so it mounts
 with the Conversation panel's sheet on every pull request's Files changed. On the
 Conversation tab, `conversation/reviewer-files.ts` puts the same button just before each
-Reviewers heading that `findReviewersHeadings` in `files-page.ts` finds, floated to the
-heading's inline end. That button opens the dialog from the ownership the tab has already
-read. `conversation/reviewer-files.css` imports `ui/pr-owners.css` too.
+Reviewers heading that `findReviewersHeadings` in `files-page.ts` finds, at the heading's
+inline end. That button opens the dialog from the ownership the tab has already read.
+`conversation/reviewer-files.css` imports `ui/pr-owners.css` too.
 
 On the Conversation tab, a code-owner shield beside a PR reviewer in a Reviewers list
 opens a popup listing the changed files that code owner owns, built by

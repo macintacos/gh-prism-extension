@@ -6,6 +6,16 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-06: The classic Reviewers heading's code owners button over the rows' shields
+
+- **Compared:** the button floated to the heading row's end, after GitHub's gear, and the
+  button placed over the rows' code-owner shields, before the gear.
+- **Won:** over the rows' shields. Its glyph centres on the shields' column, and GitHub's
+  gear keeps the row's end, over the rows' status dots. It still sits 2px down, centred on
+  the gear. The overview's button keeps its float, since that layout has never rendered.
+- **Why:** the maintainer's review of the floated button found the heading's two icons
+  swapped against the columns below and 4px off them, since the float pushed the gear in.
+
 ## 2026-11-05: The whole pull request's code owners
 
 - **Compared:** for the mark on an owner a PR reviewer reviews for, a green check, an eye,

@@ -492,9 +492,12 @@ pull request, taken 2026-10-28, not from a capture.
     `z-index` to take the pointer.
   - Every other viewer gets a plain `h3.discussion-sidebar-heading`.
 - **Never put a control inside the classic heading's `summary`.** A click there opens
-  GitHub's reviewers menu. Put it before the `details` or `h3` instead, floated to the
-  inline end. Don't add `position: relative` to the form, and don't wrap the heading:
-  either moves GitHub's absolutely placed menu.
+  GitHub's reviewers menu. Put it before the `details` or `h3` instead. To keep it off the
+  gear, place it absolutely: the Reviewers `.discussion-sidebar-item` is
+  `position-relative` (observed 2026-11-06), and its rows span its full width. A float
+  would push the gear off the row's end, where it sits over the rows' status dots. Don't
+  add `position: relative` to the form, and don't wrap the heading: either moves GitHub's
+  absolutely placed menu.
 - **Expect the classic heading to be replaced along with its form.** GitHub replaces the
   whole Reviewers form, heading included, on soft navigation back to Conversation, so
   re-add a control beside the heading from an observer on `document`.
