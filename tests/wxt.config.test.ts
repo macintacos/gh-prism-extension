@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { ConfigEnv } from "wxt";
 import config from "../wxt.config";
@@ -15,11 +16,19 @@ const manifestFor = async (browser: string) => {
   return manifest(envFor(browser));
 };
 
-const cssTargetFor = async (browser: string) => {
+const viteConfigFor = async (browser: string) => {
   const vite = config.vite;
   if (!vite) throw new Error("vite config missing");
-  const viteConfig = await vite(envFor(browser));
-  return viteConfig.build?.cssTarget;
+  return vite(envFor(browser));
+};
+
+const cssTargetFor = async (browser: string) => (await viteConfigFor(browser)).build?.cssTarget;
+
+const entityDecoderFor = async (browser: string) => {
+  const alias = (await viteConfigFor(browser)).resolve?.alias;
+  if (!Array.isArray(alias)) throw new Error("resolve.alias must be an array");
+  return alias.find((entry) => String(entry.find) === "/^decode-named-character-reference$/")
+    ?.replacement;
 };
 
 describe("wxt.config", () => {
@@ -49,5 +58,14 @@ describe("wxt.config", () => {
 
     expect(firefox).toBe("firefox147");
     expect(chrome).toBe("chrome123");
+  });
+
+  it("bundles the entity decoder that never assigns innerHTML", async () => {
+    const firefox = await entityDecoderFor("firefox");
+    const chrome = await entityDecoderFor("chrome");
+
+    expect(firefox).toMatch(/[/\\]decode-named-character-reference[/\\]index\.js$/);
+    expect(chrome).toBe(firefox);
+    expect(readFileSync(firefox ?? "", "utf8")).not.toContain("innerHTML");
   });
 });
