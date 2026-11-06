@@ -30,7 +30,7 @@ import { type LoadingView, loadingView } from "../ui/loading-view";
 import type { LandingView } from "../visit/land";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./order.css?inline";
-import { retakeHash } from "./reveal";
+import { holdHashLine, retakeHash } from "./reveal";
 
 const STAGGER_MS = 50;
 const ANIMATION_MS = 280;
@@ -191,8 +191,8 @@ interface DiffOrder {
    */
   arrange(sections: readonly (readonly string[])[], hidden: ReadonlySet<string>): void;
   /**
-   * Lifts the cover: the diffs drop in section by section, and GitHub takes the URL's hash again,
-   * since it can't scroll to a diff the cover hid.
+   * Lifts the cover: the diffs drop in section by section, GitHub takes the URL's hash again, and
+   * the line the hash names is held in view, since GitHub can't scroll to a diff the cover hid.
    */
   reveal(): void;
 }
@@ -222,6 +222,8 @@ function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
     loader.remove();
     loader = undefined;
     root.dataset.ghPrismDiffs = "revealed";
+    // Before the retake, which blanks the hash for a task.
+    holdHashLine(page, { signal });
     if (doc.defaultView) retakeHash(doc.defaultView, { signal });
     timer = setTimeout(() => delete root.dataset.ghPrismDiffs, REVEAL_MS);
   };

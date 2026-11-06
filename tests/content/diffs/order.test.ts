@@ -454,6 +454,25 @@ describe("the diffs beside the sections", () => {
       expect(announced).toEqual(["", "#diff-0a08R2"]);
     });
 
+    it("centre the line the URL's hash names as they show", async () => {
+      const table = document.createElement("table");
+      table.innerHTML = '<tbody><tr><td data-line-anchor="diff-0a08R2">2</td></tr></tbody>';
+      byId("diff-0a08").append(table);
+      const row = table.querySelector("tr");
+      if (!row) throw new Error("no row");
+      vi.spyOn(row, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 5_000, 100, 20));
+      const scroll = vi.spyOn(row, "scrollIntoView").mockImplementation(() => {});
+      history.replaceState(null, "", "#diff-0a08R2");
+
+      const pending = pendingIntent();
+      remountWith(pending.intent);
+      pending.resolve(landedWith());
+      await afterDebounce();
+      history.replaceState(null, "", location.pathname);
+
+      expect(scroll).toHaveBeenCalledWith({ block: "center", behavior: "instant" });
+    });
+
     it("stay revealed until the last section's files have dropped in", async () => {
       const pending = pendingIntent();
       remountWith(pending.intent);

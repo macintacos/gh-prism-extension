@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import {
+  holdHashLine,
   revealDiff,
   revealDiffLine,
   revealUntil,
@@ -168,10 +169,13 @@ function preferReducedMotion(preference: "reduce" | "no-preference"): void {
   happyDOM.settings.device.prefersReducedMotion = preference;
 }
 
-async function expectNoLeakedTimers(controller: AbortController): Promise<void> {
+async function expectNoLeakedTimers(
+  controller: AbortController,
+  diffs: Element = diffList(),
+): Promise<void> {
   vi.advanceTimersToNextFrame(); // a click's glide waits one frame
   // A late mutation schedules a timer only if an observer outlived the case.
-  diffList().append(document.createElement("div"));
+  diffs.append(document.createElement("div"));
   await vi.advanceTimersByTimeAsync(0);
   const pending = vi.getTimerCount();
 
@@ -644,6 +648,139 @@ describe("revealDiffLine", () => {
     expect(vi.getTimerCount()).toBe(0);
 
     await done;
+  });
+});
+
+describe("holdHashLine", () => {
+  const LINE = `${LAUNCHER_DIFF}R31`;
+
+  let controller: AbortController;
+  const hold = () => holdHashLine(foundPage(), { signal: controller.signal });
+  const rowOf = (anchor: string) => {
+    const row = document.querySelector(`[data-line-anchor="${anchor}"]`)?.closest("tr");
+    if (!row) throw new Error(`fixture has no row for ${anchor}`);
+    return row;
+  };
+  const place = (row: Element, top: number) =>
+    vi.spyOn(row, "getBoundingClientRect").mockReturnValue(new DOMRect(0, top, 100, 20));
+  const centring = (row: Element) => vi.spyOn(row, "scrollIntoView").mockImplementation(() => {});
+  const CENTRED = { block: "center", behavior: "instant" };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    loadCommitFixture();
+    controller = new AbortController();
+    history.replaceState(null, "", `#${LINE}`);
+  });
+
+  afterEach(async () => {
+    // The hold keeps its timer until the visit ends.
+    controller.abort();
+    await expectNoLeakedTimers(controller, foundPage().diffs);
+    history.replaceState(null, "", location.pathname);
+  });
+
+  it("centres the line when it is out of view", () => {
+    const row = rowOf(LINE);
+    place(row, 5_000);
+    const scroll = centring(row);
+
+    hold();
+
+    expect(scroll).toHaveBeenCalledWith(CENTRED);
+  });
+
+  it("leaves a line already in view", () => {
+    const row = rowOf(LINE);
+    place(row, 200);
+    const scroll = centring(row);
+
+    hold();
+
+    expect(scroll).not.toHaveBeenCalled();
+  });
+
+  it("centres the line again when a scroll carries it out of view", () => {
+    const row = rowOf(LINE);
+    const rect = place(row, 200);
+    const scroll = centring(row);
+    hold();
+
+    rect.mockReturnValue(new DOMRect(0, -5_000, 100, 20));
+    window.dispatchEvent(new Event("scroll"));
+
+    expect(scroll).toHaveBeenCalledWith(CENTRED);
+  });
+
+  it.each(["wheel", "touchstart", "pointerdown", "keydown"])(
+    "lets go once the user acts with %s",
+    (type) => {
+      const row = rowOf(LINE);
+      const rect = place(row, 200);
+      const scroll = centring(row);
+      hold();
+
+      window.dispatchEvent(new Event(type));
+      rect.mockReturnValue(new DOMRect(0, -5_000, 100, 20));
+      window.dispatchEvent(new Event("scroll"));
+
+      expect(scroll).not.toHaveBeenCalled();
+    },
+  );
+
+  it("lets go after five seconds", async () => {
+    const row = rowOf(LINE);
+    const rect = place(row, 200);
+    const scroll = centring(row);
+    hold();
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    rect.mockReturnValue(new DOMRect(0, -5_000, 100, 20));
+    window.dispatchEvent(new Event("scroll"));
+
+    expect(scroll).not.toHaveBeenCalled();
+  });
+
+  it("lets go once aborted", () => {
+    const row = rowOf(LINE);
+    const rect = place(row, 200);
+    const scroll = centring(row);
+    hold();
+
+    controller.abort();
+    rect.mockReturnValue(new DOMRect(0, -5_000, 100, 20));
+    window.dispatchEvent(new Event("scroll"));
+
+    expect(scroll).not.toHaveBeenCalled();
+  });
+
+  it("centres a line that mounts after the hold starts", async () => {
+    const anchor = `${LAUNCHER_DIFF}R99`;
+    history.replaceState(null, "", `#${anchor}`);
+    hold();
+
+    rowOf(`${LAUNCHER_DIFF}R31`).after(
+      Object.assign(document.createElement("tr"), {
+        innerHTML: `<td data-line-anchor="${anchor}">99</td>`,
+      }),
+    );
+    const row = rowOf(anchor);
+    place(row, 5_000);
+    const scroll = centring(row);
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(scroll).toHaveBeenCalledWith(CENTRED);
+  });
+
+  it.each([LAUNCHER_DIFF, `${LAUNCHER_DIFF}R31"], *`])("holds nothing for the hash %s", (hash) => {
+    history.replaceState(null, "", `#${hash}`);
+    const row = rowOf(LINE);
+    place(row, 5_000);
+    const scroll = centring(row);
+
+    hold();
+
+    expect(scroll).not.toHaveBeenCalled();
   });
 });
 

@@ -4,11 +4,14 @@
  */
 
 import {
+  coveredTop,
   expandButtonOf,
   expandedDiff,
   type FilesPage,
   findDiff,
+  isLineAnchor,
   lineRowOf,
+  lineRowOfAnchor,
   loadDiffButtonOf,
   observeDiffs,
 } from "../files-page";
@@ -76,6 +79,44 @@ export function retakeHash(win: Window, { signal }: { signal: AbortSignal }): vo
   replaceHash(win, "");
   const timer = win.setTimeout(() => replaceHash(win, hash));
   signal.addEventListener("abort", () => win.clearTimeout(timer), { once: true });
+}
+
+const USER_INPUT = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
+
+/**
+ * Centres the line the URL's hash names whenever it is out of view: now, and on each scroll or
+ * change to the diffs after, until the user scrolls, clicks, or types, `REVEAL_TIMEOUT_MS`
+ * passes, or `signal` aborts. GitHub scrolls to a line once, as it mounts, so it misses one the
+ * cover hid, and a commit page can scroll by a measure taken before the diffs were reordered.
+ */
+export function holdHashLine(page: FilesPage, { signal }: { signal: AbortSignal }): void {
+  const win = page.diffs.ownerDocument.defaultView;
+  const anchor = win?.location.hash.slice(1) ?? "";
+  if (!win || !isLineAnchor(anchor) || signal.aborted) return;
+
+  const holding = new AbortController();
+  const release = () => holding.abort();
+  const timer = win.setTimeout(release, REVEAL_TIMEOUT_MS);
+  holding.signal.addEventListener("abort", () => win.clearTimeout(timer));
+  signal.addEventListener("abort", release, { signal: holding.signal });
+  // ponytail: a drag on the window's scrollbar fires none of these, so one in the first 5 s is
+  // pulled back to the line; end the hold on it too if anyone notices.
+  for (const type of USER_INPUT)
+    win.addEventListener(type, release, { capture: true, passive: true, signal: holding.signal });
+
+  const land = () => {
+    const row = lineRowOfAnchor(page, anchor);
+    if (row && !inView(page, row)) row.scrollIntoView({ block: "center", behavior: "instant" });
+  };
+  win.addEventListener("scroll", land, { passive: true, signal: holding.signal });
+  observeDiffs(page.diffs, land, { signal: holding.signal });
+  land();
+}
+
+/** Whether any of `row` shows between GitHub's sticky chrome and the viewport's bottom. */
+function inView(page: FilesPage, row: Element): boolean {
+  const { top, bottom } = row.getBoundingClientRect();
+  return bottom > coveredTop(page) && top < (row.ownerDocument.defaultView?.innerHeight ?? 0);
 }
 
 function replaceHash(win: Window, hash: string): void {
