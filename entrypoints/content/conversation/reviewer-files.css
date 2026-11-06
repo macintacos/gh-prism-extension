@@ -12,7 +12,7 @@ tool-tip:is([for^="codeowner-"], [for^="assigned-codeowner-"]) {
   display: none;
 }
 
-/* A 24px target around the 16px glyph, without moving it off GitHub's own shield's spot. */
+/* A target 4px past the shield on every side, without moving it: 24px around the classic 16px glyph. */
 .gh-prism-reviewer-shield,
 .gh-prism-comment-shield {
   position: relative;

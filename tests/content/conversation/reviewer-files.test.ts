@@ -1294,12 +1294,31 @@ describe.each([
   it.each([
     ["isn't among the PR reviewers", []],
     ["sits beside PR reviewers that couldn't be read", undefined],
-  ])("lists the direct files of a GitHub-shielded owner who %s", async (_case, prReviewers) => {
-    show(async () => ({ codeOwners: sandboxOwners(), prReviewers }));
+  ])("lists the direct files of a GitHub-shielded commenter who %s", async (_case, prReviewers) => {
+    const teamRow = shieldOf("frontend").parentElement as Element;
+    const row = teamRow.cloneNode(true) as Element;
+    const githubShield = row.querySelector('[id^="codeowner-"]') as HTMLElement;
+    githubShield.id = "assigned-codeowner-sandbox-user";
+    for (const link of row.querySelectorAll("a")) link.setAttribute("href", "/sandbox-user");
+    teamRow.after(row);
+    const members = Promise.withResolvers<{ total: number; members: string[] } | undefined>();
+    show(
+      async () => ({ codeOwners: sandboxOwners(), prReviewers }),
+      () => members.promise,
+    );
     await settle();
+    const direct = ["api/", "  routes.ts", "docs/", "  guide.md"];
 
-    await hoverOpen("frontend");
+    await hoverOn(githubShield);
+    const whilePending = listed();
+    pointerOut(githubShield);
+    await vi.advanceTimersByTimeAsync(500);
+    members.resolve({ total: 1, members: ["sandbox-user"] });
+    await settle();
+    await hoverOn(githubShield);
 
-    expect(listed()).toEqual(["api/generated/", "  client.ts", "web/", "  app.ts"]);
+    expect(commentShields().length).toBeGreaterThan(0);
+    expect(whilePending).toEqual(direct);
+    expect(listed()).toEqual(direct);
   });
 });

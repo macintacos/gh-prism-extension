@@ -49,8 +49,8 @@ whose URL carries the panel's `gh-prism-panel=1` marker. There,
 site header, PR title bar, tab row, and site footer, posts each link that leaves the
 Conversation to the parent page to load, and relays an Escape GitHub didn't handle. It
 also opens gh-prism's popup and code owner details dialog from a code-owner shield in the
-frame's Reviewers list, without the owner filter, which belongs to the parent page. The
-messages' shapes live in
+frame's Reviewers list or beside a comment author, without the owner filter, which belongs
+to the parent page. The messages' shapes live in
 [`conversation/frame-messages.ts`](../entrypoints/content/conversation/frame-messages.ts).
 
 ## Page kinds
@@ -511,7 +511,7 @@ show on the next visit. `index.ts` starts two reads once per visit, `readCodeOwn
 `codeowners` and `readPrReviewers` from `review_requests`, and hands their promises to
 every page of that visit: `showVisit` and `showOwnerSection` take both. A commit page
 reads nothing. A pull request's header visit reads both once per visit too, but only when
-a Reviewers list first shows on the Conversation tab.
+a Reviewers list or a comment author first shows on the Conversation tab.
 
 The code owners are each changed file's owners, in CODEOWNERS order, with whether you own
 the file. The PR reviewers are everyone requested to review, then everyone who submitted a
@@ -526,8 +526,9 @@ owner keeps its token as written and gets a link only when the token is a valid 
 A PR reviewer owns a file when its owners include the reviewer's token, or one of the
 teams GitHub names the reviewer as reviewing for, ignoring case. `ownerFilter` holds that
 rule, and `filesOwnedBy` applies it to a login and its teams for the Conversation popup;
-the owner filter, the owner section, and the popup all ask it, so picking a reviewer in
-the section keeps the files their popup lists.
+the owner section and the popup ask it, and the owner filter asks `ownershipOf`, falling
+back to `ownerFilter` for a team or when the members time out, so picking a PR reviewer in
+the section still keeps every file their popup lists.
 
 A user may also belong to an owning team, whatever they own directly. `ownershipOf`
 answers what any `@user` owns: the changed files CODEOWNERS names them for, and each
@@ -563,18 +564,21 @@ The owner filter is the first reader of the code owners. `index.ts` reads the
 `gh-prism-owner` query parameter on a pull request's pages with `ownerOf` in
 [`utils/github/files-route.ts`](../utils/github/files-route.ts), and `showVisit` turns it
 and the visit's code owners and PR reviewers into the filter `land` applies to the tree's
-files before sectioning them. A file is kept when the parameter's token owns it, as above.
-Every view therefore follows the narrowed listing as it follows GitHub's own filters,
-while section line totals and the diffstat keep counting the whole diff. `land` also hands
-the views the dropped files' diff anchors, kept for the whole page so a file stays hidden
-after its row leaves the tree, and `diffs/order.ts` hides their diffs: by a rule on each
-region and virtualized row (`#diff-…` and `data-path-digest`) that a pull request's
-`hiddenDiffSelectors` in `files-page.ts` scopes to the diff list, and by a
-`data-gh-prism-hidden` attribute on a progressive list's entries, to close their gaps.
-With the parameter set, the page stays pending until the reads the filter needs land: the
-code owners for a team, and the PR reviewers too for a user. It waits 10 s at most, then
-treats a read still out as failed, so a failed code owners read keeps every file and a
-failed PR reviewers read keeps the user's own.
+files before sectioning them. A file is kept when the parameter's token owns it: a team's
+files, or for a user the files `ownershipOf` gives them, counting the owning teams whose
+members list them, PR reviewer or not. Every view therefore follows the narrowed listing
+as it follows GitHub's own filters, while section line totals and the diffstat keep
+counting the whole diff. `land` also hands the views the dropped files' diff anchors, kept
+for the whole page so a file stays hidden after its row leaves the tree, and
+`diffs/order.ts` hides their diffs: by a rule on each region and virtualized row
+(`#diff-…` and `data-path-digest`) that a pull request's `hiddenDiffSelectors` in
+`files-page.ts` scopes to the diff list, and by a `data-gh-prism-hidden` attribute on a
+progressive list's entries, to close their gaps. With the parameter set, the page stays
+pending until the reads the filter needs land: the code owners for a team, and the PR
+reviewers and team members too for a user. It waits 10 s at most per read, then treats a
+read still out as failed, so a failed code owners read keeps every file, a failed PR
+reviewers read keeps the user's own, and team members still out keep what CODEOWNERS and
+the PR reviewers give the user.
 
 The sidebar's shields are another reader. `showVisit` in
 [`visit/land.ts`](../entrypoints/content/visit/land.ts) hands the owners to the sidebar
@@ -772,14 +776,14 @@ entrypoints/
   conversation-frame.content.ts  content script in the Conversation panel's frame
   content/
     index.ts             content script entry: wires the watchers, intent, and views
-    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; a commit's message box and the row its message column joins; the toolbar row the Conversation button starts
+    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; Conversation comments' authors; a commit's message box and the row its message column joins; the toolbar row the Conversation button starts
     commit/              a commit's message rendered as Markdown in GitHub's box's place, or in a resizable column beside the diffs, with its switch back to GitHub's box and its hide button
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
     header/              diffstat breakout
-    conversation/        a code owner's files popup and gh-prism's reviewer shield, in the Reviewers lists; the Conversation panel and its button, dressing its frame, and the messages the frame posts
+    conversation/        a code owner's files popup and gh-prism's shield, in the Reviewers lists and beside comment authors; the Conversation panel and its button, dressing its frame, and the messages the frame posts
     ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, column separator, view-transition glide, Tailwind tokens
 utils/
   github/                routes, diff parsing, the PR data port and source, code owners and reviewers

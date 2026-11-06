@@ -262,6 +262,7 @@ describe("showFrameReviewerFiles", () => {
     await vi.advanceTimersByTimeAsync(200);
 
     const popup = document.querySelector(".gh-prism-reviewer-files");
+    expect(popup).not.toBeNull();
     expect(popup?.querySelector("li")).not.toBeNull();
     expect(popup?.querySelector("a.gh-prism-owner-filter")).toBeNull();
     expect(fetchFn.mock.calls.filter(([url]) => String(url) === FRONTEND_MEMBERS)).toHaveLength(1);

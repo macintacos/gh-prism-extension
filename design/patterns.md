@@ -254,8 +254,9 @@ to click outside it.
 ## Code owner's files
 
 On a pull request's Conversation tab, a code-owner shield beside a team or person in a
-Reviewers list opens a popup listing the changed files that code owner owns. The avatar
-and name keep GitHub's own hovercard, so the two cards never share a trigger.
+Reviewers list, or beside a comment's author, opens a popup listing the changed files that
+code owner owns. The avatar and name keep GitHub's own hovercard, so the two cards never
+share a trigger.
 
 - **The shield:** GitHub's own, or gh-prism's beside a PR reviewer who owns a changed file
   where GitHub draws none, as after a code owner reviews. gh-prism's is drawn as GitHub's
@@ -265,8 +266,8 @@ and name keep GitHub's own hovercard, so the two cards never share a trigger.
   16px glyph without moving it. Its accessible name says, in GitHub's words, "… is a code
   owner", adding "through" and the team when only a team makes them one.
 - **Beside a comment's author:** the shield also follows the name of each Conversation
-  comment author who owns a changed file, reviewer or not, right after the name and before
-  "commented" and the time. In the classic timeline it takes GitHub's
+  comment author who owns a changed file, PR reviewer or not, right after the name and
+  before "commented" and the time. In the classic timeline it takes GitHub's
   `btn-link muted-icon` classes with no status-icon wrapper. In the overview it takes the
   look of the small invisible `IconButton` at the title row's 20px. Its popup, timing,
   click, and the Conversation panel's lack of a filter action follow every rule below.

@@ -461,7 +461,7 @@ export const isSignedIn = (doc: Document): boolean => viewerLogin(doc) !== undef
 export const viewerLogin = (doc: Document): string | undefined =>
   doc.head.querySelector('meta[name="user-login"]')?.getAttribute("content") || undefined;
 
-/** Which Conversation layout a spot is in: GitHub's classic page, or its PR overview. */
+/** Which Conversation layout a Reviewers row or comment header is in: GitHub's classic page, or its PR overview. */
 export type ReviewerListKind = "classic" | "overview";
 
 /** Where one Reviewers list keeps its rows, and GitHub's code-owner shield in a row. */
@@ -537,8 +537,19 @@ export interface CommentAuthor {
   readonly name: Element;
 }
 
-/** Where one Conversation layout keeps its comment authors' links, and the name each shield follows. */
-const COMMENT_HEADERS: readonly { kind: ReviewerListKind; author: string; name: string }[] = [
+/** Where one Conversation layout keeps its comment authors' links. */
+interface CommentHeaders {
+  readonly kind: ReviewerListKind;
+  /** Each comment's author link, one per comment. */
+  readonly author: string;
+  /**
+   * What the shield follows: the link's closest match, which may be the link itself. The classic
+   * follows the `<strong>` so the button stays out of GitHub's bold author wrapper.
+   */
+  readonly name: string;
+}
+
+const COMMENT_HEADERS: readonly CommentHeaders[] = [
   {
     kind: "classic",
     author: [
@@ -557,7 +568,11 @@ const COMMENT_HEADERS: readonly { kind: ReviewerListKind; author: string; name: 
   },
 ];
 
-/** Every comment author in `doc`'s Conversation timeline, one per comment, leaving out apps and bots. */
+/**
+ * Every comment author in `doc`'s Conversation timeline, one per comment, leaving out apps and bots.
+ * Call it only on a Conversation page: the overview's headers have no timeline scope, unlike the
+ * classic's `.js-discussion`.
+ */
 export function findCommentAuthors(doc: Document): CommentAuthor[] {
   return COMMENT_HEADERS.flatMap(({ kind, author, name: nameSelector }) =>
     [...doc.querySelectorAll(author)].flatMap((link) => {

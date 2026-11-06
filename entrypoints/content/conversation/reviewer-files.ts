@@ -53,8 +53,8 @@ const OWN_SHIELD = "button[data-gh-prism-owner]";
  * list, 200 ms after the pointer rests on it or at once on focus, listing the changed files that
  * code owner owns, and describes the shield with it. Opens from GitHub's shield, or from the one
  * this adds beside each PR reviewer who owns a changed file, or whom GitHub marks a code owner,
- * where GitHub draws none, or beside each comment author who owns a changed file, reviewer or not,
- * looked up once per author through `teamMembers`. Mounts a stylesheet in `doc`'s head. Opens
+ * where GitHub draws none, or beside each comment author who owns a changed file: a PR reviewer as
+ * their Reviewers row shows, anyone else looked up once through `teamMembers`. Mounts a stylesheet in `doc`'s head. Opens
  * nothing for a code owner who owns no changed file, unless GitHub marks them one: then it says
  * GitHub hides the team. Tab from the shield enters the popup. Closes 150 ms after the pointer
  * leaves shield and popup, and at once on Escape, focus leaving both, or a scroll outside it,
@@ -103,51 +103,53 @@ export function showReviewerFiles(
   );
   doc.addEventListener("focusout", () => (focusedShield = null), { signal });
 
-  // Settled lookups of comment authors who aren't PR reviewers, by lowercased token.
-  const authorFiles = new Map<string, OwnedFiles | undefined>();
-  const lookingUp = new Set<string>();
+  // Each comment author's answer by lowercased token; `Ownership` never changes once settled.
+  const authorFiles = new Map<string, "pending" | { owned?: OwnedFiles }>();
 
-  /** What `token`'s shield shows: a comment author's settled lookup, else a PR reviewer's files. */
-  const ownedOf = (settled: Ownership, token: string): OwnedFiles | undefined => {
+  /**
+   * What comment author `token`'s shield shows: a PR reviewer's files as their Reviewers row shows
+   * them, anyone else's once their lookup settles, starting it, once, if it hasn't.
+   */
+  function authorOwned(settled: Ownership, token: string): OwnedFiles | undefined | "pending" {
     const key = token.toLowerCase();
-    return authorFiles.has(key) ? authorFiles.get(key) : ownedFiles(settled, token);
-  };
-
-  /** Starts `token`'s lookup, once, redrawing the comment authors' shields when it settles. */
-  function lookUp(settled: Ownership, token: string): void {
-    const key = token.toLowerCase();
-    if (lookingUp.has(key)) return;
-    lookingUp.add(key);
+    const known = authorFiles.get(key);
+    if (known) return known === "pending" ? known : known.owned;
 
     const { codeOwners, prReviewers } = settled;
-    if (!codeOwners) {
-      authorFiles.set(key, undefined);
-      return;
+    if (!codeOwners || reviewerOf(prReviewers ?? [], token)) {
+      const owned = ownedFiles(settled, token);
+      authorFiles.set(key, { owned });
+      return owned;
     }
+    authorFiles.set(key, "pending");
     void ownershipOf({ codeOwners, prReviewers }, token, teamMembers).then((owned) => {
-      authorFiles.set(key, owned.paths.length > 0 ? owned : undefined);
+      authorFiles.set(key, { owned: owned.paths.length > 0 ? owned : undefined });
       if (!signal.aborted) addAuthorShields(findCommentAuthors(doc), settled);
     });
+    return "pending";
   }
 
   /**
    * Adds gh-prism's shield after each of `authors`' names that has none yet and whose author owns
-   * changed files: a PR reviewer's as their Reviewers row shows them, anyone else's once their
-   * lookup settles. Synchronous, so overlapping batches can't draw a header two shields.
+   * changed files. Synchronous, so overlapping batches can't draw a header two shields.
    */
   function addAuthorShields(authors: readonly CommentAuthor[], settled: Ownership): void {
     for (const { kind, token, name } of authors) {
       if (name.nextElementSibling?.matches(OWN_SHIELD)) continue;
-      const key = token.toLowerCase();
-      const reviewer = reviewerOf(settled.prReviewers ?? [], token);
-      if (!reviewer && !authorFiles.has(key)) {
-        lookUp(settled, token);
-        continue;
-      }
-      const owned = reviewer ? ownedFiles(settled, token) : authorFiles.get(key);
-      if (owned) name.after(shieldFor(doc, COMMENT_SHIELD_LOOKS[kind], token, owned));
+      const owned = authorOwned(settled, token);
+      if (owned && owned !== "pending")
+        name.after(shieldFor(doc, COMMENT_SHIELD_LOOKS[kind], token, owned));
     }
   }
+
+  /** What `shield`'s popup and dialog show; a comment shield is drawn only once settled. */
+  const ownedOf = (shield: HTMLElement, settled: Ownership): OwnedFiles | undefined => {
+    const token = ownerOf(shield);
+    const owned = shield.matches(".gh-prism-comment-shield")
+      ? authorOwned(settled, token)
+      : ownedFiles(settled, token);
+    return owned === "pending" ? undefined : owned;
+  };
 
   const addAll = ({ rows, authors }: OwnerSpots, settled: Ownership) => {
     addShields(rows, settled);
@@ -174,7 +176,7 @@ export function showReviewerFiles(
     triggerOf: shieldAt,
     show: async (shield) => {
       const token = ownerOf(shield);
-      const owned = ownedOf(await readOnce(), token);
+      const owned = ownedOf(shield, await readOnce());
       const action =
         filter && owned && owned.paths.length > 0
           ? ownerFilterAction(doc, token, filter)
@@ -195,7 +197,7 @@ export function showReviewerFiles(
       const thisClick = ++latestClick;
 
       const token = ownerOf(shield);
-      const owned = ownedOf(await readOnce(), token);
+      const owned = ownedOf(shield, await readOnce());
       if (signal.aborted || thisClick !== latestClick || !owned) return;
 
       closeCard();
@@ -253,6 +255,17 @@ const SHIELD_LOOKS: Record<ReviewerListKind, ShieldLook> = {
   },
 };
 
+/** How a comment header draws gh-prism's shield in each Conversation layout. */
+const COMMENT_SHIELD_LOOKS: Record<ReviewerListKind, ShieldLook> = {
+  // GitHub's classic shield, without the Reviewers row's status-icon wrapper.
+  classic: { classes: "gh-prism-comment-shield btn-link muted-icon" },
+  // The overview row's invisible IconButton, at the title row's 20px.
+  overview: {
+    classes:
+      "gh-prism-comment-shield tw:inline-grid tw:place-items-center tw:size-5 tw:p-0 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-muted tw:cursor-pointer tw:hover:bg-[var(--control-transparent-bgColor-hover)] tw:focus-visible:outline-2 tw:focus-visible:-outline-offset-2 tw:focus-visible:outline-focus-outline",
+  },
+};
+
 // Octicons shield-lock-16 (MIT, GitHub Inc.), 19.15.0, as GitHub draws its own shield.
 const SHIELD_LOCK =
   "m8.533.133 5.25 1.68A1.75 1.75 0 0 1 15 3.48V7c0 1.566-.32 3.182-1.303 4.682-.983 1.498-2.585 2.813-5.032 3.855a1.697 1.697 0 0 1-1.33 0c-2.447-1.042-4.049-2.357-5.032-3.855C1.32 10.182 1 8.566 1 7V3.48a1.75 1.75 0 0 1 1.217-1.667l5.25-1.68a1.748 1.748 0 0 1 1.066 0Zm-.61 1.429.001.001-5.25 1.68a.251.251 0 0 0-.174.237V7c0 1.36.275 2.666 1.057 3.859.784 1.194 2.121 2.342 4.366 3.298a.196.196 0 0 0 .154 0c2.245-.957 3.582-2.103 4.366-3.297C13.225 9.666 13.5 8.358 13.5 7V3.48a.25.25 0 0 0-.174-.238l-5.25-1.68a.25.25 0 0 0-.153 0ZM9.5 6.5c0 .536-.286 1.032-.75 1.3v2.45a.75.75 0 0 1-1.5 0V7.8A1.5 1.5 0 1 1 9.5 6.5Z";
@@ -275,17 +288,6 @@ function addShields(rows: readonly ReviewerRow[], ownership: Ownership): void {
     else icons.append(added);
   }
 }
-
-/** How a comment header draws gh-prism's shield in each Conversation layout. */
-const COMMENT_SHIELD_LOOKS: Record<ReviewerListKind, ShieldLook> = {
-  // GitHub's classic shield, without the Reviewers row's status-icon wrapper.
-  classic: { classes: "gh-prism-comment-shield btn-link muted-icon" },
-  // The overview row's invisible IconButton, at the title row's 20px.
-  overview: {
-    classes:
-      "gh-prism-comment-shield tw:inline-grid tw:place-items-center tw:size-5 tw:p-0 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-muted tw:cursor-pointer tw:hover:bg-[var(--control-transparent-bgColor-hover)] tw:focus-visible:outline-2 tw:focus-visible:-outline-offset-2 tw:focus-visible:outline-focus-outline",
-  },
-};
 
 /** A shield marking `token` a code owner, drawn with `look`. */
 function shieldFor(
