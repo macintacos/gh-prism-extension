@@ -58,8 +58,8 @@ export default defineConfig({
     resolve: {
       alias: [
         {
-          // Its `browser` export decodes via innerHTML, which AMO flags. bun doesn't
-          // hoist it, so resolve it through a package that imports it.
+          // The `browser` condition picks index.dom.js, which decodes via innerHTML that AMO flags; require resolution
+          // picks index.js. bun doesn't hoist the package, so resolve it from a package that imports it.
           find: /^decode-named-character-reference$/,
           replacement: createRequire(
             fileURLToPath(import.meta.resolve("mdast-util-from-markdown")),

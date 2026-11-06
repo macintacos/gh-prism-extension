@@ -243,3 +243,11 @@ file to the patch. Delete that file's hunk from the patch, then run
 
 `tslib` is a devDependency only because playwright-webextext 0.0.5 requires it at runtime
 without declaring it; drop it once playwright-webextext declares it.
+
+[`wxt.config.ts`](../wxt.config.ts) aliases `decode-named-character-reference` to its
+non-DOM `index.js`, because the entry its `browser` condition picks decodes by assigning
+`innerHTML`, which AMO flags. The alias resolves the package from
+`mdast-util-from-markdown` and sends every importer to that copy. If an upgrade makes the
+build fail with `Cannot find module 'decode-named-character-reference'`, resolve it from
+another package that imports it. Drop the alias once that `browser` entry stops assigning
+`innerHTML`, or once nothing in the bundle imports the package.
