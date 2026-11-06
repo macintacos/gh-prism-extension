@@ -54,8 +54,8 @@ const OWN_SHIELD = "button[data-gh-prism-owner]";
  * code owner owns, and describes the shield with it. Opens from GitHub's shield, or from the one
  * this adds beside each PR reviewer who owns a changed file, or whom GitHub marks a code owner,
  * where GitHub draws none, or beside each comment author who owns a changed file: a PR reviewer as
- * their Reviewers row shows, anyone else looked up once through `teamMembers`. Mounts a stylesheet in `doc`'s head. Opens
- * nothing for a code owner who owns no changed file, unless GitHub marks them one: then it says
+ * their Reviewers row shows, anyone else looked up once through `teamMembers`. Mounts a stylesheet in
+ * `doc`'s head. Opens nothing for a code owner who owns no changed file, unless GitHub marks them one: then it says
  * GitHub hides the team. Tab from the shield enters the popup. Closes 150 ms after the pointer
  * leaves shield and popup, and at once on Escape, focus leaving both, or a scroll outside it,
  * moving focus it held to the shield. A click on the shield opens the code owner details dialog

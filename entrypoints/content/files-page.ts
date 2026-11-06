@@ -461,7 +461,10 @@ export const isSignedIn = (doc: Document): boolean => viewerLogin(doc) !== undef
 export const viewerLogin = (doc: Document): string | undefined =>
   doc.head.querySelector('meta[name="user-login"]')?.getAttribute("content") || undefined;
 
-/** Which Conversation layout a Reviewers row or comment header is in: GitHub's classic page, or its PR overview. */
+/**
+ * Which Conversation layout a Reviewers row or comment header is in: GitHub's classic page, or its
+ * PR overview.
+ */
 export type ReviewerListKind = "classic" | "overview";
 
 /** Where one Reviewers list keeps its rows, and GitHub's code-owner shield in a row. */
