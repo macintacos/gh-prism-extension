@@ -57,6 +57,8 @@ export const afterDebounce = () => vi.advanceTimersByTimeAsync(100);
 /** Mounts a landed visit on the loaded fixture before each test, and aborts it after. */
 export function mountsVisit() {
   let controller = new AbortController();
+  let visit = new AbortController();
+  let render = () => {};
 
   /**
    * Replaces the mounted visit with one that waits on `intent`, in a tab whose header counter
@@ -77,21 +79,33 @@ export function mountsVisit() {
       Partial<Pick<VisitOptions, "teamMembers">> = {},
   ): void => {
     controller.abort();
-    controller = new AbortController();
+    visit.abort();
+    visit = new AbortController();
+    const viewed = visitViewed(undefined);
+    render = () => {
+      controller = new AbortController();
+      const page = findFilesPage(document);
+      if (!page) throw new Error("fixture lacks the Files changed markup");
+      showVisit(page, controller.signal, {
+        intent,
+        diffstat,
+        viewed,
+        owner,
+        codeOwners,
+        prReviewers,
+        teamMembers,
+        teamAvatar: async () => undefined,
+        filter,
+        visit: visit.signal,
+      });
+    };
+    render();
+  };
 
-    const page = findFilesPage(document);
-    if (!page) throw new Error("fixture lacks the Files changed markup");
-    showVisit(page, controller.signal, {
-      intent,
-      diffstat,
-      viewed: visitViewed(undefined),
-      owner,
-      codeOwners,
-      prReviewers,
-      teamMembers,
-      teamAvatar: async () => undefined,
-      filter,
-    });
+  /** Ends the mounted page's render and mounts the next on the same visit, as GitHub's mount does. */
+  const rerender = () => {
+    controller.abort();
+    render();
   };
 
   beforeEach(() => {
@@ -100,8 +114,13 @@ export function mountsVisit() {
     remountWith();
   });
 
-  afterEach(() => {
+  const abort = () => {
     controller.abort();
+    visit.abort();
+  };
+
+  afterEach(() => {
+    abort();
     // Preact schedules its after-paint flush only onto an empty queue, so one flush the clock
     // drops leaves every later tree queued, and alive, for the rest of the file.
     vi.runAllTimers();
@@ -115,7 +134,8 @@ export function mountsVisit() {
       remountWith(() => Promise.resolve(result));
       await afterDebounce();
     },
-    abort: () => controller.abort(),
+    rerender,
+    abort,
   };
 }
 

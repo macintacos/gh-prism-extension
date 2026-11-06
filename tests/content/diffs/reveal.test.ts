@@ -655,7 +655,7 @@ describe("holdHashLine", () => {
   const LINE = `${LAUNCHER_DIFF}R31`;
 
   let controller: AbortController;
-  const hold = () => holdHashLine(foundPage(), { signal: controller.signal });
+  const hold = () => holdHashLine(document, { signal: controller.signal });
   const rowOf = (anchor: string) => {
     const row = document.querySelector(`[data-line-anchor="${anchor}"]`)?.closest("tr");
     if (!row) throw new Error(`fixture has no row for ${anchor}`);
@@ -739,6 +739,37 @@ describe("holdHashLine", () => {
     window.dispatchEvent(new Event("scroll"));
 
     expect(scroll).not.toHaveBeenCalled();
+  });
+
+  it("keeps holding the line in the markup GitHub swaps in", () => {
+    place(rowOf(LINE), 200);
+    hold();
+
+    const { diffs } = foundPage();
+    diffs.replaceWith(diffs.cloneNode(true));
+    const row = rowOf(LINE);
+    place(row, -5_000);
+    const scroll = centring(row);
+    window.dispatchEvent(new Event("scroll"));
+
+    expect(scroll).toHaveBeenCalledWith(CENTRED);
+  });
+
+  it("centres the line when the swapped-in markup moves it", async () => {
+    place(rowOf(LINE), 200);
+    hold();
+    const { diffs } = foundPage();
+    diffs.replaceWith(diffs.cloneNode(true));
+    const row = rowOf(LINE);
+    const rect = place(row, 200);
+    const scroll = centring(row);
+    await vi.advanceTimersByTimeAsync(100);
+
+    foundPage().diffs.append(document.createElement("div"));
+    rect.mockReturnValue(new DOMRect(0, -5_000, 100, 20));
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(scroll).toHaveBeenCalledWith(CENTRED);
   });
 
   it("lets go once aborted", () => {

@@ -9,6 +9,7 @@ import {
   expandedDiff,
   type FilesPage,
   findDiff,
+  findFilesPage,
   isLineAnchor,
   lineRowOf,
   lineRowOfAnchor,
@@ -86,11 +87,12 @@ const USER_INPUT = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
 /**
  * Centres the line the URL's hash names whenever it is out of view: now, and on each scroll or
  * change to the diffs after, until the user scrolls, clicks, or types, `REVEAL_TIMEOUT_MS`
- * passes, or `signal` aborts. GitHub scrolls to a line once, as it mounts, so it misses one the
- * cover hid, and a commit page can scroll by a measure taken before the diffs were reordered.
+ * passes, or `signal`, the visit's, aborts. GitHub scrolls to a line once, as it mounts, so it
+ * misses one the cover hid. Its client mount also replaces `doc`'s Files markup and, on a commit
+ * page, scrolls to the top, so the hold follows whatever markup `doc` shows.
  */
-export function holdHashLine(page: FilesPage, { signal }: { signal: AbortSignal }): void {
-  const win = page.diffs.ownerDocument.defaultView;
+export function holdHashLine(doc: Document, { signal }: { signal: AbortSignal }): void {
+  const win = doc.defaultView;
   const anchor = win?.location.hash.slice(1) ?? "";
   if (!win || !isLineAnchor(anchor) || signal.aborted) return;
 
@@ -105,11 +107,13 @@ export function holdHashLine(page: FilesPage, { signal }: { signal: AbortSignal 
     win.addEventListener(type, release, { capture: true, passive: true, signal: holding.signal });
 
   const land = () => {
-    const row = lineRowOfAnchor(page, anchor);
-    if (row && !inView(page, row)) row.scrollIntoView({ block: "center", behavior: "instant" });
+    const page = findFilesPage(doc);
+    const row = page && lineRowOfAnchor(page, anchor);
+    if (page && row && !inView(page, row))
+      row.scrollIntoView({ block: "center", behavior: "instant" });
   };
   win.addEventListener("scroll", land, { passive: true, signal: holding.signal });
-  observeDiffs(page.diffs, land, { signal: holding.signal });
+  observeDiffs(doc.body, land, { signal: holding.signal });
   land();
 }
 

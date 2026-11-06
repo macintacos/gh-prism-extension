@@ -887,6 +887,30 @@ test("a line link in the URL lands in view once the diffs show", async ({ contex
   await expect(page.locator(`[data-line-anchor="${line}"]`)).toBeInViewport();
 });
 
+test("a line link stays in view when GitHub renders the page anew after the diffs show", async ({
+  context,
+  page,
+}) => {
+  const line = "diff-90df21c5f2396574b17d2f1696a2e63cee454ee37910c7b254a81d44449cdaa4R31";
+  await serve(
+    context,
+    COMMIT_URL,
+    commitBodyWith('<style>td[data-line-anchor$="R30"] { height: 300vh; }</style>'),
+  );
+  await page.goto(`${COMMIT_URL}#${line}`);
+  await expect(page.locator(`[data-line-anchor="${line}"]`)).toBeInViewport();
+
+  // As GitHub's client mount does on a full load: fresh markup, then the commit page's scroll to the top.
+  await page.evaluate((html) => {
+    document.body.replaceChildren(
+      ...new DOMParser().parseFromString(html, "text/html").body.childNodes,
+    );
+    window.scrollTo(0, 0);
+  }, readFixture("commit-page.html"));
+
+  await expect(page.locator(`[data-line-anchor="${line}"]`)).toBeInViewport();
+});
+
 test("a large pull request renders only the rows near the sidebar's viewport, and the sidebar scrolls as one", async ({
   context,
   page,

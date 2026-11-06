@@ -2,7 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listRules, showDiffOrder } from "../../../entrypoints/content/diffs/order";
 import { commitPage, findFilesPage, prPage } from "../../../entrypoints/content/files-page";
-import { byId, loadCommitFixture } from "../../fixtures/files-page";
+import { shareIntent } from "../../../utils/intent/read";
+import { byId, foundPage, loadCommitFixture } from "../../fixtures/files-page";
 import { landedWith, pendingIntent, whole } from "../../fixtures/intent";
 import {
   addNativeFile,
@@ -15,7 +16,17 @@ import {
   view,
 } from "../../fixtures/visit";
 
-const { remountWith, landed, abort } = mountsVisit();
+const { remountWith, rerender, landed, abort } = mountsVisit();
+
+/** Mounts the `#diff-0a08R2` line's row in the `diff-0a08` diff. */
+function mountLineRow(): HTMLTableRowElement {
+  const table = document.createElement("table");
+  table.innerHTML = '<tbody><tr><td data-line-anchor="diff-0a08R2">2</td></tr></tbody>';
+  byId("diff-0a08").append(table);
+  const row = table.querySelector("tr");
+  if (!row) throw new Error("no row");
+  return row;
+}
 
 /** Replaces the diff list with GitHub's progressive one, every native file's diff mounted. */
 function mountEveryDiff(): void {
@@ -388,7 +399,7 @@ describe("the diffs beside the sections", () => {
       const page = findFilesPage(document);
       if (!page) throw new Error("fixture lacks the Files changed markup");
       const controller = new AbortController();
-      showDiffOrder(page, controller.signal).pending?.();
+      showDiffOrder(page, controller.signal, { visit: controller.signal }).pending?.();
 
       expect(diffsProgressBar()).not.toBeNull();
       expect(sheetsStyling("gh-prism-diff-card")).toHaveLength(1);
@@ -455,11 +466,7 @@ describe("the diffs beside the sections", () => {
     });
 
     it("centre the line the URL's hash names as they show", async () => {
-      const table = document.createElement("table");
-      table.innerHTML = '<tbody><tr><td data-line-anchor="diff-0a08R2">2</td></tr></tbody>';
-      byId("diff-0a08").append(table);
-      const row = table.querySelector("tr");
-      if (!row) throw new Error("no row");
+      const row = mountLineRow();
       vi.spyOn(row, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 5_000, 100, 20));
       const scroll = vi.spyOn(row, "scrollIntoView").mockImplementation(() => {});
       history.replaceState(null, "", "#diff-0a08R2");
@@ -471,6 +478,41 @@ describe("the diffs beside the sections", () => {
       history.replaceState(null, "", location.pathname);
 
       expect(scroll).toHaveBeenCalledWith({ block: "center", behavior: "instant" });
+    });
+
+    it("hold the line across the render GitHub swaps in once intent has landed", async () => {
+      history.replaceState(null, "", "#diff-0a08R2");
+      const pending = pendingIntent();
+      remountWith(shareIntent(pending.intent));
+      pending.resolve(landedWith());
+      await afterDebounce();
+
+      const { diffs } = foundPage();
+      diffs.replaceWith(diffs.cloneNode(true));
+      rerender();
+      const row = mountLineRow();
+      vi.spyOn(row, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 5_000, 100, 20));
+      const scroll = vi.spyOn(row, "scrollIntoView").mockImplementation(() => {});
+      window.dispatchEvent(new Event("scroll"));
+      history.replaceState(null, "", location.pathname);
+
+      expect(scroll).toHaveBeenCalledWith({ block: "center", behavior: "instant" });
+    });
+
+    it("restore the URL's hash when GitHub swaps the render in before the retake does", async () => {
+      history.replaceState(null, "", "#diff-0a08R2");
+      const swapOnBlank = () => {
+        if (!location.hash) queueMicrotask(rerender);
+      };
+      window.addEventListener("hashchange", swapOnBlank, { once: true });
+      const pending = pendingIntent();
+      remountWith(shareIntent(pending.intent));
+      pending.resolve(landedWith());
+      await afterDebounce();
+      const hash = location.hash;
+      history.replaceState(null, "", location.pathname);
+
+      expect(hash).toBe("#diff-0a08R2");
     });
 
     it("stay revealed until the last section's files have dropped in", async () => {
@@ -557,7 +599,7 @@ describe("the diffs of files the filter leaves out", () => {
     const page = findFilesPage(document);
     if (!page) throw new Error("fixture lacks the Files changed markup");
     controller = new AbortController();
-    order = showDiffOrder(page, controller.signal);
+    order = showDiffOrder(page, controller.signal, { visit: controller.signal });
   });
   afterEach(() => controller.abort());
 

@@ -222,6 +222,7 @@ export default defineContentScript({
               owner,
               filter,
               whatsNew: whatsNewForPage?.(),
+              visit,
             });
             showCommitMessage(page, signal, {
               afterSections: afterLanding(intent),
