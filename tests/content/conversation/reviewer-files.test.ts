@@ -95,16 +95,19 @@ interface NodeEdits {
  * nodejs/node#67056's code owners and PR reviewers, read from its captures after `edits` as a
  * visit reads them, owning teams' members included.
  */
-async function nodeOwnership({
-  ownership,
-  reviewRequests,
-  cryptoMembers,
-}: NodeEdits = {}): Promise<Ownership> {
+async function nodeOwnership(edits: NodeEdits = {}): Promise<Ownership> {
+  const fetchFn = nodeFetch(edits);
+  const { signal } = new AbortController();
+  return readOwnership(node, { fetchFn, teamMembers: teamMembersReader(fetchFn, signal), signal });
+}
+
+/** GitHub as it answers nodejs/node#67056's reads, after `edits`. */
+function nodeFetch({ ownership, reviewRequests, cryptoMembers }: NodeEdits) {
   const codeowners = JSON.parse(nodeCodeowners);
   ownership?.(codeowners.ownershipByPath);
   const requests = JSON.parse(nodeReviewRequests);
   reviewRequests?.(requests);
-  const fetchFn = routedFetch({
+  return routedFetch({
     "https://github.com/nodejs/node/pull/67056/page_data/codeowners": () =>
       Promise.resolve(new Response(JSON.stringify(codeowners))),
     "https://github.com/nodejs/node/pull/67056/page_data/review_requests": () =>
@@ -116,8 +119,6 @@ async function nodeOwnership({
         ),
     }),
   });
-  const { signal } = new AbortController();
-  return readOwnership(node, { fetchFn, teamMembers: teamMembersReader(fetchFn, signal), signal });
 }
 
 /** A team as review_requests names one. */
@@ -1014,6 +1015,144 @@ describe("showReviewerFiles", () => {
           "Approved these changes",
         ],
       );
+    });
+  });
+
+  describe("the whole pull request's code owners button", () => {
+    const ownersButton = () => document.querySelector<HTMLButtonElement>(".gh-prism-pr-owners");
+    const dialog = () => document.querySelector<HTMLDialogElement>("dialog.gh-prism-owners-dialog");
+    const dialogName = () =>
+      document.getElementById(dialog()?.getAttribute("aria-labelledby") ?? "")?.textContent;
+
+    it.each([
+      ["the classic sidebar's menu trigger", () => showNode({}, conversationFixture), "DETAILS"],
+      ["the classic sidebar's plain heading", () => showNode({}, nodeConversation), "H3"],
+      ["the PR overview's heading", () => showNode({}, overviewConversation), "H4"],
+    ])("sits right before %s, outside it", async (_, showPage, tag) => {
+      await showPage();
+
+      expect(document.querySelectorAll(".gh-prism-pr-owners")).toHaveLength(1);
+      expect(ownersButton()?.nextElementSibling?.tagName).toBe(tag);
+    });
+
+    it("opens the whole pull request's dialog, and its Close button hands focus back", async () => {
+      show();
+      await vi.advanceTimersByTimeAsync(0);
+
+      ownersButton()?.click();
+      expect(dialogName()).toBe("Code owners of this pull request");
+      dialog()?.querySelector<HTMLButtonElement>('button[aria-label="Close"]')?.click();
+
+      expect(dialog()).toBeNull();
+      expect(document.activeElement).toBe(ownersButton());
+    });
+
+    it.each([
+      ["the code owners can't be read", undefined],
+      [
+        "no changed file has a code owner",
+        sandboxOwners((byPath) => {
+          for (const [path, entry] of Object.entries(byPath))
+            byPath[path] = { ...entry, owners: [] };
+        }),
+      ],
+    ])("is absent when %s", async (_, codeOwners) => {
+      show(async () => ({ codeOwners, prReviewers: SANDBOX_REVIEWERS }));
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(ownersButton()).toBeNull();
+    });
+
+    it("comes back once GitHub replaces the Reviewers form", async () => {
+      show();
+      await vi.advanceTimersByTimeAsync(0);
+
+      const form = document.querySelector("form") as HTMLFormElement;
+      const fresh = form.cloneNode(true) as HTMLFormElement;
+      for (const stale of fresh.querySelectorAll(".gh-prism-pr-owners")) stale.remove();
+      form.replaceWith(fresh);
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(document.querySelectorAll(".gh-prism-pr-owners")).toHaveLength(1);
+      expect(fresh.contains(ownersButton())).toBe(true);
+    });
+
+    it("reads the code owners once the heading shows, before any reviewer is requested", async () => {
+      for (const row of document.querySelectorAll(".css-truncate")) row.remove();
+      const read = vi.fn(async () => ({
+        codeOwners: sandboxOwners(),
+        prReviewers: [],
+      }));
+
+      show(read);
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(read).toHaveBeenCalledOnce();
+      expect(ownersButton()).not.toBeNull();
+    });
+
+    it("goes once the signal aborts", async () => {
+      show();
+      await vi.advanceTimersByTimeAsync(0);
+
+      controller.abort();
+
+      expect(ownersButton()).toBeNull();
+    });
+
+    it("opens from the ownership it already read, sending GitHub no new request", async () => {
+      document.body.innerHTML = nodeConversation;
+      const fetchFn = nodeFetch({ cryptoMembers: ["jasnell"] });
+      const { signal } = controller;
+      const teamMembers = teamMembersReader(fetchFn, signal);
+      const read = vi.fn(() => readOwnership(node, { fetchFn, teamMembers, signal }));
+      showReviewerFiles(document, signal, {
+        read,
+        teamMembers,
+        teamAvatar: async () => undefined,
+        findAuthors: findCommentAuthors,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      const requests = fetchFn.mock.calls.length;
+
+      ownersButton()?.click();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(dialog()).not.toBeNull();
+      expect(fetchFn.mock.calls.length).toBe(requests);
+      expect(read).toHaveBeenCalledOnce();
+    });
+
+    it("reads each owning team's members at most once per visit on a PR with no reviewer", async () => {
+      document.body.innerHTML = nodeConversation;
+      const fetchFn = nodeFetch({
+        cryptoMembers: ["jasnell"],
+        reviewRequests: (body) => {
+          body.pendingReviewRequests = [];
+          body.completedReviews = [];
+        },
+      });
+      const { signal } = controller;
+      const teamMembers = teamMembersReader(fetchFn, signal);
+      showReviewerFiles(document, signal, {
+        read: () => readOwnership(node, { fetchFn, teamMembers, signal }),
+        teamMembers,
+        teamAvatar: async () => undefined,
+        findAuthors: findCommentAuthors,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+
+      ownersButton()?.click();
+      await vi.advanceTimersByTimeAsync(0);
+      dialog()?.querySelector<HTMLButtonElement>('button[aria-label="Close"]')?.click();
+      ownersButton()?.click();
+      await vi.advanceTimersByTimeAsync(0);
+
+      const members = fetchFn.mock.calls
+        .map(([url]) => String(url))
+        .filter((url) => url.endsWith("/members"));
+      expect(members).not.toEqual([]);
+      expect(new Set(members).size).toBe(members.length);
     });
   });
 });

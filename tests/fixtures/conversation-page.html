@@ -1,4 +1,4 @@
-<!-- Trimmed from the code-owners sandbox PR #1's Conversation tab, signed in (scripts/create-codeowners-sandbox.sh): the header counter and the Reviewers item, octicon paths dropped. Refresh when GitHub's Reviewers sidebar markup changes. -->
+<!-- Trimmed from the code-owners sandbox PR #1's Conversation tab, signed in (scripts/create-codeowners-sandbox.sh): the header counter and the Reviewers item, carrying its heading as a viewer who can request reviews sees it, octicon paths, tokens, and the reviewers menu's contents dropped. Refresh when GitHub's Reviewers sidebar markup changes. -->
 <div class="rightContentWrapper__DE7XPN hideWhenVeryNarrowContainer__gKh_VK">
   <div class="d-flex flex-items-center gap-1">
     <span aria-hidden="true" class="f6 fgColor-success text-bold">+6</span><span class="sr-only">Lines changed: 6 additions &amp; 0 deletions</span>
@@ -19,6 +19,14 @@
     data-channel-event-name="reviewers_updated"
   >
     <form id="pull-request-reviewers-form-5045172253" class="js-issue-sidebar-form" aria-label="Select reviewers" action="/excessive-dev/gh-prism-codeowners-sandbox/pull/1/review-requests" method="post">
+      <div class="js-large-teams-check-warning-container"></div>
+      <details class="details-reset details-overlay select-menu hx_rsm " id="reviewers-select-menu">
+        <summary class="text-bold discussion-sidebar-heading discussion-sidebar-toggle hx_rsm-trigger" aria-haspopup="menu" data-dd-action-name="pr.reviewers.open" data-hotkey="q" data-menu-trigger="reviewers-select-menu" role="button">
+          <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" class="octicon octicon-gear"></svg>
+          Reviewers
+        </summary>
+        <details-menu class="js-discussion-sidebar-menu select-menu-modal position-absolute right-0 hx_rsm-modal" style="z-index: 99; overflow: visible;" data-multiple="" data-menu-max-options="15"></details-menu>
+      </details>
       <span class="css-truncate">
         <div class="d-flex flex-items-center mb-2">
           <span

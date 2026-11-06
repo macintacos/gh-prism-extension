@@ -3673,6 +3673,96 @@ test("a commit's page has no Conversation button", async ({ context, page }) => 
 
   await expect(page.locator(".gh-prism-side-switch")).toBeAttached();
   await expect(page.locator(".gh-prism-conversation-button")).toHaveCount(0);
+  await expect(page.locator(".gh-prism-pr-owners")).toHaveCount(0);
+});
+
+const prOwnersButton = (page: Page) => page.locator(".gh-prism-pr-owners");
+const prOwnersDialog = (page: Page) =>
+  page.getByRole("dialog", { name: "Code owners of this pull request" });
+
+test("the code owners button follows the Conversation button and opens the whole PR's owners, handing focus back on Escape", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  await routeCodeOwners(context);
+  await page.goto(PR_URL);
+  const button = prOwnersButton(page);
+  await expect(button).toBeVisible();
+  expect(
+    await conversationButton(page).evaluate((b) =>
+      b.nextElementSibling?.classList.contains("gh-prism-pr-owners"),
+    ),
+  ).toBe(true);
+  const box = await button.boundingBox();
+  expect(box?.width).toBeGreaterThanOrEqual(24);
+  expect(box?.height).toBeGreaterThanOrEqual(24);
+  expect(
+    Math.abs((box?.x ?? NaN) - boxRight(await conversationButton(page).boundingBox())),
+  ).toBeLessThanOrEqual(12);
+
+  await button.click();
+  const dialog = prOwnersDialog(page);
+  await expect(dialog).toBeVisible();
+  expect(await dialog.evaluate((d) => d.matches(":modal"))).toBe(true);
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(button).toBeFocused();
+});
+
+test("Shift+Tab rings the code owners button", async ({ context, page }) => {
+  await serveConversation(context);
+  await routeCodeOwners(context);
+  await page.goto(PR_URL);
+  await expect(prOwnersButton(page)).toBeVisible();
+  await page.locator('[class*="MobileTreeToggle"]').focus();
+  await page.keyboard.press("Shift+Tab");
+
+  await expect(prOwnersButton(page)).toBeFocused();
+  expect(await prOwnersButton(page).evaluate((b) => getComputedStyle(b).outlineStyle)).toBe(
+    "solid",
+  );
+});
+
+test("a failed code owners read shows no code owners button", async ({ context, page }) => {
+  await serveConversation(context);
+  await routeCodeOwners(context);
+  await context.route("**/page_data/codeowners", (route) => route.fulfill({ status: 500 }));
+  const reads = Promise.all([
+    page.waitForResponse("**/page_data/codeowners"),
+    page.waitForResponse("**/page_data/review_requests"),
+  ]);
+  await page.goto(PR_URL);
+  await reads;
+
+  await expect(page.locator(".gh-prism-side-switch")).toBeAttached();
+  await expect(conversationButton(page)).toBeVisible();
+  await expect(prOwnersButton(page)).toHaveCount(0);
+});
+
+test("the Conversation tab's code owners button shares the Reviewers heading's row and opens the dialog, not GitHub's menu", async ({
+  context,
+  page,
+}) => {
+  await serve(
+    context,
+    "https://github.com/o/r/pull/1",
+    `<!doctype html>${readFixture("conversation-page.html")}`,
+  );
+  await routeCodeOwners(context);
+  await page.goto("https://github.com/o/r/pull/1");
+  const button = prOwnersButton(page);
+  await expect(button).toBeVisible();
+  const heading = page.locator("#reviewers-select-menu summary.discussion-sidebar-heading");
+  const [a, b] = await Promise.all([button.boundingBox(), heading.boundingBox()]);
+  if (!a || !b) throw new Error("a box is missing");
+  expect(a.y < b.y + b.height && b.y < a.y + a.height).toBe(true);
+
+  await button.click();
+
+  await expect(prOwnersDialog(page)).toBeVisible();
+  await expect(page.locator("details#reviewers-select-menu")).not.toHaveAttribute("open");
 });
 
 test("Escape and a click outside close the Conversation overlay, handing focus back to its button", async ({

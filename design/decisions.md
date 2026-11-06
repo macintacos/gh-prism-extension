@@ -26,9 +26,11 @@ reviewing.
 - **Why the eye is muted:** `--fgColor-muted`, not `--fgColor-success`. `design/brief.md`
   spends colour on sections, file types, and lines added or removed only, and green would
   read as lines added.
-- **Why the mark isn't the glyph alone:** the eye's hidden words "(reviewing)" join the
-  owner heading's accessible name. Its tooltip names who reviews: the owner, or the
-  reviewers who review for the team.
+- **Why the mark isn't the glyph alone:** the eye takes no focus, so its tooltip can't be
+  its only words. Its hidden words join the owner heading's accessible name instead and
+  match its tooltip exactly. Both read "Reviewing" when the owner reviews, or "Reviewing
+  through grace, ada" when reviewers review for the team. Neither says "Reviewed", because
+  a request may still be pending.
 - **Why the tag is words:** "No reviewer", shaped like GitHub's Label, reads without
   colour. Its text is `--fgColor-muted` inside a `--borderColor-default` outline, GitHub's
   default Label. `design/brief.md` spends colour on sections, file types, and lines added
@@ -59,6 +61,21 @@ reviewing.
 - **Why no visible label:** the Conversation button beside it is an icon with a tooltip,
   and a word would widen a toolbar GitHub fills. The muted glyph matches the Conversation
   button's and spends no colour, as `design/brief.md` asks.
+- **Compared, for the Conversation tab's button beside each Reviewers heading:** the
+  toolbar's bordered small default Button, and an invisible button. For its place: inside
+  GitHub's heading control, or before it, floated to the heading's inline end.
+- **Won:** the same muted `shield-lock` on an invisible button, floated to the inline end
+  of the heading's row. In the classic sidebar it is 24px square, set 2px down so its
+  centre lines up with the gear's centre, inside the heading's row. It stacks above
+  GitHub's heading, whose full-width menu trigger would otherwise take the pointer. In the
+  overview it is 28px, Primer's small invisible IconButton. Its "Code owners" tooltip
+  opens leftward, because the button sits at the sidebar's inline-end edge.
+- **Why invisible:** the classic heading's gear and the overview's heading button are
+  borderless, so a bordered Button would be the only box in the sidebar's headings.
+- **Why outside GitHub's control:** the classic `summary` and the overview's full-width
+  button open GitHub's reviewers menu wherever they're clicked, so a button inside would
+  open both. The cost is that focus reaches gh-prism's button just before GitHub's
+  Reviewers control.
 
 ## 2026-11-05: No "Show only their files" from a classic Files changed comment shield
 

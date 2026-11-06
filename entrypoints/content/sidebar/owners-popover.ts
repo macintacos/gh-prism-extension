@@ -1,6 +1,7 @@
 /**
  * The popover a code owners shield opens on hover or focus, listing a file's owners, or a folder's
- * files grouped by their owners; it exists only while open.
+ * files grouped by their owners; it exists only while open. Also `describePullRequest`, the whole
+ * pull request's code owner details summary.
  *
  * It sits beside its shield, which is marked expanded while it is open. It closes on Escape inside
  * it, on a click outside it, on any scroll outside it, once `signal` aborts, or on a call of the
@@ -10,8 +11,9 @@
 
 import {
   type CodeOwner,
+  isOwner,
+  type OwnedPullRequest,
   owningTeams,
-  type PrCodeOwners,
   type PrReviewer,
   reviewingFor,
 } from "@/utils/github/code-owners";
@@ -99,23 +101,24 @@ function ownersList(
 
 /**
  * What the whole pull request's code owner details dialog shows: every changed file in
- * `codeOwners`, in its order, grouped by owner set as a folder's are, each owner `prReviewers`
- * reviews for marked, each group none of them reviews tagged under a call-out, and the owning
- * teams. Without `prReviewers`, only the groups.
+ * `codeOwners`, in its order, grouped by owner set as a folder's are, each owner a PR reviewer
+ * reviews for marked, and each owned group none reviews for tagged, with a call-out counting
+ * those files, and the owning teams. Without `prReviewers`, only the groups.
  */
+// ponytail: builds every changed file on each open, thousands of nodes at GitHub's 3,000-file
+// cap; cap the list with a "+N more" line, or virtualize it, if that hitches.
 export function describePullRequest(
   doc: Document,
-  {
-    codeOwners,
-    prReviewers,
-  }: { codeOwners: PrCodeOwners; prReviewers: readonly PrReviewer[] | undefined },
+  { codeOwners, prReviewers }: OwnedPullRequest,
   identities: OwnerIdentities,
 ): { title: string; summary: Node[]; teams: string[] } {
   const files = [...codeOwners].map(([path, { owners }]) => ({ path, owners }));
   const unreviewed =
     prReviewers === undefined
       ? 0
-      : files.filter(({ owners }) => isUnreviewed(owners, prReviewers)).length;
+      : byOwnerSet(files)
+          .filter(({ owners }) => isUnreviewed(owners, prReviewers))
+          .reduce((sum, { paths }) => sum + paths.length, 0);
   const list = folderList(doc, "", files, identities, prReviewers);
 
   return {
@@ -127,7 +130,10 @@ export function describePullRequest(
 
 /** Whether `owners` has owners and none of `reviewers` reviews for any of them. */
 const isUnreviewed = (owners: readonly CodeOwner[], reviewers: readonly PrReviewer[]) =>
-  owners.length > 0 && owners.every((owner) => reviewingFor(reviewers, owner).length === 0);
+  owners.length > 0 && !owners.some((owner) => reviewers.some((r) => reviewsFor(r, owner)));
+
+const reviewsFor = (reviewer: PrReviewer, owner: CodeOwner) =>
+  reviewingFor([reviewer], owner).length > 0;
 
 /** The line counting the `count` files no current reviewer owns, above the groups. */
 function unreviewedCallOut(doc: Document, count: number): HTMLElement {
@@ -202,9 +208,10 @@ function ownersHeading(
   identities: OwnerIdentities,
   reviewers?: readonly PrReviewer[],
 ): HTMLElement {
-  const marked = (owner: CodeOwner) => {
-    const reviewing = reviewers === undefined ? [] : reviewingFor(reviewers, owner);
-    return reviewing.length === 0 ? [] : [reviewerMark(doc, reviewing)];
+  const reviewing = owners.map((owner) => (reviewers ? reviewingFor(reviewers, owner) : []));
+  const marked = (owner: CodeOwner, i: number) => {
+    const who = reviewing[i] ?? [];
+    return who.length === 0 ? [] : [reviewerMark(doc, owner, who)];
   };
   // A 24px line, the avatars' height, so a wrapped heading's lines stay evenly spaced.
   const heading = el(
@@ -217,33 +224,41 @@ function ownersHeading(
           ...owners.flatMap((owner, i) => [
             i > 0 ? ownerSeparator(doc) : "",
             ownerIdentity(doc, owner, identities),
-            ...marked(owner),
+            ...marked(owner, i),
           ]),
-          ...(reviewers !== undefined && isUnreviewed(owners, reviewers)
+          ...(reviewers !== undefined && reviewing.every((who) => who.length === 0)
             ? [unreviewedTag(doc)]
             : []),
         ]
       : ["No code owner"]),
   );
-  // Named by what it shows: its filter icons' labels would otherwise join the name.
+  // Named by what it shows: its filter icons' labels would otherwise join the name. Each mark and
+  // tag starts with a space, so the name built from text reads apart.
   heading.setAttribute("aria-label", heading.textContent ?? "");
   return heading;
 }
 
 /**
- * An eye after an owner the non-empty `reviewing` review for, its words hidden but in the
- * heading's name.
+ * The eye after `owner`, whom `reviewing` (never empty) review for; its hidden words join the
+ * heading's accessible name, and its tooltip says the same.
  */
-function reviewerMark(doc: Document, reviewing: readonly PrReviewer[]): HTMLElement {
+function reviewerMark(
+  doc: Document,
+  owner: CodeOwner,
+  reviewing: readonly PrReviewer[],
+): HTMLElement {
+  const words = reviewing.some(({ token }) => isOwner(token, owner))
+    ? "Reviewing"
+    : `Reviewing through ${reviewing.map(({ token }) => token.slice(1)).join(", ")}`;
   const mark = el(
     doc,
     "span",
     "tw:inline-flex tw:align-middle tw:ml-1 tw:text-fg-muted",
     icon(doc, EYE_ICON, {}),
-    el(doc, "span", "tw:sr-only", " (reviewing)"),
+    el(doc, "span", "tw:sr-only", ` (${words})`),
   );
   mark.dataset.reviewing = "";
-  mark.dataset.tooltip = `Reviewed by ${reviewing.map(({ token }) => token.slice(1)).join(", ")}`;
+  mark.dataset.tooltip = words;
   return mark;
 }
 
@@ -252,7 +267,7 @@ function unreviewedTag(doc: Document): HTMLElement {
   const tag = el(
     doc,
     "span",
-    "tw:inline-block tw:align-middle tw:ml-2 tw:px-[7px] tw:leading-[18px] tw:text-[12px] tw:font-medium tw:text-fg-muted tw:rounded-full tw:border tw:border-border-default",
+    "tw:inline-block tw:align-middle tw:ml-2 tw:px-1.5 tw:rounded-[2em] tw:text-body-small tw:font-medium tw:leading-body-small tw:text-fg-muted tw:border tw:border-border-default",
     " No reviewer",
   );
   tag.dataset.unreviewed = "";

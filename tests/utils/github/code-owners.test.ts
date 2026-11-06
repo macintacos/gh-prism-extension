@@ -6,6 +6,7 @@ import {
   ownershipOf,
   owningReviewers,
   owningTeams,
+  ownsAnyFile,
   type PrCodeOwners,
   type PrReviewer,
   readCodeOwners,
@@ -1001,5 +1002,23 @@ describe("owningReviewers", () => {
 
     expect(reviewers).not.toEqual([]);
     expect(owningReviewers(reviewers, owners, undefined)).toEqual([]);
+  });
+});
+
+describe("ownsAnyFile", () => {
+  it.each<[string, PrCodeOwners | undefined, boolean]>([
+    [
+      "a changed file has a code owner",
+      new Map([["a.ts", { owners: [{ token: "@o/web" }], ownedByViewer: false }]]),
+      true,
+    ],
+    [
+      "no changed file has a code owner",
+      new Map([["a.ts", { owners: [], ownedByViewer: false }]]),
+      false,
+    ],
+    ["the code-owner read failed", undefined, false],
+  ])("is %3$s when %1$s", (_, codeOwners, owns) => {
+    expect(ownsAnyFile({ codeOwners, prReviewers: undefined })).toBe(owns);
   });
 });

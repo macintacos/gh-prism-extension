@@ -511,6 +511,8 @@ interface ReviewerList {
   /** The row's column of status icons, where GitHub puts its shield; the row itself if absent. */
   readonly icons?: string;
   readonly shield: string;
+  /** The list's "Reviewers" heading, which gh-prism's button sits before, never inside. */
+  readonly heading: string;
 }
 
 // The classic shield's id prefixes; keep in sync with reviewer-files.css's tool-tip hook.
@@ -522,6 +524,8 @@ const REVIEWER_LISTS: readonly ReviewerList[] = [
     kind: "classic",
     row: '#partial-discussion-sidebar form[id^="pull-request-reviewers-form-"] .css-truncate > div',
     shield: `button:is(${SHIELD_ID_PREFIXES.map((prefix) => `[id^="${prefix}"]`).join(",")})`,
+    heading:
+      '#partial-discussion-sidebar form[id^="pull-request-reviewers-form-"] > :is(details:has(> summary.discussion-sidebar-heading), h3.discussion-sidebar-heading)',
   },
   {
     kind: "overview",
@@ -529,8 +533,26 @@ const REVIEWER_LISTS: readonly ReviewerList[] = [
     icons: '[class*="indicators__"]',
     // gh-prism's own shield takes GitHub's label; keep in sync with reviewer-files' OWN_SHIELD.
     shield: `button[aria-label$="${SHIELD_LABEL}"]:not([data-gh-prism-owner])`,
+    // ponytail: rebuilt from GitHub's bundle, never rendered; an overview Reviewers section that
+    // draws no list while empty shows no button, and the heading's full-width button may drop
+    // below gh-prism's float. Re-check both once an account can open the overview.
+    heading:
+      'section[data-overview-sidebar-item]:has([class*="reviewerList__"]) > h4[class*="disclosureHeading__"]',
   },
 ];
+
+/** One Reviewers list's heading. */
+export interface ReviewersHeading {
+  readonly kind: ReviewerListKind;
+  readonly heading: Element;
+}
+
+/** Every Reviewers list's heading in `doc`. */
+export function findReviewersHeadings(doc: Document): ReviewersHeading[] {
+  return REVIEWER_LISTS.flatMap(({ kind, heading }) =>
+    [...doc.querySelectorAll(heading)].map((found) => ({ kind, heading: found })),
+  );
+}
 
 /** One reviewer's row in a pull request's Reviewers list. */
 export interface ReviewerRow {
@@ -626,24 +648,30 @@ function authorsOf(doc: Document, headers: readonly CommentHeaders[]): CommentAu
 export interface OwnerSpots {
   readonly rows: ReviewerRow[];
   readonly authors: CommentAuthor[];
+  readonly headings: ReviewersHeading[];
 }
 
 /**
- * Calls `onChange` with `doc`'s reviewer rows and the comment authors `findAuthors` finds now and
- * after each change to `doc`'s body, until `signal` aborts. GitHub replaces the classic sidebar and
- * timeline on soft navigation and on review updates, React re-renders the overview, and Files
- * changed mounts and unmounts review threads with their diffs, so a caller re-checks every spot
- * each time.
+ * Calls `onChange` with `doc`'s reviewer rows, Reviewers headings, and the comment authors
+ * `findAuthors` finds now and after each change to `doc`'s body, until `signal` aborts. GitHub
+ * replaces the classic sidebar and timeline on soft navigation and on review updates, React
+ * re-renders the overview, and Files changed mounts and unmounts review threads with their diffs,
+ * so a caller re-checks every spot each time.
  */
 export function followOwnerSpots(
   doc: Document,
   onChange: (spots: OwnerSpots) => void,
   { findAuthors, signal }: { findAuthors: (doc: Document) => CommentAuthor[]; signal: AbortSignal },
 ): void {
-  // ponytail: findReviewerRows and findAuthors query the whole document per mutation batch,
-  // Files changed's busier page included; observe only the Reviewers lists, timeline, and diffs
-  // if it shows up in a profile.
-  const report = () => onChange({ rows: findReviewerRows(doc), authors: findAuthors(doc) });
+  // ponytail: each mutation batch queries the whole document for the reviewer rows, the comment
+  // authors, and the Reviewers heading selectors with their :has(), Files changed's busier page
+  // included; observe only the Reviewers lists, timeline, and diffs if it shows up in a profile.
+  const report = () =>
+    onChange({
+      rows: findReviewerRows(doc),
+      authors: findAuthors(doc),
+      headings: findReviewersHeadings(doc),
+    });
   const observer = new MutationObserver(report);
   observer.observe(doc.body, { childList: true, subtree: true });
   signal.addEventListener("abort", () => observer.disconnect());

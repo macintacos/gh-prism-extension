@@ -1,4 +1,30 @@
-/* GitHub hooks: no selector; Primer's --tooltip-bgColor, --tooltip-fgColor, and text tokens. */
+/* GitHub hooks: no selector; Primer's control, focus, tooltip, and text tokens. Each host sizes
+   and places the button with a rule more specific than these. */
+
+/* Primer's invisible IconButton, muted. */
+.gh-prism-pr-owners {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--borderRadius-medium);
+  background: none;
+  color: var(--fgColor-muted);
+  cursor: pointer;
+}
+
+.gh-prism-pr-owners:hover {
+  background: var(--control-transparent-bgColor-hover);
+}
+
+.gh-prism-pr-owners:focus-visible {
+  /* Longhands: an unset token would void a shorthand's style and width with it. */
+  outline-style: solid;
+  outline-width: 2px;
+  outline-color: var(--focus-outlineColor);
+  outline-offset: -2px;
+}
 
 /* Primer's tooltip, opening rightward from the button's start like the Conversation button's. */
 .gh-prism-pr-owners::after {

@@ -1,9 +1,13 @@
 /* GitHub hooks: the code-owner shield's tool-tip[for^="codeowner-"] and
-   tool-tip[for^="assigned-codeowner-"], and .btn-link on the classic comment shield. Every other
-   rule selects only gh-prism's own classes. */
+   tool-tip[for^="assigned-codeowner-"], and .btn-link on the classic comment shield. The code
+   owners button floats beside the Reviewers heading (.discussion-sidebar-heading,
+   #reviewers-select-menu, [data-overview-sidebar-item], [class*="disclosureHeading__"]) and
+   relies on none of them starting a block formatting context. Every other rule selects only
+   gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @import "../ui/mark.css";
 @import "../ui/owner-identity.css";
+@import "../ui/pr-owners.css";
 @source "./reviewer-files.ts";
 @source "../ui/owners-dialog.ts";
 @source "../ui/file-list.ts";
@@ -54,6 +58,30 @@ tool-tip:is([for^="codeowner-"], [for^="assigned-codeowner-"]) {
 /* Without an action the mark sits at the footer's inline-end corner, which clips a tooltip that
    opens outward. */
 .gh-prism-reviewer-files .gh-prism-owners-hint > .gh-prism-mark:last-child::after {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+}
+
+/* Primer's small invisible IconButton, as the overview draws its heading's controls. z-index:
+   GitHub's full-width heading paints over the float and would take the pointer. */
+.gh-prism-pr-owners[data-gh-prism-list] {
+  float: inline-end;
+  z-index: 1;
+  inline-size: 28px;
+  block-size: 28px;
+  margin-inline-start: 4px;
+}
+
+/* 24px, like the classic heading's gear; the 2px offset centres it on the gear. */
+.gh-prism-pr-owners[data-gh-prism-list="classic"] {
+  inline-size: 24px;
+  block-size: 24px;
+  margin-top: 2px;
+}
+
+/* The heading's button floats at the sidebar's inline end, which clips a tooltip opening
+   outward. */
+.gh-prism-pr-owners[data-gh-prism-list]::after {
   inset-inline-start: auto;
   inset-inline-end: 0;
 }

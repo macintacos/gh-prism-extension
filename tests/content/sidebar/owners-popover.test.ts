@@ -132,10 +132,13 @@ describe("the whole pull request's list", () => {
   });
   const describeOf = (codeOwners: PrCodeOwners, prReviewers: readonly PrReviewer[] | undefined) =>
     describePullRequest(document, { codeOwners, prReviewers }, PLAIN);
-  const listIn = (summary: Node[]) =>
-    summary.find((node): node is HTMLUListElement => node instanceof HTMLUListElement);
+  const listIn = (summary: Node[]) => {
+    const list = summary.find((node) => node instanceof HTMLUListElement);
+    if (list === undefined) throw new Error("The summary holds no list");
+    return list;
+  };
   const tagged = (summary: Node[]) =>
-    headings(listIn(summary) as Element)
+    headings(listIn(summary))
       .filter((heading) => heading.querySelector("[data-unreviewed]"))
       .map((heading) => heading.nextElementSibling?.textContent);
   const callOut = (summary: Node[]) =>
@@ -172,7 +175,7 @@ describe("the whole pull request's list", () => {
   it("marks an owner who reviews, and a team a reviewer reviews for, in the heading's name", () => {
     const { summary } = describeOf(codeOwners, [reviewer("@ada"), reviewer("@grace", "@o/web")]);
 
-    const [web, ada, docs] = headings(listIn(summary) as Element);
+    const [web, ada, docs] = headings(listIn(summary));
 
     expect(web?.querySelectorAll("[data-reviewing]")).toHaveLength(1);
     expect(ada?.querySelectorAll("[data-reviewing]")).toHaveLength(1);
@@ -180,6 +183,21 @@ describe("the whole pull request's list", () => {
     const marked = web?.querySelector("[data-reviewing]")?.textContent ?? "";
     expect(marked).not.toBe("");
     expect(web?.getAttribute("aria-label")).toContain(marked);
+  });
+
+  it("names who reviews for a team in the mark's words and tooltip alike", () => {
+    const { summary } = describeOf(codeOwners, [reviewer("@ada"), reviewer("@grace", "@o/web")]);
+
+    const [web, ada] = headings(listIn(summary)).map(
+      (heading) => heading.querySelector<HTMLElement>("[data-reviewing]") ?? undefined,
+    );
+
+    expect(web?.textContent).toContain("grace");
+    expect(ada?.textContent).not.toContain("ada");
+    for (const mark of [web, ada]) {
+      expect(mark?.textContent).toContain(mark?.dataset.tooltip);
+      expect(mark?.dataset.tooltip).not.toMatch(/reviewed/i);
+    }
   });
 
   it("tags and calls out the groups no current reviewer owns, never files with no code owner", () => {
@@ -208,7 +226,7 @@ describe("the whole pull request's list", () => {
     const { summary } = describeOf(codeOwners, undefined);
 
     expect(summary).toHaveLength(1);
-    expect(listIn(summary)?.querySelector("[data-reviewing], [data-unreviewed]")).toBeNull();
+    expect(listIn(summary).querySelector("[data-reviewing], [data-unreviewed]")).toBeNull();
   });
 
   it("calls nothing out when reviewers own every owned group", () => {

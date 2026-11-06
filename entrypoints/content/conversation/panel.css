@@ -10,13 +10,30 @@
 @import "../ui/pr-owners.css";
 @source "./panel.ts";
 @source "../ui/keycap.ts";
-@source "../ui/pr-owners.ts";
 
 /* GitHub's toolbar row spaces its two groups apart; the button makes a third item, so the end
    group takes the free space and the start group stays beside the button. */
 section[class*="toolbar__"]:has(> .gh-prism-conversation-button)
-  > [data-component="Stack"]:last-child {
+> [data-component="Stack"]:last-child {
   margin-inline-start: auto;
+}
+
+/* Primer's small default Button, like the Conversation button before it. */
+section[class*="toolbar__"] > .gh-prism-pr-owners {
+  flex-shrink: 0;
+  block-size: var(--control-small-size, 28px);
+  min-inline-size: var(--control-small-size, 28px);
+  border: var(--borderWidth-thin, 1px) solid var(--button-default-borderColor-rest);
+  background: var(--button-default-bgColor-rest);
+  box-shadow: var(--button-default-shadow-resting);
+}
+
+section[class*="toolbar__"] > .gh-prism-pr-owners:hover {
+  background: var(--button-default-bgColor-hover);
+}
+
+section[class*="toolbar__"] > .gh-prism-pr-owners:active {
+  background: var(--button-default-bgColor-active);
 }
 
 /* Primer's tooltip, opening rightward from the toolbar's start. */
@@ -137,9 +154,9 @@ section[class*="toolbar__"]:has(> .gh-prism-conversation-button)
 }
 
 :is(.gh-prism-conversation-checks, .gh-prism-conversation-sidebar):is(
-    :hover,
-    :focus-visible
-  )::after {
+  :hover,
+  :focus-visible
+)::after {
   opacity: 1;
   visibility: visible;
 }

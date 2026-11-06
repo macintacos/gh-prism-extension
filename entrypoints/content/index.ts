@@ -63,7 +63,7 @@ import { showOwnerSection } from "./sidebar/owner-section";
 import { showReportLink } from "./sidebar/report";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar/side";
 import type { WhatsNew } from "./sidebar/whats-new";
-import { showPrOwnersButton } from "./ui/pr-owners";
+import { followPrOwnersPress, showPrOwnersButton } from "./ui/pr-owners";
 import { showHeaderTab, showVisit } from "./visit/land";
 import { watchClassicPages, watchFilesPages, watchHeaderPages } from "./visit/watch";
 
@@ -206,6 +206,7 @@ export default defineContentScript({
                   visit,
                 })
               : undefined;
+          const prOwnersPress = followPrOwnersPress(document, visit);
           return (page, signal) => {
             const owner = route.diff.kind === "pr" ? ownerOf(location.search) : undefined;
             const filter =
@@ -240,14 +241,16 @@ export default defineContentScript({
             if (steps) showStepLinks(page, signal, steps);
             dockSidebar(page, signal, { choice: side, save: saveSide });
             if (panel) {
-              showConversationButton(page, signal, panel);
-              showPrOwnersButton(page, signal, {
-                codeOwners,
-                prReviewers,
-                teamMembers,
-                teamAvatar,
-                filter,
-              });
+              const conversationButton = showConversationButton(page, signal, panel);
+              if (conversationButton)
+                showPrOwnersButton(conversationButton, signal, {
+                  codeOwners,
+                  prReviewers,
+                  press: prOwnersPress,
+                  teamMembers,
+                  teamAvatar,
+                  filter,
+                });
               followRightPanel(document, panel.refit, { signal });
             }
           };

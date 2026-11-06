@@ -73,7 +73,9 @@ sit indented below it as a tree relative to the folder, laid out as the code own
 popup lays them out (§ Code owner's files). Groups follow the tree order of their first
 files, and files without a code owner come last under a muted "No code owner". The popover
 is at most 400px wide. It ends in the same hint, and a click on the shield opens the code
-owner details dialog too. `sidebar/owners-popover.ts` builds it.
+owner details dialog too. `sidebar/owners-popover.ts` builds it. The whole pull request's
+code owner details dialog (§ Dialogs) groups every changed file the same way, by full
+path.
 
 A folder chain short of room keeps its first folder and as many trailing folders as fit
 around one `…`. With room for less, it shows `…` and the deepest folder alone. Only the
@@ -129,9 +131,12 @@ A tooltip copies Primer's. It is an `::after` on the control that shows the cont
 `aria-label`, on `--tooltip-bgColor`, at the small body size, and it fades in over 120 ms
 on hover and focus. It opens toward the inside of the sidebar or the page, so it never
 clips at an edge. `sidebar/side.css`, `sidebar/report.css`, `commit/step-links.css`,
-`conversation/panel.css`, and `ui/mark.css` hold the five in use. Only the mark's opens on
-hover alone, since the mark takes no focus. Inside the header counter's tooltips, which
-take no pointer, the mark's own tooltip never opens.
+`conversation/panel.css`, `ui/mark.css`, and `ui/pr-owners.css` hold the six in use. The
+code owners button beside a Reviewers heading floats at the sidebar's inline end, so
+`conversation/reviewer-files.css` overrides `ui/pr-owners.css`'s tooltip for it to open
+leftward from the button's end. Only the mark's opens on hover alone, since the mark takes
+no focus. Inside the header counter's tooltips, which take no pointer, the mark's own
+tooltip never opens.
 
 The owner filter icons' tooltips (§ Owner identities) look the same but sit in the top
 layer, because their surfaces scroll, and an `::after` there would widen the scroller's
@@ -140,7 +145,10 @@ the hovered or keyboard-focused icon's `data-tooltip`. When the pointer leaves a
 while another holds keyboard focus, the tooltip shows the focused icon's text again.
 `ui/place.ts` places it 4px below the icon, start-aligned, or above it where the viewport
 has no room below. It is hidden from assistive technology, because the icon's `aria-label`
-already says the same. `ui/owner-identity.ts` builds it.
+already says the same. `ui/owner-identity.ts` builds it. The whole pull request's reviewer
+eye (§ Dialogs) shares this tooltip but opens it on hover alone, since the eye takes no
+focus. Its hidden words, which join the owner heading's accessible name, say the same as
+the tooltip, so keyboard and screen-reader users lose nothing.
 
 A control that takes a key names it in its tooltip, after the action's name, and sets
 `aria-keyshortcuts`, so assistive technology announces the key. Three sets of controls
@@ -487,6 +495,20 @@ above them:
   "This team has no members."
 - **The footer:** a team with more members ends below a 1px `--borderColor-muted` rule in
   "See all N members", linked to its team page.
+
+Opened from a code owners button, the dialog lists the whole pull request instead, grouped
+as a folder's popover groups its files (§ File rows). When the reviewers are known, two
+marks join the owner headings, and `sidebar/owners-popover.ts` builds both:
+
+- **The reviewer eye:** a muted `eye` after each owner a current reviewer reviews for. Its
+  hidden words and tooltip read "Reviewing" when the owner reviews, or "Reviewing through"
+  and the reviewers' names when they review for the team. It never says "Reviewed",
+  because a request may still be pending.
+- **The "No reviewer" tag:** after a group none of whose owners a current reviewer reviews
+  for, in muted text at the body-small size and medium weight inside a 1px
+  `--borderColor-default` pill, with the 6px padding and `2em` radius of a sidebar
+  section's file counter. A one-line call-out with a muted alert icon above the groups
+  counts those files.
 
 Each team's filter icon shows only that team's files, as § Owner identities says. A team
 named both in the list above the boxes and in its box header offers that filter twice, by

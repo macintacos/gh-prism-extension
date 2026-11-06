@@ -480,6 +480,31 @@ pull request, taken 2026-10-28, not from a capture.
   soft navigation back to Conversation and on its `reviewers_updated` socket event, so a
   listener bound to its nodes goes stale. Listen on `document` and match the target with
   `closest()` instead.
+- **Find the classic Reviewers heading as
+  `#partial-discussion-sidebar form[id^="pull-request-reviewers-form-"] > :is(details:has(> summary.discussion-sidebar-heading), h3.discussion-sidebar-heading)`.**
+  It takes one of two shapes, as observed on the code-owners sandbox and nodejs/node on
+  2026-11-05:
+  - A viewer who can request reviews gets `details#reviewers-select-menu`, whose
+    `summary.discussion-sidebar-heading` holds the floated gear and the word "Reviewers".
+    The whole 320px row is the reviewers menu's trigger, with hotkey `q`, and its
+    `details-menu` is `position-absolute right-0`. The `summary` row paints over a control
+    placed before the `details`, so that control needs `position: relative` and a
+    `z-index` to take the pointer.
+  - Every other viewer gets a plain `h3.discussion-sidebar-heading`.
+- **Never put a control inside the classic heading's `summary`.** A click there opens
+  GitHub's reviewers menu. Put it before the `details` or `h3` instead, floated to the
+  inline end. Don't add `position: relative` to the form, and don't wrap the heading:
+  either moves GitHub's absolutely placed menu.
+- **Expect the classic heading to be replaced along with its form.** GitHub replaces the
+  whole Reviewers form, heading included, on soft navigation back to Conversation, so
+  re-add a control beside the heading from an observer on `document`.
+- **Find the overview Reviewers heading as
+  `section[data-overview-sidebar-item]:has([class*="reviewerList__"]) > h4[class*="disclosureHeading__"]`.**
+  It is rebuilt from the bundle's `SidebarSection` and `SidebarDisclosureHeader` (its
+  `wDD` class map, read 2026-11-05), not yet seen on a live page: an `h4` wrapping a
+  full-width "Manage reviewers" button with a trailing gear. Whether the section draws a
+  list while it has no reviewer is unconfirmed, and without one this selector matches
+  nothing.
 - **Find a classic code-owner shield as `button[id^="codeowner-"]` or
   `button[id^="assigned-codeowner-"]`.** Its id names the reviewer:
   `codeowner-<org>/<slug>` for a team, and `assigned-codeowner-<login>` for a member the
@@ -513,16 +538,18 @@ pull request, taken 2026-10-28, not from a capture.
 - **Expect `page_data/codeowners` to answer from the Conversation page**, with the same
   JSON as from Files changed.
 - **Re-check:** signed in with the saved `storageState`, load the Conversation view of the
-  code-owners sandbox's PR #1. Read `#partial-discussion-sidebar`'s Reviewers item, hover
-  a team's name and its shield to see which opens the hovercard, and fetch
-  `page_data/review_requests` and `page_data/codeowners`, with the `X-Requested-With`
-  header, from that page. Grep GitHub's assets for `reviewerRow__` and `is a code owner`
-  for the overview's list, as [§ Re-checking GitHub](#re-checking-github) describes, and
-  read `featureStates.overview` from a pull request's route data. To stage a pull request
-  that requests a user who owns files, have a push-triggered workflow on a throwaway
-  branch open it as github-actions[bot], which needs "Allow GitHub Actions to create and
-  approve pull requests" on for the org and the repo. For an assigned member's shield,
-  also turn on the team's code review assignment.
+  code-owners sandbox's PR #1. Read `#partial-discussion-sidebar`'s Reviewers item and the
+  Reviewers form's heading region, signed in and then signed out, hover a team's name and
+  its shield to see which opens the hovercard, and fetch `page_data/review_requests` and
+  `page_data/codeowners`, with the `X-Requested-With` header, from that page. Grep
+  GitHub's assets for `reviewerRow__` and `is a code owner` for the overview's list, and
+  for `disclosureHeading__` for its heading, as
+  [§ Re-checking GitHub](#re-checking-github) describes, and read `featureStates.overview`
+  from a pull request's route data. To stage a pull request that requests a user who owns
+  files, have a push-triggered workflow on a throwaway branch open it as
+  github-actions[bot], which needs "Allow GitHub Actions to create and approve pull
+  requests" on for the org and the repo. For an assigned member's shield, also turn on the
+  team's code review assignment.
 
 ## Comment headers
 

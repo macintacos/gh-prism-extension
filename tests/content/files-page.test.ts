@@ -23,6 +23,7 @@ import {
   findFilterOptions,
   findHeaderPage,
   findOverlay,
+  findReviewersHeadings,
   findTreeToggle,
   followFilterMenu,
   followOverlay,
@@ -47,6 +48,8 @@ import {
   viewerLogin,
 } from "../../entrypoints/content/files-page";
 import commentsFixture from "../fixtures/conversation-comments.html?raw";
+import nodeConversation from "../fixtures/conversation-node.html?raw";
+import overviewConversation from "../fixtures/conversation-overview.html?raw";
 import overviewCommentsFixture from "../fixtures/conversation-overview-comments.html?raw";
 import conversationFixture from "../fixtures/conversation-page.html?raw";
 import {
@@ -410,7 +413,7 @@ describe("followOwnerSpots", () => {
   // MutationObserver callbacks are microtasks.
   const flush = () => Promise.resolve();
 
-  it("reports Reviewers rows and comment authors together, now and after each change, until aborted", async () => {
+  it("reports Reviewers rows, their headings, and comment authors together, now and after each change, until aborted", async () => {
     document.body.innerHTML = conversationFixture + commentsFixture;
     const onChange = vi.fn();
     followOwnerSpots(document, onChange, {
@@ -420,6 +423,7 @@ describe("followOwnerSpots", () => {
     expect(onChange).toHaveBeenLastCalledWith({
       rows: expect.arrayContaining([expect.objectContaining({ kind: "classic" })]),
       authors: expect.arrayContaining([expect.objectContaining({ token: "@sandbox-user" })]),
+      headings: [expect.objectContaining({ kind: "classic" })],
     });
     const before = onChange.mock.lastCall?.[0].authors.length;
 
@@ -495,6 +499,26 @@ describe("findFilesCommentAuthors", () => {
     document.body.innerHTML = markup;
 
     expect(findFilesCommentAuthors(document)).toEqual([]);
+  });
+});
+
+describe("findReviewersHeadings", () => {
+  it.each([
+    ["the classic sidebar's menu trigger", conversationFixture, "classic", "DETAILS"],
+    ["the classic sidebar's plain heading", nodeConversation, "classic", "H3"],
+    ["the PR overview's heading", overviewConversation, "overview", "H4"],
+  ])("finds %s", (_, page, kind, tag) => {
+    document.body.innerHTML = page;
+
+    const headings = findReviewersHeadings(document);
+
+    expect(headings.map(({ kind, heading }) => [kind, heading.tagName])).toEqual([[kind, tag]]);
+    expect(headings[0]?.heading.textContent).toContain("Reviewers");
+  });
+
+  it("finds nothing on Files changed", () => {
+    loadFixture();
+    expect(findReviewersHeadings(document)).toEqual([]);
   });
 });
 

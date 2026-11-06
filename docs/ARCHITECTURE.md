@@ -512,9 +512,9 @@ show on the next visit. `index.ts` starts two reads once per visit, `readCodeOwn
 `codeowners` and `readPrReviewers` from `review_requests`, and hands their promises to
 every page of that visit: `showVisit` and `showOwnerSection` take both, and on a pull
 request so does `showReviewerFiles`. A commit page reads nothing. A pull request's header
-visit reads both once per visit too, but only when a Reviewers list or a comment author
-first shows on the Conversation tab, and a classic visit only when a review comment author
-first shows.
+visit reads both once per visit too, but only when a Reviewers list, its heading, or a
+comment author first shows on the Conversation tab, and a classic visit only when a review
+comment author first shows.
 
 The code owners are each changed file's owners, in CODEOWNERS order, with whether you own
 the file. The PR reviewers are everyone requested to review, then everyone who submitted a
@@ -619,13 +619,21 @@ file. A failed read, a pull request with no owned file, and a commit page get no
 those reads:
 
 - every changed file, grouped by owner set as a folder's popover groups them;
-- a mark on each owner that a current reviewer is, or reviews on behalf of as a team
-  member;
+- a mark on each owner that a current reviewer is, or reviews for, either as GitHub names
+  the team or through membership in it;
 - a tag on each group no current reviewer owns, under a call-out counting their files.
 
-Opening it sends GitHub no new request. `conversation/panel.css` imports its stylesheet,
-`ui/pr-owners.css`, so it mounts with the Conversation panel's sheet on every pull
-request's Files changed.
+Opening it requests only each owning team's members, at most once per team per visit. When
+the pull request has reviewers, the reviewer read has already fetched those members
+through the same per-visit reader, so opening it sends nothing. `index.ts` places the
+button after the Conversation button that `showConversationButton` returns. Its
+stylesheet, `ui/pr-owners.css`, is plain CSS holding the button's base look and tooltip,
+and each host sizes and places it with its own rules. `conversation/panel.css` imports it,
+so it mounts with the Conversation panel's sheet on every pull request's Files changed. On
+the Conversation tab, `conversation/reviewer-files.ts` puts the same button just before
+each Reviewers heading that `findReviewersHeadings` in `files-page.ts` finds, floated to
+the heading's inline end. That button opens the dialog from the ownership the tab has
+already read. `conversation/reviewer-files.css` imports `ui/pr-owners.css` too.
 
 On the Conversation tab, a code-owner shield beside a PR reviewer in a Reviewers list
 opens a popup listing the changed files that code owner owns, built by
@@ -635,17 +643,18 @@ GitHub draws two Reviewers lists: the classic sidebar, server-rendered in
 `findReviewerRows` in [`files-page.ts`](../entrypoints/content/files-page.ts) finds each
 row's reviewer, GitHub's shield, and its column of status icons in either. GitHub shields
 a code owner's pending request only, so a code owner who has reviewed loses the shield.
-`followOwnerSpots` reports the rows on each change to the page, and the popup adds
-gh-prism's own shield to every row whose PR reviewer owns a changed file, or whom GitHub
-marks a code owner, but has no shield, and takes it away from a row where GitHub later
-draws its own. That shield is a button drawn as GitHub draws its own in that list, placed
-just before the row's last icon, the status icon, where GitHub puts its shield. Hovering
-or focusing either shield opens the popup. A click on either closes the popup and opens
-the code owner details dialog from `ui/owners-dialog.ts`. One click listener on the
-document serves both shields, because GitHub replaces the classic sidebar's nodes
-mid-visit, and a listener on a shield would go with them. It listens in the capture phase,
-because the new Files changed page's React root stops a review thread's clicks from
-bubbling.
+`findReviewersHeadings` finds each list's "Reviewers" heading, where the code owners
+button goes. `followOwnerSpots` reports the rows and headings on each change to the page,
+and the popup adds gh-prism's own shield to every row whose PR reviewer owns a changed
+file, or whom GitHub marks a code owner, but has no shield, and takes it away from a row
+where GitHub later draws its own. That shield is a button drawn as GitHub draws its own in
+that list, placed just before the row's last icon, the status icon, where GitHub puts its
+shield. Hovering or focusing either shield opens the popup. A click on either closes the
+popup and opens the code owner details dialog from `ui/owners-dialog.ts`. One click
+listener on the document serves both shields, because GitHub replaces the classic
+sidebar's nodes mid-visit, and a listener on a shield would go with them. It listens in
+the capture phase, because the new Files changed page's React root stops a review thread's
+clicks from bubbling.
 
 The same shield follows a comment author's name in the Conversation timeline and in Files
 changed's review threads, new and classic. `findCommentAuthors` in `files-page.ts` finds

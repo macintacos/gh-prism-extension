@@ -357,6 +357,13 @@ export interface Ownership {
   readonly prReviewers: readonly PrReviewer[] | undefined;
 }
 
+/** Ownership whose code-owner read names an owner for at least one changed file. */
+export type OwnedPullRequest = Ownership & { readonly codeOwners: PrCodeOwners };
+
+/** Whether `ownership`'s code-owner read names a code owner for at least one changed file. */
+export const ownsAnyFile = (ownership: Ownership): ownership is OwnedPullRequest =>
+  [...(ownership.codeOwners?.values() ?? [])].some(({ owners }) => owners.length > 0);
+
 /** How the ownership reads reach GitHub, and until when. */
 export interface OwnershipReads {
   readonly fetchFn: typeof fetch;
