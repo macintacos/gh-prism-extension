@@ -1,6 +1,8 @@
 import { mkdirSync } from "node:fs";
+import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "wxt";
 
@@ -53,6 +55,18 @@ export default defineConfig({
   }),
   vite: ({ browser }) => ({
     plugins: [tailwindcss()],
+    resolve: {
+      alias: [
+        {
+          // Its `browser` export decodes via innerHTML, which AMO flags. bun doesn't
+          // hoist it, so resolve it through a package that imports it.
+          find: /^decode-named-character-reference$/,
+          replacement: createRequire(
+            fileURLToPath(import.meta.resolve("mdast-util-from-markdown")),
+          ).resolve("decode-named-character-reference"),
+        },
+      ],
+    },
     build: {
       // light-dark() landed in Chrome 123. Under Vite's older default, the CSS minifier rewrites it into a fallback
       // that reads only a color-scheme set in gh-prism's own sheets, never GitHub's. Firefox 147 is the manifest's
