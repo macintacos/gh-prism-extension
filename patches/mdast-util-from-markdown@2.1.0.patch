@@ -1,0 +1,33 @@
+diff --git a/dev/lib/index.js b/dev/lib/index.js
+index 59b28c9fa3f48d437268648dd8bb93618b48109a..64b78dcac593d80e29a63ff8959c2cb8bc9ff73e 100644
+--- a/dev/lib/index.js
++++ b/dev/lib/index.js
+@@ -80,12 +80,9 @@ export function fromMarkdown(value, encoding, options) {
+     encoding = undefined
+   }
+
++  const tokenizer = parse(options).document()
+   return compiler(options)(
+-    postprocess(
+-      parse(options)
+-        .document()
+-        .write(preprocess()(value, encoding, true))
+-    )
++    postprocess(tokenizer.write(preprocess()(value, encoding, true)))
+   )
+ }
+
+diff --git a/lib/index.js b/lib/index.js
+index f7f6ef0d07043b0cf5b835ac1b7f9751d64ff90d..bcc5f0b7e2ce85a4587334d5762c50711ea47b7b 100644
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -76,7 +76,8 @@ export function fromMarkdown(value, encoding, options) {
+     options = encoding;
+     encoding = undefined;
+   }
+-  return compiler(options)(postprocess(parse(options).document().write(preprocess()(value, encoding, true))));
++  const tokenizer = parse(options).document();
++  return compiler(options)(postprocess(tokenizer.write(preprocess()(value, encoding, true))));
+ }
+
+ /**
