@@ -6,8 +6,9 @@
 
 import {
   codeOwnerOf,
+  filesOwnedBy,
+  type OwnedFiles,
   type Ownership,
-  ownerFilter,
   reviewerOf,
   type TeamAvatarOf,
   type TeamMembersOf,
@@ -160,16 +161,6 @@ export function showReviewerFiles(
 /** The token of the code owner `shield` marks: gh-prism's own, or GitHub's. */
 const ownerOf = (shield: HTMLElement): string => shield.dataset.ghPrismOwner ?? shieldOwner(shield);
 
-/** What a code owner's popup lists. */
-interface OwnedFiles {
-  /** The changed files they own. */
-  readonly paths: readonly string[];
-  /** The teams GitHub names for them that own one of `paths`. */
-  readonly teams: readonly string[];
-  /** Whether CODEOWNERS names them for one of `paths` themselves. */
-  readonly direct: boolean;
-}
-
 /**
  * What `token`'s popup lists from `ownership`, with no paths when GitHub marks `token` a code owner
  * but names no team that owns a changed file; `undefined` when there is nothing to show.
@@ -179,17 +170,9 @@ function ownedFiles(
   token: string,
 ): OwnedFiles | undefined {
   if (!codeOwners) return undefined;
-  const changed = [...codeOwners.keys()];
-  const paths = changed.filter(ownerFilter(codeOwners, token, prReviewers));
   const reviewer = reviewerOf(prReviewers, token);
-  if (paths.length === 0 && !reviewer?.codeOwner) return undefined;
-  return {
-    paths,
-    teams: (reviewer?.teams ?? []).filter((team) =>
-      changed.some(ownerFilter(codeOwners, team, [])),
-    ),
-    direct: changed.some(ownerFilter(codeOwners, token, [])),
-  };
+  const owned = filesOwnedBy(codeOwners, token, reviewer?.teams ?? []);
+  return owned.paths.length === 0 && !reviewer?.codeOwner ? undefined : owned;
 }
 
 /** How each Reviewers list draws its icons, so gh-prism's shield matches GitHub's in it. */

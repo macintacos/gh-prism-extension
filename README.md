@@ -201,10 +201,9 @@ It asks your browser for access to only these hosts:
 - `https://github.com/*`: it runs on every GitHub page, so it catches GitHub's in-page
   navigation, and acts only on pull request and commit pages. It reads a pull request's or
   commit's diff and file contents, and a pull request's code owners and reviewers. It
-  reads an owning team's members when you open a code-owner shield's details or GitHub
-  shows you a team among the reviewers. On a commit page, it asks GitHub's commit search
-  which commit comes next. When search finds none, it reads the branches that hold the
-  commit and the first branch's commits.
+  reads each owning team's members, to tell who owns files through a team. On a commit
+  page, it asks GitHub's commit search which commit comes next. When search finds none, it
+  reads the branches that hold the commit and the first branch's commits.
 - `https://patch-diff.githubusercontent.com/*`: where GitHub redirects diff downloads.
 - `https://raw.githubusercontent.com/*`: where GitHub redirects raw-file downloads.
 

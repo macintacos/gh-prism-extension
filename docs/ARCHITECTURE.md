@@ -525,25 +525,31 @@ owner keeps its token as written and gets a link only when the token is a valid 
 
 A PR reviewer owns a file when its owners include the reviewer's token, or one of the
 teams GitHub names the reviewer as reviewing for, ignoring case. `ownerFilter` holds that
-rule, and the owner filter, the owner section, and the Conversation popup all ask it, so
-picking a reviewer in the section keeps the files their popup lists.
+rule, and `filesOwnedBy` applies it to a login and its teams for the Conversation popup;
+the owner filter, the owner section, and the popup all ask it, so picking a reviewer in
+the section keeps the files their popup lists.
 
-A user may also belong to an owning team, whatever they own directly. `withMemberTeams`
-adds each owning team that lists them as a member, and that GitHub doesn't already name
-for them, to the teams they review for. It reads each team among the changed files' owners
-once, through `readTeamMembers`, from the JSON GitHub's team mentions read, and GitHub
-returns only a large team's first members. It reads members only when GitHub shows the
-viewer a team among the PR reviewers, because a viewer outside the organization sees none
-and gets 404 for every team. `index.ts` runs it on the PR reviewers once both reads land,
-and hands every reader the result, so every reader sees the same teams. `withMemberTeams`
-and the code owner details dialog both read through the visit's `teamMembersReader`, so
-the dialog reuses a read already made. Each read also carries the team's member count,
-which the dialog's "See all N members" link shows when the team has more members than it
-lists. A team's avatar takes a read of its own, once a visit, through the visit's
-`teamAvatarReader`, when a surface first draws the team: `readTeamAvatar` finds the team's
-avatar ID in the hovercard GitHub's team mentions open, a small HTML answer. For a team
-the viewer can't see, GitHub answers 404 and the surface draws a placeholder. A user's
-avatar URL comes from their login, with no read.
+A user may also belong to an owning team, whatever they own directly. `ownershipOf`
+answers what any `@user` owns: the changed files CODEOWNERS names them for, and each
+owning team's files whose members list them or, for a PR reviewer, that GitHub names them
+as reviewing for, naming those teams. It reads each team among the changed files' owners
+through `readTeamMembers`, from the JSON GitHub's team mentions read, and GitHub returns
+only a large team's first members, so a member past them isn't counted. A team whose
+members can't be read makes nobody an owner through its members. It reads them on every
+pull request visit, whether or not GitHub shows the viewer a team, so a reviewer who owns
+files only through a team is found; a viewer outside the organization gets a silent 404
+for every team. `withMemberTeams` reads them for each PR reviewer and adds each team it
+finds that GitHub doesn't already name for them to the teams they review for. `index.ts`
+runs that once both reads land, and hands every reader the result, so every reader sees
+the same teams. `ownershipOf` and the code owner details dialog both read through the
+visit's `teamMembersReader`, which asks each team once, so a team is read once a visit
+however many logins are checked, and the dialog reuses a read already made. Each read also
+carries the team's member count, which the dialog's "See all N members" link shows when
+the team has more members than it lists. A team's avatar takes a read of its own, once a
+visit, through the visit's `teamAvatarReader`, when a surface first draws the team:
+`readTeamAvatar` finds the team's avatar ID in the hovercard GitHub's team mentions open,
+a small HTML answer. For a team the viewer can't see, GitHub answers 404 and the surface
+draws a placeholder. A user's avatar URL comes from their login, with no read.
 
 Each read settles on its own: one that fails, or whose response misses a field it expects,
 resolves to `undefined` and logs one warning naming it, and the other read is unaffected.
