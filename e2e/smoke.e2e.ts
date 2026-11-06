@@ -3635,6 +3635,34 @@ test("\\ presses GitHub's tree toggle, which shows it as a keycap, while a text 
   await expect(toggle).toHaveAttribute("data-clicks", "3");
 });
 
+test("a commit's tree toggle insets its icon from its start as far as the key from its end", async ({
+  context,
+  page,
+}) => {
+  // A commit's toggle is Primer's medium IconButton, which Primer leaves unpadded; only the small
+  // one a pull request uses gets padding.
+  await serve(
+    context,
+    COMMIT_URL,
+    commitBodyWith(
+      '<style>[aria-controls="diff_file_tree"] { padding: unset; } [aria-controls="diff_file_tree"] svg { width: 16px; height: 16px; }</style>',
+    ),
+  );
+  await page.goto(COMMIT_URL);
+  const toggle = page.locator('#diff-content-parent [data-testid="collapse-file-tree-button"]');
+  const key = page.locator(".gh-prism-tree-key");
+  await expect(key).toBeVisible();
+  await expectInside(key, toggle);
+
+  const [toggleBox, iconBox, keyBox] = await Promise.all([
+    toggle.boundingBox(),
+    toggle.locator("svg").boundingBox(),
+    key.boundingBox(),
+  ]);
+  if (!toggleBox || !iconBox) throw new Error("the toggle or its icon has no box");
+  expect(iconBox.x - toggleBox.x).toBeGreaterThanOrEqual(boxRight(toggleBox) - boxRight(keyBox));
+});
+
 async function expectInside(inner: Locator, outer: Locator): Promise<void> {
   const [a, b] = await Promise.all([inner.boundingBox(), outer.boundingBox()]);
   if (!a || !b) throw new Error("a box is missing");

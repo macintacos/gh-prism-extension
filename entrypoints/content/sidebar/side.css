@@ -39,7 +39,9 @@
   :root[data-gh-prism-side]
   :is([class*="RegularTreeToggle"], [class*="MobileTreeToggle"], [aria-controls="diff_file_tree"]) {
     width: auto;
-    padding-inline-end: calc(var(--base-size-8, 8px) + var(--base-size-4, 4px) + 20px);
+    /* Primer pads only a small IconButton; a commit's toggle is medium. */
+    padding-inline: var(--base-size-8, 8px)
+      calc(var(--base-size-8, 8px) + var(--base-size-4, 4px) + 20px);
   }
 }
 
