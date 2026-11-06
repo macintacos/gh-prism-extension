@@ -54,8 +54,9 @@ export function dressConversationFrame(win: Window): void {
 
 /**
  * When `win` is the Conversation panel's frame, opens gh-prism's files popup and code owner
- * details dialog from a code-owner shield in its Reviewers list, read through `fetchFn` until `signal` aborts, as the Conversation tab does but without
- * the filter link. Does nothing elsewhere.
+ * details dialog from a code-owner shield in its Reviewers list or beside a comment author, read
+ * through `fetchFn` until `signal` aborts, as the Conversation tab does but without the filter
+ * link. Does nothing elsewhere.
  */
 export function showFrameReviewerFiles(
   win: Window,

@@ -75,10 +75,10 @@ const CACHED_DIFFS = 50;
  * miscategorized file, adds an "Only files owned by…" section to GitHub's filter menu, on a pull
  * request adds a button opening its Conversation in a panel, and, after an update, opens the
  * sidebar with that release's notes. On a pull request's header tabs, stands in for the diffstat,
- * and on Conversation lists a code owner's files from their Reviewers sidebar shield. On a
- * commit's page, shows its message rendered as Markdown, above the diffs or in a column beside
- * them, with a switch to its plain text. On its classic Files changed page, explains why gh-prism
- * is off there.
+ * and on Conversation lists a code owner's files from their Reviewers sidebar shield or the shield
+ * beside their comments. On a commit's page, shows its message rendered as Markdown, above the
+ * diffs or in a column beside them, with a switch to its plain text. On its classic Files changed
+ * page, explains why gh-prism is off there.
  */
 export default defineContentScript({
   // Every GitHub page: soft navigation reaches a pull request without re-injecting the script.
@@ -236,7 +236,8 @@ export default defineContentScript({
           intentFor({ diff: pr, commitFiltered: false }, visit, sources, onProgress),
         );
         const teamMembers = teamMembersReader(fetch, visit);
-        // Rides the header visit, so it runs only where findHeaderPage finds the counter's slot.
+        // Shields Reviewers rows and comment authors. Rides the header visit, so it runs only
+        // where findHeaderPage finds the counter's slot.
         showReviewerFiles(document, visit, {
           read: () => readOwnership(pr, { fetchFn: fetch, teamMembers, signal: visit }),
           teamMembers,
