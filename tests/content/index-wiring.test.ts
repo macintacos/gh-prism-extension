@@ -10,6 +10,8 @@ import {
   type ConversationPanel,
   conversationPanel,
 } from "../../entrypoints/content/conversation/panel";
+import { showReviewerFiles } from "../../entrypoints/content/conversation/reviewer-files";
+import { findFilesCommentAuthors } from "../../entrypoints/content/files-page";
 import { showOwnerSection } from "../../entrypoints/content/sidebar/owner-section";
 import { dockSidebar, type Side } from "../../entrypoints/content/sidebar/side";
 import { showHeaderTab, showVisit } from "../../entrypoints/content/visit/land";
@@ -25,7 +27,9 @@ import { type CommitMessageView, type DiffstatView, whatsNewSeen } from "../../u
 import { routedFetch } from "../fixtures/fetch";
 import {
   byId,
+  loadClassicCommentsFixture,
   loadClassicFixture,
+  loadCommentsFixture,
   loadCommitFixture,
   loadFixture,
   loadHeaderFixture,
@@ -45,6 +49,10 @@ vi.mock(import("../../utils/github/code-owners"), async (importOriginal) => ({
   readReviewersWithTeams: vi.fn(() => new Promise<never>(() => {})),
   readOwnership: vi.fn(() => new Promise<never>(() => {})),
 }));
+vi.mock(import("../../entrypoints/content/conversation/reviewer-files"), async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, showReviewerFiles: vi.fn(actual.showReviewerFiles) };
+});
 vi.mock(import("../../entrypoints/content/visit/land"), async (importOriginal) => ({
   ...(await importOriginal()),
   showVisit: vi.fn((_page, _signal, { intent }) => void intent(() => {})),
@@ -370,6 +378,26 @@ describe("content script", () => {
     ]);
   });
 
+  it("shields review comment authors from the visit's own code owners and PR reviewers reads", async () => {
+    const codeOwners = new Map();
+    const prReviewers: Awaited<ReturnType<typeof readReviewersWithTeams>> = [];
+    vi.mocked(readCodeOwners).mockResolvedValue(codeOwners);
+    vi.mocked(readReviewersWithTeams).mockResolvedValue(prReviewers);
+    loadCommentsFixture();
+
+    await run();
+
+    expect(showReviewerFiles).toHaveBeenCalledOnce();
+    const [doc, signal, options] = vi.mocked(showReviewerFiles).mock.calls[0] ?? [];
+    expect(doc).toBe(document);
+    expect(signal?.aborted).toBe(false);
+    expect(options?.findAuthors).toBe(findFilesCommentAuthors);
+    expect(options?.filter).toBeDefined();
+    expect(await options?.read()).toEqual({ codeOwners, prReviewers });
+    expect(readCodeOwners).toHaveBeenCalledOnce();
+    expect(readOwnership).not.toHaveBeenCalled();
+  });
+
   it("gives each page's owner section the visit's code owners and PR reviewers", async () => {
     await run();
     const sidebar = byId("pr-file-tree");
@@ -665,6 +693,29 @@ describe("content script", () => {
       await run();
 
       expect(dialog()?.open).toBe(true);
+    });
+
+    it("shields review comment authors, with no owner filter, reading the pull request's code owners and PR reviewers once per visit once a review comment shows", async () => {
+      loadClassicCommentsFixture("");
+
+      await run();
+
+      expect(showReviewerFiles).toHaveBeenCalledOnce();
+      const [, , options] = vi.mocked(showReviewerFiles).mock.calls[0] ?? [];
+      expect(options?.findAuthors).toBe(findFilesCommentAuthors);
+      expect(options?.filter).toBeUndefined();
+      await afterMutations();
+      expect(readOwnership).toHaveBeenCalledExactlyOnceWith(
+        readFilesRoute("/o/r/pull/1/files")?.diff,
+        expect.objectContaining({ signal: expect.objectContaining({ aborted: false }) }),
+      );
+    });
+
+    it("reads no code owners while no review comment shows", async () => {
+      await run();
+      await afterMutations();
+
+      expect(readOwnership).not.toHaveBeenCalled();
     });
 
     it("keeps a dismissal for the next page", async () => {
