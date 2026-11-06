@@ -215,7 +215,7 @@ delete the old key.
 
 ## Patched dependencies
 
-Three dependencies carry local patches in [`patches/`](../patches/), which Bun applies on
+Four dependencies carry local patches in [`patches/`](../patches/), which Bun applies on
 install through `patchedDependencies` in [`package.json`](../package.json):
 
 - `@pierre/trees` adds a row decoration's title to the row's accessible label, and renders
@@ -233,6 +233,13 @@ install through `patchedDependencies` in [`package.json`](../package.json):
   the package, regenerating its patch, or changing the bundler, check that
   `mise run lint-firefox` reports no `document().write` warning. Drop the patch once the
   package stops chaining `.document().write(…)`.
+- `preact` drops its diff's `dangerouslySetInnerHTML` branch, so the prop renders nothing.
+  AMO's linter flags that branch's `innerHTML` assignment whether or not anything passes
+  the prop. The patch edits only `dist/preact.mjs`, the build the bundler imports. After
+  upgrading Preact or `@pierre/trees`, regenerating the patch, or changing the bundler,
+  check that `tests/patches.test.ts` passes and that `mise run lint-firefox` reports no
+  `innerHTML` warning at Preact's diff. Drop the patch once nothing in the bundle imports
+  Preact.
 - `wxt` escapes the entrypoint path in a regular expression, so a checkout whose path
   holds a character such as `+` still builds.
 
