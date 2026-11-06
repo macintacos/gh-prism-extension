@@ -97,7 +97,8 @@ follows it. A pathname change aborts the whole visit. A hash change, which every
 click makes, is not a new visit. When the window ends on a Files view path with no markup
 found, not even the classic page's, the watcher warns once and leaves GitHub's tree alone;
 the next wake still starts a new settle window. `watchClassicPages` follows the classic
-page the same way, through the same settle windows, and never warns. So does
+page the same way, through the same settle windows, and never warns; its visit shields
+review comment authors, and each render shows the classic notice. So does
 `watchHeaderPages`, for a pull request's header tabs: its page is the header's counter
 slot, and moving between one pull request's header tabs keeps the visit, so the mounted
 counter stays without a new read. Leaving for Files changed, another pull request, or
@@ -625,24 +626,31 @@ the code owner details dialog from `ui/owners-dialog.ts`. One click listener on 
 document serves both shields, because GitHub replaces the classic sidebar's nodes
 mid-visit, and a listener on a shield would go with them.
 
-The same shield follows a comment author's name in the Conversation timeline.
-`findCommentAuthors` in `files-page.ts` finds one author per comment in either layout,
-leaving out apps and bots. `followOwnerSpots` hands the authors to `reviewer-files.ts`
-alongside the Reviewers rows. A comment author who is a PR reviewer gets the files their
-Reviewers row shows. Anyone else is looked up once a visit through `ownershipOf`, and gets
-a shield once that lookup finds changed files they own. Drawing is one synchronous pass
-that skips a name already followed by a shield, so overlapping mutation batches never give
-a header two shields. A header GitHub re-renders gets a fresh one. The comment shield
-opens the same popup and dialog as a Reviewers row's.
+The same shield follows a comment author's name in the Conversation timeline and in Files
+changed's review threads, new and classic. `findCommentAuthors` in `files-page.ts` finds
+one author per Conversation comment in either layout, and `findFilesCommentAuthors` one
+per Files changed review comment, both leaving out apps and bots. `showReviewerFiles`
+takes the finder as its `findAuthors` option, and `followOwnerSpots` hands the authors it
+finds to `reviewer-files.ts` alongside the Reviewers rows. On the new Files changed page
+the shield rides the `watchFilesPages` visit and reads that visit's code owners and PR
+reviewers, so it sends no request of its own; it shares the sidebar's "Show only their
+files" filter. On the classic page it rides the visit `watchClassicPages` carries, reads
+ownership lazily, and offers no filter, because the classic page ignores `gh-prism-owner`.
+A comment author who is a PR reviewer gets the files their Reviewers row shows. Anyone
+else is looked up once a visit through `ownershipOf`, and gets a shield once that lookup
+finds changed files they own. Drawing is one synchronous pass that skips a name already
+followed by a shield, so overlapping mutation batches never give a header two shields. A
+header GitHub re-renders gets a fresh one. The comment shield opens the same popup and
+dialog as a Reviewers row's.
 
 The popup lists the files `ownerFilter` gives the shield's `@user` or `@org/team` token,
 counting the teams GitHub names for that reviewer, and names those teams, each with its
 avatar and name linking to its team page. A code owner GitHub marks without naming a team,
 and whose own token owns nothing, gets one sentence saying GitHub hides the team. Any
-other code owner who owns no changed file opens nothing. It rides the header visit, so it
-runs only where `findHeaderPage` finds the counter's slot. The popup's listeners sit on
-the document for the whole visit, because GitHub replaces the classic sidebar's nodes
-mid-visit. When to open and close it is `followHoverIntent` in
+other code owner who owns no changed file opens nothing. On Conversation it rides the
+header visit, so it runs only where `findHeaderPage` finds the counter's slot. The popup's
+listeners sit on the document for the whole visit, because GitHub replaces the classic
+sidebar's nodes mid-visit. When to open and close it is `followHoverIntent` in
 [`ui/hover-intent.ts`](../entrypoints/content/ui/hover-intent.ts). The popup and the file
 and folder shields' popover share one placer,
 [`ui/place.ts`](../entrypoints/content/ui/place.ts): below, else above, else on the
@@ -776,14 +784,14 @@ entrypoints/
   conversation-frame.content.ts  content script in the Conversation panel's frame
   content/
     index.ts             content script entry: wires the watchers, intent, and views
-    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; Conversation comments' authors; a commit's message box and the row its message column joins; the toolbar row the Conversation button starts
+    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; Conversation and Files changed comments' authors; a commit's message box and the row its message column joins; the toolbar row the Conversation button starts
     commit/              a commit's message rendered as Markdown in GitHub's box's place, or in a resizable column beside the diffs, with its switch back to GitHub's box and its hide button
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
     header/              diffstat breakout
-    conversation/        a code owner's files popup and gh-prism's shield, in the Reviewers lists and beside comment authors; the Conversation panel and its button, dressing its frame, and the messages the frame posts
+    conversation/        a code owner's files popup and gh-prism's shield, in the Reviewers lists and beside Conversation and Files changed comment authors; the Conversation panel and its button, dressing its frame, and the messages the frame posts
     ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, column separator, view-transition glide, Tailwind tokens
 utils/
   github/                routes, diff parsing, the PR data port and source, code owners and reviewers

@@ -19,8 +19,9 @@ implementation, and gh-prism lets you review that part first. See
 gh-prism runs on commit pages and on a pull request's new Files changed tab
 (`/pull/<number>/changes`), which GitHub offers as a feature preview; see
 [Troubleshooting](#troubleshooting) to turn it on. Its code-owner shields also show on a
-pull request's Conversation tab, and its lines-changed counts on the Conversation,
-Commits, and Checks tabs.
+pull request's Conversation tab and beside review comment authors on Files changed, the
+classic page included, and its lines-changed counts on the Conversation, Commits, and
+Checks tabs.
 
 ### Sections in a sidebar
 
@@ -51,8 +52,8 @@ Rest the pointer on the shield to see who owns the file, or click it for details
 
 - On the Conversation tab, the shield beside a team or person in the Reviewers list lists
   the changed files they own.
-- On the Conversation tab, the shield also shows beside a comment author who owns changed
-  files, PR reviewer or not.
+- On the Conversation and Files changed tabs, the shield also shows beside a comment
+  author who owns changed files, PR reviewer or not.
 - **Only files owned by…** in the file tree's filter menu, or `gh-prism-owner=<owner>` in
   the Files changed URL, shows only one owner's files. The owner is a team such as
   `org/team`, or a user's login.
@@ -237,11 +238,12 @@ It keeps these on this computer only:
   or reloaded don't run it. Then check that the URL contains `/pull/<number>/changes` or
   `/commit/<sha>`.
 - **The Files changed tab looks like plain GitHub, and its URL ends in `/files` or
-  `/commits/<sha>`.** That is GitHub's classic page, where gh-prism only shows a dialog.
-  To reopen the dialog, click **Why is gh-prism off?** in the toolbar above the files.
-  Sign in to GitHub. If you are signed in, turn on the **New Files Changed Experience**
-  preview: click your profile picture, click **Feature preview**, choose
-  **New Files Changed Experience**, and click **Enable**. GitHub Docs covers this in
+  `/commits/<sha>`.** That is GitHub's classic page, where gh-prism only shows a dialog
+  and the shields beside review comments. To reopen the dialog, click
+  **Why is gh-prism off?** in the toolbar above the files. Sign in to GitHub. If you are
+  signed in, turn on the **New Files Changed Experience** preview: click your profile
+  picture, click **Feature preview**, choose **New Files Changed Experience**, and click
+  **Enable**. GitHub Docs covers this in
   [Exploring early access releases with feature preview](https://docs.github.com/en/get-started/using-github/exploring-early-access-releases-with-feature-preview).
 - **gh-prism asks you to sign in while you're signed in.** Check that you're signed in to
   GitHub in the Chrome profile gh-prism is installed in, then reload. Chrome's "Block
