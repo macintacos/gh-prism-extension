@@ -54,15 +54,15 @@ const OWN_SHIELD = "button[data-gh-prism-owner]";
  * code owner owns, and describes the shield with it. Opens from GitHub's shield, or from the one
  * this adds beside each PR reviewer who owns a changed file, or whom GitHub marks a code owner,
  * where GitHub draws none, or beside each comment author who owns a changed file: a PR reviewer as
- * their Reviewers row shows, anyone else looked up once through `teamMembers`. Mounts a stylesheet in
- * `doc`'s head. Opens nothing for a code owner who owns no changed file, unless GitHub marks them one: then it says
- * GitHub hides the team. Tab from the shield enters the popup. Closes 150 ms after the pointer
- * leaves shield and popup, and at once on Escape, focus leaving both, or a scroll outside it,
- * moving focus it held to the shield. A click on the shield opens the code owner details dialog
- * instead, excerpting owning teams' members through `teamMembers`. Draws teams' avatars through
- * `teamAvatar`. Calls `read` at most once, when a Reviewers list or comment author first shows.
- * Given `filter`, popup and dialog offer to show only the code owner's files, when they list any,
- * and each team they name filters from its name.
+ * their Reviewers row shows, anyone else looked up once through `teamMembers`. Mounts a
+ * stylesheet in `doc`'s head. Opens nothing for a code owner who owns no changed file, unless
+ * GitHub marks them one: then it says GitHub hides the team. Tab from the shield enters the popup.
+ * Closes 150 ms after the pointer leaves shield and popup, and at once on Escape, focus leaving
+ * both, or a scroll outside it, moving focus it held to the shield. A click on the shield opens
+ * the code owner details dialog instead, excerpting owning teams' members through `teamMembers`.
+ * Draws teams' avatars through `teamAvatar`. Calls `read` at most once, when a Reviewers list or
+ * comment author first shows. Given `filter`, popup and dialog offer to show only the code owner's
+ * files, when they list any, and each team they name filters from its name.
  */
 export function showReviewerFiles(
   doc: Document,
@@ -104,7 +104,7 @@ export function showReviewerFiles(
   doc.addEventListener("focusout", () => (focusedShield = null), { signal });
 
   // Each comment author's answer by lowercased token; `Ownership` never changes once settled.
-  const authorFiles = new Map<string, "pending" | { owned?: OwnedFiles }>();
+  const authorAnswers = new Map<string, "pending" | { owned?: OwnedFiles }>();
 
   /**
    * What comment author `token`'s shield shows: a PR reviewer's files as their Reviewers row shows
@@ -112,18 +112,18 @@ export function showReviewerFiles(
    */
   function authorOwned(settled: Ownership, token: string): OwnedFiles | undefined | "pending" {
     const key = token.toLowerCase();
-    const known = authorFiles.get(key);
-    if (known) return known === "pending" ? known : known.owned;
+    const answer = authorAnswers.get(key);
+    if (answer) return answer === "pending" ? answer : answer.owned;
 
     const { codeOwners, prReviewers } = settled;
     if (!codeOwners || reviewerOf(prReviewers ?? [], token)) {
       const owned = ownedFiles(settled, token);
-      authorFiles.set(key, { owned });
+      authorAnswers.set(key, { owned });
       return owned;
     }
-    authorFiles.set(key, "pending");
+    authorAnswers.set(key, "pending");
     void ownershipOf({ codeOwners, prReviewers }, token, teamMembers).then((owned) => {
-      authorFiles.set(key, { owned: owned.paths.length > 0 ? owned : undefined });
+      authorAnswers.set(key, { owned: owned.paths.length > 0 ? owned : undefined });
       if (!signal.aborted) addAuthorShields(findCommentAuthors(doc), settled);
     });
     return "pending";
@@ -151,7 +151,7 @@ export function showReviewerFiles(
     return owned === "pending" ? undefined : owned;
   };
 
-  const addAll = ({ rows, authors }: OwnerSpots, settled: Ownership) => {
+  const addEveryShield = ({ rows, authors }: OwnerSpots, settled: Ownership) => {
     addShields(rows, settled);
     addAuthorShields(authors, settled);
   };
@@ -162,11 +162,14 @@ export function showReviewerFiles(
         focusedShield = null;
         closeCard();
       }
-      if (ownership) addAll(spots, ownership);
+      if (ownership) addEveryShield(spots, ownership);
       else if ((spots.rows.length > 0 || spots.authors.length > 0) && !reading)
         void readOnce().then((settled) => {
           if (!signal.aborted)
-            addAll({ rows: findReviewerRows(doc), authors: findCommentAuthors(doc) }, settled);
+            addEveryShield(
+              { rows: findReviewerRows(doc), authors: findCommentAuthors(doc) },
+              settled,
+            );
         });
     },
     { signal },
