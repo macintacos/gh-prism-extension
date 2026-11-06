@@ -201,7 +201,12 @@ on a private one.
 - **Never scroll the window before GitHub mounts.** On mount GitHub's router calls
   `scrollTo(0, 0)`, which undoes an early scroll. Instead, `retakeHash` in
   [`diffs/reveal.ts`](../../entrypoints/content/diffs/reveal.ts) re-announces the hash so
-  GitHub lands deep links itself.
+  GitHub can land a deep link again.
+- **Land a line link yourself after the cover lifts.** GitHub scrolls to a deep link once,
+  as it mounts, measuring a target gh-prism's cover may hide, and the pull request Files
+  view ignores a later `hashchange`. So `retakeHash` lands only commit pages, and
+  `holdHashLine` in the same file lands a line link itself and holds it until the user
+  takes the scroll.
 - **Reorder diffs with CSS `order`.** GitHub's tree click scrolls by
   `getBoundingClientRect`, so it stays correct after a CSS reorder.
 - **Expect GitHub to bind `j` and `k` to files only in single-file mode.** They are the

@@ -793,7 +793,10 @@ sidebar.
 [`entrypoints/content/diffs/reveal.ts`](../entrypoints/content/diffs/reveal.ts) brings a
 file's diff, or a line in it, into view. On a pull request it clicks the native row's link
 and glides the window to where GitHub scrolls. On a commit it follows the link's hash
-instead, since a click there would let GitHub's router undo the scroll.
+instead, since a click there would let GitHub's router undo the scroll. Once the diff
+order lifts its cover, `holdHashLine` scrolls the URL's line into view and holds it there
+until the user scrolls, since GitHub lands a line link only once, as it mounts, while the
+cover still hides the line.
 
 ## Styling
 
