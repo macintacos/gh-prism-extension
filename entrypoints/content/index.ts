@@ -159,7 +159,8 @@ export default defineContentScript({
                   navigate,
                 }
               : undefined;
-          // Shields review comment authors from this visit's own reads.
+          // Reads the visit's own promises and shares its cached team readers, so badging sends
+          // no request per comment.
           if (route.diff.kind === "pr")
             showReviewerFiles(document, visit, {
               findAuthors: findFilesCommentAuthors,

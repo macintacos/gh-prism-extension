@@ -104,6 +104,12 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   then slides away, whose `pointerout` cancels the popup's open.
   [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "a code owner reviewer's shield in the
   Conversation panel opens their files and details" awaits the panel's animations first.
+- **Let the sections land and their reveal finish before a test hovers in the diffs.**
+  Their load lays the diff list out anew, and scroll anchoring slides what sits under the
+  pointer, whose `pointerout` cancels a popup's open.
+  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "a code-owning review comment author's
+  shield on the new Files changed page lists their files on hover and opens a modal on
+  click" awaits a `.gh-prism-section` and `revealSettled` in its `ready` first.
 - **After a test scrolls the sidebar, wait for the tree to take pointer events before it
   clicks a row.** @pierre/trees sets `pointer-events: none` on the tree while it scrolls,
   so a click that comes too soon is intercepted and retried, with the same forced scroll.

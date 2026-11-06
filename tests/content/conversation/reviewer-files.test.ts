@@ -1037,7 +1037,8 @@ describe.each([
     },
     findAuthors: findCommentAuthors,
     mountThread: () => mountTimelineItem(commentsFixture),
-    sidebar: true,
+    reviewers: true,
+    resolvedKeepsAuthor: true,
   },
   {
     layout: "the PR overview",
@@ -1046,418 +1047,429 @@ describe.each([
     },
     findAuthors: findCommentAuthors,
     mountThread: () => mountTimelineItem(overviewCommentsFixture),
-    sidebar: true,
+    reviewers: true,
+    resolvedKeepsAuthor: true,
   },
   {
     layout: "the new Files changed page",
     load: loadCommentsFixture,
     findAuthors: findFilesCommentAuthors,
     mountThread: () => diffList().insertAdjacentHTML("beforeend", COMMENT_THREADS.files),
-    sidebar: false,
+    reviewers: false,
+    resolvedKeepsAuthor: false,
   },
   {
     layout: "the classic Files changed page",
     load: () => loadClassicCommentsFixture(""),
     findAuthors: findFilesCommentAuthors,
     mountThread: () => byId("files").insertAdjacentHTML("beforeend", COMMENT_THREADS.classic),
-    sidebar: false,
+    reviewers: false,
+    resolvedKeepsAuthor: false,
   },
-])("a comment author's shield in $layout", ({ load, findAuthors, mountThread, sidebar }) => {
-  const authors = () => findAuthors(document);
-  beforeEach(() => {
-    load();
+])(
+  "a comment author's shield in $layout",
+  ({ load, findAuthors, mountThread, reviewers, resolvedKeepsAuthor }) => {
+    const authors = () => findAuthors(document);
+    beforeEach(() => {
+      load();
 
-    expect(authors().length).toBeGreaterThan(0);
-  });
+      expect(authors().length).toBeGreaterThan(0);
+    });
 
-  const settle = () => vi.advanceTimersByTimeAsync(0);
-  const showHere = (
-    read?: () => Promise<Ownership>,
-    teamMembers?: TeamMembersOf,
-    filter?: OwnerFilter,
-  ) => show(read, teamMembers, filter, findAuthors);
-  /** Makes `login` the author of `authorsToEdit`, every comment by default. */
-  function authoredBy(login: string, authorsToEdit = authors()) {
-    for (const { name } of authorsToEdit) {
-      const link = (name.matches("a") ? name : name.querySelector("a")) as HTMLAnchorElement;
-      const header = name.closest('[data-testid="comment-header"], h3') ?? name;
-      const profile = link.getAttribute("href");
-      for (const a of header.querySelectorAll(`a[href="${profile}"]`))
-        a.setAttribute("href", `/${login}`);
-      for (const img of header.querySelectorAll("img[alt]")) img.setAttribute("alt", `@${login}`);
-      link.textContent = login;
+    const settle = () => vi.advanceTimersByTimeAsync(0);
+    const showHere = (
+      read?: () => Promise<Ownership>,
+      teamMembers?: TeamMembersOf,
+      filter?: OwnerFilter,
+    ) => show(read, teamMembers, filter, findAuthors);
+    /** Makes `login` the author of `authorsToEdit`, every comment by default. */
+    function authoredBy(login: string, authorsToEdit = authors()) {
+      for (const { name } of authorsToEdit) {
+        const link = (name.matches("a") ? name : name.querySelector("a")) as HTMLAnchorElement;
+        const header = name.closest('[data-testid="comment-header"], h3') ?? name;
+        const profile = link.getAttribute("href");
+        for (const a of header.querySelectorAll(`a[href="${profile}"]`))
+          a.setAttribute("href", `/${login}`);
+        for (const img of header.querySelectorAll("img[alt]")) img.setAttribute("alt", `@${login}`);
+        link.textContent = login;
+      }
     }
-  }
-  /** The last diff table or timeline item holding a comment author. */
-  const lastThread = () =>
-    authors()
-      .map(({ name }) => name.closest(".js-timeline-item, article, table"))
-      .findLast((thread) => thread !== null) as Element;
-  /** Each comment header's shield names, in page order. */
-  const headerShields = () =>
-    authors().map(({ name }) =>
-      [...(name.parentElement?.querySelectorAll(".gh-prism-comment-shield") ?? [])].map((shield) =>
-        shield.getAttribute("aria-label"),
-      ),
-    );
-  const commentShields = () => [
-    ...document.querySelectorAll<HTMLElement>(".gh-prism-comment-shield"),
-  ];
-  /** A members reader listing `members` as excessive-dev/frontend's, and counting its reads. */
-  function frontendListing(members: readonly string[]) {
-    const fetchFn = routedFetch({
-      [FRONTEND_MEMBERS]: () =>
-        Promise.resolve(new Response(JSON.stringify({ total: members.length, members }))),
+    /** The last diff table or timeline item holding a comment author. */
+    const lastThread = () =>
+      authors()
+        .map(({ name }) => name.closest(".js-timeline-item, article, table"))
+        .findLast((thread) => thread !== null) as Element;
+    /** Each comment header's shield names, in page order. */
+    const headerShields = () =>
+      authors().map(({ name }) =>
+        [...(name.parentElement?.querySelectorAll(".gh-prism-comment-shield") ?? [])].map(
+          (shield) => shield.getAttribute("aria-label"),
+        ),
+      );
+    const commentShields = () => [
+      ...document.querySelectorAll<HTMLElement>(".gh-prism-comment-shield"),
+    ];
+    /** A members reader listing `members` as excessive-dev/frontend's, and counting its reads. */
+    function frontendListing(members: readonly string[]) {
+      const fetchFn = routedFetch({
+        [FRONTEND_MEMBERS]: () =>
+          Promise.resolve(new Response(JSON.stringify({ total: members.length, members }))),
+      });
+      return { fetchFn, teamMembers: teamMembersReader(fetchFn, controller.signal) };
+    }
+    const reads = (fetchFn: ReturnType<typeof routedFetch>, url: string) =>
+      fetchFn.mock.calls.filter(([input]) => String(input) === url).length;
+
+    it("shields every comment header of an author who owns files directly and through a team", async () => {
+      showHere();
+      await settle();
+
+      expect(headerShields()).toEqual(authors().map(() => ["sandbox-user is a code owner"]));
+      expect(authors()[0]?.name.nextElementSibling).toBe(commentShields()[0]);
     });
-    return { fetchFn, teamMembers: teamMembersReader(fetchFn, controller.signal) };
-  }
-  const reads = (fetchFn: ReturnType<typeof routedFetch>, url: string) =>
-    fetchFn.mock.calls.filter(([input]) => String(input) === url).length;
 
-  it("shields every comment header of an author who owns files directly and through a team", async () => {
-    showHere();
-    await settle();
+    it("names the team for an author whom only its members list makes an owner", async () => {
+      authoredBy("other-user");
+      showHere(undefined, frontendListing(["other-user"]).teamMembers);
+      await settle();
 
-    expect(headerShields()).toEqual(authors().map(() => ["sandbox-user is a code owner"]));
-    expect(authors()[0]?.name.nextElementSibling).toBe(commentShields()[0]);
-  });
-
-  it("names the team for an author whom only its members list makes an owner", async () => {
-    authoredBy("other-user");
-    showHere(undefined, frontendListing(["other-user"]).teamMembers);
-    await settle();
-
-    expect(headerShields()).toEqual(
-      authors().map(() => ["other-user is a code owner through excessive-dev/frontend"]),
-    );
-  });
-
-  it.each([
-    ["owns nothing", "nobody", () => ({ codeOwners: sandboxOwners(), prReviewers: [] })],
-    [
-      "can't be checked against CODEOWNERS",
-      "sandbox-user",
-      () => ({ codeOwners: undefined, prReviewers: SANDBOX_REVIEWERS }),
-    ],
-  ])("shields no author who %s", async (_case, login, ownership) => {
-    authoredBy(login);
-    showHere(async () => ownership());
-    await settle();
-
-    expect(commentShields()).toEqual([]);
-  });
-
-  it("shields no author who owns files only through a team whose members can't be read", async () => {
-    authoredBy("other-user");
-    showHere(undefined, teamMembersReader(routedFetch({}), controller.signal));
-    await settle();
-
-    expect(commentShields()).toEqual([]);
-  });
-
-  it("shields the viewer, who is also the pull request's author", async () => {
-    document.head.append(
-      Object.assign(document.createElement("meta"), {
-        name: "user-login",
-        content: "sandbox-user",
-      }),
-    );
-    showHere();
-    await settle();
-
-    expect(commentShields()).toHaveLength(authors().length);
-  });
-
-  it("shields no bot or deleted account, and still shields an owner elsewhere on the page", async () => {
-    const [first, ...rest] = authors();
-    authoredBy("ghost", first ? [first] : []);
-    showHere();
-    await settle();
-
-    expect(headerShields()).toEqual([[], ...rest.map(() => ["sandbox-user is a code owner"])]);
-    expect(commentShields()).toHaveLength(rest.length);
-  });
-
-  it.runIf(sidebar)("keeps the shield on a resolved, collapsed thread", async () => {
-    const thread = document.querySelector("review-thread-collapsible");
-    thread?.setAttribute("data-resolved", "true");
-    thread?.classList.remove("open");
-    showHere();
-    await settle();
-
-    expect(headerShields()).toEqual(authors().map(() => ["sandbox-user is a code owner"]));
-  });
-
-  it("shields a comment appended after the page loaded", async () => {
-    showHere();
-    await settle();
-    const before = authors().length;
-
-    mountThread();
-    await settle();
-
-    expect(authors().length).toBeGreaterThan(before);
-    expect(headerShields()).toEqual(authors().map(() => ["sandbox-user is a code owner"]));
-  });
-
-  it("draws a shield on a thread that mounts after the shields settle", async () => {
-    showHere();
-    await settle();
-
-    mountThread();
-    await settle();
-
-    const added = authors().at(-1)?.name;
-    expect(added?.parentElement?.querySelectorAll(".gh-prism-comment-shield")).toHaveLength(1);
-  });
-
-  it("draws one shield on a thread whose diff unmounts and remounts", async () => {
-    showHere();
-    await settle();
-
-    lastThread().remove();
-    mountThread();
-    await settle();
-
-    expect(headerShields()).toEqual(authors().map(() => ["sandbox-user is a code owner"]));
-    for (const { name } of authors())
-      expect(name.nextElementSibling?.matches(".gh-prism-comment-shield")).toBe(true);
-  });
-
-  it("draws one fresh shield in a header whose nodes the page replaced", async () => {
-    showHere();
-    await settle();
-
-    const row = authors()[0]?.name.parentElement as Element;
-    const fresh = row.cloneNode(true) as Element;
-    for (const shield of fresh.querySelectorAll(".gh-prism-comment-shield")) shield.remove();
-    row.replaceWith(fresh);
-    await settle();
-
-    expect(fresh.querySelectorAll(".gh-prism-comment-shield")).toHaveLength(1);
-    expect(headerShields()).toEqual(authors().map(() => ["sandbox-user is a code owner"]));
-  });
-
-  it("draws one shield per header across mutation batches with a lookup settling between them", async () => {
-    const members = Promise.withResolvers<{ total: number; members: string[] } | undefined>();
-    showHere(undefined, () => members.promise);
-    await settle();
-
-    document.body.append(document.createElement("div"));
-    await settle();
-    members.resolve({ total: 1, members: ["sandbox-user"] });
-    document.body.append(document.createElement("div"));
-    await settle();
-    document.body.append(document.createElement("div"));
-    await settle();
-
-    expect(headerShields()).toEqual(authors().map(() => ["sandbox-user is a code owner"]));
-  });
-
-  it("opens the popup with the filter action on hover", async () => {
-    const FILES = "https://github.com/o/r/pull/1/files";
-    showHere(undefined, undefined, {
-      linkOf: (token) => ({ href: `${FILES}?gh-prism-owner=${token}`, shown: false }),
-      navigate: () => {},
-    });
-    await settle();
-
-    await hoverOn(commentShields()[0] as Element);
-
-    expect(listed()).toEqual([
-      "api/",
-      "  generated/",
-      "    client.ts",
-      "  routes.ts",
-      "docs/",
-      "  guide.md",
-      "web/",
-      "  app.ts",
-    ]);
-    expect(popup()?.querySelector<HTMLAnchorElement>("a.gh-prism-owner-filter")?.href).toBe(
-      `${FILES}?gh-prism-owner=@sandbox-user`,
-    );
-  });
-
-  it("opens the code owner details dialog on click, listing the author's files", async () => {
-    showHere();
-    await settle();
-
-    commentShields()[0]?.click();
-    await settle();
-
-    const dialog = document.querySelector<HTMLDialogElement>("dialog.gh-prism-owners-dialog");
-    expect(dialog?.textContent).toContain("@sandbox-user");
-    expect(outline(dialog?.querySelector("ul"))).toEqual([
-      "api/",
-      "  generated/",
-      "    client.ts",
-      "  routes.ts",
-      "docs/",
-      "  guide.md",
-      "web/",
-      "  app.ts",
-    ]);
-  });
-
-  it("opens the dialog on click when an ancestor stops the click's propagation", async () => {
-    showHere();
-    await settle();
-    const shield = commentShields()[0] as HTMLElement;
-    shield.parentElement?.addEventListener("click", (event) => event.stopPropagation());
-
-    shield.click();
-    await settle();
-
-    expect(document.querySelector("dialog.gh-prism-owners-dialog")?.textContent).toContain(
-      "@sandbox-user",
-    );
-  });
-
-  it("removes every comment shield once the signal aborts", async () => {
-    showHere();
-    await settle();
-
-    controller.abort();
-
-    expect(commentShields()).toEqual([]);
-  });
-
-  describe("for an author who is also a PR reviewer", () => {
-    const ownership = async (): Promise<Ownership> => ({
-      codeOwners: sandboxOwners(),
-      prReviewers: [
-        ...SANDBOX_REVIEWERS,
-        { token: "@sandbox-user", teams: ["@excessive-dev/frontend"], codeOwner: false },
-      ],
-    });
-    const dialog = () => document.querySelector<HTMLDialogElement>("dialog.gh-prism-owners-dialog");
-    const closeDialog = () =>
-      dialog()?.querySelector<HTMLButtonElement>('button[aria-label="Close"]')?.click();
-
-    beforeEach(() => {
-      if (!sidebar) return;
-      const teamRow = shieldOf("frontend").parentElement as Element;
-      const row = teamRow.cloneNode(true) as Element;
-      row.querySelector('[id^="codeowner-"]')?.remove();
-      for (const link of row.querySelectorAll("a")) link.setAttribute("href", "/sandbox-user");
-      teamRow.after(row);
-    });
-    const rowShield = () =>
-      document.querySelector<HTMLElement>(
-        '.gh-prism-reviewer-shield[data-gh-prism-owner="@sandbox-user"]',
-      ) as HTMLElement;
-
-    it.runIf(sidebar)(
-      "lists the same files from the comment's shield as from the Reviewers row's",
-      async () => {
-        showHere(ownership);
-        await settle();
-
-        await hoverOn(rowShield());
-        const fromRow = listed();
-        pointerOut(rowShield());
-        await vi.advanceTimersByTimeAsync(500);
-        await hoverOn(commentShields()[0] as Element);
-
-        expect(fromRow.length).toBeGreaterThan(0);
-        expect(listed()).toEqual(fromRow);
-      },
-    );
-
-    it.runIf(sidebar)(
-      "opens the same dialog from the comment's shield as from the Reviewers row's",
-      async () => {
-        showHere(ownership);
-        await settle();
-
-        rowShield().click();
-        await settle();
-        const fromRow = dialog()?.textContent;
-        closeDialog();
-        commentShields()[0]?.click();
-        await settle();
-
-        expect(fromRow).toContain("frontend");
-        expect(dialog()?.textContent).toBe(fromRow);
-      },
-    );
-  });
-
-  describe("reads", () => {
-    beforeEach(() => {
-      const all = authors();
-      authoredBy("other-user", all.slice(1, 2));
-      authoredBy("third-user", all.slice(2, 3));
+      expect(headerShields()).toEqual(
+        authors().map(() => ["other-user is a code owner through excessive-dev/frontend"]),
+      );
     });
 
     it.each([
-      ["with PR reviewers", SANDBOX_REVIEWERS],
-      ["without PR reviewers", undefined],
+      ["owns nothing", "nobody", () => ({ codeOwners: sandboxOwners(), prReviewers: [] })],
+      [
+        "can't be checked against CODEOWNERS",
+        "sandbox-user",
+        () => ({ codeOwners: undefined, prReviewers: SANDBOX_REVIEWERS }),
+      ],
+    ])("shields no author who %s", async (_case, login, ownership) => {
+      authoredBy(login);
+      showHere(async () => ownership());
+      await settle();
+
+      expect(commentShields()).toEqual([]);
+    });
+
+    it("shields no author who owns files only through a team whose members can't be read", async () => {
+      authoredBy("other-user");
+      showHere(undefined, teamMembersReader(routedFetch({}), controller.signal));
+      await settle();
+
+      expect(commentShields()).toEqual([]);
+    });
+
+    it("shields the viewer, who is also the pull request's author", async () => {
+      document.head.append(
+        Object.assign(document.createElement("meta"), {
+          name: "user-login",
+          content: "sandbox-user",
+        }),
+      );
+      showHere();
+      await settle();
+
+      expect(commentShields()).toHaveLength(authors().length);
+    });
+
+    it("shields no bot or deleted account, and still shields an owner elsewhere on the page", async () => {
+      const [first, ...rest] = authors();
+      authoredBy("ghost", first ? [first] : []);
+      showHere();
+      await settle();
+
+      expect(headerShields()).toEqual([[], ...rest.map(() => ["sandbox-user is a code owner"])]);
+      expect(commentShields()).toHaveLength(rest.length);
+    });
+
+    // A resolved classic Files changed thread holds only an `include-fragment`, with no author.
+    it.runIf(resolvedKeepsAuthor)("keeps the shield on a resolved, collapsed thread", async () => {
+      const thread = document.querySelector("review-thread-collapsible");
+      thread?.setAttribute("data-resolved", "true");
+      thread?.classList.remove("open");
+      showHere();
+      await settle();
+
+      expect(headerShields()).toEqual(authors().map(() => ["sandbox-user is a code owner"]));
+    });
+
+    it("shields a comment appended after the page loaded", async () => {
+      showHere();
+      await settle();
+      const before = authors().length;
+
+      mountThread();
+      await settle();
+
+      expect(authors().length).toBeGreaterThan(before);
+      expect(headerShields()).toEqual(authors().map(() => ["sandbox-user is a code owner"]));
+    });
+
+    it("draws a shield on a thread that mounts after the shields settle", async () => {
+      showHere();
+      await settle();
+
+      mountThread();
+      await settle();
+
+      const added = authors().at(-1)?.name;
+      expect(added?.parentElement?.querySelectorAll(".gh-prism-comment-shield")).toHaveLength(1);
+    });
+
+    it("draws one shield on a thread whose diff unmounts and remounts", async () => {
+      showHere();
+      await settle();
+
+      lastThread().remove();
+      mountThread();
+      await settle();
+
+      expect(headerShields()).toEqual(authors().map(() => ["sandbox-user is a code owner"]));
+      for (const { name } of authors())
+        expect(name.nextElementSibling?.matches(".gh-prism-comment-shield")).toBe(true);
+    });
+
+    it("draws one fresh shield in a header whose nodes the page replaced", async () => {
+      showHere();
+      await settle();
+
+      const row = authors()[0]?.name.parentElement as Element;
+      const fresh = row.cloneNode(true) as Element;
+      for (const shield of fresh.querySelectorAll(".gh-prism-comment-shield")) shield.remove();
+      row.replaceWith(fresh);
+      await settle();
+
+      expect(fresh.querySelectorAll(".gh-prism-comment-shield")).toHaveLength(1);
+      expect(headerShields()).toEqual(authors().map(() => ["sandbox-user is a code owner"]));
+    });
+
+    it("draws one shield per header across mutation batches with a lookup settling between them", async () => {
+      const members = Promise.withResolvers<{ total: number; members: string[] } | undefined>();
+      showHere(undefined, () => members.promise);
+      await settle();
+
+      document.body.append(document.createElement("div"));
+      await settle();
+      members.resolve({ total: 1, members: ["sandbox-user"] });
+      document.body.append(document.createElement("div"));
+      await settle();
+      document.body.append(document.createElement("div"));
+      await settle();
+
+      expect(headerShields()).toEqual(authors().map(() => ["sandbox-user is a code owner"]));
+    });
+
+    it("opens the popup with the filter action on hover", async () => {
+      const FILES = "https://github.com/o/r/pull/1/files";
+      showHere(undefined, undefined, {
+        linkOf: (token) => ({ href: `${FILES}?gh-prism-owner=${token}`, shown: false }),
+        navigate: () => {},
+      });
+      await settle();
+
+      await hoverOn(commentShields()[0] as Element);
+
+      expect(listed()).toEqual([
+        "api/",
+        "  generated/",
+        "    client.ts",
+        "  routes.ts",
+        "docs/",
+        "  guide.md",
+        "web/",
+        "  app.ts",
+      ]);
+      expect(popup()?.querySelector<HTMLAnchorElement>("a.gh-prism-owner-filter")?.href).toBe(
+        `${FILES}?gh-prism-owner=@sandbox-user`,
+      );
+    });
+
+    it("opens the code owner details dialog on click, listing the author's files", async () => {
+      showHere();
+      await settle();
+
+      commentShields()[0]?.click();
+      await settle();
+
+      const dialog = document.querySelector<HTMLDialogElement>("dialog.gh-prism-owners-dialog");
+      expect(dialog?.textContent).toContain("@sandbox-user");
+      expect(outline(dialog?.querySelector("ul"))).toEqual([
+        "api/",
+        "  generated/",
+        "    client.ts",
+        "  routes.ts",
+        "docs/",
+        "  guide.md",
+        "web/",
+        "  app.ts",
+      ]);
+    });
+
+    it("opens the dialog on click when an ancestor stops the click's propagation", async () => {
+      showHere();
+      await settle();
+      const shield = commentShields()[0] as HTMLElement;
+      shield.parentElement?.addEventListener("click", (event) => event.stopPropagation());
+
+      shield.click();
+      await settle();
+
+      expect(document.querySelector("dialog.gh-prism-owners-dialog")?.textContent).toContain(
+        "@sandbox-user",
+      );
+    });
+
+    it("removes every comment shield once the signal aborts", async () => {
+      showHere();
+      await settle();
+
+      controller.abort();
+
+      expect(commentShields()).toEqual([]);
+    });
+
+    describe("for an author who is also a PR reviewer", () => {
+      const ownership = async (): Promise<Ownership> => ({
+        codeOwners: sandboxOwners(),
+        prReviewers: [
+          ...SANDBOX_REVIEWERS,
+          { token: "@sandbox-user", teams: ["@excessive-dev/frontend"], codeOwner: false },
+        ],
+      });
+      const dialog = () =>
+        document.querySelector<HTMLDialogElement>("dialog.gh-prism-owners-dialog");
+      const closeDialog = () =>
+        dialog()?.querySelector<HTMLButtonElement>('button[aria-label="Close"]')?.click();
+
+      beforeEach(() => {
+        if (!reviewers) return;
+        const teamRow = shieldOf("frontend").parentElement as Element;
+        const row = teamRow.cloneNode(true) as Element;
+        row.querySelector('[id^="codeowner-"]')?.remove();
+        for (const link of row.querySelectorAll("a")) link.setAttribute("href", "/sandbox-user");
+        teamRow.after(row);
+      });
+      const rowShield = () =>
+        document.querySelector<HTMLElement>(
+          '.gh-prism-reviewer-shield[data-gh-prism-owner="@sandbox-user"]',
+        ) as HTMLElement;
+
+      it.runIf(reviewers)(
+        "lists the same files from the comment's shield as from the Reviewers row's",
+        async () => {
+          showHere(ownership);
+          await settle();
+
+          await hoverOn(rowShield());
+          const fromRow = listed();
+          pointerOut(rowShield());
+          await vi.advanceTimersByTimeAsync(500);
+          await hoverOn(commentShields()[0] as Element);
+
+          expect(fromRow.length).toBeGreaterThan(0);
+          expect(listed()).toEqual(fromRow);
+        },
+      );
+
+      it.runIf(reviewers)(
+        "opens the same dialog from the comment's shield as from the Reviewers row's",
+        async () => {
+          showHere(ownership);
+          await settle();
+
+          rowShield().click();
+          await settle();
+          const fromRow = dialog()?.textContent;
+          closeDialog();
+          commentShields()[0]?.click();
+          await settle();
+
+          expect(fromRow).toContain("frontend");
+          expect(dialog()?.textContent).toBe(fromRow);
+        },
+      );
+    });
+
+    describe("reads", () => {
+      beforeEach(() => {
+        const all = authors();
+        authoredBy("other-user", all.slice(1, 2));
+        authoredBy("third-user", all.slice(2, 3));
+      });
+
+      it.each([
+        ["with PR reviewers", SANDBOX_REVIEWERS],
+        ["without PR reviewers", undefined],
+      ])(
+        "reads the code owners once and each owning team's members once, %s",
+        async (_case, prReviewers) => {
+          const read = vi.fn(async () => ({ codeOwners: sandboxOwners(), prReviewers }));
+          const { fetchFn, teamMembers } = frontendListing(["sandbox-user"]);
+          showHere(read, teamMembers);
+          await settle();
+
+          mountThread();
+          await settle();
+
+          expect(read).toHaveBeenCalledOnce();
+          expect(reads(fetchFn, FRONTEND_MEMBERS)).toBe(1);
+          const urls = fetchFn.mock.calls.map(([input]) => String(input));
+          expect(urls).toEqual([...new Set(urls)]);
+        },
+      );
+
+      it.runIf(reviewers)(
+        "reads the code owners on a page with comments and no Reviewers list",
+        async () => {
+          document.getElementById("partial-discussion-sidebar")?.remove();
+          expect(findReviewerRows(document)).toEqual([]);
+          const read = vi.fn(async () => ({ codeOwners: sandboxOwners(), prReviewers: [] }));
+          showHere(read);
+          await settle();
+
+          expect(read).toHaveBeenCalledOnce();
+          expect(commentShields().length).toBeGreaterThan(0);
+        },
+      );
+    });
+
+    it.runIf(reviewers).each([
+      ["isn't among the PR reviewers", []],
+      ["sits beside PR reviewers that couldn't be read", undefined],
     ])(
-      "reads the code owners once and each owning team's members once, %s",
+      "lists the direct files of a GitHub-shielded commenter who %s",
       async (_case, prReviewers) => {
-        const read = vi.fn(async () => ({ codeOwners: sandboxOwners(), prReviewers }));
-        const { fetchFn, teamMembers } = frontendListing(["sandbox-user"]);
-        showHere(read, teamMembers);
+        const teamRow = shieldOf("frontend").parentElement as Element;
+        const row = teamRow.cloneNode(true) as Element;
+        const githubShield = row.querySelector('[id^="codeowner-"]') as HTMLElement;
+        githubShield.id = "assigned-codeowner-sandbox-user";
+        for (const link of row.querySelectorAll("a")) link.setAttribute("href", "/sandbox-user");
+        teamRow.after(row);
+        const members = Promise.withResolvers<{ total: number; members: string[] } | undefined>();
+        showHere(
+          async () => ({ codeOwners: sandboxOwners(), prReviewers }),
+          () => members.promise,
+        );
         await settle();
+        const direct = ["api/", "  routes.ts", "docs/", "  guide.md"];
 
-        mountThread();
+        await hoverOn(githubShield);
+        const whilePending = listed();
+        pointerOut(githubShield);
+        await vi.advanceTimersByTimeAsync(500);
+        members.resolve({ total: 1, members: ["sandbox-user"] });
         await settle();
+        await hoverOn(githubShield);
 
-        expect(read).toHaveBeenCalledOnce();
-        expect(reads(fetchFn, FRONTEND_MEMBERS)).toBe(1);
-        const urls = fetchFn.mock.calls.map(([input]) => String(input));
-        expect(urls).toEqual([...new Set(urls)]);
-      },
-    );
-
-    it.runIf(sidebar)(
-      "reads the code owners on a page with comments and no Reviewers list",
-      async () => {
-        document.getElementById("partial-discussion-sidebar")?.remove();
-        expect(findReviewerRows(document)).toEqual([]);
-        const read = vi.fn(async () => ({ codeOwners: sandboxOwners(), prReviewers: [] }));
-        showHere(read);
-        await settle();
-
-        expect(read).toHaveBeenCalledOnce();
         expect(commentShields().length).toBeGreaterThan(0);
+        expect(whilePending).toEqual(direct);
+        expect(listed()).toEqual(direct);
       },
     );
-  });
-
-  it.runIf(sidebar).each([
-    ["isn't among the PR reviewers", []],
-    ["sits beside PR reviewers that couldn't be read", undefined],
-  ])("lists the direct files of a GitHub-shielded commenter who %s", async (_case, prReviewers) => {
-    const teamRow = shieldOf("frontend").parentElement as Element;
-    const row = teamRow.cloneNode(true) as Element;
-    const githubShield = row.querySelector('[id^="codeowner-"]') as HTMLElement;
-    githubShield.id = "assigned-codeowner-sandbox-user";
-    for (const link of row.querySelectorAll("a")) link.setAttribute("href", "/sandbox-user");
-    teamRow.after(row);
-    const members = Promise.withResolvers<{ total: number; members: string[] } | undefined>();
-    showHere(
-      async () => ({ codeOwners: sandboxOwners(), prReviewers }),
-      () => members.promise,
-    );
-    await settle();
-    const direct = ["api/", "  routes.ts", "docs/", "  guide.md"];
-
-    await hoverOn(githubShield);
-    const whilePending = listed();
-    pointerOut(githubShield);
-    await vi.advanceTimersByTimeAsync(500);
-    members.resolve({ total: 1, members: ["sandbox-user"] });
-    await settle();
-    await hoverOn(githubShield);
-
-    expect(commentShields().length).toBeGreaterThan(0);
-    expect(whilePending).toEqual(direct);
-    expect(listed()).toEqual(direct);
-  });
-});
+  },
+);
 
 it.each([
   [

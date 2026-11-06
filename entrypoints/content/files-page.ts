@@ -5,11 +5,11 @@
  * tabs, finds a commit's message box and the row naming its parent, reads its rows, finds the row
  * a commit's message column joins, finds the toolbar row a pull request's Conversation button
  * starts, follows a pull request's narrow-layout overlay and the file-tree filter menu, finds and
- * follows the rows and code-owner shields of a pull request's Reviewers lists and its Conversation
- * comments' authors and its Files changed review comments' authors, measures and follows GitHub's right-hand panel beside a pull request's Files
- * changed, and copies that menu's group, divider, and item for gh-prism's entries, so the
- * selectors stay in this seam; it builds no UI of its own and imports nothing from WXT. The pull
- * request selectors come from EXC-1662's survey.
+ * follows the rows and code-owner shields of a pull request's Reviewers lists and its comments'
+ * authors on Conversation and Files changed, measures and follows GitHub's right-hand panel beside
+ * a pull request's Files changed, and copies that menu's group, divider, and item for gh-prism's
+ * entries, so the selectors stay in this seam; it builds no UI of its own and imports nothing from
+ * WXT. The pull request selectors come from EXC-1662's survey.
  */
 
 import { LOGIN } from "@/utils/github/code-owners";
@@ -439,7 +439,10 @@ export function copyMenuItem(menu: FilterMenu): { item: HTMLElement; label: HTML
   return { item, label };
 }
 
-/** A pull request's classic Files changed page, which gh-prism leaves alone. */
+/**
+ * A pull request's classic Files changed page, where gh-prism adds only its notice and comment
+ * shields.
+ */
 export interface ClassicPage {
   /** GitHub's toolbar above the diffs. */
   readonly toolbar: Element;
@@ -454,20 +457,29 @@ export function findClassicPage(root: ParentNode): ClassicPage | undefined {
   return toolbar && reviewTools ? { toolbar, reviewTools } : undefined;
 }
 
+/** GitHub's ActivityHeader, which the overview and the new Files changed draw each comment with. */
+const ACTIVITY_HEADER = {
+  kind: "overview",
+  // Its test ids outlive the CSS-module hashes.
+  author: '[data-testid="comment-header"] a[data-testid="avatar-link"]',
+  name: 'a[data-testid="avatar-link"]',
+} as const satisfies CommentHeaders;
+
+/** A classic inline comment's author link, on Conversation and on classic Files changed alike. */
+const REVIEW_COMMENT_AUTHOR = ".review-comment h3 strong > a.author";
+
 /** Where each Files changed page keeps its review comments' author links. */
 const FILES_COMMENT_HEADERS: readonly CommentHeaders[] = [
   {
     kind: "classic",
     // The PR header's author sits outside `#files`.
-    author: "#files .js-inline-comments-container .review-comment h3 strong > a.author",
+    author: `#files .js-inline-comments-container ${REVIEW_COMMENT_AUTHOR}`,
     name: "strong",
   },
   {
-    kind: "overview",
-    // The Conversation overview's ActivityHeader, inside a diff's review thread.
-    author:
-      '[data-testid="review-thread"] [data-testid="comment-header"] a[data-testid="avatar-link"]',
-    name: 'a[data-testid="avatar-link"]',
+    ...ACTIVITY_HEADER,
+    // Only a diff's review comments count, the same guard as the classic page's `#files`.
+    author: `[data-testid="review-thread"] ${ACTIVITY_HEADER.author}`,
   },
 ];
 
@@ -582,18 +594,13 @@ const COMMENT_HEADERS: readonly CommentHeaders[] = [
     kind: "classic",
     author: [
       ".js-discussion .timeline-comment-header h3 strong > a.author",
-      ".js-discussion .review-comment h3 strong > a.author",
+      `.js-discussion ${REVIEW_COMMENT_AUTHOR}`,
       // A review with no comment box: its own "commented" line only, never its threads' headers.
       '.js-discussion [id^="pullrequestreview-"]:not(:has(.timeline-comment-header)) .TimelineItem-body > div > strong > a.author',
     ].join(", "),
     name: "strong",
   },
-  {
-    kind: "overview",
-    // GitHub's ActivityHeader; its test ids outlive the CSS-module hashes.
-    author: '[data-testid="comment-header"] a[data-testid="avatar-link"]',
-    name: 'a[data-testid="avatar-link"]',
-  },
+  ACTIVITY_HEADER,
 ];
 
 /**
@@ -601,8 +608,9 @@ const COMMENT_HEADERS: readonly CommentHeaders[] = [
  * Call it only on a Conversation page: the overview's headers have no timeline scope, unlike the
  * classic's `.js-discussion`.
  */
-export const findCommentAuthors = (doc: Document): CommentAuthor[] =>
-  authorsOf(doc, COMMENT_HEADERS);
+export function findCommentAuthors(doc: Document): CommentAuthor[] {
+  return authorsOf(doc, COMMENT_HEADERS);
+}
 
 function authorsOf(doc: Document, headers: readonly CommentHeaders[]): CommentAuthor[] {
   return headers.flatMap(({ kind, author, name: nameSelector }) =>

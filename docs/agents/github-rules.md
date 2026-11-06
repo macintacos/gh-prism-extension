@@ -587,7 +587,8 @@ from GitHub's bundle, not a capture, because no account here can open it.
 Files changed's review comments, as of 2026-11-05:
 
 - **Scope a new Files changed comment header to its `[data-testid="review-thread"]`.**
-  Each comment's header is the overview's `ActivityHeader`, and its name link
+  Only a diff's review comments count, the same guard as the classic page's `#files`. Each
+  comment's header is the overview's `ActivityHeader`, and its name link
   `a[data-testid="avatar-link"]` sits alone in its title container, so its `after()` is
   right after the author's name.
 - **Expect the new page's avatar link to carry no test id,** so the test-id selector finds
@@ -605,10 +606,9 @@ Files changed's review comments, as of 2026-11-05:
 - **Expect a resolved classic thread to render collapsed, holding only an
   `include-fragment`.** Its author link is absent until a click fetches and inserts it.
 - **Expect the PR header's author, `#partial-discussion-header a.author`, outside
-  `#files`,** so the `#files` scope leaves it out.
-- **Expect `page_data/codeowners` and `page_data/review_requests` to answer 200 with JSON
-  signed out** on a public repository, so a signed-out viewer of the classic page sees
-  shields.
+  `#files`,** so the `#files` scope leaves it out. A signed-out viewer of a public
+  repository's classic page still sees shields, as
+  [§ Code owners and reviewers](#code-owners-and-reviewers) describes.
 - **Re-check:** signed in with the saved `storageState`, load macintacos/gh-prism-sandbox
   PR #3's `/changes`, scroll its threads in and out, and read their headers. Signed out,
   load a public pull request's `/files` with inline comments and read `#files`' threads,

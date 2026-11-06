@@ -2936,35 +2936,25 @@ test("a code-owning comment author's shield lists their files on hover and opens
     "https://github.com/o/r/pull/1",
     `<!doctype html>${readFixture("conversation-page.html")}${readFixture("conversation-comments.html")}`,
   );
-  for (const [path, fixture] of [
-    ["codeowners", "codeowners-sandbox.json"],
-    ["review_requests", "review-requests-sandbox.json"],
-  ] as const)
-    await context.route(`https://github.com/o/r/pull/1/page_data/${path}`, (route) =>
-      route.fulfill({ contentType: "application/json", body: readFixture(fixture) }),
-    );
+  await routeSandboxOwnership(context);
   await page.goto("https://github.com/o/r/pull/1");
-  const shield = page.locator(".gh-prism-comment-shield").first();
-  const popup = page.locator(".gh-prism-reviewer-files");
 
-  await shield.hover();
-  await expect(popup).toContainText("web/app.ts");
-
-  await shield.click();
-
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toContainText("web/app.ts");
-  expect(await dialog.evaluate((element) => element.matches(":modal"))).toBe(true);
+  await expectCommentShieldOpensFiles(page, { filterActions: 1 });
 });
 
-for (const { name, url, body, fixture, threads, classic } of [
+for (const { name, url, body, fixture, threads, ready, filterActions } of [
   {
     name: "the new",
     url: PR_URL,
     body: PR_BODY,
     fixture: "files-page-comments.html",
     threads: '[data-testid="diff-content"]',
-    classic: false,
+    ready: async (page: Page) => {
+      // The sections' load lays the diffs out anew, sliding the shield out from under the pointer.
+      await expect(page.locator(".gh-prism-section").first()).toBeVisible();
+      await revealSettled(page);
+    },
+    filterActions: 1,
   },
   {
     name: "the classic",
@@ -2972,51 +2962,33 @@ for (const { name, url, body, fixture, threads, classic } of [
     body: CLASSIC_BODY,
     fixture: "classic-files-page-comments.html",
     threads: "#files",
-    classic: true,
+    ready: async (page: Page) => {
+      // gh-prism's classic notice opens modal on load; its backdrop's corner closes it.
+      await expect(page.locator("dialog:modal")).toHaveCount(1);
+      await page.mouse.click(4, 4);
+      await expect(page.locator("dialog:modal")).toHaveCount(0);
+    },
+    filterActions: 0,
   },
-] as const)
+] as const) {
   test(`a code-owning review comment author's shield on ${name} Files changed page lists their files on hover and opens a modal on click`, async ({
     context,
     page,
   }) => {
     await routeMembers(context, "@excessive-dev/frontend", "team-members-sandbox.json");
     await serve(context, url, body);
-    for (const [path, json] of [
-      ["codeowners", "codeowners-sandbox.json"],
-      ["review_requests", "review-requests-sandbox.json"],
-    ] as const)
-      await context.route(`https://github.com/o/r/pull/1/page_data/${path}`, (route) =>
-        route.fulfill({ contentType: "application/json", body: readFixture(json) }),
-      );
+    await routeSandboxOwnership(context);
     await page.goto(url);
-    if (classic) {
-      // gh-prism's classic notice opens modal on load; its backdrop's corner closes it.
-      await expect(page.locator("dialog:modal")).toHaveCount(1);
-      await page.mouse.click(4, 4);
-      await expect(page.locator("dialog:modal")).toHaveCount(0);
-    } else {
-      // The sections' load lays the diffs out anew, sliding the shield out from under the pointer.
-      await expect(page.locator(".gh-prism-section").first()).toBeVisible();
-      await revealSettled(page);
-    }
+    await ready(page);
     // GitHub mounts a review thread after load.
     await page.evaluate(
       ([selector, html]) => document.querySelector(selector)?.insertAdjacentHTML("beforeend", html),
       [threads, readFixture(fixture)] as const,
     );
-    const shield = page.locator(".gh-prism-comment-shield").first();
-    const popup = page.locator(".gh-prism-reviewer-files");
 
-    await shield.hover();
-    await expect(popup).toContainText("web/app.ts");
-    await expect(popup.getByText("Show only their files")).toHaveCount(classic ? 0 : 1);
-
-    await shield.click();
-
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toContainText("web/app.ts");
-    expect(await dialog.evaluate((element) => element.matches(":modal"))).toBe(true);
+    await expectCommentShieldOpensFiles(page, { filterActions });
   });
+}
 
 test("a scrolled code owner reviewer's card keeps its hint flush with its bottom", async ({
   context,
@@ -3150,6 +3122,33 @@ const serveSandboxConversation = async (context: BrowserContext) => {
       body: readFixture("codeowners-sandbox.json"),
     }),
   );
+};
+const routeSandboxOwnership = async (context: BrowserContext) => {
+  for (const [path, fixture] of [
+    ["codeowners", "codeowners-sandbox.json"],
+    ["review_requests", "review-requests-sandbox.json"],
+  ] as const)
+    await context.route(`https://github.com/o/r/pull/1/page_data/${path}`, (route) =>
+      route.fulfill({ contentType: "application/json", body: readFixture(fixture) }),
+    );
+};
+/** Hovers the first comment shield, checks its popup, then clicks it open as a modal. */
+const expectCommentShieldOpensFiles = async (
+  page: Page,
+  { filterActions }: { filterActions: 0 | 1 },
+) => {
+  const shield = page.locator(".gh-prism-comment-shield").first();
+  const popup = page.locator(".gh-prism-reviewer-files");
+
+  await shield.hover();
+  await expect(popup).toContainText("web/app.ts");
+  await expect(popup.getByText("Show only their files")).toHaveCount(filterActions);
+
+  await shield.click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("web/app.ts");
+  expect(await dialog.evaluate((element) => element.matches(":modal"))).toBe(true);
 };
 /** Replaces the classic Reviewers list with a copy, as GitHub's `reviewers_updated` does. */
 const replaceReviewers = (page: Page) =>

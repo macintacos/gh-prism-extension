@@ -386,13 +386,16 @@ describe("content script", () => {
     loadCommentsFixture();
 
     await run();
+    const sidebar = byId("pr-file-tree");
+    sidebar.replaceWith(sidebar.cloneNode(true));
+    await afterMutations();
 
     expect(showReviewerFiles).toHaveBeenCalledOnce();
     const [doc, signal, options] = vi.mocked(showReviewerFiles).mock.calls[0] ?? [];
     expect(doc).toBe(document);
     expect(signal?.aborted).toBe(false);
     expect(options?.findAuthors).toBe(findFilesCommentAuthors);
-    expect(options?.filter).toBeDefined();
+    expect(options?.filter).toBe(vi.mocked(showVisit).mock.calls[0]?.[2].filter);
     expect(await options?.read()).toEqual({ codeOwners, prReviewers });
     expect(readCodeOwners).toHaveBeenCalledOnce();
     expect(readOwnership).not.toHaveBeenCalled();
@@ -699,6 +702,9 @@ describe("content script", () => {
       loadClassicCommentsFixture("");
 
       await run();
+      const toolbar = document.querySelector("#files_bucket .pr-toolbar");
+      toolbar?.replaceWith(toolbar.cloneNode(true));
+      await afterMutations();
 
       expect(showReviewerFiles).toHaveBeenCalledOnce();
       const [, , options] = vi.mocked(showReviewerFiles).mock.calls[0] ?? [];

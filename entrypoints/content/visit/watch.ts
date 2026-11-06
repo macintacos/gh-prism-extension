@@ -93,7 +93,7 @@ export const watchFilesPages = (
  * Calls `onVisit` for each visit to a pull request's classic Files changed page in `win`, as
  * `watchFilesPages` follows the new one, until `signal` aborts. `onVisit` returns the handler for
  * that page and each replacement GitHub renders during the visit, whose `signal` aborts once it is
- * replaced or removed.
+ * replaced or removed. Each visit ends once the pathname changes; a hash change never ends it.
  */
 export const watchClassicPages = (
   win: Window,

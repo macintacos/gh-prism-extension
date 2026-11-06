@@ -54,10 +54,10 @@ const OWN_SHIELD = "button[data-gh-prism-owner]";
  * code owner owns, and describes the shield with it. Opens from GitHub's shield, or from the one
  * this adds beside each PR reviewer who owns a changed file, or whom GitHub marks a code owner,
  * where GitHub draws none, or beside each comment author `findAuthors` finds who owns a changed
- * file: a PR reviewer as
- * their Reviewers row shows, anyone else looked up once through `teamMembers`. Mounts a
- * stylesheet in `doc`'s head. Opens nothing for a code owner who owns no changed file, unless
- * GitHub marks them one: then it says GitHub hides the team. Tab from the shield enters the popup.
+ * file: a PR reviewer as their Reviewers row shows, anyone else looked up once through
+ * `teamMembers`. Mounts a stylesheet in `doc`'s head. Opens nothing for a code owner who owns no
+ * changed file, unless GitHub marks them one: then it says GitHub hides the team. Tab from the
+ * shield enters the popup.
  * Closes 150 ms after the pointer leaves shield and popup, and at once on Escape, focus leaving
  * both, or a scroll outside it, moving focus it held to the shield. A click on the shield opens
  * the code owner details dialog instead, excerpting owning teams' members through `teamMembers`.
@@ -263,7 +263,8 @@ const SHIELD_LOOKS: Record<ReviewerListKind, ShieldLook> = {
 const COMMENT_SHIELD_LOOKS: Record<ReviewerListKind, ShieldLook> = {
   // GitHub's classic shield, without the Reviewers row's status-icon wrapper.
   classic: { classes: "gh-prism-comment-shield btn-link" },
-  // The overview row's invisible IconButton, at the title row's 20px.
+  // Primer's invisible IconButton at the ActivityHeader title row's 20px, on the overview and the
+  // new Files changed.
   overview: {
     classes:
       "gh-prism-comment-shield tw:inline-grid tw:place-items-center tw:size-5 tw:p-0 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-muted tw:cursor-pointer tw:hover:bg-[var(--control-transparent-bgColor-hover)] tw:focus-visible:outline-2 tw:focus-visible:-outline-offset-2 tw:focus-visible:outline-focus-outline",
