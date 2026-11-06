@@ -36,3 +36,8 @@ imports a sheet or writes `tw:` classes are in [`styling-rules.md`](styling-rule
   stubs the registry.
 - **Branch on `import.meta.env.BROWSER === "firefox"`, never `import.meta.env.FIREFOX`.**
   Vitest reads `FIREFOX` as the string `"false"`, which is truthy.
+- **Parse markup with `new DOMParser().parseFromString(html, "text/html")`.** AMO's linter
+  warns when non-literal markup is assigned to `innerHTML` or `outerHTML`, or passed to
+  `insertAdjacentHTML`, `createContextualFragment`, `setHTMLUnsafe`, or `document.write`,
+  but not to `DOMParser`, whose nodes survive adoption into a shadow root behind Firefox's
+  Xrays. `parseSpriteSheet` in the `@pierre/trees` patch is the pattern.
