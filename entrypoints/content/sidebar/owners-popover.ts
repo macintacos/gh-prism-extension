@@ -120,25 +120,29 @@ export function describePullRequest(
 ): Pick<OwnersDialogOptions, "title" | "summary" | "teams"> {
   const files = [...codeOwners].map(([path, { owners }]) => ({ path, owners }));
   const groups = byOwnerSet(files);
-  const unreviewed = prReviewers
-    ? groups.filter(({ owners }) => isUnreviewed(owners, prReviewers)).flatMap(({ paths }) => paths)
-        .length
+  const filesWithoutPrReviewer = prReviewers
+    ? groups
+        .filter(({ owners }) => noPrReviewerReviewsFor(owners, prReviewers))
+        .flatMap(({ paths }) => paths).length
     : 0;
 
   const list = groupList(doc, "", groups, identities, prReviewers);
   return {
     title: "Code owners of this pull request",
-    summary: unreviewed > 0 ? [unreviewedCallOut(doc, unreviewed), list] : [list],
+    summary:
+      filesWithoutPrReviewer > 0
+        ? [noPrReviewerCallOut(doc, filesWithoutPrReviewer), list]
+        : [list],
     teams: owningTeams(files.flatMap(({ owners }) => owners)),
   };
 }
 
 /** Whether `owners` has owners and no PR reviewer in `reviewers` reviews for any of them. */
-const isUnreviewed = (owners: readonly CodeOwner[], reviewers: readonly PrReviewer[]) =>
+const noPrReviewerReviewsFor = (owners: readonly CodeOwner[], reviewers: readonly PrReviewer[]) =>
   owners.length > 0 && !owners.some((owner) => reviewers.some((r) => reviewsFor(r, owner)));
 
 /** The line counting the `count` files no PR reviewer owns, above the groups. */
-function unreviewedCallOut(doc: Document, count: number): HTMLElement {
+function noPrReviewerCallOut(doc: Document, count: number): HTMLElement {
   return el(
     doc,
     "p",
@@ -224,8 +228,8 @@ function ownersHeading(
   reviewers?: readonly PrReviewer[],
 ): HTMLElement {
   const marked = (owner: CodeOwner) => {
-    const who = reviewers ? reviewingFor(reviewers, owner) : [];
-    return who.length === 0 ? [] : [reviewerMark(doc, owner, who)];
+    const reviewing = reviewers ? reviewingFor(reviewers, owner) : [];
+    return reviewing.length === 0 ? [] : [reviewerMark(doc, owner, reviewing)];
   };
 
   // A 24px line, the avatars' height, so a wrapped heading's lines stay evenly spaced.
@@ -241,7 +245,7 @@ function ownersHeading(
             ownerIdentity(doc, owner, identities),
             ...marked(owner),
           ]),
-          ...(reviewers && isUnreviewed(owners, reviewers) ? [unreviewedTag(doc)] : []),
+          ...(reviewers && noPrReviewerReviewsFor(owners, reviewers) ? [noPrReviewerTag(doc)] : []),
         ]
       : ["No code owner"]),
   );
@@ -279,7 +283,7 @@ function reviewerMark(
 }
 
 /** The tag after a set's owners when no PR reviewer reviews for any of them. */
-function unreviewedTag(doc: Document): HTMLElement {
+function noPrReviewerTag(doc: Document): HTMLElement {
   const tag = el(
     doc,
     "span",

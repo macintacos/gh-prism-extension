@@ -172,11 +172,11 @@ export function showReviewerFiles(
   const addEverySpot = (
     { rows, authors, headings }: OwnerSpots,
     settled: Ownership,
-    pr: OwnedPullRequest | undefined,
+    ownedPr: OwnedPullRequest | undefined,
   ) => {
     addShields(rows, settled);
     addAuthorShields(authors, settled);
-    if (pr) addPrOwnersButtons(headings);
+    if (ownedPr) addPrOwnersButtons(headings);
   };
   followOwnerSpots(
     doc,

@@ -86,7 +86,12 @@ export function prOwnersPressGuard(doc: Document, visit: AbortSignal): PrOwnersP
 export function showPrOwnersButton(
   anchor: HTMLElement,
   signal: AbortSignal,
-  { codeOwners, prReviewers, guard, ...reads }: PrOwnersReads & { guard: PrOwnersPressGuard },
+  {
+    codeOwners,
+    prReviewers,
+    guard,
+    ...dialogOptions
+  }: PrOwnersReads & { guard: PrOwnersPressGuard },
 ): void {
   void Promise.all([codeOwners, prReviewers]).then(([owners, reviewers]) => {
     const ownership = { codeOwners: owners, prReviewers: reviewers };
@@ -96,7 +101,7 @@ export function showPrOwnersButton(
     const button = prOwnersButton(doc);
     const open = () =>
       openPrOwners(doc, ownership, {
-        ...reads,
+        ...dialogOptions,
         returnFocus: () => doc.querySelector<HTMLElement>(TOOLBAR_BUTTON)?.focus(),
         signal,
       });
