@@ -222,8 +222,8 @@ install through `patchedDependencies` in [`package.json`](../package.json):
   a checkbox beside a row whose decoration asks for one, and a code owners shield on a row
   whose decoration asks for one (over a file's icon, at a folder row's end). It also
   renders a flattened row's folders as whole units around a hidden `…`, and gives every
-  row an `aria-hidden` copy of its full name. It parses icon sprite sheets with
-  `DOMParser`, not `innerHTML`, which AMO's linter flags.
+  row an `aria-hidden` copy of its full name. It parses icon sprite sheets and the header
+  slot's markup with `DOMParser`, not `innerHTML`, which AMO's linter flags.
 - `mdast-util-from-markdown` binds micromark's document tokenizer to a local before
   calling its `write`. AMO's linter flags any `.write()` call whose object's source text
   contains `document`, so it reads `parse(options).document().write(…)` as a DOM
