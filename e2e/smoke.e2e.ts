@@ -82,17 +82,20 @@ const launchChromium = (profile: string) =>
   });
 
 // playwright-webextext installs the build as a temporary add-on over Firefox's remote debugging
-// protocol, and grants its content scripts' origins in the profile before launch.
+// protocol, and grants its content scripts' origins in the profile before launch. Its background
+// fetches skip context.route, so they go to a proxy on a port nothing listens on and fail at once,
+// rather than waiting on the real github.com.
 const launchFirefox = (profile: string) =>
-  withExtension(firefox, FIREFOX_EXTENSION).launchPersistentContext(profile, {});
+  withExtension(firefox, FIREFOX_EXTENSION).launchPersistentContext(profile, {
+    proxy: { server: "http://127.0.0.1:9" },
+  });
 
 const test = base.extend<{ context: BrowserContext }>({
   context: async ({ browserName }, use) => {
     const profile = await mkdtemp(join(tmpdir(), "gh-prism-e2e-"));
     const context = await (browserName === "firefox" ? launchFirefox : launchChromium)(profile);
-    // In Chromium, also answers the service worker's fetches, so intent settles offline; Firefox's
-    // background fetches skip context.route and reach the real github.com. Each serve() registers
-    // later and wins.
+    // In Chromium, also answers the service worker's fetches, so intent settles offline. Each
+    // serve() registers later and wins.
     await context.route("https://github.com/**", (route) => route.fulfill({ status: 404 }));
 
     await use(context);
@@ -609,9 +612,11 @@ test("a commit's Older and Newer hold their place from its first frame, and step
     (url) => url.pathname === "/search",
     async (route, request) => {
       const afterMs = Date.now() - loadedAt;
+      // Only the first search reads the page: a later one can come as the test ends and closes it.
+      const first = searched.length === 0;
       searched.push({
         afterMs,
-        sectionsFirst: (await page.locator(".gh-prism-section").count()) > 0,
+        sectionsFirst: first && (await page.locator(".gh-prism-section").count()) > 0,
       });
       await released;
       const parent = new URL(request.url()).searchParams.get("q")?.split("parent:")[1];
@@ -851,6 +856,8 @@ test("the side switch docks the sidebar on the other side and remembers it", asy
   await page.goto(COMMIT_URL);
   const html = page.locator("html");
   await expect(html).toHaveAttribute("data-gh-prism-side", "right");
+  // The unstyled fixture stacks the sidebar above the switch, so the sections landing move it.
+  await expect(html).not.toHaveAttribute("data-gh-prism-diffs", "covered");
   await page.getByRole("button", { name: "Move file tree to the left" }).click();
   await expect(html).toHaveAttribute("data-gh-prism-side", "left");
   // The side saves asynchronously; reload until a load reads it back.

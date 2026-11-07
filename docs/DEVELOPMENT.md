@@ -88,10 +88,11 @@ as a temporary add-on through playwright-webextext. A test skips in Firefox only
 harness limit, something Playwright can't reach in Firefox. Two limits skip four tests.
 Playwright's Firefox exposes no service worker, so the tests that read gh-prism's session
 rules or seed its intent cache skip. It also can't route an add-on's background fetch, so
-the two commit tests that route the commit's `.diff` skip. Those background fetches reach
-the real github.com instead. Every other Firefox failure is fixed, never skipped. The
-smoke suite routes GitHub pages to local fixtures, so it needs no sign-in, and the
-Chromium run needs no network.
+the two commit tests that route the commit's `.diff` skip. Firefox sends those background
+fetches to a proxy on a port nothing listens on, so they fail at once instead of reaching
+the real github.com. Every other Firefox failure is fixed, never skipped. The smoke suite
+routes GitHub pages to local fixtures, so it needs no sign-in, and neither run needs the
+network.
 
 The rules for writing tests are in
 [`docs/agents/testing-rules.md`](agents/testing-rules.md).
