@@ -30,7 +30,6 @@ import { type LoadingView, loadingView } from "../ui/loading-view";
 import type { LandingView } from "../visit/land";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./order.css?inline";
-import { holdHashLine, retakeHash } from "./reveal";
 
 const STAGGER_MS = 50;
 const ANIMATION_MS = 280;
@@ -198,10 +197,10 @@ interface DiffOrder {
 }
 
 /**
- * Orders `page`'s diffs, and covers them while asked to, until `signal` aborts. The URL's line is
- * held, and its hash restored, until `visit` aborts, since GitHub may swap the page's markup first.
+ * Orders `page`'s diffs, and covers them while asked to, until `signal` aborts, calling
+ * `landHash` at each reveal.
  */
-function orderDiffs(page: FilesPage, signal: AbortSignal, visit: AbortSignal): DiffOrder {
+function orderDiffs(page: FilesPage, signal: AbortSignal, landHash: () => void): DiffOrder {
   const doc = page.diffs.ownerDocument;
   const root = doc.documentElement;
   const style = Object.assign(doc.createElement("style"), { textContent: SHEET });
@@ -225,9 +224,7 @@ function orderDiffs(page: FilesPage, signal: AbortSignal, visit: AbortSignal): D
     loader.remove();
     loader = undefined;
     root.dataset.ghPrismDiffs = "revealed";
-    // Before the retake, which blanks the hash for a task.
-    holdHashLine(doc, { signal: visit });
-    if (doc.defaultView) retakeHash(doc.defaultView, { signal: visit });
+    landHash();
     timer = setTimeout(() => delete root.dataset.ghPrismDiffs, REVEAL_MS);
   };
 
@@ -275,15 +272,15 @@ const diffSkeleton = (doc: Document) =>
 
 /**
  * Orders `page`'s diffs as the sections list their files until `signal` aborts, covering them
- * with a progress bar while intent is pending, if their order can follow. Once revealed, the URL's
- * line is held in view until `visit` aborts.
+ * with a progress bar while intent is pending, if their order can follow, and calling `landHash`
+ * once revealed.
  */
 export function showDiffOrder(
   page: FilesPage,
   signal: AbortSignal,
-  { visit }: { visit: AbortSignal },
+  { landHash }: { landHash: () => void },
 ): LandingView {
-  const order = orderDiffs(page, signal, visit);
+  const order = orderDiffs(page, signal, landHash);
   let loading: LoadingView | undefined;
   return {
     pending() {

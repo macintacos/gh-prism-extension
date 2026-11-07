@@ -62,8 +62,7 @@ function checkOrder(sections: readonly FileSection[]): void {
 function diffOrder(count: number, entrySize: number) {
   const files = syntheticFiles(count);
   const page = mountPage(files, entrySize);
-  const { signal } = new AbortController();
-  const view = showDiffOrder(page, signal, { visit: signal });
+  const view = showDiffOrder(page, new AbortController().signal, { landHash: () => {} });
   const sections = sectionsOf(landingOf(NOTHING_PLACED), changedFiles(document, files, "modified"));
   settle();
   const firstEntry = page.diffs.querySelector('[role="region"]')?.parentElement;

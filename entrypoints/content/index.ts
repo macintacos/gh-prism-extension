@@ -56,6 +56,7 @@ import {
   showConversationButton,
 } from "./conversation/panel";
 import { showReviewerFiles } from "./conversation/reviewer-files";
+import { hashLanding } from "./diffs/reveal";
 import { visitViewed } from "./diffs/viewed";
 import { findCommentAuthors, findFilesCommentAuthors, followRightPanel } from "./files-page";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
@@ -207,6 +208,7 @@ export default defineContentScript({
                 })
               : undefined;
           const prOwnersGuard = panel && prOwnersPressGuard(document, visit);
+          const landHash = hashLanding(document, visit);
           return (page, signal) => {
             const owner = route.diff.kind === "pr" ? ownerOf(location.search) : undefined;
             showReportLink(page, signal, reportOptions);
@@ -222,7 +224,7 @@ export default defineContentScript({
               owner,
               filter,
               whatsNew: whatsNewForPage?.(),
-              visit,
+              landHash,
             });
             showCommitMessage(page, signal, {
               afterSections: afterLanding(intent),

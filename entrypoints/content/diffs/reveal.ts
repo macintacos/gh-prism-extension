@@ -1,6 +1,7 @@
 /**
  * Brings a file's diff, or a line in it, into view, and glides the window there instead of
- * letting it jump, and waits on the diff list for what a click brings.
+ * letting it jump, and waits on the diff list for what a click brings, and holds the URL's line
+ * in view once the diffs show.
  */
 
 import {
@@ -82,11 +83,26 @@ export function retakeHash(win: Window, { signal }: { signal: AbortSignal }): vo
   signal.addEventListener("abort", () => win.clearTimeout(timer), { once: true });
 }
 
+/**
+ * For the whole of `visit`, lands the URL's hash at the first reveal it is told of: holds the line
+ * it names in view and has GitHub take it again. Later reveals in the visit change nothing.
+ */
+export function hashLanding(doc: Document, visit: AbortSignal): () => void {
+  let landed = false;
+  return () => {
+    if (landed) return;
+    landed = true;
+    // Before the retake, which blanks the hash for a task.
+    holdHashLine(doc, { signal: visit });
+    if (doc.defaultView) retakeHash(doc.defaultView, { signal: visit });
+  };
+}
+
 const USER_INPUT = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
 
 /**
  * Centres the line the URL's hash names whenever it is out of view: now, and on each scroll or
- * change to the diffs after, until the user scrolls, clicks, or types, `REVEAL_TIMEOUT_MS`
+ * change to the page after, until the user scrolls, clicks, or types, `REVEAL_TIMEOUT_MS`
  * passes, or `signal`, the visit's, aborts. GitHub scrolls to a line once, as it mounts, so it
  * misses one the cover hid. Its client mount also replaces `doc`'s Files markup and, on a commit
  * page, scrolls to the top, so the hold follows whatever markup `doc` shows.
@@ -101,7 +117,7 @@ export function holdHashLine(doc: Document, { signal }: { signal: AbortSignal })
   const timer = win.setTimeout(release, REVEAL_TIMEOUT_MS);
   holding.signal.addEventListener("abort", () => win.clearTimeout(timer));
   signal.addEventListener("abort", release, { signal: holding.signal });
-  // ponytail: a drag on the window's scrollbar fires none of these, so one in the first 5 s is
+  // ponytail: a drag on the window's scrollbar fires none of these, so one during the hold is
   // pulled back to the line; end the hold on it too if anyone notices.
   for (const type of USER_INPUT)
     win.addEventListener(type, release, { capture: true, passive: true, signal: holding.signal });

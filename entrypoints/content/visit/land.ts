@@ -208,7 +208,7 @@ const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
  * can't, a user keeps the files CODEOWNERS names them for and those of the owning teams whose
  * members list them. `whatsNew`, when given, opens the sidebar with its block. `filter`, when
  * given, makes each code owner's name in the sidebar's popovers and dialogs filter by that owner.
- * `visit` ends the visit, which outlives the page when GitHub swaps the page's markup in anew.
+ * `landHash`, the visit's, lands the URL's hash once the diffs are revealed.
  */
 export function showVisit(
   page: FilesPage,
@@ -224,7 +224,7 @@ export function showVisit(
     owner,
     filter,
     whatsNew,
-    visit,
+    landHash,
   }: {
     intent: PendingIntent;
     diffstat: DiffstatOptions;
@@ -236,7 +236,7 @@ export function showVisit(
     owner?: string;
     filter?: OwnerFilter;
     whatsNew?: WhatsNew;
-    visit: AbortSignal;
+    landHash: () => void;
   },
 ): void {
   const sidebar = showSections(page, signal, { teamMembers, teamAvatar, filter });
@@ -246,7 +246,7 @@ export function showVisit(
   if (whatsNew) sidebar.root.prepend(whatsNewBlock(page.sidebar.ownerDocument, whatsNew));
   const views = [
     sidebar,
-    showDiffOrder(page, signal, { visit }),
+    showDiffOrder(page, signal, { landHash }),
     followFileKeys(page, signal),
     showDiffstat(headerOf(page), { ...diffstat, signal }),
     followOnScreen(page, sidebar.onScreen, signal),

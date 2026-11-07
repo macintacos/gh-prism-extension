@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import {
+  hashLanding,
   holdHashLine,
   revealDiff,
   revealDiffLine,
@@ -690,6 +691,17 @@ describe("holdHashLine", () => {
     expect(scroll).toHaveBeenCalledWith(CENTRED);
   });
 
+  it("centres a range's first line when it is out of view", () => {
+    history.replaceState(null, "", `#${LINE}-R33`);
+    const row = rowOf(LINE);
+    place(row, 5_000);
+    const scroll = centring(row);
+
+    hold();
+
+    expect(scroll).toHaveBeenCalledWith(CENTRED);
+  });
+
   it("leaves a line already in view", () => {
     const row = rowOf(LINE);
     place(row, 200);
@@ -812,6 +824,49 @@ describe("holdHashLine", () => {
     hold();
 
     expect(scroll).not.toHaveBeenCalled();
+  });
+});
+
+describe("hashLanding", () => {
+  const LINE = `${LAUNCHER_DIFF}R31`;
+  let visit: AbortController;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    loadCommitFixture();
+    visit = new AbortController();
+    history.replaceState(null, "", `#${LINE}`);
+  });
+
+  afterEach(async () => {
+    visit.abort();
+    await expectNoLeakedTimers(visit, foundPage().diffs);
+    history.replaceState(null, "", location.pathname);
+  });
+
+  it("holds once a visit, though a later page reveals again", async () => {
+    const landHash = hashLanding(document, visit.signal);
+    landHash();
+    await vi.advanceTimersByTimeAsync(0);
+    window.dispatchEvent(new Event("keydown"));
+    const row = document.querySelector(`[data-line-anchor="${LINE}"]`)?.closest("tr");
+    if (!row) throw new Error(`fixture has no row for ${LINE}`);
+    vi.spyOn(row, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 5_000, 100, 20));
+    const scroll = vi.spyOn(row, "scrollIntoView").mockImplementation(() => {});
+
+    landHash();
+
+    expect(scroll).not.toHaveBeenCalled();
+  });
+
+  it("has GitHub take the hash again at the first reveal", async () => {
+    const landHash = hashLanding(document, visit.signal);
+    landHash();
+    expect(location.hash).toBe("");
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(location.hash).toBe(`#${LINE}`);
   });
 });
 

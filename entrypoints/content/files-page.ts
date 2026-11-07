@@ -934,14 +934,25 @@ export function observeDiffs(
 /** Whether `anchor` takes the form of GitHub's anchor for a file's diff. */
 export const isDiffAnchor = (anchor: string): boolean => /^diff-[0-9a-f]+$/.test(anchor);
 
-/** Whether `anchor` takes the form of GitHub's anchor for a line in a file's diff: `diff-…R12`. */
-export const isLineAnchor = (anchor: string): boolean => /^diff-[0-9a-f]+[LR]\d+$/.test(anchor);
+// The capture is the first line's own anchor.
+const LINE_ANCHOR = /^(diff-[0-9a-f]+[LR]\d+)(?:-[LR]\d+)?$/;
 
-/** The row of the mounted line `anchor` names, or `null` when none is or `anchor` isn't a line's. */
-export const lineRowOfAnchor = (page: FilesPage, anchor: string): HTMLTableRowElement | null =>
-  isLineAnchor(anchor)
-    ? (page.diffs.querySelector(`[data-line-anchor="${anchor}"]`)?.closest("tr") ?? null)
+/**
+ * Whether `anchor` takes the form of GitHub's anchor for a line in a file's diff, `diff-…R12`, or
+ * for a range of lines, `diff-…R12-R14`.
+ */
+export const isLineAnchor = (anchor: string): boolean => LINE_ANCHOR.test(anchor);
+
+/**
+ * The row of the mounted line `anchor` names, a range's first, or `null` when none is mounted or
+ * `anchor` isn't a line's.
+ */
+export const lineRowOfAnchor = (page: FilesPage, anchor: string): HTMLTableRowElement | null => {
+  const line = LINE_ANCHOR.exec(anchor)?.[1];
+  return line
+    ? (page.diffs.querySelector(`[data-line-anchor="${line}"]`)?.closest("tr") ?? null)
     : null;
+};
 
 /** The `diff-…` anchor `link` points at: it names the file's diff and prefixes its line anchors. */
 export const anchorOf = (link: HTMLAnchorElement): string | undefined =>

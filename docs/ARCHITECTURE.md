@@ -794,9 +794,12 @@ sidebar.
 file's diff, or a line in it, into view. On a pull request it clicks the native row's link
 and glides the window to where GitHub scrolls. On a commit it follows the link's hash
 instead, since a click there would let GitHub's router undo the scroll. Once the diff
-order lifts its cover, `holdHashLine` scrolls the URL's line into view and holds it there
-until the user scrolls, since GitHub lands a line link only once, as it mounts, while the
-cover still hides the line.
+order first lifts its cover in a visit, `hashLanding` has `holdHashLine` scroll the URL's
+line, or a range's first line, into view and hold it there, since GitHub lands a line link
+only once, as it mounts, while the cover still hides the line. The hold lasts the visit,
+not the page: on a commit page GitHub's client mount replaces the markup and scrolls to
+the top after the cover lifts, so the hold re-finds the line in whatever markup shows,
+until the user scrolls, clicks, or types, or 5 s pass.
 
 ## Styling
 

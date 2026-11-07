@@ -399,7 +399,7 @@ describe("the diffs beside the sections", () => {
       const page = findFilesPage(document);
       if (!page) throw new Error("fixture lacks the Files changed markup");
       const controller = new AbortController();
-      showDiffOrder(page, controller.signal, { visit: controller.signal }).pending?.();
+      showDiffOrder(page, controller.signal, { landHash: () => {} }).pending?.();
 
       expect(diffsProgressBar()).not.toBeNull();
       expect(sheetsStyling("gh-prism-diff-card")).toHaveLength(1);
@@ -480,7 +480,7 @@ describe("the diffs beside the sections", () => {
       expect(scroll).toHaveBeenCalledWith({ block: "center", behavior: "instant" });
     });
 
-    it("hold the line across the render GitHub swaps in once intent has landed", async () => {
+    it("hold the line across the page GitHub swaps in once intent has landed", async () => {
       history.replaceState(null, "", "#diff-0a08R2");
       const pending = pendingIntent();
       remountWith(shareIntent(pending.intent));
@@ -499,20 +499,48 @@ describe("the diffs beside the sections", () => {
       expect(scroll).toHaveBeenCalledWith({ block: "center", behavior: "instant" });
     });
 
-    it("restore the URL's hash when GitHub swaps the render in before the retake does", async () => {
+    it("restore the URL's hash when GitHub swaps the page in before the retake does", async () => {
       history.replaceState(null, "", "#diff-0a08R2");
+      let swaps = 0;
       const swapOnBlank = () => {
-        if (!location.hash) queueMicrotask(rerender);
+        if (location.hash) return;
+        window.removeEventListener("hashchange", swapOnBlank);
+        swaps++;
+        queueMicrotask(rerender);
       };
-      window.addEventListener("hashchange", swapOnBlank, { once: true });
+      window.addEventListener("hashchange", swapOnBlank);
       const pending = pendingIntent();
       remountWith(shareIntent(pending.intent));
       pending.resolve(landedWith());
       await afterDebounce();
+      window.removeEventListener("hashchange", swapOnBlank);
       const hash = location.hash;
       history.replaceState(null, "", location.pathname);
 
+      expect(swaps).toBe(1);
       expect(hash).toBe("#diff-0a08R2");
+    });
+
+    it("hold the line once a visit, though an owner filter covers and reveals the next page", async () => {
+      history.replaceState(null, "", "#diff-0a08R2");
+      remountWith(() => Promise.resolve(landedWith()), undefined, {
+        owner: "octocat",
+        codeOwners: Promise.resolve(new Map()),
+      });
+      await afterDebounce();
+      window.dispatchEvent(new Event("keydown"));
+
+      const { diffs } = foundPage();
+      diffs.replaceWith(diffs.cloneNode(true));
+      rerender();
+      const row = mountLineRow();
+      vi.spyOn(row, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 5_000, 100, 20));
+      const scroll = vi.spyOn(row, "scrollIntoView").mockImplementation(() => {});
+      await afterDebounce();
+      window.dispatchEvent(new Event("scroll"));
+      history.replaceState(null, "", location.pathname);
+
+      expect(scroll).not.toHaveBeenCalled();
     });
 
     it("stay revealed until the last section's files have dropped in", async () => {
@@ -599,7 +627,7 @@ describe("the diffs of files the filter leaves out", () => {
     const page = findFilesPage(document);
     if (!page) throw new Error("fixture lacks the Files changed markup");
     controller = new AbortController();
-    order = showDiffOrder(page, controller.signal, { visit: controller.signal });
+    order = showDiffOrder(page, controller.signal, { landHash: () => {} });
   });
   afterEach(() => controller.abort());
 

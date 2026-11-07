@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, vi } from "vitest";
+import { hashLanding } from "../../entrypoints/content/diffs/reveal";
 import { visitViewed } from "../../entrypoints/content/diffs/viewed";
 import { findFilesPage } from "../../entrypoints/content/files-page";
 import type { DiffstatOptions } from "../../entrypoints/content/header/diffstat-view";
@@ -82,6 +83,7 @@ export function mountsVisit() {
     visit.abort();
     visit = new AbortController();
     const viewed = visitViewed(undefined);
+    const landHash = hashLanding(document, visit.signal);
     render = () => {
       controller = new AbortController();
       const page = findFilesPage(document);
@@ -96,13 +98,16 @@ export function mountsVisit() {
         teamMembers,
         teamAvatar: async () => undefined,
         filter,
-        visit: visit.signal,
+        landHash,
       });
     };
     render();
   };
 
-  /** Ends the mounted page's render and mounts the next on the same visit, as GitHub's mount does. */
+  /**
+   * Ends the mounted page and mounts the next on the same visit, as the watcher does when GitHub
+   * replaces the markup; swap the markup first when the test needs it.
+   */
   const rerender = () => {
     controller.abort();
     render();
