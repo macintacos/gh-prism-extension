@@ -29,8 +29,10 @@ import {
   followOverlay,
   followOwnerSpots,
   headerOf,
+  isLineAnchor,
   isPublicRepo,
   isSignedIn,
+  lineRowOfAnchor,
   mountedDiffs,
   observeDiffs,
   observeTree,
@@ -1406,5 +1408,47 @@ describe("findHeaderPage", () => {
     document.body.innerHTML = "<main></main>";
 
     expect(findHeaderPage(document)).toBeUndefined();
+  });
+});
+
+describe("isLineAnchor", () => {
+  it.each(["diff-0a08R2", "diff-0a08L12", "diff-0a08R2-R4", "diff-0a08L10-R12"])(
+    "accepts the line anchor %s",
+    (anchor) => {
+      expect(isLineAnchor(anchor)).toBe(true);
+    },
+  );
+
+  it.each([
+    "diff-0a08",
+    "diff-0a08R",
+    "diff-XYZR2",
+    'diff-0a08R2"], *',
+    "diff-0a08R2-",
+    "diff-0a08R2-R",
+    'diff-0a08R2-R4"], *',
+  ])("rejects %s", (anchor) => {
+    expect(isLineAnchor(anchor)).toBe(false);
+  });
+});
+
+describe("lineRowOfAnchor", () => {
+  beforeEach(() => {
+    loadCommitFixture();
+  });
+
+  it("finds the row of the line the anchor names", () => {
+    const row = lineRowOfAnchor(foundPage(), `${LAUNCHER_DIFF}R31`);
+    expect(row?.tagName).toBe("TR");
+    expect(row?.textContent).toBe("31");
+  });
+
+  it("finds the row of a range's first line", () => {
+    const row = lineRowOfAnchor(foundPage(), `${LAUNCHER_DIFF}R31-R33`);
+    expect(row?.textContent).toBe("31");
+  });
+
+  it("finds nothing for a malformed anchor, without throwing", () => {
+    expect(lineRowOfAnchor(foundPage(), `${LAUNCHER_DIFF}R31"], *`)).toBeNull();
   });
 });

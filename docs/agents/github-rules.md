@@ -201,7 +201,14 @@ on a private one.
 - **Never scroll the window before GitHub mounts.** On mount GitHub's router calls
   `scrollTo(0, 0)`, which undoes an early scroll. Instead, `retakeHash` in
   [`diffs/reveal.ts`](../../entrypoints/content/diffs/reveal.ts) re-announces the hash so
-  GitHub lands deep links itself.
+  GitHub can land a deep link again.
+- **Land a line link yourself after the cover lifts.** GitHub scrolls to a deep link once,
+  as it mounts, measuring a target gh-prism's cover may hide, and the pull request Files
+  view ignores a later `hashchange`. So `retakeHash` lands a deep link only on commit
+  pages, and `holdHashLine` in the same file lands a line link, or a range's first line,
+  itself and holds it until the user takes the scroll. On a commit page GitHub's client
+  mount replaces the Files markup and scrolls to the top when the window has scrolled, so
+  the hold lasts the visit, not the page.
 - **Reorder diffs with CSS `order`.** GitHub's tree click scrolls by
   `getBoundingClientRect`, so it stays correct after a CSS reorder.
 - **Expect GitHub to bind `j` and `k` to files only in single-file mode.** They are the
@@ -214,11 +221,13 @@ on a private one.
 - **Re-check:** load a pull request with few files, and a public commit touching more than
   40 files, and inspect the list's markup. Search the page's embedded data for
   `virtualizeDiffEntries`, and watch the network panel for `diff_entries` requests while
-  scrolling. Read the mount-time scrolls from GitHub's bundle. Grep the bundle for
-  `"data-hotkey":"j"` and read the `isSingleFileMode` gate around it. On the code-owners
-  sandbox's PR #3, hide a row with `[data-path-digest=…] { display: none !important }` and
-  scroll the list for gaps; on PR #1, hide a region alone, then its entry, and measure the
-  gap each leaves.
+  scrolling. Read the mount-time scrolls from GitHub's bundle. On a pull request's Files
+  changed opened at a line link, dispatch `hashchange` after load and confirm nothing
+  scrolls; grep the commit page's bundle for the mount effect that calls `scrollTo(0, 0)`
+  when `scrollY > 0`. Grep the bundle for `"data-hotkey":"j"` and read the
+  `isSingleFileMode` gate around it. On the code-owners sandbox's PR #3, hide a row with
+  `[data-path-digest=…] { display: none !important }` and scroll the list for gaps; on PR
+  #1, hide a region alone, then its entry, and measure the gap each leaves.
 
 ## Sticky headers
 

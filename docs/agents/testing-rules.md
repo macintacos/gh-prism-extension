@@ -110,6 +110,18 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "a code-owning review comment author's
   shield on the new Files changed page lists their files on hover and opens a modal on
   click" awaits a `.gh-prism-section` and `revealSettled` in its `ready` first.
+- **Let the cover lift before a test clicks a control in the diffs' toolbar.** A routed
+  fixture loads no GitHub sheet, so the sidebar stacks above that toolbar, and the
+  sections landing push it down. A click that comes between Playwright's hit test and the
+  landing lands on whatever moved under the pointer.
+  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "the side switch docks the sidebar on the
+  other side and remembers it" waits for `data-gh-prism-diffs` to leave `covered` first.
+- **Read the page in a route handler only for the request the test measures.** The page
+  can send another request as the test's last step settles, whose handler then runs after
+  the test has closed the page, and a page read there fails the test. A handler that only
+  fulfills is safe, since Playwright drops a fulfill once the page closes.
+  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "a commit's Older and Newer hold their
+  place from its first frame…" reads the page for the first search only.
 - **After a test scrolls the sidebar, wait for the tree to take pointer events before it
   clicks a row.** @pierre/trees sets `pointer-events: none` on the tree while it scrolls,
   so a click that comes too soon is intercepted and retried, with the same forced scroll.
@@ -156,10 +168,13 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   is blurred. Removing the focused element fires no `focusout`. Tab enters any scroll
   container, where Chromium enters only one with no control inside.
 - **Expect Firefox to route only the page's own requests.** `context.route` never sees an
-  add-on background script's fetch, such as the commit's `.diff`, which reaches real
-  github.com instead. A content script's fetch is routed, but Firefox holds it to the
-  page's CSP, so a routed page's policy keeps GitHub's `connect-src 'self'`. A test that
-  routes such a fetch skips in Firefox with `BACKGROUND_ROUTE_LIMIT`.
+  add-on background script's fetch, such as the commit's `.diff`. The `context` fixture
+  launches Firefox with a proxy on a port nothing listens on, so such a fetch fails at
+  once, as Chromium's routed 404 does, instead of waiting on the real github.com and
+  failing any test that waits for intent when github.com is slow. Never drop that proxy. A
+  content script's fetch is routed, but Firefox holds it to the page's CSP, so a routed
+  page's policy keeps GitHub's `connect-src 'self'`. A test that routes such a fetch skips
+  in Firefox with `BACKGROUND_ROUTE_LIMIT`.
 - **Keep a live check's screenshots outside `test-results/`.** Playwright empties it at
   the start of every run.
 - **Keep each end-to-end test independent of the others.** `playwright.config.ts` sets
