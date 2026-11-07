@@ -112,15 +112,15 @@ export function holdHashLine(doc: Document, { signal }: { signal: AbortSignal })
   const anchor = win?.location.hash.slice(1) ?? "";
   if (!win || !isLineAnchor(anchor) || signal.aborted) return;
 
-  const holding = new AbortController();
-  const release = () => holding.abort();
+  const hold = new AbortController();
+  const release = () => hold.abort();
   const timer = win.setTimeout(release, REVEAL_TIMEOUT_MS);
-  holding.signal.addEventListener("abort", () => win.clearTimeout(timer));
-  signal.addEventListener("abort", release, { signal: holding.signal });
+  hold.signal.addEventListener("abort", () => win.clearTimeout(timer));
+  signal.addEventListener("abort", release, { signal: hold.signal });
   // ponytail: a drag on the window's scrollbar fires none of these, so one during the hold is
   // pulled back to the line; end the hold on it too if anyone notices.
   for (const type of USER_INPUT)
-    win.addEventListener(type, release, { capture: true, passive: true, signal: holding.signal });
+    win.addEventListener(type, release, { capture: true, passive: true, signal: hold.signal });
 
   const land = () => {
     const page = findFilesPage(doc);
@@ -128,8 +128,8 @@ export function holdHashLine(doc: Document, { signal }: { signal: AbortSignal })
     if (page && row && !inView(page, row))
       row.scrollIntoView({ block: "center", behavior: "instant" });
   };
-  win.addEventListener("scroll", land, { passive: true, signal: holding.signal });
-  observeDiffs(doc.body, land, { signal: holding.signal });
+  win.addEventListener("scroll", land, { passive: true, signal: hold.signal });
+  observeDiffs(doc.body, land, { signal: hold.signal });
   land();
 }
 
