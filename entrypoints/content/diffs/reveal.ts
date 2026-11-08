@@ -1,14 +1,19 @@
 /**
  * Brings a file's diff, or a line in it, into view, and glides the window there instead of
- * letting it jump, and waits on the diff list for what a click brings.
+ * letting it jump, and waits on the diff list for what a click brings, and holds the URL's line
+ * in view once the diffs show.
  */
 
 import {
+  coveredTop,
   expandButtonOf,
   expandedDiff,
   type FilesPage,
   findDiff,
+  findFilesPage,
+  isLineAnchor,
   lineRowOf,
+  lineRowOfAnchor,
   loadDiffButtonOf,
   observeDiffs,
 } from "../files-page";
@@ -76,6 +81,62 @@ export function retakeHash(win: Window, { signal }: { signal: AbortSignal }): vo
   replaceHash(win, "");
   const timer = win.setTimeout(() => replaceHash(win, hash));
   signal.addEventListener("abort", () => win.clearTimeout(timer), { once: true });
+}
+
+/**
+ * For the whole of `visit`, lands the URL's hash at the first reveal it is told of: holds the line
+ * it names in view and has GitHub take it again. Later reveals in the visit change nothing.
+ */
+export function hashLanding(doc: Document, visit: AbortSignal): () => void {
+  let landed = false;
+  return () => {
+    if (landed) return;
+    landed = true;
+    // Before the retake, which blanks the hash for a task.
+    holdHashLine(doc, { signal: visit });
+    if (doc.defaultView) retakeHash(doc.defaultView, { signal: visit });
+  };
+}
+
+const USER_INPUT = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
+
+/**
+ * Centres the line the URL's hash names whenever it is out of view: now, and on each scroll or
+ * change to the page after, until the user scrolls, clicks, or types, `REVEAL_TIMEOUT_MS`
+ * passes, or `signal`, the visit's, aborts. GitHub scrolls to a line once, as it mounts, so it
+ * misses one the cover hid. Its client mount also replaces `doc`'s Files markup and, on a commit
+ * page, scrolls to the top, so the hold follows whatever markup `doc` shows.
+ */
+export function holdHashLine(doc: Document, { signal }: { signal: AbortSignal }): void {
+  const win = doc.defaultView;
+  const anchor = win?.location.hash.slice(1) ?? "";
+  if (!win || !isLineAnchor(anchor) || signal.aborted) return;
+
+  const hold = new AbortController();
+  const release = () => hold.abort();
+  const timer = win.setTimeout(release, REVEAL_TIMEOUT_MS);
+  hold.signal.addEventListener("abort", () => win.clearTimeout(timer));
+  signal.addEventListener("abort", release, { signal: hold.signal });
+  // ponytail: a drag on the window's scrollbar fires none of these, so one during the hold is
+  // pulled back to the line; end the hold on it too if anyone notices.
+  for (const type of USER_INPUT)
+    win.addEventListener(type, release, { capture: true, passive: true, signal: hold.signal });
+
+  const land = () => {
+    const page = findFilesPage(doc);
+    const row = page && lineRowOfAnchor(page, anchor);
+    if (page && row && !inView(page, row))
+      row.scrollIntoView({ block: "center", behavior: "instant" });
+  };
+  win.addEventListener("scroll", land, { passive: true, signal: hold.signal });
+  observeDiffs(doc.body, land, { signal: hold.signal });
+  land();
+}
+
+/** Whether any of `row` shows between GitHub's sticky chrome and the viewport's bottom. */
+function inView(page: FilesPage, row: Element): boolean {
+  const { top, bottom } = row.getBoundingClientRect();
+  return bottom > coveredTop(page) && top < (row.ownerDocument.defaultView?.innerHeight ?? 0);
 }
 
 function replaceHash(win: Window, hash: string): void {

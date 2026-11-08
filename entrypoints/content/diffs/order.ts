@@ -30,7 +30,6 @@ import { type LoadingView, loadingView } from "../ui/loading-view";
 import type { LandingView } from "../visit/land";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./order.css?inline";
-import { retakeHash } from "./reveal";
 
 const STAGGER_MS = 50;
 const ANIMATION_MS = 280;
@@ -191,14 +190,17 @@ interface DiffOrder {
    */
   arrange(sections: readonly (readonly string[])[], hidden: ReadonlySet<string>): void;
   /**
-   * Lifts the cover: the diffs drop in section by section, and GitHub takes the URL's hash again,
-   * since it can't scroll to a diff the cover hid.
+   * Lifts the cover: the diffs drop in section by section, GitHub takes the URL's hash again, and
+   * the line the hash names is held in view, since GitHub can't scroll to a diff the cover hid.
    */
   reveal(): void;
 }
 
-/** Orders `page`'s diffs, and covers them while asked to, until `signal` aborts. */
-function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
+/**
+ * Orders `page`'s diffs, and covers them while asked to, until `signal` aborts, calling
+ * `landHash` at each reveal.
+ */
+function orderDiffs(page: FilesPage, signal: AbortSignal, landHash: () => void): DiffOrder {
   const doc = page.diffs.ownerDocument;
   const root = doc.documentElement;
   const style = Object.assign(doc.createElement("style"), { textContent: SHEET });
@@ -222,7 +224,7 @@ function orderDiffs(page: FilesPage, signal: AbortSignal): DiffOrder {
     loader.remove();
     loader = undefined;
     root.dataset.ghPrismDiffs = "revealed";
-    if (doc.defaultView) retakeHash(doc.defaultView, { signal });
+    landHash();
     timer = setTimeout(() => delete root.dataset.ghPrismDiffs, REVEAL_MS);
   };
 
@@ -270,10 +272,15 @@ const diffSkeleton = (doc: Document) =>
 
 /**
  * Orders `page`'s diffs as the sections list their files until `signal` aborts, covering them
- * with a progress bar while intent is pending, if their order can follow.
+ * with a progress bar while intent is pending, if their order can follow, and calling `landHash`
+ * once revealed.
  */
-export function showDiffOrder(page: FilesPage, signal: AbortSignal): LandingView {
-  const order = orderDiffs(page, signal);
+export function showDiffOrder(
+  page: FilesPage,
+  signal: AbortSignal,
+  { landHash }: { landHash: () => void },
+): LandingView {
+  const order = orderDiffs(page, signal, landHash);
   let loading: LoadingView | undefined;
   return {
     pending() {
