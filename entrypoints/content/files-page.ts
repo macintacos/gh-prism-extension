@@ -791,6 +791,17 @@ export function findFilesToolbar(page: FilesPage): Element | undefined {
   return (toolbar && page.sidebar.ownerDocument.querySelector(toolbar)) || undefined;
 }
 
+/** What GitHub calls a pull request's own page: its overview, or the classic Conversation tab. */
+export type PrPageName = "Overview" | "Conversation";
+
+// The pull request header's tab row: GitHub labels its first tab, the link to the pull request
+// itself, "Overview" for a viewer it serves the overview, and "Conversation" for everyone else.
+const OVERVIEW_TAB = 'nav[aria-label="Pull request"] [data-content="Overview"]';
+
+/** The name `doc`'s pull request header gives the pull request's own page. */
+export const prPageName = (doc: Document): PrPageName =>
+  doc.querySelector(OVERVIEW_TAB) ? "Overview" : "Conversation";
+
 /**
  * The filter row's child holding GitHub's filter-options button, or `undefined` when it's missing.
  */

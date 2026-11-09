@@ -2,7 +2,9 @@
    isolation: isolate, wrapping #__primerPortalRoot__; section[class*="toolbar__"], a
    justify-content: space-between row of two [data-component="Stack"] groups, the end one last.
    In the framed Conversation, panel.ts reads [data-testid="mergebox-partial"]
-   section[aria-label="Checks"], #partial-discussion-sidebar, and .js-discussion. */
+   section[aria-label="Checks"], #partial-discussion-sidebar, and .js-discussion; in the framed
+   overview, section[data-overview-sidebar-item][aria-label="Reviewers"] and
+   [data-component="SplitPageLayout.Content"]. */
 @import "../ui/tailwind.css" prefix(tw);
 @import "../ui/column-width.css";
 @import "../ui/mark.css";

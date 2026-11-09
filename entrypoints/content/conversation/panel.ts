@@ -1,12 +1,19 @@
 /**
- * The Conversation panel: a pull request's own Conversation tab, framed in an overlay on the left
- * edge of Files changed, and the toolbar button that opens it. The panel is one fixed `<aside>` in
+ * The Conversation panel: a pull request's own page, its Conversation tab or the overview GitHub
+ * serves in its place, framed in an overlay on the left edge of Files changed, and the toolbar
+ * button that opens it. Both are named after that page. The panel is one fixed `<aside>` in
  * `<body>`, never moved, because moving or re-creating an `<iframe>` reloads it.
  */
 
 import { conversationFrameUrl, conversationUrl } from "@/utils/github/conversation-frame";
 import type { PrRef } from "@/utils/github/pr-ref";
-import { type FilesPage, findFilesToolbar, rightPanelWidth } from "../files-page";
+import {
+  type FilesPage,
+  findFilesToolbar,
+  type PrPageName,
+  prPageName,
+  rightPanelWidth,
+} from "../files-page";
 import {
   type ColumnWidthChoice,
   columnSeparator,
@@ -40,6 +47,8 @@ export interface ConversationPanel {
   attach(button: HTMLElement): void;
   /** Redraws the panel for the room GitHub's layout now leaves it, as a window resize does. */
   refit(): void;
+  /** The page the panel frames, which names the panel and its button. */
+  readonly name: PrPageName;
 }
 
 const PANEL_ID = "gh-prism-conversation";
@@ -76,11 +85,29 @@ const COMMENT_DISCUSSION =
 const CHECKLIST =
   "M2.5 1.75v11.5c0 .138.112.25.25.25h3.17a.75.75 0 0 1 0 1.5H2.75A1.75 1.75 0 0 1 1 13.25V1.75C1 .784 1.784 0 2.75 0h8.5C12.216 0 13 .784 13 1.75v7.736a.75.75 0 0 1-1.5 0V1.75a.25.25 0 0 0-.25-.25h-8.5a.25.25 0 0 0-.25.25Zm13.274 9.537v-.001l-4.557 4.45a.75.75 0 0 1-1.055-.008l-1.943-1.95a.75.75 0 0 1 1.062-1.058l1.419 1.425 4.026-3.932a.75.75 0 1 1 1.048 1.074ZM4.75 4h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM4 7.75A.75.75 0 0 1 4.75 7h2a.75.75 0 0 1 0 1.5h-2A.75.75 0 0 1 4 7.75Z";
 
-// The framed Conversation's merge-box checks, its sidebar of reviewers, labels, and the rest, and
-// the timeline the sidebar sits beside or below. Listed in panel.css's GitHub hooks.
-const FRAME_CHECKS = '[data-testid="mergebox-partial"] section[aria-label="Checks"]';
-const FRAME_SIDEBAR = "#partial-discussion-sidebar";
-const FRAME_TIMELINE = ".js-discussion";
+/** Where the header's jumps land in a framed page. */
+interface JumpTargets {
+  /** The merge box's checks. */
+  readonly checks?: string;
+  /** The sidebar of reviewers, labels, and the rest, or its Reviewers section. */
+  readonly sidebar: string;
+  /** The main column, which the sidebar sits beside or below. */
+  readonly main: string;
+}
+
+// Listed in panel.css's GitHub hooks. The overview opens on its merge box, so it needs no checks
+// jump.
+const JUMP_TARGETS: Record<PrPageName, JumpTargets> = {
+  Conversation: {
+    checks: '[data-testid="mergebox-partial"] section[aria-label="Checks"]',
+    sidebar: "#partial-discussion-sidebar",
+    main: ".js-discussion",
+  },
+  Overview: {
+    sidebar: 'section[data-overview-sidebar-item][aria-label="Reviewers"]',
+    main: '[data-component="SplitPageLayout.Content"]',
+  },
+};
 
 /** What `conversationPanel` frames, and how it reaches storage and the framing rule. */
 export interface ConversationPanelOptions {
@@ -102,6 +129,8 @@ type Mode = "closed" | "overlay" | "column";
 
 /** The panel's markup, before it holds a frame. */
 interface PanelView {
+  /** The page the panel frames, which names it. */
+  readonly name: PrPageName;
   readonly aside: HTMLElement;
   readonly body: HTMLElement;
   readonly pin: HTMLElement;
@@ -125,6 +154,7 @@ export function conversationPanel(
 ): ConversationPanel {
   const { choice, savePinned, saveOpen, saveWidth, visit } = options;
   const root = doc.documentElement;
+  const name = prPageName(doc);
   let view: PanelView | undefined;
   let frame: HTMLIFrameElement | undefined;
   let button: HTMLElement | undefined;
@@ -170,6 +200,7 @@ export function conversationPanel(
     view ??= mountPanel(
       doc,
       {
+        name,
         close: () => panel.close(),
         togglePin,
         isColumn: () => drawn === "column",
@@ -228,6 +259,7 @@ export function conversationPanel(
     toggle: () => (open ? hide() : openForReviewer()),
     close: hide,
     refit: layout,
+    name,
     get open() {
       return open;
     },
@@ -287,12 +319,14 @@ function unpinPage(root: HTMLElement): void {
 function mountPanel(
   doc: Document,
   {
+    name,
     close,
     togglePin,
     isColumn,
     choice,
     saveWidth,
   }: {
+    name: PrPageName;
     close: () => void;
     togglePin: () => void;
     /** Whether the panel is drawn as the pinned column rather than the overlay. */
@@ -302,7 +336,7 @@ function mountPanel(
   },
   visit: AbortSignal,
 ): PanelView {
-  const pin = hideableIconButton(doc, "gh-prism-conversation-pin", "Pin Conversation", PIN);
+  const pin = hideableIconButton(doc, "gh-prism-conversation-pin", `Pin ${name}`, PIN);
   pin.addEventListener("click", togglePin);
 
   const checks = hideableIconButton(
@@ -326,7 +360,7 @@ function mountPanel(
     icon(doc, X_ICON, {}),
   );
   closeButton.type = "button";
-  closeButton.setAttribute("aria-label", "Close Conversation");
+  closeButton.setAttribute("aria-label", `Close ${name}`);
   closeButton.addEventListener("click", close);
 
   const header = el(
@@ -338,7 +372,7 @@ function mountPanel(
       doc,
       "h2",
       "tw:m-0 tw:min-w-0 tw:flex-1 tw:truncate tw:text-body-medium tw:font-semibold",
-      "Conversation",
+      name,
     ),
     checks,
     sidebar,
@@ -350,7 +384,7 @@ function mountPanel(
   const { separator, size } = columnSeparator(aside, {
     choice,
     saveWidth,
-    label: "Resize Conversation",
+    label: `Resize ${name}`,
     onSize: (width) => {
       if (isColumn()) doc.documentElement.style.setProperty(WIDTH_PROPERTY, `${width}px`);
     },
@@ -361,13 +395,13 @@ function mountPanel(
   aside.id = PANEL_ID;
   aside.tabIndex = -1;
   aside.hidden = true;
-  aside.setAttribute("aria-label", "Conversation");
+  aside.setAttribute("aria-label", name);
 
   // A DOM clone, such as a restored snapshot, can carry an earlier visit's panel.
   doc.getElementById(PANEL_ID)?.remove();
   doc.body.append(aside);
   visit.addEventListener("abort", () => aside.remove());
-  return { aside, body, pin, checks, sidebar, separator, size };
+  return { name, aside, body, pin, checks, sidebar, separator, size };
 }
 
 /**
@@ -392,20 +426,21 @@ function hideableIconButton(
 }
 
 /**
- * Shows each jump control while its section is in `frame`'s loaded Conversation, the sidebar's
- * only while it sits below the timeline, following the frame's DOM and width until `visit` aborts.
+ * Shows each jump control while its target is in `frame`'s loaded page, the sidebar's only while
+ * it sits below the main column, following the frame's DOM and width until `visit` aborts.
  */
 function followJumpTargets(view: PanelView, frame: HTMLIFrameElement, visit: AbortSignal): void {
   const framed = frame.contentDocument;
   if (!framed) return;
+  const targets = JUMP_TARGETS[view.name];
   const sync = () => {
-    view.checks.hidden = !framed.querySelector(FRAME_CHECKS);
-    const sidebar = framed.querySelector(FRAME_SIDEBAR);
-    const timeline = framed.querySelector(FRAME_TIMELINE);
+    view.checks.hidden = !targets.checks || !framed.querySelector(targets.checks);
+    const sidebar = framed.querySelector(targets.sidebar);
+    const main = framed.querySelector(targets.main);
     view.sidebar.hidden =
       !sidebar ||
-      !timeline ||
-      sidebar.getBoundingClientRect().left >= timeline.getBoundingClientRect().right;
+      !main ||
+      sidebar.getBoundingClientRect().left >= main.getBoundingClientRect().right;
   };
 
   // GitHub's Conversation mutates often, so mutations share one layout read per frame.
@@ -452,17 +487,18 @@ function loadFrame(
 ): HTMLIFrameElement {
   const url = conversationFrameUrl(pr);
   const frame = el(doc, "iframe", "gh-prism-conversation-frame");
-  frame.title = "Conversation";
+  frame.title = view.name;
   view.aside.dataset.state = "loading";
   view.body.append(skeleton(doc), frame);
-  view.checks.addEventListener("click", () => jumpTo(frame, FRAME_CHECKS));
-  view.sidebar.addEventListener("click", () => jumpTo(frame, FRAME_SIDEBAR));
+  const { checks, sidebar } = JUMP_TARGETS[view.name];
+  if (checks) view.checks.addEventListener("click", () => jumpTo(frame, checks));
+  view.sidebar.addEventListener("click", () => jumpTo(frame, sidebar));
 
   const showFailure = () => {
     view.aside.dataset.state = "failed";
     view.checks.hidden = true;
     view.sidebar.hidden = true;
-    view.body.replaceChildren(failure(doc, pr));
+    view.body.replaceChildren(failure(doc, pr, view.name));
   };
   // Whether a load has succeeded since the frame was last pointed at `url`, so a refused load
   // re-points it once, and a refused re-point fails rather than looping.
@@ -511,15 +547,15 @@ function skeleton(doc: Document): HTMLElement {
   return node;
 }
 
-/** The one sentence the panel shows when the Conversation won't load, linking to its tab. */
-function failure(doc: Document, pr: PrRef): HTMLElement {
-  const link = el(doc, "a", "", "Open the Conversation tab");
+/** The one sentence the panel shows when `name`'s page won't load, linking to its tab. */
+function failure(doc: Document, pr: PrRef, name: PrPageName): HTMLElement {
+  const link = el(doc, "a", "", `Open the ${name} tab`);
   link.href = conversationUrl(pr);
   return el(
     doc,
     "p",
     "gh-prism-conversation-failure tw:m-0 tw:p-4 tw:text-body-small tw:text-fg-muted",
-    "The Conversation didn't load here. ",
+    `The ${name} didn't load here. `,
     link,
     ".",
   );
@@ -630,7 +666,7 @@ export function showConversationButton(
     keycap(doc, "\\", { shift: true }),
   );
   button.type = "button";
-  button.setAttribute("aria-label", "Conversation");
+  button.setAttribute("aria-label", panel.name);
   button.setAttribute("aria-keyshortcuts", "Shift+\\");
   button.addEventListener("click", () => panel.toggle());
 

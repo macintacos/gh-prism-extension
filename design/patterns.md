@@ -157,7 +157,8 @@ take keys:
 - Older and Newer beside a commit's SHA take Shift+J and Shift+K. Their tooltips name the
   key in words, as "Older commit: 9eb4db2 (Shift+J)", and only while the link goes
   somewhere, because a held-off link's key does nothing.
-- The Conversation button takes Shift+\. Its tooltip reads "Conversation (Shift+\)".
+- The Conversation button takes Shift+\. Its tooltip reads "Conversation (Shift+\)", or
+  "Overview (Shift+\)" where GitHub serves its pull request overview.
 - GitHub's file-tree toggle takes `\`. Its tooltip is GitHub's own, so only its
   `aria-keyshortcuts` and keycap name the key.
 
@@ -210,10 +211,12 @@ the state. Focus stays on it across the flip. It holds one Octicon in both state
 A toggle that opens or holds something keeps one name in both states and carries its state
 in ARIA instead, so the name says what it controls. The Conversation button keeps
 "Conversation" and sets `aria-expanded` while the panel is open; the panel's pin keeps
-"Pin Conversation" and sets `aria-pressed` while pinned. Between its title and pin, the
-panel's header holds two jump controls in the pin's form, "Jump to checks" and "Jump to
-reviewers, labels, and projects", each with a tooltip opening below the header and shown
-only while the frame has its section. `conversation/panel.ts` builds them all.
+"Pin Conversation" and sets `aria-pressed` while pinned. Where GitHub serves its pull
+request overview, each says "Overview" in Conversation's place. Between its title and pin,
+the panel's header holds two jump controls in the pin's form, "Jump to checks" and "Jump
+to reviewers, labels, and projects", each with a tooltip opening below the header and
+shown only while the frame has its section. Over the overview only the second shows,
+landing on its Reviewers section. `conversation/panel.ts` builds them all.
 
 The Older and Newer links beside a commit's SHA take Primer's ButtonGroup, not a switch's
 form, as a pull request's commit view pairs its Prev and Next: two small default Buttons

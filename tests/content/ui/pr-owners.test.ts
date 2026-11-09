@@ -45,6 +45,7 @@ const panel: ConversationPanel = {
   open: false,
   attach: () => {},
   refit: () => {},
+  name: "Conversation",
 };
 
 let visit: AbortController;

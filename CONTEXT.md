@@ -177,7 +177,9 @@ aren't.
 **Conversation panel**: A panel on the left edge of a pull request's Files changed tab
 that shows the same pull request's Conversation tab, loaded from GitHub's own page. A
 button at the left end of the toolbar opens and closes it. Unpinned, it overlays the page.
-_Avoid_: sidebar, drawer
+For a viewer GitHub serves its pull request overview in that tab's place, the panel shows
+the overview and reads "Overview" on screen; the term stays Conversation panel. _Avoid_:
+sidebar, drawer
 
 **Pinned**: The Conversation panel's mode as the page's leftmost column, pushing the rest
 of the page over instead of covering it. _Avoid_: docked, which is the sidebar's term

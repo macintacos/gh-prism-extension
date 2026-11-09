@@ -1,13 +1,20 @@
 /* GitHub hooks: .js-header-wrapper (the site header), and header[class*="prc-PageLayout-Header-"]
    holding nav[class*="TabNav__"], which carries the PR title bar, its sticky copy
-   [class*="prHeader__"] (hidden through that ancestor), and the tab row.
+   [class*="prHeader__"] (hidden through that ancestor), and the tab row. In the overview, the same
+   header holds nav[aria-label="Pull request"], and its sticky title bar is
+   [data-testid="diff-comparison-viewer-sticky-header-slot"], outside it.
    #diff-comparison-viewer-container, the page's container, whose top margin sat under the hidden
-   header. footer.footer[role="contentinfo"], the site footer. Every rule is keyed on gh-prism's
+   header. The overview's nested [class*="PageLayout-PageLayoutRoot"][class*="wrapper__"], holding
+   its section[data-overview-sidebar-item]s, whose [class*="PageLayout-PageLayoutContent"] GitHub
+   gives a 24px margin-block; the Conversation nests a wrapper__ root too, at 16px.
+   footer.footer[role="contentinfo"], the site footer. Every rule is keyed on gh-prism's
    data-gh-prism-panel. */
 
 html[data-gh-prism-panel] .js-header-wrapper,
 html[data-gh-prism-panel] footer.footer[role="contentinfo"],
-html[data-gh-prism-panel] header[class*="prc-PageLayout-Header-"]:has(nav[class*="TabNav__"]) {
+html[data-gh-prism-panel] header[class*="prc-PageLayout-Header-"]:has(nav[class*="TabNav__"]),
+html[data-gh-prism-panel] header[class*="prc-PageLayout-Header-"]:has(nav[aria-label="Pull request"]),
+html[data-gh-prism-panel] [data-testid="diff-comparison-viewer-sticky-header-slot"] {
   display: none;
 }
 
@@ -15,4 +22,11 @@ html[data-gh-prism-panel] header[class*="prc-PageLayout-Header-"]:has(nav[class*
    header. !important to beat Primer's !important tmp-mt-4. */
 html[data-gh-prism-panel] #diff-comparison-viewer-container {
   margin-top: 0 !important;
+}
+
+/* The overview's merge box takes the Conversation's 16px gap below the panel's header. */
+html[data-gh-prism-panel]
+  [class*="PageLayout-PageLayoutRoot"][class*="wrapper__"]:has(section[data-overview-sidebar-item])
+  [class*="PageLayout-PageLayoutContent"] {
+  margin-top: var(--base-size-16, 16px);
 }

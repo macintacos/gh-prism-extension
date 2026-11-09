@@ -69,6 +69,10 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   way back in Chromium: [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "a commit's message
   switches to GitHub's box from the keyboard, and opens there after a reload with no flash
   of the rendering" covers the commit message's switch.
+- **Read a computed style only after the attribute its rule keys on lands on an
+  ancestor.** happy-dom keeps the style it computed before `<html>` gains
+  `data-gh-prism-panel`, so a read before `dressConversationFrame` and one after compare
+  equal whatever `frame.css` says.
 - **Stub an iframe's `contentWindow`.** happy-dom's `disableIframePageLoading` means an
   iframe never gets one.
 

@@ -6,6 +6,31 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-08: The Conversation panel over GitHub's pull request overview
+
+- **Compared:**
+  - for the panel's name, keeping "Conversation", or naming it after the page GitHub
+    serves;
+  - for the top of the framed overview, keeping its sticky title bar and header, or hiding
+    everything above its merge box;
+  - for the gap above the merge box, the overview's own 24px, or the Conversation frame's
+    16px;
+  - for the header's jumps, both, or the sidebar's alone.
+- **Won:**
+  - "Overview" wherever the panel and its button said "Conversation": the heading, the
+    panel's and frame's names, the pin, close, and resize labels, the button's name and
+    tooltip, and the failure sentence. A viewer on the classic tab still reads
+    "Conversation".
+  - Hidden down to the merge box, which stays: it shows the checks.
+  - 16px.
+  - The sidebar's alone, landing on the Reviewers section while the sidebar sits below the
+    main column.
+- **Why:** the maintainer: "all of the stuff in the red box could probably go away", the
+  header "which we should probably rewrite to be "Overview" instead of "Conversation"",
+  "there are no buttons to bring you to the reviewers section", and "we probably don't
+  need the one that brings you to the "Checks" section, since the thing at the top now can
+  show that." The 16px matches the 2026-10-31 pick for the Conversation's timeline.
+
 ## 2026-11-08: The overview Reviewers heading's code owners button over the rows' shields
 
 - **Compared:** the overview's button floated to the heading's inline end, as first built

@@ -46,7 +46,8 @@ show inside the Conversation panel. A second content script,
 runs in every frame of a pull request URL at `document_start` and acts only in a sub-frame
 whose URL carries the panel's `gh-prism-panel=1` marker. There,
 [`conversation/frame.ts`](../entrypoints/content/conversation/frame.ts) hides GitHub's
-site header, PR title bar, tab row, and site footer, posts each link that leaves the
+site header, PR title bar, tab row, and site footer, and the overview's sticky title bar,
+leaving 16px above the page's first content. It posts each link that leaves the
 Conversation to the parent page to load, and relays an Escape GitHub didn't handle. It
 also opens gh-prism's popup and code owner details dialog from a code-owner shield in the
 frame's Reviewers list or beside a comment author, without the owner filter, which belongs
@@ -139,6 +140,11 @@ visit, only for a pull request. On each page, `showConversationButton` puts its 
 first in the toolbar row that `findFilesToolbar` in
 [`files-page.ts`](../entrypoints/content/files-page.ts) finds.
 
+For a viewer GitHub serves its pull request overview, the same URL loads the overview in
+the Conversation tab's place. `prPageName` in `files-page.ts` reads which from the header
+tab row's first tab when the panel is built, and the panel, its controls, its frame, its
+failure sentence, and its button all take that page's name: Overview or Conversation.
+
 The panel is one fixed `<aside>` appended to `<body>` and never moved, because moving or
 re-creating an `<iframe>` reloads it. Its first open in a visit loads the frame in order:
 
@@ -174,7 +180,9 @@ load `panel.ts` reads its `contentDocument` directly, with no message relay. A
 `MutationObserver` on that document and the frame window's `resize` keep each control
 shown only while its section exists, and the sidebar's only while GitHub draws the sidebar
 below the timeline rather than beside it. A click scrolls the frame's window, smoothly
-unless the reader prefers reduced motion.
+unless the reader prefers reduced motion. `JUMP_TARGETS` in `panel.ts` holds each page's
+targets: the overview opens on its merge box, so it gets only the sidebar's control, which
+lands on its Reviewers section and shows while the sidebar sits below the main column.
 
 Shift+\ toggles the panel as the toolbar button does, and the button shows the key as a
 keycap. `panel.ts` listens for it on the document, in the capture phase, until the visit

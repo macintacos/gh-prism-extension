@@ -1,0 +1,779 @@
+<!-- Trimmed from the code-owners sandbox PR #1's Overview, signed in with GitHub's pull request overview on, at ?gh-prism-panel=1, 2026-11-08: the persistent sticky title bar, the PageLayout header (title, actions, summary, tab row), the merge box, the description, and the sidebar's Activity, Reviewers, and Assignees sections. The comments, the rest of the sidebar, the side panel, octicon paths, avatars, and analytics attributes dropped; the viewer's login is sandbox-user. Refresh when GitHub's Overview layout changes. -->
+<div id="diff-comparison-viewer-container" class="Container__qkpM1i tmp-px-3 tmp-px-md-4 tmp-px-lg-5 ContainerSidePanel__47M93r" data-side-panel-open="false" data-hovercard-subject-tag="pull_request:5045172253">
+  <div data-testid="diff-comparison-viewer-sticky-header-slot" class="stickyHeader__OQ39Id StickyHeaderSlot__nKEFKa StickyHeaderSlotPersistent__sFnx7j StickyHeaderPanelClosed__HqSlN3">
+    <div class="StickyHeaderBoundarySensor__vLojkh" aria-hidden="true"></div>
+    <div data-testid="diff-comparison-viewer-sticky-header-bar" class="StickyHeaderSlotBar__gLJ9o_">
+      <div class="miniHeaderInner__PNUGO_">
+        <div class="metadata__jEOHXh">
+          <span class="number__psmPBx f5 fgColor-muted">
+            #1
+          </span>
+          <a href="#top" class="title__rbH5Fa f5 text-bold fgColor-default">
+            <span class="markdown-title prc-Text-Text-9mHv3" data-component="Text">
+              Touch every ownership case
+            </span>
+          </a>
+          <button data-component="IconButton" type="button" class="prc-Button-ButtonBase-9n-Xk prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="small" data-variant="invisible" aria-labelledby="_R_1bimio5_">
+            <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-copy" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+          </button>
+          <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="s" data-component="Tooltip" aria-hidden="true" id="_R_1bimio5_" popover="auto">
+            Copy link
+          </span>
+        </div>
+        <div class="actions__tWsgi0">
+          <button data-component="Button" type="button" aria-expanded="false" data-dd-action-name="pull_request.merge_box.status_button" class="prc-Button-ButtonBase-9n-Xk success__p68Dha" data-loading="false" data-size="small" data-variant="default" aria-describedby="_R_6cimio5_">
+            <span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5">
+              <span data-component="leadingVisual" class="prc-Button-Visual-YNt2F prc-Button-LeadingVisual-UySKu prc-Button-VisualWrap-E4cnq">
+                <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-check-circle" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+              </span>
+              <span data-component="text" class="prc-Button-Label-FWkx3">
+                <span class="labelFull__Y84EYh">
+                  Merge status
+                </span>
+                <span class="labelShort__T2LQxV">
+                  Status
+                </span>
+              </span>
+            </span>
+          </button>
+          <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="s" data-component="Tooltip" popover="auto" role="tooltip" aria-hidden="true" id="_R_6cimio5_">
+            Ready to merge when you are. Click to view details in the merge panel.
+          </span>
+          <button data-component="Button" type="button" class="prc-Button-ButtonBase-9n-Xk ReviewMenuButton__9e8CKv tmp-ml-2" data-loading="false" data-size="small" data-variant="primary">
+            <span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5">
+              <span data-component="text" class="prc-Button-Label-FWkx3">
+                <span class="submitTextFull__VMPyTh">
+                  Submit review
+                </span>
+                <span class="submitTextShort__ip2yEj">
+                  Review
+                </span>
+              </span>
+            </span>
+            <span data-component="trailingAction" class="prc-Button-Visual-YNt2F prc-Button-VisualWrap-E4cnq">
+              <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-triangle-down" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+            </span>
+          </button>
+          <div class="divider__y0sXw0 hide-sm tmp-mx-3" aria-hidden="true"></div>
+          <div class="d-flex flex-items-center hide-sm hide-md">
+            <button data-component="IconButton" type="button" aria-expanded="false" class="prc-Button-ButtonBase-9n-Xk panelToggle__C2THKB prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="small" data-variant="default" aria-labelledby="_R_34imio5_">
+              <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-comment-discussion" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+            </button>
+            <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="s" data-component="Tooltip" aria-hidden="true" id="_R_34imio5_" popover="auto">
+              Open comments panel
+            </span>
+          </div>
+          <div class="d-flex flex-items-center hide-sm hide-md tmp-ml-2">
+            <button data-component="IconButton" type="button" aria-expanded="false" class="prc-Button-ButtonBase-9n-Xk panelToggle__C2THKB prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="small" data-variant="default" aria-labelledby="_R_1cimio5_">
+              <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-copilot" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+            </button>
+            <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="s" data-component="Tooltip" aria-hidden="true" id="_R_1cimio5_" popover="auto">
+              Open Copilot panel
+            </span>
+          </div>
+          <button data-component="IconButton" type="button" aria-expanded="false" data-docked-panel-toggle="" class="prc-Button-ButtonBase-9n-Xk panelToggle__C2THKB tmp-ml-2 prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="small" data-variant="default" aria-labelledby="_R_1kimio5_">
+            <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-sidebar-expand" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+          </button>
+          <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="s" data-component="Tooltip" aria-hidden="true" id="_R_1kimio5_" popover="auto">
+            Open panel
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="prc-PageLayout-PageLayoutRoot--KH-d" data-component="SplitPageLayout" data-has-sidebar="true">
+    <div class="prc-PageLayout-PageLayoutWrapper-2BhU2" data-width="full">
+      <header data-component="SplitPageLayout.Header" data-hidden="false" class="prc-PageLayout-Header-0of-R">
+        <div class="prc-PageLayout-HeaderContent-gdFfN">
+          <div class="js-pull-header-details" data-pull-is-open="true" hidden=""></div>
+          <div class="topBanners__XBQkmL constrainedHeader__3mxXgT"></div>
+          <div class="headerBorderBottom__EGA2X_" data-side-panel-open="false">
+            <div class="prc-PageHeader-PageHeader-YLwBQ flex-items-center constrainedHeader__3mxXgT headerContainer__8EHzEz tmp-mt-3 actionsAboveTitleOnNarrow__Q6VWPJ actionsAboveTitleOnNarrowContainer__3AMR5U" data-component="PageHeader" data-has-nav="" data-title-size-variant="medium">
+              <div class="prc-PageHeader-TitleArea-2n2J0" data-component="TitleArea" data-size-variant="medium">
+                <div class="titleWithAction__ouGvRe">
+                  <h1 class="lh-condensed inlineTitle__2vo_uR title__T_G_Mt prc-Heading-Heading-MtWFE" data-component="Heading" tabindex="-1">
+                    <span class="f1 text-normal markdown-title prc-Text-Text-9mHv3" data-component="Text">
+                      Touch every ownership case
+                    </span>
+                    <span class="sr-only">
+                      - #1
+                    </span>
+                  </h1>
+                  <span class="titleSuffix__ZhvAF5 inlineTitleSuffix__jFGp-G">
+                    <span aria-hidden="true">
+                      ⁠
+                    </span>
+                    <button data-component="IconButton" type="button" class="prc-Button-ButtonBase-9n-Xk ml-1 prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="medium" data-variant="invisible" aria-labelledby="_R_1palkmio5_">
+                      <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-pencil" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                    </button>
+                    <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="s" data-component="Tooltip" aria-hidden="true" id="_R_1palkmio5_" popover="auto">
+                      Edit title
+                    </span>
+                  </span>
+                </div>
+              </div>
+              <div class="prc-PageHeader-Actions-wawWm flex-items-center gap-2 position-relative updatedActions___695D9" data-component="PH_Actions">
+                <div class="d-flex gap-2">
+                  <button data-component="Button" type="button" aria-haspopup="true" aria-expanded="false" tabindex="0" aria-label="Code" class="prc-Button-ButtonBase-9n-Xk" data-loading="false" data-size="medium" data-variant="default" aria-describedby="_R_raalkmio5_" id="_R_3aalkmio5_">
+                    <span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5">
+                      <span data-component="text" class="prc-Button-Label-FWkx3">
+                        <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-code" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                      </span>
+                      <span data-component="trailingVisual" class="prc-Button-Visual-YNt2F prc-Button-VisualWrap-E4cnq">
+                        <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-triangle-down" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                      </span>
+                    </span>
+                  </button>
+                  <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="sw" data-component="Tooltip" role="tooltip" aria-hidden="true" id="_R_raalkmio5_" popover="auto">
+                    Code
+                  </span>
+                  <button aria-disabled="false" data-component="IconButton" type="button" class="prc-Button-ButtonBase-9n-Xk prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="medium" data-variant="default" aria-labelledby="_R_daalkmio5_">
+                    <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-bell-fill" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                  </button>
+                  <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="s" data-component="Tooltip" aria-hidden="true" id="_R_daalkmio5_" popover="auto">
+                    Unsubscribe
+                  </span>
+                </div>
+                <div class="position-relative">
+                  <button data-component="ActionMenu.Button" type="button" aria-label="Preview: Overview preview options" aria-haspopup="true" aria-expanded="false" tabindex="0" class="prc-Button-ButtonBase-9n-Xk" data-loading="false" data-size="small" data-variant="invisible" id="_R_aqalkmio5_">
+                    <span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5">
+                      <span data-component="text" class="prc-Button-Label-FWkx3">
+                        <span class="prc-Label-Label-qG-Zu" data-size="small" data-variant="success" data-component="Label">
+                          Preview
+                        </span>
+                      </span>
+                    </span>
+                    <span data-component="trailingAction" class="prc-Button-Visual-YNt2F prc-Button-VisualWrap-E4cnq">
+                      <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-triangle-down" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                    </span>
+                  </button>
+                </div>
+              </div>
+              <div class="prc-PageHeader-Description-w-ejP d-flex flex-column flex-items-start" data-component="PageHeader.Description">
+                <div class="d-flex width-full flex-items-center gap-2 flex-wrap min-width-0">
+                  <div class="summary__0aq3YA">
+                    <div class="fgColor-muted d-flex flex-items-center summaryContainer__6Iz7T9 updatedSummary__68GJWd">
+                      <div class="actorGroup__-i1FTx">
+                        <div class="d-flex flex-items-center gap-2 flex-shrink-0">
+                          <button type="button" aria-label="Pull request state: Open" class="anchorWrapper__Shhtjx" id="_R_1apelkmio5_" aria-haspopup="true" aria-expanded="false" tabindex="0">
+                            <span class="prc-StateLabel-StateLabel-Iawzp label__4pC8-d" data-component="StateLabel" data-size="medium" data-status="pullOpened">
+                              <svg data-component="Octicon" focusable="false" aria-label="Pull request" class="octicon octicon-git-pull-request prc-StateLabel-Icon-YICrR" role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                              Open
+                              <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-triangle-down ml-1 mr-n1" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                            </span>
+                          </button>
+                        </div>
+                        <span class="attribution__bQyzNY">
+                          <a class="text-bold withAvatar__zlZctL prc-Link-Link-9ZwDx" data-component="Link" data-muted="true" data-inline="false" href="/sandbox-user" data-hovercard-type="user" aria-keyshortcuts="Alt+ArrowUp">
+                            sandbox-user
+                          </a>
+                          <span>
+                            opened
+                            <relative-time data-component="RelativeTime" datetime="2026-10-28T04:22:38.000Z" title="Oct 28, 2026, 12:22 AM EDT">
+                              Oct 28, 2026
+                            </relative-time>
+                          </span>
+                        </span>
+                      </div>
+                      <div class="branchGroup__ShMOFt">
+                        <div class="d-flex flex-items-center gap-1 branches__3hqMzX">
+                          <span class="baseBranchGroup__CJSpgC">
+                            <span class="sr-only user-select-none">
+                              Base branch:
+                            </span>
+                            <span class="branchWithButton__kbCe0K">
+                              <a href="/excessive-dev/gh-prism-codeowners-sandbox/tree/main" aria-describedby="_R_qb9elkmio5_" class="branchName__a15saO prc-BranchName-BranchName-CMTaU" data-component="BranchName">
+                                main
+                              </a>
+                              <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="s" data-component="Tooltip" role="tooltip" aria-hidden="true" id="_R_qb9elkmio5_" popover="auto">
+                                excessive-dev/gh-prism-codeowners-sandbox:main
+                              </span>
+                              <button data-component="IconButton" type="button" aria-haspopup="true" aria-expanded="false" tabindex="0" class="prc-Button-ButtonBase-9n-Xk prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="small" data-variant="invisible" aria-labelledby="_R_dnab9elkmio5_" id="_R_1nab9elkmio5_">
+                                <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-triangle-down" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                              </button>
+                              <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="s" data-component="Tooltip" aria-hidden="true" id="_R_dnab9elkmio5_" popover="auto">
+                                Change base branch
+                              </span>
+                            </span>
+                            <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-arrow-left fgColor-muted" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                          </span>
+                          <span class="headBranchGroup__ELi8vG">
+                            <span class="sr-only user-select-none">
+                              Head branch:
+                            </span>
+                            <span class="branchWithButton__kbCe0K">
+                              <a href="/excessive-dev/gh-prism-codeowners-sandbox/tree/every-owner" aria-describedby="_R_rb9elkmio5_" class="branchName__a15saO prc-BranchName-BranchName-CMTaU" data-component="BranchName">
+                                every-owner
+                              </a>
+                              <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="s" data-component="Tooltip" role="tooltip" aria-hidden="true" id="_R_rb9elkmio5_" popover="auto">
+                                excessive-dev/gh-prism-codeowners-sandbox:every-owner
+                              </span>
+                              <button data-component="IconButton" type="button" class="prc-Button-ButtonBase-9n-Xk prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="small" data-variant="invisible" aria-labelledby="_R_1bb9elkmio5_">
+                                <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-copy" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                              </button>
+                              <span class="tooltip__XwO6MO prc-TooltipV2-Tooltip-tLeuB" data-direction="s" data-component="Tooltip" aria-label="Copy head branch name to clipboard" aria-hidden="true" id="_R_1bb9elkmio5_" popover="auto">
+                                Copy head branch name to clipboard
+                              </span>
+                            </span>
+                          </span>
+                        </div>
+                        <div class="diffStat__P-CCgP">
+                          <span aria-hidden="true" class="f6 fgColor-success text-bold">
+                            +6
+                          </span>
+                          <span class="sr-only">
+                            Lines changed: 6 additions &amp; 0 deletions
+                          </span>
+                          <div class="d-flex">
+                            <div data-testid="addition diffstat" class="diffSquare__kZ1s3g addition__3w3cWj"></div>
+                            <div data-testid="addition diffstat" class="diffSquare__kZ1s3g addition__3w3cWj"></div>
+                            <div data-testid="addition diffstat" class="diffSquare__kZ1s3g addition__3w3cWj"></div>
+                            <div data-testid="addition diffstat" class="diffSquare__kZ1s3g addition__3w3cWj"></div>
+                            <div data-testid="addition diffstat" class="diffSquare__kZ1s3g addition__3w3cWj"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="prc-PageHeader-Navigation--uLav tmp-pt-3" data-component="PH_Navigation">
+                <div class="rightContentWrapper__DE7XPN reducedTopPadding__I6AUlR"></div>
+                <div class="flex-auto">
+                  <h2 class="prc-src-InternalVisuallyHidden-2YaI6">
+                    Pull request navigation
+                  </h2>
+                  <nav class="prc-components-UnderlineWrapper-eT-Yj prc-UnderlineNav-UnderlineWrapper-GWONT box-shadow-none navStackingContext__27fLtP" aria-label="Pull request" data-variant="flush" data-overflow-mode="wrap" data-hide-icons-breakpoint="large" data-has-overflow="true">
+                    <ul class="prc-UnderlineNav-ItemsList-oj8gN prc-components-UnderlineItemList-xKlKC" role="list">
+                      <li role="presentation" aria-hidden="true" class="prc-UnderlineNav-WrapSpacer--aLgz"></li>
+                      <li class="prc-UnderlineNav-UnderlineNavItem-syRjR">
+                        <a aria-current="page" class="prc-components-UnderlineItem-7fP-n position-relative flex-shrink-0 text-normal overrideLineHeight__GtbvBn" href="/excessive-dev/gh-prism-codeowners-sandbox/pull/1">
+                          <span data-component="icon">
+                            <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-tasklist" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                          </span>
+                          <span data-component="text" data-content="Overview">
+                            Overview
+                          </span>
+                        </a>
+                      </li>
+                      <li class="prc-UnderlineNav-UnderlineNavItem-syRjR">
+                        <a id="prs-commits-anchor-tab" class="prc-components-UnderlineItem-7fP-n position-relative flex-shrink-0 text-normal overrideLineHeight__GtbvBn" href="/excessive-dev/gh-prism-codeowners-sandbox/pull/1/commits">
+                          <span data-component="icon">
+                            <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-git-commit" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                          </span>
+                          <span data-component="text" data-content="Commits">
+                            Commits
+                          </span>
+                          <span data-component="counter">
+                            <span aria-hidden="true" data-variant="secondary" data-component="CounterLabel" class="prc-CounterLabel-CounterLabel-X-kRU">
+                              1
+                            </span>
+                            <span class="prc-VisuallyHidden-VisuallyHidden-Q0qSB">
+                              &nbsp;(1)
+                            </span>
+                          </span>
+                        </a>
+                      </li>
+                      <li class="prc-UnderlineNav-UnderlineNavItem-syRjR" aria-hidden="true">
+                        <a class="prc-components-UnderlineItem-7fP-n position-relative flex-shrink-0 text-normal overrideLineHeight__GtbvBn" href="/excessive-dev/gh-prism-codeowners-sandbox/pull/1/checks" tabindex="-1">
+                          <span data-component="icon">
+                            <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-checklist" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                          </span>
+                          <span data-component="text" data-content="Checks">
+                            Checks
+                          </span>
+                          <span data-component="counter">
+                            <span aria-hidden="true" data-variant="secondary" data-component="CounterLabel" class="prc-CounterLabel-CounterLabel-X-kRU">
+                              0
+                            </span>
+                            <span class="prc-VisuallyHidden-VisuallyHidden-Q0qSB">
+                              &nbsp;(0)
+                            </span>
+                          </span>
+                        </a>
+                      </li>
+                      <li class="prc-UnderlineNav-UnderlineNavItem-syRjR" aria-hidden="true">
+                        <a id="prs-files-anchor-tab" class="prc-components-UnderlineItem-7fP-n position-relative flex-shrink-0 text-normal overrideLineHeight__GtbvBn" href="/excessive-dev/gh-prism-codeowners-sandbox/pull/1/changes" tabindex="-1">
+                          <span data-component="icon">
+                            <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-file-diff" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                          </span>
+                          <span data-component="text" data-content="Files changed">
+                            Files changed
+                          </span>
+                          <span data-component="counter">
+                            <span aria-hidden="true" data-variant="secondary" data-component="CounterLabel" class="prc-CounterLabel-CounterLabel-X-kRU">
+                              6
+                            </span>
+                            <span class="prc-VisuallyHidden-VisuallyHidden-Q0qSB">
+                              &nbsp;(6)
+                            </span>
+                          </span>
+                        </a>
+                      </li>
+                    </ul>
+                    <div class="prc-UnderlineNav-MoreButtonContainer-Dnrq6">
+                      <div class="prc-UnderlineNav-MoreButtonDivider-dN0a-"></div>
+                      <button data-component="overflow-menu-button" type="button" aria-haspopup="true" aria-expanded="false" tabindex="0" class="prc-Button-ButtonBase-9n-Xk prc-UnderlineNav-MoreButton-Y8soj" data-loading="false" data-size="medium" data-variant="invisible" id="_r_h_">
+                        <span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5">
+                          <span data-component="text" class="prc-Button-Label-FWkx3">
+                            <span>
+                              More
+                              <span class="prc-src-InternalVisuallyHidden-2YaI6">
+                                items
+                              </span>
+                            </span>
+                          </span>
+                        </span>
+                        <span data-component="trailingAction" class="prc-Button-Visual-YNt2F prc-Button-VisualWrap-E4cnq">
+                          <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-triangle-down" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                        </span>
+                      </button>
+                    </div>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="prc-PageLayout-HorizontalDivider-JLVqp prc-PageLayout-HeaderHorizontalDivider-odAHl" data-component="PageLayout.HorizontalDivider" data-variant="none"></div>
+      </header>
+      <div class="prc-PageLayout-PageLayoutContent-BneH9">
+        <div class="width-full layout__i0tp-u" data-side-panel-open="false">
+          <div class="prc-PageLayout-PageLayoutRoot--KH-d wrapper__rjK5E1" data-component="SplitPageLayout">
+            <div class="prc-PageLayout-PageLayoutWrapper-2BhU2" data-width="full">
+              <div class="prc-PageLayout-PageLayoutContent-BneH9">
+                <div data-component="SplitPageLayout.Content" class="prc-PageLayout-ContentWrapper-gR9eG content__Gga5Vm" data-is-hidden="false">
+                  <div class="prc-PageLayout-Content-xWL-A" data-width="large">
+                    <div class="d-flex gap-4 flex-column">
+                      <div class="CondensedForYouContainer__XgncPM">
+                        <section aria-label="Recommended action">
+                          <ul role="list" class="list__5BUU2B CondensedForYouList__Ek5kAf">
+                            <li class="Container__dY-Nup" data-testid="for-you-item-row" data-item-id="ready-to-merge">
+                              <div class="Row__lRJeTL WithActions__aL8wGp FullWidthActions__W4c667">
+                                <div class="Visual__9DXI2D" data-testid="for-you-item-visual">
+                                  <span class="statusIcon__PYFEcY success__3hkqMK refreshed__s-0Ei0">
+                                    <span class="glyph__4OxFwG">
+                                      <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" class="octicon" viewBox="0 0 12 12" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                                    </span>
+                                  </span>
+                                </div>
+                                <div class="Title__TLV5K4" data-testid="for-you-item-title">
+                                  Ready to merge
+                                </div>
+                                <div class="SubText__IMjNKW" data-testid="for-you-item-subtext">
+                                  All requirements are met - merge the pull request.
+                                </div>
+                                <div class="Actions__voRwBb">
+                                  <div></div>
+                                  <div>
+                                    <div tabindex="-1">
+                                      <div class="d-flex flex-column flex-sm-row flex-sm-items-center gap-2 undefined">
+                                        <div class="flex-self-stretch flex-shrink-0 undefined prc-ButtonGroup-ButtonGroup-vFUrY" data-component="ButtonGroup">
+                                          <div class="prc-ButtonGroup-Item-PqvDl">
+                                            <button aria-disabled="false" data-component="Button" type="button" class="prc-Button-ButtonBase-9n-Xk flex-1" data-loading="false" data-no-visuals="true" data-size="small" data-variant="primary">
+                                              <span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5">
+                                                <span data-component="text" class="prc-Button-Label-FWkx3">
+                                                  Merge pull request
+                                                </span>
+                                              </span>
+                                            </button>
+                                          </div>
+                                          <div class="prc-ButtonGroup-Item-PqvDl">
+                                            <button aria-disabled="false" data-component="IconButton" type="button" aria-haspopup="true" aria-expanded="false" tabindex="0" class="prc-Button-ButtonBase-9n-Xk flex-0 prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="small" data-variant="primary" aria-labelledby="_r_co_" id="_r_cl_">
+                                              <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-triangle-down" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                                            </button>
+                                            <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="s" data-component="Tooltip" aria-hidden="true" id="_r_co_" popover="auto">
+                                              Select merge method
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </li>
+                          </ul>
+                        </section>
+                        <div class="MiniStatusGrid___xoUNG" data-stacked="true">
+                          <section class="MiniStatusWrapper__t96GwR" aria-label="Merge status">
+                            <section aria-label="Expand checks" data-first="true" tabindex="-1" class="MiniStatus__eXKwQ4 MiniStatusInteractive__LZfJhK MiniStatusRefresh__E5U0sl MiniStatusFirst__pV-y3n" data-testid="mini-status">
+                              <button aria-labelledby="_r_d7_ _r_d8_" aria-expanded="false" class="MiniStatusButton__UVquRF" type="button">
+                                <span class="prc-VisuallyHidden-VisuallyHidden-Q0qSB" id="_r_d8_">
+                                  Expand checks
+                                </span>
+                              </button>
+                              <div class="MiniStatusLabelRow__AvvLNy">
+                                <span id="_r_d7_" class="d-flex flex-items-center gap-1 MiniStatusLabel__3mlSlf">
+                                  <strong class="MiniStatusLabelText__7wOALt">
+                                    Checks
+                                  </strong>
+                                  <span class="sr-only MiniStatusRatio__POVRp4" data-testid="mini-status-count">
+                                    0
+                                  </span>
+                                  <span class="prc-VisuallyHidden-VisuallyHidden-Q0qSB">
+                                    No checks available
+                                  </span>
+                                </span>
+                                <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-unlock NavigationIcon__BTKS-Z MiniStatusLabelRowIcon__9QbzwP" viewBox="0 0 16 16" width="14" height="14" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                              </div>
+                              <div class="Progress__fSK3hS MiniStatusSpacing__33hl1U" data-testid="multicolor-progress-unavailable">
+                                <div class="Unavailable__uyigfJ" aria-hidden="true"></div>
+                                <p class="sr-only">
+                                  No checks available
+                                </p>
+                              </div>
+                            </section>
+                            <section aria-label="Resolved comments" tabindex="-1" class="MiniStatus__eXKwQ4 MiniStatusRefresh__E5U0sl" data-testid="mini-status">
+                              <div class="MiniStatusLabelRow__AvvLNy">
+                                <span id="_r_4l_" class="d-flex flex-items-center gap-1 MiniStatusLabel__3mlSlf">
+                                  <strong class="MiniStatusLabelText__7wOALt">
+                                    Comments
+                                  </strong>
+                                  <span class="sr-only MiniStatusRatio__POVRp4" data-testid="mini-status-count">
+                                    0
+                                  </span>
+                                </span>
+                              </div>
+                              <div class="Progress__fSK3hS MiniStatusSpacing__33hl1U" data-testid="multicolor-progress-unavailable">
+                                <div class="Unavailable__uyigfJ" aria-hidden="true"></div>
+                                <p class="sr-only">
+                                  No comments available
+                                </p>
+                              </div>
+                            </section>
+                            <section aria-label="Expand approvals" tabindex="-1" class="MiniStatus__eXKwQ4 MiniStatusInteractive__LZfJhK MiniStatusRefresh__E5U0sl" data-testid="mini-status">
+                              <button aria-labelledby="_r_dn_ _r_do_" aria-expanded="false" class="MiniStatusButton__UVquRF" type="button">
+                                <span class="prc-VisuallyHidden-VisuallyHidden-Q0qSB" id="_r_do_">
+                                  Expand approvals
+                                </span>
+                              </button>
+                              <div class="MiniStatusLabelRow__AvvLNy">
+                                <span id="_r_dn_" class="d-flex flex-items-center gap-1 MiniStatusLabel__3mlSlf">
+                                  <strong class="MiniStatusLabelText__7wOALt">
+                                    Approvals
+                                  </strong>
+                                  <span class="sr-only MiniStatusRatio__POVRp4" data-testid="mini-status-count">
+                                    0/2
+                                  </span>
+                                  <span class="prc-VisuallyHidden-VisuallyHidden-Q0qSB">
+                                    Review requested
+                                  </span>
+                                </span>
+                                <button type="button" aria-label="2 pending. Expand approvals" aria-expanded="false" class="MiniStatusSummary__sNhE7o MiniStatusSummaryAction__o-zckc" tabindex="-1" aria-describedby="_r_dp_">
+                                  2 pending
+                                </button>
+                                <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="n" data-component="Tooltip" hidden="" data-testid="mini-status-summary-tooltip" role="tooltip" aria-hidden="true" id="_r_dp_" popover="auto"></span>
+                                <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-unlock NavigationIcon__BTKS-Z MiniStatusLabelRowIcon__9QbzwP" viewBox="0 0 16 16" width="14" height="14" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                              </div>
+                              <div class="Progress__fSK3hS MiniStatusSpacing__33hl1U" data-testid="multicolor-progress">
+                                <span aria-label="0 of 2 reviews approved. Review requested. 2 pending reviews" class="sr-only" role="img"></span>
+                                <div class="Bar__Fa-6Bh" data-testid="multicolor-progress-bar">
+                                  <button class="Segment__4sJkrN ToneNeutral__oXE7e9" data-testid="reviews-progress-pending" aria-expanded="false" type="button" aria-labelledby="_r_dr_"></button>
+                                  <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="s" data-component="Tooltip" aria-label="2 pending reviews. Expand approvals" aria-hidden="true" id="_r_dr_" popover="auto">
+                                    2 pending reviews
+                                  </span>
+                                </div>
+                              </div>
+                            </section>
+                          </section>
+                        </div>
+                      </div>
+                      <section tabindex="-1" class="container__qcj0r_" aria-label="Description" data-hpc="true" containertiming="hpc">
+                        <div class="body__fphukB">
+                          <div class="editMetadata__ws0CPo">
+                            <div>
+                              <div class="editHistoryContainer__0eLRCM">
+                                <button data-component="ActionMenu.Button" type="button" aria-haspopup="true" aria-expanded="false" tabindex="0" class="prc-Button-ButtonBase-9n-Xk editHistoryMenuButton__twBHON" data-loading="false" data-size="small" data-variant="invisible" id="_r_9h_">
+                                  <span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5">
+                                    <span data-component="text" class="prc-Button-Label-FWkx3">
+                                      <span class="editHistoryLabel__ISZtbO">
+                                        Edited
+                                      </span>
+                                      <span class="sr-only">
+                                        (view description edit history)
+                                      </span>
+                                    </span>
+                                  </span>
+                                  <span data-component="trailingAction" class="prc-Button-Visual-YNt2F prc-Button-VisualWrap-E4cnq">
+                                    <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-triangle-down" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                                  </span>
+                                </button>
+                              </div>
+                            </div>
+                            <button data-component="IconButton" type="button" class="prc-Button-ButtonBase-9n-Xk editButton__kkP1ND prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="small" data-variant="invisible" aria-labelledby="_r_4u_">
+                              <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-pencil" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                            </button>
+                            <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="s" data-component="Tooltip" aria-hidden="true" id="_r_4u_" popover="auto">
+                              Edit description
+                            </span>
+                          </div>
+                          <div class="">
+                            <div tabindex="-1">
+                              <div class="markdown-body safe-html-box__Uwc6Al">
+                                <p dir="auto">
+                                  Expected code owners, from main's CODEOWNERS. The shield lists these owners in this order.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="reactions__SrdnFb">
+                            <div role="toolbar" aria-label="Reactions for the description" class="d-flex gap-1 flex-wrap">
+                              <button data-component="IconButton" type="button" aria-label="React to the description" aria-haspopup="true" aria-expanded="false" tabindex="0" class="prc-Button-ButtonBase-9n-Xk ReactionViewerAnchorButton__BIXMSn prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="small" data-variant="default" aria-describedby="_r_52_" id="_r_50_">
+                                <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-smiley" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                              </button>
+                              <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="n" data-component="Tooltip" role="tooltip" aria-hidden="true" id="_r_52_" popover="auto">
+                                React
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </section>
+                    </div>
+                  </div>
+                </div>
+                <div class="prc-PageLayout-PaneWrapper-pHPop panel__DOwr-P" data-is-hidden="false" data-position="end">
+                  <div class="prc-PageLayout-HorizontalDivider-JLVqp prc-PageLayout-PaneHorizontalDivider-9tbnE" data-component="PageLayout.HorizontalDivider" data-variant-narrow="none" data-variant-regular="none" data-position="end"></div>
+                  <div class="prc-PageLayout-Pane-AyzHK" data-component="SplitPageLayout.Pane" tabindex="0" role="region" aria-labelledby="overview-status-and-details">
+                    <h3 class="sr-only" id="overview-status-and-details" tabindex="-1">
+                      Status and details
+                    </h3>
+                    <div></div>
+                    <div data-testid="sticky-sidebar" class="sidebar__wcVu82">
+                      <section aria-label="Activity" data-overview-sidebar-item="true">
+                        <h4 class="disclosureHeading__ngTxJB">
+                          <button type="button" class="disclosureHeader__rRyQaP" aria-label="Filter activity: Since this pull request was created" id="_r_89_" aria-haspopup="true" aria-expanded="false" tabindex="0">
+                            <span class="sectionTitle__QwlXiE">
+                              Activity (since this pull request was created)
+                            </span>
+                            <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-filter disclosureIcon__c2UERV FilterIcon__ghCvt8" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                          </button>
+                        </h4>
+                        <div class="body__mgM9cP">
+                          <div class="d-flex flex-column">
+                            <ul class="prc-ActionList-ActionList-rPFF2 flush__Zr4MmV compact__teyslN" data-component="ActionList" data-dividers="false" data-variant="full">
+                              <li data-component="ActionList.Item" data-has-description="false" class="prc-ActionList-ActionListItem-So4vC labelRow__KBD80b">
+                                <button type="button" tabindex="0" aria-labelledby="_r_dt_--label _r_dt_--trailing-visual" id="_r_dt_" class="prc-ActionList-ActionListContent-KBb8-" data-size="medium">
+                                  <span class="prc-ActionList-Spacer-4tR2m"></span>
+                                  <span class="prc-ActionList-LeadingVisual-NBr28 prc-ActionList-VisualWrap-bdCsS" data-component="ActionList.LeadingVisual">
+                                    <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-people" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                                  </span>
+                                  <span class="prc-ActionList-ActionListSubContent-gKsFp" data-component="ActionList.Item--DividerContainer">
+                                    <span id="_r_dt_--label" class="prc-ActionList-ItemLabel-81ohH" data-component="ActionList.Item.Label">
+                                      Review requests
+                                    </span>
+                                    <span class="count__ASzxtS prc-ActionList-TrailingVisual-jwT9C prc-ActionList-VisualWrap-bdCsS" data-component="ActionList.TrailingVisual" id="_r_dt_--trailing-visual">
+                                      <span aria-hidden="true" data-variant="secondary" data-component="CounterLabel" class="prc-CounterLabel-CounterLabel-X-kRU">
+                                        2
+                                      </span>
+                                      <span class="prc-VisuallyHidden-VisuallyHidden-Q0qSB">
+                                        &nbsp;(2)
+                                      </span>
+                                    </span>
+                                  </span>
+                                </button>
+                              </li>
+                            </ul>
+                            <ul class="prc-ActionList-ActionList-rPFF2 flush__Zr4MmV compact__teyslN viewAllList__b6TL5g" data-component="ActionList" data-dividers="false" data-variant="full" aria-label="Additional activity actions">
+                              <li data-component="ActionList.Item" data-has-description="false" class="prc-ActionList-ActionListItem-So4vC labelRow__KBD80b">
+                                <button type="button" tabindex="0" aria-labelledby="_r_dv_--label" id="_r_dv_" class="prc-ActionList-ActionListContent-KBb8-" data-size="medium">
+                                  <span class="prc-ActionList-Spacer-4tR2m"></span>
+                                  <span class="prc-ActionList-LeadingVisual-NBr28 prc-ActionList-VisualWrap-bdCsS" data-component="ActionList.LeadingVisual">
+                                    <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-list-unordered" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                                  </span>
+                                  <span class="prc-ActionList-ActionListSubContent-gKsFp" data-component="ActionList.Item--DividerContainer">
+                                    <span id="_r_dv_--label" class="prc-ActionList-ItemLabel-81ohH" data-component="ActionList.Item.Label">
+                                      View all activity
+                                    </span>
+                                  </span>
+                                </button>
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
+                      </section>
+                      <section aria-label="Reviewers" data-overview-sidebar-item="true">
+                        <h4 class="disclosureHeading__ngTxJB">
+                          <button type="button" class="disclosureHeader__rRyQaP" aria-label="Manage reviewers" aria-expanded="false" aria-haspopup="dialog">
+                            <span class="sectionTitle__QwlXiE">
+                              Reviewers
+                            </span>
+                            <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-gear disclosureIcon__c2UERV" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                          </button>
+                        </h4>
+                        <div class="body__mgM9cP">
+                          <div>
+                            <ul class="reviewerList__XUeF5Q">
+                              <li class="reviewerRow__GGvypX withEffortMenu__-98tTK requestRow__-0sCBz">
+                                <span class="reviewerIdentityGroup__T4IAow">
+                                  <a class="Link--primary reviewerIdentity__UzEbKQ prc-Link-Link-9ZwDx" data-component="Link" data-inline="false" href="/apps/copilot-pull-request-reviewer" data-hovercard-type="copilot" aria-keyshortcuts="Alt+ArrowUp">
+                                    <span class="reviewerAvatar__D2Jz--">
+                                      <span class="copilotAvatar__JzKA0x small__FVt0Mn defaultStyle__XjbfRy" data-testid="copilot-avatar" role="presentation">
+                                        <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-copilot" viewBox="0 0 16 16" width="12" height="12" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                                      </span>
+                                    </span>
+                                    <span class="reviewerName__kuuPXF">
+                                      Copilot
+                                    </span>
+                                  </a>
+                                  <span class="effortMenu__5YM-Q0">
+                                    <span id="_r_90_" class="sr-only">
+                                      Copilot review effort
+                                    </span>
+                                    <button data-component="ActionMenu.Button" type="button" aria-haspopup="true" aria-expanded="false" tabindex="0" class="prc-Button-ButtonBase-9n-Xk effortMenuButton__JCk9rq" data-loading="false" data-size="small" data-variant="invisible" aria-describedby="_r_90_" id="_r_91_">
+                                      <span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5">
+                                        <span data-component="text" class="prc-Button-Label-FWkx3">
+                                          Balanced
+                                        </span>
+                                      </span>
+                                      <span data-component="trailingAction" class="prc-Button-Visual-YNt2F prc-Button-VisualWrap-E4cnq">
+                                        <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-triangle-down" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                                      </span>
+                                    </button>
+                                  </span>
+                                </span>
+                                <button data-component="Button" type="button" class="prc-Button-ButtonBase-9n-Xk requestButton__sGNIOJ" data-loading="false" data-no-visuals="true" data-size="medium" data-variant="link" aria-labelledby="_r_95_">
+                                  <span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5">
+                                    <span data-component="text" class="prc-Button-Label-FWkx3">
+                                      Request
+                                    </span>
+                                  </span>
+                                </button>
+                                <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="s" data-component="Tooltip" aria-hidden="true" id="_r_95_" popover="auto">
+                                  Request review from Copilot
+                                </span>
+                              </li>
+                              <li>
+                                <div class="reviewerRow__GGvypX">
+                                  <a class="Link--primary reviewerIdentity__UzEbKQ prc-Link-Link-9ZwDx" data-component="Link" data-inline="false" href="/orgs/excessive-dev/teams/frontend" data-hovercard-type="team" aria-keyshortcuts="Alt+ArrowUp">
+                                    <span class="reviewerAvatar__D2Jz--"></span>
+                                    <span class="reviewerName__kuuPXF">
+                                      frontend
+                                    </span>
+                                  </a>
+                                  <span class="indicators__g13EPv">
+                                    <button data-component="IconButton" type="button" class="prc-Button-ButtonBase-9n-Xk statusIcon__gxAEMz color-fg-muted prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="small" data-variant="invisible" aria-labelledby="_r_97_">
+                                      <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-shield" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                                    </button>
+                                    <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="nw" data-component="Tooltip" aria-hidden="true" id="_r_97_" popover="auto">
+                                      excessive-dev/frontend is a code owner
+                                    </span>
+                                    <button data-component="IconButton" type="button" class="prc-Button-ButtonBase-9n-Xk statusIcon__gxAEMz color-fg-attention prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="small" data-variant="invisible" aria-labelledby="_r_99_">
+                                      <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-dot-fill" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                                    </button>
+                                    <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="nw" data-component="Tooltip" aria-hidden="true" id="_r_99_" popover="auto">
+                                      excessive-dev/frontend: pending
+                                    </span>
+                                  </span>
+                                </div>
+                              </li>
+                              <li>
+                                <div class="reviewerRow__GGvypX">
+                                  <a class="Link--primary reviewerIdentity__UzEbKQ prc-Link-Link-9ZwDx" data-component="Link" data-inline="false" href="/orgs/excessive-dev/teams/platform" data-hovercard-type="team" aria-keyshortcuts="Alt+ArrowUp">
+                                    <span class="reviewerAvatar__D2Jz--"></span>
+                                    <span class="reviewerName__kuuPXF">
+                                      platform
+                                    </span>
+                                  </a>
+                                  <span class="indicators__g13EPv">
+                                    <button data-component="IconButton" type="button" class="prc-Button-ButtonBase-9n-Xk statusIcon__gxAEMz color-fg-muted prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="small" data-variant="invisible" aria-labelledby="_r_9b_">
+                                      <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-shield" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                                    </button>
+                                    <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="nw" data-component="Tooltip" aria-hidden="true" id="_r_9b_" popover="auto">
+                                      excessive-dev/platform is a code owner
+                                    </span>
+                                    <button data-component="IconButton" type="button" class="prc-Button-ButtonBase-9n-Xk statusIcon__gxAEMz color-fg-attention prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="small" data-variant="invisible" aria-labelledby="_r_9d_">
+                                      <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-dot-fill" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                                    </button>
+                                    <span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="nw" data-component="Tooltip" aria-hidden="true" id="_r_9d_" popover="auto">
+                                      excessive-dev/platform: pending
+                                    </span>
+                                  </span>
+                                </div>
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
+                      </section>
+                      <section aria-label="Assignees" data-overview-sidebar-item="true">
+                        <div class="d-none"></div>
+                        <h4 class="disclosureHeading__ngTxJB">
+                          <button type="button" class="disclosureHeader__rRyQaP" aria-label="Manage assignees" aria-haspopup="dialog">
+                            <span class="sectionTitle__QwlXiE">
+                              Assignees
+                            </span>
+                            <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-gear disclosureIcon__c2UERV" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                          </button>
+                        </h4>
+                        <div class="body__mgM9cP">
+                          <span class="emptyState__116zNc">
+                            No one—
+                            <div class="prc-Button-ConditionalWrapperLink-d0qv7" data-loading-wrapper="true">
+                              <button data-component="Button" type="button" class="prc-Button-ButtonBase-9n-Xk assignYourselfButton__R0BvLy" data-loading="false" data-no-visuals="true" data-size="medium" data-variant="link">
+                                <span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5">
+                                  <span data-component="text" class="prc-Button-Label-FWkx3">
+                                    assign yourself
+                                  </span>
+                                </span>
+                              </button>
+                            </div>
+                          </span>
+                        </div>
+                      </section>
+                      <div data-overview-sidebar-item="true">
+                        <ul class="prc-ActionList-ActionList-rPFF2 flush__Zr4MmV compact__teyslN" data-component="ActionList" data-dividers="false" data-variant="full" aria-label="Pull request actions">
+                          <li data-component="ActionList.Item" data-has-description="false" class="prc-ActionList-ActionListItem-So4vC">
+                            <button type="button" tabindex="0" aria-labelledby="_r_8s_--label" id="_r_8s_" class="prc-ActionList-ActionListContent-KBb8-" data-size="medium">
+                              <span class="prc-ActionList-Spacer-4tR2m"></span>
+                              <span class="prc-ActionList-LeadingVisual-NBr28 prc-ActionList-VisualWrap-bdCsS" data-component="ActionList.LeadingVisual">
+                                <svg data-component="Octicon" focusable="false" aria-label="Draft" class="octicon octicon-git-pull-request-draft fgColor-draft" role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                              </span>
+                              <span class="prc-ActionList-ActionListSubContent-gKsFp" data-component="ActionList.Item--DividerContainer">
+                                <span id="_r_8s_--label" class="prc-ActionList-ItemLabel-81ohH" data-component="ActionList.Item.Label">
+                                  Convert to draft
+                                </span>
+                              </span>
+                            </button>
+                          </li>
+                          <li data-component="ActionList.Item" data-variant="danger" data-has-description="false" class="prc-ActionList-ActionListItem-So4vC">
+                            <button type="button" tabindex="0" aria-labelledby="_r_8t_--label" id="_r_8t_" class="prc-ActionList-ActionListContent-KBb8-" data-size="medium">
+                              <span class="prc-ActionList-Spacer-4tR2m"></span>
+                              <span class="prc-ActionList-LeadingVisual-NBr28 prc-ActionList-VisualWrap-bdCsS" data-component="ActionList.LeadingVisual">
+                                <svg data-component="Octicon" focusable="false" aria-label="Closed" class="octicon octicon-git-pull-request-closed fgColor-closed" role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                              </span>
+                              <span class="prc-ActionList-ActionListSubContent-gKsFp" data-component="ActionList.Item--DividerContainer">
+                                <span id="_r_8t_--label" class="prc-ActionList-ItemLabel-81ohH" data-component="ActionList.Item.Label">
+                                  Close pull request
+                                </span>
+                              </span>
+                            </button>
+                          </li>
+                          <li data-component="ActionList.Item" data-variant="danger" data-has-description="false" class="prc-ActionList-ActionListItem-So4vC">
+                            <button type="button" tabindex="0" aria-labelledby="_r_8u_--label" id="_r_8u_" class="prc-ActionList-ActionListContent-KBb8-" data-size="medium">
+                              <span class="prc-ActionList-Spacer-4tR2m"></span>
+                              <span class="prc-ActionList-LeadingVisual-NBr28 prc-ActionList-VisualWrap-bdCsS" data-component="ActionList.LeadingVisual">
+                                <svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-archive" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible"></svg>
+                              </span>
+                              <span class="prc-ActionList-ActionListSubContent-gKsFp" data-component="ActionList.Item--DividerContainer">
+                                <span id="_r_8u_--label" class="prc-ActionList-ItemLabel-81ohH" data-component="ActionList.Item.Label">
+                                  Archive pull request
+                                </span>
+                              </span>
+                            </button>
+                          </li>
+                        </ul>
+                      </div>
+                      <div id="sticky-sidebar-top-sentinel"></div>
+                      <div id="sticky-sidebar-bottom-sentinel"></div>
+                    </div>
+                  </div>
+                  <div class="prc-PageLayout-VerticalDivider-9QRmK prc-PageLayout-PaneVerticalDivider-le57g" data-component="PageLayout.VerticalDivider" data-variant-narrow="none" data-variant-regular="none" data-position="end"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

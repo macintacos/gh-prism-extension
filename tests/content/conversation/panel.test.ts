@@ -16,7 +16,10 @@ import {
   followRightPanel,
 } from "../../../entrypoints/content/files-page";
 import type { PrRef } from "../../../utils/github/pr-ref";
+import overviewChrome from "../../fixtures/conversation-overview-chrome.html?raw";
 import fixture from "../../fixtures/files-page.html?raw";
+import conversationTabs from "../../fixtures/pr-tabs-conversation.html?raw";
+import overviewTabs from "../../fixtures/pr-tabs-overview.html?raw";
 import { setViewport } from "../../fixtures/viewport";
 
 const PR: PrRef = { kind: "pr", owner: "o", repo: "r", number: 7 };
@@ -128,6 +131,51 @@ describe("showConversationButton", () => {
     signal.abort();
 
     expect(button()).toBeNull();
+  });
+});
+
+describe("naming", () => {
+  const names = () => ({
+    heading: aside()?.querySelector("h2")?.textContent,
+    panel: aside()?.getAttribute("aria-label"),
+    frame: frame()?.title,
+    pin: aside()?.querySelector(".gh-prism-conversation-pin")?.getAttribute("aria-label"),
+    close: aside()?.querySelector(".gh-prism-conversation-close")?.getAttribute("aria-label"),
+    resize: aside()?.querySelector('[role="separator"]')?.getAttribute("aria-label"),
+    button: button()?.getAttribute("aria-label"),
+  });
+
+  it.each([
+    ["Overview", overviewTabs],
+    ["Conversation", conversationTabs],
+  ])("calls the panel and its button %s, as the pull request's first tab does", (name, tabs) => {
+    document.body.insertAdjacentHTML("afterbegin", tabs);
+    const { panel } = setup();
+
+    mountButton(panel)?.click();
+
+    expect(names()).toEqual({
+      heading: name,
+      panel: name,
+      frame: name,
+      pin: `Pin ${name}`,
+      close: `Close ${name}`,
+      resize: `Resize ${name}`,
+      button: name,
+    });
+  });
+
+  it("names the Overview in the failure's sentence and link", async () => {
+    document.body.insertAdjacentHTML("afterbegin", overviewTabs);
+    const { panel } = setup({ allowFraming: vi.fn(async () => false) });
+
+    mountButton(panel)?.click();
+
+    await vi.waitFor(() =>
+      expect(aside()?.querySelector(".gh-prism-conversation-failure")?.textContent).toBe(
+        "The Overview didn't load here. Open the Overview tab.",
+      ),
+    );
   });
 });
 
@@ -979,6 +1027,56 @@ describe("jumping in the frame", () => {
     checks()?.click();
 
     expect(frameWindow.scrollTo).toHaveBeenCalledWith({ top: 400, behavior: "smooth" });
+  });
+
+  describe("over the Overview", () => {
+    const REVIEWERS = 'section[data-overview-sidebar-item][aria-label="Reviewers"]';
+    const MAIN = '[data-component="SplitPageLayout.Content"]';
+
+    /** Opens the panel over Files changed for the Overview, framing the captured Overview. */
+    async function overview(): Promise<Document> {
+      document.body.insertAdjacentHTML("afterbegin", overviewTabs);
+      const framed = await loaded(overviewChrome);
+      placeAt(framed.querySelector(MAIN), { right: 368 });
+      return framed;
+    }
+
+    it("shows the sidebar control while the sidebar sits below the main column", async () => {
+      const framed = await overview();
+
+      placeAt(framed.querySelector(REVIEWERS), { left: 16 });
+      frameWindow.dispatchEvent(new Event("resize"));
+
+      expect(sidebar()?.hidden).toBe(false);
+    });
+
+    it("hides the sidebar control while the sidebar sits beside the main column", async () => {
+      const framed = await overview();
+
+      placeAt(framed.querySelector(REVIEWERS), { left: 400 });
+      frameWindow.dispatchEvent(new Event("resize"));
+
+      expect(sidebar()?.hidden).toBe(true);
+    });
+
+    it("jumps to the Reviewers section", async () => {
+      const framed = await overview();
+      placeAt(framed.querySelector(REVIEWERS), { top: 1200, left: 16 });
+      Object.assign(frameWindow, { scrollY: 50 });
+      frameWindow.dispatchEvent(new Event("resize"));
+
+      sidebar()?.click();
+
+      expect(frameWindow.scrollTo).toHaveBeenCalledWith({ top: 1250, behavior: "smooth" });
+    });
+
+    it("offers no checks control, the merge box already opening the page", async () => {
+      await overview();
+
+      frameWindow.dispatchEvent(new Event("resize"));
+
+      expect(checks()?.hidden).toBe(true);
+    });
   });
 
   it("jumps at once under reduced motion", async () => {

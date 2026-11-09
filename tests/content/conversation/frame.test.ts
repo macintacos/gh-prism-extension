@@ -12,6 +12,7 @@ import {
 import codeowners from "../../fixtures/codeowners-sandbox.json?raw";
 import chrome from "../../fixtures/conversation-chrome.html?raw";
 import comments from "../../fixtures/conversation-comments.html?raw";
+import overviewChrome from "../../fixtures/conversation-overview-chrome.html?raw";
 import conversationPage from "../../fixtures/conversation-page.html?raw";
 import { routedFetch } from "../../fixtures/fetch";
 import reviewRequests from "../../fixtures/review-requests-sandbox.json?raw";
@@ -33,6 +34,13 @@ function frameWindow(href = MARKED, top: unknown = {}) {
 
 const hidden = (selector: string) =>
   getComputedStyle(document.querySelector(selector) as Element).display === "none";
+
+/** Whether neither `selector`'s element nor any ancestor is `display: none`. */
+function shown(selector: string): boolean {
+  for (let node = document.querySelector(selector); node; node = node.parentElement)
+    if (getComputedStyle(node).display === "none") return false;
+  return document.querySelector(selector) !== null;
+}
 
 // Reports whether the click was prevented, then prevents it so happy-dom doesn't follow the link.
 function click(selector: string, init: MouseEventInit = {}): { defaultPrevented: boolean } {
@@ -80,6 +88,37 @@ describe("dressConversationFrame", () => {
     expect(hidden(".js-header-wrapper")).toBe(true);
     expect(hidden('header[class*="PageLayout-Header"]')).toBe(true);
     expect(hidden(".timeline")).toBe(false);
+  });
+
+  it("hides the Overview's sticky title bar and its header down to the tab row, leaving the merge box first", () => {
+    document.body.innerHTML = overviewChrome;
+
+    dressConversationFrame(frameWindow().win);
+
+    expect(hidden('[data-testid="diff-comparison-viewer-sticky-header-slot"]')).toBe(true);
+    expect(hidden('header[class*="PageLayout-Header"]')).toBe(true);
+    expect(shown('section[aria-label="Recommended action"]')).toBe(true);
+    expect(shown('section[aria-label="Merge status"]')).toBe(true);
+    expect(shown('section[data-overview-sidebar-item][aria-label="Reviewers"]')).toBe(true);
+  });
+
+  it("opens the Overview's content 16px below the panel's header, as the Conversation's", () => {
+    document.body.innerHTML = overviewChrome;
+    const [outer, inner] = document.querySelectorAll('[class*="PageLayout-PageLayoutContent"]');
+
+    dressConversationFrame(frameWindow().win);
+
+    expect(getComputedStyle(outer as Element).marginTop).not.toBe("16px");
+    expect(getComputedStyle(inner as Element).marginTop).toBe("16px");
+  });
+
+  it("leaves the Conversation's nested layout at GitHub's own gap", () => {
+    dressConversationFrame(frameWindow().win);
+
+    const content = document.querySelector(
+      '[class*="wrapper__"] [class*="PageLayout-PageLayoutContent"]',
+    ) as Element;
+    expect(getComputedStyle(content).marginTop).toBe("");
   });
 
   it("still dresses a page missing a hook", () => {

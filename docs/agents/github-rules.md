@@ -711,6 +711,27 @@ Below 1012px, a pull request's tree toggle opens the file tree as a "Files" over
 - **Find the framed page's chrome as `.js-header-wrapper` and
   `header[class*="prc-PageLayout-Header-"]:has(nav[class*="TabNav__"])`.** The title bar,
   its sticky copy, and the tab row all sit in that one header.
+- **Expect the frame to load GitHub's pull request overview for a viewer who has it, and
+  find its chrome as
+  `header[class*="prc-PageLayout-Header-"]:has(nav[aria-label="Pull request"])` and
+  `[data-testid="diff-comparison-viewer-sticky-header-slot"]`.** The header holds the
+  title, the code, notifications, and Preview buttons, the state, author, branches, and
+  diffstat, and the tab row. The sticky title bar, with Status, Review, and the side-panel
+  toggle, sits outside it, first in `#diff-comparison-viewer-container`, and shows at all
+  times. Below them a second, nested
+  `[class*="PageLayout-PageLayoutRoot"][class*="wrapper__"]` holds the merge box,
+  description, and comments, and the sidebar's `section[data-overview-sidebar-item]`s.
+  GitHub gives its `[class*="PageLayout-PageLayoutContent"]` a 24px `margin-block`. The
+  classic Conversation nests a `wrapper__` root of its own module around its timeline, at
+  16px, so key the overview's on its sidebar items. Observed on the code-owners sandbox's
+  PR #1 on 2026-11-08.
+- **Read which page the frame loads from Files changed's own header tab row.** Its first
+  tab links to the pull request itself and reads `Overview`, matching
+  `nav[aria-label="Pull request"] [data-content="Overview"]`, for a viewer GitHub serves
+  the overview, and `Conversation`, with a count, for everyone else: GitHub's bundle
+  pushes one tab or the other (read 2026-11-08). Route data's `featureStates.overview`
+  reads `"ENABLED"` alongside, but the tab is what GitHub links to. `prPageName` in
+  `files-page.ts` reads it, and the panel takes its name and jump targets from it.
 - **Find the framed page's site footer as `footer.footer[role="contentinfo"]`.** It is the
   page's only `<footer>`, a sibling after `.application-main`, so hiding it leaves no
   wrapper or spacing behind.
@@ -767,10 +788,18 @@ Below 1012px, a pull request's tree toggle opens the file tree as a "Files" over
   `frame.css` loses without it.
 - **Find the framed merge box's checks as
   `[data-testid="mergebox-partial"] section[aria-label="Checks"]`.** A merged pull
-  request's merge box has none. The hook keys on the English label `Checks`.
+  request's merge box has none. The hook keys on the English label `Checks`. The overview
+  has no `mergebox-partial`: its page opens on the merge box,
+  `section[aria-label="Recommended action"]` over a `section[aria-label="Merge status"]`
+  grid of checks, comments, and approvals.
 - **Find the framed sidebar as `#partial-discussion-sidebar` and the timeline as
   `.js-discussion`.** GitHub draws the sidebar below the timeline in a narrow frame, and
   beside it from about a 780px panel width.
+- **In the framed overview, find the Reviewers section as
+  `section[data-overview-sidebar-item][aria-label="Reviewers"]` and the main column as
+  `[data-component="SplitPageLayout.Content"]`, the page's only one.** The sidebar's
+  Activity section comes before Reviewers. GitHub draws the sidebar below the main column
+  in a 320px or 380px panel, and beside it in an 820px or 1000px one.
 - **Read the framed page through the frame's `contentDocument`.** The frame is
   same-origin, so the content script reads and scrolls it directly, with no message relay.
 - **Expect Firefox's declarativeNetRequest to name no initiator for a frame whose `src`
@@ -794,7 +823,13 @@ Below 1012px, a pull request's tree toggle opens the file tree as a "Files" over
   that it draws above the panel. Read `#__primerPortalRoot__`'s ancestors for `isolation`,
   and read `--zIndex-sticky` on `:root`. In Firefox, with the panel open, read
   `browser.declarativeNetRequest.getSessionRules()` from gh-prism's Inspect console in
-  `about:debugging`; leave the pull request by a full load and read it again.
+  `about:debugging`; leave the pull request by a full load and read it again. For the
+  overview, the saved `storageState` serves it: open the panel on the code-owners
+  sandbox's PR #1 and read the frame's header, sticky slot, and nested content's
+  `margin-top`, the Reviewers section's left edge against the main column's right at a
+  narrow and a wide panel, and Files changed's first `nav[aria-label="Pull request"]` tab.
+  Signed out, the same pull request's marked URL serves the classic Conversation. Grep
+  GitHub's assets for `label:"Overview"` to find the tab row's two forms.
 
 ## Files changed filters
 
