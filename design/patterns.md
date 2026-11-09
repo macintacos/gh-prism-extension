@@ -318,13 +318,15 @@ the two cards never share a trigger.
   it at 16px in `--fgColor-muted`. It carries `aria-expanded` and `aria-controls`, and
   takes the 2px `--focus-outlineColor` ring. Its list is a floating card (§ Floating
   surfaces): 8px padding, no border, at most `min(360px, 100vw - 16px)` wide, placed below
-  the button. Each team sits on its own 24px line with its filter icon, as § Owner
-  identities draws it. The list opens 200 ms after the pointer rests on the button, and at
-  once on keyboard focus or a click. It closes 150 ms after the pointer leaves the button
-  and the list, at once when focus leaves them, on a second click, and with the popup or
-  dialog that holds it. The card opens inside that popup or dialog, so the pointer in the
-  list keeps the popup open. Tab from the button moves into the list. Escape closes only
-  the list and puts focus back on the button, leaving the popup or dialog open.
+  the button. Each team sits on its own 24px line, as § Owner identities draws it, with
+  its filter icon where the host filters. The list opens 200 ms after the pointer rests on
+  the button, and at once on keyboard focus or a click. A click also pins it open, and a
+  click on a pinned list closes it. It closes 150 ms after the pointer leaves the button
+  and the list, at once when focus leaves them or on a scroll outside it, and with the
+  popup or dialog that holds it. Focus inside the list as it closes goes back to the
+  button. The card opens inside that popup or dialog, so the pointer in the list keeps the
+  popup open. Tab from the button moves into the list. Escape closes only the list and
+  puts focus back on the button, leaving the popup or dialog open.
 - **The hint:** like a file row's code owners popover (§ File rows), the popup ends in a
   footer that stays put while the list scrolls: below a hairline, "Click the shield for
   details" in small muted text. gh-prism's mark sits in the same footer (§ The mark).
@@ -537,13 +539,13 @@ and no hairline above them:
   4px above on "State, opening", all together. Rows a landing roster adds do the same. A
   search, or any other redraw, shows its rows at once, and a row that has already faded in
   doesn't fade in again when the roster lands. Under reduced motion nothing moves. When
-  that list is short of the count, the last slot reads "Loading N more members…", shown
-  only after 150 ms so a fast read never flashes it, until the whole roster lands. If the
-  roster can't be read, or holds fewer members than the count, that slot reads "See all N
-  members", linked to the team page. Once the roster is read, each row follows the login
-  with the member's display name in `--fgColor-muted` (§ Truncated names). A team the
-  viewer can't see reads "GitHub doesn't show you this team's members.", and an empty one
-  reads "This team has no members."
+  GitHub's list is short of the count, the last slot reads "Loading N more members…",
+  shown only after 150 ms so a fast read never flashes it, until the whole roster lands.
+  If the roster can't be read, or holds fewer members than the count, that slot reads "See
+  all N members", linked to the team page. Once the roster is read, each row follows the
+  login with the member's display name in `--fgColor-muted` (§ Truncated names). A team
+  the viewer can't see reads "GitHub doesn't show you this team's members.", and an empty
+  one reads "This team has no members."
 - **The member search:** the toggle shows Primer's small TextInput at the top of the body,
   8px above the grid, and focuses it. It filters every member by login or display name,
   ignoring case, with no cap. While the roster loads, a muted line under it reads "Loading
