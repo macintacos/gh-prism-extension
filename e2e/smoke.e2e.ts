@@ -54,7 +54,7 @@ const LARGE_PR_BODY = PR_BODY.replace(
 )
   .replace(TREE_OPEN, `${TREE_OPEN}${Array.from({ length: 300 }, (_, n) => bulkRow(n)).join("")}`)
   .replace(' aria-current="true"', "");
-// A loaded runner can take past expect's 5 s default to read a large pull request's diff.
+// A loaded runner can take longer than expect's 5 s default to read a large pull request's diff.
 const LARGE_PR_READ_TIMEOUT = 15_000;
 // The fixture's last Implementation file in native order.
 const LAST_IMPLEMENTATION_FILE = "src/render.rs";
@@ -943,13 +943,14 @@ test("a large pull request renders only the rows near the sidebar's viewport, an
   await expect(page.locator('[data-item-path="bulk/file-299.rs"]')).toHaveCount(0);
 
   const sidebar = page.locator("#pr-file-tree");
+  // A hover on a moving row retries with a scroll, which the poll below would credit to the wheel.
   await revealSettled(page);
   await bulk.hover();
   await page.mouse.wheel(0, 600);
   await expect.poll(() => sidebar.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 
-  // The wheel's scroll can land after the jump and carry the row out of view.
   const row = page.locator('[data-item-path="bulk/file-150.rs"]');
+  // The wheel's scroll can land after the jump and carry the row out of view.
   await expect(async () => {
     await scrollSidebarToBulkRow(page, 150);
     await expect(row).toBeInViewport({ timeout: 1000 });
