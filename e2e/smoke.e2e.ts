@@ -4543,10 +4543,11 @@ test("the header counter's hidden tooltips never widen the page, closed or pinne
     ),
   );
   const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
+  // Seeds the entry without the cache's index: the install handler may still be clearing the
+  // cache, and that clear drops every entry the index lists.
   await worker.evaluate(
     (key) =>
       (globalThis as unknown as { chrome: WxtBrowser }).chrome.storage.local.set({
-        "intent.v2": [key],
         [`intent.v2:${key}`]: {
           placements: [
             ["README.md", { kind: "whole", section: "docs" }],
