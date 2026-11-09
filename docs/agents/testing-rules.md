@@ -95,6 +95,11 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   px. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `toHundredths` does it.
 - **Never let a `bench/` file match a test glob** (`*.{test,spec}.*` or `*.e2e.ts`). The
   benchmark stays out of Vitest, Playwright, and CI.
+- **Give a large fixture's first wait `LARGE_PR_READ_TIMEOUT`.** The extension reads the
+  300-file diff before the sections land, and on a loaded runner that can take longer than
+  expect's 5 s default. In [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts), the large-fixture
+  tests pass it to their opening `toBeVisible`. A test that opens on an action already
+  waits up to the test timeout.
 - **Let the sections' reveal finish before a test clicks in the sidebar and reads its
   scroll.** The reveal animation moves every row for up to half a second after the
   sections land. Playwright retries a click whose target is moving, and its retries scroll
