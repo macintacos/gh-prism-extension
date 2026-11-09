@@ -6,6 +6,36 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-09: A wider details dialog, "N teams", and Show all's motion
+
+After trying the details dialog on a real pull request, the user asked: "When clicking
+'Show all members', it would be nice if there was a subtle, quick animation to show the
+other members." Then: "Could we make the entire modal a little bit wider actually? it
+feels a little cramped at its current width." And for a reviewer who owns through several
+teams: "it'd be awesome if we could consolidate these lines into like, some kind of '#
+groups' list that, when hovered, showed another popup with the group names that they're a
+member of."
+
+- **Compared:**
+  - for the width, Primer Dialog's 640px `xlarge`, or a custom 560px;
+  - for when "N teams" replaces the inline teams, one team or more, or two or more;
+  - for the list, a floating card opened inside the popup or dialog, or a native
+    `<details>`;
+  - for Show all's motion, rows that fade and settle on "State, opening", or the grid's
+    height growing.
+- **Won:**
+  - 640px, with member columns raised from 180px to 240px.
+  - Two or more teams.
+  - The floating card.
+  - Fade-and-settle rows.
+- **Why:**
+  - 640px is Primer's next Dialog step after `large`. The 240px column minimum keeps two
+    columns at that width instead of three cramped ones.
+  - One team fits inline and gains nothing from a hover.
+  - A `<details>` opens only on click and pushes the lines below it down, and the user
+    asked for a list that opens on hover.
+  - Firefox can't transition a grid's `auto` height.
+
 ## 2026-11-09: Team boxes in the code owner details dialog
 
 - **Compared:**

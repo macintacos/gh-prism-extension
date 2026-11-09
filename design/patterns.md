@@ -303,15 +303,28 @@ the two cards never share a trigger.
 - **Content:** the count line "Code owner of N files in this pull request", in GitHub's
   own words from its user hovercard. When teams make them an owner, a small muted line
   under it says "Through", or "Directly and through" when CODEOWNERS names them too, then
-  each team as § Owner identities draws it. Each team's filter icon shows only that team's
-  files, except in the Conversation panel, where nothing filters. The line is 24px tall,
-  so its words line up with the avatars, and a −6px top margin keeps it close under the
-  count line. Then the files, grouped under their folders, with a folder that holds only
-  another folder merged into it, as the sidebar's tree flattens them. Each folder's path
-  is in muted monospace and breaks only after a slash, unless one folder name alone is
-  wider than the popup. Its files sit indented below it in monospace. `ui/file-list.ts`
-  builds this tree for the popup, the folder popover (§ File rows), and through them the
-  details dialog. A long list scrolls inside the popup.
+  the team as § Owner identities draws it. Two or more teams don't fit inline, so the line
+  ends in "N teams" instead, such as "Through 2 teams". Each team's filter icon shows only
+  that team's files, except in the Conversation panel, where nothing filters. The line is
+  24px tall, so its words line up with the avatars, and a −6px top margin keeps it close
+  under the count line. Then the files, grouped under their folders, with a folder that
+  holds only another folder merged into it, as the sidebar's tree flattens them. Each
+  folder's path is in muted monospace and breaks only after a slash, unless one folder
+  name alone is wider than the popup. Its files sit indented below it in monospace.
+  `ui/file-list.ts` builds this tree for the popup, the folder popover (§ File rows), and
+  through them the details dialog. A long list scrolls inside the popup.
+- **"N teams":** a `<button>` drawn as an owner link's name, in the same colour and
+  weight, underlined on hover and while its list is open. Octicons `triangle-down` follows
+  it at 16px in `--fgColor-muted`. It carries `aria-expanded` and `aria-controls`, and
+  takes the 2px `--focus-outlineColor` ring. Its list is a floating card (§ Floating
+  surfaces): 8px padding, no border, at most `min(360px, 100vw - 16px)` wide, placed below
+  the button. Each team sits on its own 24px line with its filter icon, as § Owner
+  identities draws it. The list opens 200 ms after the pointer rests on the button, and at
+  once on keyboard focus or a click. It closes 150 ms after the pointer leaves the button
+  and the list, at once when focus leaves them, on a second click, and with the popup or
+  dialog that holds it. The card opens inside that popup or dialog, so the pointer in the
+  list keeps the popup open. Tab from the button moves into the list. Escape closes only
+  the list and puts focus back on the button, leaving the popup or dialog open.
 - **The hint:** like a file row's code owners popover (§ File rows), the popup ends in a
   footer that stays put while the list scrolls: below a hairline, "Click the shield for
   details" in small muted text. gh-prism's mark sits in the same footer (§ The mark).
@@ -366,18 +379,19 @@ draw it.
 - **The filter icon:** Octicons `filter` at 16px in `--fgColor-muted`, drawn as Primer's
   small invisible IconButton with a 24px target, right after the name and never on a line
   of its own. It follows a code owner's name in the "Owned by" headings, a file shield's
-  owner list, the dialog's summary and team boxes, and the popup's "Through" line. Its
-  name and tooltip say whose files it shows, "Show only files owned by <name>", the name
-  as the link shows it, such as `octo/web` or `mona`, because a heading can hold several.
-  It is a link: a plain click loads Files changed with only that owner's files, and
-  Cmd-click or Ctrl-click opens it in a new tab. On hover it takes
-  `--control-transparent-bgColor-hover` and the icon turns `--fgColor-default`. On a page
-  already filtered to that owner, it reads "Show all files", clears the filter, and takes
-  the selected fill, `--control-transparent-bgColor-selected`, with the icon in
-  `--fgColor-default`. The flipped name carries the state, as § Switches says, so it takes
-  no `aria-pressed`. Where the surface has no filter, as on a commit page or in the
-  Conversation panel, no icon follows. Nor does one follow the dialog's box for its own
-  code owner (§ Dialogs) or a team member.
+  owner list, the dialog's summary and team boxes, and the popup's "Through" line for a
+  single team, or the "N teams" list for more. Its name and tooltip say whose files it
+  shows, "Show only files owned by <name>", the name as the link shows it, such as
+  `octo/web` or `mona`, because a heading can hold several. It is a link: a plain click
+  loads Files changed with only that owner's files, and Cmd-click or Ctrl-click opens it
+  in a new tab. On hover it takes `--control-transparent-bgColor-hover` and the icon turns
+  `--fgColor-default`. On a page already filtered to that owner, it reads "Show all
+  files", clears the filter, and takes the selected fill,
+  `--control-transparent-bgColor-selected`, with the icon in `--fgColor-default`. The
+  flipped name carries the state, as § Switches says, so it takes no `aria-pressed`. Where
+  the surface has no filter, as on a commit page or in the Conversation panel, no icon
+  follows. Nor does one follow the dialog's box for its own code owner (§ Dialogs) or a
+  team member.
 - **Spacing:** an identity is inline text, so a line of them copies as one line, and the
   icon adds no text. A space sets it apart from the words before it, such as "Owned by" or
   "Through", and a comma and a space separate two identities. The avatar sits 4px before
@@ -490,12 +504,13 @@ while the spectrum sweeps across its top edge, and its backdrop is Primer's
 `--overlay-backdrop-bgColor`. `classic/notice.ts` and `classic/notice.css` hold it.
 
 The code owner details dialog copies that dialog's shell, its header, ✕ button, entrance,
-and backdrop, but has no spectrum. ✕, Escape, and a click outside close it. Opened from a
-Reviewers or comment author's shield, it is about one code owner, and its heading is that
-owner's identity (§ Owner identities), held to one line; any other heading is text and
-wraps. Under its heading, it repeats what the shield's popover lists, built by the same
-code. Then each owning team gets a box, 16px below that list, with 12px between boxes and
-no hairline above them:
+and backdrop, but has no spectrum. It is 640px wide, Primer Dialog's `xlarge`, between a
+296px minimum and the window less 64px. ✕, Escape, and a click outside close it. Opened
+from a Reviewers or comment author's shield, it is about one code owner, and its heading
+is that owner's identity (§ Owner identities), held to one line; any other heading is text
+and wraps. Under its heading, it repeats what the shield's popover lists, built by the
+same code. Then each owning team gets a box, 16px below that list, with 12px between boxes
+and no hairline above them:
 
 - **The box:** Primer's Box border, 1px `--borderColor-default`, with the medium radius.
   `exceptions.md` says why its edges sit below the 3:1 floor.
@@ -511,20 +526,24 @@ no hairline above them:
   border without clipping.
 - **The body:** below a 1px `--borderColor-default` rule, with 8px by 12px padding. Its
   members, each an avatar and login linked to their profile (§ Owner identities), sit in
-  columns at least 180px wide, 16px apart, with 4px between rows. A login too long for its
+  columns at least 240px wide, 16px apart, with 4px between rows. A login too long for its
   column wraps, with the avatar beside its first line. A team of six or fewer shows them
   all. A larger team shows five, and the sixth slot holds "Show all members", a button
   drawn as a link in `--fgColor-accent`, on a member row's 24px line. It expands the grid
   in place and moves focus to the sixth member. GitHub's first list of members holds about
   20 logins and no display names, so Show all and the member search read the whole roster
-  for its names. Show all expands at once to the members GitHub listed. When that list is
-  short of the count, the last slot reads "Loading N more members…", shown only after 150
-  ms so a fast read never flashes it, until the whole roster lands. If the roster can't be
-  read, or holds fewer members than the count, that slot reads "See all N members", linked
-  to the team page. Once the roster is read, each row follows the login with the member's
-  display name in `--fgColor-muted` (§ Truncated names). A team the viewer can't see reads
-  "GitHub doesn't show you this team's members.", and an empty one reads "This team has no
-  members."
+  for its names. Show all expands at once to the members GitHub listed. The box takes its
+  new height at once, and only the rows it reveals move: each fades in and settles from
+  4px above on "State, opening", all together. Rows a landing roster adds do the same. A
+  search, or any other redraw, shows its rows at once, and a row that has already faded in
+  doesn't fade in again when the roster lands. Under reduced motion nothing moves. When
+  that list is short of the count, the last slot reads "Loading N more members…", shown
+  only after 150 ms so a fast read never flashes it, until the whole roster lands. If the
+  roster can't be read, or holds fewer members than the count, that slot reads "See all N
+  members", linked to the team page. Once the roster is read, each row follows the login
+  with the member's display name in `--fgColor-muted` (§ Truncated names). A team the
+  viewer can't see reads "GitHub doesn't show you this team's members.", and an empty one
+  reads "This team has no members."
 - **The member search:** the toggle shows Primer's small TextInput at the top of the body,
   8px above the grid, and focuses it. It filters every member by login or display name,
   ignoring case, with no cap. While the roster loads, a muted line under it reads "Loading
