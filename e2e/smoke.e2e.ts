@@ -2803,7 +2803,8 @@ test("a shield's click swaps its hover popover for the code owner details dialog
   await expect(dialog).toHaveCount(0);
 });
 
-const LONG_TEAM = "@o/platform-infrastructure-reliability-and-developer-experience";
+const LONG_TEAM =
+  "@o/platform-infrastructure-reliability-and-developer-experience-and-release-engineering";
 
 /** Opens README.md's details dialog, owned by `LONG_TEAM` and its 214 members. */
 async function openLongTeamDialog(context: BrowserContext, page: Page) {
@@ -2844,6 +2845,37 @@ test("Show all lists every member of a large team, with their names", async ({ c
   await expect(dialog.locator("li.gh-prism-member")).toHaveCount(214);
   await expect(dialog.getByRole("link", { name: "member-01 Person 1", exact: true })).toBeVisible();
   await expect(dialog.getByRole("link", { name: /^member-06/ })).toBeFocused();
+});
+
+test("the code owner details dialog is 640px wide, its team boxes listing members in two columns", async ({
+  context,
+  page,
+}) => {
+  const dialog = await openLongTeamDialog(context, page);
+
+  // offsetWidth, not the box, which the dialog's entrance scales.
+  expect(await dialog.evaluate((element: HTMLElement) => element.offsetWidth)).toBe(640);
+  const columns = await dialog
+    .locator("section ul")
+    .evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length);
+  expect(columns).toBe(2);
+});
+
+test("Show all's revealed members settle fully shown", async ({ context, page }) => {
+  const dialog = await openLongTeamDialog(context, page);
+
+  await dialog.getByRole("button", { name: "Show all members" }).click();
+
+  // The roster re-renders the rows once it lands.
+  await expect(dialog.getByRole("link", { name: "member-06 Person 6", exact: true })).toBeVisible();
+  const opacity = await dialog
+    .locator("li.gh-prism-member")
+    .nth(5)
+    .evaluate(async (element) => {
+      await Promise.all(element.getAnimations().map(({ finished }) => finished));
+      return getComputedStyle(element).opacity;
+    });
+  expect(opacity).toBe("1");
 });
 
 test("a team's member search filters its members by name", async ({ context, page }) => {
@@ -3491,6 +3523,72 @@ test("Tab from a code owner reviewer's shield reaches their card's team link, an
   await page.keyboard.press("Escape");
   await expect(popup).toHaveCount(0);
   await expect(shield).toBeFocused();
+});
+
+const securityTeam = {
+  displayLogin: "nodejs/security-wg",
+  name: "security-wg",
+  reviewerType: "Team",
+};
+
+/** Serves nodejs/node#67056 with pimterry reviewing for nodejs/crypto and nodejs/security-wg. */
+const serveTwoTeamReviewer = (context: BrowserContext) =>
+  serveNodeConversation(context, ({ completedReviews: [pimterry] }) => {
+    Object.assign(pimterry ?? {}, { onBehalfOfTeams: [cryptoTeam, securityTeam] });
+  });
+
+test("a code owner through two teams counts them, listing them above their card while the pointer moves in", async ({
+  context,
+  page,
+}) => {
+  await serveTwoTeamReviewer(context);
+  await page.goto(NODE_PR);
+  const popup = page.locator(".gh-prism-reviewer-files");
+  await page.locator('button[data-gh-prism-owner="@pimterry"]').hover();
+
+  await expect(popup.locator("p", { hasText: "Through" })).toHaveText("Through 2 teams");
+  const teams = popup.getByRole("button", { name: "2 teams" });
+  await teams.hover();
+  const list = page.locator(".gh-prism-owner-teams-list:popover-open");
+  await expect(list).toBeVisible();
+  await expect(teams).toHaveAttribute("aria-expanded", "true");
+  const link = list.getByRole("link", { name: "nodejs/security-wg", exact: true });
+  // Drawn above the card: the list's own link is what the pointer finds at its centre.
+  expect(
+    await link.evaluate((element) => {
+      const { left, top, width, height } = element.getBoundingClientRect();
+      return element.contains(document.elementFromPoint(left + width / 2, top + height / 2));
+    }),
+  ).toBe(true);
+
+  await link.hover();
+  await page.waitForTimeout(400);
+
+  await expect(popup).toBeVisible();
+  await expect(list).toBeVisible();
+});
+
+test("a code owner details dialog's teams list closes on Escape, leaving the dialog open", async ({
+  context,
+  page,
+}) => {
+  await serveTwoTeamReviewer(context);
+  await page.goto(NODE_PR);
+  const shield = page.locator('button[data-gh-prism-owner="@pimterry"]');
+  await shield.hover();
+  await shield.click();
+  const dialog = page.getByRole("dialog", { name: "pimterry" });
+  const teams = dialog.getByRole("button", { name: "2 teams" });
+
+  await teams.click();
+  const list = page.locator(".gh-prism-owner-teams-list:popover-open");
+  await expect(list.getByRole("link", { name: "nodejs/crypto", exact: true })).toBeVisible();
+  await list.getByRole("link", { name: "nodejs/crypto", exact: true }).focus();
+  await page.keyboard.press("Escape");
+
+  await expect(list).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+  await expect(teams).toBeFocused();
 });
 
 test("a user's code-owner shield lists their team's files when assigned on its behalf", async ({

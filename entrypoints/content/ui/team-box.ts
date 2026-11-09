@@ -98,12 +98,14 @@ function memberList(
   let roster: Roster = read.total <= FULL_COUNT ? listed : "unread";
   let expanded = read.total <= FULL_COUNT;
   let searching = false;
+  // Logins whose rows the unsearched list has shown, so a row enters only on its first showing.
+  const seen = new Set<string>();
 
   const known = () => (typeof roster === "string" ? listed : roster);
   const list = el(
     doc,
     "ul",
-    "tw:m-0 tw:p-0 tw:list-none tw:grid tw:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] tw:gap-x-4 tw:gap-y-1",
+    "tw:m-0 tw:p-0 tw:list-none tw:grid tw:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] tw:gap-x-4 tw:gap-y-1",
   );
   const noMatch = el(doc, "p", "tw:m-0 tw:text-fg-muted");
   noMatch.setAttribute("role", "status");
@@ -115,7 +117,7 @@ function memberList(
     roster = "loading";
     void readRoster().then((answer) => {
       roster = answer ?? "failed";
-      render();
+      render({ enter: true });
     });
   };
 
@@ -129,7 +131,7 @@ function memberList(
   showAll.addEventListener("click", () => {
     expanded = true;
     loadRoster();
-    render();
+    render({ enter: true });
     list.children[COLLAPSED_COUNT]?.querySelector("a")?.focus();
   });
 
@@ -153,13 +155,15 @@ function memberList(
   };
   const row = ({ login, name }: TeamMember) => memberIdentity(doc, login, name);
 
-  const render = () => {
+  /** Redraws the list; given `enter`, the unsearched list's rows not shown before enter. */
+  const render = ({ enter = false } = {}) => {
     const active = list.contains(doc.activeElement) ? doc.activeElement : null;
     const focused = active?.closest("li.gh-prism-member a")?.getAttribute("href");
     const onShowAll = active === showAll;
     const shown = items();
     list.replaceChildren(...shown);
     const query = search.input.value.trim();
+    if (!query) markEntering(shown, seen, enter);
     noMatch.textContent = query && shown.length === 0 ? `No members match “${query}”.` : "";
     noMatch.hidden = noMatch.textContent === "";
     list.hidden = !noMatch.hidden;
@@ -169,7 +173,7 @@ function memberList(
     else if (onShowAll && showAll.isConnected) showAll.focus();
   };
 
-  search.input.addEventListener("input", render);
+  search.input.addEventListener("input", () => render());
   search.input.addEventListener("keydown", (event) => {
     if (event.key !== "Escape" || search.input.value === "") return;
     // Ahead of the dialog's own Escape, which would close it.
@@ -193,6 +197,18 @@ function memberList(
     if (searching) search.input.focus();
   });
   return { body, toggle };
+}
+
+/**
+ * Records each of `rows`' members in `seen`, given `enter` marking those not in it before to enter.
+ */
+function markEntering(rows: readonly HTMLElement[], seen: Set<string>, enter: boolean): void {
+  for (const row of rows) {
+    const login = row.querySelector(".gh-prism-member-login")?.textContent;
+    if (!login) continue;
+    if (enter && !seen.has(login)) row.classList.add("gh-prism-member-enter");
+    seen.add(login);
+  }
 }
 
 /** How far a roster read got, as the search's status line says it. */

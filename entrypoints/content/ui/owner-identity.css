@@ -214,3 +214,80 @@ a.gh-prism-owner-filter-icon:focus-visible {
     transition: none;
   }
 }
+
+/* "N teams": drawn as an owner link's name, on the identities' 24px line, its triangle muted. */
+button.gh-prism-owner-teams {
+  display: inline-block;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  font: inherit;
+  line-height: 24px;
+  vertical-align: top;
+  cursor: pointer;
+}
+
+button.gh-prism-owner-teams > .gh-prism-owner-name {
+  font-weight: var(--base-text-weight-semibold);
+  color: var(--fgColor-default);
+}
+
+button.gh-prism-owner-teams > svg {
+  margin: 4px 0;
+  vertical-align: top;
+  color: var(--fgColor-muted);
+}
+
+button.gh-prism-owner-teams:is(:hover, [aria-expanded="true"]) > .gh-prism-owner-name {
+  text-decoration: underline;
+}
+
+button.gh-prism-owner-teams:focus-visible {
+  outline: 2px solid var(--focus-outlineColor);
+  outline-offset: 0;
+}
+
+/* A floating card in the top layer, placed by script below its button. */
+.gh-prism-owner-teams-list[popover] {
+  inset: auto;
+  box-sizing: border-box;
+  max-width: min(360px, 100vw - 16px);
+  margin: 0;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--borderRadius-medium);
+  background: var(--overlay-bgColor, var(--bgColor-default));
+  box-shadow: var(--shadow-floating-small);
+  color: var(--fgColor-default);
+  font-size: var(--text-body-size-small);
+  line-height: 24px;
+  list-style: none;
+}
+
+.gh-prism-owner-teams-list > li {
+  display: block;
+}
+
+/* One line each: flex, so the name alone shrinks to fit and cuts off with its ellipsis. */
+.gh-prism-owner-teams-list .gh-prism-identity {
+  display: flex;
+}
+
+.gh-prism-owner-teams-list a.gh-prism-owner {
+  display: flex;
+  min-width: 0;
+  padding-block: 0;
+}
+
+/* :has(> a) outranks the filter icon's calc(100% - 48px) rule above. */
+.gh-prism-owner-teams-list .gh-prism-identity:has(> a) a.gh-prism-owner > .gh-prism-owner-name {
+  max-width: none;
+  min-width: 0;
+}
+
+.gh-prism-owner-teams-list a.gh-prism-owner-filter-icon {
+  flex-shrink: 0;
+}

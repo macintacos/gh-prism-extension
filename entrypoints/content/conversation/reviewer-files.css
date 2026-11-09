@@ -11,6 +11,7 @@
 @import "../ui/owner-identity.css";
 @import "../ui/pr-owners.css";
 @source "./reviewer-files.ts";
+@source "../ui/owner-identity.ts";
 @source "../ui/owners-dialog.ts";
 @source "../ui/file-list.ts";
 

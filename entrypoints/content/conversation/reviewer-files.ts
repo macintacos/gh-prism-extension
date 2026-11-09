@@ -7,7 +7,6 @@
  */
 
 import {
-  codeOwnerOf,
   filesOwnedBy,
   type OwnedFiles,
   type OwnedPullRequest,
@@ -33,12 +32,7 @@ import {
 import { el, icon, SHIELD_LOCK } from "../ui/dom";
 import { fileList } from "../ui/file-list";
 import { type Card, followHoverIntent } from "../ui/hover-intent";
-import {
-  followOwnerTooltips,
-  type OwnerIdentities,
-  ownerIdentity,
-  ownerSeparator,
-} from "../ui/owner-identity";
+import { followOwnerTooltips, type OwnerIdentities, throughLine } from "../ui/owner-identity";
 import {
   detailsHint,
   type OwnerFilter,
@@ -429,24 +423,9 @@ function popupBody(
     ];
 
   const files = paths.length === 1 ? "1 file" : `${paths.length} files`;
-  const through = teams.flatMap((team, i) => [
-    i > 0 ? ownerSeparator(doc) : "",
-    ownerIdentity(doc, codeOwnerOf(team), identities),
-  ]);
   return [
     el(doc, "p", "tw:mt-0 tw:mb-2 tw:font-semibold", `Code owner of ${files} in this pull request`),
-    ...(teams.length > 0
-      ? [
-          // A 24px line, the avatars' height; -6px keeps it under the count line.
-          el(
-            doc,
-            "p",
-            "tw:-mt-1.5 tw:mb-2 tw:text-body-small tw:leading-6 tw:text-fg-muted",
-            direct ? "Directly and through " : "Through ",
-            ...through,
-          ),
-        ]
-      : []),
+    ...(teams.length > 0 ? [throughLine(doc, teams, direct, identities)] : []),
     fileList(doc, paths),
   ];
 }

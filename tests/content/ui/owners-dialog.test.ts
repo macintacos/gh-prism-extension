@@ -291,6 +291,46 @@ describe("a team's members in the dialog", () => {
     expect(document.activeElement).toBe(members(boxes()[0])[5]?.querySelector("a"));
   });
 
+  const entering = (box = boxes()[0]) =>
+    members(box)
+      .filter((member) => member.classList.contains("gh-prism-member-enter"))
+      .map((member) => member.querySelector(".gh-prism-member-login")?.textContent);
+
+  it("marks only the rows Show all reveals to enter", async () => {
+    open(answering(team(7)), { teamRoster: () => new Promise(() => {}) });
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+    expect(entering()).toEqual([]);
+
+    showAll()?.click();
+
+    expect(entering()).toEqual(logins(2, 6));
+  });
+
+  it("marks only the rows past those already shown to enter once the roster lands", async () => {
+    let land: (roster: readonly TeamMember[]) => void = () => {};
+    open(answering(team(9, 7)), {
+      teamRoster: () => new Promise((resolve) => (land = resolve)),
+    });
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+    showAll()?.click();
+
+    land(roster(9));
+
+    await vi.waitFor(() => expect(entering()).toEqual(logins(2, 8)));
+  });
+
+  it("marks no row to enter when a search shows them", async () => {
+    open(answering(team(7)), { teamRoster: answeringRoster(roster(7)) });
+    await vi.waitFor(() => expect(searchToggle()).not.toBeNull());
+    searchToggle()?.click();
+    await vi.waitFor(() => expect(searchBox()).not.toBeNull());
+
+    typeQuery("member-0");
+
+    await vi.waitFor(() => expect(memberText()).toHaveLength(7));
+    expect(entering()).toEqual([]);
+  });
+
   it("names every member GitHub listed once the roster lands after Show all", async () => {
     open(answering(team(7)), { teamRoster: answeringRoster(roster(7)) });
     await vi.waitFor(() => expect(showAll()).not.toBeNull());
