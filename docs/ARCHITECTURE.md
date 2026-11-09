@@ -568,12 +568,16 @@ names, so the dialog's Show all and member search read the whole roster through 
 visit's `teamRosterReader`, which reads each team at most once a visit, from
 [`utils/github/team-roster.ts`](../utils/github/team-roster.ts): `readTeamRoster` reads
 the team's members page as HTML, page by page, with `DOMParser`, and keeps each member's
-login and display name. It reads nothing when GitHub's first list already holds every
-member. A team's avatar takes a read of its own, once a visit, through the visit's
-`teamAvatarReader`, when a surface first draws the team: `readTeamAvatar` finds the team's
-avatar ID in the hovercard GitHub's team mentions open, a small HTML answer. For a team
-the viewer can't see, GitHub answers 404 and the surface draws a placeholder. A user's
-avatar URL comes from their login, with no read.
+login and display name. A team of more than six members, which gets a member search, reads
+it even when GitHub's first list holds every member, because only the members page has
+display names. A team of six or fewer never reads it, so it shows logins alone. A team
+with more than 20 pages, about 600 members, answers `undefined` rather than a partial
+roster, so the dialog links the team page as it does after a failed read. A team's avatar
+takes a read of its own, once a visit, through the visit's `teamAvatarReader`, when a
+surface first draws the team: `readTeamAvatar` finds the team's avatar ID in the hovercard
+GitHub's team mentions open, a small HTML answer. For a team the viewer can't see, GitHub
+answers 404 and the surface draws a placeholder. A user's avatar URL comes from their
+login, with no read.
 
 Each read settles on its own: one that fails, or whose response misses a field it expects,
 resolves to `undefined` and logs one warning naming it, and the other read is unaffected.

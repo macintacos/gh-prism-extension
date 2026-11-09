@@ -90,9 +90,9 @@ header keeps its end ellipsis at rest and scrolls its label. Under reduced motio
 shows its full name as a strip the reviewer scrolls by hand. `ui/reveal.ts`'s `fullName()`
 builds the copy; `ui/reveal.css` and `ui/reveal.ts` show and scroll it.
 
-A code owner's name (§ Owner identities) doesn't scroll, because scrolling belongs to the
-sidebar's rows. It ends in an ellipsis at rest, and the owner tooltip (§ Tooltips) shows
-it whole on hover and keyboard focus.
+A code owner's name and a team member's display name (§ Owner identities) don't scroll,
+because scrolling belongs to the sidebar's rows. Each ends in an ellipsis at rest, and the
+owner tooltip (§ Tooltips) shows it whole on hover and keyboard focus.
 
 ## Overflow edges
 
@@ -354,8 +354,10 @@ draw it.
   everywhere on GitHub. A code owner's name is semibold `--fgColor-default`, a team
   member's login is normal weight, and either underlines on hover. Its target is its 24px
   line. A code owner's name holds one line, with its avatar and filter icon, and ends in
-  an ellipsis when it doesn't fit (§ Truncated names). A team member's login wraps. A
-  token with no page, such as an email, is plain text with no avatar or icon.
+  an ellipsis when it doesn't fit (§ Truncated names). A team member's login wraps whole,
+  and their display name after it holds one line, ending in an ellipsis when it doesn't
+  fit. A token with no page, such as an email, is plain text with no avatar or icon, and
+  wraps.
 - **The avatar:** a circle for a user and a square with a 4px radius for a team, on
   `--avatar-bgColor` inside a 1px `--avatar-borderColor` ring. The link's target reaches
   4px above, below, and after the glyph, so it fills the 24px line. A team whose avatar
@@ -502,7 +504,8 @@ no hairline above them:
   member count in muted body-small: "1 member" or "N members", blank for a hidden or empty
   team. A team of more than six ends the row in a member search toggle. It is drawn as
   Primer's small invisible IconButton with a 24px target, holding Octicons `search` at
-  16px. Its name and tooltip read "Filter members". It carries its state in
+  16px. Its name and tooltip read "Filter members of <team>", such as "Filter members of
+  o/team", and the search box takes the same name. It carries its state in
   `aria-expanded`, as § Switches says, and takes `--control-transparent-bgColor-selected`
   while open. The header's top corners sit 1px inside the box's, so the fill meets the
   border without clipping.
@@ -513,21 +516,23 @@ no hairline above them:
   all. A larger team shows five, and the sixth slot holds "Show all members", a button
   drawn as a link in `--fgColor-accent`, on a member row's 24px line. It expands the grid
   in place and moves focus to the sixth member. GitHub's first list of members holds about
-  20 logins and no display names. When it is short of the count, Show all expands to it
-  and the last slot reads "Loading N more members…", shown only after 150 ms so a fast
-  read never flashes it, until the whole roster lands. If the roster can't be read, that
-  slot reads "See all N members", linked to the team page. Once the roster is read, each
-  row follows the login with the member's display name in `--fgColor-muted`, cut off to
-  fit its column. A team the viewer can't see reads "GitHub doesn't show you this team's
-  members.", and an empty one reads "This team has no members."
+  20 logins and no display names, so Show all and the member search read the whole roster
+  for its names. Show all expands at once to the members GitHub listed. When that list is
+  short of the count, the last slot reads "Loading N more members…", shown only after 150
+  ms so a fast read never flashes it, until the whole roster lands. If the roster can't be
+  read, or holds fewer members than the count, that slot reads "See all N members", linked
+  to the team page. Once the roster is read, each row follows the login with the member's
+  display name in `--fgColor-muted` (§ Truncated names). A team the viewer can't see reads
+  "GitHub doesn't show you this team's members.", and an empty one reads "This team has no
+  members."
 - **The member search:** the toggle shows Primer's small TextInput at the top of the body,
-  8px above the grid, and focuses it. It is named "Filter members of <team>" and filters
-  every member by login or display name, ignoring case, with no cap. While the roster
-  loads, a muted line under it reads "Loading members…", shown only after 150 ms. When the
-  roster can't be read, the line says it matches among GitHub's first list of members
-  only. No match reads "No members match “<query>”." Escape in a non-empty box clears it
-  and keeps the dialog open; in an empty box it closes the dialog. Pressing the toggle
-  again hides the box and restores the list as it was.
+  8px above the grid, and focuses it. It filters every member by login or display name,
+  ignoring case, with no cap. While the roster loads, a muted line under it reads "Loading
+  members…", shown only after 150 ms. When the roster can't be read, the line says it
+  matches among GitHub's first list of members only. No match reads "No members match
+  “<query>”." Both lines are status messages, so a screen reader announces them. Escape in
+  a non-empty box clears it and keeps the dialog open; in an empty box it closes the
+  dialog. Pressing the toggle again hides the box and restores the list as it was.
 
 Opened from a code owners button, the dialog lists the whole pull request instead, grouped
 as a folder's popover groups its files (§ File rows). When the reviewers are known, two

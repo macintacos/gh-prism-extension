@@ -25,8 +25,8 @@ at the top, dated.
   - GitHub's members JSON stops at about 20 logins and carries no names, so only the
     members page can list everyone and match a display name.
   - The filter icon, a funnel, already means "show only their files" in the same row. The
-    toggle keeps the name "Filter members", since it narrows the list rather than leaving
-    it.
+    toggle is named "Filter members of <team>", not "Search", since it narrows the list
+    rather than leaving it.
   - Five, then Show all, keeps the box short and shows every member in the same grid. The
     user asked to "show 5 at max, with the 6th slot showing a "Show all members" link"
     that expands "inline, in a similar columnar style as the other members".
