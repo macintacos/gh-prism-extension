@@ -9,6 +9,12 @@ AI-assisted pull requests often look large when only a small part of them is
 implementation, and gh-prism lets you review that part first. See
 [what it does](#what-it-does).
 
+Install it:
+
+- Chrome:
+  [Chrome Web Store](https://chromewebstore.google.com/detail/gh-prism-sectioned-pull-r/nbgincngpiakbeihobifpdahbhflplgh)
+- Firefox: [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/gh-prism/)
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/hero-dark.png">
   <img src="docs/images/hero-light.png" width="1408" alt="A pull request's Files changed tab with gh-prism. The tab row shows five lines-changed counts, one per section, and the sidebar on the right lists files under Implementation, Tests, and Docs & Comments, with render.rs marked Partial.">
@@ -153,9 +159,10 @@ diffs, and Older and Newer links step through its history.
 
 ## Install
 
-[Install gh-prism from the Chrome Web Store](https://chromewebstore.google.com/detail/nbgincngpiakbeihobifpdahbhflplgh),
-then reload any GitHub tabs that were already open. Firefox has no store listing yet, so
-[build it from source](#build-from-source).
+Install gh-prism from the
+[Chrome Web Store](https://chromewebstore.google.com/detail/gh-prism-sectioned-pull-r/nbgincngpiakbeihobifpdahbhflplgh)
+or [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/gh-prism/), then
+reload any GitHub tabs that were already open.
 
 ### Build from source
 
