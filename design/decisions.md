@@ -6,6 +6,34 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-09: Team boxes in the code owner details dialog
+
+- **Compared:**
+  - for where members come from, GitHub's members JSON alone, or the team's members page,
+    read on demand;
+  - for the member search toggle's glyph, Octicons `search`, or `filter`;
+  - for how many members a box shows, 15 with a "See all N members" footer link, or 5 with
+    a "Show all members" slot that expands in place;
+  - for a cut-off owner name, the sidebar's scroll reveal, or an end ellipsis with the
+    owner tooltip.
+- **Won:**
+  - The members page, read only on Show all or a search.
+  - The magnifier.
+  - Five, then Show all.
+  - The end ellipsis and the owner tooltip.
+- **Why:**
+  - GitHub's members JSON stops at about 20 logins and carries no names, so only the
+    members page can list everyone and match a display name.
+  - The filter icon, a funnel, already means "show only their files" in the same row. The
+    toggle keeps the name "Filter members", since it narrows the list rather than leaving
+    it.
+  - Five, then Show all, keeps the box short and shows every member in the same grid. The
+    user asked to "show 5 at max, with the 6th slot showing a "Show all members" link"
+    that expands "inline, in a similar columnar style as the other members".
+  - The scroll reveal is reserved for the sidebar's rows, so an owner name, a user's or a
+    team's, ends in an ellipsis and shows whole in the tooltip, as the user asked: "when
+    the user hovers over a truncated value, it should show the full name".
+
 ## 2026-11-08: The Conversation panel over GitHub's pull request overview
 
 - **Compared:**

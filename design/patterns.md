@@ -90,6 +90,10 @@ header keeps its end ellipsis at rest and scrolls its label. Under reduced motio
 shows its full name as a strip the reviewer scrolls by hand. `ui/reveal.ts`'s `fullName()`
 builds the copy; `ui/reveal.css` and `ui/reveal.ts` show and scroll it.
 
+A code owner's name (§ Owner identities) doesn't scroll, because scrolling belongs to the
+sidebar's rows. It ends in an ellipsis at rest, and the owner tooltip (§ Tooltips) shows
+it whole on hover and keyboard focus.
+
 ## Overflow edges
 
 Content its box cuts off fades out at the cut edge through an alpha `mask-image`, never a
@@ -142,13 +146,17 @@ The owner filter icons' tooltips (§ Owner identities) look the same but sit in 
 layer, because their surfaces scroll, and an `::after` there would widen the scroller's
 overflow even while hidden. Each surface holds one `popover="manual"` tooltip that reads
 the hovered or keyboard-focused icon's `data-tooltip`. When the pointer leaves an icon
-while another holds keyboard focus, the tooltip shows the focused icon's text again.
-`ui/place.ts` places it 4px below the icon, start-aligned, or above it where the viewport
-has no room below. It is hidden from assistive technology, because the icon's `aria-label`
-already says the same. `ui/owner-identity.ts` builds it. The whole pull request's reviewer
-eye (§ Dialogs) shares this tooltip but opens it on hover alone, since the eye takes no
-focus. Its hidden words, which join the owner heading's accessible name, say the same as
-the tooltip, so keyboard and screen-reader users lose nothing.
+while another holds keyboard focus, the tooltip shows the focused icon's text again. The
+same tooltip shows an owner link's full name, as the link shows it, when its name is cut
+off (§ Truncated names), measured as `scrollWidth > clientWidth` when it would show. It
+never shows for a name that fits. The member search toggle (§ Dialogs) always shows its
+`data-tooltip` through it, as the filter icons do. `ui/place.ts` places it 4px below the
+icon, start-aligned, or above it where the viewport has no room below. It is hidden from
+assistive technology, because the icon's `aria-label` already says the same.
+`ui/owner-identity.ts` builds it. The whole pull request's reviewer eye (§ Dialogs) shares
+this tooltip but opens it on hover alone, since the eye takes no focus. Its hidden words,
+which join the owner heading's accessible name, say the same as the tooltip, so keyboard
+and screen-reader users lose nothing.
 
 A control that takes a key names it in its tooltip, after the action's name, and sets
 `aria-keyshortcuts`, so assistive technology announces the key. Three sets of controls
@@ -345,8 +353,9 @@ draw it.
   names the link. It opens the team page or profile in a new tab, as a name does
   everywhere on GitHub. A code owner's name is semibold `--fgColor-default`, a team
   member's login is normal weight, and either underlines on hover. Its target is its 24px
-  line, so a wrapped name's lines don't overlap. A token with no page, such as an email,
-  is plain text with no avatar or icon.
+  line. A code owner's name holds one line, with its avatar and filter icon, and ends in
+  an ellipsis when it doesn't fit (§ Truncated names). A team member's login wraps. A
+  token with no page, such as an email, is plain text with no avatar or icon.
 - **The avatar:** a circle for a user and a square with a 4px radius for a team, on
   `--avatar-bgColor` inside a 1px `--avatar-borderColor` ring. The link's target reaches
   4px above, below, and after the glyph, so it fills the 24px line. A team whose avatar
@@ -377,8 +386,8 @@ draw it.
 - **Headings:** a heading that holds identities is named by its text alone, never by its
   icons' labels. An "Owned by" heading sets its own text as its `aria-label`. A box header
   holds the link inside its heading and the icon just after it.
-- **The tooltips:** only the filter icons take one (§ Tooltips). The link needs none,
-  because its visible name says where it goes.
+- **The tooltips:** the filter icons take one (§ Tooltips). The link takes one only while
+  its name is cut off, to show it whole.
 
 `ui/owner-identity.ts` builds them. Its sheet, `ui/owner-identity.css`, takes no `tw:`
 classes, and each host's sheet imports it.
@@ -479,25 +488,46 @@ while the spectrum sweeps across its top edge, and its backdrop is Primer's
 `--overlay-backdrop-bgColor`. `classic/notice.ts` and `classic/notice.css` hold it.
 
 The code owner details dialog copies that dialog's shell, its header, ✕ button, entrance,
-and backdrop, but has no spectrum. ✕, Escape, and a click outside close it. Under its
-heading, it repeats what the shield's popover lists, built by the same code. Then each
-owning team gets a box, 16px below that list, with 12px between boxes and no hairline
-above them:
+and backdrop, but has no spectrum. ✕, Escape, and a click outside close it. Opened from a
+Reviewers or comment author's shield, it is about one code owner, and its heading is that
+owner's identity (§ Owner identities), held to one line; any other heading is text and
+wraps. Under its heading, it repeats what the shield's popover lists, built by the same
+code. Then each owning team gets a box, 16px below that list, with 12px between boxes and
+no hairline above them:
 
 - **The box:** Primer's Box border, 1px `--borderColor-default`, with the medium radius.
   `exceptions.md` says why its edges sit below the 3:1 floor.
 - **The header:** a row on `--bgColor-muted` with 6px by 12px padding. The team's identity
-  (§ Owner identities) sits at its start in body-medium, and its member count at its end
-  in muted body-small: "1 member" or "N members", blank for a hidden or empty team. Its
-  top corners sit 1px inside the box's, so the fill meets the border without clipping.
-- **The body:** below a 1px `--borderColor-default` rule, with 8px by 12px padding. It
-  holds at most 15 members, each an avatar and login linked to their profile (§ Owner
-  identities), in columns at least 180px wide, 16px apart, with 4px between rows. A login
-  too long for its column wraps, with the avatar beside its first line. A team the viewer
-  can't see reads "GitHub doesn't show you this team's members.", and an empty one reads
-  "This team has no members."
-- **The footer:** a team with more members ends below a 1px `--borderColor-muted` rule in
-  "See all N members", linked to its team page.
+  (§ Owner identities) sits at its start in body-medium, its name cut off to fit, then its
+  member count in muted body-small: "1 member" or "N members", blank for a hidden or empty
+  team. A team of more than six ends the row in a member search toggle. It is drawn as
+  Primer's small invisible IconButton with a 24px target, holding Octicons `search` at
+  16px. Its name and tooltip read "Filter members". It carries its state in
+  `aria-expanded`, as § Switches says, and takes `--control-transparent-bgColor-selected`
+  while open. The header's top corners sit 1px inside the box's, so the fill meets the
+  border without clipping.
+- **The body:** below a 1px `--borderColor-default` rule, with 8px by 12px padding. Its
+  members, each an avatar and login linked to their profile (§ Owner identities), sit in
+  columns at least 180px wide, 16px apart, with 4px between rows. A login too long for its
+  column wraps, with the avatar beside its first line. A team of six or fewer shows them
+  all. A larger team shows five, and the sixth slot holds "Show all members", a button
+  drawn as a link in `--fgColor-accent`, on a member row's 24px line. It expands the grid
+  in place and moves focus to the sixth member. GitHub's first list of members holds about
+  20 logins and no display names. When it is short of the count, Show all expands to it
+  and the last slot reads "Loading N more members…", shown only after 150 ms so a fast
+  read never flashes it, until the whole roster lands. If the roster can't be read, that
+  slot reads "See all N members", linked to the team page. Once the roster is read, each
+  row follows the login with the member's display name in `--fgColor-muted`, cut off to
+  fit its column. A team the viewer can't see reads "GitHub doesn't show you this team's
+  members.", and an empty one reads "This team has no members."
+- **The member search:** the toggle shows Primer's small TextInput at the top of the body,
+  8px above the grid, and focuses it. It is named "Filter members of <team>" and filters
+  every member by login or display name, ignoring case, with no cap. While the roster
+  loads, a muted line under it reads "Loading members…", shown only after 150 ms. When the
+  roster can't be read, the line says it matches among GitHub's first list of members
+  only. No match reads "No members match “<query>”." Escape in a non-empty box clears it
+  and keeps the dialog open; in an empty box it closes the dialog. Pressing the toggle
+  again hides the box and restores the list as it was.
 
 Opened from a code owners button, the dialog lists the whole pull request instead, grouped
 as a folder's popover groups its files (§ File rows). When the reviewers are known, two

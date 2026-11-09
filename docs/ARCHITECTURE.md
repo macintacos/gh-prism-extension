@@ -563,8 +563,13 @@ who isn't a PR reviewer owns, before drawing their shield. `ownershipOf` and the
 owner details dialog both read through the visit's `teamMembersReader`, which asks each
 team once, so a team is read once a visit however many logins are checked, and the dialog
 reuses a read already made. Each read also carries the team's member count, which the
-dialog's "See all N members" link shows when the team has more members than it lists. A
-team's avatar takes a read of its own, once a visit, through the visit's
+dialog's box header shows. That JSON lists only a large team's first members, with no
+names, so the dialog's Show all and member search read the whole roster through the
+visit's `teamRosterReader`, which reads each team at most once a visit, from
+[`utils/github/team-roster.ts`](../utils/github/team-roster.ts): `readTeamRoster` reads
+the team's members page as HTML, page by page, with `DOMParser`, and keeps each member's
+login and display name. It reads nothing when GitHub's first list already holds every
+member. A team's avatar takes a read of its own, once a visit, through the visit's
 `teamAvatarReader`, when a surface first draws the team: `readTeamAvatar` finds the team's
 avatar ID in the hovercard GitHub's team mentions open, a small HTML answer. For a team
 the viewer can't see, GitHub answers 404 and the surface draws a placeholder. A user's
@@ -617,11 +622,13 @@ section or the diffstat.
 Clicking a shield, or Enter or Space on it, closes the popover and opens the code owner
 details dialog, built by
 [`ui/owners-dialog.ts`](../entrypoints/content/ui/owners-dialog.ts). The dialog repeats
-the popover's list, then gives each owning team a box with its member count, its first 15
-members, and a link to the team's page for the rest. It mounts in the page's body with its
-own stylesheet, so a shield in a shadow root and one in the light DOM can share it.
-Opening it moves focus to the shield's row first. The dialog then hands focus back to the
-row, never the shield, whose focus would reopen the popover.
+the popover's list, then gives each owning team a box, built by
+[`ui/team-box.ts`](../entrypoints/content/ui/team-box.ts), with its member count and its
+members: all of a team of six or fewer, otherwise five and a Show all button, plus a
+member search for a larger team. It mounts in the page's body with its own stylesheet, so
+a shield in a shadow root and one in the light DOM can share it. Opening it moves focus to
+the shield's row first. The dialog then hands focus back to the row, never the shield,
+whose focus would reopen the popover.
 
 The same dialog covers the whole pull request from a code owners button, built by
 [`ui/pr-owners.ts`](../entrypoints/content/ui/pr-owners.ts). On Files changed it sits
@@ -638,15 +645,16 @@ those reads:
 
 Opening it reads each owning team's members and the team's avatar; the visit reads both at
 most once per team, so a later open sends nothing. When the pull request has reviewers,
-the PR reviewer read has already fetched the members, so no open requests members.
-`showPrOwnersButton` in `ui/pr-owners.ts` places the button after the Conversation button,
-which `index.ts` passes it from `showConversationButton`. Its stylesheet,
-`ui/pr-owners.css`, is plain CSS holding the button's base look and tooltip, and each host
-sizes and places it with its own rules. `conversation/panel.css` imports it, so it mounts
-with the Conversation panel's sheet on every pull request's Files changed. On the
-Conversation tab, `conversation/reviewer-files.ts` puts the same button just before each
-Reviewers heading that `findReviewersHeadings` in `files-page.ts` finds, at the heading's
-inline end. That button opens the dialog from the ownership the tab has already read.
+the PR reviewer read has already fetched the members, so no open requests members. The
+roster read waits for Show all or a member search. `showPrOwnersButton` in
+`ui/pr-owners.ts` places the button after the Conversation button, which `index.ts` passes
+it from `showConversationButton`. Its stylesheet, `ui/pr-owners.css`, is plain CSS holding
+the button's base look and tooltip, and each host sizes and places it with its own rules.
+`conversation/panel.css` imports it, so it mounts with the Conversation panel's sheet on
+every pull request's Files changed. On the Conversation tab,
+`conversation/reviewer-files.ts` puts the same button just before each Reviewers heading
+that `findReviewersHeadings` in `files-page.ts` finds, at the heading's inline end. That
+button opens the dialog from the ownership the tab has already read.
 `conversation/reviewer-files.css` imports `ui/pr-owners.css` too.
 
 On the Conversation tab, a code-owner shield beside a PR reviewer in a Reviewers list
@@ -710,7 +718,8 @@ name, as one link to the account's page. On a pull request a filter icon follows
 owner's name: a link that sets the owner filter, named "Show only files owned by
 `<owner>`". On Files changed it says "Show all files" for the code owner the page already
 filters by, and clears the filter. The module also holds the one tooltip each surface
-shows for those icons, in the top layer, so it never widens a scrolling surface.
+shows for those icons, in the top layer, so it never widens a scrolling surface. The same
+tooltip shows a code owner's name whole while its one line cuts it off.
 
 The popup, and the dialog it opens, offer the same filter for the reviewer they are about:
 "Show only their files", a link built by `ownerFilterAction` in `ui/owners-dialog.ts`.
