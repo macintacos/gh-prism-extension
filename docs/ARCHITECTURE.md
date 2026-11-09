@@ -623,6 +623,12 @@ it before moving into or out of the narrow layout's overlay, since a popover tha
 the document closes without a toggle event. Showing a file's owners never changes its
 section or the diffstat.
 
+Each section header that lists an owned file has a shield too, built by `sectionShell` in
+[`sidebar/sections-view.ts`](../entrypoints/content/sidebar/sections-view.ts) beside the
+header's toggle. It goes through the same `followHoverIntent` and popover, listing every
+file in the section from the repository root. Its dialog returns focus to the section's
+toggle.
+
 Clicking a shield, or Enter or Space on it, closes the popover and opens the code owner
 details dialog, built by
 [`ui/owners-dialog.ts`](../entrypoints/content/ui/owners-dialog.ts). The dialog repeats

@@ -6,6 +6,25 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-09: A code owners shield on each section header
+
+- **Asked:** "it'd be awesome if the codeowners shield icon could pop up, replacing the
+  diff numbers on the right side of the header, and it perform similar to the other
+  shields that we have in the sidebar - clicking it should show me the same popup, but for
+  codeowners in that section, covering all files / folders in that section."
+- **Compared:**
+  - for the placement, the shield beside the line totals, or in their place;
+  - for the structure, the shield inside the header's toggle, or beside it;
+  - for the popover's list, the files flat, or as a tree from the repository root.
+- **Won:**
+  - In the totals' place, on hover and focus.
+  - Beside the toggle, outside the heading.
+  - A tree from the repository root.
+- **Why:**
+  - It mirrors a file row's icon giving way to its shield, as asked.
+  - A button can't hold another button, and the heading's name stays the section's.
+  - A section has no folder of its own, and the tree matches every other owners list.
+
 ## 2026-11-09: A wider details dialog, "N teams", and Show all's motion
 
 After trying the details dialog on a real pull request, the user asked: "When clicking

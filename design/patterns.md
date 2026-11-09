@@ -17,7 +17,9 @@ hairlines rule the pills apart. `exceptions.md` says why.
 
 The icon gives way to a chevron while the header is hovered or focused, and the chevron's
 turn shows whether the section is open. A folder row inside a section does the same with a
-folder icon in the section's hue, in `sidebar/section-tree.css`.
+folder icon in the section's hue, in `sidebar/section-tree.css`. A section that lists an
+owned file shows its code owners shield in place of its line totals while the header is
+hovered or focused, or the shield's popover is open (§ File rows).
 
 ## Section surface
 
@@ -76,6 +78,19 @@ is at most 400px wide. It ends in the same hint, and a click on the shield opens
 owner details dialog too. `sidebar/owners-popover.ts` builds it. The whole pull request's
 code owner details dialog (§ Dialogs) groups every changed file the same way, by full
 path.
+
+A section that lists an owned file gets the same shield on its header, at the header's
+right end, centred on the folder rows' shield column below. At rest the header shows its
+line totals. While the header is hovered, holds focus, or has the shield's popover open,
+the shield fades in over the totals. The fade uses the folder shield's
+`opacity 150ms ease-out`, and is instant under reduced motion. Both hide by opacity only,
+so the totals stay in the toggle's name and the shield stays in the tab order, right after
+the toggle. The shield sits outside the toggle and the heading, and is named "Code owners
+of files in <section>". Its popover lists every file the section lists, grouped by owner
+set as a folder's are, as a tree from the repository root, and ends in the same hint. A
+click opens the code owner details dialog without toggling the section. Closing the dialog
+returns focus to the section's toggle. `sidebar/sections-view.ts` builds it and
+`sidebar/sections-view.css` styles it.
 
 A folder chain short of room keeps its first folder and as many trailing folders as fit
 around one `…`. With room for less, it shows `…` and the deepest folder alone. Only the
