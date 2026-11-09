@@ -440,9 +440,10 @@ function followViewport(view: HTMLElement, onMove: () => void, signal: AbortSign
  * progress bar while intent is pending; on landing, notices for path-only sections or diffs kept
  * in GitHub's order; then a tree per listing, each split file listed in every section its hunks
  * land in, with the lines each share adds and removes. All of it anchors below a leading
- * what's-new block when the nav holds one. A code owners shield's dialog excerpts teams through
- * `teamMembers`; its popover and dialog draw teams' avatars through `teamAvatar`, its dialog reads a team's roster through `teamRoster`, and filter from
- * each owner's name through `filter` when given.
+ * what's-new block when the nav holds one. A code owners shield's dialog lists teams' members
+ * through `teamMembers` and reads a team's roster through `teamRoster`; its popover and dialog draw
+ * teams' avatars through `teamAvatar`, and filter from each owner's name through `filter` when
+ * given.
  */
 export function showSections(
   page: FilesPage,

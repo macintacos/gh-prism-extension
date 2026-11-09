@@ -22,8 +22,6 @@ const FULL_COUNT = 6;
 const COLLAPSED_COUNT = 5;
 const LOADING_DELAY_MS = 150;
 
-let searchIds = 0;
-
 /**
  * `team`'s box: a header naming it, drawn by `identities`, over its members, which fill in with
  * their count once `reads.members` settles.
@@ -96,7 +94,8 @@ function memberList(
   readRoster: TeamReads["roster"],
 ): { body: HTMLElement; toggle?: HTMLElement } {
   const listed: readonly TeamMember[] = read.members.map((login) => ({ login }));
-  let roster: Roster = listed.length >= read.total ? listed : "unread";
+  // A team with a search reads its roster for display names, even when `listed` holds everyone.
+  let roster: Roster = read.total <= FULL_COUNT ? listed : "unread";
   let expanded = read.total <= FULL_COUNT;
   let searching = false;
 
@@ -107,6 +106,7 @@ function memberList(
     "tw:m-0 tw:p-0 tw:list-none tw:grid tw:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] tw:gap-x-4 tw:gap-y-1",
   );
   const noMatch = el(doc, "p", "tw:m-0 tw:text-fg-muted");
+  noMatch.setAttribute("role", "status");
   const search = memberSearch(doc, owner);
   const body = el(doc, "div", BODY, search.box, list, noMatch);
 
@@ -144,7 +144,7 @@ function memberList(
     const rest = read.total - known().length;
     if (roster === "loading" && rest > 0)
       return [...known().map(row), held(doc, `Loading ${rest} more members…`)];
-    if (roster === "failed" && rest > 0 && owner.url)
+    if (roster !== "loading" && rest > 0 && owner.url)
       return [
         ...known().map(row),
         el(doc, "li", "", newTabLink(doc, `See all ${read.total} members`, owner.url)),
@@ -154,16 +154,19 @@ function memberList(
   const row = ({ login, name }: TeamMember) => memberIdentity(doc, login, name);
 
   const render = () => {
-    const focused = doc.activeElement?.closest("li.gh-prism-member a")?.getAttribute("href");
+    const active = list.contains(doc.activeElement) ? doc.activeElement : null;
+    const focused = active?.closest("li.gh-prism-member a")?.getAttribute("href");
+    const onShowAll = active === showAll;
     const shown = items();
     list.replaceChildren(...shown);
     const query = search.input.value.trim();
     noMatch.textContent = query && shown.length === 0 ? `No members match “${query}”.` : "";
     noMatch.hidden = noMatch.textContent === "";
     list.hidden = !noMatch.hidden;
-    search.status(roster === "loading" ? "loading" : roster === "failed" ? listed.length : null);
-    // A re-render replaces the rows; focus follows its member.
+    search.status(statusOf(roster, listed.length));
+    // A re-render replaces the rows; focus follows its member, or stays on Show all.
     if (focused) list.querySelector<HTMLElement>(`a[href="${CSS.escape(focused)}"]`)?.focus();
+    else if (onShowAll && showAll.isConnected) showAll.focus();
   };
 
   search.input.addEventListener("input", render);
@@ -179,7 +182,7 @@ function memberList(
   render();
   if (read.total <= FULL_COUNT) return { body };
 
-  const toggle = searchToggle(doc, search.input.id);
+  const toggle = searchToggle(doc, owner, search.input.id);
   toggle.addEventListener("click", () => {
     searching = !searching;
     toggle.setAttribute("aria-expanded", String(searching));
@@ -191,6 +194,16 @@ function memberList(
   });
   return { body, toggle };
 }
+
+/** How far a roster read got, as the search's status line says it. */
+type SearchStatus = { kind: "idle" } | { kind: "loading" } | { kind: "failed"; listed: number };
+
+const statusOf = (roster: Roster, listed: number): SearchStatus =>
+  roster === "loading"
+    ? { kind: "loading" }
+    : roster === "failed"
+      ? { kind: "failed", listed }
+      : { kind: "idle" };
 
 /** Whether `member`'s login or display name contains `query`, already lowercased. */
 const matches = ({ login, name }: TeamMember, query: string) =>
@@ -213,7 +226,7 @@ function memberSearch(
 ): {
   box: HTMLElement;
   input: HTMLInputElement;
-  status: (state: "loading" | number | null) => void;
+  status: (state: SearchStatus) => void;
 } {
   const input = el(
     doc,
@@ -222,22 +235,24 @@ function memberSearch(
   );
   // type="text", not "search": the browser would clear a search field on Escape itself.
   input.type = "text";
-  input.id = `gh-prism-member-search-${++searchIds}`;
+  // A dialog holds each team once, so its token makes a unique id.
+  input.id = `gh-prism-member-search-${owner.token.slice(1).replace(/[^\w-]/g, "-")}`;
   input.placeholder = "Filter members";
   input.setAttribute("aria-label", `Filter members of ${owner.token.slice(1)}`);
   input.autocomplete = "off";
 
   const line = el(doc, "p", "tw:m-0 tw:mt-1 tw:text-body-small tw:text-fg-muted");
+  line.setAttribute("role", "status");
   line.hidden = true;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const status = (state: "loading" | number | null) => {
+  const status = (state: SearchStatus) => {
     clearTimeout(timer);
     line.textContent = "";
-    line.hidden = state === null;
-    if (state === "loading")
+    line.hidden = state.kind === "idle";
+    if (state.kind === "loading")
       timer = setTimeout(() => (line.textContent = "Loading members…"), LOADING_DELAY_MS);
-    else if (state !== null)
-      line.textContent = `Couldn't read every member's name. Showing matches among the first ${state}.`;
+    else if (state.kind === "failed")
+      line.textContent = `Couldn't read every member's name. Showing matches among the first ${state.listed}.`;
   };
 
   const box = el(doc, "div", "tw:mb-2", input, line);
@@ -245,8 +260,8 @@ function memberSearch(
   return { box, input, status };
 }
 
-/** Primer's small invisible IconButton that shows and hides the member search `controls` names. */
-function searchToggle(doc: Document, controls: string): HTMLButtonElement {
+/** Primer's small invisible IconButton showing and hiding `owner`'s member search, `controls`. */
+function searchToggle(doc: Document, owner: CodeOwner, controls: string): HTMLButtonElement {
   const toggle = el(
     doc,
     "button",
@@ -254,8 +269,9 @@ function searchToggle(doc: Document, controls: string): HTMLButtonElement {
     icon(doc, SEARCH_ICON, {}),
   );
   toggle.type = "button";
-  toggle.setAttribute("aria-label", "Filter members");
-  toggle.dataset.tooltip = "Filter members";
+  const name = `Filter members of ${owner.token.slice(1)}`;
+  toggle.setAttribute("aria-label", name);
+  toggle.dataset.tooltip = name;
   toggle.setAttribute("aria-expanded", "false");
   toggle.setAttribute("aria-controls", controls);
   return toggle;

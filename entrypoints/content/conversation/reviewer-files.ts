@@ -67,11 +67,10 @@ const HEADING_BUTTON = `${PR_OWNERS}[${PR_OWNERS_KIND}]`;
  * shield enters the popup.
  * Closes 150 ms after the pointer leaves shield and popup, and at once on Escape, focus leaving
  * both, or a scroll outside it, moving focus it held to the shield. A click on the shield opens
- * the code owner details dialog instead, excerpting owning teams' members through `teamMembers`.
+ * the code owner details dialog instead, listing owning teams' members through `teamMembers`.
  * Draws teams' avatars through `teamAvatar`, and the dialog reads a team's whole roster through
- * `teamRoster`. Puts the code owners button beside each Reviewers
- * heading once `read` names a code owner for a changed file; it opens the whole pull request's
- * code owner details dialog. Calls `read` at most once, when a Reviewers list, its heading, or a
+ * `teamRoster`. Puts the code owners button beside each Reviewers heading once `read` names a code
+ * owner for a changed file; it opens the whole pull request's code owner details dialog. Calls `read` at most once, when a Reviewers list, its heading, or a
  * comment author first shows. Given `filter`, popup and dialog offer to show only the code owner's
  * files, when they list any, and each team they name filters from its name.
  */

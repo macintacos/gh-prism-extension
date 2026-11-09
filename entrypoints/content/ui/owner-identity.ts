@@ -145,7 +145,7 @@ export function followOwnerTooltips(surface: HTMLElement): void {
     const control = controlAt(target);
     if (!control || (relatedTarget instanceof Node && control.contains(relatedTarget))) return;
     const focused = surface.querySelector<HTMLElement>(
-      ":is([data-tooltip], a.gh-prism-owner):focus-visible",
+      ":is([data-tooltip], a.gh-prism-owner, .gh-prism-member > a):focus-visible",
     );
     if (focused) show(focused);
     else hide();
@@ -157,12 +157,18 @@ export function followOwnerTooltips(surface: HTMLElement): void {
   surface.addEventListener("focusout", hide);
 }
 
-const TOOLTIP_CONTROL = "[data-tooltip], a.gh-prism-owner:has(> .gh-prism-owner-name)";
+const TOOLTIP_CONTROL =
+  "[data-tooltip], a.gh-prism-owner:has(> .gh-prism-owner-name), .gh-prism-member > a:has(> .gh-prism-member-name)";
 
-/** `control`'s tooltip: its own, or an owner link's name when cut off; none for a name that fits. */
+/**
+ * `control`'s tooltip: its own, or an owner's or member's name when cut off; none for a name that
+ * fits.
+ */
 function tooltipOf(control: HTMLElement): string | undefined {
   if (control.dataset.tooltip !== undefined) return control.dataset.tooltip;
-  const name = control.querySelector<HTMLElement>(".gh-prism-owner-name");
+  const name = control.querySelector<HTMLElement>(
+    ":scope > :is(.gh-prism-owner-name, .gh-prism-member-name)",
+  );
   return name && name.scrollWidth > name.clientWidth ? (name.textContent ?? "") : undefined;
 }
 
@@ -216,6 +222,7 @@ function avatarImage(doc: Document, src: string): HTMLImageElement {
   const image = el(doc, "img", "");
   image.src = src;
   image.alt = "";
+  image.loading = "lazy";
   image.width = 16;
   image.height = 16;
   return image;

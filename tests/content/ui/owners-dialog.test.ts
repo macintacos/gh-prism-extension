@@ -60,7 +60,7 @@ const team = (total: number, listed = total): TeamMembers => ({
 const showAll = () =>
   dialog()?.querySelector<HTMLButtonElement>("button.gh-prism-show-all") ?? null;
 const searchToggle = () =>
-  dialog()?.querySelector<HTMLButtonElement>('button[data-tooltip="Filter members"]') ?? null;
+  dialog()?.querySelector<HTMLButtonElement>('button[aria-label^="Filter members"]') ?? null;
 const searchBox = () => dialog()?.querySelector<HTMLInputElement>("input") ?? null;
 const memberText = (box = boxes()[0]) => members(box).map((member) => member.textContent);
 const typeQuery = (query: string) => {
@@ -280,17 +280,67 @@ describe("a team's members in the dialog", () => {
     expect(showAll()?.closest("ul")).toBe(boxes()[0]?.querySelector("ul"));
   });
 
-  it("shows every member GitHub listed on Show all, focusing the sixth, without reading the roster", async () => {
-    const teamRoster = vi.fn(async () => undefined);
-    open(answering(team(7)), { teamRoster });
+  it("shows every member GitHub listed at once on Show all, focusing the sixth", async () => {
+    open(answering(team(7)), { teamRoster: () => new Promise(() => {}) });
     await vi.waitFor(() => expect(showAll()).not.toBeNull());
 
     showAll()?.click();
 
     expect(memberText()).toEqual(logins(7));
-    expect(showAll()).toBeNull();
+    expect(boxes()[0]?.querySelector("li.gh-prism-members-status")).toBeNull();
     expect(document.activeElement).toBe(members(boxes()[0])[5]?.querySelector("a"));
-    expect(teamRoster).not.toHaveBeenCalled();
+  });
+
+  it("names every member GitHub listed once the roster lands after Show all", async () => {
+    open(answering(team(7)), { teamRoster: answeringRoster(roster(7)) });
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+
+    showAll()?.click();
+
+    await vi.waitFor(() => expect(memberText()[6]).toBe("member-07 Person 7"));
+  });
+
+  it("links the team page after a roster shorter than the team", async () => {
+    open(answering(team(30, 20)), { teamRoster: answeringRoster(roster(25)) });
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+
+    showAll()?.click();
+
+    await vi.waitFor(() => expect(members(boxes()[0])).toHaveLength(25));
+    expect(links().some((link) => link.textContent === "See all 30 members")).toBe(true);
+  });
+
+  it("keeps focus on Show all when the roster lands", async () => {
+    let land: (roster: TeamMember[]) => void = () => {};
+    open(answering(team(8)), { teamRoster: () => new Promise((resolve) => (land = resolve)) });
+    await vi.waitFor(() => expect(searchToggle()).not.toBeNull());
+    searchToggle()?.click();
+    showAll()?.focus();
+
+    land(roster(8));
+
+    await vi.waitFor(() => expect(memberText()[0]).toBe("member-01 Person 1"));
+    expect(document.activeElement).toBe(showAll());
+  });
+
+  it("leaves focus in another team's box when this one's roster lands", async () => {
+    let land: (roster: TeamMember[]) => void = () => {};
+    open(answering(team(8)), {
+      teams: ["@o/web", "@o/api"],
+      teamRoster: async (token) =>
+        token === "@o/api" ? new Promise((resolve) => (land = resolve)) : undefined,
+    });
+    await vi.waitFor(() =>
+      expect(boxes()[1]?.querySelector("button[aria-expanded]")).not.toBeNull(),
+    );
+    boxes()[1]?.querySelector<HTMLButtonElement>("button[aria-expanded]")?.click();
+    const webMember = members(boxes()[0])[0]?.querySelector("a");
+    webMember?.focus();
+
+    land(roster(8));
+
+    await vi.waitFor(() => expect(memberText(boxes()[1])[0]).toBe("member-01 Person 1"));
+    expect(document.activeElement).toBe(webMember);
   });
 
   it("shows the roster's members with their names once it lands after Show all", async () => {
@@ -350,6 +400,49 @@ describe("filtering a team's members in the dialog", () => {
     await vi.waitFor(() => expect(searchToggle()).not.toBeNull());
     searchToggle()?.click();
   }
+
+  it("matches by display name a member of a team GitHub listed whole", async () => {
+    const whole = [...named, { login: "grace", name: "Grace Hopper" }];
+    open(answering({ total: 8, members: whole.map(({ login }) => login) }), {
+      teamRoster: async () => whole,
+    });
+    await vi.waitFor(() => expect(searchToggle()).not.toBeNull());
+    searchToggle()?.click();
+
+    typeQuery("hopper");
+
+    await vi.waitFor(() => expect(memberText()).toEqual(["grace Grace Hopper"]));
+  });
+
+  it("names each team's toggle by its team", async () => {
+    await openSearch();
+
+    expect(searchToggle()?.getAttribute("aria-label")).toBe("Filter members of o/team");
+    expect(searchToggle()?.dataset.tooltip).toBe("Filter members of o/team");
+  });
+
+  it("announces when no member matches", async () => {
+    await openSearch();
+
+    typeQuery("zzz");
+
+    const said = [...(boxes()[0]?.querySelectorAll('[role="status"]') ?? [])].map(
+      (status) => status.textContent,
+    );
+    expect(said).toContain("No members match “zzz”.");
+  });
+
+  it("announces that it matches logins alone when the roster can't be read", async () => {
+    await openSearch(async () => undefined);
+
+    await vi.waitFor(() =>
+      expect(
+        [...(boxes()[0]?.querySelectorAll('[role="status"]') ?? [])].some((status) =>
+          status.textContent?.startsWith("Couldn't read every member's name"),
+        ),
+      ).toBe(true),
+    );
+  });
 
   it("offers no member filter for a team of six", async () => {
     open(answering(team(6)));

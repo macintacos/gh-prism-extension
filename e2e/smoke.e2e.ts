@@ -2849,7 +2849,7 @@ test("Show all lists every member of a large team, with their names", async ({ c
 test("a team's member search filters its members by name", async ({ context, page }) => {
   const dialog = await openLongTeamDialog(context, page);
 
-  await dialog.getByRole("button", { name: "Filter members" }).click();
+  await dialog.getByRole("button", { name: `Filter members of ${LONG_TEAM.slice(1)}` }).click();
   await dialog.getByRole("textbox", { name: /^Filter members of / }).fill("person 21");
 
   await expect(dialog.locator("li.gh-prism-member")).toHaveText([
@@ -2860,6 +2860,20 @@ test("a team's member search filters its members by name", async ({ context, pag
     "member-213 Person 213",
     "member-214 Person 214",
   ]);
+});
+
+test("Escape clears a team's member search, then closes the dialog", async ({ context, page }) => {
+  const dialog = await openLongTeamDialog(context, page);
+  await dialog.getByRole("button", { name: /^Filter members of / }).click();
+  const search = dialog.getByRole("textbox", { name: /^Filter members of / });
+  await search.fill("person 21");
+
+  await page.keyboard.press("Escape");
+
+  await expect(search).toHaveValue("");
+  expect(await dialog.evaluate((element) => element.matches(":modal"))).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
 });
 
 test("Enter on a focused shield opens its details, and Escape returns to the row", async ({
@@ -3102,6 +3116,7 @@ test("a code owner reviewer's shield click opens their team's details", async ({
   await expect(dialog).toContainText("api/generated/client.ts");
   await expect(dialog.getByRole("link", { name: "sandbox-user", exact: true })).toBeVisible();
   expect(await dialog.evaluate((element) => element.matches(":modal"))).toBe(true);
+  await expect(dialog.getByRole("button", { name: "Close" })).toBeFocused();
   expect(hits.count).toBe(1);
   await page.mouse.move(1, 1);
   await page.keyboard.press("Escape");

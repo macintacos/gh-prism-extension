@@ -7,10 +7,11 @@
   white-space: nowrap;
 }
 
-/* One line, cut off with an ellipsis, leaving its line room for the 20px avatar before it and the
-   28px filter icon after it; the owner tooltip shows a cut-off name whole. Inline-block, not flex,
-   so a line of identities still copies as one line. */
-.gh-prism-owner-name {
+/* A linked name: one line, cut off with an ellipsis, leaving its line room for the 20px avatar
+   before it and the 28px filter icon after it; the owner tooltip shows a cut-off name whole.
+   Inline-block, not flex, so a line of identities still copies as one line. A bare token, such as
+   an email, has no tooltip, so it wraps. */
+a.gh-prism-owner > .gh-prism-owner-name {
   display: inline-block;
   max-width: calc(100% - 20px);
   overflow: hidden;
@@ -19,7 +20,7 @@
   vertical-align: top;
 }
 
-.gh-prism-identity:has(> .gh-prism-owner-filter-icon) .gh-prism-owner-name {
+.gh-prism-identity:has(> .gh-prism-owner-filter-icon) a.gh-prism-owner > .gh-prism-owner-name {
   max-width: calc(100% - 48px);
 }
 
@@ -162,14 +163,16 @@ a.gh-prism-owner-filter-icon:focus-visible {
   text-decoration: underline;
 }
 
-/* A display name follows the login on its line and is cut off to fit the column. */
-.gh-prism-member > a:has(> .gh-prism-member-name) {
+/* A display name follows the wrapping login, on one line cut off to fit the column; the owner
+   tooltip shows a cut-off name whole. */
+.gh-prism-member-name {
+  display: inline-block;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.gh-prism-member-name {
+  vertical-align: top;
+  text-indent: 0;
   color: var(--fgColor-muted);
 }
 

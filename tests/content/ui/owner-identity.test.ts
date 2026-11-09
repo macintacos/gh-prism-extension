@@ -179,6 +179,10 @@ describe("memberIdentity", () => {
     expect(member.querySelector("a .gh-prism-member-name")?.textContent).toBe("Mona Lisa");
   });
 
+  it("loads a member's avatar only as it nears the view", () => {
+    expect(memberIdentity(document, "octocat").querySelector("img")?.loading).toBe("lazy");
+  });
+
   it("links a member's avatar and login, as one link, to their profile", () => {
     const member = memberIdentity(document, "octocat");
 
@@ -282,6 +286,21 @@ describe("followOwnerTooltips", () => {
     linkOf(root)?.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
 
     expect(tooltip()).toBeUndefined();
+  });
+
+  it("shows a member's cut-off display name whole while the pointer rests on its link", () => {
+    const root = document.createElement("ul");
+    root.append(memberIdentity(document, "octocat", "Mona Lisa the Octocat"));
+    document.body.append(root);
+    followOwnerTooltips(root);
+    const name = root.querySelector(".gh-prism-member-name") as HTMLElement;
+    Object.defineProperties(name, { scrollWidth: { value: 300 }, clientWidth: { value: 120 } });
+
+    root.querySelector("a")?.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+
+    expect([...shown].find((element) => root.contains(element))?.textContent).toBe(
+      "Mona Lisa the Octocat",
+    );
   });
 
   it("shows a cut-off owner name whole on keyboard focus", () => {
