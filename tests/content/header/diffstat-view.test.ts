@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { findFilesPage, headerOf } from "../../../entrypoints/content/files-page";
 import {
+  type DiffstatChoice,
   type DiffstatOptions,
   showDiffstat,
 } from "../../../entrypoints/content/header/diffstat-view";
@@ -166,6 +167,66 @@ describe("the header's lines-changed counter", () => {
 
     expect(pills()).toEqual([]);
     expect(totalShown()).toEqual(["+1,604", "-177"]);
+  });
+
+  describe("on the next visit", () => {
+    const visitTo = (
+      choice: DiffstatChoice,
+      intent: Parameters<typeof remountWith>[0],
+      pr?: string,
+    ) => remountWith(intent, { choice, save: () => {}, pr });
+
+    it("keeps the pull request's breakout up while that visit reads intent", async () => {
+      const choice: DiffstatChoice = { view: "breakout" };
+      visitTo(choice, () => Promise.resolve(counted), "o/r#1");
+      await afterDebounce();
+
+      visitTo(choice, pendingIntent().intent, "o/r#1");
+
+      expect(pills()).toHaveLength(4);
+      expect(counter()?.nextElementSibling).toBe(native());
+    });
+
+    it("shows that visit's own breakout once its intent lands", async () => {
+      const choice: DiffstatChoice = { view: "breakout" };
+      visitTo(choice, () => Promise.resolve(counted), "o/r#1");
+      await afterDebounce();
+      const pending = pendingIntent();
+      visitTo(choice, pending.intent, "o/r#1");
+
+      pending.resolve(
+        landedWith(new Map(), new Map([["src/parser.rs", { added: 1, removed: 0 }]])),
+      );
+      await afterDebounce();
+
+      expect(pillCounts()).toEqual([["implementation", ["+1", "−0"]]]);
+    });
+
+    it.each([
+      ["another pull request", "o/r#2"],
+      ["a commit filter", undefined],
+    ])("leaves GitHub's counter alone while %s reads intent", async (_, pr) => {
+      const choice: DiffstatChoice = { view: "breakout" };
+      visitTo(choice, () => Promise.resolve(counted), "o/r#1");
+      await afterDebounce();
+
+      visitTo(choice, pendingIntent().intent, pr);
+
+      expect(counter()).toBeNull();
+    });
+
+    it("gives GitHub's counter back, then and after, when that visit's read fails", async () => {
+      const choice: DiffstatChoice = { view: "breakout" };
+      visitTo(choice, () => Promise.resolve(counted), "o/r#1");
+      await afterDebounce();
+
+      visitTo(choice, () => Promise.resolve({ ok: false, problem: "failed" }), "o/r#1");
+      await afterDebounce();
+      expect(counter()).toBeNull();
+
+      visitTo(choice, pendingIntent().intent, "o/r#1");
+      expect(counter()).toBeNull();
+    });
   });
 
   it("saves the view each click switches to", async () => {

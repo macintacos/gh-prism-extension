@@ -16,11 +16,13 @@ import type { LandingView } from "../visit/land";
 import css from "./diffstat-view.css?inline";
 
 /**
- * Which view the header counter shows. One per browser tab, shared by every page in it, so a
- * switch carries to the next page.
+ * Which view the header counter shows, and the breakout it last showed for a pull request's whole
+ * diff. One per browser tab, shared by every page in it, so a switch carries to the next page, and
+ * the next page of that pull request shows its breakout until its own intent lands.
  */
 export interface DiffstatChoice {
   view: DiffstatView;
+  held?: { readonly pr: string; readonly landing: Landing };
 }
 
 /** The browser tab's view choice for `showDiffstat` to apply, and how to persist a switch. */
@@ -28,6 +30,11 @@ export interface DiffstatOptions {
   readonly choice: DiffstatChoice;
   /** Remembers a view the counter switched to. */
   readonly save: (view: DiffstatView) => void;
+  /**
+   * The pull request whose whole diff the page breaks out, as `prKeyOf` names it; `undefined` on
+   * a commit or a commit filter.
+   */
+  readonly pr?: string;
 }
 
 const TIP =
@@ -165,16 +172,30 @@ function showCounter(
 }
 
 /**
- * Once intent lands, stands in for the header's lines-changed counter as `choice` says, until
- * `signal` aborts. A path-only landing leaves GitHub's counter as is.
+ * Stands in for the header's lines-changed counter as `choice` says, until `signal` aborts: while
+ * intent is pending, with the breakout `choice` holds for `pr`, if any; once it lands, with its
+ * own, which `choice` then holds for `pr`. A path-only landing leaves GitHub's counter as is.
  */
 export function showDiffstat(
   header: Header,
-  { choice, save, signal }: DiffstatOptions & { readonly signal: AbortSignal },
-): Required<Pick<LandingView, "landed">> {
+  { choice, save, pr, signal }: DiffstatOptions & { readonly signal: AbortSignal },
+): Required<Pick<LandingView, "pending" | "landed">> {
+  let shown = new AbortController();
+  const show = (landing: Landing | undefined) => {
+    shown.abort();
+    shown = new AbortController();
+    const until = AbortSignal.any([signal, shown.signal]);
+    if (landing) showCounter(header, landing, { choice, save, signal: until });
+  };
+
   return {
+    pending() {
+      if (pr !== undefined && choice.held?.pr === pr) show(choice.held.landing);
+    },
     landed(result) {
-      if (result.ok) showCounter(header, landingOf(result), { choice, save, signal });
+      const landing = result.ok ? landingOf(result) : undefined;
+      if (pr !== undefined) choice.held = landing && { pr, landing };
+      show(landing);
     },
   };
 }

@@ -13,7 +13,7 @@ import { allowConversationFrame } from "@/utils/github/conversation-frame";
 import { ownerFilterLink, ownerOf } from "@/utils/github/files-route";
 import { type NextCommit, readNextCommit } from "@/utils/github/next-commit";
 import { connectPrData } from "@/utils/github/pr-port";
-import { type CommitHead, readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
+import { type CommitHead, prKeyOf, readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
 import { hiddenKeyOf, hiddenKeysOf, isHidden, withHidden } from "@/utils/hidden-commits";
 import { storedIntents } from "@/utils/intent/cache";
 import {
@@ -145,6 +145,11 @@ export default defineContentScript({
       {
         onVisit: (route, visit) => {
           const intent = shareIntent((onProgress) => intentFor(route, visit, sources, onProgress));
+          // A commit filter's breakout isn't the one the pull request's header tabs show.
+          const visitDiffstat = {
+            ...diffstat,
+            pr: route.diff.kind === "pr" && !route.commitFiltered ? prKeyOf(route.diff) : undefined,
+          };
           const codeOwners = readCodeOwners(route.diff, fetch, visit);
           const teamMembers = teamMembersReader(fetch, visit);
           const teamAvatar = teamAvatarReader(fetch, visit);
@@ -215,7 +220,7 @@ export default defineContentScript({
             showOwnerSection(page, signal, { codeOwners, prReviewers, navigate });
             showVisit(page, signal, {
               intent,
-              diffstat,
+              diffstat: visitDiffstat,
               viewed,
               codeOwners,
               prReviewers,
@@ -281,7 +286,8 @@ export default defineContentScript({
             navigate,
           },
         });
-        return (page, signal) => showHeaderTab(page, signal, { intent, diffstat });
+        const visitDiffstat = { ...diffstat, pr: prKeyOf(pr) };
+        return (page, signal) => showHeaderTab(page, signal, { intent, diffstat: visitDiffstat });
       },
       ctx.signal,
     );

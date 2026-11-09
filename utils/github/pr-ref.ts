@@ -31,6 +31,10 @@ export type DiffRef = PrRef | CommitHead;
 /** A diff pinned at the commit it ends on. */
 export type DiffHead = PrHead | CommitHead;
 
+/** `pr` as one string, `owner/repo#number`, its owner and repo lowercased. */
+export const prKeyOf = ({ owner, repo, number }: PrRef): string =>
+  `${owner}/${repo}`.toLowerCase() + `#${number}`;
+
 /** Whether `value` is a full 40-hex SHA; validates PR head and base SHAs from page data and ports. */
 export function isPrHeadSha(value: unknown): value is string {
   return typeof value === "string" && /^[0-9a-f]{40}$/.test(value);

@@ -675,9 +675,26 @@ describe("content script", () => {
       document.dispatchEvent(new Event("soft-nav:end"));
       await afterMutations();
 
-      expect(vi.mocked(showVisit).mock.calls[0]?.[2].diffstat).toBe(
-        vi.mocked(showHeaderTab).mock.calls[0]?.[2].diffstat,
+      expect(vi.mocked(showVisit).mock.calls[0]?.[2].diffstat.choice).toBe(
+        vi.mocked(showHeaderTab).mock.calls[0]?.[2].diffstat.choice,
       );
+    });
+
+    it("names the pull request on both visits' diffstat, and none on a commit filter", async () => {
+      await run();
+
+      for (const path of ["/o/r/pull/3/changes", "/o/r/pull/3/changes/dd95cdc"]) {
+        history.pushState(null, "", path);
+        loadFixture();
+        document.dispatchEvent(new Event("soft-nav:end"));
+        await afterMutations();
+      }
+
+      expect(vi.mocked(showHeaderTab).mock.calls[0]?.[2].diffstat.pr).toBe("o/r#3");
+      expect(vi.mocked(showVisit).mock.calls.map(([, , { diffstat }]) => diffstat.pr)).toEqual([
+        "o/r#3",
+        undefined,
+      ]);
     });
   });
 

@@ -170,18 +170,21 @@ function partition(
 }
 
 /**
- * Mounts the diffstat on one page of a header tab's visit: once intent lands, stands in for
- * `header`'s lines-changed counter as `diffstat` says, until `signal` aborts; a page dropped
- * before then shows nothing.
+ * Mounts the diffstat on one page of a header tab's visit, standing in for `header`'s
+ * lines-changed counter as `diffstat` says until `signal` aborts: while intent is pending, as
+ * `showDiffstat` does then, and once it lands; a page dropped before then shows nothing more.
  */
 export function showHeaderTab(
   header: Header,
   signal: AbortSignal,
   { intent, diffstat }: { intent: PendingIntent; diffstat: DiffstatOptions },
 ): void {
-  void orFailed(Promise.resolve(intent(() => {}))).then((landed) => {
+  const view = showDiffstat(header, { ...diffstat, signal });
+  const read = intent(() => {});
+  if (read instanceof Promise) view.pending();
+  void orFailed(Promise.resolve(read)).then((landed) => {
     // An aborted signal never fires `abort` again, so the counter would never come down.
-    if (!signal.aborted) showDiffstat(header, { ...diffstat, signal }).landed(landed);
+    if (!signal.aborted) view.landed(landed);
   });
 }
 

@@ -7,6 +7,7 @@ import {
   findHeaderPage,
   readChangedFiles,
 } from "../../../entrypoints/content/files-page";
+import type { DiffstatChoice } from "../../../entrypoints/content/header/diffstat-view";
 import {
   type FileSection,
   type LandingView,
@@ -513,6 +514,20 @@ describe("showHeaderTab", () => {
 
     expect(counter()?.isConnected).toBe(true);
     replaced.abort();
+  });
+
+  it("holds up the pull request's last breakout while intent is pending", () => {
+    const choice: DiffstatChoice = {
+      view: "breakout",
+      held: { pr: "o/r#1", landing: landingOf(landed) },
+    };
+
+    showHeaderTab(headerPage(), controller.signal, {
+      intent: pendingIntent().intent,
+      diffstat: { choice, save: () => {}, pr: "o/r#1" },
+    });
+
+    expect(counter()).not.toBeNull();
   });
 
   it("mounts nothing on a page dropped before intent lands", async () => {

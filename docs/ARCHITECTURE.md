@@ -129,7 +129,11 @@ open, `land` also observes the overlay's copy of the tree and lists from it, tel
 view through `shownIn` before it re-lists. One visit reads intent once: `index.ts` wraps
 the read in `shareIntent`, so every page of the visit joins the same read. A header tab's
 visit reads intent the same way, and `showHeaderTab` mounts only the diffstat on each of
-its pages once the read lands, skipping a page dropped before then.
+its pages. A visit to a pull request's whole diff names that pull request to the diffstat,
+and the browser tab's `DiffstatChoice` holds the breakout last landed for it. A later
+visit to the same pull request shows that breakout while its own read runs, so moving
+between Files changed and a header tab never flashes GitHub's total, and its own breakout
+replaces it once the read lands. A commit and a commit filter hold none.
 
 ## The Conversation panel
 
