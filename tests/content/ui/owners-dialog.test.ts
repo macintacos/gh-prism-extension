@@ -128,16 +128,16 @@ describe("openOwnersDialog", () => {
     await vi.waitFor(() => expect(countOf(boxes()[0])).toBe("1 member"));
   });
 
-  it("lists every member of a team of six by avatar and login, linking each profile", async () => {
-    open(answering(team(6)));
-    await vi.waitFor(() => expect(members(boxes()[0])).toHaveLength(6));
+  it("lists every member of a team of nine by avatar and login, linking each profile", async () => {
+    open(answering(team(9)));
+    await vi.waitFor(() => expect(members(boxes()[0])).toHaveLength(9));
 
     expect(
       members(boxes()[0]).map((member) => [
         member.textContent,
         member.querySelector("a")?.getAttribute("href"),
       ]),
-    ).toEqual(logins(6).map((login) => [login, `https://github.com/${login}`]));
+    ).toEqual(logins(9).map((login) => [login, `https://github.com/${login}`]));
     expect(showAll()).toBeNull();
   });
 
@@ -271,24 +271,24 @@ describe("a team's members in the dialog", () => {
     async () =>
       answer;
 
-  it("lists the first five of a team of seven, then a button to show all", async () => {
-    open(answering(team(7)));
+  it("lists the first eight of a team of ten, then a button to show all", async () => {
+    open(answering(team(10)));
     await vi.waitFor(() => expect(showAll()).not.toBeNull());
 
-    expect(memberText()).toEqual(logins(5));
+    expect(memberText()).toEqual(logins(8));
     expect(showAll()?.textContent).toBe("Show all members");
     expect(showAll()?.closest("ul")).toBe(boxes()[0]?.querySelector("ul"));
   });
 
-  it("shows every member GitHub listed at once on Show all, focusing the sixth", async () => {
-    open(answering(team(7)), { teamRoster: () => new Promise(() => {}) });
+  it("shows every member GitHub listed at once on Show all, focusing the ninth", async () => {
+    open(answering(team(10)), { teamRoster: () => new Promise(() => {}) });
     await vi.waitFor(() => expect(showAll()).not.toBeNull());
 
     showAll()?.click();
 
-    expect(memberText()).toEqual(logins(7));
+    expect(memberText()).toEqual(logins(10));
     expect(boxes()[0]?.querySelector("li.gh-prism-members-status")).toBeNull();
-    expect(document.activeElement).toBe(members(boxes()[0])[5]?.querySelector("a"));
+    expect(document.activeElement).toBe(members(boxes()[0])[8]?.querySelector("a"));
   });
 
   const entering = (box = boxes()[0]) =>
@@ -297,13 +297,13 @@ describe("a team's members in the dialog", () => {
       .map((member) => member.querySelector(".gh-prism-member-login")?.textContent);
 
   it("marks only the rows Show all reveals to enter", async () => {
-    open(answering(team(7)), { teamRoster: () => new Promise(() => {}) });
+    open(answering(team(10)), { teamRoster: () => new Promise(() => {}) });
     await vi.waitFor(() => expect(showAll()).not.toBeNull());
     expect(entering()).toEqual([]);
 
     showAll()?.click();
 
-    expect(entering()).toEqual(logins(2, 6));
+    expect(entering()).toEqual(logins(2, 9));
   });
 
   const settle = (box = boxes()[0]) => {
@@ -313,60 +313,60 @@ describe("a team's members in the dialog", () => {
 
   it("keeps the revealed rows entering when the roster lands while they enter", async () => {
     let land: (roster: readonly TeamMember[]) => void = () => {};
-    open(answering(team(9, 7)), {
+    open(answering(team(12, 10)), {
       teamRoster: () => new Promise((resolve) => (land = resolve)),
     });
     await vi.waitFor(() => expect(showAll()).not.toBeNull());
     showAll()?.click();
 
-    land(roster(9));
+    land(roster(12));
 
-    await vi.waitFor(() => expect(entering()).toEqual(logins(4, 6)));
+    await vi.waitFor(() => expect(entering()).toEqual(logins(4, 9)));
   });
 
   it("marks only the rows past those settled to enter once the roster lands", async () => {
     let land: (roster: readonly TeamMember[]) => void = () => {};
-    open(answering(team(9, 7)), {
+    open(answering(team(12, 10)), {
       teamRoster: () => new Promise((resolve) => (land = resolve)),
     });
     await vi.waitFor(() => expect(showAll()).not.toBeNull());
     showAll()?.click();
     settle();
 
-    land(roster(9));
+    land(roster(12));
 
-    await vi.waitFor(() => expect(entering()).toEqual(logins(2, 8)));
+    await vi.waitFor(() => expect(entering()).toEqual(logins(2, 11)));
   });
 
   it("marks the revealed rows to enter when the roster has already landed", async () => {
-    open(answering(team(7)), { teamRoster: answeringRoster(roster(7)) });
+    open(answering(team(10)), { teamRoster: answeringRoster(roster(10)) });
     await vi.waitFor(() => expect(showAll()).not.toBeNull());
 
     showAll()?.click();
-    await vi.waitFor(() => expect(memberText()[5]).toContain("Person"));
+    await vi.waitFor(() => expect(memberText()[8]).toContain("Person"));
 
-    expect(entering()).toEqual(logins(2, 6));
+    expect(entering()).toEqual(logins(2, 9));
   });
 
   it("marks no row to enter when a search shows them", async () => {
-    open(answering(team(7)), { teamRoster: answeringRoster(roster(7)) });
+    open(answering(team(10)), { teamRoster: answeringRoster(roster(10)) });
     await vi.waitFor(() => expect(searchToggle()).not.toBeNull());
     searchToggle()?.click();
     await vi.waitFor(() => expect(searchBox()).not.toBeNull());
 
-    typeQuery("member-0");
+    typeQuery("member-");
 
-    await vi.waitFor(() => expect(memberText()).toHaveLength(7));
+    await vi.waitFor(() => expect(memberText()).toHaveLength(10));
     expect(entering()).toEqual([]);
   });
 
   it("names every member GitHub listed once the roster lands after Show all", async () => {
-    open(answering(team(7)), { teamRoster: answeringRoster(roster(7)) });
+    open(answering(team(10)), { teamRoster: answeringRoster(roster(10)) });
     await vi.waitFor(() => expect(showAll()).not.toBeNull());
 
     showAll()?.click();
 
-    await vi.waitFor(() => expect(memberText()[6]).toBe("member-07 Person 7"));
+    await vi.waitFor(() => expect(memberText()[9]).toBe("member-10 Person 10"));
   });
 
   it("links the team page after a roster shorter than the team", async () => {
@@ -381,12 +381,12 @@ describe("a team's members in the dialog", () => {
 
   it("keeps focus on Show all when the roster lands", async () => {
     let land: (roster: TeamMember[]) => void = () => {};
-    open(answering(team(8)), { teamRoster: () => new Promise((resolve) => (land = resolve)) });
+    open(answering(team(11)), { teamRoster: () => new Promise((resolve) => (land = resolve)) });
     await vi.waitFor(() => expect(searchToggle()).not.toBeNull());
     searchToggle()?.click();
     showAll()?.focus();
 
-    land(roster(8));
+    land(roster(11));
 
     await vi.waitFor(() => expect(memberText()[0]).toBe("member-01 Person 1"));
     expect(document.activeElement).toBe(showAll());
@@ -394,7 +394,7 @@ describe("a team's members in the dialog", () => {
 
   it("leaves focus in another team's box when this one's roster lands", async () => {
     let land: (roster: TeamMember[]) => void = () => {};
-    open(answering(team(8)), {
+    open(answering(team(11)), {
       teams: ["@o/web", "@o/api"],
       teamRoster: async (token) =>
         token === "@o/api" ? new Promise((resolve) => (land = resolve)) : undefined,
@@ -406,7 +406,7 @@ describe("a team's members in the dialog", () => {
     const webMember = members(boxes()[0])[0]?.querySelector("a");
     webMember?.focus();
 
-    land(roster(8));
+    land(roster(11));
 
     await vi.waitFor(() => expect(memberText(boxes()[1])[0]).toBe("member-01 Person 1"));
     expect(document.activeElement).toBe(webMember);
@@ -460,19 +460,19 @@ describe("a team's members in the dialog", () => {
 
 describe("filtering a team's members in the dialog", () => {
   const named: TeamMember[] = [
-    ...logins(6).map((login) => ({ login })),
+    ...logins(9).map((login) => ({ login })),
     { login: "ada", name: "Ada Lovelace" },
   ];
 
   async function openSearch(teamRoster: TeamRosterOf = async () => named) {
-    open(answering({ total: 8, members: named.map(({ login }) => login) }), { teamRoster });
+    open(answering({ total: 11, members: named.map(({ login }) => login) }), { teamRoster });
     await vi.waitFor(() => expect(searchToggle()).not.toBeNull());
     searchToggle()?.click();
   }
 
   it("matches by display name a member of a team GitHub listed whole", async () => {
     const whole = [...named, { login: "grace", name: "Grace Hopper" }];
-    open(answering({ total: 8, members: whole.map(({ login }) => login) }), {
+    open(answering({ total: 11, members: whole.map(({ login }) => login) }), {
       teamRoster: async () => whole,
     });
     await vi.waitFor(() => expect(searchToggle()).not.toBeNull());
@@ -513,9 +513,9 @@ describe("filtering a team's members in the dialog", () => {
     );
   });
 
-  it("offers no member filter for a team of six", async () => {
-    open(answering(team(6)));
-    await vi.waitFor(() => expect(members(boxes()[0])).toHaveLength(6));
+  it("offers no member filter for a team of nine", async () => {
+    open(answering(team(9)));
+    await vi.waitFor(() => expect(members(boxes()[0])).toHaveLength(9));
 
     expect(searchToggle()).toBeNull();
   });
@@ -534,7 +534,7 @@ describe("filtering a team's members in the dialog", () => {
 
     typeQuery("MEMBER-0");
 
-    expect(memberText()).toEqual(logins(6));
+    expect(memberText()).toEqual(logins(9));
     expect(showAll()).toBeNull();
   });
 
@@ -561,7 +561,7 @@ describe("filtering a team's members in the dialog", () => {
 
     await vi.waitFor(() =>
       expect(boxes()[0]?.textContent).toContain(
-        "Couldn't read every member's name. Showing matches among the first 7.",
+        "Couldn't read every member's name. Showing matches among the first 10.",
       ),
     );
     expect(memberText()).toEqual(["ada"]);
@@ -594,7 +594,7 @@ describe("filtering a team's members in the dialog", () => {
 
     expect(searchBox()?.closest("[hidden]")).not.toBeNull();
     expect(searchToggle()?.getAttribute("aria-expanded")).toBe("false");
-    expect(memberText()).toHaveLength(5);
+    expect(memberText()).toHaveLength(8);
     expect(showAll()).not.toBeNull();
   });
 });

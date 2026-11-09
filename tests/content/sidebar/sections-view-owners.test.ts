@@ -759,7 +759,7 @@ describe("showSections", () => {
         clickAt(engine(), { detail: 1 });
         await vi.advanceTimersByTimeAsync(0);
 
-        expect(dialogs()[0]?.querySelectorAll("section li.gh-prism-member")).toHaveLength(5);
+        expect(dialogs()[0]?.querySelectorAll("section li.gh-prism-member")).toHaveLength(8);
         expect(dialogs()[0]?.querySelector("section button.gh-prism-show-all")).not.toBeNull();
         expect(dialogs()[0]?.querySelectorAll("section")).toHaveLength(1);
       });

@@ -2844,10 +2844,10 @@ test("Show all lists every member of a large team, with their names", async ({ c
 
   await expect(dialog.locator("li.gh-prism-member")).toHaveCount(214);
   await expect(dialog.getByRole("link", { name: "member-01 Person 1", exact: true })).toBeVisible();
-  await expect(dialog.getByRole("link", { name: /^member-06/ })).toBeFocused();
+  await expect(dialog.getByRole("link", { name: /^member-09/ })).toBeFocused();
 });
 
-test("the code owner details dialog is 640px wide, its team boxes listing members in two columns", async ({
+test("the code owner details dialog is 640px wide, its team boxes listing members in three columns", async ({
   context,
   page,
 }) => {
@@ -2858,7 +2858,7 @@ test("the code owner details dialog is 640px wide, its team boxes listing member
   const columns = await dialog
     .locator("section ul")
     .evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length);
-  expect(columns).toBe(2);
+  expect(columns).toBe(3);
 });
 
 test("Show all's revealed members settle fully shown", async ({ context, page }) => {

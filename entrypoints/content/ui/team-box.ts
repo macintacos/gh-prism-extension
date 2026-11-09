@@ -18,8 +18,8 @@ export interface TeamReads {
 }
 
 /** The most members a team shows whole; a larger one shows `COLLAPSED_COUNT`, then Show all. */
-const FULL_COUNT = 6;
-const COLLAPSED_COUNT = 5;
+const FULL_COUNT = 9;
+const COLLAPSED_COUNT = 8;
 const LOADING_DELAY_MS = 150;
 
 /**
@@ -106,7 +106,7 @@ function memberList(
   const list = el(
     doc,
     "ul",
-    "tw:m-0 tw:p-0 tw:list-none tw:grid tw:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] tw:gap-x-4 tw:gap-y-1",
+    "tw:m-0 tw:p-0 tw:list-none tw:grid tw:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] tw:gap-x-4 tw:gap-y-1",
   );
   const noMatch = el(doc, "p", "tw:m-0 tw:text-fg-muted");
   noMatch.setAttribute("role", "status");
