@@ -6,6 +6,19 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-08: The overview Reviewers heading's code owners button over the rows' shields
+
+- **Compared:** the overview's button floated to the heading's inline end, as first built
+  from GitHub's bundle, and the button placed as the classic sidebar's is, over the rows'
+  code-owner shields, before the gear.
+- **Won:** over the rows' shields, at 28px, Primer's small invisible IconButton. Its
+  centre lines up with the heading's title and gear, and with the rows' shields.
+  gh-prism's own shield in an overview row drops to 16px, the size GitHub draws that row's
+  icons at.
+- **Why:** on the live overview the float dropped GitHub's full-width heading button below
+  it, leaving the button on a line of its own above "Reviewers". A 28px shield in a row of
+  16px icons stretched that row from 28px to 36px.
+
 ## 2026-11-06: The classic Reviewers heading's code owners button over the rows' shields
 
 - **Compared:** the button floated to the heading row's end, after GitHub's gear, and the

@@ -53,6 +53,7 @@ import commentsFixture from "../fixtures/conversation-comments.html?raw";
 import nodeConversation from "../fixtures/conversation-node.html?raw";
 import overviewConversation from "../fixtures/conversation-overview.html?raw";
 import overviewCommentsFixture from "../fixtures/conversation-overview-comments.html?raw";
+import emptyOverviewConversation from "../fixtures/conversation-overview-empty.html?raw";
 import conversationFixture from "../fixtures/conversation-page.html?raw";
 import {
   addOwnedByGroup,
@@ -318,6 +319,18 @@ describe("reviewerShieldOf", () => {
     expect(shield?.id).toBe("assigned-codeowner-octocat");
     expect(shield && shieldOwner(shield)).toBe("@octocat");
   });
+
+  it("finds each code-owner shield in the PR overview's Reviewers list, named by its tooltip, and no other button there", () => {
+    document.body.innerHTML = overviewConversation;
+
+    const buttons = document.querySelectorAll('section[aria-label="Reviewers"] button');
+    const shields = [...buttons].map(reviewerShieldOf).filter((shield) => shield !== null);
+
+    expect(shields.map(shieldOwner)).toEqual([
+      "@excessive-dev/frontend",
+      "@excessive-dev/platform",
+    ]);
+  });
 });
 
 describe("findCommentAuthors", () => {
@@ -509,6 +522,7 @@ describe("findReviewersHeadings", () => {
     ["the classic sidebar's menu trigger", conversationFixture, "classic", "DETAILS"],
     ["the classic sidebar's plain heading", nodeConversation, "classic", "H3"],
     ["the PR overview's heading", overviewConversation, "overview", "H4"],
+    ["the PR overview's heading over no reviewers", emptyOverviewConversation, "overview", "H4"],
   ])("finds %s", (_, page, kind, tag) => {
     document.body.innerHTML = page;
 

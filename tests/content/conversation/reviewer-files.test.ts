@@ -23,7 +23,9 @@ import sandboxCodeowners from "../../fixtures/codeowners-sandbox.json?raw";
 import commentsFixture from "../../fixtures/conversation-comments.html?raw";
 import nodeConversation from "../../fixtures/conversation-node.html?raw";
 import overviewConversation from "../../fixtures/conversation-overview.html?raw";
+import overviewAssigned from "../../fixtures/conversation-overview-assigned.html?raw";
 import overviewCommentsFixture from "../../fixtures/conversation-overview-comments.html?raw";
+import emptyOverviewConversation from "../../fixtures/conversation-overview-empty.html?raw";
 import conversationFixture from "../../fixtures/conversation-page.html?raw";
 import { routedFetch } from "../../fixtures/fetch";
 import { outline } from "../../fixtures/file-list";
@@ -216,6 +218,13 @@ function show(
   });
 }
 
+/** Shows the popups on the code-owners sandbox's Overview `page`, read through `read`, once settled. */
+async function showOverview(page: string, read?: () => Promise<Ownership>) {
+  document.body.innerHTML = page;
+  show(read);
+  await vi.advanceTimersByTimeAsync(0);
+}
+
 /** Shows the popups on nodejs/node#67056's `page`, read after `edits`, once its reads settle. */
 async function showNode(edits: NodeEdits = {}, page = nodeConversation, filter?: OwnerFilter) {
   document.body.innerHTML = page;
@@ -226,6 +235,12 @@ async function showNode(edits: NodeEdits = {}, page = nodeConversation, filter?:
 
 const shieldOf = (team: string) =>
   document.getElementById(`codeowner-excessive-dev/${team}`) as HTMLElement;
+/** GitHub's shield beside `team` in the PR overview's Reviewers list: the row's first icon. */
+const overviewShieldOf = (team: string) =>
+  document
+    .querySelector(`a[href="/orgs/excessive-dev/teams/${team}"]`)
+    ?.closest('[class*="reviewerRow__"]')
+    ?.querySelector('[class*="indicators__"] > button') as HTMLElement;
 /** gh-prism's shields, by the reviewer each marks. */
 const ownShields = () =>
   [...document.querySelectorAll<HTMLElement>("button[data-gh-prism-owner]")].map(
@@ -815,23 +830,11 @@ describe("showReviewerFiles", () => {
     });
 
     it("opens from the PR overview's shield", async () => {
-      await showNode(
-        {
-          ownership: (byPath) => {
-            byPath["test/cctest/test_node_crypto.cc"] = {
-              owners: ["@jasnell"],
-              isOwnedByViewer: false,
-            };
-          },
-        },
-        overviewConversation,
-      );
+      await showOverview(overviewConversation);
 
-      await clickOn(
-        document.querySelector('button[aria-label="jasnell is a code owner"]') as HTMLElement,
-      );
+      await clickOn(overviewShieldOf("frontend"));
 
-      expect(dialogName()).toBe("@jasnell");
+      expect(dialogName()).toBe("@excessive-dev/frontend");
     });
 
     it("opens nothing for a shield whose reviewer owns no changed file", async () => {
@@ -944,77 +947,75 @@ describe("showReviewerFiles", () => {
   });
 
   describe("in the PR overview's reviewer list", () => {
-    it("opens a user's files from GitHub's shield", async () => {
-      await showNode(
-        {
-          ownership: (byPath) => {
-            byPath["test/cctest/test_node_crypto.cc"] = {
-              owners: ["@jasnell"],
-              isOwnedByViewer: false,
-            };
-          },
-        },
-        overviewConversation,
+    /**
+     * PR #5's reviewers: excessive-dev/frontend, and sandbox-user, a direct code owner too, whom its
+     * review assignment picked.
+     */
+    const assignedReviewers = async () => ({
+      codeOwners: sandboxOwners(),
+      prReviewers: [
+        { token: "@excessive-dev/frontend", teams: [], codeOwner: true },
+        { token: "@sandbox-user", teams: ["@excessive-dev/frontend"], codeOwner: true },
+      ],
+    });
+    const iconLabels = (login: string) =>
+      [...(rowOf(login).querySelector('[class*="indicators__"]')?.children ?? [])].map((child) =>
+        child.getAttribute("aria-label"),
       );
 
-      await hoverOn(
-        document.querySelector('button[aria-label="jasnell is a code owner"]') as Element,
-      );
+    it("opens a team's files from GitHub's shield", async () => {
+      await showOverview(overviewConversation);
 
-      expect(listed()).toEqual(["test/cctest/", "  test_node_crypto.cc"]);
+      await hoverOn(overviewShieldOf("frontend"));
+
+      expect(listed()).toEqual(["api/generated/", "  client.ts", "web/", "  app.ts"]);
     });
 
-    /** Edits making pimterry, who has reviewed, a code owner of a file in their own name. */
-    const pimterryOwnsDirectly: NodeEdits = {
-      ownership: (byPath) => {
-        byPath["test/cctest/test_node_crypto.cc"] = {
-          owners: ["@pimterry"],
-          isOwnedByViewer: false,
-        };
-      },
-    };
+    it("hides the tooltip GitHub opens on its shield, and no other", async () => {
+      await showOverview(overviewConversation);
 
-    it("keeps gh-prism's shield, named as GitHub names its own, for a direct code owner", async () => {
-      await showNode(pimterryOwnsDirectly, overviewConversation);
+      const [shieldTip, statusTip] = [
+        ...(overviewShieldOf("frontend").parentElement?.querySelectorAll("[popover]") ?? []),
+      ];
 
-      rowOf("pimterry").append(document.createComment("re-render"));
+      expect(shieldTip?.textContent).toBe("excessive-dev/frontend is a code owner");
+      expect(shieldTip && getComputedStyle(shieldTip).display).toBe("none");
+      expect(statusTip && getComputedStyle(statusTip).display).not.toBe("none");
+    });
+
+    it("marks the member a team's review assignment picked, before their status icon", async () => {
+      await showOverview(overviewAssigned, assignedReviewers);
+
+      expect(ownShields()).toEqual(["@sandbox-user"]);
+      expect(iconLabels("sandbox-user")).toEqual([
+        "sandbox-user is a code owner",
+        "Awaiting requested review from sandbox-user",
+      ]);
+    });
+
+    it("keeps gh-prism's shield, named as GitHub names its own, as React re-renders the row", async () => {
+      await showOverview(overviewAssigned, assignedReviewers);
+
+      rowOf("sandbox-user").append(document.createComment("re-render"));
       await vi.advanceTimersByTimeAsync(0);
 
-      expect(ownShieldOf("@pimterry").getAttribute("aria-label")).toBe("pimterry is a code owner");
+      expect(ownShields()).toEqual(["@sandbox-user"]);
     });
 
-    it.each([
-      ["a direct code owner", pimterryOwnsDirectly],
-      ["a team's code owner", { reviewRequests: reviewedForCrypto }],
-    ])("removes gh-prism's shield once GitHub draws its own for %s", async (_, edits) => {
-      await showNode(edits, overviewConversation);
+    it("removes gh-prism's shield once GitHub draws its own", async () => {
+      await showOverview(overviewAssigned, assignedReviewers);
 
-      rowOf("pimterry")
+      // GitHub's shield as it draws a team's, with its tooltip.
+      rowOf("sandbox-user")
         .querySelector('[role="img"]')
         ?.insertAdjacentHTML(
           "beforebegin",
-          '<button type="button" aria-label="pimterry is a code owner"></button>',
+          '<button data-component="IconButton" type="button" class="prc-Button-ButtonBase-9n-Xk statusIcon__gxAEMz color-fg-muted prc-Button-IconButton-fyge7" data-size="small" data-variant="invisible" aria-labelledby="_r_9_"><svg class="octicon octicon-shield"></svg></button><span class="prc-TooltipV2-Tooltip-tLeuB" data-component="Tooltip" aria-hidden="true" id="_r_9_" popover="auto">sandbox-user is a code owner</span>',
         );
       await vi.advanceTimersByTimeAsync(0);
 
       expect(ownShields()).toEqual([]);
-      expect(
-        rowOf("pimterry").querySelectorAll("button[aria-label$=' is a code owner']"),
-      ).toHaveLength(1);
-    });
-
-    it("puts gh-prism's shield in the icon column, before the status icon", async () => {
-      await showNode({ reviewRequests: reviewedForCrypto }, overviewConversation);
-
-      const icons = rowOf("pimterry").querySelector('[class*="indicators__"]');
-      expect(ownShields()).toEqual(["@pimterry"]);
-      expect([...(icons?.children ?? [])].map((child) => child.getAttribute("aria-label"))).toEqual(
-        [
-          "Re-request review from pimterry",
-          "pimterry is a code owner through nodejs/crypto",
-          "Approved these changes",
-        ],
-      );
+      expect(rowOf("sandbox-user").querySelectorAll("button")).toHaveLength(1);
     });
   });
 
@@ -1027,7 +1028,12 @@ describe("showReviewerFiles", () => {
     it.each([
       ["the classic sidebar's menu trigger", () => showNode({}, conversationFixture), "DETAILS"],
       ["the classic sidebar's plain heading", () => showNode({}, nodeConversation), "H3"],
-      ["the PR overview's heading", () => showNode({}, overviewConversation), "H4"],
+      ["the PR overview's heading", () => showOverview(overviewConversation), "H4"],
+      [
+        "the PR overview's heading over no reviewers",
+        () => showOverview(emptyOverviewConversation),
+        "H4",
+      ],
     ])("sits right before %s, outside it", async (_, showPage, tag) => {
       await showPage();
 

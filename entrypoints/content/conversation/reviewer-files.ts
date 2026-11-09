@@ -291,10 +291,10 @@ const SHIELD_LOOKS: Record<ReviewerListKind, ShieldLook> = {
     classes: "gh-prism-reviewer-shield mr-2 btn-link muted-icon",
     wrap: "reviewers-status-icon",
   },
-  // Primer's small invisible IconButton, as the overview draws its shield.
+  // The 16px invisible IconButton the overview draws its shield and status icons as.
   overview: {
     classes:
-      "gh-prism-reviewer-shield tw:inline-grid tw:place-items-center tw:size-7 tw:p-0 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-muted tw:cursor-pointer tw:hover:bg-[var(--control-transparent-bgColor-hover)] tw:focus-visible:outline-2 tw:focus-visible:-outline-offset-2 tw:focus-visible:outline-focus-outline",
+      "gh-prism-reviewer-shield tw:inline-grid tw:place-items-center tw:size-4 tw:p-0 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-muted tw:cursor-pointer tw:hover:bg-[var(--control-transparent-bgColor-hover)] tw:focus-visible:outline-2 tw:focus-visible:-outline-offset-2 tw:focus-visible:outline-focus-outline",
   },
 };
 

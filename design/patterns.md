@@ -132,7 +132,7 @@ A tooltip copies Primer's. It is an `::after` on the control that shows the cont
 on hover and focus. It opens toward the inside of the sidebar or the page, so it never
 clips at an edge. `sidebar/side.css`, `sidebar/report.css`, `commit/step-links.css`,
 `conversation/panel.css`, `ui/mark.css`, and `ui/pr-owners.css` hold the six in use. The
-code owners button beside a Reviewers heading sits at the sidebar's inline end, so
+code owners button beside a Reviewers heading sits near the sidebar's inline end, so
 `conversation/reviewer-files.css` overrides `ui/pr-owners.css`'s tooltip for it to open
 leftward from the button's end. Only the mark's opens on hover alone, since the mark takes
 no focus. Inside the header counter's tooltips, which take no pointer, the mark's own
@@ -270,9 +270,9 @@ the two cards never share a trigger.
   where GitHub draws none, as after a code owner reviews. gh-prism's is drawn as GitHub's
   is in that list: Octicons `shield-lock` at 16px, muted, just before the status icon. In
   the classic sidebar it takes GitHub's own `btn-link muted-icon` classes; in the overview
-  list, the look of Primer's small invisible `IconButton`. A 24px target surrounds the
-  16px glyph without moving it. Its accessible name says, in GitHub's words, "… is a code
-  owner", adding "through" and the team when only a team makes them one.
+  list, the look of GitHub's 16px invisible `IconButton` status icons. A 24px target
+  surrounds the 16px glyph without moving it. Its accessible name says, in GitHub's words,
+  "… is a code owner", adding "through" and the team when only a team makes them one.
 - **Beside a comment's author:** the shield also follows the name of each Conversation or
   Files changed comment author who owns a changed file, PR reviewer or not, right after
   the name and before "commented" and the time. In the classic timeline it takes GitHub's

@@ -1,10 +1,11 @@
 /* GitHub hooks: the code-owner shield's tool-tip[for^="codeowner-"] and
-   tool-tip[for^="assigned-codeowner-"], and .btn-link on the classic comment shield. The code
-   owners button sits beside the Reviewers heading (.discussion-sidebar-heading,
-   #reviewers-select-menu, [data-overview-sidebar-item], [class*="disclosureHeading__"]): the
-   overview's floats, relying on none of them starting a block formatting context, and the
-   classic one is placed against .discussion-sidebar-item, which GitHub positions. Every other
-   rule selects only gh-prism's own classes. */
+   tool-tip[for^="assigned-codeowner-"], the overview shield's [popover] tooltip after
+   [class*="reviewerRow__"] [class*="indicators__"] > button:has(> svg.octicon-shield), and
+   .btn-link on the classic comment shield. The code owners button sits beside the Reviewers
+   heading (.discussion-sidebar-heading, #reviewers-select-menu, [data-overview-sidebar-item],
+   [class*="disclosureHeading__"]): the overview's sits in flow before it, relying on its 24px
+   row and on the rows' icons, and the classic one is placed against .discussion-sidebar-item,
+   which GitHub positions. Every other rule selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @import "../ui/mark.css";
 @import "../ui/owner-identity.css";
@@ -13,8 +14,9 @@
 @source "../ui/owners-dialog.ts";
 @source "../ui/file-list.ts";
 
-/* Primer opens this tooltip as the pointer enters, before the popup's hover delay ends. */
-tool-tip:is([for^="codeowner-"], [for^="assigned-codeowner-"]) {
+/* Primer opens these tooltips as the pointer enters, before the popup's hover delay ends. */
+tool-tip:is([for^="codeowner-"], [for^="assigned-codeowner-"]),
+[class*="reviewerRow__"] [class*="indicators__"] > button:has(> svg.octicon-shield) + [popover] {
   display: none;
 }
 
@@ -63,15 +65,21 @@ tool-tip:is([for^="codeowner-"], [for^="assigned-codeowner-"]) {
   inset-inline-end: 0;
 }
 
-/* Primer's small invisible IconButton, as the overview draws its heading's controls. z-index:
-   GitHub's full-width heading paints over the button and would take the pointer. */
+/* GitHub's full-width heading paints over the button and would take the pointer. */
 .gh-prism-pr-owners[data-gh-prism-list] {
-  float: inline-end;
-  position: relative;
   z-index: 1;
-  inline-size: var(--control-small-size, 28px);
-  block-size: var(--control-small-size, 28px);
-  margin-inline-start: 4px;
+}
+
+/* Primer's small invisible IconButton, as the overview draws its heading's controls. In flow but
+   taking no height, so the heading rises beside it, as its full-width flex button would drop
+   below a float: -2px centres it on that 24px button. Each row ends in a 16px status icon after
+   an 8px gap, so 18px in centres it on the rows' shields. */
+.gh-prism-pr-owners[data-gh-prism-list="overview"] {
+  display: grid;
+  inline-size: 28px;
+  block-size: 28px;
+  margin-block: -2px -26px;
+  margin-inline: auto 18px;
 }
 
 /* Out of the flow, so GitHub's gear keeps the row's end, over the rows' status dots. Each row

@@ -3880,6 +3880,41 @@ test("the Conversation tab's code owners button shares the Reviewers heading's r
   await expect(page.locator("details#reviewers-select-menu")).not.toHaveAttribute("open");
 });
 
+// The PR overview's layout as measured on GitHub on 2026-11-08, since a routed fixture loads no
+// GitHub sheet: a full-width 24px heading button, and rows ending in 16px icons 8px apart.
+const OVERVIEW_BODY = `<!doctype html><style>
+  section[data-overview-sidebar-item] { inline-size: 320px; padding-block-start: 12px; }
+  h4[class*="disclosureHeading__"] { margin: 0; }
+  [class*="disclosureHeader__"] { display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; inline-size: calc(100% + 16px); block-size: 24px; margin: 0 -8px; padding: 0 8px; border: 0; }
+  [class*="reviewerRow__"] { display: flex; align-items: center; padding-block: 4px; }
+  [class*="indicators__"] { display: flex; align-items: center; gap: 8px; margin-inline-start: auto; }
+  [class*="statusIcon__"] { box-sizing: border-box; inline-size: 16px; block-size: 16px; padding: 0; border: 0; }
+</style>${readFixture("conversation-overview.html")}`;
+
+test("the PR overview's code owners button sits on the Reviewers heading's row, centred on it and over the rows' shields, and takes the click", async ({
+  context,
+  page,
+}) => {
+  await serve(context, "https://github.com/o/r/pull/1", OVERVIEW_BODY);
+  await routeCodeOwners(context);
+  await page.goto("https://github.com/o/r/pull/1");
+  const button = prOwnersButton(page);
+  await expect(button).toBeVisible();
+
+  const [own, heading, shield] = await Promise.all([
+    button.boundingBox(),
+    page.getByRole("button", { name: "Manage reviewers" }).boundingBox(),
+    page.locator('[class*="indicators__"] > button').first().boundingBox(),
+  ]);
+  if (!own || !heading || !shield) throw new Error("a box is missing");
+  expect(toHundredths(own.y + own.height / 2)).toBe(toHundredths(heading.y + heading.height / 2));
+  expect(toHundredths(own.x + own.width / 2)).toBe(toHundredths(shield.x + shield.width / 2));
+
+  await button.click();
+
+  await expect(prOwnersDialog(page)).toBeVisible();
+});
+
 test("Escape and a click outside close the Conversation overlay, handing focus back to its button", async ({
   context,
   page,

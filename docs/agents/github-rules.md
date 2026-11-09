@@ -476,10 +476,10 @@ on a private one.
 
 GitHub draws a pull request's reviewers in one of two lists. The classic sidebar is
 server-rendered in `#partial-discussion-sidebar`. GitHub's pull request overview, which
-route data's `featureStates.overview` turns on, draws a React list instead. The overview
-read `"UNAVAILABLE"` on the code-owners sandbox and on nodejs/node for the saved account,
-so its facts below come from GitHub's bundle and from a maintainer's screenshot of a work
-pull request, taken 2026-10-28, not from a capture.
+route data's `featureStates.overview` turns on, draws a React list instead. The saved
+account gets the overview, so its facts below were read on 2026-11-08 on the code-owners
+sandbox's PRs #1, #4, and #5, unless a bullet names GitHub's bundle or a maintainer's
+screenshot of a work pull request, taken 2026-10-28.
 
 - **Find a classic row as
   `#partial-discussion-sidebar form[id^="pull-request-reviewers-form-"] .css-truncate > div`.**
@@ -511,11 +511,17 @@ pull request, taken 2026-10-28, not from a capture.
   whole Reviewers form, heading included, on soft navigation back to Conversation, so
   re-add a control beside the heading from an observer on `document`.
 - **Find the overview Reviewers heading as
-  `section[data-overview-sidebar-item]:has([class*="reviewerList__"]) > h4[class*="disclosureHeading__"]`.**
-  It is rebuilt from the bundle's `SidebarSection` and `SidebarDisclosureHeader` (read
-  2026-11-05), not yet seen on a live page: an `h4` wrapping a full-width "Manage
-  reviewers" button with a trailing gear. Whether the section draws a list while it has no
-  reviewer is unconfirmed, and without one this selector matches nothing.
+  `section[data-overview-sidebar-item][aria-label="Reviewers"] > h4[class*="disclosureHeading__"]`.**
+  The `h4` wraps one full-width "Manage reviewers" button, the title at its start and a
+  16px gear at its end, over the rows' status dots. The bundle's Reviewers section always
+  draws this heading (read 2026-11-08). With no reviewer, the section draws
+  `span[class*="emptyState__"]` reading "No reviewers" in place of the list, so match the
+  section by its label, not by its list.
+- **Place a control before the overview heading in flow, taking no height, never
+  floated.** The section is a block with 12px of top padding, and the `h4` a block whose
+  button is a 24px `display: flex` box with `-8px` inline margins. A flex container starts
+  a block formatting context, so a float before the `h4` pushes the whole button below it.
+  Never put a control inside the button: a click there opens GitHub's reviewers dialog.
 - **Find a classic code-owner shield as `button[id^="codeowner-"]` or
   `button[id^="assigned-codeowner-"]`.** Its id names the reviewer:
   `codeowner-<org>/<slug>` for a team, and `assigned-codeowner-<login>` for a member the
@@ -534,33 +540,46 @@ pull request, taken 2026-10-28, not from a capture.
 - **Expect GitHub's hovercard on the reviewer's `span[data-hovercard-url]`, never on the
   shield.** The span wraps the avatar and name; the shield sits outside it, after the
   status dot.
-- **Find an overview row as `[class*="reviewerList__"] li[class*="reviewerRow__"]`, and
-  its icons in `[class*="indicators__"]`.** Its identity link goes to the reviewer as a
-  classic row's does, though a team's link uses the team's name, which can differ from its
-  slug. The icons are Primer's small invisible `IconButton`s, labelled "Re-request review
-  from …" or "… is a code owner", and 16px `span[role="img"]` status icons, the status
-  last.
+- **Find an overview row as `[class*="reviewerList__"] [class*="reviewerRow__"]`, and its
+  icons in `[class*="indicators__"]`.** A requested reviewer's row is a `div` in an
+  unclassed `li`. When a team's code review assignment picked a member, that `li` also
+  holds `ul[class*="nestedMemberList__"]`, whose `li[class*="reviewerRow__"]` is the
+  member's row. A suggested reviewer, such as Copilot, is an `li[class*="reviewerRow__"]`
+  linking to `/apps/<slug>`. The identity link goes to `/<login>` or
+  `/orgs/<org>/teams/<slug>`, as a classic row's does.
+- **Find an overview code-owner shield as `button:has(> svg.octicon-shield)` among a row's
+  icons.** The icons are Primer's 16px invisible `IconButton`s, the shield before the
+  status dot. Each is named through `aria-labelledby` by the TooltipV2
+  `span[popover="auto"]` right after it, reading "<org>/<team> is a code owner" for the
+  shield and "<org>/<team>: pending" for the dot. Neither button has an `aria-label`, so
+  the shield's reviewer is read from its tooltip. Its glyph is `shield`, not the classic
+  `shield-lock`. Primer opens the tooltip as the pointer enters and on focus, before
+  gh-prism's popup opens. A picked member's status is a `span[role="img"]` labelled
+  "Awaiting requested review from <login>". A reviewer who has reviewed gets a "Re-request
+  review from …" `IconButton` instead, from the bundle and the maintainer's screenshot.
 - **Expect GitHub to shield only a pending code owner.** The overview draws its shield
-  from a pending request's `isCodeOwner`, and not for a request assigned from a team, so a
-  code owner who has reviewed has none. The maintainer's screenshot shows reviewed code
-  owners with only the re-request and status icons, and a pending one with the shield. The
-  classic sidebar differs: on the code-owners sandbox it shields a member assigned from a
-  team, with `assigned-codeowner-<login>`.
+  from a pending request's `isCodeOwner`, and not for a request assigned from a team: on
+  the code-owners sandbox's PR #5, the member the team's review assignment picked has
+  none, where the classic sidebar shields them with `assigned-codeowner-<login>`. A code
+  owner who has reviewed has none either: the maintainer's screenshot shows reviewed code
+  owners with only the re-request and status icons, and a pending one with the shield.
 - **Expect `page_data/codeowners` to answer from the Conversation page**, with the same
   JSON as from Files changed.
 - **Re-check:** signed in with the saved `storageState`, load the Conversation view of the
   code-owners sandbox's PR #1. Read `#partial-discussion-sidebar`'s Reviewers item and the
   Reviewers form's heading region, signed in and then signed out, hover a team's name and
   its shield to see which opens the hovercard, and fetch `page_data/review_requests` and
-  `page_data/codeowners`, with the `X-Requested-With` header, from that page. Grep
-  GitHub's assets for `reviewerRow__` and `is a code owner` for the overview's list, and
-  for `disclosureHeading__` for its heading, as
-  [§ Re-checking GitHub](#re-checking-github) describes, and read `featureStates.overview`
-  from a pull request's route data. To stage a pull request that requests a user who owns
-  files, have a push-triggered workflow on a throwaway branch open it as
-  github-actions[bot], which needs "Allow GitHub Actions to create and approve pull
-  requests" on for the org and the repo. For an assigned member's shield, also turn on the
-  team's code review assignment.
+  `page_data/codeowners`, with the `X-Requested-With` header, from that page. For the
+  overview, load the sandbox's PRs #1, #4, and #5 with the same `storageState`, which gets
+  the overview, read each `section[aria-label="Reviewers"]` and its heading's and rows'
+  boxes, and hover a shield to see its tooltip open. Grep GitHub's assets for
+  `disclosureHeading__` and `"Manage reviewers"` for the heading the Reviewers section
+  draws, as [§ Re-checking GitHub](#re-checking-github) describes, and read
+  `featureStates.overview` from a pull request's route data. To stage a pull request that
+  requests a user who owns files, have a push-triggered workflow on a throwaway branch
+  open it as github-actions[bot], which needs "Allow GitHub Actions to create and approve
+  pull requests" on for the org and the repo. For an assigned member's shield, also turn
+  on the team's code review assignment.
 
 ## Comment headers
 

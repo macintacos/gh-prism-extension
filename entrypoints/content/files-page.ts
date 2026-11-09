@@ -530,15 +530,12 @@ const REVIEWER_LISTS: readonly ReviewerList[] = [
   },
   {
     kind: "overview",
-    row: '[class*="reviewerList__"] li[class*="reviewerRow__"]',
+    row: '[class*="reviewerList__"] [class*="reviewerRow__"]',
     icons: '[class*="indicators__"]',
-    // gh-prism's own shield takes GitHub's label; keep in sync with reviewer-files' OWN_SHIELD.
-    shield: `button[aria-label$="${SHIELD_LABEL}"]:not([data-gh-prism-owner])`,
-    // ponytail: rebuilt from GitHub's bundle, never rendered; an overview Reviewers section that
-    // draws no list while empty shows no button, and the heading's full-width button may drop
-    // below gh-prism's float. Re-check both once an account can open the overview.
+    // Keep in sync with reviewer-files.css's tooltip hook.
+    shield: "button:has(> svg.octicon-shield)",
     heading:
-      'section[data-overview-sidebar-item]:has([class*="reviewerList__"]) > h4[class*="disclosureHeading__"]',
+      'section[data-overview-sidebar-item][aria-label="Reviewers"] > h4[class*="disclosureHeading__"]',
   },
 ];
 
@@ -697,7 +694,9 @@ export const reviewerShieldOf = (target: Element): HTMLElement | null =>
 export function shieldOwner(shield: Element): string {
   const prefix = SHIELD_ID_PREFIXES.find((candidate) => shield.id.startsWith(candidate));
   if (prefix) return `@${shield.id.slice(prefix.length)}`;
-  return `@${shield.getAttribute("aria-label")?.slice(0, -SHIELD_LABEL.length) ?? ""}`;
+  // The overview's shield is named by its tooltip.
+  const label = shield.ownerDocument.getElementById(shield.getAttribute("aria-labelledby") ?? "");
+  return `@${label?.textContent?.slice(0, -SHIELD_LABEL.length) ?? ""}`;
 }
 
 /** Whether `doc` shows `repo` as public; false when private, internal, or unconfirmed. */
