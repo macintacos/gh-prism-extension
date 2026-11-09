@@ -52,6 +52,7 @@ import {
 import commentsFixture from "../fixtures/conversation-comments.html?raw";
 import nodeConversation from "../fixtures/conversation-node.html?raw";
 import overviewConversation from "../fixtures/conversation-overview.html?raw";
+import overviewChrome from "../fixtures/conversation-overview-chrome.html?raw";
 import overviewCommentsFixture from "../fixtures/conversation-overview-comments.html?raw";
 import emptyOverviewConversation from "../fixtures/conversation-overview-empty.html?raw";
 import conversationFixture from "../fixtures/conversation-page.html?raw";
@@ -1416,6 +1417,25 @@ describe("findHeaderPage", () => {
 
     expect(page?.slot).toBe(document.querySelector(prPage.diffstatSlot));
     expect(page && findDiffstat(page)?.textContent).toBe("+36 -10");
+  });
+
+  it("finds the overview's counter in its summary row, not the slot the overview leaves empty", () => {
+    document.body.innerHTML = overviewChrome;
+    const page = findHeaderPage(document);
+
+    expect(page && findDiffstat(page)?.textContent).toContain("Lines changed: 6 additions");
+  });
+
+  it("never takes the overview's branches for its counter while the counter loads", () => {
+    document.body.innerHTML = overviewChrome;
+    document
+      .querySelector('[class*="diffStat__"]')
+      ?.replaceWith(
+        Object.assign(document.createElement("div"), { className: "skeleton__c5fLaY" }),
+      );
+    const page = findHeaderPage(document);
+
+    expect(page && findDiffstat(page)).toBeUndefined();
   });
 
   it("is undefined without the header's counter slot", () => {

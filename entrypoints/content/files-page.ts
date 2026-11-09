@@ -95,7 +95,9 @@ export const prPage = {
   sidebar: "#pr-file-tree",
   overlay: '[role="dialog"] #pr-file-tree',
   diffs: PR_DIFFS,
-  diffstatSlot: '[class*="rightContentWrapper__"]',
+  // GitHub's overview moves the counter to the summary row's branch group, which precedes the
+  // slot it leaves empty.
+  diffstatSlot: '[class*="branchGroup__"], [class*="rightContentWrapper__"]',
   toolbar: 'section[class*="toolbar__"]:has([class*="RegularTreeToggle"])',
   treeToggle: '[class*="RegularTreeToggle"]',
   treeToggleButton: '[class*="RegularTreeToggle"]',
@@ -756,9 +758,12 @@ export function findHeaderPage(doc: Document): HeaderPage | undefined {
 const findDiffstatSlot = ({ doc, diffstatSlot }: Header): Element | null =>
   doc.querySelector(diffstatSlot);
 
+// The overview's branch group also holds the branch names in a `.d-flex`.
+const DIFFSTAT = ':scope > [class*="diffStat__"], :scope > .d-flex:not([class*="branches__"])';
+
 /** The lines-changed counter in the header, or `undefined` while it's missing. */
 export function findDiffstat(header: Header): Element | undefined {
-  return findDiffstatSlot(header)?.querySelector(":scope > .d-flex") ?? undefined;
+  return findDiffstatSlot(header)?.querySelector(DIFFSTAT) ?? undefined;
 }
 
 /**

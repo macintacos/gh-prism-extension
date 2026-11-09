@@ -265,17 +265,23 @@ on a private one.
   always lists the files (checked 2026-10-27).
 - **Expect no counter when the diff changes no lines**, as with only renames or binary
   files, or when the diffstat request fails.
-- **Expect the counter elsewhere under GitHub's `overview` feature.** With route data's
-  `featureStates.overview` `"ENABLED"`, the slot stays empty and the counter renders in
-  the subtitle row ("wants to merge…"), where `diffstatSlot` doesn't find it. This was
-  read from the bundle, not observed, on 2026-10-19.
+- **Expect the counter in the summary row under GitHub's `overview` feature.** With route
+  data's `featureStates.overview` `"ENABLED"`, every header tab, Files changed included,
+  leaves the `rightContentWrapper__` slot empty. The counter is a `[class*="diffStat__"]`
+  in `[class*="branchGroup__"]`, after the branch names' own `.d-flex` (`branches__`). The
+  branch group server-renders a skeleton in the counter's place and comes before the empty
+  slot, so `prPage.diffstatSlot` lists both and takes the first in document order, and
+  `findDiffstat` skips the branches. A classic header has no `branchGroup__`. Observed on
+  the code-owners sandbox's PR #1 on 2026-11-09.
 - **Re-check:** curl a public pull request's Conversation page signed out and read the
   `rightContentWrapper__` slot's child, then curl a public commit page and find its
   counter's "Lines changed" text. Grep the assets for `page_data/diffstat` and
   `PullRequestHeaderDiffStat`, as [§ Re-checking GitHub](#re-checking-github) describes.
   Signed in, load `/pull/<n>`, `/pull/<n>/commits`, and `/pull/<n>/checks`. Find the
   slot's counter on each, and confirm their embedded data has no
-  `pullRequestsChangesRoute.diffContents`.
+  `pullRequestsChangesRoute.diffContents`. On the code-owners sandbox's PR #1, which
+  serves the overview to the saved `storageState`, read the `branchGroup__`'s children in
+  the server's HTML and after hydration, and the two slots' document order.
 
 ## The filter row and repo visibility
 
