@@ -107,6 +107,11 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   alignment the click lands on depends on the machine's speed, so the sidebar can stay put
   locally and move on CI. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "ticking a box
   doesn't scroll the sidebar" awaits the animations' `finished` first.
+- **Retry a jump and its check together after a test wheels the sidebar.** A wheel's
+  scroll can land after a later `scrollTop` write and carry the sidebar past the target. A
+  poll for `scrollTop > 0` only proves that the wheel started. In
+  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts), "…the sidebar scrolls as one" wraps
+  `scrollSidebarToBulkRow` and `toBeInViewport` in `toPass`.
 - **Let the Conversation panel's slide finish before a test hovers or clicks in its
   frame.** Playwright measures an element's stability inside its own frame, so it can't
   see the frame sliding in with the panel, and a hover mid-slide lands on a shield that

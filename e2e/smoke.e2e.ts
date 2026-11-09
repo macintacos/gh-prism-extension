@@ -943,12 +943,17 @@ test("a large pull request renders only the rows near the sidebar's viewport, an
   await expect(page.locator('[data-item-path="bulk/file-299.rs"]')).toHaveCount(0);
 
   const sidebar = page.locator("#pr-file-tree");
+  await revealSettled(page);
   await bulk.hover();
   await page.mouse.wheel(0, 600);
   await expect.poll(() => sidebar.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 
-  await scrollSidebarToBulkRow(page, 150);
-  await expect(page.locator('[data-item-path="bulk/file-150.rs"]')).toBeInViewport();
+  // The wheel's scroll can land after the jump and carry the row out of view.
+  const row = page.locator('[data-item-path="bulk/file-150.rs"]');
+  await expect(async () => {
+    await scrollSidebarToBulkRow(page, 150);
+    await expect(row).toBeInViewport({ timeout: 1000 });
+  }).toPass({ timeout: 10_000 });
 });
 
 test("the keyboard reaches a tree's off-screen rows", async ({ context, page }) => {
