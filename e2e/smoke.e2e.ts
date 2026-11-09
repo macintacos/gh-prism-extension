@@ -2765,7 +2765,7 @@ test("a shield's click swaps its hover popover for the code owner details dialog
   expect(await dialog.evaluate((element) => element.matches(":modal"))).toBe(true);
   await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(0);
   await expect(dialog.getByRole("heading", { name: "o/team", exact: true })).toBeVisible();
-  await expect(dialog.getByRole("link", { name: /^member-\d+$/ })).toHaveCount(5);
+  await expect(dialog.getByRole("link", { name: /^member-\d+$/ })).toHaveCount(8);
   await expect(dialog.getByRole("button", { name: "Show all members" })).toBeVisible();
   // Each member's photo fills its avatar's ring, and a member row copies as its login.
   const members = await dialog.locator("li.gh-prism-member").evaluateAll((items) =>
