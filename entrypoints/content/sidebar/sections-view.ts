@@ -10,6 +10,7 @@
 import type { FileTreeRowDecoration } from "@pierre/trees";
 import type { FileOwners, TeamAvatarOf, TeamMembersOf } from "@/utils/github/code-owners";
 import type { LineCounts } from "@/utils/github/pr-diff";
+import type { TeamRosterOf } from "@/utils/github/team-roster";
 import {
   type CommentLines,
   commentLinesOf,
@@ -68,14 +69,18 @@ interface SectionsView extends LandingView {
    */
   viewed(paths: ReadonlySet<string>): void;
   /**
-   * Shields the rows of every file in `byPath` with at least one code owner; a shield's hover or
-   * focus lists them, and its click opens the code owner details dialog.
+   * Shields the rows of every file in `byPath` with at least one code owner, and the header of every
+   * section listing one; a shield's hover or focus lists them, and its click opens the code owner
+   * details dialog.
    */
   owners(byPath: ReadonlyMap<string, FileOwners>): void;
 }
 
 interface ShownListing {
   readonly root: HTMLElement;
+  readonly toggle: HTMLButtonElement;
+  /** A section header's code owners shield; the comment-lines sub-section has none. */
+  readonly shield?: HTMLButtonElement;
   readonly counter: HTMLElement;
   readonly host: HTMLElement;
   readonly tree: SectionTree;
@@ -189,7 +194,8 @@ const counterPill = (doc: Document) =>
  * A section, `order` places from the top, whose header button shows and hides an empty host for
  * its tree. `expand` sets which it does. The button leads with the section's icon, which the
  * stylesheet swaps for the chevron while it is hovered or focused, and ends with the `lines` it
- * adds and removes, if known.
+ * adds and removes, if known. Beside the header, a hidden code owners shield; the stylesheet swaps
+ * it in for the lines while the header is hovered or focused.
  */
 function sectionShell(
   doc: Document,
@@ -225,6 +231,13 @@ function sectionShell(
   );
   header.id = `gh-prism-heading-${key}`;
 
+  // Outside the toggle, which can't hold a button, and the heading, whose name it would join.
+  const shield = el(doc, "button", "gh-prism-section-shield");
+  shield.type = "button";
+  shield.hidden = true;
+  shield.setAttribute("aria-label", `Code owners of files in ${label}`);
+  const head = el(doc, "div", "gh-prism-section-head tw:relative", header, shield);
+
   const host = el(doc, "div", "gh-prism-tree");
   const files = el(doc, "div", "gh-prism-files tw:overflow-clip tw:pb-1", host);
   files.id = `gh-prism-files-${key}`;
@@ -234,7 +247,7 @@ function sectionShell(
     doc,
     "section",
     "gh-prism-section tw:rounded-medium tw:border tw:border-hue-edge tw:bg-[var(--gh-prism-tint)] tw:shadow-[var(--shadow-resting-small)]",
-    header,
+    head,
     files,
   );
   root.setAttribute("aria-labelledby", header.id);
@@ -245,7 +258,7 @@ function sectionShell(
     toggle.setAttribute("aria-expanded", String(expanded));
     files.inert = !expanded;
   };
-  return { root, counter, host, toggle, expand };
+  return { root, counter, host, toggle, shield, expand };
 }
 
 /** Octicons 19.15.0 comment (MIT, GitHub Inc.). */
@@ -439,9 +452,10 @@ function followViewport(view: HTMLElement, onMove: () => void, signal: AbortSign
  * progress bar while intent is pending; on landing, notices for path-only sections or diffs kept
  * in GitHub's order; then a tree per listing, each split file listed in every section its hunks
  * land in, with the lines each share adds and removes. All of it anchors below a leading
- * what's-new block when the nav holds one. A code owners shield's dialog excerpts teams through
- * `teamMembers`; its popover and dialog draw teams' avatars through `teamAvatar`, and filter from
- * each owner's name through `filter` when given.
+ * what's-new block when the nav holds one. A code owners shield's dialog lists teams' members
+ * through `teamMembers` and reads a team's roster through `teamRoster`; its popover and dialog draw
+ * teams' avatars through `teamAvatar`, and filter from each owner's name through `filter` when
+ * given.
  */
 export function showSections(
   page: FilesPage,
@@ -449,8 +463,14 @@ export function showSections(
   {
     teamMembers,
     teamAvatar,
+    teamRoster,
     filter,
-  }: { teamMembers: TeamMembersOf; teamAvatar: TeamAvatarOf; filter?: OwnerFilter },
+  }: {
+    teamMembers: TeamMembersOf;
+    teamAvatar: TeamAvatarOf;
+    teamRoster: TeamRosterOf;
+    filter?: OwnerFilter;
+  },
 ): SectionsView {
   const doc = page.sidebar.ownerDocument;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
@@ -616,6 +636,7 @@ export function showSections(
       current = buildListing(listing.key, { order, previous, files, active });
       shown.set(listing.key, current);
     }
+    showSectionShield(current);
     return current.root;
   };
 
@@ -631,10 +652,11 @@ export function showSections(
     { order, previous, files, active }: BuildOptions,
   ): ShownListing => {
     // Set once: a listing is only built after intent lands, and the landed lines never change.
-    const { root, counter, host, toggle, expand } =
+    const shell =
       key === COMMENT_LINES
         ? commentLinesShell(doc, commentLines?.lines)
         : sectionShell(doc, key, { order, lines: totalOf(key) });
+    const { root, counter, host, toggle, expand } = shell;
     expand(!collapsed.has(key));
     toggle.addEventListener("click", () => {
       const expanded = collapsed.has(key);
@@ -652,7 +674,19 @@ export function showSections(
     if (offered) tree.showViewed(viewed);
     if (owned.size > 0) tree.showOwners(owned);
     if (marking.size > 0) tree.showMarking(new Set(marking));
-    return { root, counter, host, tree };
+    return {
+      root,
+      counter,
+      host,
+      tree,
+      toggle,
+      shield: "shield" in shell ? shell.shield : undefined,
+    };
+  };
+
+  /** Shows `listing`'s header shield only while it lists a file with a code owner. */
+  const showSectionShield = ({ shield, tree }: ShownListing) => {
+    if (shield) shield.hidden = !tree.pathsUnder("").some((path) => owned.has(path));
   };
 
   /** Whether `key`'s rows are out of sight; the sub-section's hide with Docs & Comments'. */
@@ -676,13 +710,29 @@ export function showSections(
     scrolledTo = active;
   };
 
-  /** What `shield`'s popover and dialog list, and how to focus its row. */
+  /** What a section header's `shield` lists, and how to focus its toggle. */
+  const sectionShieldListing = (shield: HTMLElement) => {
+    const [key, listing] = [...shown].find(([, { shield: own }]) => own === shield) ?? [];
+    if (key === undefined || key === COMMENT_LINES || !listing) return undefined;
+
+    const listed: ShieldListing = {
+      section: SECTION_CATALOG[key].label,
+      files: listing.tree.pathsUnder("").map((path) => ({
+        path,
+        owners: ownersByPath.get(path)?.owners ?? [],
+      })),
+    };
+    return { listed, returnFocus: () => listing.toggle.focus({ preventScroll: true }) };
+  };
+
+  /** What `shield`'s popover and dialog list, and how to focus its row, or its section's toggle. */
   const shieldListing = (shield: HTMLElement) => {
+    if (shield.matches(".gh-prism-section-shield")) return sectionShieldListing(shield);
     const path = shield.dataset.itemShield;
     const listing = listingOfShield(shield);
     if (path === undefined || listing === undefined) return undefined;
 
-    const focusRow = () => shown.get(listing)?.tree.focusRow(path);
+    const returnFocus = () => shown.get(listing)?.tree.focusRow(path);
     const listed: ShieldListing = path.endsWith("/")
       ? {
           folder: path,
@@ -695,7 +745,7 @@ export function showSections(
           name: path.slice(path.lastIndexOf("/") + 1),
           owners: ownersByPath.get(path)?.owners ?? [],
         };
-    return { listed, focusRow };
+    return { listed, returnFocus };
   };
   let closeOwners = () => {};
   const showOwners = (shield: HTMLElement): Card | undefined => {
@@ -704,11 +754,11 @@ export function showSections(
 
     closeOwners();
 
-    const { listed, focusRow } = details;
+    const { listed, returnFocus } = details;
     const card = openListing(shield, listed, {
       root: view,
       signal,
-      returnFocus: focusRow,
+      returnFocus,
       identities: { teamAvatar, filter },
     });
     closeOwners = card.close;
@@ -720,9 +770,9 @@ export function showSections(
     const details = shieldListing(shield);
     if (!details) return;
 
-    const { listed, focusRow } = details;
+    const { listed, returnFocus } = details;
     closeOwners();
-    focusRow();
+    returnFocus();
 
     const { title, list, teams } = describeListing(doc, listed, { teamAvatar, filter });
     openOwnersDialog(doc, {
@@ -731,13 +781,15 @@ export function showSections(
       teams,
       teamMembers,
       teamAvatar,
+      teamRoster,
       filter,
-      returnFocus: focusRow,
+      returnFocus,
       signal,
     });
   };
   const hoverIntent = followHoverIntent(doc, signal, {
-    triggerOf: (target) => target.closest<HTMLElement>("[data-item-shield]"),
+    triggerOf: (target) =>
+      target.closest<HTMLElement>("[data-item-shield], .gh-prism-section-shield"),
     show: (shield) => {
       if (shield.getAttribute("aria-expanded") === "true") return undefined;
       return showOwners(shield);
@@ -751,6 +803,13 @@ export function showSections(
         // The box shows only what GitHub's page shows, never the click.
         event.preventDefault();
         markFrom(event, box);
+        return;
+      }
+
+      const sectionShield =
+        event.target instanceof Element && event.target.closest(".gh-prism-section-shield");
+      if (sectionShield instanceof HTMLElement) {
+        openDetails(sectionShield);
         return;
       }
 
@@ -873,7 +932,10 @@ export function showSections(
     owners(byPath) {
       ownersByPath = byPath;
       owned = new Set([...byPath].flatMap(([path, { owners }]) => (owners.length ? [path] : [])));
-      for (const { tree } of shown.values()) tree.showOwners(owned);
+      for (const listing of shown.values()) {
+        listing.tree.showOwners(owned);
+        showSectionShield(listing);
+      }
     },
   };
 }

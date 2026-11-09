@@ -75,6 +75,7 @@ describe("showSections in the narrow layout's overlay", () => {
       viewed: visitViewed(undefined),
       teamMembers: async () => undefined,
       teamAvatar: async () => undefined,
+      teamRoster: async () => undefined,
       whatsNew: { version: "1.2.3", notes: "", dismiss: () => {} },
       landHash: () => {},
     });

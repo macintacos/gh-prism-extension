@@ -6,17 +6,20 @@ people who maintain these rules.*
 These rules govern
 [`entrypoints/content/files-page.ts`](../../entrypoints/content/files-page.ts), every
 sheet's `GitHub hooks:` header, `entrypoints/content/diffs/`,
-`entrypoints/content/visit/`, and `utils/github/`.
-**GitHub selectors live only in `files-page.ts` and in sheets' `GitHub hooks:` headers.**
+`entrypoints/content/visit/`, and `utils/github/`. **GitHub selectors live only in
+`files-page.ts`, in sheets' `GitHub hooks:` headers, and in the two parsers below.**
 GitHub changes its markup without notice, so keeping its selectors in one seam keeps a
-breakage to one place to fix. The one exception is
-[`utils/github/pr-ref.ts`](../../utils/github/pr-ref.ts), which keeps its own selector for
-the page's embedded data, from which it reads the diff pin, the head SHA, and each file's
-Viewed state. **A new page kind (pull request, commit) is a new entry in `PAGE_KINDS` in
-`files-page.ts`, not a branch on kind** elsewhere in the code. Features read each kind's
-selectors from that table, so a new kind touches one place. Each section below states
-facts about GitHub that held when written, and ends with how to re-check them;
-[§ Re-checking GitHub](#re-checking-github) has the methods.
+breakage to one place to fix. There are two exceptions.
+[`utils/github/pr-ref.ts`](../../utils/github/pr-ref.ts) keeps its own selector for the
+page's embedded data, from which it reads the diff pin, the head SHA, and each file's
+Viewed state; it reads JSON, not markup a feature hooks.
+[`utils/github/team-roster.ts`](../../utils/github/team-roster.ts) keeps its own selectors
+because it parses a fetched members page, not the live page. **A new page kind (pull
+request, commit) is a new entry in `PAGE_KINDS` in `files-page.ts`, not a branch on kind**
+elsewhere in the code. Features read each kind's selectors from that table, so a new kind
+touches one place. Each section below states facts about GitHub that held when written,
+and ends with how to re-check them; [§ Re-checking GitHub](#re-checking-github) has the
+methods.
 
 ## Class names
 
@@ -444,6 +447,15 @@ on a private one.
   team bigger than its list shows the rest as "N more" in GitHub's own tooltip, so the
   list holds only the first members. A viewer outside the organization gets 404, from the
   team's `/hovercard` too, and a user's hovercard names organizations, not teams.
+- **Read a team's whole roster from `/orgs/<org>/teams/<slug>/members?page=N` as HTML.**
+  Each member is an `li.member-list-item` row. Its first `a[data-hovercard-url]` link
+  points to `/users/<login>/hovercard`, which gives the login. A member with a display
+  name has a second such link whose text is the name. An admin's rows add a checkbox cell.
+  `?page=N` pages the list. Only an admin's single page was observed live; the multi-page
+  paging and a non-admin's row are assumed, not seen. So the parse skips a row whose first
+  link has no `/users/<login>/hovercard` with a valid login, and treats a name equal to
+  the login as no name. A non-admin account viewing a team longer than one page would
+  settle both.
 - **Read a team's avatar from `/orgs/<org>/teams/<slug>/hovercard` with
   `X-Requested-With: XMLHttpRequest`.** Without the header it answers 406. With it, it
   answers about 1 KB of HTML, where the team page is 164 KB. Its first

@@ -1,6 +1,6 @@
 /**
  * The popover a code owners shield opens on hover or focus, listing a file's owners, or a folder's
- * files grouped by their owners; it exists only while open.
+ * or a section's files grouped by their owners; it exists only while open.
  *
  * It sits beside its shield, which is marked expanded while it is open. It closes on Escape inside
  * it, on a click outside it, on any scroll outside it, once `signal` aborts, or on a call of the
@@ -28,7 +28,7 @@ import {
   ownerIdentity,
   ownerSeparator,
 } from "../ui/owner-identity";
-import { detailsHint, type OwnersDialogOptions } from "../ui/owners-dialog";
+import { detailsHint, type OwnersDialogContent } from "../ui/owners-dialog";
 import { place } from "../ui/place";
 
 /** Octicons 19.15.0 (MIT, GitHub Inc.): alert. */
@@ -42,10 +42,11 @@ export interface FileOwnersAt {
 
 /**
  * What a shield lists: a folder's files, its path ending in `/` and its files by full path in the
- * tree's order, or a file's owners under its base name.
+ * tree's order, a section's files under its label, or a file's owners under its base name.
  */
 export type ShieldListing =
   | { readonly folder: string; readonly files: readonly FileOwnersAt[] }
+  | { readonly section: string; readonly files: readonly FileOwnersAt[] }
   | { readonly name: string; readonly owners: readonly CodeOwner[] };
 
 interface PopoverOptions {
@@ -53,7 +54,7 @@ interface PopoverOptions {
   readonly root: Element;
   /** The page's lifetime; the popover goes with it. */
   readonly signal: AbortSignal;
-  /** Moves focus to the shield's row, as the popover closes while holding focus. */
+  /** Moves focus to the shield's row, or its section's toggle, as the popover closes holding focus. */
   readonly returnFocus: () => void;
   /** How it draws the owners it names. */
   readonly identities: OwnerIdentities;
@@ -65,17 +66,19 @@ export function describeListing(
   listing: ShieldListing,
   identities: OwnerIdentities,
 ) {
-  return "folder" in listing
-    ? {
-        title: `Code owners of files in ${listing.folder.slice(0, -1)}`,
-        list: folderList(doc, listing.folder, listing.files, identities),
-        teams: owningTeams(listing.files.flatMap(({ owners }) => owners)),
-      }
-    : {
-        title: `Code owners of ${listing.name}`,
-        list: ownersList(doc, listing.owners, identities),
-        teams: owningTeams(listing.owners),
-      };
+  if ("name" in listing)
+    return {
+      title: `Code owners of ${listing.name}`,
+      list: ownersList(doc, listing.owners, identities),
+      teams: owningTeams(listing.owners),
+    };
+
+  const folder = "folder" in listing ? listing.folder : "";
+  return {
+    title: `Code owners of files in ${"folder" in listing ? folder.slice(0, -1) : listing.section}`,
+    list: folderList(doc, folder, listing.files, identities),
+    teams: owningTeams(listing.files.flatMap(({ owners }) => owners)),
+  };
 }
 
 /** Opens the popover listing `listing`. */
@@ -117,7 +120,7 @@ export function describePullRequest(
   doc: Document,
   { codeOwners, prReviewers }: OwnedPullRequest,
   identities: OwnerIdentities,
-): Pick<OwnersDialogOptions, "title" | "summary" | "teams"> {
+): { title: string } & Pick<OwnersDialogContent, "summary" | "teams"> {
   const files = [...codeOwners].map(([path, { owners }]) => ({ path, owners }));
   const groups = byOwnerSet(files);
   const filesWithoutPrReviewer = prReviewers

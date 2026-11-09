@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type OwnerFilter, openOwnersDialog } from "../../../entrypoints/content/ui/owners-dialog";
 import type { TeamAvatarOf, TeamMembers, TeamMembersOf } from "../../../utils/github/code-owners";
-import large from "../../fixtures/team-members-large.json?raw";
+import type { TeamMember, TeamRosterOf } from "../../../utils/github/team-roster";
 
 // happy-dom has no Popover API.
 HTMLElement.prototype.showPopover = () => {};
@@ -27,30 +27,52 @@ function open(
     teams = ["@o/team"],
     summary = [document.createTextNode("summary")],
     teamAvatar = async () => undefined,
+    teamRoster = async () => undefined,
     filter,
     owner,
   }: {
     teams?: string[];
     summary?: Node[];
     teamAvatar?: TeamAvatarOf;
+    teamRoster?: TeamRosterOf;
     filter?: OwnerFilter;
     owner?: string;
   } = {},
 ) {
   const returnFocus = vi.fn();
-  openOwnersDialog(document, {
-    title: "Code owners of engine.rs",
-    summary,
-    teams,
-    teamMembers,
-    teamAvatar,
-    returnFocus,
-    signal: controller.signal,
-    filter,
-    owner,
-  });
+  const reads = { summary, teams, teamMembers, teamAvatar, teamRoster, filter };
+  const rest = { ...reads, returnFocus, signal: controller.signal };
+  openOwnersDialog(
+    document,
+    owner === undefined ? { ...rest, title: "Code owners of engine.rs" } : { ...rest, owner },
+  );
   return { returnFocus };
 }
+
+/** `n` placeholder logins, `member-01` on. */
+const logins = (n: number, from = 1) =>
+  Array.from({ length: n }, (_, i) => `member-${String(i + from).padStart(2, "0")}`);
+/** A team of `total` whose JSON lists its first `listed`. */
+const team = (total: number, listed = total): TeamMembers => ({
+  total,
+  members: logins(Math.min(listed, total)),
+});
+const showAll = () =>
+  dialog()?.querySelector<HTMLButtonElement>("button.gh-prism-show-all") ?? null;
+const searchToggle = () =>
+  dialog()?.querySelector<HTMLButtonElement>('button[aria-label^="Filter members"]') ?? null;
+const searchBox = () => dialog()?.querySelector<HTMLInputElement>("input") ?? null;
+const memberText = (box = boxes()[0]) => members(box).map((member) => member.textContent);
+const typeQuery = (query: string) => {
+  const input = searchBox() as HTMLInputElement;
+  input.value = query;
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+};
+const escapeIn = (target: Element) => {
+  const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+  target.dispatchEvent(event);
+  return event;
+};
 
 const answering =
   (answer: TeamMembers | undefined): TeamMembersOf =>
@@ -106,34 +128,17 @@ describe("openOwnersDialog", () => {
     await vi.waitFor(() => expect(countOf(boxes()[0])).toBe("1 member"));
   });
 
-  it("lists the first 15 of a large team's members by avatar and login, then links the rest", async () => {
-    open(answering(JSON.parse(large)));
-    await vi.waitFor(() => expect(members(boxes()[0]).length).toBeGreaterThan(0));
+  it("lists every member of a team of nine by avatar and login, linking each profile", async () => {
+    open(answering(team(9)));
+    await vi.waitFor(() => expect(members(boxes()[0])).toHaveLength(9));
 
     expect(
       members(boxes()[0]).map((member) => [
         member.textContent,
         member.querySelector("a")?.getAttribute("href"),
       ]),
-    ).toEqual(
-      Array.from({ length: 15 }, (_, i) => {
-        const login = `member-${String(i + 1).padStart(2, "0")}`;
-        return [login, `https://github.com/${login}`];
-      }),
-    );
-    expect(countOf(boxes()[0])).toBe("214 members");
-    const all = links().filter((link) => link.textContent === "See all 214 members");
-    expect(all.map((link) => [link.href, link.target])).toEqual([
-      ["https://github.com/orgs/o/teams/team", "_blank"],
-    ]);
-  });
-
-  it("lists every member of a team within the cap, and no team page for more", async () => {
-    open(answering({ total: 3, members: ["a", "b", "c"] }));
-    await vi.waitFor(() => expect(members(boxes()[0])).toHaveLength(3));
-
-    expect(members(boxes()[0]).map((member) => member.textContent)).toEqual(["a", "b", "c"]);
-    expect(dialog()?.textContent).not.toContain("See all");
+    ).toEqual(logins(9).map((login) => [login, `https://github.com/${login}`]));
+    expect(showAll()).toBeNull();
   });
 
   it.each([
@@ -255,5 +260,355 @@ describe("the owner filter in the dialog", () => {
     open(undefined, { owner: "@o/team", filter: filtered ? filtering().filter : undefined });
 
     expect(dialog()?.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
+  });
+});
+
+describe("a team's members in the dialog", () => {
+  const roster = (n: number): TeamMember[] =>
+    logins(n).map((login, i) => ({ login, name: `Person ${i + 1}` }));
+  const answeringRoster =
+    (answer: readonly TeamMember[] | undefined): TeamRosterOf =>
+    async () =>
+      answer;
+
+  it("lists the first eight of a team of ten, then a button to show all", async () => {
+    open(answering(team(10)));
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+
+    expect(memberText()).toEqual(logins(8));
+    expect(showAll()?.textContent).toBe("Show all members");
+    expect(showAll()?.closest("ul")).toBe(boxes()[0]?.querySelector("ul"));
+  });
+
+  it("shows every member GitHub listed at once on Show all, focusing the ninth", async () => {
+    open(answering(team(10)), { teamRoster: () => new Promise(() => {}) });
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+
+    showAll()?.click();
+
+    expect(memberText()).toEqual(logins(10));
+    expect(boxes()[0]?.querySelector("li.gh-prism-members-status")).toBeNull();
+    expect(document.activeElement).toBe(members(boxes()[0])[8]?.querySelector("a"));
+  });
+
+  const entering = (box = boxes()[0]) =>
+    members(box)
+      .filter((member) => member.classList.contains("gh-prism-member-enter"))
+      .map((member) => member.querySelector(".gh-prism-member-login")?.textContent);
+
+  it("marks only the rows Show all reveals to enter", async () => {
+    open(answering(team(10)), { teamRoster: () => new Promise(() => {}) });
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+    expect(entering()).toEqual([]);
+
+    showAll()?.click();
+
+    expect(entering()).toEqual(logins(2, 9));
+  });
+
+  const settle = (box = boxes()[0]) => {
+    for (const member of members(box))
+      member.dispatchEvent(new Event("animationend", { bubbles: true }));
+  };
+
+  it("keeps the revealed rows entering when the roster lands while they enter", async () => {
+    let land: (roster: readonly TeamMember[]) => void = () => {};
+    open(answering(team(12, 10)), {
+      teamRoster: () => new Promise((resolve) => (land = resolve)),
+    });
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+    showAll()?.click();
+
+    land(roster(12));
+
+    await vi.waitFor(() => expect(entering()).toEqual(logins(4, 9)));
+  });
+
+  it("marks only the rows past those settled to enter once the roster lands", async () => {
+    let land: (roster: readonly TeamMember[]) => void = () => {};
+    open(answering(team(12, 10)), {
+      teamRoster: () => new Promise((resolve) => (land = resolve)),
+    });
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+    showAll()?.click();
+    settle();
+
+    land(roster(12));
+
+    await vi.waitFor(() => expect(entering()).toEqual(logins(2, 11)));
+  });
+
+  it("marks the revealed rows to enter when the roster has already landed", async () => {
+    open(answering(team(10)), { teamRoster: answeringRoster(roster(10)) });
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+
+    showAll()?.click();
+    await vi.waitFor(() => expect(memberText()[8]).toContain("Person"));
+
+    expect(entering()).toEqual(logins(2, 9));
+  });
+
+  it("marks no row to enter when a search shows them", async () => {
+    open(answering(team(10)), { teamRoster: answeringRoster(roster(10)) });
+    await vi.waitFor(() => expect(searchToggle()).not.toBeNull());
+    searchToggle()?.click();
+    await vi.waitFor(() => expect(searchBox()).not.toBeNull());
+
+    typeQuery("member-");
+
+    await vi.waitFor(() => expect(memberText()).toHaveLength(10));
+    expect(entering()).toEqual([]);
+  });
+
+  it("names every member GitHub listed once the roster lands after Show all", async () => {
+    open(answering(team(10)), { teamRoster: answeringRoster(roster(10)) });
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+
+    showAll()?.click();
+
+    await vi.waitFor(() => expect(memberText()[9]).toBe("member-10 Person 10"));
+  });
+
+  it("links the team page after a roster shorter than the team", async () => {
+    open(answering(team(30, 20)), { teamRoster: answeringRoster(roster(25)) });
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+
+    showAll()?.click();
+
+    await vi.waitFor(() => expect(members(boxes()[0])).toHaveLength(25));
+    expect(links().some((link) => link.textContent === "See all 30 members")).toBe(true);
+  });
+
+  it("keeps focus on Show all when the roster lands", async () => {
+    let land: (roster: TeamMember[]) => void = () => {};
+    open(answering(team(11)), { teamRoster: () => new Promise((resolve) => (land = resolve)) });
+    await vi.waitFor(() => expect(searchToggle()).not.toBeNull());
+    searchToggle()?.click();
+    showAll()?.focus();
+
+    land(roster(11));
+
+    await vi.waitFor(() => expect(memberText()[0]).toBe("member-01 Person 1"));
+    expect(document.activeElement).toBe(showAll());
+  });
+
+  it("leaves focus in another team's box when this one's roster lands", async () => {
+    let land: (roster: TeamMember[]) => void = () => {};
+    open(answering(team(11)), {
+      teams: ["@o/web", "@o/api"],
+      teamRoster: async (token) =>
+        token === "@o/api" ? new Promise((resolve) => (land = resolve)) : undefined,
+    });
+    await vi.waitFor(() =>
+      expect(boxes()[1]?.querySelector("button[aria-expanded]")).not.toBeNull(),
+    );
+    boxes()[1]?.querySelector<HTMLButtonElement>("button[aria-expanded]")?.click();
+    const webMember = members(boxes()[0])[0]?.querySelector("a");
+    webMember?.focus();
+
+    land(roster(11));
+
+    await vi.waitFor(() => expect(memberText(boxes()[1])[0]).toBe("member-01 Person 1"));
+    expect(document.activeElement).toBe(webMember);
+  });
+
+  it("shows the roster's members with their names once it lands after Show all", async () => {
+    open(answering(team(30, 20)), { teamRoster: answeringRoster(roster(30)) });
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+
+    showAll()?.click();
+
+    await vi.waitFor(() => expect(members(boxes()[0])).toHaveLength(30));
+    expect(memberText()[0]).toBe("member-01 Person 1");
+    expect(members(boxes()[0])[0]?.querySelector(".gh-prism-member-name")?.textContent).toBe(
+      "Person 1",
+    );
+  });
+
+  it("holds the rest's loading line back 150 ms while the roster loads", async () => {
+    vi.useFakeTimers();
+    try {
+      open(answering(team(30, 20)), { teamRoster: () => new Promise(() => {}) });
+      await vi.waitFor(() => expect(showAll()).not.toBeNull());
+
+      showAll()?.click();
+
+      expect(memberText()).toEqual(logins(20));
+      const loading = boxes()[0]?.querySelector("li.gh-prism-members-status");
+      expect(loading?.textContent).toBe("");
+      vi.advanceTimersByTime(150);
+      expect(loading?.textContent).toBe("Loading 10 more members…");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("links the team page for the rest when the roster can't be read", async () => {
+    open(answering(team(30, 20)));
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+
+    showAll()?.click();
+
+    await vi.waitFor(() =>
+      expect(links().find((link) => link.textContent === "See all 30 members")?.href).toBe(
+        "https://github.com/orgs/o/teams/team",
+      ),
+    );
+    expect(memberText()).toEqual(logins(20));
+  });
+});
+
+describe("filtering a team's members in the dialog", () => {
+  const named: TeamMember[] = [
+    ...logins(9).map((login) => ({ login })),
+    { login: "ada", name: "Ada Lovelace" },
+  ];
+
+  async function openSearch(teamRoster: TeamRosterOf = async () => named) {
+    open(answering({ total: 11, members: named.map(({ login }) => login) }), { teamRoster });
+    await vi.waitFor(() => expect(searchToggle()).not.toBeNull());
+    searchToggle()?.click();
+  }
+
+  it("matches by display name a member of a team GitHub listed whole", async () => {
+    const whole = [...named, { login: "grace", name: "Grace Hopper" }];
+    open(answering({ total: 11, members: whole.map(({ login }) => login) }), {
+      teamRoster: async () => whole,
+    });
+    await vi.waitFor(() => expect(searchToggle()).not.toBeNull());
+    searchToggle()?.click();
+
+    typeQuery("hopper");
+
+    await vi.waitFor(() => expect(memberText()).toEqual(["grace Grace Hopper"]));
+  });
+
+  it("names each team's toggle by its team", async () => {
+    await openSearch();
+
+    expect(searchToggle()?.getAttribute("aria-label")).toBe("Filter members of o/team");
+    expect(searchToggle()?.dataset.tooltip).toBe("Filter members of o/team");
+  });
+
+  it("announces when no member matches", async () => {
+    await openSearch();
+
+    typeQuery("zzz");
+
+    const said = [...(boxes()[0]?.querySelectorAll('[role="status"]') ?? [])].map(
+      (status) => status.textContent,
+    );
+    expect(said).toContain("No members match “zzz”.");
+  });
+
+  it("announces that it matches logins alone when the roster can't be read", async () => {
+    await openSearch(async () => undefined);
+
+    await vi.waitFor(() =>
+      expect(
+        [...(boxes()[0]?.querySelectorAll('[role="status"]') ?? [])].some((status) =>
+          status.textContent?.startsWith("Couldn't read every member's name"),
+        ),
+      ).toBe(true),
+    );
+  });
+
+  it("offers no member filter for a team of nine", async () => {
+    open(answering(team(9)));
+    await vi.waitFor(() => expect(members(boxes()[0])).toHaveLength(9));
+
+    expect(searchToggle()).toBeNull();
+  });
+
+  it("shows a focused search box, naming its team, from the toggle", async () => {
+    await openSearch();
+
+    expect(searchToggle()?.getAttribute("aria-expanded")).toBe("true");
+    expect(searchToggle()?.getAttribute("aria-controls")).toBe(searchBox()?.id);
+    expect(searchBox()?.getAttribute("aria-label")).toBe("Filter members of o/team");
+    expect(document.activeElement).toBe(searchBox());
+  });
+
+  it("matches members by login, ignoring case", async () => {
+    await openSearch();
+
+    typeQuery("MEMBER-0");
+
+    expect(memberText()).toEqual(logins(9));
+    expect(showAll()).toBeNull();
+  });
+
+  it("matches members by display name once the roster lands", async () => {
+    await openSearch();
+
+    typeQuery("lovelace");
+
+    await vi.waitFor(() => expect(memberText()).toEqual(["ada Ada Lovelace"]));
+  });
+
+  it("says when no member matches", async () => {
+    await openSearch();
+
+    typeQuery("zzz");
+
+    expect(boxes()[0]?.textContent).toContain("No members match “zzz”.");
+  });
+
+  it("says it matches logins alone when the roster can't be read", async () => {
+    await openSearch(async () => undefined);
+
+    typeQuery("ada");
+
+    await vi.waitFor(() =>
+      expect(boxes()[0]?.textContent).toContain(
+        "Couldn't read every member's name. Showing matches among the first 10.",
+      ),
+    );
+    expect(memberText()).toEqual(["ada"]);
+  });
+
+  it("clears a non-empty box on Escape, keeping the dialog open", async () => {
+    await openSearch();
+    typeQuery("ada");
+
+    const event = escapeIn(searchBox() as HTMLInputElement);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(searchBox()?.value).toBe("");
+    expect(dialog()).not.toBeNull();
+  });
+
+  it("leaves Escape in an empty box to the dialog", async () => {
+    await openSearch();
+
+    const event = escapeIn(searchBox() as HTMLInputElement);
+
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("hides the box and restores the collapsed list from the toggle again", async () => {
+    await openSearch();
+    typeQuery("ada");
+
+    searchToggle()?.click();
+
+    expect(searchBox()?.closest("[hidden]")).not.toBeNull();
+    expect(searchToggle()?.getAttribute("aria-expanded")).toBe("false");
+    expect(memberText()).toHaveLength(8);
+    expect(showAll()).not.toBeNull();
+  });
+});
+
+describe("the dialog about one code owner", () => {
+  it("names itself by a heading linking that owner's page, with its avatar", () => {
+    open(undefined, { owner: "@o/team" });
+
+    const title = document.getElementById(dialog()?.getAttribute("aria-labelledby") ?? "");
+    const link = title?.querySelector<HTMLAnchorElement>("a.gh-prism-owner");
+    expect(title?.tagName).toBe("H2");
+    expect(link?.href).toBe("https://github.com/orgs/o/teams/team");
+    expect(link?.target).toBe("_blank");
+    expect(link?.querySelector('.gh-prism-avatar[data-kind="team"]')).not.toBeNull();
+    expect(title?.textContent).toBe("o/team");
   });
 });

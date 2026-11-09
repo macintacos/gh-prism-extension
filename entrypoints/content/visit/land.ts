@@ -15,6 +15,7 @@ import {
   type TeamAvatarOf,
   type TeamMembersOf,
 } from "@/utils/github/code-owners";
+import type { TeamRosterOf } from "@/utils/github/team-roster";
 import { type LandedSection, landingOf, sectionsOf } from "@/utils/intent/landing";
 import type { IntentProgress, IntentResult, PendingIntent } from "@/utils/intent/read";
 import { followFileKeys } from "../diffs/file-keys";
@@ -201,8 +202,8 @@ const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
  * until `signal` aborts. `viewed` is the visit's Viewed state, shared by its pages. `codeOwners`
  * and `prReviewers` are the visit's code owners and PR reviewers, read apart; each can land after
  * the sidebar draws or not at all, and never rejects. The sidebar shows the code owners once they
- * land, reading a team's members through `teamMembers` and its avatar through `teamAvatar`, the
- * visit's readers. `owner`, the code owner the page's URL names, if any, holds the page pending
+ * land, reading a team's members through `teamMembers`, its avatar through `teamAvatar`, and its
+ * whole roster through `teamRoster`, the visit's readers. `owner`, the code owner the page's URL names, if any, holds the page pending
  * until the reads its filter needs land, the code owners for a team and the PR reviewers too for a
  * user, then the members of the owning teams for a user, each for 10 s at most, then narrows the
  * sidebar and the diffs to that owner's files, counting the teams GitHub names a user as reviewing
@@ -224,6 +225,7 @@ export function showVisit(
     prReviewers,
     teamMembers,
     teamAvatar,
+    teamRoster,
     owner,
     filter,
     whatsNew,
@@ -236,13 +238,14 @@ export function showVisit(
     prReviewers?: Promise<readonly PrReviewer[] | undefined>;
     teamMembers: TeamMembersOf;
     teamAvatar: TeamAvatarOf;
+    teamRoster: TeamRosterOf;
     owner?: string;
     filter?: OwnerFilter;
     whatsNew?: WhatsNew;
     landHash: () => void;
   },
 ): void {
-  const sidebar = showSections(page, signal, { teamMembers, teamAvatar, filter });
+  const sidebar = showSections(page, signal, { teamMembers, teamAvatar, teamRoster, filter });
   void codeOwners?.then((read) => {
     if (read && !signal.aborted) sidebar.owners(read);
   });

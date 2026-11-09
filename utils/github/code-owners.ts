@@ -295,7 +295,7 @@ export function teamAvatarReader(fetchFn: typeof fetch, signal: AbortSignal): Te
 }
 
 /** `read`, called at most once per team, ignoring case; later calls share the first's answer. */
-function oncePerTeam<T>(read: (team: string) => Promise<T>): (team: string) => Promise<T> {
+export function oncePerTeam<T>(read: (team: string) => Promise<T>): (team: string) => Promise<T> {
   const reads = new Map<string, Promise<T>>();
   return (team) => {
     const key = team.toLowerCase();

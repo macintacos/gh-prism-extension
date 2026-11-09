@@ -6,6 +6,95 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-09: Three member columns, eight then Show all
+
+- **Asked:** "now that we made it a little wider, I think we can go to three columns of
+  members, showing up to 8 members by default, with the last entry being the "Show all
+  members" link"
+- **Won:**
+  - Member columns at least 180px wide, so the 640px dialog fits three.
+  - A team of nine or fewer shows every member. A larger team shows eight, and the ninth
+    slot holds "Show all members", filling a 3 × 3 grid.
+- **Supersedes:** the 240px column minimum from "A wider details dialog…" and "five, then
+  Show all" from "Team boxes…".
+
+## 2026-11-09: A code owners shield on each section header
+
+- **Asked:** "it'd be awesome if the codeowners shield icon could pop up, replacing the
+  diff numbers on the right side of the header, and it perform similar to the other
+  shields that we have in the sidebar - clicking it should show me the same popup, but for
+  codeowners in that section, covering all files / folders in that section."
+- **Compared:**
+  - for the placement, the shield beside the line totals, or in their place;
+  - for the structure, the shield inside the header's toggle, or beside it;
+  - for the popover's list, the files flat, or as a tree from the repository root.
+- **Won:**
+  - In the totals' place, on hover and focus.
+  - Beside the toggle, outside the heading.
+  - A tree from the repository root.
+- **Why:**
+  - It mirrors a file row's icon giving way to its shield, as asked.
+  - A button can't hold another button, and the heading's name stays the section's.
+  - A section has no folder of its own, and the tree matches every other owners list.
+
+## 2026-11-09: A wider details dialog, "N teams", and Show all's motion
+
+After trying the details dialog on a real pull request, the user asked: "When clicking
+'Show all members', it would be nice if there was a subtle, quick animation to show the
+other members." Then: "Could we make the entire modal a little bit wider actually? it
+feels a little cramped at its current width." And for a reviewer who owns through several
+teams: "it'd be awesome if we could consolidate these lines into like, some kind of '#
+groups' list that, when hovered, showed another popup with the group names that they're a
+member of."
+
+- **Compared:**
+  - for the width, Primer Dialog's 640px `xlarge`, or a custom 560px;
+  - for when "N teams" replaces the inline teams, one team or more, or two or more;
+  - for the list, a floating card opened inside the popup or dialog, or a native
+    `<details>`;
+  - for Show all's motion, rows that fade and settle on "State, opening", or the grid's
+    height growing.
+- **Won:**
+  - 640px, with member columns raised from 180px to 240px.
+  - Two or more teams.
+  - The floating card.
+  - Fade-and-settle rows.
+- **Why:**
+  - 640px is Primer's next Dialog step after `large`. The 240px column minimum keeps two
+    columns at that width instead of three cramped ones.
+  - One team fits inline and gains nothing from a hover.
+  - A `<details>` opens only on click and pushes the lines below it down, and the user
+    asked for a list that opens on hover.
+  - Firefox can't transition a grid's `auto` height.
+
+## 2026-11-09: Team boxes in the code owner details dialog
+
+- **Compared:**
+  - for where members come from, GitHub's members JSON alone, or the team's members page,
+    read on demand;
+  - for the member search toggle's glyph, Octicons `search`, or `filter`;
+  - for how many members a box shows, 15 with a "See all N members" footer link, or 5 with
+    a "Show all members" slot that expands in place;
+  - for a cut-off owner name, the sidebar's scroll reveal, or an end ellipsis with the
+    owner tooltip.
+- **Won:**
+  - The members page, read only on Show all or a search.
+  - The magnifier.
+  - Five, then Show all.
+  - The end ellipsis and the owner tooltip.
+- **Why:**
+  - GitHub's members JSON stops at about 20 logins and carries no names, so only the
+    members page can list everyone and match a display name.
+  - The filter icon, a funnel, already means "show only their files" in the same row. The
+    toggle is named "Filter members of <team>", not "Search", since it narrows the list
+    rather than leaving it.
+  - Five, then Show all, keeps the box short and shows every member in the same grid. The
+    user asked to "show 5 at max, with the 6th slot showing a "Show all members" link"
+    that expands "inline, in a similar columnar style as the other members".
+  - The scroll reveal is reserved for the sidebar's rows, so an owner name, a user's or a
+    team's, ends in an ellipsis and shows whole in the tooltip, as the user asked: "when
+    the user hovers over a truncated value, it should show the full name".
+
 ## 2026-11-08: The Conversation panel over GitHub's pull request overview
 
 - **Compared:**

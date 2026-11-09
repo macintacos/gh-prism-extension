@@ -9,10 +9,12 @@ import {
   clickAt,
   hostOf,
   nativeLink,
+  owned as ownedPaths,
   patchShadowActiveElement,
   press,
   renderSplit,
   rowIn,
+  sectionToggle,
   shieldOf,
   withCommentLines,
 } from "../../fixtures/sections-view";
@@ -26,6 +28,11 @@ import {
   sectionKeys,
   view,
 } from "../../fixtures/visit";
+
+vi.mock(import("../../../entrypoints/content/sidebar/sections-view"), async (importOriginal) => {
+  const original = await importOriginal();
+  return { ...original, showSections: vi.fn(original.showSections) };
+});
 
 patchShadowActiveElement();
 
@@ -741,7 +748,7 @@ describe("showSections", () => {
         expect(dialogs().map(dialogTitle)).toEqual(["Code owners of engine.rs"]);
       });
 
-      it("excerpts each owning team's members, linking the rest", async () => {
+      it("lists each owning team's first members, then a button to show all", async () => {
         const members = JSON.parse(large);
         remountWith(() => Promise.resolve(landedWith()), undefined, {
           codeOwners: Promise.resolve(tokensOf({ "src/engine.rs": ["@o/team", "@octocat"] })),
@@ -752,9 +759,8 @@ describe("showSections", () => {
         clickAt(engine(), { detail: 1 });
         await vi.advanceTimersByTimeAsync(0);
 
-        expect(dialogs()[0]?.querySelectorAll("section li.gh-prism-member")).toHaveLength(15);
-        const links = [...(dialogs()[0]?.querySelectorAll("a") ?? [])].map((a) => a.textContent);
-        expect(links).toContain("See all 214 members");
+        expect(dialogs()[0]?.querySelectorAll("section li.gh-prism-member")).toHaveLength(8);
+        expect(dialogs()[0]?.querySelector("section button.gh-prism-show-all")).not.toBeNull();
         expect(dialogs()[0]?.querySelectorAll("section")).toHaveLength(1);
       });
 
@@ -801,5 +807,129 @@ describe("showSections", () => {
         expect(popovers()).toEqual([]);
       });
     });
+  });
+});
+
+describe("a section header's code owners shield", () => {
+  const sectionShield = (section: string) =>
+    document.querySelector<HTMLButtonElement>(
+      `.gh-prism-section[data-section="${section}"] .gh-prism-section-shield`,
+    );
+  const popovers = () => [...document.querySelectorAll<HTMLElement>(".gh-prism-owners")];
+  const dialogs = () => [
+    ...document.querySelectorAll<HTMLDialogElement>(".gh-prism-owners-dialog"),
+  ];
+  const dialogTitle = (dialog: HTMLDialogElement | undefined) =>
+    document.getElementById(dialog?.getAttribute("aria-labelledby") ?? "")?.textContent;
+  const focusOpen = async (shield: HTMLElement | null) => {
+    shield?.dispatchEvent(new FocusEvent("focusin", { bubbles: true, composed: true }));
+    await vi.advanceTimersByTimeAsync(0);
+  };
+  const owned = () =>
+    landedOwned(
+      tokensOf({
+        "src/engine.rs": ["@o/team"],
+        "src/generated/schema.rs": ["@o/other"],
+        "config/app.toml": [],
+      }),
+    );
+  const LISTED_IN_IMPLEMENTATION = [
+    "Owned by o/other",
+    "  src/generated/",
+    "    schema.rs",
+    "Owned by o/team",
+    "  src/",
+    "    engine.rs",
+    "No code owner",
+    "  src/",
+    "    helpers.rs",
+    "    lib.rs",
+    "    notes.rs",
+    "    parser.rs",
+    "    render.rs",
+  ];
+
+  it("shows on a section listing an owned file, and not on one without", async () => {
+    await owned();
+
+    expect(sectionShield("implementation")?.hidden).toBe(false);
+    expect(sectionShield("config")?.hidden).toBe(true);
+  });
+
+  it("hides once a later set of code owners leaves its section with no owned file", async () => {
+    await landedOwned(ownersOf(["src/engine.rs"]));
+
+    ownedPaths();
+
+    expect(sectionShield("implementation")?.hidden).toBe(true);
+  });
+
+  it("appears once code owners land", async () => {
+    const settle = remountPending();
+    await afterDebounce();
+    const before = sectionShield("implementation")?.hidden ?? true;
+
+    settle(ownersOf(["src/engine.rs"]));
+    await afterDebounce();
+
+    expect(before).toBe(true);
+    expect(sectionShield("implementation")?.hidden).toBe(false);
+  });
+
+  it("is named for the section's files and follows its toggle in tab order", async () => {
+    await owned();
+    const shield = sectionShield("implementation");
+    const focusable = [
+      ...document.querySelectorAll<HTMLElement>(".gh-prism-section button:not([hidden])"),
+    ];
+
+    expect(shield?.getAttribute("aria-label")).toBe("Code owners of files in Implementation");
+    expect(focusable[focusable.indexOf(sectionToggle("implementation")) + 1]).toBe(shield);
+  });
+
+  it("leaves the heading's name to its toggle", async () => {
+    await owned();
+
+    const heading = document.getElementById("gh-prism-heading-implementation");
+    expect(heading?.contains(sectionShield("implementation"))).toBe(false);
+    expect(heading?.querySelectorAll("button")).toHaveLength(1);
+  });
+
+  it("opens a popover of the section's files from the root, grouped by owner set, on focus", async () => {
+    await owned();
+
+    await focusOpen(sectionShield("implementation"));
+
+    const [popover] = popovers();
+    expect(popovers()).toHaveLength(1);
+    expect(popover?.getAttribute("aria-label")).toBe("Code owners of files in Implementation");
+    expect(popover?.querySelector(".gh-prism-owners-hint")?.textContent).toBeTruthy();
+    expect(outline(popover?.querySelector("ul"))).toEqual(LISTED_IN_IMPLEMENTATION);
+  });
+
+  it("opens the details dialog on a click without toggling the section", async () => {
+    await owned();
+    const expanded = sectionToggle("implementation").getAttribute("aria-expanded");
+
+    const shield = sectionShield("implementation");
+    if (shield) clickAt(shield, { detail: 1 });
+
+    const [dialog] = dialogs();
+    expect(dialogTitle(dialog)).toBe("Code owners of files in Implementation");
+    expect(outline(dialog?.querySelector("ul"))).toEqual(LISTED_IN_IMPLEMENTATION);
+    expect(dialog?.querySelectorAll("section")).toHaveLength(2);
+    expect(popovers()).toEqual([]);
+    expect(sectionToggle("implementation").getAttribute("aria-expanded")).toBe(expanded);
+  });
+
+  it("returns focus to the section's toggle as its dialog closes", async () => {
+    await owned();
+    const shield = sectionShield("implementation");
+    if (shield) clickAt(shield, { detail: 1 });
+
+    dialogs()[0]?.querySelector<HTMLButtonElement>('button[aria-label="Close"]')?.click();
+
+    expect(dialogs()).toEqual([]);
+    expect(document.activeElement).toBe(sectionToggle("implementation"));
   });
 });

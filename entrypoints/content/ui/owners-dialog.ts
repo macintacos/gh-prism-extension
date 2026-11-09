@@ -1,8 +1,8 @@
 /**
  * The code owner details dialog a click on a code owners shield or the code owners button opens:
- * its opener's listing, then a box per owning team with an excerpt of its members. It exists only
- * while open, and mounts in the page's body so a shield in a shadow root and one in the light DOM
- * share it. It also holds the hover popups' hint that points here, and `ownerFilterAction`, the
+ * its opener's listing, then a box per owning team listing its members. It exists only while
+ * open, and mounts in the page's body so a shield in a shadow root and one in the light DOM share
+ * it. It also holds the hover popups' hint that points here, and `ownerFilterAction`, the
  * link drawn as a button that filters Files changed to the code owner a Reviewers shield marks.
  */
 
@@ -10,44 +10,48 @@ import {
   codeOwnerOf,
   isOwner,
   type TeamAvatarOf,
-  type TeamMembers,
   type TeamMembersOf,
 } from "@/utils/github/code-owners";
 import type { OwnerFilterLink } from "@/utils/github/files-route";
+import type { TeamRosterOf } from "@/utils/github/team-roster";
 import { el, FILTER_ICON, icon, X_ICON } from "./dom";
 import { prismMark } from "./mark";
 import {
   followOwnerTooltips,
-  memberIdentity,
   navigateOnPlainClick,
   type OwnerIdentities,
-  ownerFilterIcon,
   ownerLink,
 } from "./owner-identity";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./owners-dialog.css?inline";
+import { teamBox } from "./team-box";
 
 /** What the code owner details dialog shows, and where focus goes once it closes. */
-export interface OwnersDialogOptions {
-  /** The dialog's heading, which names it. */
-  readonly title: string;
+export interface OwnersDialogContent {
   /** What the dialog lists above the teams, built by its opener's module. */
   readonly summary: readonly Node[];
-  /** The `@org/team` tokens whose members it excerpts, in order. */
+  /** The `@org/team` tokens whose members it lists, in order. */
   readonly teams: readonly string[];
   /** Reads each of `teams`' members; never rejects. */
   readonly teamMembers: TeamMembersOf;
   /** Reads each of `teams`' avatars; never rejects. */
   readonly teamAvatar: TeamAvatarOf;
+  /** Reads a team's whole roster, only on Show all or a member search; never rejects. */
+  readonly teamRoster: TeamRosterOf;
   /** Where focus goes once it closes. */
   readonly returnFocus: () => void;
   /** The page's lifetime; the dialog goes with it. */
   readonly signal: AbortSignal;
   /** Filters Files changed by a code owner; without it, nothing offers to. */
   readonly filter?: OwnerFilter;
-  /** The code owner the dialog is about, whose filter action its footer holds, not its box. */
-  readonly owner?: string;
 }
+
+/**
+ * The dialog's options: headed by `title`, or about one code owner, `owner`, whose identity heads
+ * it and whose filter action its footer holds, not its box.
+ */
+export type OwnersDialogOptions = OwnersDialogContent &
+  ({ readonly title: string; readonly owner?: undefined } | { readonly owner: string });
 
 /** How an action filters a pull request's Files changed to one code owner's files. */
 export interface OwnerFilter {
@@ -60,20 +64,18 @@ export interface OwnerFilter {
 const TITLE_ID = "gh-prism-owners-dialog-title";
 
 /** Opens the code owner details dialog over `doc`, until it closes or `signal` aborts. */
-export function openOwnersDialog(
-  doc: Document,
-  {
-    title,
+export function openOwnersDialog(doc: Document, options: OwnersDialogOptions): void {
+  const {
     summary,
     teams,
     teamMembers,
     teamAvatar,
+    teamRoster,
     returnFocus,
     signal,
     filter,
     owner,
-  }: OwnersDialogOptions,
-): void {
+  } = options;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   // The footer already offers the dialog's own code owner's files.
   const identitiesOf = (team: string): OwnerIdentities =>
@@ -81,9 +83,16 @@ export function openOwnersDialog(
       ? { teamAvatar }
       : { teamAvatar, filter };
   const dialog = ownersDialog(doc, {
-    title,
+    title: owner === undefined ? options.title : ownerLink(doc, codeOwnerOf(owner), teamAvatar),
     summary,
-    teams: teams.map((team) => teamBox(doc, team, teamMembers(team), identitiesOf(team))),
+    teams: teams.map((team) =>
+      teamBox(
+        doc,
+        team,
+        { members: teamMembers(team), roster: () => teamRoster(team) },
+        identitiesOf(team),
+      ),
+    ),
     footer: filter && owner !== undefined ? ownerFilterAction(doc, owner, filter) : undefined,
   });
 
@@ -160,7 +169,10 @@ export function ownerFilterAction(
   return link;
 }
 
-/** Primer's Dialog, `title` over `summary` and `teams`, closing on Esc or a click outside it. */
+/**
+ * Primer's Dialog, `title`, text or an owner's identity, over `summary` and `teams`, closing on Esc
+ * or a click outside it.
+ */
 function ownersDialog(
   doc: Document,
   {
@@ -169,16 +181,19 @@ function ownersDialog(
     teams,
     footer,
   }: {
-    title: string;
+    title: string | HTMLElement;
     summary: readonly Node[];
     teams: readonly HTMLElement[];
     footer: HTMLElement | undefined;
   },
 ): HTMLDialogElement {
+  // An identity holds one line, so it can't wrap as a text title does.
   const heading = el(
     doc,
     "h2",
-    "tw:flex-1 tw:m-0 tw:py-1.5 tw:px-2 tw:text-body-medium tw:leading-body-medium tw:font-semibold tw:wrap-anywhere",
+    typeof title === "string"
+      ? "tw:flex-1 tw:m-0 tw:py-1.5 tw:px-2 tw:text-body-medium tw:leading-body-medium tw:font-semibold tw:wrap-anywhere"
+      : "gh-prism-identity tw:flex-1 tw:min-w-0 tw:m-0 tw:py-1 tw:px-2 tw:text-body-medium tw:leading-body-medium tw:font-semibold",
     title,
   );
   heading.id = TITLE_ID;
@@ -191,6 +206,8 @@ function ownersDialog(
     icon(doc, X_ICON, {}),
   );
   closeButton.type = "button";
+  // First focus on ✕, not on a one-owner title's new-tab link.
+  closeButton.autofocus = true;
   closeButton.setAttribute("aria-label", "Close");
   closeButton.addEventListener("click", () => dialog.close());
 
@@ -198,7 +215,7 @@ function ownersDialog(
   const dialog = el(
     doc,
     "dialog",
-    "gh-prism-owners-dialog tw:w-[480px] tw:min-w-[296px] tw:max-w-[calc(100dvw-64px)] tw:max-h-[calc(100dvh-64px)] tw:p-0 tw:overflow-hidden tw:[border:0] tw:rounded-[var(--borderRadius-large,12px)] tw:bg-[var(--overlay-bgColor)] tw:[box-shadow:var(--shadow-floating-small)] tw:text-fg-default tw:text-body-medium tw:leading-body-medium",
+    "gh-prism-owners-dialog tw:w-[640px] tw:min-w-[296px] tw:max-w-[calc(100dvw-64px)] tw:max-h-[calc(100dvh-64px)] tw:p-0 tw:overflow-hidden tw:[border:0] tw:rounded-[var(--borderRadius-large,12px)] tw:bg-[var(--overlay-bgColor)] tw:[box-shadow:var(--shadow-floating-small)] tw:text-fg-default tw:text-body-medium tw:leading-body-medium",
     el(
       doc,
       "div",
@@ -230,99 +247,4 @@ function ownersDialog(
   dialog.setAttribute("closedby", "any");
   followOwnerTooltips(dialog);
   return dialog;
-}
-
-/**
- * `team`'s box: a header naming it, drawn by `identities`, over its `members`' excerpt, which
- * fills in with their count once the read settles.
- */
-function teamBox(
-  doc: Document,
-  team: string,
-  members: Promise<TeamMembers | undefined>,
-  { teamAvatar, filter }: OwnerIdentities,
-): HTMLElement {
-  const owner = codeOwnerOf(team);
-  const count = el(
-    doc,
-    "span",
-    "tw:shrink-0 tw:ml-2 tw:text-body-small tw:leading-body-small tw:text-fg-muted",
-  );
-  // The filter icon stays out of the heading, which its label would otherwise join. The header's
-  // corners sit 1px inside the box's, so the fill meets the border without clipping.
-  const header = el(
-    doc,
-    "div",
-    "tw:flex tw:items-center tw:min-h-6 tw:py-1.5 tw:px-3 tw:bg-bg-muted tw:rounded-t-[calc(var(--borderRadius-medium)-1px)] tw:last:rounded-b-[calc(var(--borderRadius-medium)-1px)]",
-    el(
-      doc,
-      "div",
-      "gh-prism-identity tw:flex-1 tw:min-w-0",
-      el(
-        doc,
-        "h3",
-        "tw:inline tw:m-0 tw:text-body-medium tw:leading-body-medium tw:font-normal",
-        ownerLink(doc, owner, teamAvatar),
-      ),
-      ...(owner.url && filter ? [ownerFilterIcon(doc, owner.token, filter)] : []),
-    ),
-    count,
-  );
-  const box = el(doc, "section", "tw:border tw:border-border-default tw:rounded-medium", header);
-
-  void members.then((read) => {
-    if (read && read.total > 0)
-      count.textContent = read.total === 1 ? "1 member" : `${read.total} members`;
-    box.append(...excerpt(doc, owner.url, read));
-  });
-  return box;
-}
-
-const MEMBER_CAP = 15;
-
-/**
- * The box's body: the first members `read` lists, then a footer linking `teamUrl` for the rest; or
- * why there are none.
- */
-function excerpt(
-  doc: Document,
-  teamUrl: string | undefined,
-  read: TeamMembers | undefined,
-): HTMLElement[] {
-  const body = (child: HTMLElement) =>
-    el(doc, "div", "tw:py-2 tw:px-3 tw:border-t tw:border-border-default", child);
-  const muted = (text: string) => body(el(doc, "p", "tw:m-0 tw:text-fg-muted", text));
-  if (!read) return [muted("GitHub doesn't show you this team's members.")];
-  if (read.total === 0) return [muted("This team has no members.")];
-
-  const shown = read.members.slice(0, MEMBER_CAP);
-  const list = el(
-    doc,
-    "ul",
-    "tw:m-0 tw:p-0 tw:list-none tw:grid tw:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] tw:gap-x-4 tw:gap-y-1",
-    ...shown.map((login) => memberIdentity(doc, login)),
-  );
-  if (read.total <= shown.length || !teamUrl) return [body(list)];
-
-  const rest = el(
-    doc,
-    "div",
-    "tw:py-2 tw:px-3 tw:border-t tw:border-border-muted",
-    newTabLink(doc, `See all ${read.total} members`, teamUrl),
-  );
-  return [body(list), rest];
-}
-
-/** `text` linking to `url` in a new tab, with no opener. */
-function newTabLink(doc: Document, text: string, url: string): HTMLAnchorElement {
-  const link = el(
-    doc,
-    "a",
-    "tw:inline-flex tw:items-center tw:min-h-6 tw:text-[color:var(--fgColor-accent)]",
-    text,
-  );
-  link.href = url;
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-  return link;
 }

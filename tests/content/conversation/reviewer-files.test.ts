@@ -1,6 +1,9 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { showReviewerFiles } from "../../../entrypoints/content/conversation/reviewer-files";
+import {
+  showReviewerFiles,
+  throughLine,
+} from "../../../entrypoints/content/conversation/reviewer-files";
 import {
   type CommentAuthor,
   findCommentAuthors,
@@ -213,6 +216,7 @@ function show(
     read,
     teamMembers,
     teamAvatar: async () => undefined,
+    teamRoster: async () => undefined,
     filter,
     findAuthors,
   });
@@ -778,7 +782,7 @@ describe("showReviewerFiles", () => {
 
       await clickOn(shieldOf("frontend"));
 
-      expect(dialogName()).toBe("@excessive-dev/frontend");
+      expect(dialogName()).toBe("excessive-dev/frontend");
       expect(dialog()?.textContent).toMatch(/Code owner of \d+ files? in this pull request/);
       expect(cardListing.length).toBeGreaterThan(0);
       expect(outline(dialog()?.querySelector("ul"))).toEqual(cardListing);
@@ -807,14 +811,14 @@ describe("showReviewerFiles", () => {
       await vi.advanceTimersByTimeAsync(0);
 
       expect(document.querySelectorAll("dialog.gh-prism-owners-dialog")).toHaveLength(1);
-      expect(dialogName()).toBe("@excessive-dev/platform");
+      expect(dialogName()).toBe("excessive-dev/platform");
     });
 
     it("names the team a reviewer owns files through, and says when its members are hidden", async () => {
       await showNode({ reviewRequests: assignedFromCrypto });
       await clickOn(addAssignedShield("jasnell"));
 
-      expect(dialogName()).toBe("@jasnell");
+      expect(dialogName()).toBe("jasnell");
       expect(dialog()?.textContent).toContain("Through nodejs/crypto");
       const block = dialog()?.querySelector("section");
       expect(block?.querySelector("h3")?.textContent).toBe("nodejs/crypto");
@@ -826,7 +830,7 @@ describe("showReviewerFiles", () => {
 
       await clickOn(ownShieldOf("@pimterry"));
 
-      expect(dialogName()).toBe("@pimterry");
+      expect(dialogName()).toBe("pimterry");
     });
 
     it("opens from the PR overview's shield", async () => {
@@ -834,7 +838,7 @@ describe("showReviewerFiles", () => {
 
       await clickOn(overviewShieldOf("frontend"));
 
-      expect(dialogName()).toBe("@excessive-dev/frontend");
+      expect(dialogName()).toBe("excessive-dev/frontend");
     });
 
     it("opens nothing for a shield whose reviewer owns no changed file", async () => {
@@ -1131,6 +1135,7 @@ describe("showReviewerFiles", () => {
         read,
         teamMembers,
         teamAvatar: async () => undefined,
+        teamRoster: async () => undefined,
         findAuthors: findCommentAuthors,
       });
       await vi.advanceTimersByTimeAsync(0);
@@ -1159,6 +1164,7 @@ describe("showReviewerFiles", () => {
         read: () => readOwnership(node, { fetchFn, teamMembers, signal }),
         teamMembers,
         teamAvatar: async () => undefined,
+        teamRoster: async () => undefined,
         findAuthors: findCommentAuthors,
       });
       await vi.advanceTimersByTimeAsync(0);
@@ -1454,7 +1460,7 @@ describe.each([
       await settle();
 
       const dialog = document.querySelector<HTMLDialogElement>("dialog.gh-prism-owners-dialog");
-      expect(dialog?.textContent).toContain("@sandbox-user");
+      expect(dialog?.textContent).toContain("sandbox-user");
       expect(outline(dialog?.querySelector("ul"))).toEqual([
         "api/",
         "  generated/",
@@ -1477,7 +1483,7 @@ describe.each([
       await settle();
 
       expect(document.querySelector("dialog.gh-prism-owners-dialog")?.textContent).toContain(
-        "@sandbox-user",
+        "sandbox-user",
       );
     });
 
@@ -1654,3 +1660,26 @@ it.each([
     expect(getComputedStyle(shield).color).toBe("rgb(89, 99, 110)");
   },
 );
+
+describe("throughLine", () => {
+  const lineOf = (teams: string[], direct = false) =>
+    throughLine(document, teams, direct, { teamAvatar: async () => undefined });
+
+  it("names a single team inline, with no control", () => {
+    const line = lineOf(["@o/alpha"]);
+
+    expect(line.textContent).toBe("Through o/alpha");
+    expect(line.querySelector("button")).toBeNull();
+  });
+
+  it("counts two or more teams in a control", () => {
+    const line = lineOf(["@o/alpha", "@o/beta"]);
+
+    expect(line.textContent).toBe("Through 2 teams");
+    expect(line.querySelector("button")?.textContent).toBe("2 teams");
+  });
+
+  it("says the owner is named directly too", () => {
+    expect(lineOf(["@o/alpha", "@o/beta"], true).textContent).toBe("Directly and through 2 teams");
+  });
+});

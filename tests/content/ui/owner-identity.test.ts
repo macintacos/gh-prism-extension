@@ -172,6 +172,17 @@ describe("an owner's filter icon, given a filter", () => {
 });
 
 describe("memberIdentity", () => {
+  it("follows a member's login with their display name, in the same link", () => {
+    const member = memberIdentity(document, "octocat", "Mona Lisa");
+
+    expect(member.querySelector("a")?.textContent).toBe("octocat Mona Lisa");
+    expect(member.querySelector("a .gh-prism-member-name")?.textContent).toBe("Mona Lisa");
+  });
+
+  it("loads a member's avatar only as it nears the view", () => {
+    expect(memberIdentity(document, "octocat").querySelector("img")?.loading).toBe("lazy");
+  });
+
   it("links a member's avatar and login, as one link, to their profile", () => {
     const member = memberIdentity(document, "octocat");
 
@@ -248,5 +259,56 @@ describe("followOwnerTooltips", () => {
     other?.dispatchEvent(new PointerEvent("pointerout", { bubbles: true, relatedTarget: root }));
 
     expect(tooltip()?.textContent).toBe("Show only files owned by o/team");
+  });
+
+  /** `root`'s owner name, measured as `scrollWidth` wide in a `clientWidth` box. */
+  function measure(root: Element, scrollWidth: number, clientWidth: number) {
+    const name = root.querySelector(".gh-prism-owner-name") as HTMLElement;
+    Object.defineProperties(name, {
+      scrollWidth: { value: scrollWidth },
+      clientWidth: { value: clientWidth },
+    });
+  }
+
+  it("shows a cut-off owner name whole while the pointer rests on its link", () => {
+    const { root, tooltip } = surface();
+    measure(root, 300, 120);
+
+    linkOf(root)?.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+
+    expect(tooltip()?.textContent).toBe("o/team");
+  });
+
+  it("shows nothing for an owner name that fits", () => {
+    const { root, tooltip } = surface();
+    measure(root, 120, 120);
+
+    linkOf(root)?.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+
+    expect(tooltip()).toBeUndefined();
+  });
+
+  it("shows a member's cut-off display name whole while the pointer rests on its link", () => {
+    const root = document.createElement("ul");
+    root.append(memberIdentity(document, "octocat", "Mona Lisa the Octocat"));
+    document.body.append(root);
+    followOwnerTooltips(root);
+    const name = root.querySelector(".gh-prism-member-name") as HTMLElement;
+    Object.defineProperties(name, { scrollWidth: { value: 300 }, clientWidth: { value: 120 } });
+
+    root.querySelector("a")?.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+
+    expect([...shown].find((element) => root.contains(element))?.textContent).toBe(
+      "Mona Lisa the Octocat",
+    );
+  });
+
+  it("shows a cut-off owner name whole on keyboard focus", () => {
+    const { root, tooltip } = surface();
+    measure(root, 300, 120);
+
+    linkOf(root)?.focus();
+
+    expect(tooltip()?.textContent).toBe("o/team");
   });
 });

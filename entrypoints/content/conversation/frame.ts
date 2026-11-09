@@ -1,6 +1,7 @@
 import { readOwnership, teamAvatarReader, teamMembersReader } from "@/utils/github/code-owners";
 import { isConversationFrame } from "@/utils/github/conversation-frame";
 import { readHeaderTabPr } from "@/utils/github/files-route";
+import { teamRosterReader } from "@/utils/github/team-roster";
 import { findCommentAuthors } from "../files-page";
 import { isEditable } from "../ui/dom";
 import { toggleKeyOf } from "../ui/toggle-keys";
@@ -73,6 +74,7 @@ export function showFrameReviewerFiles(
       read: () => readOwnership(pr, { fetchFn, teamMembers, signal }),
       teamMembers,
       teamAvatar: teamAvatarReader(fetchFn, signal),
+      teamRoster: teamRosterReader(fetchFn, signal),
       findAuthors: findCommentAuthors,
     });
 

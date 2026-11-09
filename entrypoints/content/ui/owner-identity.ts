@@ -71,24 +71,21 @@ export function ownerFilterIcon(
   return link;
 }
 
-/** A team member: their avatar and login, as one link to their profile. */
 /** The ", " between two identities in a line of them. */
 export function ownerSeparator(doc: Document): HTMLElement {
   return el(doc, "span", "gh-prism-owner-separator", ", ");
 }
 
-export function memberIdentity(doc: Document, login: string): HTMLElement {
-  return el(
+/** A team member: their avatar, login, and display name if known, as one link to their profile. */
+export function memberIdentity(doc: Document, login: string, name?: string): HTMLElement {
+  const link = accountLink(
     doc,
-    "li",
-    "gh-prism-member",
-    accountLink(
-      doc,
-      `https://github.com/${login}`,
-      userAvatar(doc, login),
-      el(doc, "span", "", login),
-    ),
+    `https://github.com/${login}`,
+    userAvatar(doc, login),
+    el(doc, "span", "gh-prism-member-login", login),
   );
+  if (name) link.append(" ", el(doc, "span", "gh-prism-member-name", name));
+  return el(doc, "li", "gh-prism-member", link);
 }
 
 /**
@@ -113,8 +110,8 @@ const TOOLTIP_GAP = 4;
 
 /**
  * Shows each `[data-tooltip]` control's tooltip inside `surface` while the pointer rests on it or
- * it has keyboard focus: one element in the top layer, so it never adds to a scroller's overflow.
- * It goes with `surface`.
+ * it has keyboard focus, and an owner link's whole name when its name is cut off: one element in
+ * the top layer, so it never adds to a scroller's overflow. It goes with `surface`.
  */
 export function followOwnerTooltips(surface: HTMLElement): void {
   const doc = surface.ownerDocument;
@@ -126,8 +123,12 @@ export function followOwnerTooltips(surface: HTMLElement): void {
 
   let open = false;
   const show = (control: HTMLElement) => {
-    tooltip.textContent = control.dataset.tooltip ?? "";
-    if (!open) tooltip.showPopover();
+    const text = tooltipOf(control);
+    if (text === undefined) return hide();
+    tooltip.textContent = text;
+    // Shown again each time, so it draws above any card opened since, such as "N teams".
+    if (open) tooltip.hidePopover();
+    tooltip.showPopover();
     open = true;
     place(tooltip, targetOf(control));
   };
@@ -136,7 +137,7 @@ export function followOwnerTooltips(surface: HTMLElement): void {
     open = false;
   };
   const controlAt = (target: EventTarget | null) =>
-    target instanceof Element ? target.closest<HTMLElement>("[data-tooltip]") : null;
+    target instanceof Element ? target.closest<HTMLElement>(TOOLTIP_CONTROL) : null;
 
   surface.addEventListener("pointerover", ({ target }) => {
     const control = controlAt(target);
@@ -145,7 +146,9 @@ export function followOwnerTooltips(surface: HTMLElement): void {
   surface.addEventListener("pointerout", ({ target, relatedTarget }) => {
     const control = controlAt(target);
     if (!control || (relatedTarget instanceof Node && control.contains(relatedTarget))) return;
-    const focused = surface.querySelector<HTMLElement>("[data-tooltip]:focus-visible");
+    const focused = surface.querySelector<HTMLElement>(
+      ":is([data-tooltip], a.gh-prism-owner, .gh-prism-member > a):focus-visible",
+    );
     if (focused) show(focused);
     else hide();
   });
@@ -154,6 +157,21 @@ export function followOwnerTooltips(surface: HTMLElement): void {
     if (control?.matches(":focus-visible")) show(control);
   });
   surface.addEventListener("focusout", hide);
+}
+
+const TOOLTIP_CONTROL =
+  "[data-tooltip], a.gh-prism-owner:has(> .gh-prism-owner-name), .gh-prism-member > a:has(> .gh-prism-member-name)";
+
+/**
+ * `control`'s tooltip: its own, or an owner's or member's name when cut off; none for a name that
+ * fits.
+ */
+function tooltipOf(control: HTMLElement): string | undefined {
+  if (control.dataset.tooltip !== undefined) return control.dataset.tooltip;
+  const name = control.querySelector<HTMLElement>(
+    ":scope > :is(.gh-prism-owner-name, .gh-prism-member-name)",
+  );
+  return name && name.scrollWidth > name.clientWidth ? (name.textContent ?? "") : undefined;
 }
 
 /** `control`'s box, grown by the tooltip's gap above and below. */
@@ -206,6 +224,7 @@ function avatarImage(doc: Document, src: string): HTMLImageElement {
   const image = el(doc, "img", "");
   image.src = src;
   image.alt = "";
+  image.loading = "lazy";
   image.width = 16;
   image.height = 16;
   return image;

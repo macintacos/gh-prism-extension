@@ -18,6 +18,7 @@ import {
   type TeamAvatarOf,
   type TeamMembersOf,
 } from "@/utils/github/code-owners";
+import type { TeamRosterOf } from "@/utils/github/team-roster";
 import {
   type CommentAuthor,
   findOwnerSpots,
@@ -32,12 +33,8 @@ import {
 import { el, icon, SHIELD_LOCK } from "../ui/dom";
 import { fileList } from "../ui/file-list";
 import { type Card, followHoverIntent } from "../ui/hover-intent";
-import {
-  followOwnerTooltips,
-  type OwnerIdentities,
-  ownerIdentity,
-  ownerSeparator,
-} from "../ui/owner-identity";
+import { followOwnerTooltips, type OwnerIdentities, ownerIdentity } from "../ui/owner-identity";
+import { ownerTeams } from "../ui/owner-teams";
 import {
   detailsHint,
   type OwnerFilter,
@@ -66,10 +63,10 @@ const HEADING_BUTTON = `${PR_OWNERS}[${PR_OWNERS_KIND}]`;
  * shield enters the popup.
  * Closes 150 ms after the pointer leaves shield and popup, and at once on Escape, focus leaving
  * both, or a scroll outside it, moving focus it held to the shield. A click on the shield opens
- * the code owner details dialog instead, excerpting owning teams' members through `teamMembers`.
- * Draws teams' avatars through `teamAvatar`. Puts the code owners button beside each Reviewers
- * heading once `read` names a code owner for a changed file; it opens the whole pull request's
- * code owner details dialog. Calls `read` at most once, when a Reviewers list, its heading, or a
+ * the code owner details dialog instead, listing owning teams' members through `teamMembers`.
+ * Draws teams' avatars through `teamAvatar`, and the dialog reads a team's whole roster through
+ * `teamRoster`. Puts the code owners button beside each Reviewers heading once `read` names a code
+ * owner for a changed file; it opens the whole pull request's code owner details dialog. Calls `read` at most once, when a Reviewers list, its heading, or a
  * comment author first shows. Given `filter`, popup and dialog offer to show only the code owner's
  * files, when they list any, and each team they name filters from its name.
  */
@@ -80,6 +77,7 @@ export function showReviewerFiles(
     read,
     teamMembers,
     teamAvatar,
+    teamRoster,
     filter,
     findAuthors,
   }: {
@@ -87,6 +85,7 @@ export function showReviewerFiles(
     findAuthors: (doc: Document) => CommentAuthor[];
     teamMembers: TeamMembersOf;
     teamAvatar: TeamAvatarOf;
+    teamRoster: TeamRosterOf;
     filter?: OwnerFilter;
   },
 ): void {
@@ -204,6 +203,7 @@ export function showReviewerFiles(
       openPrOwners(doc, ownedPr, {
         teamMembers,
         teamAvatar,
+        teamRoster,
         filter,
         // GitHub may have replaced the form while the dialog was open.
         returnFocus: () =>
@@ -245,11 +245,11 @@ export function showReviewerFiles(
 
       closeCard();
       openOwnersDialog(doc, {
-        title: token,
         summary: popupBody(doc, owned, identities),
         teams: token.includes("/") ? [token] : owned.teams,
         teamMembers,
         teamAvatar,
+        teamRoster,
         filter: owned.paths.length > 0 ? filter : undefined,
         owner: token,
         // Focus back on the shield opens its card again, as focus does anywhere here.
@@ -425,24 +425,32 @@ function popupBody(
     ];
 
   const files = paths.length === 1 ? "1 file" : `${paths.length} files`;
-  const through = teams.flatMap((team, i) => [
-    i > 0 ? ownerSeparator(doc) : "",
-    ownerIdentity(doc, codeOwnerOf(team), identities),
-  ]);
   return [
     el(doc, "p", "tw:mt-0 tw:mb-2 tw:font-semibold", `Code owner of ${files} in this pull request`),
-    ...(teams.length > 0
-      ? [
-          // A 24px line, the avatars' height; -6px keeps it under the count line.
-          el(
-            doc,
-            "p",
-            "tw:-mt-1.5 tw:mb-2 tw:text-body-small tw:leading-6 tw:text-fg-muted",
-            direct ? "Directly and through " : "Through ",
-            ...through,
-          ),
-        ]
-      : []),
+    ...(teams.length > 0 ? [throughLine(doc, teams, direct, identities)] : []),
     fileList(doc, paths),
   ];
+}
+
+/**
+ * The line under a code owner's file count naming the `teams` that make them one, `direct` when
+ * CODEOWNERS names them too: one team's identity inline, or two or more counted by "N teams".
+ */
+export function throughLine(
+  doc: Document,
+  teams: readonly string[],
+  direct: boolean,
+  identities: OwnerIdentities,
+): HTMLElement {
+  const [only] = teams;
+  // A 24px line, the avatars' height; -6px keeps it under the count line.
+  return el(
+    doc,
+    "p",
+    "tw:-mt-1.5 tw:mb-2 tw:text-body-small tw:leading-6 tw:text-fg-muted",
+    direct ? "Directly and through " : "Through ",
+    teams.length === 1 && only
+      ? ownerIdentity(doc, codeOwnerOf(only), identities)
+      : ownerTeams(doc, teams, identities),
+  );
 }
