@@ -122,7 +122,7 @@ function memberList(
   const showAll = el(
     doc,
     "button",
-    "gh-prism-show-all tw:h-6 tw:p-0 tw:[border:0] tw:[background:none] tw:text-left tw:text-[color:var(--fgColor-accent)] tw:cursor-pointer tw:hover:underline tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:rounded-[4px]",
+    "gh-prism-show-all tw:h-6 tw:p-0 tw:[font:inherit] tw:leading-6 tw:[border:0] tw:[background:none] tw:text-left tw:text-[color:var(--fgColor-accent)] tw:cursor-pointer tw:hover:underline tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:rounded-[4px]",
     "Show all members",
   );
   showAll.type = "button";
