@@ -6,6 +6,18 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-09: Three member columns, eight then Show all
+
+- **Asked:** "now that we made it a little wider, I think we can go to three columns of
+  members, showing up to 8 members by default, with the last entry being the "Show all
+  members" link"
+- **Won:**
+  - Member columns at least 180px wide, so the 640px dialog fits three.
+  - A team of nine or fewer shows every member. A larger team shows eight, and the ninth
+    slot holds "Show all members", filling a 3 × 3 grid.
+- **Supersedes:** the 240px column minimum from "A wider details dialog…" and "five, then
+  Show all" from "Team boxes…".
+
 ## 2026-11-09: A code owners shield on each section header
 
 - **Asked:** "it'd be awesome if the codeowners shield icon could pop up, replacing the

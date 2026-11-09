@@ -568,10 +568,10 @@ names, so the dialog's Show all and member search read the whole roster through 
 visit's `teamRosterReader`, which reads each team at most once a visit, from
 [`utils/github/team-roster.ts`](../utils/github/team-roster.ts): `readTeamRoster` reads
 the team's members page as HTML, page by page, with `DOMParser`, and keeps each member's
-login and display name. A team of more than six members, which gets a member search, reads
-it even when GitHub's first list holds every member, because only the members page has
-display names. A team of six or fewer never reads it, so it shows logins alone. A team
-with more than 20 pages, about 600 members, answers `undefined` rather than a partial
+login and display name. A team of more than nine members, which gets a member search,
+reads it even when GitHub's first list holds every member, because only the members page
+has display names. A team of nine or fewer never reads it, so it shows logins alone. A
+team with more than 20 pages, about 600 members, answers `undefined` rather than a partial
 roster, so the dialog links the team page as it does after a failed read. A team's avatar
 takes a read of its own, once a visit, through the visit's `teamAvatarReader`, when a
 surface first draws the team: `readTeamAvatar` finds the team's avatar ID in the hovercard
@@ -634,7 +634,7 @@ details dialog, built by
 [`ui/owners-dialog.ts`](../entrypoints/content/ui/owners-dialog.ts). The dialog repeats
 the popover's list, then gives each owning team a box, built by
 [`ui/team-box.ts`](../entrypoints/content/ui/team-box.ts), with its member count and its
-members: all of a team of six or fewer, otherwise five and a Show all button, plus a
+members: all of a team of nine or fewer, otherwise eight and a Show all button, plus a
 member search for a larger team. It mounts in the page's body with its own stylesheet, so
 a shield in a shadow root and one in the light DOM can share it. Opening it moves focus to
 the shield's row first. The dialog then hands focus back to the row, never the shield,

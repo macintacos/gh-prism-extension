@@ -535,7 +535,7 @@ and no hairline above them:
 - **The header:** a row on `--bgColor-muted` with 6px by 12px padding. The team's identity
   (§ Owner identities) sits at its start in body-medium, its name cut off to fit, then its
   member count in muted body-small: "1 member" or "N members", blank for a hidden or empty
-  team. A team of more than six ends the row in a member search toggle. It is drawn as
+  team. A team of more than nine ends the row in a member search toggle. It is drawn as
   Primer's small invisible IconButton with a 24px target, holding Octicons `search` at
   16px. Its name and tooltip read "Filter members of <team>", such as "Filter members of
   o/team", and the search box takes the same name. It carries its state in
@@ -544,11 +544,11 @@ and no hairline above them:
   border without clipping.
 - **The body:** below a 1px `--borderColor-default` rule, with 8px by 12px padding. Its
   members, each an avatar and login linked to their profile (§ Owner identities), sit in
-  columns at least 240px wide, 16px apart, with 4px between rows. A login too long for its
-  column wraps, with the avatar beside its first line. A team of six or fewer shows them
-  all. A larger team shows five, and the sixth slot holds "Show all members", a button
+  columns at least 180px wide, 16px apart, with 4px between rows. A login too long for its
+  column wraps, with the avatar beside its first line. A team of nine or fewer shows them
+  all. A larger team shows eight, and the ninth slot holds "Show all members", a button
   drawn as a link in `--fgColor-accent`, on a member row's 24px line. It expands the grid
-  in place and moves focus to the sixth member. GitHub's first list of members holds about
+  in place and moves focus to the ninth member. GitHub's first list of members holds about
   20 logins and no display names, so Show all and the member search read the whole roster
   for its names. Show all expands at once to the members GitHub listed. The box takes its
   new height at once, and only the rows it reveals move: each fades in and settles from
