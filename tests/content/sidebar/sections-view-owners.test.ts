@@ -9,6 +9,7 @@ import {
   clickAt,
   hostOf,
   nativeLink,
+  owned as ownedPaths,
   patchShadowActiveElement,
   press,
   renderSplit,
@@ -27,6 +28,11 @@ import {
   sectionKeys,
   view,
 } from "../../fixtures/visit";
+
+vi.mock(import("../../../entrypoints/content/sidebar/sections-view"), async (importOriginal) => {
+  const original = await importOriginal();
+  return { ...original, showSections: vi.fn(original.showSections) };
+});
 
 patchShadowActiveElement();
 
@@ -847,7 +853,15 @@ describe("a section header's code owners shield", () => {
     await owned();
 
     expect(sectionShield("implementation")?.hidden).toBe(false);
-    expect(sectionShield("config")?.hidden ?? true).toBe(true);
+    expect(sectionShield("config")?.hidden).toBe(true);
+  });
+
+  it("hides once a later set of code owners leaves its section with no owned file", async () => {
+    await landedOwned(ownersOf(["src/engine.rs"]));
+
+    ownedPaths();
+
+    expect(sectionShield("implementation")?.hidden).toBe(true);
   });
 
   it("appears once code owners land", async () => {

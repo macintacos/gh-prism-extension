@@ -70,7 +70,8 @@
   appearance: none;
   position: absolute;
   inset-block-start: 6px;
-  /* Measured to share the folder shields' column; keep in sync with section-tree.css. */
+  /* The folder shields' column: (4px tree padding − 2px item margin) + section-tree.css's 3px
+     shield inset. */
   inset-inline-end: 5px;
   display: grid;
   place-content: center;
@@ -84,6 +85,7 @@
   background: transparent;
   cursor: pointer;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 150ms ease-out;
 }
 
@@ -91,9 +93,10 @@
   display: none;
 }
 
-.gh-prism-section-head:is(:hover, :focus-within) .gh-prism-section-shield,
+.gh-prism-section-head:is(:hover, :has(:focus-visible)) .gh-prism-section-shield,
 .gh-prism-section-shield[aria-expanded="true"] {
   opacity: 1;
+  pointer-events: auto;
 }
 
 /* Opacity only: the totals stay in the toggle's accessible name. */
@@ -103,7 +106,7 @@
 
 .gh-prism-section-head:has(.gh-prism-section-shield:not([hidden])):is(
     :hover,
-    :focus-within,
+    :has(:focus-visible),
     :has(.gh-prism-section-shield[aria-expanded="true"])
   )
   .gh-prism-line-totals {

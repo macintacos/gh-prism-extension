@@ -1,6 +1,6 @@
 /**
  * The popover a code owners shield opens on hover or focus, listing a file's owners, or a folder's
- * files grouped by their owners; it exists only while open.
+ * or a section's files grouped by their owners; it exists only while open.
  *
  * It sits beside its shield, which is marked expanded while it is open. It closes on Escape inside
  * it, on a click outside it, on any scroll outside it, once `signal` aborts, or on a call of the
@@ -54,7 +54,7 @@ interface PopoverOptions {
   readonly root: Element;
   /** The page's lifetime; the popover goes with it. */
   readonly signal: AbortSignal;
-  /** Moves focus to the shield's row, as the popover closes while holding focus. */
+  /** Moves focus to the shield's row, or its section's toggle, as the popover closes holding focus. */
   readonly returnFocus: () => void;
   /** How it draws the owners it names. */
   readonly identities: OwnerIdentities;
@@ -66,23 +66,19 @@ export function describeListing(
   listing: ShieldListing,
   identities: OwnerIdentities,
 ) {
-  if ("section" in listing)
+  if ("name" in listing)
     return {
-      title: `Code owners of files in ${listing.section}`,
-      list: folderList(doc, "", listing.files, identities),
-      teams: owningTeams(listing.files.flatMap(({ owners }) => owners)),
+      title: `Code owners of ${listing.name}`,
+      list: ownersList(doc, listing.owners, identities),
+      teams: owningTeams(listing.owners),
     };
-  return "folder" in listing
-    ? {
-        title: `Code owners of files in ${listing.folder.slice(0, -1)}`,
-        list: folderList(doc, listing.folder, listing.files, identities),
-        teams: owningTeams(listing.files.flatMap(({ owners }) => owners)),
-      }
-    : {
-        title: `Code owners of ${listing.name}`,
-        list: ownersList(doc, listing.owners, identities),
-        teams: owningTeams(listing.owners),
-      };
+
+  const folder = "folder" in listing ? listing.folder : "";
+  return {
+    title: `Code owners of files in ${"folder" in listing ? folder.slice(0, -1) : listing.section}`,
+    list: folderList(doc, folder, listing.files, identities),
+    teams: owningTeams(listing.files.flatMap(({ owners }) => owners)),
+  };
 }
 
 /** Opens the popover listing `listing`. */

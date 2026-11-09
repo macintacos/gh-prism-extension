@@ -2984,6 +2984,18 @@ test("a section header's shield takes its line totals' place in the folder shiel
   await expect.poll(() => opacityOf(shield)).toBe("1");
   await expect.poll(() => opacityOf(totals)).toBe("0");
 
+  // A click focuses the toggle without a focus ring, so the header settles once the pointer leaves.
+  await toggle.click();
+  await toggle.click();
+  await page.mouse.move(0, 0);
+  await expect.poll(() => opacityOf(totals)).toBe("1");
+  await expect.poll(() => opacityOf(shield)).toBe("0");
+
+  await page.keyboard.press("Tab");
+  await expect(shield).toBeFocused();
+  await expect.poll(() => opacityOf(shield)).toBe("1");
+  await page.keyboard.press("Escape");
+
   await treeRow(page, "src/").hover();
   const header = await shield.boundingBox();
   const folder = await shieldOf(page, "src/").boundingBox();

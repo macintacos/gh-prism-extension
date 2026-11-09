@@ -80,9 +80,10 @@ code owner details dialog (§ Dialogs) groups every changed file the same way, b
 path.
 
 A section that lists an owned file gets the same shield on its header, at the header's
-right end, centred on the folder rows' shield column below. At rest the header shows its
-line totals. While the header is hovered, holds focus, or has the shield's popover open,
-the shield fades in over the totals. The fade uses the folder shield's
+right end, centred on the folder rows' shield column below. A header with no line totals
+keeps that end for the shield, and its label stops short of it. At rest the header shows
+its line totals. While the header is hovered, holds keyboard focus, or has the shield's
+popover open, the shield fades in over the totals. The fade uses the folder shield's
 `opacity 150ms ease-out`, and is instant under reduced motion. Both hide by opacity only,
 so the totals stay in the toggle's name and the shield stays in the tab order, right after
 the toggle. The shield sits outside the toggle and the heading, and is named "Code owners

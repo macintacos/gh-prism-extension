@@ -69,8 +69,9 @@ interface SectionsView extends LandingView {
    */
   viewed(paths: ReadonlySet<string>): void;
   /**
-   * Shields the rows of every file in `byPath` with at least one code owner; a shield's hover or
-   * focus lists them, and its click opens the code owner details dialog.
+   * Shields the rows of every file in `byPath` with at least one code owner, and the header of every
+   * section listing one; a shield's hover or focus lists them, and its click opens the code owner
+   * details dialog.
    */
   owners(byPath: ReadonlyMap<string, FileOwners>): void;
 }
@@ -679,7 +680,7 @@ export function showSections(
       host,
       tree,
       toggle,
-      ...("shield" in shell && { shield: shell.shield }),
+      shield: "shield" in shell ? shell.shield : undefined,
     };
   };
 
@@ -721,7 +722,7 @@ export function showSections(
         owners: ownersByPath.get(path)?.owners ?? [],
       })),
     };
-    return { listed, focusRow: () => listing.toggle.focus() };
+    return { listed, returnFocus: () => listing.toggle.focus({ preventScroll: true }) };
   };
 
   /** What `shield`'s popover and dialog list, and how to focus its row, or its section's toggle. */
@@ -731,7 +732,7 @@ export function showSections(
     const listing = listingOfShield(shield);
     if (path === undefined || listing === undefined) return undefined;
 
-    const focusRow = () => shown.get(listing)?.tree.focusRow(path);
+    const returnFocus = () => shown.get(listing)?.tree.focusRow(path);
     const listed: ShieldListing = path.endsWith("/")
       ? {
           folder: path,
@@ -744,7 +745,7 @@ export function showSections(
           name: path.slice(path.lastIndexOf("/") + 1),
           owners: ownersByPath.get(path)?.owners ?? [],
         };
-    return { listed, focusRow };
+    return { listed, returnFocus };
   };
   let closeOwners = () => {};
   const showOwners = (shield: HTMLElement): Card | undefined => {
@@ -753,11 +754,11 @@ export function showSections(
 
     closeOwners();
 
-    const { listed, focusRow } = details;
+    const { listed, returnFocus } = details;
     const card = openListing(shield, listed, {
       root: view,
       signal,
-      returnFocus: focusRow,
+      returnFocus,
       identities: { teamAvatar, filter },
     });
     closeOwners = card.close;
@@ -769,9 +770,9 @@ export function showSections(
     const details = shieldListing(shield);
     if (!details) return;
 
-    const { listed, focusRow } = details;
+    const { listed, returnFocus } = details;
     closeOwners();
-    focusRow();
+    returnFocus();
 
     const { title, list, teams } = describeListing(doc, listed, { teamAvatar, filter });
     openOwnersDialog(doc, {
@@ -782,7 +783,7 @@ export function showSections(
       teamAvatar,
       teamRoster,
       filter,
-      returnFocus: focusRow,
+      returnFocus,
       signal,
     });
   };
