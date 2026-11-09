@@ -95,13 +95,23 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   px. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `toHundredths` does it.
 - **Never let a `bench/` file match a test glob** (`*.{test,spec}.*` or `*.e2e.ts`). The
   benchmark stays out of Vitest, Playwright, and CI.
-- **Let the sections' reveal finish before a test clicks in the sidebar and reads its
-  scroll.** The reveal animation moves every row for up to half a second after the
-  sections land. Playwright retries a click whose target is moving, and its retries scroll
-  the target into view with forced alignments, even when it is already in view. Which
-  alignment the click lands on depends on the machine's speed, so the sidebar can stay put
-  locally and move on CI. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "ticking a box
-  doesn't scroll the sidebar" awaits the animations' `finished` first.
+- **Give a large fixture's first wait `LARGE_PR_READ_TIMEOUT`.** The extension reads the
+  300-file diff before the sections land, and on a loaded runner that can take longer than
+  expect's 5 s default. In [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts), the large-fixture
+  tests pass it to their opening `toBeVisible`. A test that opens on an action already
+  waits up to the test timeout.
+- **Let the sections' reveal finish before a test clicks or hovers in the sidebar and
+  reads its scroll.** The reveal animation moves every row for up to half a second after
+  the sections land. Playwright retries a click or hover whose target is moving, and its
+  retries scroll the target into view with forced alignments, even when it is already in
+  view. Which alignment the click lands on depends on the machine's speed, so the sidebar
+  can stay put locally and move on CI. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s
+  "ticking a box doesn't scroll the sidebar" awaits the animations' `finished` first.
+- **Retry a jump and its check together after a test wheels the sidebar.** A wheel's
+  scroll can land after a later `scrollTop` write and carry the sidebar past the target. A
+  poll for `scrollTop > 0` only proves that the wheel started. In
+  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts), "…the sidebar scrolls as one" wraps
+  `scrollSidebarToBulkRow` and `toBeInViewport` in `toPass`.
 - **Let the Conversation panel's slide finish before a test hovers or clicks in its
   frame.** Playwright measures an element's stability inside its own frame, so it can't
   see the frame sliding in with the panel, and a hover mid-slide lands on a shield that
