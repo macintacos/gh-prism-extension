@@ -2706,13 +2706,30 @@ test("a hovered shield keeps its glyph in forced colours", async ({ context, pag
   await expect.poll(glyphColor).toBe(atRest);
 });
 
-/** Answers `@org/team`'s members read with `fixture`, counting the requests. */
+/**
+ * Answers `@org/team`'s members read with `fixture`, counting the JSON requests, and its members
+ * pages with every one of the fixture's `total` members, `member-NN` named "Person N", on page 1.
+ */
 const routeMembers = async (context: BrowserContext, team: string, fixture: string) => {
   const [org, slug] = team.slice(1).split("/");
   const hits = { count: 0 };
-  await context.route(`https://github.com/orgs/${org}/teams/${slug}/members`, (route) => {
-    hits.count++;
-    return route.fulfill({ contentType: "application/json", body: readFixture(fixture) });
+  const json = readFixture(fixture);
+  await context.route(`https://github.com/orgs/${org}/teams/${slug}/members**`, (route) => {
+    if (route.request().headers().accept === "application/json") {
+      hits.count++;
+      return route.fulfill({ contentType: "application/json", body: json });
+    }
+    const page = new URL(route.request().url()).searchParams.get("page");
+    const { total } = JSON.parse(json) as { total: number };
+    const rows = Array.from({ length: page === "1" ? total : 0 }, (_, i) => {
+      const login = `member-${String(i + 1).padStart(2, "0")}`;
+      const card = `data-hovercard-url="/users/${login}/hovercard"`;
+      return `<li class="table-list-item member-list-item"><a ${card}><img alt=""></a><a class="f4" ${card}> Person ${i + 1} </a><span>${login}</span></li>`;
+    });
+    return route.fulfill({
+      contentType: "text/html",
+      body: `<ul class="member-listing">${rows.join("")}</ul>`,
+    });
   });
   return hits;
 };
@@ -2748,8 +2765,8 @@ test("a shield's click swaps its hover popover for the code owner details dialog
   expect(await dialog.evaluate((element) => element.matches(":modal"))).toBe(true);
   await expect(page.locator(".gh-prism-owners:popover-open")).toHaveCount(0);
   await expect(dialog.getByRole("heading", { name: "o/team", exact: true })).toBeVisible();
-  await expect(dialog.getByRole("link", { name: /^member-\d+$/ })).toHaveCount(15);
-  await expect(dialog.getByRole("link", { name: "See all 214 members" })).toBeVisible();
+  await expect(dialog.getByRole("link", { name: /^member-\d+$/ })).toHaveCount(5);
+  await expect(dialog.getByRole("button", { name: "Show all members" })).toBeVisible();
   // Each member's photo fills its avatar's ring, and a member row copies as its login.
   const members = await dialog.locator("li.gh-prism-member").evaluateAll((items) =>
     items.map((item) => {
@@ -2784,6 +2801,65 @@ test("a shield's click swaps its hover popover for the code owner details dialog
   await expect(dialog).toBeVisible();
   await page.mouse.click(4, 4);
   await expect(dialog).toHaveCount(0);
+});
+
+const LONG_TEAM = "@o/platform-infrastructure-reliability-and-developer-experience";
+
+/** Opens README.md's details dialog, owned by `LONG_TEAM` and its 214 members. */
+async function openLongTeamDialog(context: BrowserContext, page: Page) {
+  await routeMembers(context, LONG_TEAM, "team-members-large.json");
+  await openOwned(context, page, [LONG_TEAM, "@octocat"]);
+  await treeRow(page, "README.md").hover();
+  await shieldOf(page, "README.md").click();
+  const dialog = page.getByRole("dialog", { name: "Code owners of README.md" });
+  await expect(dialog.getByRole("button", { name: "Show all members" })).toBeVisible();
+  return dialog;
+}
+
+test("a long team name holds one line in its box header, whole in its tooltip", async ({
+  context,
+  page,
+}) => {
+  const dialog = await openLongTeamDialog(context, page);
+  const name = dialog.locator("section .gh-prism-owner-name");
+
+  // offsetHeight, not the box, which the dialog's entrance scales.
+  const metrics = await name.evaluate((element: HTMLElement) => ({
+    lines: element.offsetHeight / (parseFloat(getComputedStyle(element).fontSize) * 1.5),
+    cut: element.scrollWidth > element.clientWidth,
+    overflow: getComputedStyle(element).textOverflow,
+  }));
+  expect(metrics.lines).toBeLessThanOrEqual(1);
+  expect(metrics).toMatchObject({ cut: true, overflow: "ellipsis" });
+
+  await name.hover();
+  await expect(page.locator(".gh-prism-tooltip:popover-open")).toHaveText(LONG_TEAM.slice(1));
+});
+
+test("Show all lists every member of a large team, with their names", async ({ context, page }) => {
+  const dialog = await openLongTeamDialog(context, page);
+
+  await dialog.getByRole("button", { name: "Show all members" }).click();
+
+  await expect(dialog.locator("li.gh-prism-member")).toHaveCount(214);
+  await expect(dialog.getByRole("link", { name: "member-01 Person 1", exact: true })).toBeVisible();
+  await expect(dialog.getByRole("link", { name: /^member-06/ })).toBeFocused();
+});
+
+test("a team's member search filters its members by name", async ({ context, page }) => {
+  const dialog = await openLongTeamDialog(context, page);
+
+  await dialog.getByRole("button", { name: "Filter members" }).click();
+  await dialog.getByRole("textbox", { name: /^Filter members of / }).fill("person 21");
+
+  await expect(dialog.locator("li.gh-prism-member")).toHaveText([
+    "member-21 Person 21",
+    "member-210 Person 210",
+    "member-211 Person 211",
+    "member-212 Person 212",
+    "member-213 Person 213",
+    "member-214 Person 214",
+  ]);
 });
 
 test("Enter on a focused shield opens its details, and Escape returns to the row", async ({
@@ -3022,7 +3098,7 @@ test("a code owner reviewer's shield click opens their team's details", async ({
 
   await shield.click();
 
-  const dialog = page.getByRole("dialog", { name: "@excessive-dev/frontend" });
+  const dialog = page.getByRole("dialog", { name: "excessive-dev/frontend" });
   await expect(dialog).toContainText("api/generated/client.ts");
   await expect(dialog.getByRole("link", { name: "sandbox-user", exact: true })).toBeVisible();
   expect(await dialog.evaluate((element) => element.matches(":modal"))).toBe(true);
@@ -3373,7 +3449,7 @@ test("gh-prism's shield for a code owner who reviewed for a team opens their det
 
   await shield.click();
 
-  const dialog = page.getByRole("dialog", { name: "@pimterry" });
+  const dialog = page.getByRole("dialog", { name: "pimterry" });
   await expect(dialog).toContainText("Through nodejs/crypto");
   await expect(dialog).toContainText("GitHub doesn't show you this team's members.");
 });
@@ -4557,7 +4633,7 @@ test("a code owner reviewer's shield in the Conversation panel opens their files
   await expect(popup).not.toContainText("Show only");
 
   await shield.click();
-  await expect(frame.getByRole("dialog", { name: "@excessive-dev/frontend" })).toContainText(
+  await expect(frame.getByRole("dialog", { name: "excessive-dev/frontend" })).toContainText(
     "web/app.ts",
   );
 });

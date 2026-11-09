@@ -154,7 +154,7 @@ function memberList(
   const row = ({ login, name }: TeamMember) => memberIdentity(doc, login, name);
 
   const render = () => {
-    const focused = doc.activeElement?.closest("li.gh-prism-member")?.textContent;
+    const focused = doc.activeElement?.closest("li.gh-prism-member a")?.getAttribute("href");
     const shown = items();
     list.replaceChildren(...shown);
     const query = search.input.value.trim();
@@ -163,11 +163,7 @@ function memberList(
     list.hidden = !noMatch.hidden;
     search.status(roster === "loading" ? "loading" : roster === "failed" ? listed.length : null);
     // A re-render replaces the rows; focus follows its member.
-    if (focused !== undefined)
-      shown
-        .find((item) => item.textContent === focused)
-        ?.querySelector("a")
-        ?.focus();
+    if (focused) list.querySelector<HTMLElement>(`a[href="${CSS.escape(focused)}"]`)?.focus();
   };
 
   search.input.addEventListener("input", render);
