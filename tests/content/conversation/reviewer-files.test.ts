@@ -1,6 +1,9 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { showReviewerFiles } from "../../../entrypoints/content/conversation/reviewer-files";
+import {
+  showReviewerFiles,
+  throughLine,
+} from "../../../entrypoints/content/conversation/reviewer-files";
 import {
   type CommentAuthor,
   findCommentAuthors,
@@ -1657,3 +1660,26 @@ it.each([
     expect(getComputedStyle(shield).color).toBe("rgb(89, 99, 110)");
   },
 );
+
+describe("throughLine", () => {
+  const lineOf = (teams: string[], direct = false) =>
+    throughLine(document, teams, direct, { teamAvatar: async () => undefined });
+
+  it("names a single team inline, with no control", () => {
+    const line = lineOf(["@o/alpha"]);
+
+    expect(line.textContent).toBe("Through o/alpha");
+    expect(line.querySelector("button")).toBeNull();
+  });
+
+  it("counts two or more teams in a control", () => {
+    const line = lineOf(["@o/alpha", "@o/beta"]);
+
+    expect(line.textContent).toBe("Through 2 teams");
+    expect(line.querySelector("button")?.textContent).toBe("2 teams");
+  });
+
+  it("says the owner is named directly too", () => {
+    expect(lineOf(["@o/alpha", "@o/beta"], true).textContent).toBe("Directly and through 2 teams");
+  });
+});

@@ -2864,17 +2864,25 @@ test("the code owner details dialog is 640px wide, its team boxes listing member
 test("Show all's revealed members settle fully shown", async ({ context, page }) => {
   const dialog = await openLongTeamDialog(context, page);
 
+  const started = dialog.evaluate(
+    (element: HTMLElement) =>
+      new Promise<string>((resolve) =>
+        element.addEventListener("animationstart", ({ animationName, target }) => {
+          if (target instanceof Element && target.matches("li.gh-prism-member"))
+            resolve(animationName);
+        }),
+      ),
+  );
   await dialog.getByRole("button", { name: "Show all members" }).click();
+  expect(await started).not.toBe("");
 
-  // The roster re-renders the rows once it lands.
-  await expect(dialog.getByRole("link", { name: "member-06 Person 6", exact: true })).toBeVisible();
-  const opacity = await dialog
-    .locator("li.gh-prism-member")
-    .nth(5)
-    .evaluate(async (element) => {
-      await Promise.all(element.getAnimations().map(({ finished }) => finished));
-      return getComputedStyle(element).opacity;
-    });
+  // The roster's rows enter as it lands.
+  const last = dialog.locator("li.gh-prism-member").last();
+  await expect(last).toContainText("Person");
+  const opacity = await last.evaluate(async (element) => {
+    await Promise.all(element.getAnimations().map(({ finished }) => finished));
+    return getComputedStyle(element).opacity;
+  });
   expect(opacity).toBe("1");
 });
 

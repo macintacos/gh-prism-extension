@@ -2,9 +2,9 @@
 
 // GitHub's hovercard closes 110–130 ms after the pointer leaves; wait longer, so the two never show
 // together.
-const OPEN_DELAY_MS = 200;
+export const OPEN_DELAY_MS = 200;
 // Time to carry the pointer from the trigger into the card.
-const CLOSE_DELAY_MS = 150;
+export const CLOSE_DELAY_MS = 150;
 
 /** A card shown beside its trigger. It counts as closed once it leaves the document. */
 export interface Card {

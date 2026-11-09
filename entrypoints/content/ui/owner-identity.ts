@@ -5,8 +5,8 @@
  * live in `ui/owner-identity.css`, which the host's sheet must `@import`.
  */
 
-import { type CodeOwner, codeOwnerOf, type TeamAvatarOf } from "@/utils/github/code-owners";
-import { el, FILTER_ICON, icon, PEOPLE_ICON, TRIANGLE_DOWN_ICON } from "./dom";
+import type { CodeOwner, TeamAvatarOf } from "@/utils/github/code-owners";
+import { el, FILTER_ICON, icon, PEOPLE_ICON } from "./dom";
 import type { OwnerFilter } from "./owners-dialog";
 import { place } from "./place";
 
@@ -76,127 +76,6 @@ export function ownerSeparator(doc: Document): HTMLElement {
   return el(doc, "span", "gh-prism-owner-separator", ", ");
 }
 
-/**
- * The line under a code owner's file count naming the `teams` that make them one, `direct` when
- * CODEOWNERS names them too: one team's identity inline, or two or more counted by `ownerTeams`.
- */
-export function throughLine(
-  doc: Document,
-  teams: readonly string[],
-  direct: boolean,
-  identities: OwnerIdentities,
-): HTMLElement {
-  const [only] = teams;
-  // A 24px line, the avatars' height; -6px keeps it under the count line.
-  return el(
-    doc,
-    "p",
-    "tw:-mt-1.5 tw:mb-2 tw:text-body-small tw:leading-6 tw:text-fg-muted",
-    direct ? "Directly and through " : "Through ",
-    teams.length === 1 && only
-      ? ownerIdentity(doc, codeOwnerOf(only), identities)
-      : ownerTeams(doc, teams, identities),
-  );
-}
-
-const OPEN_DELAY_MS = 200;
-const CLOSE_DELAY_MS = 150;
-
-/**
- * A button counting `teams` that opens their identities, drawn by `identities`, as a card in the
- * top layer: 200 ms after the pointer rests on it, at once on keyboard focus or a click. The card
- * lives inside the button's host, the nearest dialog or popover, so it goes with it, and pointer or
- * focus inside it counts as inside the host. It closes 150 ms after the pointer leaves button and
- * card, at once when focus leaves both, on a second click, and on Escape, which goes no further.
- */
-export function ownerTeams(
-  doc: Document,
-  teams: readonly string[],
-  identities: OwnerIdentities,
-): HTMLButtonElement {
-  const button = el(
-    doc,
-    "button",
-    "gh-prism-owner-teams",
-    el(doc, "span", "gh-prism-owner-name", `${teams.length} teams`),
-    icon(doc, TRIANGLE_DOWN_ICON, {}),
-  );
-  button.type = "button";
-  const list = el(
-    doc,
-    "ul",
-    "gh-prism-owner-teams-list",
-    ...teams.map((team) => el(doc, "li", "", ownerIdentity(doc, codeOwnerOf(team), identities))),
-  );
-  list.id = `gh-prism-owner-teams-${crypto.randomUUID()}`;
-  list.popover = "manual";
-  button.setAttribute("aria-controls", list.id);
-  button.setAttribute("aria-expanded", "false");
-
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  // A pointer press or Escape focuses the button without meaning to open it.
-  let quietFocus = false;
-  const isOpen = () => button.getAttribute("aria-expanded") === "true";
-  const inside = (target: EventTarget | null) =>
-    target instanceof Node && (button.contains(target) || list.contains(target));
-
-  const open = () => {
-    clearTimeout(timer);
-    if (isOpen()) return;
-    (button.closest("dialog, [popover]") ?? doc.body).append(list);
-    list.showPopover({ source: button });
-    place(list, button.getBoundingClientRect());
-    button.setAttribute("aria-expanded", "true");
-  };
-  const close = () => {
-    clearTimeout(timer);
-    if (!isOpen()) return;
-    if (list.isConnected) list.hidePopover();
-    button.setAttribute("aria-expanded", "false");
-  };
-  const after = (delay: number, act: () => void) => {
-    clearTimeout(timer);
-    timer = setTimeout(act, delay);
-  };
-
-  button.addEventListener("pointerdown", () => (quietFocus = true));
-  button.addEventListener("focus", () => {
-    if (!quietFocus) open();
-    quietFocus = false;
-  });
-  button.addEventListener("click", () => {
-    quietFocus = false;
-    if (isOpen()) close();
-    else open();
-  });
-  for (const part of [button, list] as HTMLElement[]) {
-    part.addEventListener("pointerover", ({ relatedTarget }) => {
-      if (inside(relatedTarget)) return;
-      if (isOpen()) clearTimeout(timer);
-      else if (part === button) after(OPEN_DELAY_MS, open);
-    });
-    part.addEventListener("pointerout", ({ relatedTarget }) => {
-      if (inside(relatedTarget)) return;
-      if (isOpen()) after(CLOSE_DELAY_MS, close);
-      else clearTimeout(timer);
-    });
-    part.addEventListener("focusout", ({ relatedTarget }) => {
-      if (!inside(relatedTarget)) close();
-    });
-    part.addEventListener("keydown", (event) => {
-      if (event.key !== "Escape" || !isOpen()) return;
-      // Ahead of the popup's and the dialog's own Escape.
-      event.preventDefault();
-      event.stopPropagation();
-      close();
-      quietFocus = true;
-      button.focus();
-      quietFocus = false;
-    });
-  }
-  return button;
-}
-
 /** A team member: their avatar, login, and display name if known, as one link to their profile. */
 export function memberIdentity(doc: Document, login: string, name?: string): HTMLElement {
   const link = accountLink(
@@ -247,7 +126,9 @@ export function followOwnerTooltips(surface: HTMLElement): void {
     const text = tooltipOf(control);
     if (text === undefined) return hide();
     tooltip.textContent = text;
-    if (!open) tooltip.showPopover();
+    // Shown again each time, so it draws above any card opened since, such as "N teams".
+    if (open) tooltip.hidePopover();
+    tooltip.showPopover();
     open = true;
     place(tooltip, targetOf(control));
   };

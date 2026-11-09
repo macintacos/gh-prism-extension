@@ -306,7 +306,12 @@ describe("a team's members in the dialog", () => {
     expect(entering()).toEqual(logins(2, 6));
   });
 
-  it("marks only the rows past those already shown to enter once the roster lands", async () => {
+  const settle = (box = boxes()[0]) => {
+    for (const member of members(box))
+      member.dispatchEvent(new Event("animationend", { bubbles: true }));
+  };
+
+  it("keeps the revealed rows entering when the roster lands while they enter", async () => {
     let land: (roster: readonly TeamMember[]) => void = () => {};
     open(answering(team(9, 7)), {
       teamRoster: () => new Promise((resolve) => (land = resolve)),
@@ -316,7 +321,31 @@ describe("a team's members in the dialog", () => {
 
     land(roster(9));
 
+    await vi.waitFor(() => expect(entering()).toEqual(logins(4, 6)));
+  });
+
+  it("marks only the rows past those settled to enter once the roster lands", async () => {
+    let land: (roster: readonly TeamMember[]) => void = () => {};
+    open(answering(team(9, 7)), {
+      teamRoster: () => new Promise((resolve) => (land = resolve)),
+    });
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+    showAll()?.click();
+    settle();
+
+    land(roster(9));
+
     await vi.waitFor(() => expect(entering()).toEqual(logins(2, 8)));
+  });
+
+  it("marks the revealed rows to enter when the roster has already landed", async () => {
+    open(answering(team(7)), { teamRoster: answeringRoster(roster(7)) });
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+
+    showAll()?.click();
+    await vi.waitFor(() => expect(memberText()[5]).toContain("Person"));
+
+    expect(entering()).toEqual(logins(2, 6));
   });
 
   it("marks no row to enter when a search shows them", async () => {

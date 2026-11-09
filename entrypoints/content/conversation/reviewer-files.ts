@@ -7,6 +7,7 @@
  */
 
 import {
+  codeOwnerOf,
   filesOwnedBy,
   type OwnedFiles,
   type OwnedPullRequest,
@@ -32,7 +33,8 @@ import {
 import { el, icon, SHIELD_LOCK } from "../ui/dom";
 import { fileList } from "../ui/file-list";
 import { type Card, followHoverIntent } from "../ui/hover-intent";
-import { followOwnerTooltips, type OwnerIdentities, throughLine } from "../ui/owner-identity";
+import { followOwnerTooltips, type OwnerIdentities, ownerIdentity } from "../ui/owner-identity";
+import { ownerTeams } from "../ui/owner-teams";
 import {
   detailsHint,
   type OwnerFilter,
@@ -428,4 +430,27 @@ function popupBody(
     ...(teams.length > 0 ? [throughLine(doc, teams, direct, identities)] : []),
     fileList(doc, paths),
   ];
+}
+
+/**
+ * The line under a code owner's file count naming the `teams` that make them one, `direct` when
+ * CODEOWNERS names them too: one team's identity inline, or two or more counted by "N teams".
+ */
+export function throughLine(
+  doc: Document,
+  teams: readonly string[],
+  direct: boolean,
+  identities: OwnerIdentities,
+): HTMLElement {
+  const [only] = teams;
+  // A 24px line, the avatars' height; -6px keeps it under the count line.
+  return el(
+    doc,
+    "p",
+    "tw:-mt-1.5 tw:mb-2 tw:text-body-small tw:leading-6 tw:text-fg-muted",
+    direct ? "Directly and through " : "Through ",
+    teams.length === 1 && only
+      ? ownerIdentity(doc, codeOwnerOf(only), identities)
+      : ownerTeams(doc, teams, identities),
+  );
 }

@@ -98,8 +98,9 @@ function memberList(
   let roster: Roster = read.total <= FULL_COUNT ? listed : "unread";
   let expanded = read.total <= FULL_COUNT;
   let searching = false;
-  // Logins whose rows the unsearched list has shown, so a row enters only on its first showing.
-  const seen = new Set<string>();
+  // Logins whose rows the unsearched list has shown, so a row enters only on its first showing,
+  // and those whose entrance is still running, so a re-render keeps it going.
+  const rows: RowsShown = { seen: new Set(), entering: new Set() };
 
   const known = () => (typeof roster === "string" ? listed : roster);
   const list = el(
@@ -111,6 +112,10 @@ function memberList(
   noMatch.setAttribute("role", "status");
   const search = memberSearch(doc, owner);
   const body = el(doc, "div", BODY, search.box, list, noMatch);
+  list.addEventListener("animationend", ({ target }) => {
+    const login = target instanceof Element ? loginOf(target) : undefined;
+    if (login) rows.entering.delete(login);
+  });
 
   const loadRoster = () => {
     if (roster !== "unread") return;
@@ -163,7 +168,7 @@ function memberList(
     const shown = items();
     list.replaceChildren(...shown);
     const query = search.input.value.trim();
-    if (!query) markEntering(shown, seen, enter);
+    if (!query) markEntering(shown, rows, enter);
     noMatch.textContent = query && shown.length === 0 ? `No members match “${query}”.` : "";
     noMatch.hidden = noMatch.textContent === "";
     list.hidden = !noMatch.hidden;
@@ -199,17 +204,28 @@ function memberList(
   return { body, toggle };
 }
 
+/** The logins the unsearched list has shown, and those whose rows are still entering. */
+interface RowsShown {
+  readonly seen: Set<string>;
+  readonly entering: Set<string>;
+}
+
 /**
- * Records each of `rows`' members in `seen`, given `enter` marking those not in it before to enter.
+ * Records each of `rows`' members as seen, marking to enter those still entering and, given
+ * `enter`, those not seen before.
  */
-function markEntering(rows: readonly HTMLElement[], seen: Set<string>, enter: boolean): void {
+function markEntering(rows: readonly HTMLElement[], shown: RowsShown, enter: boolean): void {
   for (const row of rows) {
-    const login = row.querySelector(".gh-prism-member-login")?.textContent;
+    const login = loginOf(row);
     if (!login) continue;
-    if (enter && !seen.has(login)) row.classList.add("gh-prism-member-enter");
-    seen.add(login);
+    if (enter && !shown.seen.has(login)) shown.entering.add(login);
+    if (shown.entering.has(login)) row.classList.add("gh-prism-member-enter");
+    shown.seen.add(login);
   }
 }
+
+const loginOf = (row: Element) =>
+  row.closest("li")?.querySelector(".gh-prism-member-login")?.textContent ?? undefined;
 
 /** How far a roster read got, as the search's status line says it. */
 type SearchStatus = { kind: "idle" } | { kind: "loading" } | { kind: "failed"; listed: number };
