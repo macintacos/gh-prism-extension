@@ -2959,6 +2959,53 @@ test("a folder shield's click opens the code owner details of its files", async 
   ).toContainText("schema.rs");
 });
 
+test("a section header's shield takes its line totals' place in the folder shields' column", async ({
+  context,
+  page,
+}) => {
+  await openOwned(context, page, ["@o/team"]);
+  const section = page.locator('.gh-prism-section[data-section="implementation"]');
+  const toggle = section.locator("h3 button");
+  const shield = section.getByRole("button", {
+    name: "Code owners of files in Implementation",
+  });
+  // The fixture's diff never loads, so the header has no totals of its own; this stands in.
+  await toggle.evaluate((button) => {
+    const stand = button.ownerDocument.createElement("span");
+    stand.className = "gh-prism-line-totals tw:ms-auto";
+    stand.textContent = "+12 −4";
+    button.append(stand);
+  });
+  const totals = toggle.locator(".gh-prism-line-totals");
+  await expect.poll(() => opacityOf(shield)).toBe("0");
+  await expect.poll(() => opacityOf(totals)).toBe("1");
+
+  await toggle.hover();
+  await expect.poll(() => opacityOf(shield)).toBe("1");
+  await expect.poll(() => opacityOf(totals)).toBe("0");
+
+  await treeRow(page, "src/").hover();
+  const header = await shield.boundingBox();
+  const folder = await shieldOf(page, "src/").boundingBox();
+  if (!header || !folder) throw new Error("no section or folder shield box");
+  expect(Math.abs(header.x + header.width / 2 - (folder.x + folder.width / 2))).toBeLessThanOrEqual(
+    1,
+  );
+
+  await toggle.hover();
+  await shield.hover();
+  await expect(page.locator(".gh-prism-owners:popover-open")).toHaveAttribute(
+    "aria-label",
+    "Code owners of files in Implementation",
+  );
+
+  await shield.click();
+  await expect(
+    page.getByRole("dialog", { name: "Code owners of files in Implementation" }),
+  ).toBeVisible();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+});
+
 test("a shield's hover popover hints that a click opens its details", async ({ context, page }) => {
   await openOwned(context, page);
   const popover = page.locator(".gh-prism-owners:popover-open");

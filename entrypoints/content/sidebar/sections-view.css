@@ -64,6 +64,98 @@
   transition-timing-function: ease-out;
 }
 
+/* A section's code owners shield, a light-DOM copy of section-tree.css's [data-item-shield]
+   values. It takes the line totals' place, centred on the folder rows' shield column below. */
+.gh-prism-section-shield {
+  appearance: none;
+  position: absolute;
+  inset-block-start: 6px;
+  /* Measured to share the folder shields' column; keep in sync with section-tree.css. */
+  inset-inline-end: 5px;
+  display: grid;
+  place-content: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--borderRadius-medium);
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+
+.gh-prism-section-shield[hidden] {
+  display: none;
+}
+
+.gh-prism-section-head:is(:hover, :focus-within) .gh-prism-section-shield,
+.gh-prism-section-shield[aria-expanded="true"] {
+  opacity: 1;
+}
+
+/* Opacity only: the totals stay in the toggle's accessible name. */
+.gh-prism-line-totals {
+  transition: opacity 150ms ease-out;
+}
+
+.gh-prism-section-head:has(.gh-prism-section-shield:not([hidden])):is(
+    :hover,
+    :focus-within,
+    :has(.gh-prism-section-shield[aria-expanded="true"])
+  )
+  .gh-prism-line-totals {
+  opacity: 0;
+}
+
+/* Without totals, the label truncates short of the shield rather than under it. */
+.gh-prism-section-head:has(.gh-prism-section-shield:not([hidden]))
+  .gh-prism-section-toggle:not(:has(.gh-prism-line-totals)) {
+  padding-inline-end: 40px;
+}
+
+/* Octicons shield-lock-16 (MIT, GitHub Inc.), 19.15.0. */
+.gh-prism-section-shield::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  background: var(--fgColor-muted);
+  mask:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m8.533.133 5.25 1.68A1.75 1.75 0 0 1 15 3.48V7c0 1.566-.32 3.182-1.303 4.682-.983 1.498-2.585 2.813-5.032 3.855a1.697 1.697 0 0 1-1.33 0c-2.447-1.042-4.049-2.357-5.032-3.855C1.32 10.182 1 8.566 1 7V3.48a1.75 1.75 0 0 1 1.217-1.667l5.25-1.68a1.748 1.748 0 0 1 1.066 0Zm-.61 1.429.001.001-5.25 1.68a.251.251 0 0 0-.174.237V7c0 1.36.275 2.666 1.057 3.859.784 1.194 2.121 2.342 4.366 3.298a.196.196 0 0 0 .154 0c2.245-.957 3.582-2.103 4.366-3.297C13.225 9.666 13.5 8.358 13.5 7V3.48a.25.25 0 0 0-.174-.238l-5.25-1.68a.25.25 0 0 0-.153 0ZM9.5 6.5c0 .536-.286 1.032-.75 1.3v2.45a.75.75 0 0 1-1.5 0V7.8A1.5 1.5 0 1 1 9.5 6.5Z'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+/* The header stays hovered while the pointer is on its shield, as a row does under its own. */
+.gh-prism-section-head:has(.gh-prism-section-shield:hover) .gh-prism-section-toggle {
+  background: var(--control-transparent-bgColor-hover);
+}
+
+.gh-prism-section-head:has(.gh-prism-section-shield:hover) .gh-prism-chevron {
+  opacity: 1;
+}
+
+.gh-prism-section-head:has(.gh-prism-section-shield:hover) .gh-prism-section-icon {
+  opacity: 0;
+}
+
+.gh-prism-section-shield:hover::before {
+  background: var(--fgColor-default);
+}
+
+.gh-prism-section-shield:focus-visible {
+  outline: 2px solid var(--focus-outlineColor);
+  outline-offset: -2px;
+}
+
+@media (forced-colors: active) {
+  .gh-prism-section-shield::before,
+  .gh-prism-section-shield:hover::before {
+    background: ButtonText;
+  }
+}
+
 /* A collapsed section listing a file on screen: its rows are hidden, so its header shows a bar in the section's hue instead. */
 .gh-prism-section[data-on-screen] .gh-prism-section-toggle[aria-expanded="false"] {
   box-shadow: inset 3px 0 0 color-mix(in srgb, var(--gh-prism-hue) 40%, transparent);
@@ -229,6 +321,8 @@
   .gh-prism-skeleton > span,
   .gh-prism-sections[data-reveal] .gh-prism-section,
   .gh-prism-section-icon,
+  .gh-prism-section-shield,
+  .gh-prism-line-totals,
   .gh-prism-chevron,
   .gh-prism-files,
   .gh-prism-whats-new-body,

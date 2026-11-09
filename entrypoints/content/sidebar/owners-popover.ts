@@ -42,10 +42,11 @@ export interface FileOwnersAt {
 
 /**
  * What a shield lists: a folder's files, its path ending in `/` and its files by full path in the
- * tree's order, or a file's owners under its base name.
+ * tree's order, a section's files under its label, or a file's owners under its base name.
  */
 export type ShieldListing =
   | { readonly folder: string; readonly files: readonly FileOwnersAt[] }
+  | { readonly section: string; readonly files: readonly FileOwnersAt[] }
   | { readonly name: string; readonly owners: readonly CodeOwner[] };
 
 interface PopoverOptions {
@@ -65,6 +66,12 @@ export function describeListing(
   listing: ShieldListing,
   identities: OwnerIdentities,
 ) {
+  if ("section" in listing)
+    return {
+      title: `Code owners of files in ${listing.section}`,
+      list: folderList(doc, "", listing.files, identities),
+      teams: owningTeams(listing.files.flatMap(({ owners }) => owners)),
+    };
   return "folder" in listing
     ? {
         title: `Code owners of files in ${listing.folder.slice(0, -1)}`,

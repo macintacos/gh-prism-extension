@@ -77,6 +77,9 @@ interface SectionsView extends LandingView {
 
 interface ShownListing {
   readonly root: HTMLElement;
+  readonly toggle: HTMLButtonElement;
+  /** A section header's code owners shield; the comment-lines sub-section has none. */
+  readonly shield?: HTMLButtonElement;
   readonly counter: HTMLElement;
   readonly host: HTMLElement;
   readonly tree: SectionTree;
@@ -190,7 +193,8 @@ const counterPill = (doc: Document) =>
  * A section, `order` places from the top, whose header button shows and hides an empty host for
  * its tree. `expand` sets which it does. The button leads with the section's icon, which the
  * stylesheet swaps for the chevron while it is hovered or focused, and ends with the `lines` it
- * adds and removes, if known.
+ * adds and removes, if known. Beside the header, a hidden code owners shield; the stylesheet swaps
+ * it in for the lines while the header is hovered or focused.
  */
 function sectionShell(
   doc: Document,
@@ -226,6 +230,13 @@ function sectionShell(
   );
   header.id = `gh-prism-heading-${key}`;
 
+  // Outside the toggle, which can't hold a button, and the heading, whose name it would join.
+  const shield = el(doc, "button", "gh-prism-section-shield");
+  shield.type = "button";
+  shield.hidden = true;
+  shield.setAttribute("aria-label", `Code owners of files in ${label}`);
+  const head = el(doc, "div", "gh-prism-section-head tw:relative", header, shield);
+
   const host = el(doc, "div", "gh-prism-tree");
   const files = el(doc, "div", "gh-prism-files tw:overflow-clip tw:pb-1", host);
   files.id = `gh-prism-files-${key}`;
@@ -235,7 +246,7 @@ function sectionShell(
     doc,
     "section",
     "gh-prism-section tw:rounded-medium tw:border tw:border-hue-edge tw:bg-[var(--gh-prism-tint)] tw:shadow-[var(--shadow-resting-small)]",
-    header,
+    head,
     files,
   );
   root.setAttribute("aria-labelledby", header.id);
@@ -246,7 +257,7 @@ function sectionShell(
     toggle.setAttribute("aria-expanded", String(expanded));
     files.inert = !expanded;
   };
-  return { root, counter, host, toggle, expand };
+  return { root, counter, host, toggle, shield, expand };
 }
 
 /** Octicons 19.15.0 comment (MIT, GitHub Inc.). */
@@ -624,6 +635,7 @@ export function showSections(
       current = buildListing(listing.key, { order, previous, files, active });
       shown.set(listing.key, current);
     }
+    showSectionShield(current);
     return current.root;
   };
 
@@ -639,10 +651,11 @@ export function showSections(
     { order, previous, files, active }: BuildOptions,
   ): ShownListing => {
     // Set once: a listing is only built after intent lands, and the landed lines never change.
-    const { root, counter, host, toggle, expand } =
+    const shell =
       key === COMMENT_LINES
         ? commentLinesShell(doc, commentLines?.lines)
         : sectionShell(doc, key, { order, lines: totalOf(key) });
+    const { root, counter, host, toggle, expand } = shell;
     expand(!collapsed.has(key));
     toggle.addEventListener("click", () => {
       const expanded = collapsed.has(key);
@@ -660,7 +673,19 @@ export function showSections(
     if (offered) tree.showViewed(viewed);
     if (owned.size > 0) tree.showOwners(owned);
     if (marking.size > 0) tree.showMarking(new Set(marking));
-    return { root, counter, host, tree };
+    return {
+      root,
+      counter,
+      host,
+      tree,
+      toggle,
+      ...("shield" in shell && { shield: shell.shield }),
+    };
+  };
+
+  /** Shows `listing`'s header shield only while it lists a file with a code owner. */
+  const showSectionShield = ({ shield, tree }: ShownListing) => {
+    if (shield) shield.hidden = !tree.pathsUnder("").some((path) => owned.has(path));
   };
 
   /** Whether `key`'s rows are out of sight; the sub-section's hide with Docs & Comments'. */
@@ -684,8 +709,24 @@ export function showSections(
     scrolledTo = active;
   };
 
-  /** What `shield`'s popover and dialog list, and how to focus its row. */
+  /** What a section header's `shield` lists, and how to focus its toggle. */
+  const sectionShieldListing = (shield: HTMLElement) => {
+    const [key, listing] = [...shown].find(([, { shield: own }]) => own === shield) ?? [];
+    if (key === undefined || key === COMMENT_LINES || !listing) return undefined;
+
+    const listed: ShieldListing = {
+      section: SECTION_CATALOG[key].label,
+      files: listing.tree.pathsUnder("").map((path) => ({
+        path,
+        owners: ownersByPath.get(path)?.owners ?? [],
+      })),
+    };
+    return { listed, focusRow: () => listing.toggle.focus() };
+  };
+
+  /** What `shield`'s popover and dialog list, and how to focus its row, or its section's toggle. */
   const shieldListing = (shield: HTMLElement) => {
+    if (shield.matches(".gh-prism-section-shield")) return sectionShieldListing(shield);
     const path = shield.dataset.itemShield;
     const listing = listingOfShield(shield);
     if (path === undefined || listing === undefined) return undefined;
@@ -746,7 +787,8 @@ export function showSections(
     });
   };
   const hoverIntent = followHoverIntent(doc, signal, {
-    triggerOf: (target) => target.closest<HTMLElement>("[data-item-shield]"),
+    triggerOf: (target) =>
+      target.closest<HTMLElement>("[data-item-shield], .gh-prism-section-shield"),
     show: (shield) => {
       if (shield.getAttribute("aria-expanded") === "true") return undefined;
       return showOwners(shield);
@@ -760,6 +802,13 @@ export function showSections(
         // The box shows only what GitHub's page shows, never the click.
         event.preventDefault();
         markFrom(event, box);
+        return;
+      }
+
+      const sectionShield =
+        event.target instanceof Element && event.target.closest(".gh-prism-section-shield");
+      if (sectionShield instanceof HTMLElement) {
+        openDetails(sectionShield);
         return;
       }
 
@@ -882,7 +931,10 @@ export function showSections(
     owners(byPath) {
       ownersByPath = byPath;
       owned = new Set([...byPath].flatMap(([path, { owners }]) => (owners.length ? [path] : [])));
-      for (const { tree } of shown.values()) tree.showOwners(owned);
+      for (const listing of shown.values()) {
+        listing.tree.showOwners(owned);
+        showSectionShield(listing);
+      }
     },
   };
 }
