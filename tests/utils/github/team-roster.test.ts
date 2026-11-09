@@ -86,6 +86,36 @@ describe("readTeamRoster", () => {
     expect(roster?.map(({ login }) => login)).toEqual(["a"]);
   });
 
+  it("reads a name that only repeats the login as no name", async () => {
+    const fetchFn = routedFetch({
+      [pageUrl(1)]: ok(page(["linus", "Linus"])),
+      [pageUrl(2)]: ok(page()),
+    });
+
+    expect(await readRoster(fetchFn)).toEqual([{ login: "linus" }]);
+  });
+
+  it("reads on past a full page that holds a row with no valid login", async () => {
+    const fetchFn = routedFetch({
+      [pageUrl(1)]: ok(page(["a"], ["b"])),
+      [pageUrl(2)]: ok(page(["c"], ["no good"])),
+      [pageUrl(3)]: ok(page(["d"])),
+    });
+
+    const roster = await readRoster(fetchFn);
+
+    expect(roster?.map(({ login }) => login)).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("reads nothing from a roster longer than 20 pages", async () => {
+    const fetchFn = vi.fn(
+      async (url: string) => new Response(page([`m${/page=(\d+)/.exec(url)?.[1]}`])),
+    );
+
+    expect(await readRoster(fetchFn as unknown as typeof fetch)).toBeUndefined();
+    expect(fetchFn).toHaveBeenCalledTimes(20);
+  });
+
   it("reads nothing, quietly, from a team the viewer can't see", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
