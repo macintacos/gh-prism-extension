@@ -13,7 +13,7 @@ import {
 } from "@/utils/github/code-owners";
 import { describePullRequest } from "../sidebar/owners-popover";
 import { el, icon, SHIELD_LOCK } from "./dom";
-import { type OwnersDialogOptions, openOwnersDialog } from "./owners-dialog";
+import { type OwnersDialogContent, openOwnersDialog } from "./owners-dialog";
 
 const CLASS = "gh-prism-pr-owners";
 /** Every code owners button, the toolbar's and the Reviewers headings'. */
@@ -23,15 +23,16 @@ export const PR_OWNERS_KIND = "data-gh-prism-list";
 const TOOLBAR_BUTTON = `${PR_OWNERS}:not([${PR_OWNERS_KIND}])`;
 
 /** The dialog's options a whole pull request's code owners dialog takes from its opener. */
-export type PrOwnersOptions = Omit<OwnersDialogOptions, "title" | "summary" | "teams" | "owner">;
+export type PrOwnersOptions = Omit<OwnersDialogContent, "summary" | "teams">;
 
 /** What the toolbar's code owners button reads to show and open. */
 export interface PrOwnersReads {
   codeOwners: Promise<PrCodeOwners | undefined>;
   prReviewers: Promise<readonly PrReviewer[] | undefined>;
-  teamMembers: OwnersDialogOptions["teamMembers"];
-  teamAvatar: OwnersDialogOptions["teamAvatar"];
-  filter?: OwnersDialogOptions["filter"];
+  teamMembers: OwnersDialogContent["teamMembers"];
+  teamAvatar: OwnersDialogContent["teamAvatar"];
+  teamRoster: OwnersDialogContent["teamRoster"];
+  filter?: OwnersDialogContent["filter"];
 }
 
 /** Wires `button` to call `open` on a press the page re-mounted it under. */

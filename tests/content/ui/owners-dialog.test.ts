@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type OwnerFilter, openOwnersDialog } from "../../../entrypoints/content/ui/owners-dialog";
 import type { TeamAvatarOf, TeamMembers, TeamMembersOf } from "../../../utils/github/code-owners";
-import large from "../../fixtures/team-members-large.json?raw";
+import type { TeamMember, TeamRosterOf } from "../../../utils/github/team-roster";
 
 // happy-dom has no Popover API.
 HTMLElement.prototype.showPopover = () => {};
@@ -27,30 +27,52 @@ function open(
     teams = ["@o/team"],
     summary = [document.createTextNode("summary")],
     teamAvatar = async () => undefined,
+    teamRoster = async () => undefined,
     filter,
     owner,
   }: {
     teams?: string[];
     summary?: Node[];
     teamAvatar?: TeamAvatarOf;
+    teamRoster?: TeamRosterOf;
     filter?: OwnerFilter;
     owner?: string;
   } = {},
 ) {
   const returnFocus = vi.fn();
-  openOwnersDialog(document, {
-    title: "Code owners of engine.rs",
-    summary,
-    teams,
-    teamMembers,
-    teamAvatar,
-    returnFocus,
-    signal: controller.signal,
-    filter,
-    owner,
-  });
+  const reads = { summary, teams, teamMembers, teamAvatar, teamRoster, filter };
+  const rest = { ...reads, returnFocus, signal: controller.signal };
+  openOwnersDialog(
+    document,
+    owner === undefined ? { ...rest, title: "Code owners of engine.rs" } : { ...rest, owner },
+  );
   return { returnFocus };
 }
+
+/** `n` placeholder logins, `member-01` on. */
+const logins = (n: number, from = 1) =>
+  Array.from({ length: n }, (_, i) => `member-${String(i + from).padStart(2, "0")}`);
+/** A team of `total` whose JSON lists its first `listed`. */
+const team = (total: number, listed = total): TeamMembers => ({
+  total,
+  members: logins(Math.min(listed, total)),
+});
+const showAll = () =>
+  dialog()?.querySelector<HTMLButtonElement>("button.gh-prism-show-all") ?? null;
+const searchToggle = () =>
+  dialog()?.querySelector<HTMLButtonElement>('button[data-tooltip="Filter members"]') ?? null;
+const searchBox = () => dialog()?.querySelector<HTMLInputElement>("input") ?? null;
+const memberText = (box = boxes()[0]) => members(box).map((member) => member.textContent);
+const typeQuery = (query: string) => {
+  const input = searchBox() as HTMLInputElement;
+  input.value = query;
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+};
+const escapeIn = (target: Element) => {
+  const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+  target.dispatchEvent(event);
+  return event;
+};
 
 const answering =
   (answer: TeamMembers | undefined): TeamMembersOf =>
@@ -106,34 +128,17 @@ describe("openOwnersDialog", () => {
     await vi.waitFor(() => expect(countOf(boxes()[0])).toBe("1 member"));
   });
 
-  it("lists the first 15 of a large team's members by avatar and login, then links the rest", async () => {
-    open(answering(JSON.parse(large)));
-    await vi.waitFor(() => expect(members(boxes()[0]).length).toBeGreaterThan(0));
+  it("lists every member of a team of six by avatar and login, linking each profile", async () => {
+    open(answering(team(6)));
+    await vi.waitFor(() => expect(members(boxes()[0])).toHaveLength(6));
 
     expect(
       members(boxes()[0]).map((member) => [
         member.textContent,
         member.querySelector("a")?.getAttribute("href"),
       ]),
-    ).toEqual(
-      Array.from({ length: 15 }, (_, i) => {
-        const login = `member-${String(i + 1).padStart(2, "0")}`;
-        return [login, `https://github.com/${login}`];
-      }),
-    );
-    expect(countOf(boxes()[0])).toBe("214 members");
-    const all = links().filter((link) => link.textContent === "See all 214 members");
-    expect(all.map((link) => [link.href, link.target])).toEqual([
-      ["https://github.com/orgs/o/teams/team", "_blank"],
-    ]);
-  });
-
-  it("lists every member of a team within the cap, and no team page for more", async () => {
-    open(answering({ total: 3, members: ["a", "b", "c"] }));
-    await vi.waitFor(() => expect(members(boxes()[0])).toHaveLength(3));
-
-    expect(members(boxes()[0]).map((member) => member.textContent)).toEqual(["a", "b", "c"]);
-    expect(dialog()?.textContent).not.toContain("See all");
+    ).toEqual(logins(6).map((login) => [login, `https://github.com/${login}`]));
+    expect(showAll()).toBeNull();
   });
 
   it.each([
@@ -255,5 +260,193 @@ describe("the owner filter in the dialog", () => {
     open(undefined, { owner: "@o/team", filter: filtered ? filtering().filter : undefined });
 
     expect(dialog()?.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
+  });
+});
+
+describe("a team's members in the dialog", () => {
+  const roster = (n: number): TeamMember[] =>
+    logins(n).map((login, i) => ({ login, name: `Person ${i + 1}` }));
+  const answeringRoster =
+    (answer: readonly TeamMember[] | undefined): TeamRosterOf =>
+    async () =>
+      answer;
+
+  it("lists the first five of a team of seven, then a button to show all", async () => {
+    open(answering(team(7)));
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+
+    expect(memberText()).toEqual(logins(5));
+    expect(showAll()?.textContent).toBe("Show all members");
+    expect(showAll()?.closest("ul")).toBe(boxes()[0]?.querySelector("ul"));
+  });
+
+  it("shows every member GitHub listed on Show all, focusing the sixth, without reading the roster", async () => {
+    const teamRoster = vi.fn(async () => undefined);
+    open(answering(team(7)), { teamRoster });
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+
+    showAll()?.click();
+
+    expect(memberText()).toEqual(logins(7));
+    expect(showAll()).toBeNull();
+    expect(document.activeElement).toBe(members(boxes()[0])[5]?.querySelector("a"));
+    expect(teamRoster).not.toHaveBeenCalled();
+  });
+
+  it("shows the roster's members with their names once it lands after Show all", async () => {
+    open(answering(team(30, 20)), { teamRoster: answeringRoster(roster(30)) });
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+
+    showAll()?.click();
+
+    await vi.waitFor(() => expect(members(boxes()[0])).toHaveLength(30));
+    expect(memberText()[0]).toBe("member-01 Person 1");
+    expect(members(boxes()[0])[0]?.querySelector(".gh-prism-member-name")?.textContent).toBe(
+      "Person 1",
+    );
+  });
+
+  it("holds the rest's loading line back 150 ms while the roster loads", async () => {
+    vi.useFakeTimers();
+    try {
+      open(answering(team(30, 20)), { teamRoster: () => new Promise(() => {}) });
+      await vi.waitFor(() => expect(showAll()).not.toBeNull());
+
+      showAll()?.click();
+
+      expect(memberText()).toEqual(logins(20));
+      const loading = boxes()[0]?.querySelector("li.gh-prism-members-status");
+      expect(loading?.textContent).toBe("");
+      vi.advanceTimersByTime(150);
+      expect(loading?.textContent).toBe("Loading 10 more members…");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("links the team page for the rest when the roster can't be read", async () => {
+    open(answering(team(30, 20)));
+    await vi.waitFor(() => expect(showAll()).not.toBeNull());
+
+    showAll()?.click();
+
+    await vi.waitFor(() =>
+      expect(links().find((link) => link.textContent === "See all 30 members")?.href).toBe(
+        "https://github.com/orgs/o/teams/team",
+      ),
+    );
+    expect(memberText()).toEqual(logins(20));
+  });
+});
+
+describe("filtering a team's members in the dialog", () => {
+  const named: TeamMember[] = [
+    ...logins(6).map((login) => ({ login })),
+    { login: "ada", name: "Ada Lovelace" },
+  ];
+
+  async function openSearch(teamRoster: TeamRosterOf = async () => named) {
+    open(answering({ total: 8, members: named.map(({ login }) => login) }), { teamRoster });
+    await vi.waitFor(() => expect(searchToggle()).not.toBeNull());
+    searchToggle()?.click();
+  }
+
+  it("offers no member filter for a team of six", async () => {
+    open(answering(team(6)));
+    await vi.waitFor(() => expect(members(boxes()[0])).toHaveLength(6));
+
+    expect(searchToggle()).toBeNull();
+  });
+
+  it("shows a focused search box, naming its team, from the toggle", async () => {
+    await openSearch();
+
+    expect(searchToggle()?.getAttribute("aria-expanded")).toBe("true");
+    expect(searchToggle()?.getAttribute("aria-controls")).toBe(searchBox()?.id);
+    expect(searchBox()?.getAttribute("aria-label")).toBe("Filter members of o/team");
+    expect(document.activeElement).toBe(searchBox());
+  });
+
+  it("matches members by login, ignoring case", async () => {
+    await openSearch();
+
+    typeQuery("MEMBER-0");
+
+    expect(memberText()).toEqual(logins(6));
+    expect(showAll()).toBeNull();
+  });
+
+  it("matches members by display name once the roster lands", async () => {
+    await openSearch();
+
+    typeQuery("lovelace");
+
+    await vi.waitFor(() => expect(memberText()).toEqual(["ada Ada Lovelace"]));
+  });
+
+  it("says when no member matches", async () => {
+    await openSearch();
+
+    typeQuery("zzz");
+
+    expect(boxes()[0]?.textContent).toContain("No members match “zzz”.");
+  });
+
+  it("says it matches logins alone when the roster can't be read", async () => {
+    await openSearch(async () => undefined);
+
+    typeQuery("ada");
+
+    await vi.waitFor(() =>
+      expect(boxes()[0]?.textContent).toContain(
+        "Couldn't read every member's name. Showing matches among the first 7.",
+      ),
+    );
+    expect(memberText()).toEqual(["ada"]);
+  });
+
+  it("clears a non-empty box on Escape, keeping the dialog open", async () => {
+    await openSearch();
+    typeQuery("ada");
+
+    const event = escapeIn(searchBox() as HTMLInputElement);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(searchBox()?.value).toBe("");
+    expect(dialog()).not.toBeNull();
+  });
+
+  it("leaves Escape in an empty box to the dialog", async () => {
+    await openSearch();
+
+    const event = escapeIn(searchBox() as HTMLInputElement);
+
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("hides the box and restores the collapsed list from the toggle again", async () => {
+    await openSearch();
+    typeQuery("ada");
+
+    searchToggle()?.click();
+
+    expect(searchBox()?.closest("[hidden]")).not.toBeNull();
+    expect(searchToggle()?.getAttribute("aria-expanded")).toBe("false");
+    expect(memberText()).toHaveLength(5);
+    expect(showAll()).not.toBeNull();
+  });
+});
+
+describe("the dialog about one code owner", () => {
+  it("names itself by a heading linking that owner's page, with its avatar", () => {
+    open(undefined, { owner: "@o/team" });
+
+    const title = document.getElementById(dialog()?.getAttribute("aria-labelledby") ?? "");
+    const link = title?.querySelector<HTMLAnchorElement>("a.gh-prism-owner");
+    expect(title?.tagName).toBe("H2");
+    expect(link?.href).toBe("https://github.com/orgs/o/teams/team");
+    expect(link?.target).toBe("_blank");
+    expect(link?.querySelector('.gh-prism-avatar[data-kind="team"]')).not.toBeNull();
+    expect(title?.textContent).toBe("o/team");
   });
 });

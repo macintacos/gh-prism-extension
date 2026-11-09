@@ -2,14 +2,25 @@
    GitHub's a:hover and :focus-visible rules. An identity is inline content, so a line of them
    copies as one line of text. */
 
-/* No line break between the name and its filter icon; the name itself still wraps. */
+/* No line break between the avatar, the name, and its filter icon. */
 .gh-prism-identity {
   white-space: nowrap;
 }
 
+/* One line, cut off with an ellipsis, leaving its line room for the 20px avatar before it and the
+   28px filter icon after it; the owner tooltip shows a cut-off name whole. Inline-block, not flex,
+   so a line of identities still copies as one line. */
 .gh-prism-owner-name {
-  white-space: normal;
-  overflow-wrap: anywhere;
+  display: inline-block;
+  max-width: calc(100% - 20px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.gh-prism-identity:has(> .gh-prism-owner-filter-icon) .gh-prism-owner-name {
+  max-width: calc(100% - 48px);
 }
 
 .gh-prism-identity .gh-prism-owner-name {
@@ -143,12 +154,23 @@ a.gh-prism-owner-filter-icon:focus-visible {
   text-decoration: none;
 }
 
-.gh-prism-member > a > span:last-child {
+.gh-prism-member-login {
   overflow-wrap: anywhere;
 }
 
-.gh-prism-member > a:hover > span:last-child {
+.gh-prism-member > a:hover > .gh-prism-member-login {
   text-decoration: underline;
+}
+
+/* A display name follows the login on its line and is cut off to fit the column. */
+.gh-prism-member > a:has(> .gh-prism-member-name) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-prism-member-name {
+  color: var(--fgColor-muted);
 }
 
 .gh-prism-member > a:focus-visible {

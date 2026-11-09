@@ -14,6 +14,7 @@ import { ownerFilterLink, ownerOf } from "@/utils/github/files-route";
 import { type NextCommit, readNextCommit } from "@/utils/github/next-commit";
 import { connectPrData } from "@/utils/github/pr-port";
 import { type CommitHead, prKeyOf, readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
+import { teamRosterReader } from "@/utils/github/team-roster";
 import { hiddenKeyOf, hiddenKeysOf, isHidden, withHidden } from "@/utils/hidden-commits";
 import { storedIntents } from "@/utils/intent/cache";
 import {
@@ -153,6 +154,7 @@ export default defineContentScript({
           const codeOwners = readCodeOwners(route.diff, fetch, visit);
           const teamMembers = teamMembersReader(fetch, visit);
           const teamAvatar = teamAvatarReader(fetch, visit);
+          const teamRoster = teamRosterReader(fetch, visit);
           const prReviewers = readReviewersWithTeams(route.diff, codeOwners, {
             fetchFn: fetch,
             teamMembers,
@@ -174,6 +176,7 @@ export default defineContentScript({
               read: async () => ({ codeOwners: await codeOwners, prReviewers: await prReviewers }),
               teamMembers,
               teamAvatar,
+              teamRoster,
               filter,
             });
           // Route data is fresh only until GitHub's first navigation.
@@ -226,6 +229,7 @@ export default defineContentScript({
               prReviewers,
               teamMembers,
               teamAvatar,
+              teamRoster,
               owner,
               filter,
               whatsNew: whatsNewForPage?.(),
@@ -250,6 +254,7 @@ export default defineContentScript({
                   guard: prOwnersGuard,
                   teamMembers,
                   teamAvatar,
+                  teamRoster,
                   filter,
                 });
               followRightPanel(document, panel.refit, { signal });
@@ -275,6 +280,7 @@ export default defineContentScript({
           read: () => readOwnership(pr, { fetchFn: fetch, teamMembers, signal: visit }),
           teamMembers,
           teamAvatar: teamAvatarReader(fetch, visit),
+          teamRoster: teamRosterReader(fetch, visit),
           findAuthors: findCommentAuthors,
           filter: {
             linkOf: (token) =>
@@ -302,6 +308,7 @@ export default defineContentScript({
           read: () => readOwnership(route.diff, { fetchFn: fetch, teamMembers, signal: visit }),
           teamMembers,
           teamAvatar: teamAvatarReader(fetch, visit),
+          teamRoster: teamRosterReader(fetch, visit),
         });
         return (page, signal) =>
           showClassicNotice(page, signal, { choice: notice, save: saveDismissed });

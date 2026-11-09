@@ -741,7 +741,7 @@ describe("showSections", () => {
         expect(dialogs().map(dialogTitle)).toEqual(["Code owners of engine.rs"]);
       });
 
-      it("excerpts each owning team's members, linking the rest", async () => {
+      it("lists each owning team's first members, then a button to show all", async () => {
         const members = JSON.parse(large);
         remountWith(() => Promise.resolve(landedWith()), undefined, {
           codeOwners: Promise.resolve(tokensOf({ "src/engine.rs": ["@o/team", "@octocat"] })),
@@ -752,9 +752,8 @@ describe("showSections", () => {
         clickAt(engine(), { detail: 1 });
         await vi.advanceTimersByTimeAsync(0);
 
-        expect(dialogs()[0]?.querySelectorAll("section li.gh-prism-member")).toHaveLength(15);
-        const links = [...(dialogs()[0]?.querySelectorAll("a") ?? [])].map((a) => a.textContent);
-        expect(links).toContain("See all 214 members");
+        expect(dialogs()[0]?.querySelectorAll("section li.gh-prism-member")).toHaveLength(5);
+        expect(dialogs()[0]?.querySelector("section button.gh-prism-show-all")).not.toBeNull();
         expect(dialogs()[0]?.querySelectorAll("section")).toHaveLength(1);
       });
 

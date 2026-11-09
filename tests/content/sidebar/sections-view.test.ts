@@ -176,6 +176,7 @@ describe("showSections", () => {
       viewed: visitViewed(undefined),
       teamMembers: async () => undefined,
       teamAvatar: async () => undefined,
+      teamRoster: async () => undefined,
       landHash: () => {},
     });
     expect(document.querySelectorAll(".gh-prism-sections")).toHaveLength(1);

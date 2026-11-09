@@ -79,6 +79,7 @@ function show(
     guard,
     teamMembers: async () => undefined,
     teamAvatar: async () => undefined,
+    teamRoster: async () => undefined,
   });
   return anchor;
 }
@@ -100,6 +101,7 @@ function showSandbox(fetchFn: typeof fetch) {
     guard,
     teamMembers,
     teamAvatar: async () => undefined,
+    teamRoster: async () => undefined,
   });
 }
 

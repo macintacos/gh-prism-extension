@@ -28,7 +28,7 @@ import {
   ownerIdentity,
   ownerSeparator,
 } from "../ui/owner-identity";
-import { detailsHint, type OwnersDialogOptions } from "../ui/owners-dialog";
+import { detailsHint, type OwnersDialogContent } from "../ui/owners-dialog";
 import { place } from "../ui/place";
 
 /** Octicons 19.15.0 (MIT, GitHub Inc.): alert. */
@@ -117,7 +117,7 @@ export function describePullRequest(
   doc: Document,
   { codeOwners, prReviewers }: OwnedPullRequest,
   identities: OwnerIdentities,
-): Pick<OwnersDialogOptions, "title" | "summary" | "teams"> {
+): { title: string } & Pick<OwnersDialogContent, "summary" | "teams"> {
   const files = [...codeOwners].map(([path, { owners }]) => ({ path, owners }));
   const groups = byOwnerSet(files);
   const filesWithoutPrReviewer = prReviewers

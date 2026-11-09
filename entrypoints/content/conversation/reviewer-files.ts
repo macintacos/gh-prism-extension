@@ -18,6 +18,7 @@ import {
   type TeamAvatarOf,
   type TeamMembersOf,
 } from "@/utils/github/code-owners";
+import type { TeamRosterOf } from "@/utils/github/team-roster";
 import {
   type CommentAuthor,
   findOwnerSpots,
@@ -67,7 +68,8 @@ const HEADING_BUTTON = `${PR_OWNERS}[${PR_OWNERS_KIND}]`;
  * Closes 150 ms after the pointer leaves shield and popup, and at once on Escape, focus leaving
  * both, or a scroll outside it, moving focus it held to the shield. A click on the shield opens
  * the code owner details dialog instead, excerpting owning teams' members through `teamMembers`.
- * Draws teams' avatars through `teamAvatar`. Puts the code owners button beside each Reviewers
+ * Draws teams' avatars through `teamAvatar`, and the dialog reads a team's whole roster through
+ * `teamRoster`. Puts the code owners button beside each Reviewers
  * heading once `read` names a code owner for a changed file; it opens the whole pull request's
  * code owner details dialog. Calls `read` at most once, when a Reviewers list, its heading, or a
  * comment author first shows. Given `filter`, popup and dialog offer to show only the code owner's
@@ -80,6 +82,7 @@ export function showReviewerFiles(
     read,
     teamMembers,
     teamAvatar,
+    teamRoster,
     filter,
     findAuthors,
   }: {
@@ -87,6 +90,7 @@ export function showReviewerFiles(
     findAuthors: (doc: Document) => CommentAuthor[];
     teamMembers: TeamMembersOf;
     teamAvatar: TeamAvatarOf;
+    teamRoster: TeamRosterOf;
     filter?: OwnerFilter;
   },
 ): void {
@@ -204,6 +208,7 @@ export function showReviewerFiles(
       openPrOwners(doc, ownedPr, {
         teamMembers,
         teamAvatar,
+        teamRoster,
         filter,
         // GitHub may have replaced the form while the dialog was open.
         returnFocus: () =>
@@ -245,11 +250,11 @@ export function showReviewerFiles(
 
       closeCard();
       openOwnersDialog(doc, {
-        title: token,
         summary: popupBody(doc, owned, identities),
         teams: token.includes("/") ? [token] : owned.teams,
         teamMembers,
         teamAvatar,
+        teamRoster,
         filter: owned.paths.length > 0 ? filter : undefined,
         owner: token,
         // Focus back on the shield opens its card again, as focus does anywhere here.

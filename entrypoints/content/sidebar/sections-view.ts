@@ -10,6 +10,7 @@
 import type { FileTreeRowDecoration } from "@pierre/trees";
 import type { FileOwners, TeamAvatarOf, TeamMembersOf } from "@/utils/github/code-owners";
 import type { LineCounts } from "@/utils/github/pr-diff";
+import type { TeamRosterOf } from "@/utils/github/team-roster";
 import {
   type CommentLines,
   commentLinesOf,
@@ -440,7 +441,7 @@ function followViewport(view: HTMLElement, onMove: () => void, signal: AbortSign
  * in GitHub's order; then a tree per listing, each split file listed in every section its hunks
  * land in, with the lines each share adds and removes. All of it anchors below a leading
  * what's-new block when the nav holds one. A code owners shield's dialog excerpts teams through
- * `teamMembers`; its popover and dialog draw teams' avatars through `teamAvatar`, and filter from
+ * `teamMembers`; its popover and dialog draw teams' avatars through `teamAvatar`, its dialog reads a team's roster through `teamRoster`, and filter from
  * each owner's name through `filter` when given.
  */
 export function showSections(
@@ -449,8 +450,14 @@ export function showSections(
   {
     teamMembers,
     teamAvatar,
+    teamRoster,
     filter,
-  }: { teamMembers: TeamMembersOf; teamAvatar: TeamAvatarOf; filter?: OwnerFilter },
+  }: {
+    teamMembers: TeamMembersOf;
+    teamAvatar: TeamAvatarOf;
+    teamRoster: TeamRosterOf;
+    filter?: OwnerFilter;
+  },
 ): SectionsView {
   const doc = page.sidebar.ownerDocument;
   const style = Object.assign(doc.createElement("style"), { textContent: css });
@@ -731,6 +738,7 @@ export function showSections(
       teams,
       teamMembers,
       teamAvatar,
+      teamRoster,
       filter,
       returnFocus: focusRow,
       signal,

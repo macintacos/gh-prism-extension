@@ -97,6 +97,7 @@ export function mountsVisit() {
         prReviewers,
         teamMembers,
         teamAvatar: async () => undefined,
+        teamRoster: async () => undefined,
         filter,
         landHash,
       });
