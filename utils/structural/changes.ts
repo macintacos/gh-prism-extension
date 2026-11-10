@@ -45,6 +45,15 @@ export interface LineAnnotations {
   readonly new: AnnotationsByLine;
 }
 
+/** A changed line's text by 1-based line number, as the engine read it, without its line terminator. */
+export type TextByLine = Readonly<Record<number, string>>;
+
+/** What structural mode knows about one changed file: its annotations and the text they were computed from. */
+export interface StructuralFile {
+  readonly annotations: LineAnnotations;
+  readonly text: { readonly old: TextByLine; readonly new: TextByLine };
+}
+
 /**
  * Annotations for the `+` and `-` lines of `hunks`. A span on any other line is dropped: context
  * text is the same on both sides, so a token reported there is the engine's mismatch, not a
