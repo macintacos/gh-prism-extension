@@ -41,7 +41,7 @@ const ROOT = join(import.meta.dirname, "..");
 // wxt/browser, which cannot load outside the extension.
 const BENCH_PORT = "gh-prism:bench";
 const PR_DATA_PORT = "gh-prism:pr-data";
-const MAX_WARM_PING_MS = 100;
+const MAX_PING_MS = 25;
 // Short enough to wait out, long enough that the gaps between the bench's messages never stop it.
 const FIREFOX_IDLE_MS = 5000;
 
@@ -290,6 +290,7 @@ async function measure(page: Page) {
   }
 
   const maxWarmPingMs = Math.max(...warm.map((w) => w.pingMs));
+  const maxLargePingMs = Math.max(...largeRuns.map((r) => r.pingMs));
   const warmPingsDuringRun = warm.filter((w) => w.pingDuringRun).length;
   const criteria = {
     lazy: !lazy.loaded,
@@ -297,7 +298,7 @@ async function measure(page: Page) {
     secondGrammar: secondGrammar.ok,
     dropped: dropped.firstOk && dropped.secondRejected,
     warmOk: warm.every((w) => w.ok),
-    warmPingWithinBound: maxWarmPingMs <= MAX_WARM_PING_MS,
+    pingWithinBound: Math.max(maxWarmPingMs, maxLargePingMs) <= MAX_PING_MS,
     warmPingsDuringRun: warmPingsDuringRun >= warm.length / 2,
   };
   return {
@@ -323,7 +324,7 @@ async function measure(page: Page) {
     large: {
       lines: smokeLines,
       results: [...new Set(largeRuns.map((r) => (r.ok ? "ok" : r.reason)))],
-      maxPingMs: Math.max(...largeRuns.map((r) => r.pingMs)),
+      maxPingMs: maxLargePingMs,
       runs: largeRuns,
     },
   };
