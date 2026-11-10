@@ -796,6 +796,15 @@ export function findFilesToolbar(page: FilesPage): Element | undefined {
   return page.sidebar.ownerDocument.querySelector(page.kind.toolbar) ?? undefined;
 }
 
+/** The toolbar's gear, which opens GitHub's diff settings menu (its Layout choice among them). */
+export function findLayoutGear(page: FilesPage): HTMLButtonElement | undefined {
+  // A commit's sidebar holds a hidden copy of the gear; the toolbar row scopes it out.
+  return (
+    findFilesToolbar(page)?.querySelector<HTMLButtonElement>("button:has(.octicon-gear)") ??
+    undefined
+  );
+}
+
 /** What GitHub calls a pull request's own page: its overview, or the classic Conversation tab. */
 export type PrPageName = "Overview" | "Conversation";
 
