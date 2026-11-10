@@ -3,11 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FilesPage, FilterMenu, NativeTree } from "../../entrypoints/content/files-page";
 import {
   appendToDiffs,
+  changedCells,
   commitPage,
   copyMenuGroup,
   copyMenuItem,
   coveredTop,
   diffEntryOf,
+  diffTables,
   findClassicPage,
   findCommentAuthors,
   findCommitColumnRow,
@@ -83,6 +85,8 @@ import {
   VIEWED_CARGO_LOCK,
   VIEWED_LIB_RS,
 } from "../fixtures/files-page";
+import prSplit from "../fixtures/files-page-diff-split.html?raw";
+import prUnified from "../fixtures/files-page-diff-unified.html?raw";
 import prToolbar from "../fixtures/files-page-toolbar.html?raw";
 
 const PATHS = [
@@ -1531,5 +1535,41 @@ describe("lineRowOfAnchor", () => {
 
   it("finds nothing for a malformed anchor, without throwing", () => {
     expect(lineRowOfAnchor(foundPage(), `${LAUNCHER_DIFF}R31"], *`)).toBeNull();
+  });
+});
+
+describe("diffTables", () => {
+  const ANCHOR = "diff-ff278ec599adfd033d35a083ebe8948db8bf177c9817dee8ddc4f3a9e3f5728e";
+
+  it("reads each mounted table's anchor and its own layout, in document order", () => {
+    document.body.innerHTML = prSplit + prUnified;
+
+    const tables = diffTables(document.body).map(({ table, anchor, layout }) => ({
+      isTable: table.tagName === "TABLE",
+      anchor,
+      layout,
+    }));
+
+    expect(tables).toEqual([
+      { isTable: true, anchor: ANCHOR, layout: "split" },
+      { isTable: true, anchor: ANCHOR, layout: "unified" },
+    ]);
+  });
+
+  it("finds none while no diff is mounted", () => {
+    document.body.innerHTML = "";
+
+    expect(diffTables(document.body)).toEqual([]);
+  });
+});
+
+describe("changedCells row", () => {
+  it("is the row that holds the cell", () => {
+    document.body.innerHTML = prSplit;
+
+    for (const { row, textRoot } of changedCells(document)) {
+      expect(row).toBe(textRoot.closest("tr"));
+    }
+    expect(changedCells(document).length).toBeGreaterThan(0);
   });
 });

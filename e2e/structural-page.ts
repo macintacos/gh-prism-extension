@@ -9,23 +9,34 @@ import {
   paintStructural,
   REMOVED_HIGHLIGHT,
 } from "../entrypoints/content/diffs/structural";
-import { changedCells, currentLayout } from "../entrypoints/content/files-page";
+import { changedCells, diffTables } from "../entrypoints/content/files-page";
 import type { FileSection } from "../entrypoints/content/visit/land";
 import type { LineAnnotation, StructuralFile } from "../utils/structural/changes";
 
 export interface StructuralHarness {
-  /** Starts the painter on the page's `#diffs` (else `document.body`), listing each of `files` as a section file whose path is its anchor. Files default to `synthesize()`. */
+  /**
+   * Starts the painter on the page's `#diffs` (else `document.body`), listing each of `files` as a
+   * section file whose path is its anchor. Files default to `synthesize()`.
+   */
   start(files?: Record<string, StructuralFile>): void;
-  /** A file per mounted split table, keyed by anchor, from the page's own cells: text from each cell, every other changed cell quiet, the rest with one range over their first run of non-space characters. */
+  /**
+   * A file per mounted split table, keyed by anchor, from the page's own cells: text from each
+   * cell, every other changed cell quiet, the rest with one range over their first run of
+   * non-space characters.
+   */
   synthesize(): Record<string, StructuralFile>;
   /** Aborts the painter. */
   stop(): void;
   /** The latest outcome reported per path. */
   outcomes(): Record<string, PaintOutcome>;
-  /** Range counts in the two highlights, how many are stale (collapsed, or outside a connected `.diff-text-inner`), and each range's text. */
+  /**
+   * Range counts in the two highlights, how many are stale (collapsed, or outside a connected
+   * `.diff-text-inner`), and each range's text.
+   */
   ranges(): { added: number; removed: number; stale: number; texts: string[] };
-  /** Remembers the current Range objects; `kept()` then counts how many are still registered. */
+  /** Remembers the Range objects registered now, for `kept()`. */
   mark(): void;
+  /** How many of the Ranges `mark()` remembered are still registered. */
   kept(): number;
 }
 
@@ -37,11 +48,8 @@ declare global {
 
 /** One table's file: every other changed cell quiet, the rest one range over their first word. */
 function fileOf(table: HTMLTableElement): StructuralFile {
-  const annotations = {
-    old: {} as Record<number, LineAnnotation>,
-    new: {} as Record<number, LineAnnotation>,
-  };
-  const text = { old: {} as Record<number, string>, new: {} as Record<number, string> };
+  const annotations: Record<"old" | "new", Record<number, LineAnnotation>> = { old: {}, new: {} };
+  const text: Record<"old" | "new", Record<number, string>> = { old: {}, new: {} };
   changedCells(table).forEach(({ side, line, textRoot }, index) => {
     const content = textRoot.textContent ?? "";
     const word = /\S+/.exec(content);
@@ -59,9 +67,10 @@ function sectionsOf(anchors: readonly string[]): FileSection[] {
   const entries = anchors.map((anchor) => {
     const link = document.createElement("a");
     link.setAttribute("href", `#${anchor}`);
-    return { file: { path: anchor, link } };
+    const file = { path: anchor, link, active: false, status: undefined, comments: null };
+    return { section: "implementation", lines: undefined, file } as const;
   });
-  return [{ entries }] as unknown as FileSection[];
+  return [{ key: "implementation", entries }];
 }
 
 /** Whether `range` no longer covers text in a mounted cell. */
@@ -92,9 +101,8 @@ window.structural = {
   },
   synthesize() {
     const files: Record<string, StructuralFile> = {};
-    for (const table of document.querySelectorAll<HTMLTableElement>("table[data-diff-anchor]"))
-      if (currentLayout(table.parentElement ?? table) === "split")
-        files[table.dataset.diffAnchor ?? ""] = fileOf(table);
+    for (const { table, anchor, layout } of diffTables(document))
+      if (layout === "split") files[anchor] = fileOf(table);
     return files;
   },
   stop: () => controller.abort(),

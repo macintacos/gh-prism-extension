@@ -1,19 +1,29 @@
 import type { ColumnRange, StructuralFile } from "@/utils/structural/changes";
-import { type ChangedCell, changedCells, currentLayout, observeDiffs } from "../files-page";
+import { type ChangedCell, changedCells, diffTables, observeDiffs } from "../files-page";
 import type { LandingView } from "../visit/land";
 import { pathsByAnchor } from "./on-screen";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./structural.css?inline";
 
+/** How a mounted file fared: painted, or skipped whole because a mounted cell's text or annotation disagrees with the file. */
 export type PaintOutcome = "painted" | "mismatch";
 
+/** What the painter asks of structural mode. */
 export interface StructuralPainting {
-  /** What structural mode knows about `path`, or `undefined` while it knows nothing. */
+  /**
+   * What structural mode knows about `path`, or `undefined` while it knows nothing. Asked again on
+   * every pass; return the same object while a file is unchanged, since a new object repaints its
+   * table. Nothing schedules a pass when the answer changes.
+   */
   annotationsOf(path: string): StructuralFile | undefined;
-  /** Called when a mounted file's outcome is first known, and again whenever it changes. */
+  /**
+   * Called when a mounted split table's outcome is first known, and again when it changes between
+   * the two. A table that is cleared, unmounted, or not split is never reported.
+   */
   report(path: string, outcome: PaintOutcome): void;
 }
 
+// Keep in sync with structural.css's ::highlight() names and attribute selectors.
 export const ADDED_HIGHLIGHT = "gh-prism-added";
 export const REMOVED_HIGHLIGHT = "gh-prism-removed";
 
@@ -40,15 +50,21 @@ interface Plan {
   readonly painted: Painted;
 }
 
-/** A range over `columns` of `textRoot`'s text, or `undefined` when they are empty or fall outside it. */
+/** One pass's reads: the tables to paint, and the painted tables that are no longer fresh. */
+interface Pass {
+  readonly plans: readonly Plan[];
+  readonly stale: readonly HTMLTableElement[];
+}
+
+/** A range over columns `startCol` to `endCol` of `textRoot`'s text, or `undefined` when they are empty, inverted, or reach past it. */
 function rangeOf(textRoot: Element, { startCol, endCol }: ColumnRange): Range | undefined {
+  if (startCol < 0 || startCol >= endCol) return undefined;
+
   const doc = textRoot.ownerDocument;
   const walker = doc.createTreeWalker(textRoot, NodeFilter.SHOW_TEXT);
   const range = doc.createRange();
   let offset = 0;
   let started = false;
-  if (startCol < 0 || startCol >= endCol) return undefined;
-
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const length = node.textContent?.length ?? 0;
     if (!started && startCol < offset + length) {
@@ -91,16 +107,18 @@ function planTable(
   const removed: Range[] = [];
   const quiet = new Map<Element, string>();
 
-  for (const { side, line, textRoot } of cells) {
+  for (const { side, line, textRoot, row } of cells) {
     const annotation = file.annotations[side][line];
     if (!annotation || textRoot.textContent !== file.text[side][line]) {
       const painted = { file, roots, ranges: [], quiet: new Map() };
       return { table, path, outcome: "mismatch", added: [], removed: [], before, painted };
     }
-    const row = textRoot.closest("tr");
-    if (annotation.quiet && row)
+
+    if (annotation.quiet) {
       quiet.set(row, quiet.has(row) ? `${quiet.get(row)} ${side}` : side);
-    if (annotation.quiet) continue;
+      continue;
+    }
+
     const ranges = annotation.ranges.flatMap((columns) => rangeOf(textRoot, columns) ?? []);
     (side === "old" ? removed : added).push(...ranges);
   }
@@ -111,7 +129,9 @@ function planTable(
 
 /**
  * Paints structural mode onto the split diff tables mounted under `diffs`, and repaints after
- * GitHub re-renders them, until `signal` aborts. Paths come from the files the `sections` hook lists.
+ * GitHub re-renders them, until `signal` aborts. Paths come from the files the `sections` hook
+ * lists. A file whose mounted text differs from its `StructuralFile` is skipped whole and reported
+ * as a mismatch.
  */
 export function paintStructural(
   diffs: Element,
@@ -130,15 +150,13 @@ export function paintStructural(
   let paths: ReadonlyMap<string, string> = new Map();
   let frame: number | undefined;
 
-  // Every read precedes every write, so a pass never forces a layout between them.
-  const collect = () => {
+  const collect = (): Pass => {
     const plans: Plan[] = [];
     const kept = new Set<HTMLTableElement>();
-    for (const table of diffs.querySelectorAll<HTMLTableElement>("table[data-diff-anchor]")) {
-      const path = paths.get(table.dataset.diffAnchor ?? "");
+    for (const { table, anchor, layout } of diffTables(diffs)) {
+      const path = paths.get(anchor);
       const file = path === undefined ? undefined : annotationsOf(path);
-      if (path === undefined || !file || currentLayout(table.parentElement ?? table) !== "split")
-        continue;
+      if (path === undefined || !file || layout !== "split") continue;
       const cells = changedCells(table);
       const before = painted.get(table);
       if (isFresh(before, file, cells)) kept.add(table);
@@ -146,14 +164,16 @@ export function paintStructural(
     }
     return { plans, stale: [...painted.keys()].filter((table) => !kept.has(table)) };
   };
-  const forget = (table: HTMLTableElement, clear: boolean) => {
+  const dropRanges = (table: HTMLTableElement): Painted | undefined => {
     const entry = painted.get(table);
     for (const range of entry?.ranges ?? []) {
       added.delete(range);
       removed.delete(range);
     }
     painted.delete(table);
-    if (!clear) return;
+    return entry;
+  };
+  const unmark = (table: HTMLTableElement, entry: Painted | undefined) => {
     table.removeAttribute(TABLE_ATTR);
     for (const row of entry?.quiet.keys() ?? []) row.removeAttribute(QUIET_ATTR);
   };
@@ -167,33 +187,41 @@ export function paintStructural(
   }: Plan) => {
     for (const range of adds) added.add(range);
     for (const range of removes) removed.add(range);
+
     if (outcome === "mismatch" && table.hasAttribute(TABLE_ATTR)) table.removeAttribute(TABLE_ATTR);
     if (outcome === "painted" && !table.hasAttribute(TABLE_ATTR))
       table.setAttribute(TABLE_ATTR, "");
+
     for (const row of before.keys())
       if (!entry.quiet.has(row) && row.hasAttribute(QUIET_ATTR)) row.removeAttribute(QUIET_ATTR);
     for (const [row, value] of entry.quiet)
       if (row.getAttribute(QUIET_ATTR) !== value) row.setAttribute(QUIET_ATTR, value);
+
     painted.set(table, entry);
   };
-  const apply = ({ plans, stale }: ReturnType<typeof collect>) => {
+  const apply = ({ plans, stale }: Pass) => {
     const planned = new Set(plans.map(({ table }) => table));
-    for (const table of stale) forget(table, !planned.has(table) && table.isConnected);
+    for (const table of stale) {
+      const entry = dropRanges(table);
+      if (!planned.has(table) && table.isConnected) unmark(table, entry);
+    }
     for (const plan of plans) paint(plan);
   };
-  const reportChanged = ({ plans }: ReturnType<typeof collect>) => {
+  const reportChanged = ({ plans }: Pass) => {
     for (const { path, outcome } of plans) {
       if (reported.get(path) === outcome) continue;
       reported.set(path, outcome);
       report(path, outcome);
     }
   };
+  // Every read precedes every write, so a pass never forces a layout between them.
   const pass = () => {
     const work = collect();
     apply(work);
     reportChanged(work);
   };
   const schedule = () => {
+    if (signal.aborted) return;
     frame ??= win.requestAnimationFrame(() => {
       frame = undefined;
       pass();
@@ -206,12 +234,16 @@ export function paintStructural(
   observeDiffs(diffs, schedule, { signal });
   signal.addEventListener("abort", () => {
     if (frame !== undefined) win.cancelAnimationFrame(frame);
+
     win.CSS.highlights.delete(ADDED_HIGHLIGHT);
     win.CSS.highlights.delete(REMOVED_HIGHLIGHT);
+
+    // Sweeps the DOM, not `painted`: it also catches marks on a table GitHub moved since its pass.
     for (const element of diffs.querySelectorAll(`[${TABLE_ATTR}], [${QUIET_ATTR}]`)) {
       element.removeAttribute(TABLE_ATTR);
       element.removeAttribute(QUIET_ATTR);
     }
+
     style.remove();
   });
 

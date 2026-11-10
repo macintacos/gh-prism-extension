@@ -283,6 +283,11 @@ To check behavior live, build the extension and drive Playwright's bundled Chrom
   events for evidence. By hand, load the build as a temporary add-on from
   `about:debugging#/runtime/this-firefox`, and read session rules with
   `await browser.declarativeNetRequest.getSessionRules()` in gh-prism's Inspect console.
+- **Select a range of diff lines with a real Shift key, not a click modifier.** Under
+  Playwright, a pointer drag across number cells, or a click and then a click with Shift
+  held as real key state (`keyboard.down("Shift")`), selects a range; a click's
+  `modifiers` option does not. Loading a line hash in a fresh headless tab selected no
+  cell within 15 s (Chromium 157 and Firefox 157, sandbox PR #3 in Split, 2026-11-10).
 - **Check GitHub's own markup with no extension loaded.** A plain `playwright-cli` session
   with the saved `storageState` loaded serves the signed-in React views; build nothing for
   a selector or layout check.

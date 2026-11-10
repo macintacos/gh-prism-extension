@@ -1,16 +1,30 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { type CDPSession, expect, type Page, test } from "@playwright/test";
+import { test as base, type CDPSession, expect, type Page } from "@playwright/test";
 import type { StructuralFile } from "../utils/structural/changes";
 import type { StructuralHarness } from "./structural-page";
 
 declare const window: Window & { readonly structural: StructuralHarness };
 
-// The real painter and its harness, bundled once for every test in this file.
-const BUNDLE = execFileSync("bun", ["bench/bundle.ts", "e2e/structural-page.ts"], {
-  encoding: "utf8",
-  maxBuffer: 64 * 1024 * 1024,
+/** `bundle` is the real painter and its harness, built once per worker that runs this file. */
+const test = base.extend<object, { bundle: string }>({
+  bundle: [
+    // Playwright requires a destructured first parameter; this fixture depends on nothing in it.
+    async ({ browserName: _ }, use) => {
+      await use(
+        execFileSync(
+          "bun",
+          [
+            join(import.meta.dirname, "../bench/bundle.ts"),
+            join(import.meta.dirname, "structural-page.ts"),
+          ],
+          { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+        ),
+      );
+    },
+    { scope: "worker" },
+  ],
 });
 
 const readFixture = (name: string) =>
@@ -22,11 +36,11 @@ const PR_ANCHOR = "diff-ff278ec599adfd033d35a083ebe8948db8bf177c9817dee8ddc4f3a9
 const COMMIT_ANCHOR = "diff-cc3fb1ce8d7fcf13784c71a054155c0fcde23acb2ebee6c808198187e6232c6a";
 const MARKED = "[data-gh-prism-structural], [data-gh-prism-quiet]";
 
-/** Mounts `#diffs` with one region per fixture (an empty region for `""`), then the harness. */
-async function mount(page: Page, fixtures: readonly string[], head = "") {
+/** Mounts `#diffs` with one region per fixture (an empty region for `""`), then `bundle`. */
+async function mount(page: Page, bundle: string, fixtures: readonly string[], head = "") {
   const regions = fixtures.map((name) => `<div>${name ? readFixture(name) : ""}</div>`).join("");
   await page.setContent(`<!doctype html>${head}<div id="diffs">${regions}</div>`);
-  await page.addScriptTag({ content: BUNDLE });
+  await page.addScriptTag({ content: bundle });
 }
 
 /** Waits out `observeDiffs`'s 50 ms debounce and the painter's frame. */
@@ -47,14 +61,14 @@ const replaceTable = (page: Page, anchor: string) =>
     table?.replaceWith(table.cloneNode(true));
   }, anchor);
 
-const startPainted = async (page: Page) => {
-  await mount(page, [PR_SPLIT, COMMIT_SPLIT]);
+const startPainted = async (page: Page, bundle: string) => {
+  await mount(page, bundle, [PR_SPLIT, COMMIT_SPLIT]);
   await page.evaluate(() => window.structural.start());
   await repaint(page);
 };
 
-test("paints both split tables after load", async ({ page }) => {
-  await startPainted(page);
+test("paints both split tables after load", async ({ page, bundle }) => {
+  await startPainted(page, bundle);
 
   const { added, removed, stale, texts } = await ranges(page);
   expect(added + removed).toBeGreaterThan(0);
@@ -68,8 +82,11 @@ test("paints both split tables after load", async ({ page }) => {
   await expect(page.locator("table[data-gh-prism-structural]")).toHaveCount(2);
 });
 
-test("repaints a table replaced by expanding context, with no stale range", async ({ page }) => {
-  await startPainted(page);
+test("repaints a table replaced by expanding context, with no stale range", async ({
+  page,
+  bundle,
+}) => {
+  await startPainted(page, bundle);
   const before = await ranges(page);
   await page.evaluate(() => window.structural.mark());
 
@@ -84,8 +101,8 @@ test("repaints a table replaced by expanding context, with no stale range", asyn
   );
 });
 
-test("keeps every range when a thread mounts inside a painted cell", async ({ page }) => {
-  await startPainted(page);
+test("keeps every range when a thread mounts inside a painted cell", async ({ page, bundle }) => {
+  await startPainted(page, bundle);
   await page.evaluate(() => window.structural.mark());
 
   await page.evaluate(() => {
@@ -100,8 +117,8 @@ test("keeps every range when a thread mounts inside a painted cell", async ({ pa
   expect(stale).toBe(0);
 });
 
-test("paints a table that loads after the painter starts", async ({ page }) => {
-  await mount(page, [""]);
+test("paints a table that loads after the painter starts", async ({ page, bundle }) => {
+  await mount(page, bundle, [""]);
   const table = readFixture(COMMIT_SPLIT);
 
   await page.evaluate((table) => {
@@ -128,8 +145,9 @@ test("paints a table that loads after the painter starts", async ({ page }) => {
 
 test("paints under hide whitespace, where the file has lines the table doesn't mount", async ({
   page,
+  bundle,
 }) => {
-  await mount(page, ["commit-page-diff-whitespace-split.html"]);
+  await mount(page, bundle, ["commit-page-diff-whitespace-split.html"]);
 
   await page.evaluate(() => {
     const files: Record<string, StructuralFile> = {};
@@ -156,8 +174,11 @@ test("paints under hide whitespace, where the file has lines the table doesn't m
   expect(added + removed).toBeGreaterThan(0);
 });
 
-test("clears a table switched to unified and repaints it switched back", async ({ page }) => {
-  await mount(page, [PR_SPLIT]);
+test("clears a table switched to unified and repaints it switched back", async ({
+  page,
+  bundle,
+}) => {
+  await mount(page, bundle, [PR_SPLIT]);
   await page.evaluate(() => window.structural.start());
   await repaint(page);
   const unified = readFixture("files-page-diff-unified.html");
@@ -189,8 +210,8 @@ test("clears a table switched to unified and repaints it switched back", async (
   await expect(page.locator("table[data-gh-prism-structural]")).toHaveCount(1);
 });
 
-test("leaves a table whose text doesn't match its file unpainted", async ({ page }) => {
-  await mount(page, [PR_SPLIT, COMMIT_SPLIT]);
+test("leaves a table whose text doesn't match its file unpainted", async ({ page, bundle }) => {
+  await mount(page, bundle, [PR_SPLIT, COMMIT_SPLIT]);
 
   await page.evaluate((anchor) => {
     const files = window.structural.synthesize();
@@ -224,8 +245,8 @@ test("leaves a table whose text doesn't match its file unpainted", async ({ page
   );
 });
 
-test("abort removes every highlight and mark, and stops repainting", async ({ page }) => {
-  await startPainted(page);
+test("abort removes every highlight and mark, and stops repainting", async ({ page, bundle }) => {
+  await startPainted(page, bundle);
 
   await page.evaluate(() => window.structural.stop());
 
@@ -247,9 +268,9 @@ async function layoutCount(cdp: CDPSession): Promise<number> {
   return count.value;
 }
 
-test("a repaint forces no layout", async ({ page, browserName }) => {
+test("a repaint forces no layout", async ({ page, browserName, bundle }) => {
   test.skip(browserName === "firefox", "CDP's LayoutCount has no Firefox equivalent");
-  await mount(page, [PR_SPLIT, COMMIT_SPLIT]);
+  await mount(page, bundle, [PR_SPLIT, COMMIT_SPLIT]);
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Performance.enable");
   const layoutsAcrossReplace = async () => {
@@ -286,8 +307,9 @@ const TOKENS = `<style>
 
 test("paints a changed token, tints a quiet row, and leaves a selected row GitHub's", async ({
   page,
+  bundle,
 }) => {
-  await mount(page, [COMMIT_SPLIT], TOKENS);
+  await mount(page, bundle, [COMMIT_SPLIT], TOKENS);
   // The commit's one changed row: old line 137 holds a painted token, new line 137 is quiet.
   const row = page.locator(`tr:has(td[data-line-anchor="${COMMIT_ANCHOR}L137"])`);
   const tokenCell = row.locator("td").nth(1);

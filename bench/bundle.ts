@@ -47,10 +47,8 @@ const inline: BunPlugin = {
 };
 
 /**
- * `path`'s sheet with each plain `@import` replaced by the imported sheet, as Vite inlines it. A
- * shadow root can't fetch the import, and without `ui/reveal.css` a row's full-name copy lays out
- * inline, taking room from its folder units. Imports with a modifier, such as Tailwind's
- * `prefix(tw)`, stay.
+ * `path`'s sheet with each plain `@import` replaced by the imported sheet, as Vite inlines it.
+ * Imports with a modifier, such as Tailwind's `prefix(tw)`, stay.
  */
 async function withImports(path: string): Promise<string> {
   const sheet = await readFile(path, "utf8");
@@ -77,4 +75,11 @@ export async function bundle(entrypoint: string): Promise<string> {
   return output.text();
 }
 
-if (import.meta.main) process.stdout.write(await bundle(process.argv[2] ?? ""));
+if (import.meta.main) {
+  const [, , entry] = process.argv;
+  if (!entry) {
+    console.error("usage: bun bench/bundle.ts <entry>");
+    process.exit(1);
+  }
+  process.stdout.write(await bundle(entry));
+}

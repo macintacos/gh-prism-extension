@@ -17,11 +17,10 @@ import commitSplit from "../../fixtures/commit-page-diff-split.html?raw";
 import prRename from "../../fixtures/files-page-diff-rename.html?raw";
 import prSplit from "../../fixtures/files-page-diff-split.html?raw";
 import prUnified from "../../fixtures/files-page-diff-unified.html?raw";
+import { HighlightStub, stubHighlights } from "../../fixtures/highlights";
 
 const QUIET: LineAnnotation = { quiet: true };
 const PAINTED = "[data-gh-prism-structural], [data-gh-prism-quiet]";
-
-class HighlightStub extends Set<Range> {}
 
 /** Mounts each fixture's table in its own region, all inside one diffs container. */
 function mountDiffs(...htmls: string[]): HTMLElement {
@@ -135,10 +134,10 @@ describe("paintStructural", () => {
     return diffs;
   };
 
+  let restoreHighlights: () => void;
+
   beforeEach(() => {
-    Object.assign(window, { Highlight: HighlightStub });
-    // happy-dom's window builds a new CSS object on every read.
-    Object.defineProperty(window, "CSS", { configurable: true, value: { highlights: new Map() } });
+    restoreHighlights = stubHighlights().restore;
     vi.useFakeTimers();
     controller = new AbortController();
     report = vi.fn();
@@ -150,8 +149,49 @@ describe("paintStructural", () => {
     vi.runOnlyPendingTimers();
     vi.useRealTimers();
     vi.restoreAllMocks();
-    Reflect.deleteProperty(window, "Highlight");
-    Reflect.deleteProperty(window, "CSS");
+    restoreHighlights();
+  });
+
+  it("takes a painted file's paint off whole when its file stops matching the page", async () => {
+    const diffs = await paintFixtures((cell) => opening(cell), prSplit);
+    const table = tableAt(diffs);
+    const anchor = anchorOfTable(table);
+    const file = fileOf(table, (cell) => opening(cell));
+    files.set(
+      anchor,
+      fileOf(table, (cell) => (cell.line === 20 ? QUIET : opening(cell))),
+    );
+    diffs.append(document.createElement("div"));
+    await flush();
+    expect(diffs.querySelector("[data-gh-prism-quiet]")).not.toBeNull();
+
+    files.set(anchor, { ...file, text: { ...file.text, new: { ...file.text.new, 21: "other" } } });
+    diffs.append(document.createElement("div"));
+    await flush();
+
+    expect(allRanges()).toEqual([]);
+    expect(diffs.querySelector(PAINTED)).toBeNull();
+    expect(report.mock.calls).toEqual([
+      [anchor, "painted"],
+      [anchor, "mismatch"],
+    ]);
+  });
+
+  it("paints nothing when the sections arrive after abort", async () => {
+    const diffs = mountDiffs(prSplit);
+    files.set(anchorOfTable(tableAt(diffs)), fileOf(tableAt(diffs)));
+    const view = paintStructural(diffs, controller.signal, {
+      annotationsOf: (path) => files.get(path),
+      report,
+    });
+
+    controller.abort();
+    view.sections?.(sectionsOf(diffs), new Set());
+    await flush();
+
+    expect(diffs.querySelector(PAINTED)).toBeNull();
+    expect(allRanges()).toEqual([]);
+    expect(report).not.toHaveBeenCalled();
   });
 
   it("paints a changed token and marks the other changed rows quiet", async () => {

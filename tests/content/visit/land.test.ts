@@ -36,6 +36,7 @@ import {
   loadHeaderFixture,
   openOverlay,
 } from "../../fixtures/files-page";
+import { stubHighlights } from "../../fixtures/highlights";
 import { landedWith, pendingIntent, whole } from "../../fixtures/intent";
 import {
   addNativeFile,
@@ -345,30 +346,24 @@ describe("intent shared by each view of one visit", () => {
 
 describe("structural mode on a visit", () => {
   const { remountWith, abort } = mountsVisit();
-  const highlights = new Map<string, unknown>();
-  const css = Object.getOwnPropertyDescriptor(window, "CSS");
+  let stub: ReturnType<typeof stubHighlights>;
   const structuralMarks = () =>
     document.querySelectorAll("[data-gh-prism-structural], [data-gh-prism-quiet]");
 
   beforeEach(() => {
-    highlights.clear();
-    Object.assign(window, { Highlight: class extends Set<Range> {} });
-    // happy-dom's window builds a new CSS object on every read.
-    const value = { escape: window.CSS.escape, highlights };
-    Object.defineProperty(window, "CSS", { configurable: true, value });
+    stub = stubHighlights();
   });
 
   afterEach(() => {
     abort();
-    Reflect.deleteProperty(window, "Highlight");
-    if (css) Object.defineProperty(window, "CSS", css);
+    stub.restore();
   });
 
   it("paints nothing when the visit is not given structural mode", async () => {
     remountWith(() => Promise.resolve(result));
     await afterDebounce();
 
-    expect(highlights.size).toBe(0);
+    expect(stub.highlights.size).toBe(0);
     expect(structuralMarks()).toHaveLength(0);
   });
 
@@ -378,7 +373,7 @@ describe("structural mode on a visit", () => {
     });
     await afterDebounce();
 
-    expect([...highlights.keys()]).toEqual([ADDED_HIGHLIGHT, REMOVED_HIGHLIGHT]);
+    expect([...stub.highlights.keys()]).toEqual([ADDED_HIGHLIGHT, REMOVED_HIGHLIGHT]);
   });
 });
 

@@ -11,6 +11,9 @@
  * The documented large-diff run, 25 files of which 19 are modified:
  *
  *   bun bench/structural-live.ts --browser chromium --state <path> --url https://github.com/cli/cli/pull/14805/changes?diff=split
+ *
+ * The last line is `parity: all checks passed`, or `parity: <N> checks passed, <M> not driven` when
+ * a check it could not drive was left to a reviewer; it exits 0 either way, and 1 on a failure.
  */
 
 import { parseArgs } from "node:util";
@@ -43,10 +46,30 @@ if (!state || !["chromium", "firefox"].includes(browserName)) {
 
 class Failure extends Error {}
 
+const tally = { passed: 0, notDriven: 0 };
+
 function check(name: string, ok: boolean, detail = ""): void {
   if (!ok) throw new Failure(`${name}: FAILED ${detail}`);
+  tally.passed++;
   console.log(`${name}: ok ${detail}`);
 }
+
+/** Logs a check the script could not drive in this browser, left for a reviewer. */
+function notDriven(name: string, why: string): void {
+  tally.notDriven++;
+  console.log(`${name}: NOT DRIVEN (${why}) — reviewer check`);
+}
+
+/** A code cell's number cell, the one before it in its row. */
+const numberOf = (cell: Locator) => cell.locator("xpath=preceding-sibling::td[1]");
+
+const selectedRows = (page: Page) =>
+  page.evaluate(
+    () =>
+      new Set(
+        [...document.querySelectorAll('td[data-selected="true"]')].map((td) => td.parentElement),
+      ).size,
+  );
 
 /** Lets `observeDiffs`' 50 ms debounce and the painter's frame run. */
 const settle = (page: Page) => page.waitForTimeout(400);
@@ -75,9 +98,18 @@ function startWithThreadLinePainted(page: Page): Promise<void> {
     if (file && text !== undefined) {
       const word = /\S+/.exec(text);
       const start = word?.index ?? 0;
-      (file.annotations.new as Record<number, unknown>)[22] = {
-        quiet: false,
-        ranges: [{ startCol: start, endCol: start + (word?.[0].length ?? 0) }],
+      files[engine] = {
+        ...file,
+        annotations: {
+          ...file.annotations,
+          new: {
+            ...file.annotations.new,
+            22: {
+              quiet: false,
+              ranges: [{ startCol: start, endCol: start + (word?.[0].length ?? 0) }],
+            },
+          },
+        },
       };
     }
     window.structural.start(files);
@@ -227,7 +259,7 @@ async function parity(page: Page): Promise<void> {
   await settle(page);
   const ariaPainted = await diffs.ariaSnapshot();
   await page.evaluate(() => window.structural.stop());
-  await stopped(page);
+  await checkStopped(page);
   const ariaAfter = (await diffs.ariaSnapshot()).split("\n");
   const was = new Set(ariaPainted.split("\n"));
   check(
@@ -239,17 +271,6 @@ async function parity(page: Page): Promise<void> {
   await linkedLine(page);
   await contrast(page);
 }
-
-/** A code cell's number cell, the one before it in its row. */
-const numberOf = (cell: Locator) => cell.locator("xpath=preceding-sibling::td[1]");
-
-const selectedRows = (page: Page) =>
-  page.evaluate(
-    () =>
-      new Set(
-        [...document.querySelectorAll('td[data-selected="true"]')].map((td) => td.parentElement),
-      ).size,
-  );
 
 /** Selects from the quiet row to the painted one by dragging across their line numbers, as a person does. */
 async function multiLine(
@@ -267,9 +288,7 @@ async function multiLine(
   await settle(page);
   const rows = await selectedRows(page);
   if (rows < 2) {
-    console.log(
-      `8 multi-line range: NOT DRIVEN (dragging across line numbers selected ${rows} row) — reviewer check`,
-    );
+    notDriven("8 multi-line range", `dragging across line numbers selected ${rows} row`);
   } else {
     const allSelected = await page.evaluate(() =>
       [...document.querySelectorAll('td[data-selected="true"]')].every((td) =>
@@ -290,7 +309,8 @@ async function multiLine(
   if (await cancel.count()) await cancel.first().click();
 }
 
-async function stopped(page: Page): Promise<void> {
+/** Checks the painter left no highlight and no attribute behind. */
+async function checkStopped(page: Page): Promise<void> {
   const left = await page.evaluate(() => ({
     highlights: CSS.highlights.size,
     attributes: document.querySelectorAll("[data-gh-prism-structural], [data-gh-prism-quiet]")
@@ -318,9 +338,8 @@ async function linkedLine(from: Page): Promise<void> {
     );
   let selectedCells = await countSelected();
   if (selectedCells === 0) {
-    console.log(
-      "10 linked line: NOT DRIVEN (GitHub selected no cell on load) — reviewer check; selecting R22 by its number instead",
-    );
+    notDriven("10 linked line", "GitHub selected no cell on load");
+    console.log("10 linked line: selecting R22 by its number instead");
     // The hash already names R22, so a click there alone changes nothing; select R21 first.
     await numberOf(engineCell(page, "right", 21)).click();
     await settle(page);
@@ -428,7 +447,7 @@ async function count(page: Page): Promise<void> {
     `13 range count: ${tables} mounted tables, ${split} in split (GitHub virtualizes files, so mounted, not all), ${painting.added + painting.removed} ranges`,
   );
   await page.evaluate(() => window.structural.stop());
-  await stopped(page);
+  await checkStopped(page);
 }
 
 const browser = await (browserName === "firefox" ? firefox : chromium).launch(
@@ -444,7 +463,11 @@ try {
   // A form with text asks before discarding it; accepting discards, it never submits.
   page.on("dialog", (dialog) => void dialog.accept());
   await (url === SANDBOX ? parity(page) : count(page));
-  console.log("parity: all checks passed");
+  console.log(
+    tally.notDriven
+      ? `parity: ${tally.passed} checks passed, ${tally.notDriven} not driven`
+      : "parity: all checks passed",
+  );
 } catch (error) {
   console.error(error instanceof Failure ? error.message : error);
   process.exitCode = 1;

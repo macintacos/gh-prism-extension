@@ -1,7 +1,8 @@
-/* GitHub hooks: tr.diff-line-row > td by position (old number, old code, new number, new code),
+/* GitHub hooks: a split row's td by position (old number, old code, new number, new code),
    td.empty-diff-line, td[data-selected="true"], .syntax-highlighted-line.addition .x and
-   .deletion .x (GitHub's word marks), and the --diffBlob-* variables. structural.ts writes
-   data-gh-prism-structural on a painted table and data-gh-prism-quiet on a quiet row. */
+   .deletion .x (GitHub's word marks), the --diffBlob-* variables, --bgColor-default,
+   --fgColor-success, and --display-red-fgColor. structural.ts writes data-gh-prism-structural on
+   a painted table and data-gh-prism-quiet on a quiet row. */
 
 :root {
   --gh-prism-quiet-tint: 40%;

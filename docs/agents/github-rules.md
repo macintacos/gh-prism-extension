@@ -305,7 +305,8 @@ on a private one.
   each `observeDiffs` report.** It finds them as the bullets above describe and reads the
   old or new side and the line from the anchor suffix, which is safe only because it
   yields changed cells, never the context cells or hunk headers whose suffix misleads.
-  Don't hold cells across a report, since tables or their rows are replaced.
+  Each cell carries its `row`, so no caller walks GitHub's markup to reach it. Don't hold
+  cells across a report, since tables or their rows are replaced.
 - **Find a renamed file's region by the hash of its new path:**
   [`macintacos/gh-prism-sandbox` PR #3](https://github.com/macintacos/gh-prism-sandbox/pull/3/changes)'s
   `src/util.rs` renamed to `src/helpers.rs` is `#diff-c2a0fff5…`. Region ids and their
@@ -388,10 +389,9 @@ on a private one.
   not report it. A click on a number cell,
   `td.new-diff-line-number[data-diff-side][data-line-number]` (the same class on both
   sides, so tell them apart by `data-diff-side`), selects one line and sets the hash to
-  `#<anchor>R<n>`. A pointer drag across number cells, or a click and then a click with
-  Shift held as real key state, selects a range; a click modifier does not, under
-  Playwright. Loading a line hash in a fresh headless tab selected no cell within 15 s.
-  Observed in Chromium 157 and Firefox 157 on sandbox PR #3 in Split, 2026-11-10.
+  `#<anchor>R<n>`. A pointer drag across number cells, or a click and then a Shift-click,
+  selects a range. Observed in Chromium 157 and Firefox 157 on sandbox PR #3 in Split,
+  2026-11-10.
 - **Beat GitHub's word marks with a table-scoped rule of the same shape, without
   `!important`.** GitHub paints them by
   `.diff-text-cell .syntax-highlighted-line.addition .x` and `.deletion .x` (specificity
@@ -410,8 +410,8 @@ on a private one.
   2026-11-10).
 - **Test against the captured tables:** `tests/fixtures/files-page-diff-*.html` (pull
   request unified, split, and rename) and `tests/fixtures/commit-page-diff-*.html` (commit
-  unified, split, and `?w=1`). Each fixture's header comment names its source page. Like
-  every fixture, they can lag GitHub's live markup.
+  unified, split, and `?w=1` in both layouts). Each fixture's header comment names its
+  source page. Like every fixture, they can lag GitHub's live markup.
 - **Re-check:** signed in, load sandbox PR #3's Changes and commit `8d807ee`, each plain
   and with `?diff=split`. Over `td.diff-text-cell`, read the `code` classes, the `td`'s
   `data-line-anchor`, `data-diff-side`, `data-line-number`, `data-diff-line-key`, and
@@ -428,9 +428,16 @@ on a private one.
   cells on cli/cli@aac4387 with and without `?w=1`. Curl cli/cli@1837454's `.diff`,
   compare its per-file `+`/`-` counts with the page's after scrolling to the end, and with
   `gh api repos/cli/cli/compare/679ca5f...1837454`. For the Highlight API, set a Range
-  from the start of a `.diff-text-inner` through its first `.x`, add a `::highlight()`
-  rule from a constructed sheet, and screenshot the row before and after. For reload
-  state, collapse commit `8d807ee`'s file, reload, and count `table[data-diff-anchor]`.
+  from the start of a `.diff-text-inner` through its first `.x` from a content script,
+  append a `<style>` holding a `::highlight()` rule to `document.head`, and screenshot the
+  row before and after. For reload state, collapse commit `8d807ee`'s file, reload, and
+  count `table[data-diff-anchor]`. Signed in, run
+  `bun bench/structural-live.ts --browser <b> --state <path>` in each browser to re-check
+  line selection, the comment controls, quiet backgrounds, and contrast. Probe the rest by
+  hand: add the word-mark rule as `table[data-x] .syntax-highlighted-line.addition .x` and
+  as `table[data-x] .diff-text-inner .x` and read the `.x` background; after a context
+  expansion, read the old ranges' `collapsed`; and read `.diff-text-inner.textContent`,
+  each split row's `td` count, and the changed cells' inline `background-color`.
 
 ## Diff layout
 
@@ -475,9 +482,10 @@ on a private one.
 - **Expect one saved layout for pull request and commit pages.** Choosing a layout on one
   page kind shows on the other (Chromium 157, signed in, 2026-11-10; Firefox unchecked).
 - **Read the layout from a diff table's columns: 3 `colgroup > col` in unified, 4 in
-  split,** on both page kinds. `currentLayout` and `followLayout` in `files-page.ts` read
-  it this way. Exception: a pull request draws a file that is all additions or all
-  deletions with 3 columns even in split, saved or from `?diff=split`; a commit's
+  split,** on both page kinds. `diffTables` in `files-page.ts` reads it this way per
+  table, with each table's anchor, and `currentLayout` and `followLayout` derive the
+  page's layout from it. Exception: a pull request draws a file that is all additions or
+  all deletions with 3 columns even in split, saved or from `?diff=split`; a commit's
   one-sided file follows the layout. So `currentLayout` reads `"unified"` under Split
   while every mounted table is such a file, and a `followLayout` report can follow files
   mounting or unmounting, not only a Layout choice. The hunk cell's `colspan` is 4 in both

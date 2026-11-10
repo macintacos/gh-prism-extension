@@ -990,6 +990,8 @@ export interface ChangedCell {
   readonly line: number;
   /** Holds the line's code text alone: no `+`/`-` marker and no review thread. */
   readonly textRoot: Element;
+  /** The row the cell sits in. */
+  readonly row: HTMLTableRowElement;
 }
 
 // The child combinator keeps hunk headers and a review thread's own markup out.
@@ -1006,11 +1008,13 @@ const ANCHOR_END = /([LR])(\d+)$/;
  */
 export function changedCells(root: ParentNode): ChangedCell[] {
   return [...root.querySelectorAll(CHANGED_CODE)].flatMap((code) => {
-    const anchor = code.closest("td")?.dataset.lineAnchor ?? "";
+    const cell = code.closest("td");
+    const anchor = cell?.dataset.lineAnchor ?? "";
     const [, sideLetter, line] = ANCHOR_END.exec(anchor) ?? [];
     const textRoot = code.querySelector(":scope > .diff-text-inner");
-    return sideLetter && line && textRoot
-      ? [{ side: sideLetter === "R" ? "new" : "old", line: Number(line), textRoot } as const]
+    const row = cell?.closest("tr");
+    return sideLetter && line && textRoot && row
+      ? [{ side: sideLetter === "R" ? "new" : "old", line: Number(line), textRoot, row } as const]
       : [];
   });
 }
@@ -1026,18 +1030,31 @@ export type DiffLayout = "unified" | "split";
  * file.
  */
 export function currentLayout(diffs: ParentNode): DiffLayout | undefined {
-  const tables = [...diffs.querySelectorAll("table[data-diff-anchor]")];
-  const SPLIT_COLUMNS = 4; // Unified draws 3.
+  const tables = diffTables(diffs);
   // ponytail: column count can't see Split while every mounted table is a pull request's
   // one-sided file; the open menu's aria-checked can.
-  if (
-    tables.some(
-      (table) => table.querySelector(":scope > colgroup")?.childElementCount === SPLIT_COLUMNS,
-    )
-  ) {
-    return "split";
-  }
+  if (tables.some(({ layout }) => layout === "split")) return "split";
   return tables.length ? "unified" : undefined;
+}
+
+/** A mounted diff table: its file's anchor and the layout it is drawn in. */
+export interface DiffTable {
+  readonly table: HTMLTableElement;
+  readonly anchor: string;
+  readonly layout: DiffLayout;
+}
+
+/** The diff tables mounted under `diffs`, in document order. */
+export function diffTables(diffs: ParentNode): DiffTable[] {
+  const SPLIT_COLUMNS = 4; // Unified draws 3.
+  return [...diffs.querySelectorAll<HTMLTableElement>("table[data-diff-anchor]")].map((table) => ({
+    table,
+    anchor: table.dataset.diffAnchor ?? "",
+    layout:
+      table.querySelector(":scope > colgroup")?.childElementCount === SPLIT_COLUMNS
+        ? "split"
+        : "unified",
+  }));
 }
 
 /**

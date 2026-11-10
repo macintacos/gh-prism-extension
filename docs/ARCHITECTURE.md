@@ -118,9 +118,9 @@ stateDiagram-v2
 ```
 
 [`entrypoints/content/visit/land.ts`](../entrypoints/content/visit/land.ts) runs on each
-page. `showVisit` mounts six views (the sidebar sections, the diff order, the j/k file
-keys, the diffstat, and the on-screen and Viewed trackers that feed the sidebar), and a
-seventh, the structural painter, when `showVisit` is given `structural`. Then `land`
+page. `showVisit` always mounts six views: the sidebar sections, the diff order, the j/k
+file keys, the diffstat, and the on-screen and Viewed trackers that feed the sidebar. It
+mounts a seventh, the structural painter, only when it is given `structural`. Then `land`
 passes the intent read's steps to the views: pending while the read runs, and with an
 owner filter until the code owners land too; progress as files are placed, landed with the
 result, and then each file's section. Every view gets a step before any view gets the
@@ -906,15 +906,19 @@ and whenever it changes.
   after a write.
 - **Per-table repainting.** A map from each table to what it holds lets a pass repaint
   only the tables that changed. A table counts as changed when `annotationsOf` returns a
-  different `StructuralFile` object (compared by identity), its cells' text elements, or
-  any of its ranges' `collapsed` state changes. A replaced table's ranges collapse onto a
-  surviving ancestor rather than detaching, so the pass drops them by that test.
+  different `StructuralFile` object (compared by identity), when its cells' text elements
+  are no longer the ones painted, or when one of its ranges has collapsed. A replaced
+  table's ranges collapse onto a surviving ancestor rather than detaching, so the pass
+  drops them by that test. Nothing else marks a table changed: text GitHub replaces inside
+  a kept text element, under a cell that holds no range (a quiet cell, or any cell of a
+  mismatched table), goes unnoticed until one of those three changes.
 - **A mismatch skips the whole file.** Every mounted changed cell needs an annotation and
   text equal to the expected line. If one fails, the table gets no highlight, no quiet
   row, and no table attribute, and the file reports `mismatch`. Annotations for lines the
   page does not mount, as with Hide whitespace (`?w=1`), are fine.
-- **Split only, per table.** The painter paints a table only when `currentLayout` reads it
-  as split, so it skips a unified page and a one-sided file's three-column table.
+- **Split only, per table.** The painter reads each table's own layout from `diffTables`
+  and paints it only when split, so it skips a unified page and a one-sided file's
+  three-column table.
 - **Selected lines are left to the sheet.** GitHub marks a selected line by an attribute
   `observeDiffs` does not report, so the sheet never tints a selected cell and clears a
   highlight's background over one.
@@ -971,6 +975,6 @@ utils/
   prefs.ts               saved preferences
   whats-new.ts           when the what's-new block shows
 tests/                   Vitest unit tests, mirroring the source tree
-e2e/                     Playwright smoke tests against the built extension
-bench/                   large-diff benchmark
+e2e/                     Playwright smoke tests against the built extension, and the structural painter's bundled harness and spec
+bench/                   large-diff benchmark, the module bundler the harness shares, and the structural painter's live parity smoke
 ```
