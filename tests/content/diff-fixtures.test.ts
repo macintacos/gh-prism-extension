@@ -9,6 +9,7 @@ import {
 import commitSplit from "../fixtures/commit-page-diff-split.html?raw";
 import commitUnified from "../fixtures/commit-page-diff-unified.html?raw";
 import commitWhitespace from "../fixtures/commit-page-diff-whitespace.html?raw";
+import commitWhitespaceSplit from "../fixtures/commit-page-diff-whitespace-split.html?raw";
 import prRename from "../fixtures/files-page-diff-rename.html?raw";
 import prSplit from "../fixtures/files-page-diff-split.html?raw";
 import prUnified from "../fixtures/files-page-diff-unified.html?raw";
@@ -49,6 +50,12 @@ const FIXTURES: Fixture[] = [
     name: "commit-page-diff-whitespace",
     html: commitWhitespace,
     layout: "unified",
+    expected: ["old 144", "new 144", "new 145"],
+  },
+  {
+    name: "commit-page-diff-whitespace-split",
+    html: commitWhitespaceSplit,
+    layout: "split",
     expected: ["old 144", "new 144", "new 145"],
   },
 ];
