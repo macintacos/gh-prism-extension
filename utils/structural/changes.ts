@@ -57,8 +57,8 @@ export function annotateLines(
 ): LineAnnotations | undefined {
   const oldRanges = rangesByLine(changes.old);
   const newRanges = rangesByLine(changes.new);
-  const oldLines: Record<number, LineAnnotation> = {};
-  const newLines: Record<number, LineAnnotation> = {};
+  const oldAnnotations: Record<number, LineAnnotation> = {};
+  const newAnnotations: Record<number, LineAnnotation> = {};
 
   for (const hunk of hunks) {
     const ops = hunkOps(hunk.lines);
@@ -66,14 +66,14 @@ export function annotateLines(
     let oldLine = hunk.oldStart;
     let newLine = hunk.newStart;
     for (const { kind } of ops) {
-      if (kind === "-") oldLines[oldLine] = annotationOf(oldRanges.get(oldLine));
-      if (kind === "+") newLines[newLine] = annotationOf(newRanges.get(newLine));
+      if (kind === "-") oldAnnotations[oldLine] = annotationOf(oldRanges.get(oldLine));
+      if (kind === "+") newAnnotations[newLine] = annotationOf(newRanges.get(newLine));
       if (kind !== "+") oldLine++;
       if (kind !== "-") newLine++;
     }
   }
 
-  return { old: oldLines, new: newLines };
+  return { old: oldAnnotations, new: newAnnotations };
 }
 
 /** `spans` grouped by line, each line's ranges in column order. */
