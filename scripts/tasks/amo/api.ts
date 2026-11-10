@@ -67,7 +67,7 @@ export async function checkAmo(amo: AmoFetch, firefoxOnly?: string): Promise<str
   const addon = await addonStatus(amo);
   if ("problem" in addon) return addon.problem;
   if (!addon.listed) {
-    return `AMO has no add-on ${ADDON_GUID} yet; create it once with: gh workflow run amo-listing.yml --ref trunk`;
+    return `AMO has no add-on ${ADDON_GUID} yet; create it once with: gh workflow run amo-listing.yml --ref main`;
   }
   if (firefoxOnly === undefined) {
     return null;

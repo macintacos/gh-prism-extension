@@ -73,7 +73,7 @@ Chrome, or `browser.storage.local.remove("whatsNewSeen")` in the console that gh
 | `mise run lint` | Runs the linters, read-only. |
 | `mise run lint-firefox` | Builds the extension and lints the Firefox build with `web-ext lint`, the linter AMO runs on every upload. |
 | `mise run preflight` | Runs `format-check`, `lint`, and `test`; run it before you push. |
-| `mise run release <patch\|minor\|major> [--notes-file <path>]`, `mise run release --firefox-only <version> [--notes-file <path>]` | Dispatches the release workflow on trunk, or a Firefox-only re-run of an existing version; see [Releases](#releases). |
+| `mise run release <patch\|minor\|major> [--notes-file <path>]`, `mise run release --firefox-only <version> [--notes-file <path>]` | Dispatches the release workflow on main, or a Firefox-only re-run of an existing version; see [Releases](#releases). |
 
 ## Tests
 
@@ -173,8 +173,8 @@ version, writes the release notes, asks you once to confirm both, then runs the 
 below and reports the GitHub Release.
 
 `mise run release <bump> [--notes-file <path>]` runs `gh workflow run` on
-[`.github/workflows/release.yml`](../.github/workflows/release.yml). On trunk, the
-workflow runs these steps in order:
+[`.github/workflows/release.yml`](../.github/workflows/release.yml). On main, the workflow
+runs these steps in order:
 
 1. Check the stores. It stops when a store secret is missing, naming each one, or when AMO
    refuses the Firefox credentials or has no gh-prism listing yet.
@@ -186,7 +186,7 @@ workflow runs these steps in order:
    reviewers build from.
 5. Check the sources zip. It unzips the sources zip, rebuilds the extension from it, and
    fails unless the result matches `.output/firefox-mv3`.
-6. Commit `chore: bump version to X.Y.Z` to trunk through GitHub's API so GitHub signs it,
+6. Commit `chore: bump version to X.Y.Z` to main through GitHub's API so GitHub signs it,
    and tag it `vX.Y.Z`.
 7. Submit the Chrome zip to the Chrome Web Store with `wxt submit`.
 8. Submit the Firefox zip and its sources zip to AMO (addons.mozilla.org) with
@@ -205,7 +205,7 @@ the re-run stops there, so create the Release by hand:
 `gh release create v<version> --verify-tag --notes-file <path>`.
 
 Only the repository owner can run it. It uses the `chrome-web-store` environment, which
-allows only trunk and holds six secrets: `CHROME_EXTENSION_ID`, `CHROME_PUBLISHER_ID`,
+allows only main and holds six secrets: `CHROME_EXTENSION_ID`, `CHROME_PUBLISHER_ID`,
 `CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL`, `CHROME_SERVICE_ACCOUNT_PRIVATE_KEY`,
 `FIREFOX_JWT_ISSUER`, and `FIREFOX_JWT_SECRET`. The workflow uses the Chrome Web Store's
 v2 API with a Google Cloud service account, and AMO's API with the two Firefox keys.

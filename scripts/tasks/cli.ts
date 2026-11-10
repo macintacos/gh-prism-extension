@@ -46,7 +46,7 @@ const amoFromEnv = () => {
 program
   .command("release")
   .description(
-    "Dispatch the release workflow on trunk, which bumps, tags, and publishes to both stores, or finishes a version's Firefox submit",
+    "Dispatch the release workflow on main, which bumps, tags, and publishes to both stores, or finishes a version's Firefox submit",
   )
   .addArgument(bumpArgument("[bump]"))
   .option(
@@ -221,15 +221,15 @@ program
 
 program
   .command("compute")
-  .description("Print the next release's versions and commits from origin/trunk as JSON")
+  .description("Print the next release's versions and commits from origin/main as JSON")
   .action(() => {
-    run("git", ["fetch", "--quiet", "--tags", "origin", "trunk"]);
-    const { version } = JSON.parse(run("git", ["show", "origin/trunk:package.json"])) as {
+    run("git", ["fetch", "--quiet", "--tags", "origin", "main"]);
+    const { version } = JSON.parse(run("git", ["show", "origin/main:package.json"])) as {
       version: string;
     };
     const described = spawnSync(
       "git",
-      ["describe", "--tags", "--abbrev=0", "--match", "v*", "origin/trunk"],
+      ["describe", "--tags", "--abbrev=0", "--match", "v*", "origin/main"],
       { encoding: "utf8" },
     );
     const previousTag = described.status === 0 ? described.stdout.trim() : null;
@@ -243,10 +243,10 @@ program
           currentVersion: version,
           next: Object.fromEntries(BUMP_LEVELS.map((bump) => [bump, nextVersion(version, bump)])),
           previousTag,
-          trunkSha: run("git", ["rev-parse", "origin/trunk"]),
+          mainSha: run("git", ["rev-parse", "origin/main"]),
           repoSlug: run("gh", ["repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"]),
           commits: parseCommits(
-            run("git", ["log", "--format=%H%x09%s", `${previousTag}..origin/trunk`]),
+            run("git", ["log", "--format=%H%x09%s", `${previousTag}..origin/main`]),
           ),
           missingSecrets: missingSecrets(environmentSecrets()),
         },

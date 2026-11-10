@@ -21,10 +21,10 @@ export function parseCommits(log: string): Commit[] {
 /** Why `previousTag` can't anchor a release of `currentVersion`, or null when it can. */
 export function releaseTagError(previousTag: string | null, currentVersion: string): string | null {
   if (previousTag === null) {
-    return "no v* tag is reachable from origin/trunk; tag the last release first";
+    return "no v* tag is reachable from origin/main; tag the last release first";
   }
   if (previousTag !== `v${currentVersion}`) {
-    return `latest tag ${previousTag} does not match origin/trunk's version; expected v${currentVersion}`;
+    return `latest tag ${previousTag} does not match origin/main's version; expected v${currentVersion}`;
   }
   return null;
 }
@@ -47,12 +47,12 @@ export function missingSecrets(present: ReadonlySet<string>): string[] {
   return STORE_SECRETS.filter((name) => !present.has(name));
 }
 
-/** `gh` arguments that dispatch the release workflow on trunk. */
+/** `gh` arguments that dispatch the release workflow on main. */
 export function workflowRunArgs(
   target: { bump: BumpLevel } | { firefoxOnly: string },
   notesFile?: string,
 ): string[] {
   const field = "bump" in target ? `bump=${target.bump}` : `firefox-only=${target.firefoxOnly}`;
-  const args = ["workflow", "run", "release.yml", "--ref", "trunk", "-f", field];
+  const args = ["workflow", "run", "release.yml", "--ref", "main", "-f", field];
   return notesFile === undefined ? args : [...args, "-F", `notes=@${notesFile}`];
 }

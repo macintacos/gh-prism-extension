@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   release:
-    if: github.ref == 'refs/heads/trunk' && github.triggering_actor == github.repository_owner
+    if: github.ref == 'refs/heads/main' && github.triggering_actor == github.repository_owner
     runs-on: ubuntu-latest
     environment: chrome-web-store
     permissions:
@@ -85,8 +85,8 @@ jobs:
           WXT_RELEASE_NOTES="$notes" bunx wxt zip -b firefox
       - name: Check the sources zip
         run: WXT_RELEASE_NOTES="$(cat "$RUNNER_TEMP/notes.md")" bun scripts/tasks/cli.ts check-sources
-      # Commit before submit: expectedHeadOid fails the commit cleanly if trunk moved, before the store sees anything.
-      # Trunk requires signed commits, and GitHub signs a commit made through its API, not one pushed with git.
+      # Commit before submit: expectedHeadOid fails the commit cleanly if main moved, before the store sees anything.
+      # Main requires signed commits, and GitHub signs a commit made through its API, not one pushed with git.
       - name: Commit and tag
         if: inputs.firefox-only == ''
         env:
@@ -96,7 +96,7 @@ jobs:
           sha="$(jq -n --rawfile pkg package.json '{
             query: "mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }",
             variables: {input: {
-              branch: {repositoryNameWithOwner: env.GITHUB_REPOSITORY, branchName: "trunk"},
+              branch: {repositoryNameWithOwner: env.GITHUB_REPOSITORY, branchName: "main"},
               expectedHeadOid: env.GITHUB_SHA,
               message: {headline: "chore: bump version to \(env.VERSION)"},
               fileChanges: {additions: [{path: "package.json", contents: ($pkg | @base64)}]}

@@ -16,8 +16,8 @@ operator's answer authorizes every step after it.
 bun scripts/tasks/cli.ts compute
 ```
 
-It reads `origin/trunk`, so it works from any checkout or branch. It prints one JSON
-object: `currentVersion`, `next.{patch,minor,major}`, `previousTag`, `trunkSha`,
+It reads `origin/main`, so it works from any checkout or branch. It prints one JSON
+object: `currentVersion`, `next.{patch,minor,major}`, `previousTag`, `mainSha`,
 `repoSlug`, and `commits` (newest first, each with `sha`, `subject`, and `pr`, which is
 null for a commit without a PR), and `missingSecrets` (the store secrets absent from the
 `chrome-web-store` environment). On a non-zero exit, show its stderr and stop. If
@@ -26,10 +26,10 @@ null for a commit without a PR), and `missingSecrets` (the store secrets absent 
 ## 2. Check CI and the secrets
 
 ```sh
-gh run list --workflow ci.yml --commit <trunkSha> --json conclusion,url
+gh run list --workflow ci.yml --commit <mainSha> --json conclusion,url
 ```
 
-If CI on `trunkSha` isn't green, say so in the gate question. Don't stop on it.
+If CI on `mainSha` isn't green, say so in the gate question. Don't stop on it.
 
 If `missingSecrets` is non-empty, the gate question lists those names and marks "Cancel"
 (Recommended), because the run's "Check the stores" step would stop before the bump.
@@ -89,9 +89,9 @@ release option. On "Cancel", stop.
 mise run release <bump> --notes-file <path>
 ```
 
-The workflow on trunk checks the store secrets and AMO, runs preflight, bumps the version,
+The workflow on main checks the store secrets and AMO, runs preflight, bumps the version,
 zips both browsers, and checks the sources zip rebuilds the Firefox build. It then commits
-the bump to trunk and tags it `v<version>`, submits to the Chrome Web Store, then to AMO,
+the bump to main and tags it `v<version>`, submits to the Chrome Web Store, then to AMO,
 and creates the GitHub Release with your notes. Take the run's ID from the
 `.../actions/runs/<id>` URL the command prints. Only when it prints none, fall back to
 `gh run list --workflow release.yml --limit 1 --json databaseId,url`, which can return an
@@ -108,7 +108,7 @@ happened:
 
 - **Before "Commit and tag":** nothing changed. The operator can release again. A "Check
   the stores" failure names the missing secret or what AMO refused; fix that first.
-- **At "Commit and tag":** the bump commit may be on trunk without its `v<version>` tag.
+- **At "Commit and tag":** the bump commit may be on main without its `v<version>` tag.
   Check with `git ls-remote --tags origin v<version>`. If the tag is missing, the operator
   tags the bump commit by hand before releasing again.
 - **"Submit to AMO":** the Chrome submit went through and `v<version>` exists. Ask one
@@ -127,7 +127,7 @@ yourself outside the offer above.
 
 Report the Release URL from `gh release view v<version> --json url -q .url`, the AMO page
 <https://addons.mozilla.org/firefox/addon/gh-prism/>, and that the new version is pending
-review on both the Chrome Web Store and AMO. If the current checkout is `trunk` with a
+review on both the Chrome Web Store and AMO. If the current checkout is `main` with a
 clean tree, run `git pull --ff-only`.
 
 ## Guardrails

@@ -61,13 +61,13 @@ describe("missingSecrets", () => {
 });
 
 describe("workflowRunArgs", () => {
-  it("dispatches the release workflow on trunk with the bump", () => {
+  it("dispatches the release workflow on main with the bump", () => {
     expect(workflowRunArgs({ bump: "minor" })).toEqual([
       "workflow",
       "run",
       "release.yml",
       "--ref",
-      "trunk",
+      "main",
       "-f",
       "bump=minor",
     ]);
@@ -79,7 +79,7 @@ describe("workflowRunArgs", () => {
       "run",
       "release.yml",
       "--ref",
-      "trunk",
+      "main",
       "-f",
       "bump=patch",
       "-F",
@@ -93,7 +93,7 @@ describe("workflowRunArgs", () => {
       "run",
       "release.yml",
       "--ref",
-      "trunk",
+      "main",
       "-f",
       "firefox-only=1.2.3",
       "-F",
