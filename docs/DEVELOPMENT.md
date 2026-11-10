@@ -115,6 +115,13 @@ check; another `--url` paints, counts, and stops. It opens comment and reply for
 cancels them, never submitting one. Its last line reads `parity: all checks passed` when
 every check ran, and `parity: <N> checks passed, <M> not driven` otherwise.
 
+`bun bench/structural-host.ts <chromium|firefox>` benches the structural engine's host in
+the built extension: that the engine loads only on first use, a cold and a warm run, and
+how long a PR data port message waits while a run is in flight. It builds a scratch copy
+of the working tree with a test-only background addition and a relay content script,
+prints one JSON object, and exits 1 when a check fails. Like the rest of `bench/`, it
+stays out of CI.
+
 ## Sandbox repositories
 
 `scripts/create-sandbox.sh <owner>/<repo>` creates a private repository under an account
