@@ -1,4 +1,4 @@
-import { type PrFileDiff, type PrHunk, parsePrHunks } from "../github/pr-diff";
+import { hunkOps, type PrFileDiff, type PrHunk, parsePrHunks } from "../github/pr-diff";
 
 /**
  * The old text of `file`, rebuilt by applying its patch in reverse to `head`, its head text.
@@ -26,12 +26,6 @@ export function baseText(file: PrFileDiff, head: string): string | undefined {
   // Only a text's last line may lack its newline.
   if (old.some((line, i) => i < old.length - 1 && !line.endsWith("\n"))) return undefined;
   return old.join("");
-}
-
-/** One body line of a hunk; `text` keeps its newline unless a `\` line follows it. */
-interface HunkOp {
-  readonly kind: " " | "+" | "-";
-  text: string;
 }
 
 /**
@@ -65,24 +59,6 @@ function applyHunk(
 
 /** Lines before a hunk side: a zero-count side's start names the line before it. */
 const linesBefore = (start: number, count: number): number => (count === 0 ? start : start - 1);
-
-/** Reads a hunk's body lines; `undefined` for an unknown prefix or a `\` line with nothing to mark. */
-function hunkOps(lines: readonly string[]): HunkOp[] | undefined {
-  const ops: HunkOp[] = [];
-  for (const line of lines) {
-    if (line.startsWith("\\")) {
-      const previous = ops.at(-1);
-      if (previous === undefined || !previous.text.endsWith("\n")) return undefined;
-      previous.text = previous.text.slice(0, -1);
-      continue;
-    }
-    // A blank context line may arrive as an empty string, with no prefix.
-    const kind = line === "" ? " " : line[0];
-    if (kind !== " " && kind !== "+" && kind !== "-") return undefined;
-    ops.push({ kind, text: `${line.slice(1)}\n` });
-  }
-  return ops;
-}
 
 /** Copies `lines[from..to)` onto `into` without spreading, which overflows the stack on long runs. */
 function copyLines(lines: readonly string[], from: number, to: number, into: string[]): void {
