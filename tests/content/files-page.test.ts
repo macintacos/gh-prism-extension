@@ -899,6 +899,15 @@ describe("observeDiffs", () => {
 
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it("never calls when handed an already-aborted signal", async () => {
+    controller.abort();
+    observeDiffs(diffList(), onChange, { signal: controller.signal });
+    diffList().append(document.createElement("div"));
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });
 
 describe("findDiff", () => {

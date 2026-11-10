@@ -917,6 +917,7 @@ function observeDebounced(
     timer = setTimeout(onChange, DEBOUNCE_MS);
   });
 
+  if (signal.aborted) return;
   observer.observe(target, init);
   signal.addEventListener("abort", () => {
     observer.disconnect();
