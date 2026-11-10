@@ -361,13 +361,14 @@ test("outlines a moved line's code cells dashed, and keeps the outline on a sele
 }) => {
   await mount(page, bundle, [COMMIT_SPLIT], TOKENS);
   const row = page.locator(`tr:has(td[data-line-anchor="${COMMIT_ANCHOR}L137"])`);
-  const codeCells = [row.locator("td").nth(1), row.locator("td").nth(3)];
-  const outline = (cell: (typeof codeCells)[number]) =>
+  const oldCode = row.locator("td").nth(1);
+  const newCode = row.locator("td").nth(3);
+  const codeCells = [oldCode, newCode];
+  const outline = (cell: typeof oldCode) =>
     cell.evaluate((td) => {
       const { outlineStyle, outlineColor } = getComputedStyle(td);
       return { outlineStyle, outlineColor };
     });
-  const unmarked = await codeCells[0]?.screenshot();
 
   await row.evaluate((tr, anchor) => {
     const [, oldCode, , newCode] = tr.querySelectorAll(":scope > td");
@@ -397,7 +398,7 @@ test("outlines a moved line's code cells dashed, and keeps the outline on a sele
       outlineStyle: "dashed",
       outlineColor: "rgb(90, 90, 90)",
     });
-  expect((await codeCells[0]?.screenshot())?.equals(unmarked ?? Buffer.alloc(0))).toBe(false);
+  const marked = await oldCode.screenshot();
 
   await row.evaluate((tr) => {
     for (const td of tr.querySelectorAll("td")) td.dataset.selected = "true";
@@ -407,4 +408,5 @@ test("outlines a moved line's code cells dashed, and keeps the outline on a sele
   await page.evaluate(() => window.structural.stop());
   for (const cell of codeCells) expect((await outline(cell)).outlineStyle).toBe("none");
   await expect(page.locator(MARKED)).toHaveCount(0);
+  expect((await oldCode.screenshot()).equals(marked)).toBe(false);
 });

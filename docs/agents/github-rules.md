@@ -301,6 +301,14 @@ on a private one.
   `td.diff-text-cell`, and its other side holds `td.empty-diff-line` cells. A pull
   request's unified cells carry `left-side` alone, whatever their side, so don't read the
   side from a class there.
+- **Expect a focused code cell's ring to be a `::before` border, not an outline.**
+  GitHub's `.diff-text-cell:focus::before` draws
+  `var(--borderWidth-thick) solid var(--focus-outlineColor)` at `inset: 0`, and
+  `.focusable-grid-cell:focus-visible` sets `outline: none`. A keyboard-focused cell on
+  sandbox PR #3 in split read `:focus-visible` true, `outline-style: none`, and
+  `box-shadow: none` (Chromium, 2026-11-10; Firefox not measured). Re-check: focus a
+  `td.diff-text-cell` with the arrow keys and read the cell's and its `::before`'s
+  computed outline, border, and box-shadow.
 - **Collect changed cells with `changedCells` in `files-page.ts`, and collect again on
   each `observeDiffs` report.** It finds them as the bullets above describe and reads the
   old or new side and the line from the anchor suffix, which is safe only because it

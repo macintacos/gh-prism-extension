@@ -14,6 +14,7 @@ import {
 import type { FileSection } from "../../../entrypoints/content/visit/land";
 import type { LineAnnotation, StructuralFile } from "../../../utils/structural/changes";
 import commitSplit from "../../fixtures/commit-page-diff-split.html?raw";
+import commitWhitespaceSplit from "../../fixtures/commit-page-diff-whitespace-split.html?raw";
 import prRename from "../../fixtures/files-page-diff-rename.html?raw";
 import prSplit from "../../fixtures/files-page-diff-split.html?raw";
 import prUnified from "../../fixtures/files-page-diff-unified.html?raw";
@@ -264,6 +265,24 @@ describe("paintStructural", () => {
 
     const row = cellAt(tableAt(diffs), "old", 137).textRoot.closest("tr");
     expect(row?.getAttribute("data-gh-prism-moved")).toBe("old new");
+  });
+
+  it("marks one side of a row moved while its other side stays quiet", async () => {
+    const diffs = mountDiffs(commitWhitespaceSplit);
+    const table = tableAt(diffs);
+    const oldLine = cellAt(table, "old", 144);
+    const partner = cellAt(table, "new", 145);
+    partner.textRoot.textContent = oldLine.textRoot.textContent;
+    files.set(
+      anchorOfTable(table),
+      fileOf(table, (cell) => (cell.side === "new" && cell.line === 144 ? QUIET : CHANGED)),
+    );
+    paint(diffs);
+    await flush();
+
+    expect(oldLine.row.getAttribute("data-gh-prism-quiet")).toBe("new");
+    expect(oldLine.row.getAttribute("data-gh-prism-moved")).toBe("old");
+    expect(partner.row.getAttribute("data-gh-prism-moved")).toBe("new");
   });
 
   it("marks no quiet line moved", async () => {

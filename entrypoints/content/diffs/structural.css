@@ -70,7 +70,8 @@ tr[data-gh-prism-quiet~="new"] > td:nth-child(4):not([data-selected="true"], .em
   ) !important;
 }
 
-/* A moved line keeps its dashed outline when selected: the dash is its mark. */
+/* No !important: GitHub draws a cell's focus ring as a ::before border, not an outline. A
+   selected moved line keeps the dash: it is the mark. */
 tr[data-gh-prism-moved~="old"] > td:nth-child(2),
 tr[data-gh-prism-moved~="new"] > td:nth-child(4) {
   outline: 1px dashed var(--fgColor-muted);

@@ -926,7 +926,7 @@ and whenever it changes.
   encoding, and the sheet outlines that side's code cell. `movedLines` in
   [`utils/structural/moved.ts`](../utils/structural/moved.ts) pairs the lines from the
   file's own text, so a moved line's partner may sit in a hunk the page does not mount. A
-  quiet row never pairs.
+  quiet line never pairs, so one row can be quiet on one side and moved on the other.
 - **One pass per animation frame.** The `sections` hook and every `observeDiffs` report
   schedule a frame, and a pending frame is reused. The pass first reads every table, then
   writes, so its reads (`querySelectorAll`, `dataset`, `textContent`) never force a layout

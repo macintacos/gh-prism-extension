@@ -1,6 +1,12 @@
 import type { ColumnRange, StructuralFile } from "@/utils/structural/changes";
 import { movedLines } from "@/utils/structural/moved";
-import { type ChangedCell, changedCells, diffTables, observeDiffs } from "../files-page";
+import {
+  type ChangedCell,
+  changedCells,
+  type DiffSide,
+  diffTables,
+  observeDiffs,
+} from "../files-page";
 import type { LandingView } from "../visit/land";
 import { pathsByAnchor } from "./on-screen";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
@@ -55,8 +61,14 @@ interface Plan {
   readonly painted: Painted;
 }
 
+/** One pass's reads: the tables to paint, and the painted tables that are no longer fresh. */
+interface Pass {
+  readonly plans: readonly Plan[];
+  readonly stale: readonly HTMLTableElement[];
+}
+
 /** Adds `side` to `row`'s value in `rows`, as `old`, `new`, or `old new`. */
-function markSide(rows: Map<Element, string>, row: Element, side: string): void {
+function markSide(rows: Map<Element, string>, row: Element, side: DiffSide): void {
   rows.set(row, rows.has(row) ? `${rows.get(row)} ${side}` : side);
 }
 
@@ -70,12 +82,6 @@ function writeRows(
     if (!now.has(row) && row.hasAttribute(attr)) row.removeAttribute(attr);
   for (const [row, value] of now)
     if (row.getAttribute(attr) !== value) row.setAttribute(attr, value);
-}
-
-/** One pass's reads: the tables to paint, and the painted tables that are no longer fresh. */
-interface Pass {
-  readonly plans: readonly Plan[];
-  readonly stale: readonly HTMLTableElement[];
 }
 
 /** A range over columns `startCol` to `endCol` of `textRoot`'s text, or `undefined` when they are empty, inverted, or reach past it. */

@@ -27,6 +27,10 @@ at the top, dated.
 - **Skipped:** an accessible name for the mark, pairing lines across files, and joining
   adjacent moved lines into one outline. As a result, adjacent moved lines show a doubled
   dashed rule where their outlines meet.
+- **Accepted:** a short line that repeats (`}`, `});`, `return null;`) pairs with any
+  same-text line on the other side of the file, so its mark says only that the same text
+  is on both sides. A filter requiring a letter or digit, or a minimum length, waits until
+  structural mode is hosted and the noise can be seen on real diffs.
 
 ## 2026-11-10: Structural mode's changed tokens and quiet rows
 
