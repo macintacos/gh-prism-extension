@@ -274,10 +274,15 @@ describe("generatedFromEmbeddedData", () => {
 
   it("reads a commit's files GitHub flags generated", () => {
     expect(
-      generatedFromEmbeddedData(
-        commitPayload(commitOid.toUpperCase(), "gh-prism-sandbox"),
-        generatedCommit,
-      ),
+      generatedFromEmbeddedData(commitPayload(commitOid, "gh-prism-sandbox"), generatedCommit),
+    ).toEqual(new Set(["src/generated/schema.rs"]));
+  });
+
+  it("reads the flags of a commit named by an abbreviated SHA", () => {
+    const abbreviated = { ...generatedCommit, headSha: commitOid.slice(0, 7).toUpperCase() };
+
+    expect(
+      generatedFromEmbeddedData(commitPayload(commitOid, "gh-prism-sandbox"), abbreviated),
     ).toEqual(new Set(["src/generated/schema.rs"]));
   });
 
@@ -306,6 +311,7 @@ describe("readGeneratedPaths", () => {
     const doc = {
       querySelector: () => ({ textContent: viewedPayload({ diffContents: generatedEntries }) }),
     };
+
     expect(readGeneratedPaths(doc, viewedPr)).toEqual(new Set(["src/generated/schema.rs"]));
   });
 });

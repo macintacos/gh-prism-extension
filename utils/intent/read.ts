@@ -12,7 +12,7 @@ import type { PrDataClient } from "../github/pr-port";
 import type { DiffPin, DiffRef } from "../github/pr-ref";
 import type { PrDataProblem, PrFileContentResult, PrFilesResult } from "../github/pr-source";
 import { commentLineCounts, type DocVerdict, docHunkVerdicts } from "../hunk-rules/doc-intent";
-import { type MarkerVerdict, markerVerdict } from "../hunk-rules/generated";
+import { markerVerdict, patchMarkerVerdict } from "../hunk-rules/generated";
 import { type ScannedHead, scanHeadText } from "../hunk-rules/head-scan";
 import { inlineTestHunkVerdicts, inlineTestRuleApplies } from "../hunk-rules/inline-tests";
 import { classify, SECTIONS, type SectionKey } from "../sections";
@@ -74,9 +74,6 @@ export type IntentResult =
 
 const isDocs = (verdict: DocVerdict) => verdict === "docs";
 
-const WHOLE_GENERATED: Placement = { kind: "whole", section: "generated" };
-const NO_LINES: LineCounts = { added: 0, removed: 0 };
-
 async function readHead(
   client: Pick<PrDataClient, "fileContent">,
   file: PrFileDiff,
@@ -87,32 +84,18 @@ async function readHead(
 
 const sumHunkLines = (hunks: readonly PrHunk[]): LineCounts => sum(hunks.map(hunkLineCounts));
 
-/** One file's hunk sections, and the comment lines in its hunks that stay in Implementation. */
+/** Where one file lands, and the comment lines in its hunks that stay in Implementation. */
 interface FileIntent {
-  /**
-   * Each hunk's rule section, or `undefined` to keep it in the path section; aligned with
-   * `parsePrHunks`.
-   */
-  readonly sections: (IntentSection | undefined)[];
+  /** `undefined` keeps the file in its path section. */
+  readonly placement: Placement | undefined;
   readonly commentLines: LineCounts;
 }
 
-/** Where the patch alone places `file`'s marker: `"needs-content"` only when a read could tell. */
-function patchMarker(file: PrFileDiff): MarkerVerdict {
-  if (file.kind === "binary" || file.status === "deleted") return "not-generated";
-  if (classify(file.path) !== "implementation") return "not-generated";
-  const [first] = hunksOf(file);
-  const shown =
-    first?.newStart === 1
-      ? first.lines.filter((line) => !line.startsWith("-") && !line.startsWith("\\"))
-      : [];
-  const verdict = markerVerdict(
-    file.path,
-    shown.map((line) => line.slice(1)),
-  );
-  // An added file's patch is the whole file.
-  return verdict === "needs-content" && file.status === "added" ? "not-generated" : verdict;
-}
+const NO_LINES: LineCounts = { added: 0, removed: 0 };
+const GENERATED: FileIntent = {
+  placement: { kind: "whole", section: "generated" },
+  commentLines: NO_LINES,
+};
 
 /** The complete lines of `file`'s prefix: a prefix read can cut its last line short. */
 async function prefixLines(
@@ -124,25 +107,22 @@ async function prefixLines(
 }
 
 /**
- * `file`'s hunk sections and Implementation comment lines, or `"generated"` when a generator's
- * marker heads an Implementation file. The patch settles the marker when its first hunk shows the
- * file's leading comment block. The head is read only when the patch can't settle every hunk as
- * docs and a rule or a comment count needs it; that head also settles the marker. A file whose
- * marker is still unsettled gets one prefix read, and none after a failed head read. A file whose
- * every hunk is docs moves whole to Docs & Comments; otherwise a hunk in a test block counts as
- * Tests even when it only edits a doc comment, and an Implementation file that keeps a code hunk
- * outside its test blocks keeps its other docs hunks too, counting their comment lines. A head read
- * for any reason settles every unclaimed hunk's count, as it is the more accurate scan; a hunk
- * whose comment lines only the unread head could confirm counts none.
+ * `file`'s placement and Implementation comment lines; whole in Generated when the patch, the
+ * shared head, or one prefix read (none after a failed head read) shows a generator's marker. The
+ * head is read only when the patch can't settle every hunk as docs and a rule or a comment count
+ * needs it. A file whose every hunk is docs moves whole to Docs & Comments; otherwise a hunk in a
+ * test block counts as Tests even when it only edits a doc comment, and an Implementation file that
+ * keeps a code hunk outside its test blocks keeps its other docs hunks too, counting their comment
+ * lines. A head read for any reason settles every unclaimed hunk's count, as it is the more
+ * accurate scan; a hunk whose comment lines only the unread head could confirm counts none.
  */
 async function fileIntent(
   client: Pick<PrDataClient, "fileContent" | "filePrefix">,
   file: PrFileDiff,
-): Promise<FileIntent | "generated"> {
-  const marker = patchMarker(file);
-  if (marker === "generated") return "generated";
+): Promise<FileIntent> {
+  const marker = patchMarkerVerdict(file);
+  if (marker === "generated") return GENERATED;
 
-  const noLines = { added: 0, removed: 0 };
   const patchVerdicts = docHunkVerdicts(file);
   const allDocs = patchVerdicts.every(isDocs); // also true for binary or renamed
   const hunks = hunksOf(file);
@@ -157,20 +137,29 @@ async function fileIntent(
 
   if (marker === "needs-content") {
     const lines = needsHead ? head?.lines : await prefixLines(client, file);
-    if (lines && markerVerdict(file.path, lines) === "generated") return "generated";
+    if (lines && markerVerdict(file.path, lines) === "generated") return GENERATED;
   }
 
-  if (allDocs) return { sections: patchVerdicts.map(() => "docs"), commentLines: noLines };
+  if (allDocs) {
+    return {
+      placement: placementOf(
+        file,
+        patchVerdicts.map(() => "docs"),
+      ),
+      commentLines: NO_LINES,
+    };
+  }
   const sections =
     head === undefined ? patchSections(file.path, patchVerdicts) : headSections(file, head);
-  if (!countsComments) return { sections, commentLines: noLines };
+  const placement = placementOf(file, sections);
+  if (!countsComments) return { placement, commentLines: NO_LINES };
   const counts = hunks.map((hunk, i) => {
-    if (sections[i] !== undefined) return noLines;
+    if (sections[i] !== undefined) return NO_LINES;
     if (head !== undefined) return commentLineCounts(file.path, hunk, head);
     const count = patchCounts[i];
-    return count === undefined || count === "needs-content" ? noLines : count;
+    return count === undefined || count === "needs-content" ? NO_LINES : count;
   });
-  return { sections, commentLines: sum(counts) };
+  return { placement, commentLines: sum(counts) };
 }
 
 /** Where a docs hunk goes in a file that doesn't move whole: an Implementation file keeps it. */
@@ -264,16 +253,10 @@ export async function readIntent(
   onProgress?.({ checked: 0, total });
   let checked = 0;
   const placed = await mapAtMost(listed.files, HEAD_READS_AT_ONCE, async (file) => {
-    const intent = generated.has(file.path) ? "generated" : await fileIntent(client, file);
+    const intent = generated.has(file.path) ? GENERATED : await fileIntent(client, file);
     checked += 1;
     onProgress?.({ checked, total });
-    if (intent === "generated")
-      return { path: file.path, placement: WHOLE_GENERATED, commentLines: NO_LINES };
-    return {
-      path: file.path,
-      placement: placementOf(file, intent.sections),
-      commentLines: intent.commentLines,
-    };
+    return { path: file.path, ...intent };
   });
 
   const placements = new Map<string, Placement>();
@@ -346,10 +329,12 @@ export async function intentFor(
   if (route.commitFiltered) return { ok: false, problem: "commit-filtered" };
 
   const pin = pinOf?.(route.diff);
-  const generated = generatedOf?.(route.diff) ?? new Set<string>();
+  // No flags in the pin key: the pin and the flags come from the same route data, so a pinned
+  // page always carries its flags.
   const pinned = pin && pinKey(pin);
   const early = pinned ? await cache.get(pinned) : undefined;
   if (early) return early;
+  const generated = generatedOf?.(route.diff) ?? new Set<string>();
 
   const client = connect(route.diff);
   // An already-aborted signal never fires "abort": the pinned lookup outlasted the visit.

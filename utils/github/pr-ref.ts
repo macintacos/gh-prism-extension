@@ -177,8 +177,10 @@ export function viewedFromEmbeddedData(
 function commitPageData(json: string | null | undefined, commit: CommitHead): unknown {
   const data = parsed(json);
   const route = at(data, "payload", "commitRoute");
+  const oid = at(route, "commit", "oid");
   const matches =
-    sameName(at(route, "commit", "oid"), commit.headSha) &&
+    typeof oid === "string" &&
+    oid.toLowerCase().startsWith(commit.headSha.toLowerCase()) &&
     sameName(at(route, "repo", "ownerLogin"), commit.owner) &&
     sameName(at(route, "repo", "name"), commit.repo);
   return matches ? data : undefined;
@@ -202,6 +204,7 @@ export function generatedFromEmbeddedData(
     diff.kind === "pr"
       ? at(prPageData(json, diff), "payload", "pullRequestsChangesRoute", "diffContents")
       : at(commitPageData(json, diff), "payload", "commitRoute", "diffEntryData");
+
   const paths = new Set<string>();
   if (!Array.isArray(entries)) return paths;
   for (const entry of entries) {

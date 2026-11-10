@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CommitHead, PrHead, PrRef } from "../../../utils/github/pr-ref";
-import { createPrDataSource } from "../../../utils/github/pr-source";
+import { createPrDataSource, PREFIX_BYTES } from "../../../utils/github/pr-source";
 import { heldResponses, routedFetch } from "../../fixtures/fetch";
 
 const shaA = "a".repeat(40);
@@ -272,26 +272,27 @@ describe("content", () => {
 describe("prefix", () => {
   const head: PrHead = { ...pr7, headSha: shaA };
   const rawUrl = `https://github.com/o/r/raw/${shaA}/src/my%20file.rs`;
-  const chunk = (byte: number) => new Uint8Array(2048).fill(byte);
-  const streamed = (stream: ReadableStream<Uint8Array>) =>
-    routedFetch({ [rawUrl]: async () => new Response(stream, { status: 206 }) });
+  const chunk = (byte: number) => new Uint8Array(PREFIX_BYTES / 2).fill(byte);
+  const streamed = (stream: ReadableStream<Uint8Array>, status = 206) =>
+    routedFetch({ [rawUrl]: async () => new Response(stream, { status }) });
 
-  it("requests the first 4096 bytes of the raw file at the head SHA", async () => {
+  it("requests the first PREFIX_BYTES bytes of the raw file at the head SHA", async () => {
     const fetchFn = routedFetch({
       [rawUrl]: async () => new Response("// @generated", { status: 206 }),
     });
     const s = signal();
+
     const result = await createPrDataSource(fetchFn).prefix(head, "src/my file.rs", s);
 
     expect(fetchFn).toHaveBeenCalledWith(rawUrl, {
       credentials: "include",
       signal: s,
-      headers: { Range: "bytes=0-4095" },
+      headers: { Range: `bytes=0-${PREFIX_BYTES - 1}` },
     });
     expect(result).toEqual({ ok: true, text: "// @generated" });
   });
 
-  it("stops reading a body that ignores Range once 4096 bytes arrive", async () => {
+  it("stops reading a body that ignores Range once PREFIX_BYTES bytes arrive", async () => {
     let pulls = 0;
     const stream = new ReadableStream<Uint8Array>(
       {
@@ -302,14 +303,48 @@ describe("prefix", () => {
       },
       { highWaterMark: 0 },
     );
-    const result = await createPrDataSource(streamed(stream)).prefix(
+
+    const result = await createPrDataSource(streamed(stream, 200)).prefix(
       head,
       "src/my file.rs",
       signal(),
     );
 
     expect(pulls).toBe(2);
-    expect(result).toEqual({ ok: true, text: "a".repeat(4096) });
+    expect(result).toEqual({ ok: true, text: "a".repeat(PREFIX_BYTES) });
+  });
+
+  it("cuts a single chunk larger than PREFIX_BYTES", async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(PREFIX_BYTES * 2).fill(97));
+        controller.close();
+      },
+    });
+
+    const result = await createPrDataSource(streamed(stream, 200)).prefix(
+      head,
+      "src/my file.rs",
+      signal(),
+    );
+
+    expect(result).toEqual({ ok: true, text: "a".repeat(PREFIX_BYTES) });
+  });
+
+  it.each([200, 206])("reads an empty %i body as an empty prefix", async (status) => {
+    const fetchFn = routedFetch({ [rawUrl]: async () => new Response("", { status }) });
+
+    const result = await createPrDataSource(fetchFn).prefix(head, "src/my file.rs", signal());
+
+    expect(result).toEqual({ ok: true, text: "" });
+  });
+
+  it("reads an unsatisfiable range as an empty prefix", async () => {
+    const fetchFn = routedFetch({ [rawUrl]: async () => new Response("", { status: 416 }) });
+
+    const result = await createPrDataSource(fetchFn).prefix(head, "src/my file.rs", signal());
+
+    expect(result).toEqual({ ok: true, text: "" });
   });
 
   it("keeps the text read before the body fails", async () => {

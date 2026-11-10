@@ -1362,6 +1362,7 @@ describe("readIntent on generated files", () => {
     );
 
     const result = await placementsOf(client);
+
     expect(result.placements).toEqual(new Map([["src/lib.rs", whole("generated")]]));
     expect(result.commentLines).toEqual(new Map());
   });

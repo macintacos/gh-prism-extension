@@ -61,31 +61,35 @@ interface PrCacheEntry {
 /**
  * `body` decoded until `bytes` bytes arrive or it ends, then cancelled; a server that ignores
  * `Range` sends the whole file. A gzip 206 can fail at its cut tail: the text decoded before the
- * failure stands, and a body that fails before any text, or has none, is `undefined`.
+ * failure stands, and a body that fails before any text is `undefined`.
  */
 async function readAtMost(
   body: ReadableStream<Uint8Array> | null,
   bytes: number,
 ): Promise<string | undefined> {
-  if (!body) return undefined;
+  if (!body) return "";
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let text = "";
   let received = 0;
+  let failed = false;
+
   try {
     while (received < bytes) {
       const { done, value } = await reader.read();
       if (done) break;
-      received += value.byteLength;
-      text += decoder.decode(value, { stream: true });
+      const take = value.subarray(0, bytes - received);
+      received += take.byteLength;
+      text += decoder.decode(take, { stream: true });
     }
   } catch {
-    // The text decoded so far stands.
+    failed = true;
   } finally {
     reader.cancel().catch(() => {});
   }
+
   text += decoder.decode();
-  return text === "" ? undefined : text;
+  return failed && text === "" ? undefined : text;
 }
 
 function problemFor(response: Response): PrDataProblem {
@@ -136,7 +140,8 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
     return entry;
   }
 
-  // Both endpoints redirect to a `?token=` URL: never log it or read the response's URL.
+  // The diff and raw endpoints redirect to a `?token=` URL, here and in `fetchPrefix`: never log
+  // it or read the response's URL.
   async function fetchText(url: string, signal: AbortSignal): Promise<PrFileContentResult> {
     try {
       const response = await fetchFn(url, { credentials: "include", signal });
@@ -155,8 +160,12 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
         signal,
         headers: { Range: `bytes=0-${PREFIX_BYTES - 1}` },
       });
+      // A range past an empty file's end is unsatisfiable.
+      if (response.status === 416) return { ok: true, text: "" };
       if (!response.ok) return { ok: false, problem: problemFor(response) };
+
       const text = await readAtMost(response.body, PREFIX_BYTES);
+      // readAtMost swallows the body's abort.
       if (signal.aborted) throw signal.reason;
       return text === undefined ? { ok: false, problem: "failed" } : { ok: true, text };
     } catch (error) {

@@ -1,3 +1,5 @@
+import { type PrFileDiff, parsePrHunks } from "../github/pr-diff";
+import { classify } from "../sections";
 import { commentSyntaxOf, FILE_START, isDirective, scanLine } from "./head-scan";
 
 /** One entry per generator: a line in a file's leading comment block that marks it generated. */
@@ -12,12 +14,13 @@ export type MarkerVerdict = "generated" | "not-generated" | "needs-content";
 
 /**
  * Whether `lines`, a file's first lines, carry a generator's marker in its leading comment block:
- * the comment and blank lines above its first line of code, Go build directives included.
- * A path with no comment syntax is `"not-generated"`.
+ * the comment and blank lines above its first line of code, Go build directives included, since
+ * Go's convention lets the marker follow them. A path with no comment syntax is `"not-generated"`.
  */
 export function markerVerdict(path: string, lines: readonly string[]): MarkerVerdict {
   const syntax = commentSyntaxOf(path);
   if (syntax === undefined) return "not-generated";
+
   let state = FILE_START;
   for (const line of lines) {
     const scanned = scanLine(syntax, state, line);
@@ -25,5 +28,28 @@ export function markerVerdict(path: string, lines: readonly string[]): MarkerVer
     if (GENERATED_MARKERS.some((marker) => marker.test(line.trimEnd()))) return "generated";
     state = scanned.state;
   }
+
   return "needs-content";
+}
+
+/**
+ * What the patch alone says of `file`'s marker: `"needs-content"` only when a read could tell.
+ * Only an Implementation file that is neither binary nor deleted can carry one.
+ */
+export function patchMarkerVerdict(file: PrFileDiff): MarkerVerdict {
+  if (file.kind === "binary" || file.status === "deleted") return "not-generated";
+  if (classify(file.path) !== "implementation") return "not-generated";
+
+  const [first] = parsePrHunks(file.patch);
+  const shown =
+    first?.newStart === 1
+      ? first.lines.filter((line) => !line.startsWith("-") && !line.startsWith("\\"))
+      : [];
+  const verdict = markerVerdict(
+    file.path,
+    shown.map((line) => line.slice(1)),
+  );
+
+  // An added file's patch is the whole file.
+  return verdict === "needs-content" && file.status === "added" ? "not-generated" : verdict;
 }

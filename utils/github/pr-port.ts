@@ -57,7 +57,7 @@ export interface PrDataPort {
  */
 export interface PrDataClient {
   /**
-   * The diff and the commit it ends on, which `fileContent` reads at. A PR whose page
+   * The diff and the commit it ends on, which `fileContent` and `filePrefix` read at. A PR whose page
    * names no head gets it from the same request as its diff, so the first `files` or `fileContent`
    * call fetches both.
    */
@@ -67,7 +67,10 @@ export interface PrDataClient {
    * `no-access`.
    */
   fileContent(path: string): Promise<PrFileContentResult>;
-  /** The file's first `PREFIX_BYTES` bytes at the head, under `fileContent`'s rules. */
+  /**
+   * At most the file's first `PREFIX_BYTES` bytes at the head, a cut last line included, under
+   * `fileContent`'s rules.
+   */
   filePrefix(path: string): Promise<PrFileContentResult>;
   close(): void;
 }

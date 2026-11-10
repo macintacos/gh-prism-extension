@@ -52,18 +52,24 @@ Comments, Config, and Generated / lockfiles. _Avoid_: category, group, bucket
 **Path section**: The section a file's path alone puts it in. _Avoid_: default section
 
 **Rule section**: A section a rule can claim whatever the path says: Docs & Comments,
-Tests, or Generated, which a rule claims only whole.
+Tests, or Generated, which only the generated rule claims, and only whole.
 
 ### Placing files
 
 **Hunk**: One block of a diff: changed lines plus a few unchanged lines around them.
 
 **Head**: A changed file's contents at the diff head, read when a hunk rule needs more
-than the patch.
+than the patch, or in part to look for a generator's marker.
+
+**Prefix**: The first few KiB of a changed file's head, read when only a generator's
+marker is in question.
 
 **Hunk rule**: A rule that claims hunks for a rule section by what they change, not where
 the file lives, except that the docstring rule moves an Implementation file only whole.
 There are two: the docstring rule and the inline-test rule. _Avoid_: classifier, detector
+
+**Generated rule**: The rule that claims a file whole for Generated when GitHub flags it
+generated or a generator's marker heads its leading comment block. _Avoid_: detector
 
 **Docstring-only change**: A hunk that changes only comments or docstrings. The docstring
 rule claims it for Docs & Comments. In an Implementation file it claims the file whole,
@@ -81,8 +87,8 @@ comment-lines sub-section.
 each Implementation file with comment lines, counted by them. Its files don't count toward
 Docs & Comments' own file count. _Avoid_: comment-lines item, phantom item, phantom row
 
-**Intent**: Where the hunk rules place a diff's files, once read. A file it doesn't
-mention keeps its path section. _Avoid_: classification
+**Intent**: Where the hunk rules and the generated rule place a diff's files, once read. A
+file it doesn't mention keeps its path section. _Avoid_: classification
 
 **Pending intent**: Intent still being read, with its progress so far.
 
