@@ -448,10 +448,11 @@ const mixedAndTestsHead = lines(
 
 const headSha = "c".repeat(40);
 
-function fakeClient(files: PrFilesResult, content: PrFileContentResult) {
+function fakeClient(files: PrFilesResult, content: PrFileContentResult, prefix = content) {
   return {
     files: vi.fn(async () => (files.ok ? { ...files, headSha } : files)),
     fileContent: vi.fn(async (_path: string) => content),
+    filePrefix: vi.fn(async (_path: string) => prefix),
     close: vi.fn(),
   };
 }

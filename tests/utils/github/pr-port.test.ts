@@ -111,6 +111,18 @@ describe("openPrData", () => {
     ]);
   });
 
+  it("reads a file's prefix at the head through the source's prefix", async () => {
+    const fetchFn = routedFetch(okRoutes());
+    const client = openPrData(harness(fetchFn).connect, pr, sha);
+
+    expect(await client.filePrefix("src/engine.rs")).toEqual({ ok: true, text: "fn main() {}" });
+    expect(fetchFn).toHaveBeenCalledWith(`${base}/raw/${sha}/src/engine.rs`, {
+      credentials: "include",
+      signal: expect.any(AbortSignal),
+      headers: { Range: "bytes=0-4095" },
+    });
+  });
+
   it("reads a commit by an abbreviated SHA", async () => {
     const fetchFn = routedFetch({
       [`${base}/commit/abcdef1.diff`]: async () => new Response(diff),
@@ -281,6 +293,7 @@ describe("openPrData", () => {
         throw new Error("bug");
       }),
       content: vi.fn(),
+      prefix: vi.fn(),
     };
 
     const connect = () => {
@@ -413,6 +426,7 @@ describe("servePrDataPort", () => {
     ],
     ["a .. path segment", { id: 1, request: { kind: "content", pr: head, path: "../x" } }],
     ["an empty path segment", { id: 1, request: { kind: "content", pr: head, path: "a//b" } }],
+    ["a .. prefix path segment", { id: 1, request: { kind: "prefix", pr: head, path: "../x" } }],
     [
       "a headAndFiles of a commit",
       {
