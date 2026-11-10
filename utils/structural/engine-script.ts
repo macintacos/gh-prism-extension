@@ -1,7 +1,8 @@
+// Background side: import the engine and runner only as types; a value import bundles them into background.js.
 import { browser } from "wxt/browser";
 import type { EngineRun } from "./request";
 
-/** The engine script's path in the built extension. Keep in sync with entrypoints/structural-engine.ts's file name. */
+/** The engine script's path in the built extension; `getURL`'s `PublicPath` type checks it. */
 export const ENGINE_SCRIPT = "/structural-engine.js";
 
 /** The global the engine script assigns its `EngineRun` to. */
@@ -23,7 +24,13 @@ const engineUrl = () => browser.runtime.getURL(ENGINE_SCRIPT);
 export function precacheEngineScript(): void {
   if (import.meta.env.BROWSER === "firefox") return;
   // Chrome refuses importScripts of a script the worker did not import while installing.
-  worker().addEventListener("install", () => worker().importScripts(engineUrl()));
+  worker().addEventListener("install", () => {
+    try {
+      worker().importScripts(engineUrl());
+    } catch (error) {
+      console.warn("gh-prism: couldn't precache the structural engine script", error);
+    }
+  });
 }
 
 /** Loads the engine script if this background has not yet, and returns its `EngineRun`. */
@@ -57,9 +64,10 @@ function appendScript(url: string): Promise<void> {
     const script = document.createElement("script");
     script.src = url;
     script.addEventListener("load", () => resolve());
-    script.addEventListener("error", () =>
-      reject(new Error("gh-prism: the engine script failed to load")),
-    );
+    script.addEventListener("error", () => {
+      script.remove();
+      reject(new Error("gh-prism: the engine script failed to load"));
+    });
     document.head.append(script);
   });
 }

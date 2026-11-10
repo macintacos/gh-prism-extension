@@ -1,6 +1,6 @@
 /**
  * Benches the structural host in the built extension: whether the engine loads lazily, a cold and a
- * warm run on a 1,249-line TypeScript file, a second grammar, a dropped job, and how long a PR data
+ * warm run on a long TypeScript file, a second grammar, a dropped job, and how long a PR data
  * port message waits while a run is in flight. Kept out of CI, Vitest and Playwright like the rest
  * of `bench/`.
  *
@@ -28,6 +28,7 @@ import { withExtension } from "playwright-webextext";
 import { type ChangedRegion, DEFAULT_LIMITS } from "../utils/structural/engine";
 import { grammarOf } from "../utils/structural/grammar";
 import type { StructuralRequest } from "../utils/structural/request";
+import type { BenchMessage, BenchReply, RunResult } from "./structural-host/serve";
 
 const browserName = process.argv[2];
 if (browserName !== "chromium" && browserName !== "firefox") {
@@ -36,6 +37,8 @@ if (browserName !== "chromium" && browserName !== "firefox") {
 }
 
 const ROOT = join(import.meta.dirname, "..");
+// Keep in sync with serve.ts's BENCH_PORT and pr-port.ts's PR_DATA_PORT; both modules import
+// wxt/browser, which cannot load outside the extension.
 const BENCH_PORT = "gh-prism:bench";
 const PR_DATA_PORT = "gh-prism:pr-data";
 const MAX_WARM_PING_MS = 100;
@@ -146,17 +149,16 @@ const PAGE_HELPER = () => {
 };
 
 interface Reply {
-  readonly fromBg: { id: number; result: unknown } | null;
+  readonly fromBg: BenchReply | null;
   readonly ms: number;
 }
-interface RunResult {
-  readonly ok: boolean;
-  readonly reason?: string;
-  readonly start: number;
-  readonly end: number;
-}
-type Message = { op: string; request?: StructuralRequest } | "ping";
+type Message = DistributiveOmit<BenchMessage, "id"> | "ping";
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
+/**
+ * Sends each message after its delay, at once, and resolves with every reply in order. Throws when
+ * the background dropped the port without replying (`fromBg` null) or answered with an error.
+ */
 async function sendAll(
   page: Page,
   list: { message: Message; delayMs?: number }[],
@@ -169,12 +171,18 @@ async function sendAll(
         : { portName: BENCH_PORT, toBg: { id: 1, ...message }, delayMs },
     ),
   )) as Reply[];
-  for (const reply of replies) if (!reply.fromBg) throw new Error("the background sent no reply");
+  for (const { fromBg } of replies) {
+    if (!fromBg) throw new Error("the background sent no reply");
+    if ("error" in fromBg) throw new Error(`the background failed: ${fromBg.error}`);
+  }
   return replies;
 }
 
+const resultOf = (reply: Reply | undefined) =>
+  reply?.fromBg && "result" in reply.fromBg ? reply.fromBg.result : undefined;
+
 const send = async <T>(page: Page, message: Message) =>
-  (await sendAll(page, [{ message }]))[0]?.fromBg?.result as T;
+  resultOf((await sendAll(page, [{ message }]))[0]) as T;
 
 const median = (values: readonly number[]) => {
   const sorted = values.toSorted((a, b) => a - b);
@@ -223,7 +231,7 @@ async function runWithPing(page: Page, request: StructuralRequest, delayMs: numb
     { message: { op: "run", request } },
     { message: "ping", delayMs },
   ]);
-  const result = run?.fromBg?.result as RunResult;
+  const result = resultOf(run) as RunResult;
   const { handled } = await send<{ handled: number[] }>(page, { op: "pings" });
   return {
     ok: result.ok,
@@ -235,6 +243,11 @@ async function runWithPing(page: Page, request: StructuralRequest, delayMs: numb
   };
 }
 
+/**
+ * Runs the phases in order: a stopped background's load state, a cold run, a second grammar, idle
+ * pings, warm-up then 20 warm runs with a ping each, a dropped job, and 12 large-file runs. Returns
+ * the pass criteria with the samples behind them.
+ */
 async function measure(page: Page) {
   const reference = editedRequest(
     "entrypoints/content/files-page.ts",
@@ -260,8 +273,10 @@ async function measure(page: Page) {
     warmUp.push(await send<RunResult>(page, { op: "run", request: reference }));
   const warmRunMs = median(warmUp.map(runMs));
   const warm = [];
-  for (let i = 0; i < 20; i++)
-    warm.push(await runWithPing(page, reference, Math.random() * warmRunMs));
+  for (let i = 0; i < 20; i++) {
+    const last: number = warm.at(-1)?.runMs ?? warmRunMs;
+    warm.push(await runWithPing(page, reference, Math.random() * last));
+  }
 
   const dropped = await send<{ firstOk: boolean; secondRejected: boolean }>(page, {
     op: "dropped",
@@ -275,13 +290,15 @@ async function measure(page: Page) {
   }
 
   const maxWarmPingMs = Math.max(...warm.map((w) => w.pingMs));
+  const warmPingsDuringRun = warm.filter((w) => w.pingDuringRun).length;
   const criteria = {
     lazy: !lazy.loaded,
     cold: cold.ok,
     secondGrammar: secondGrammar.ok,
     dropped: dropped.firstOk && dropped.secondRejected,
     warmOk: warm.every((w) => w.ok),
-    warmPingWithin100Ms: maxWarmPingMs <= MAX_WARM_PING_MS,
+    warmPingWithinBound: maxWarmPingMs <= MAX_WARM_PING_MS,
+    warmPingsDuringRun: warmPingsDuringRun >= warm.length / 2,
   };
   return {
     browser: browserName,
@@ -299,7 +316,7 @@ async function measure(page: Page) {
     warm: {
       medianWarmUpRunMs: warmRunMs,
       maxPingMs: maxWarmPingMs,
-      pingsDuringRun: warm.filter((w) => w.pingDuringRun).length,
+      pingsDuringRun: warmPingsDuringRun,
       runs: warm,
     },
     dropped,

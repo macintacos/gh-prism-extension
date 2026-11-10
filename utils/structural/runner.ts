@@ -1,26 +1,19 @@
+// Engine-script side: imports web-tree-sitter, so only entrypoints/structural-engine.ts may import this module.
 import { Language, Parser } from "web-tree-sitter";
 import { type LoadedGrammar, structuralChanges } from "./engine";
-import type { Grammar, GrammarId } from "./grammar";
+import type { GrammarId } from "./grammar";
 import { GRAMMAR_WASM, RUNTIME_WASM } from "./packaged";
 import type { EngineRun } from "./request";
+import { retriedOnFailure } from "./retried";
 
+/** What the runner needs from the script it runs in. */
 export interface RunnerDeps {
   /** The URL of a packaged file, by its name in `packaged.ts`. WebAssembly is compiled from nowhere else. */
   readonly urlOf: (file: string) => string;
+  /** A millisecond clock, as `EngineInput.now`. */
   readonly now: () => number;
+  /** A macrotask, not a resolved promise, as `EngineInput.pause`. */
   readonly pause: () => Promise<void>;
-}
-
-/** Memoises `load`'s promise, forgetting it on rejection so the next call retries. */
-function retriedOnFailure<T>(load: () => Promise<T>): () => Promise<T> {
-  let pending: Promise<T> | undefined;
-  return () => {
-    pending ??= load().catch((error: unknown) => {
-      pending = undefined;
-      throw error;
-    });
-    return pending;
-  };
 }
 
 /** An `EngineRun` that loads web-tree-sitter's runtime and each grammar on first use. */
@@ -40,20 +33,17 @@ export function engineRunner(deps: RunnerDeps): EngineRun {
     }
     return load();
   };
-  /** `null` when the runtime or the grammar failed to load. */
-  const languageOf = async (grammar: Grammar): Promise<LoadedGrammar | null> => {
-    try {
-      return { grammar, parser: await parserFor(grammar.id) };
-    } catch {
-      return null;
-    }
-  };
 
   return async ({ oldText, newText, grammar, regions, limits }, signal) => {
-    if (signal.aborted) throw signal.reason;
+    signal.throwIfAborted();
 
-    const language = grammar && (await languageOf(grammar));
-    if (language === null) return { ok: false, reason: "failed" };
+    let language: LoadedGrammar | undefined;
+    try {
+      language = grammar && { grammar, parser: await parserFor(grammar.id) };
+    } catch (error) {
+      console.warn(`gh-prism: couldn't load the ${grammar?.id} grammar`, error);
+      return { ok: false, reason: "failed" };
+    }
 
     return structuralChanges({
       oldText,

@@ -22,11 +22,14 @@ describe("background", () => {
   let updateSessionRules: MockInstance;
   let onConnect: MockInstance;
   const addEventListener = vi.fn();
+  const importScripts = vi.fn();
 
   beforeEach(() => {
     fakeBrowser.reset();
     addEventListener.mockClear();
+    importScripts.mockClear();
     vi.stubGlobal("addEventListener", addEventListener);
+    vi.stubGlobal("importScripts", importScripts);
     // fakeBrowser leaves runtime.getManifest unmocked.
     vi.spyOn(fakeBrowser.runtime, "getManifest").mockReturnValue({
       manifest_version: 3,
@@ -66,7 +69,7 @@ describe("background", () => {
   });
 
   it("loads no structural engine and serves ports through one listener", () => {
-    expect((globalThis as Record<string, unknown>).__ghPrismStructural).toBeUndefined();
+    expect(importScripts).not.toHaveBeenCalled();
     expect(onConnect).toHaveBeenCalledOnce();
   });
 

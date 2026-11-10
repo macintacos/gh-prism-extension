@@ -81,7 +81,7 @@ describe("structuralHost", () => {
     const run = vi.fn(async (request: StructuralRequest) =>
       request.oldText === "1" ? first.promise : RESULT,
     );
-    const { host, loadEngine } = setup(run);
+    const { host, loadEngine, pause } = setup(run);
     const aborts = new AbortController();
 
     const one = host({ ...REQUEST, oldText: "1" }, new AbortController().signal);
@@ -95,6 +95,7 @@ describe("structuralHost", () => {
     await one;
     expect(run.mock.calls.map(([request]) => request.oldText)).toEqual(["1", "3"]);
     expect(loadEngine).toHaveBeenCalledOnce();
+    expect(pause).toHaveBeenCalledTimes(2);
   });
 
   it("does not load the engine for a request aborted before its turn", async () => {
@@ -109,13 +110,17 @@ describe("structuralHost", () => {
   });
 
   it("refuses with failed when the engine does not load, and retries the load next time", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const { host, loadEngine, run } = setup();
-    loadEngine.mockRejectedValueOnce(new Error("no wasm"));
+    const error = new Error("no wasm");
+    loadEngine.mockRejectedValueOnce(error);
 
     await expect(host(REQUEST, new AbortController().signal)).resolves.toEqual({
       ok: false,
       reason: "failed",
     });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("gh-prism:"), error);
+    warn.mockRestore();
     await expect(host(REQUEST, new AbortController().signal)).resolves.toBe(RESULT);
     expect(loadEngine).toHaveBeenCalledTimes(2);
     expect(run).toHaveBeenCalledOnce();

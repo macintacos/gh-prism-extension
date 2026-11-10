@@ -69,6 +69,7 @@ describe("engineRunner", () => {
   });
 
   it("fails a request whose WebAssembly does not load, and retries it on the next", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const urlOf = vi.fn(() => "/nonexistent/gh-prism.wasm");
     const run = runnerWith(urlOf);
 
@@ -79,6 +80,8 @@ describe("engineRunner", () => {
     expect(first).toEqual({ ok: false, reason: "failed" });
     expect(second).toEqual({ ok: false, reason: "failed" });
     expect(urlOf.mock.calls.length).toBeGreaterThan(calls);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("typescript"), expect.anything());
+    warn.mockRestore();
   });
 
   it("rejects with the reason of an aborted signal", async () => {

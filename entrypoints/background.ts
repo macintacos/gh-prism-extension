@@ -17,6 +17,7 @@ import { dismissWhatsNew } from "../utils/whats-new";
  */
 export default defineBackground(() => {
   precacheEngineScript();
+
   // Intents clear on installs, updates, and dev reloads alike: a new build may place files
   // differently. Only a fresh install marks the notes, so an update still shows them.
   browser.runtime.onInstalled.addListener(({ reason }) => {

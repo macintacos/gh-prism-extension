@@ -120,7 +120,10 @@ the built extension: that the engine loads only on first use, a cold and a warm 
 how long a PR data port message waits while a run is in flight. It builds a scratch copy
 of the working tree with a test-only background addition and a relay content script,
 prints one JSON object, and exits 1 when a check fails. Like the rest of `bench/`, it
-stays out of CI.
+stays out of CI. `bench/structural-host/results/*.json` hold one run per browser, written
+by `bun bench/structural-host.ts chromium > bench/structural-host/results/chromium.json`
+(and likewise for `firefox`); they are a dated record, not a baseline anything compares
+against.
 
 ## Sandbox repositories
 

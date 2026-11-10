@@ -35,6 +35,25 @@ describe("precacheEngineScript", () => {
     expect(importScripts).toHaveBeenCalledWith(expect.stringMatching(`${ENGINE_SCRIPT}$`));
   });
 
+  it("warns instead of throwing when the install-time import fails", () => {
+    const addEventListener = vi.fn();
+    const error = new Error("blocked");
+    vi.stubGlobal("addEventListener", addEventListener);
+    vi.stubGlobal(
+      "importScripts",
+      vi.fn(() => {
+        throw error;
+      }),
+    );
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    precacheEngineScript();
+    const [, listener] = addEventListener.mock.calls[0] ?? [];
+
+    expect(() => listener()).not.toThrow();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("gh-prism:"), error);
+  });
+
   it("registers nothing in Firefox", () => {
     vi.stubEnv("BROWSER", "firefox");
     const addEventListener = vi.fn();
@@ -81,11 +100,24 @@ describe("loadEngineScript", () => {
     expect(append).toHaveBeenCalledOnce();
     const [script] = append.mock.calls[0] ?? [];
     expect(script).toBeInstanceOf(HTMLScriptElement);
-    expect((script as HTMLScriptElement).src).toMatch(/structural-engine\.js$/);
+    expect((script as HTMLScriptElement).src.endsWith(ENGINE_SCRIPT)).toBe(true);
     global[ENGINE_GLOBAL] = entry;
     (script as HTMLScriptElement).dispatchEvent(new Event("load"));
 
     await expect(loaded).resolves.toBe(entry);
+  });
+
+  it("removes a Firefox script that fails to load", async () => {
+    vi.stubEnv("BROWSER", "firefox");
+    const append = vi.spyOn(document.head, "append").mockImplementation(() => {});
+
+    const loaded = loadEngineScript();
+    const [script] = append.mock.calls[0] ?? [];
+    const remove = vi.spyOn(script as HTMLScriptElement, "remove");
+    (script as HTMLScriptElement).dispatchEvent(new Event("error"));
+
+    await expect(loaded).rejects.toThrow("failed to load");
+    expect(remove).toHaveBeenCalledOnce();
   });
 });
 

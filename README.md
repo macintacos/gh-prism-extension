@@ -297,7 +297,7 @@ how gh-prism works.
 
 ## License
 
-gh-prism is released under the [MIT License](LICENSE). Its structural diff mode bundles
-third-party software under its own licences, listed in
+gh-prism is released under the [MIT License](LICENSE). The extension bundles third-party
+software for structural diffing under its own licences, listed in
 [`public/third-party-notices.txt`](public/third-party-notices.txt), which ships in the
 extension.

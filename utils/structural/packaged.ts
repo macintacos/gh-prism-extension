@@ -3,8 +3,10 @@ import type { GrammarId } from "./grammar";
 /** The directory in the built extension that holds the engine's WebAssembly. */
 export const WASM_DIR = "structural";
 
+/** web-tree-sitter's runtime. */
 export const RUNTIME_WASM = "web-tree-sitter.wasm";
 
+/** Each grammar's packaged `.wasm`. */
 export const GRAMMAR_WASM: Readonly<Record<GrammarId, string>> = {
   typescript: "tree-sitter-typescript.wasm",
   tsx: "tree-sitter-tsx.wasm",

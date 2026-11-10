@@ -36,17 +36,21 @@ The structural diff engine is a separate script,
 background loads only when structural mode first asks for a diff
 ([`utils/structural/engine-script.ts`](../utils/structural/engine-script.ts)). It is
 separate because the background builds as one file, so bundling the engine into it would
-parse the engine at every start. Firefox's background page appends it as a script element;
-Chrome's service worker loads it with `importScripts`, which Chrome allows only for a
-script the worker imported while installing, so the worker imports it once then.
+parse the engine at every start. So only the engine script may import `runner.ts`, and
+modules the background reaches import the engine and the runner as types only, which
+[`tests/utils/structural/bundle-boundary.test.ts`](../tests/utils/structural/bundle-boundary.test.ts)
+checks. Firefox's background page appends it as a script element; Chrome's service worker
+loads it with `importScripts`, which Chrome allows only for a script the worker imported
+while installing, so the worker imports it once then.
 [`utils/structural/runner.ts`](../utils/structural/runner.ts) compiles the tree-sitter
 runtime and each grammar on first use, only from the packaged `structural/*.wasm` files,
 which is why the manifest's `extension_pages` policy carries `'wasm-unsafe-eval'`.
 [`utils/structural/host.ts`](../utils/structural/host.ts) runs one request at a time and
 yields before each, so intent reads queued on the port are answered first, and drops a
-queued request whose port closed. Nothing is evicted or persisted: the background's idle
-shutdown discards the engine and its grammars, and the next request rebuilds them. Nothing
-calls the host until the PR data port gains a structural request kind.
+queued request whose port closed. Each browser's yield was chosen by measurement, and
+[`bench/structural-host.ts`](../bench/structural-host.ts) checks it. Nothing is evicted or
+persisted: the background's idle shutdown discards the engine and its grammars, and the
+next request rebuilds them. Nothing in the shipped build calls the host yet.
 
 The content script in [`entrypoints/content/index.ts`](../entrypoints/content/index.ts)
 runs on every github.com page at `document_start`, so its watcher is in place before

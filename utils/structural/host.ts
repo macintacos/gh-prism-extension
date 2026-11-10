@@ -1,6 +1,8 @@
-import type { EngineResult } from "./engine";
+// Background side: import the engine and runner only as types; a value import bundles them into background.js.
 import type { EngineRun } from "./request";
+import { retriedOnFailure } from "./retried";
 
+/** What the host needs from the background it runs in. */
 export interface HostDeps {
   /** Loads the engine on first use. A rejection is retried by the next request. */
   readonly loadEngine: () => Promise<EngineRun>;
@@ -15,24 +17,19 @@ export interface HostDeps {
  */
 export function structuralHost(deps: HostDeps): EngineRun {
   let previous: Promise<unknown> = Promise.resolve();
-  let engine: Promise<EngineRun> | undefined;
+  const load = retriedOnFailure(deps.loadEngine);
 
-  const load = () => {
-    engine ??= deps.loadEngine().catch((error: unknown) => {
-      engine = undefined;
-      throw error;
-    });
-    return engine;
-  };
   const runOne: EngineRun = async (request, signal) => {
+    signal.throwIfAborted();
     await deps.pause();
     signal.throwIfAborted();
 
     let run: EngineRun;
     try {
       run = await load();
-    } catch {
-      return { ok: false, reason: "failed" } satisfies EngineResult;
+    } catch (error) {
+      console.warn("gh-prism: couldn't load the structural engine", error);
+      return { ok: false, reason: "failed" };
     }
     return run(request, signal);
   };
