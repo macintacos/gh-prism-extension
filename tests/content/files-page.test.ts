@@ -997,6 +997,9 @@ describe("the pull request kind", () => {
     expect(gear?.tagName).toBe("BUTTON");
     expect(gear?.getAttribute("aria-haspopup")).toBe("true");
     expect(findFilesToolbar(foundPage())?.contains(gear ?? null)).toBe(true);
+    expect(document.getElementById(gear?.getAttribute("aria-labelledby") ?? "")?.textContent).toBe(
+      "Diff settings",
+    );
   });
 
   it("findLayoutGear reads undefined while the toolbar has no gear", () => {
@@ -1169,6 +1172,9 @@ describe("the commit kind", () => {
     byId("diff_file_tree").append(gear.cloneNode(true));
 
     expect(findLayoutGear(foundPage())).toBe(gear);
+    expect(document.getElementById(gear.getAttribute("aria-labelledby") ?? "")?.textContent).toBe(
+      "Open diff view settings",
+    );
   });
 
   it("finds the toolbar's tree toggle, not the copy inside the sidebar", () => {

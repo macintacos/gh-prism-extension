@@ -995,12 +995,13 @@ export interface ChangedCell {
 const CHANGED_CODE =
   "td.diff-text-cell > code.diff-text.addition, td.diff-text-cell > code.diff-text.deletion";
 
+// The side letter and line number ending a line anchor.
 const ANCHOR_END = /([LR])(\d+)$/;
 
 /**
  * The changed code cells under `root`, in document order. Hold none across an `observeDiffs`
- * report: GitHub replaces a file's table on context expansion, collapse, Load Diff, and a layout
- * switch.
+ * report: GitHub replaces a file's table, or the rows inside it, on context expansion, collapse,
+ * Load Diff, and a layout switch.
  */
 export function changedCells(root: ParentNode): ChangedCell[] {
   return [...root.querySelectorAll(CHANGED_CODE)].flatMap((code) => {
@@ -1018,14 +1019,21 @@ export type DiffLayout = "unified" | "split";
 
 /**
  * The layout the mounted diffs under `diffs` are drawn in, never read from `?diff=`. It is
- * `undefined` while no diff table is mounted. A pull request draws a file that is all additions or
- * all deletions unified even in Split, so a page holding only such files reads `"unified"`.
+ * `undefined` while no diff table is mounted. `diffs` must be an ancestor of the tables: a region
+ * works, a table does not. A pull request draws a file that is all additions or all deletions
+ * unified even in Split, so it reads `"unified"` under Split while every mounted table is such a
+ * file.
  */
 export function currentLayout(diffs: ParentNode): DiffLayout | undefined {
   const tables = [...diffs.querySelectorAll("table[data-diff-anchor]")];
-  // ponytail: column count can't see Split on a pull request of only one-sided files; read the open
-  // menu's aria-checked, or ?diff= when present, if a caller needs the saved setting.
-  if (tables.some((table) => table.querySelector("colgroup")?.childElementCount === 4)) {
+  const SPLIT_COLUMNS = 4; // Unified draws 3.
+  // ponytail: column count can't see Split while every mounted table is a pull request's
+  // one-sided file; the open menu's aria-checked can.
+  if (
+    tables.some(
+      (table) => table.querySelector(":scope > colgroup")?.childElementCount === SPLIT_COLUMNS,
+    )
+  ) {
     return "split";
   }
   return tables.length ? "unified" : undefined;
@@ -1034,7 +1042,8 @@ export function currentLayout(diffs: ParentNode): DiffLayout | undefined {
 /**
  * Calls `onChange` with the layout of the diffs under `diffs` at the start, when one is mounted,
  * then 50 ms after each change to a different layout, until `signal` aborts. Never reports
- * `undefined`: diffs unmounting keep the last layout.
+ * `undefined`: diffs unmounting keep the last layout. A report can follow files mounting or
+ * unmounting, not only a Layout choice.
  */
 export function followLayout(
   diffs: Element,

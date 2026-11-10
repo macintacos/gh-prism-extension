@@ -27,6 +27,7 @@ type Fixture = {
 
 const PR_EXPECTED = ["new 20", "new 21", "new 22", "new 23"];
 const RENAME_EXPECTED = ["old 14", "new 14"];
+const COMMIT_EXPECTED = ["old 137", "new 137"];
 
 const FIXTURES: Fixture[] = [
   { name: "files-page-diff-unified", html: prUnified, layout: "unified", expected: PR_EXPECTED },
@@ -36,13 +37,13 @@ const FIXTURES: Fixture[] = [
     name: "commit-page-diff-unified",
     html: commitUnified,
     layout: "unified",
-    expected: ["old 137", "new 137"],
+    expected: COMMIT_EXPECTED,
   },
   {
     name: "commit-page-diff-split",
     html: commitSplit,
     layout: "split",
-    expected: ["old 137", "new 137"],
+    expected: COMMIT_EXPECTED,
   },
   {
     name: "commit-page-diff-whitespace",
@@ -226,8 +227,11 @@ describe.each([
     expect(cell?.textRoot.textContent).not.toContain("Comment on line");
   });
 
-  it("carries an expanded-context row", () => {
+  it("yields no cell from its expanded-context rows", () => {
+    document.body.innerHTML = html;
+
     expect(html.includes(EXPANDED_ANCHOR)).toBe(true);
+    expect(changedCells(document).filter(({ line }) => line >= 1 && line <= 15)).toEqual([]);
   });
 });
 

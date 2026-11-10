@@ -270,11 +270,12 @@ on a private one.
   request, context cells anchor as `R<n>`, the left cell of a split row included. On a
   commit, a split row's left context cell anchors as `L<n>`.
 - **Read a cell's side from `data-diff-side` on a pull request, and from the anchor suffix
-  on a commit.** A pull request's context cells anchor as `R<n>` on both sides, so the
-  suffix misleads there. Pull request cells carry `data-diff-side="left|right"`,
-  `data-line-number`, and `data-diff-line-key="b:<n>-l:<old>-r:<new>"`; commit cells carry
-  none of the three. A commit's text cells also carry `left-side-diff-cell` or
-  `right-side-diff-cell` in both layouts, so those classes say nothing about the layout.
+  on a commit; a changed cell's suffix is right on both.** A pull request's context cells
+  anchor as `R<n>` on both sides, so the suffix misleads there. Pull request cells carry
+  `data-diff-side="left|right"`, `data-line-number`, and
+  `data-diff-line-key="b:<n>-l:<old>-r:<new>"`; commit cells carry none of the three. A
+  commit's text cells also carry `left-side-diff-cell` or `right-side-diff-cell` in both
+  layouts, so those classes say nothing about the layout.
 - **Expect a pull request hunk header to anchor as `R<first line − 1>`.** The anchor sits
   on the `td.diff-hunk-cell`: `@@ -11,5 +11,5 @@` anchors as `…R10`, and only a hunk
   starting at line 1, or context expanded to the top, gives `R0`. That anchor passes
@@ -300,10 +301,11 @@ on a private one.
   `td.diff-text-cell`, and its other side holds `td.empty-diff-line` cells. A pull
   request's unified cells carry `left-side` alone, whatever their side, so don't read the
   side from a class there.
-- **`changedCells` in `files-page.ts` collects changed cells this way,** reading side and
-  line from the anchor suffix. That is safe only because it yields changed cells, never
-  the context cells or hunk headers whose suffix misleads. A caller collects again on each
-  `observeDiffs` report rather than holding cells, since tables are replaced.
+- **Collect changed cells with `changedCells` in `files-page.ts`, and collect again on
+  each `observeDiffs` report.** It finds them as the bullets above describe and reads the
+  old or new side and the line from the anchor suffix, which is safe only because it
+  yields changed cells, never the context cells or hunk headers whose suffix misleads.
+  Don't hold cells across a report, since tables or their rows are replaced.
 - **Find a renamed file's region by the hash of its new path:**
   [`macintacos/gh-prism-sandbox` PR #3](https://github.com/macintacos/gh-prism-sandbox/pull/3/changes)'s
   `src/util.rs` renamed to `src/helpers.rs` is `#diff-c2a0fff5…`. Region ids and their
@@ -374,8 +376,9 @@ on a private one.
 
 ## Diff layout
 
-- **Find the layout gear by its accessible name, which differs by page.** On a pull
-  request it is `getByRole('button', { name: 'Diff settings' })`. On a commit it is
+- **In a live check, find the layout gear by its accessible name, which differs by page.**
+  In code, use `findLayoutGear`. On a pull request it is
+  `getByRole('button', { name: 'Diff settings' })`. On a commit it is
   `getByRole('button', { name: 'Open diff view settings' })`, scoped to
   `#diff-content-parent`: the sidebar's `d-md-none` copy of the toolbar row can carry a
   second match. At 1280px and 700px wide, the role query matched one visible button,
@@ -386,13 +389,14 @@ on a private one.
   (`section.stickyHeader__…`), not in a file header and not in the `file-controls__`
   container `VIEWED_COUNTER` in `files-page.ts` reads. A commit's gear sits in the row
   above its file list.
-- **Read the layout from the `menuitemradio` items' `aria-checked`.** The menu mounts
-  under `#__primerPortalRoot__`. Its Layout group holds `menuitemradio` Unified and Split.
-  A pull request then has a Whitespace changes `menuitem` that opens a submenu of
-  `menuitemradio` Always show, Always hide, and Hide for this diff only, then
-  `menuitemcheckbox` Minimize comments and Compact line height. A commit has no Whitespace
-  changes group; its checkboxes are Minimize comments, Hide whitespace, and Compact line
-  height. Observed in Chromium 157 and Firefox 157 on 2026-11-10.
+- **Expect the menu's Layout group to hold `menuitemradio` Unified and Split.** Don't read
+  the layout from it in code: the menu exists only while open; `currentLayout` reads the
+  tables' columns. The menu mounts under `#__primerPortalRoot__`. A pull request then has
+  a Whitespace changes `menuitem` that opens a submenu of `menuitemradio` Always show,
+  Always hide, and Hide for this diff only, then `menuitemcheckbox` Minimize comments and
+  Compact line height. A commit has no Whitespace changes group; its checkboxes are
+  Minimize comments, Hide whitespace, and Compact line height. Observed in Chromium 157
+  and Firefox 157 on 2026-11-10.
 - **Expect a commit's Hide whitespace to follow `?w=1`:** its `aria-checked` is `false` on
   a plain load and `true` on a `?w=1` load. Observed in Chromium 157 and Firefox 157 on
   2026-11-10.
@@ -416,12 +420,18 @@ on a private one.
   split,** on both page kinds. `currentLayout` and `followLayout` in `files-page.ts` read
   it this way. Exception: a pull request draws a file that is all additions or all
   deletions with 3 columns even in split, saved or from `?diff=split`; a commit's
-  one-sided file follows the layout. The hunk cell's `colspan` is 4 in both layouts, so it
-  doesn't tell the layout either. Observed in Chromium 157 and Firefox 157 on 2026-11-10,
-  on [sandbox PR #3](https://github.com/macintacos/gh-prism-sandbox/pull/3/changes),
+  one-sided file follows the layout. So `currentLayout` reads `"unified"` under Split
+  while every mounted table is such a file, and a `followLayout` report can follow files
+  mounting or unmounting, not only a Layout choice. The hunk cell's `colspan` is 4 in both
+  layouts, so it doesn't tell the layout either. The 3 and 4 column counts were observed
+  in Chromium 157 and Firefox 157 on 2026-11-10, on
+  [sandbox PR #3](https://github.com/macintacos/gh-prism-sandbox/pull/3/changes),
   [sandbox commit `8d807ee`](https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee),
   and the added file of
-  [sandbox PR #9](https://github.com/macintacos/gh-prism-sandbox/pull/9/changes).
+  [sandbox PR #9](https://github.com/macintacos/gh-prism-sandbox/pull/9/changes) under
+  `?diff=split`. The hunk cell's `colspan`, the all-deletions half of the exception
+  (cli/cli PR #14872 and `b564a77225`), and saved Split for the exception were read in
+  Chromium 157 only (Firefox unchecked).
 - **Expect a Layout choice to switch in place.** It doesn't navigate or reload: each
   `table` element stays connected while its rows and `colgroup` are replaced within about
   40 ms. `location` gains `?diff=split` or `?diff=unified` by history replacement, with no
