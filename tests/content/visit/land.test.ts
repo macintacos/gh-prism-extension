@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ADDED_HIGHLIGHT, REMOVED_HIGHLIGHT } from "../../../entrypoints/content/diffs/structural";
 import {
   anchorOf,
   type FilesPage,
@@ -339,6 +340,45 @@ describe("intent shared by each view of one visit", () => {
     expect(view()?.hasAttribute("aria-busy")).toBe(false);
     expect(view()?.hasAttribute("data-reveal")).toBe(false);
     expect(filesIn("docs")).toContain("src/parser.rs");
+  });
+});
+
+describe("structural mode on a visit", () => {
+  const { remountWith, abort } = mountsVisit();
+  const highlights = new Map<string, unknown>();
+  const css = Object.getOwnPropertyDescriptor(window, "CSS");
+  const structuralMarks = () =>
+    document.querySelectorAll("[data-gh-prism-structural], [data-gh-prism-quiet]");
+
+  beforeEach(() => {
+    highlights.clear();
+    Object.assign(window, { Highlight: class extends Set<Range> {} });
+    // happy-dom's window builds a new CSS object on every read.
+    const value = { escape: window.CSS.escape, highlights };
+    Object.defineProperty(window, "CSS", { configurable: true, value });
+  });
+
+  afterEach(() => {
+    abort();
+    Reflect.deleteProperty(window, "Highlight");
+    if (css) Object.defineProperty(window, "CSS", css);
+  });
+
+  it("paints nothing when the visit is not given structural mode", async () => {
+    remountWith(() => Promise.resolve(result));
+    await afterDebounce();
+
+    expect(highlights.size).toBe(0);
+    expect(structuralMarks()).toHaveLength(0);
+  });
+
+  it("registers both highlights when the visit is given structural mode", async () => {
+    remountWith(() => Promise.resolve(result), undefined, {
+      structural: { annotationsOf: () => undefined, report: () => {} },
+    });
+    await afterDebounce();
+
+    expect([...highlights.keys()]).toEqual([ADDED_HIGHLIGHT, REMOVED_HIGHLIGHT]);
   });
 });
 

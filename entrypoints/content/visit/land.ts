@@ -21,6 +21,7 @@ import type { IntentProgress, IntentResult, PendingIntent } from "@/utils/intent
 import { followFileKeys } from "../diffs/file-keys";
 import { followOnScreen } from "../diffs/on-screen";
 import { showDiffOrder } from "../diffs/order";
+import { paintStructural, type StructuralPainting } from "../diffs/structural";
 import { followViewed, type VisitViewed } from "../diffs/viewed";
 import {
   anchorOf,
@@ -212,7 +213,8 @@ const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
  * can't, a user keeps the files CODEOWNERS names them for and those of the owning teams whose
  * members list them. `whatsNew`, when given, opens the sidebar with its block. `filter`, when
  * given, makes each code owner's name in the sidebar's popovers and dialogs filter by that owner.
- * `landHash`, the visit's, lands the URL's hash once the diffs are revealed.
+ * `landHash`, the visit's, lands the URL's hash once the diffs are revealed. `structural`, when
+ * given, paints structural mode onto the diffs.
  */
 export function showVisit(
   page: FilesPage,
@@ -230,6 +232,7 @@ export function showVisit(
     filter,
     whatsNew,
     landHash,
+    structural,
   }: {
     intent: PendingIntent;
     diffstat: DiffstatOptions;
@@ -243,6 +246,7 @@ export function showVisit(
     filter?: OwnerFilter;
     whatsNew?: WhatsNew;
     landHash: () => void;
+    structural?: StructuralPainting;
   },
 ): void {
   const sidebar = showSections(page, signal, { teamMembers, teamAvatar, teamRoster, filter });
@@ -250,7 +254,7 @@ export function showVisit(
     if (read && !signal.aborted) sidebar.owners(read);
   });
   if (whatsNew) sidebar.root.prepend(whatsNewBlock(page.sidebar.ownerDocument, whatsNew));
-  const views = [
+  const views: LandingView[] = [
     sidebar,
     showDiffOrder(page, signal, { landHash }),
     followFileKeys(page, signal),
@@ -258,6 +262,7 @@ export function showVisit(
     followOnScreen(page, sidebar.onScreen, signal),
     followViewed(page, viewed, sidebar.viewed, signal),
   ];
+  if (structural) views.push(paintStructural(page.diffs, signal, structural));
   const keep =
     owner === undefined || codeOwners === undefined
       ? undefined
