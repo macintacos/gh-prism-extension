@@ -473,19 +473,25 @@ gh-prism lists each changed file in one of five sections, such as Implementation
 A file's path picks its section, unless a hunk rule claims some of its changed blocks for
 Docs & Comments or Tests by what they change. The docstring rule moves an Implementation
 file whole when every hunk is docstring-only, and moves its docstring-only hunks alone
-only when no hunk stays in Implementation as code. Intent is where the hunk rules place a
-diff's files. It also counts, per file, the changed lines the comment scan confirms are
-comments or docstrings in hunks that stay in Implementation; a line only an unread head
-could confirm counts as code. `intentFor` in
+only when no hunk stays in Implementation as code. GitHub's generated flag on the page
+(`readGeneratedPaths` in [`utils/github/pr-ref.ts`](../utils/github/pr-ref.ts)), or a
+generator's marker in a file's leading comment block (scanned by
+[`utils/hunk-rules/generated.ts`](../utils/hunk-rules/generated.ts)), moves a file whole
+to Generated. Intent is where these rules place a diff's files. It also counts, per file,
+the changed lines the comment scan confirms are comments or docstrings in hunks that stay
+in Implementation; a line only an unread head could confirm counts as code. `intentFor` in
 [`utils/intent/read.ts`](../utils/intent/read.ts) finds it in three steps, cheapest first:
 
 1. **Pin hit.** The diff pin, the base and head commits that the page's embedded data
    names, keys a cache entry. A hit returns without connecting to the service worker.
 2. **Diff-key hit.** Otherwise it fetches the diff's file list and hashes it with the head
-   commit. A hit returns the cached intent and also stores it under the pin.
+   commit and the page's generated flags. A hit returns the cached intent and also stores
+   it under the pin.
 3. **Read.** Otherwise `readIntent` places every file, reading each file's head where a
-   hunk rule needs it, at most six at once. It caches the result under both keys, unless a
-   rate limit or failure cut a file's read short.
+   hunk rule needs it, at most six at once. A file read only for its marker gets a prefix
+   of at most 4 KiB instead, through `PrDataSource.prefix` in
+   [`utils/github/pr-source.ts`](../utils/github/pr-source.ts). It caches the result under
+   both keys, unless a rate limit or failure cut a file's read short.
 
 A commit-filtered view skips all three and keeps path-only sections.
 
@@ -495,7 +501,7 @@ flowchart TD
     filtered -- yes --> pathOnly[path-only sections]
     filtered -- no --> pin{pin hit in cache?}
     pin -- yes --> done([landed intent])
-    pin -- no --> list[fetch file list, hash with head]
+    pin -- no --> list[fetch file list, hash with head and generated flags]
     list --> key{diff-key hit?}
     key -- yes --> done
     key -- no --> read[readIntent: place every file]
@@ -868,7 +874,7 @@ utils/
   github/                routes, diff parsing, the PR data port and source, code owners and reviewers
     conversation-frame.ts  the per-tab session rule that lets only the Conversation panel frame a PR's Conversation tab, and the panel's request for it
   intent/                reading, caching, and landing intent
-  hunk-rules/            the docstring and inline-test rules
+  hunk-rules/            the docstring and inline-test rules, and the generator-marker scan
   sections.ts            path rules for the five sections
   prefs.ts               saved preferences
   hidden-commits.ts      which commits' messages are hidden, capped

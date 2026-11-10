@@ -222,14 +222,22 @@ async function intent(count: number) {
   const files = syntheticFiles(count);
   const { diffs, heads } = intentDiff(files);
   let reads = 0;
+  let prefixReads = 0;
+  const served = (path: string) => {
+    const text = heads.get(path);
+    return text === undefined
+      ? { ok: false as const, problem: "no-access" as const }
+      : { ok: true as const, text };
+  };
   const client = {
     files: async () => ({ ok: true as const, files: diffs }),
     fileContent: async (path: string) => {
       reads += 1;
-      const text = heads.get(path);
-      return text === undefined
-        ? { ok: false as const, problem: "no-access" as const }
-        : { ok: true as const, text };
+      return served(path);
+    },
+    filePrefix: async (path: string) => {
+      prefixReads += 1;
+      return served(path);
     },
   };
   let result: IntentResult | undefined;
@@ -240,7 +248,7 @@ async function intent(count: number) {
   if (reads !== expected) throw new Error(`read ${reads} heads, expected ${expected}`);
   const split = result?.ok && [...result.placements.values()].some(({ kind }) => kind === "split");
   if (!split) throw new Error("intent split no file");
-  return { files: count, "heads read": reads, "read ms": ms };
+  return { files: count, "heads read": reads, "prefixes read": prefixReads, "read ms": ms };
 }
 
 const bench = { diffOrder, sectionTrees, resize, intent };

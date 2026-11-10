@@ -41,12 +41,55 @@ export interface PrDataSource {
   headAndFiles(pr: PrRef, signal: AbortSignal): Promise<PrHeadAndFilesResult>;
   files(pr: DiffHead, signal: AbortSignal): Promise<PrFilesResult>;
   content(pr: DiffHead, path: string, signal: AbortSignal): Promise<PrFileContentResult>;
+  /**
+   * The start of a head file, at most `PREFIX_BYTES` decoded bytes, cached per path like `content`
+   * but apart from it: a prefix never stands in for a whole body.
+   */
+  prefix(pr: DiffHead, path: string, signal: AbortSignal): Promise<PrFileContentResult>;
 }
+
+/** The most bytes a prefix read asks for: room for a license header above a generator's marker. */
+export const PREFIX_BYTES = 4096;
 
 interface PrCacheEntry {
   headSha: string;
   files?: PrFileDiff[];
   contents: Map<string, string>;
+  prefixes: Map<string, string>;
+}
+
+/**
+ * `body` decoded until `maxBytes` bytes arrive or it ends, then cancelled; a server that ignores
+ * `Range` sends the whole file. A gzip 206 can fail at its cut tail: the text decoded before the
+ * failure stands, and a body that fails before any text is `undefined`.
+ */
+async function readAtMost(
+  body: ReadableStream<Uint8Array> | null,
+  maxBytes: number,
+): Promise<string | undefined> {
+  if (!body) return "";
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  let received = 0;
+  let failed = false;
+
+  try {
+    while (received < maxBytes) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const take = value.subarray(0, maxBytes - received);
+      received += take.byteLength;
+      text += decoder.decode(take, { stream: true });
+    }
+  } catch {
+    failed = true;
+  } finally {
+    reader.cancel().catch(() => {});
+  }
+
+  text += decoder.decode();
+  return failed && text === "" ? undefined : text;
 }
 
 function problemFor(response: Response): PrDataProblem {
@@ -91,13 +134,14 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
     const key = keyOf(pr);
     let entry = cache.get(key);
     if (entry?.headSha !== pr.headSha) {
-      entry = { headSha: pr.headSha, contents: new Map() };
+      entry = { headSha: pr.headSha, contents: new Map(), prefixes: new Map() };
       cache.set(key, entry);
     }
     return entry;
   }
 
-  // Both endpoints redirect to a `?token=` URL: never log it or read the response's URL.
+  // The diff and raw endpoints redirect to a `?token=` URL, here and in `fetchPrefix`: never log
+  // it or read the response's URL.
   async function fetchText(url: string, signal: AbortSignal): Promise<PrFileContentResult> {
     try {
       const response = await fetchFn(url, { credentials: "include", signal });
@@ -108,6 +152,31 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
       return { ok: false, problem: "failed" };
     }
   }
+
+  async function fetchPrefix(url: string, signal: AbortSignal): Promise<PrFileContentResult> {
+    try {
+      const response = await fetchFn(url, {
+        credentials: "include",
+        signal,
+        headers: { Range: `bytes=0-${PREFIX_BYTES - 1}` },
+      });
+      // A range past an empty file's end is unsatisfiable.
+      if (response.status === 416) return { ok: true, text: "" };
+      if (!response.ok) return { ok: false, problem: problemFor(response) };
+
+      const text = await readAtMost(response.body, PREFIX_BYTES);
+      // readAtMost swallows the body's abort.
+      if (signal.aborted) throw signal.reason;
+      return text === undefined ? { ok: false, problem: "failed" } : { ok: true, text };
+    } catch (error) {
+      if (signal.aborted) throw error;
+      return { ok: false, problem: "failed" };
+    }
+  }
+
+  // Through github.com: raw.githubusercontent.com and ref paths both 404 on private repos.
+  const rawUrl = (pr: DiffHead, path: string) =>
+    `${repoUrl(pr)}/raw/${pr.headSha}/${path.split("/").map(encodeURIComponent).join("/")}`;
 
   async function lookUpHead(pr: PrRef, signal: AbortSignal): Promise<PrHeadResult> {
     const page = await fetchText(`${repoUrl(pr)}/pull/${pr.number}`, signal);
@@ -161,10 +230,18 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
       const cached = entry.contents.get(path);
       if (cached !== undefined) return { ok: true, text: cached };
 
-      const encoded = path.split("/").map(encodeURIComponent).join("/");
-      // Through github.com: raw.githubusercontent.com and ref paths both 404 on private repos.
-      const result = await fetchText(`${repoUrl(pr)}/raw/${pr.headSha}/${encoded}`, signal);
+      const result = await fetchText(rawUrl(pr, path), signal);
       if (result.ok) entry.contents.set(path, result.text);
+      return result;
+    },
+
+    async prefix(pr, path, signal) {
+      const entry = entryFor(pr);
+      const cached = entry.prefixes.get(path);
+      if (cached !== undefined) return { ok: true, text: cached };
+
+      const result = await fetchPrefix(rawUrl(pr, path), signal);
+      if (result.ok) entry.prefixes.set(path, result.text);
       return result;
     },
   };

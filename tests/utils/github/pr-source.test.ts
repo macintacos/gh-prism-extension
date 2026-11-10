@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CommitHead, PrHead, PrRef } from "../../../utils/github/pr-ref";
-import { createPrDataSource } from "../../../utils/github/pr-source";
+import { createPrDataSource, PREFIX_BYTES } from "../../../utils/github/pr-source";
 import { heldResponses, routedFetch } from "../../fixtures/fetch";
 
 const shaA = "a".repeat(40);
@@ -266,6 +266,149 @@ describe("content", () => {
 
     expect(await source.content(head, "a", signal())).toEqual({ ok: false, problem: "failed" });
     expect(await source.content(head, "a", signal())).toEqual({ ok: true, text: "x" });
+  });
+});
+
+describe("prefix", () => {
+  const head: PrHead = { ...pr7, headSha: shaA };
+  const rawUrl = `https://github.com/o/r/raw/${shaA}/src/my%20file.rs`;
+  const chunk = (byte: number) => new Uint8Array(PREFIX_BYTES / 2).fill(byte);
+  const streamed = (stream: ReadableStream<Uint8Array>, status = 206) =>
+    routedFetch({ [rawUrl]: async () => new Response(stream, { status }) });
+
+  it("requests the first PREFIX_BYTES bytes of the raw file at the head SHA", async () => {
+    const fetchFn = routedFetch({
+      [rawUrl]: async () => new Response("// @generated", { status: 206 }),
+    });
+    const s = signal();
+
+    const result = await createPrDataSource(fetchFn).prefix(head, "src/my file.rs", s);
+
+    expect(fetchFn).toHaveBeenCalledWith(rawUrl, {
+      credentials: "include",
+      signal: s,
+      headers: { Range: `bytes=0-${PREFIX_BYTES - 1}` },
+    });
+    expect(result).toEqual({ ok: true, text: "// @generated" });
+  });
+
+  it("stops reading a body that ignores Range once PREFIX_BYTES bytes arrive", async () => {
+    let pulls = 0;
+    const stream = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          pulls++;
+          controller.enqueue(chunk(97));
+        },
+      },
+      { highWaterMark: 0 },
+    );
+
+    const result = await createPrDataSource(streamed(stream, 200)).prefix(
+      head,
+      "src/my file.rs",
+      signal(),
+    );
+
+    expect(pulls).toBe(2);
+    expect(result).toEqual({ ok: true, text: "a".repeat(PREFIX_BYTES) });
+  });
+
+  it("cuts a single chunk larger than PREFIX_BYTES", async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(PREFIX_BYTES * 2).fill(97));
+        controller.close();
+      },
+    });
+
+    const result = await createPrDataSource(streamed(stream, 200)).prefix(
+      head,
+      "src/my file.rs",
+      signal(),
+    );
+
+    expect(result).toEqual({ ok: true, text: "a".repeat(PREFIX_BYTES) });
+  });
+
+  it.each([200, 206])("reads an empty %i body as an empty prefix", async (status) => {
+    const fetchFn = routedFetch({ [rawUrl]: async () => new Response("", { status }) });
+
+    const result = await createPrDataSource(fetchFn).prefix(head, "src/my file.rs", signal());
+
+    expect(result).toEqual({ ok: true, text: "" });
+  });
+
+  it("reads an unsatisfiable range as an empty prefix", async () => {
+    const fetchFn = routedFetch({ [rawUrl]: async () => new Response("", { status: 416 }) });
+
+    const result = await createPrDataSource(fetchFn).prefix(head, "src/my file.rs", signal());
+
+    expect(result).toEqual({ ok: true, text: "" });
+  });
+
+  it("keeps the text read before the body fails", async () => {
+    let pulled = false;
+    const stream = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          if (pulled) controller.error(new Error("cut"));
+          else controller.enqueue(chunk(98));
+          pulled = true;
+        },
+      },
+      { highWaterMark: 0 },
+    );
+    expect(
+      await createPrDataSource(streamed(stream)).prefix(head, "src/my file.rs", signal()),
+    ).toEqual({ ok: true, text: "b".repeat(2048) });
+  });
+
+  it("fails on a body that fails before any text", async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.error(new Error("cut"));
+      },
+    });
+    expect(
+      await createPrDataSource(streamed(stream)).prefix(head, "src/my file.rs", signal()),
+    ).toEqual({ ok: false, problem: "failed" });
+  });
+
+  it("reports rate-limited without caching it", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("", { status: 429 }))
+      .mockResolvedValueOnce(new Response("x"));
+    const source = createPrDataSource(fetchFn);
+
+    expect(await source.prefix(head, "a", signal())).toEqual({
+      ok: false,
+      problem: "rate-limited",
+    });
+    expect(await source.prefix(head, "a", signal())).toEqual({ ok: true, text: "x" });
+  });
+
+  it("caches per path within a head", async () => {
+    const fetchFn = vi.fn(async () => new Response("x"));
+    const source = createPrDataSource(fetchFn);
+
+    await source.prefix(head, "a", signal());
+    await source.prefix(head, "a", signal());
+
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("caches apart from content", async () => {
+    const fetchFn = vi.fn(async () => new Response("x"));
+    const source = createPrDataSource(fetchFn);
+
+    await source.content(head, "a", signal());
+    await source.prefix(head, "a", signal());
+    await source.prefix(head, "b", signal());
+    await source.content(head, "b", signal());
+
+    expect(fetchFn).toHaveBeenCalledTimes(4);
   });
 });
 

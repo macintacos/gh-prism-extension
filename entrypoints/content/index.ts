@@ -13,7 +13,13 @@ import { allowConversationFrame } from "@/utils/github/conversation-frame";
 import { ownerFilterLink, ownerOf } from "@/utils/github/files-route";
 import { type NextCommit, readNextCommit } from "@/utils/github/next-commit";
 import { connectPrData } from "@/utils/github/pr-port";
-import { type CommitHead, prKeyOf, readDiffPin, readViewedSeed } from "@/utils/github/pr-ref";
+import {
+  type CommitHead,
+  prKeyOf,
+  readDiffPin,
+  readGeneratedPaths,
+  readViewedSeed,
+} from "@/utils/github/pr-ref";
 import { teamRosterReader } from "@/utils/github/team-roster";
 import { hiddenKeyOf, hiddenKeysOf, isHidden, withHidden } from "@/utils/hidden-commits";
 import { storedIntents } from "@/utils/intent/cache";
@@ -94,6 +100,7 @@ export default defineContentScript({
       connect: connectPrData,
       cache: storedIntents(storage, CACHED_DIFFS),
       pinOf: (diff) => readDiffPin(document, diff),
+      generatedOf: (diff) => readGeneratedPaths(document, diff),
     } satisfies IntentSources;
     const release = releaseOf(import.meta.env.WXT_RELEASE_NOTES, version);
     // Read before watching, so a saved side, view, or dismissal never shows its default first.

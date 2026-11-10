@@ -25,12 +25,14 @@ export const PR_DATA_PORT = "gh-prism:pr-data";
 export type PrDataRequest =
   | { kind: "headAndFiles"; pr: PrRef }
   | { kind: "files"; pr: DiffHead }
-  | { kind: "content"; pr: DiffHead; path: string };
+  | { kind: "content"; pr: DiffHead; path: string }
+  | { kind: "prefix"; pr: DiffHead; path: string };
 
 type PrDataResultsByKind = {
   headAndFiles: PrHeadAndFilesResult;
   files: PrFilesResult;
   content: PrFileContentResult;
+  prefix: PrFileContentResult;
 };
 type PrDataResult = PrDataResultsByKind[PrDataRequest["kind"]];
 
@@ -55,7 +57,7 @@ export interface PrDataPort {
  */
 export interface PrDataClient {
   /**
-   * The diff and the commit it ends on, which `fileContent` reads at. A PR whose page
+   * The diff and the commit it ends on, which `fileContent` and `filePrefix` read at. A PR whose page
    * names no head gets it from the same request as its diff, so the first `files` or `fileContent`
    * call fetches both.
    */
@@ -65,6 +67,11 @@ export interface PrDataClient {
    * `no-access`.
    */
   fileContent(path: string): Promise<PrFileContentResult>;
+  /**
+   * At most the file's first `PREFIX_BYTES` bytes at the head, a cut last line included, under
+   * `fileContent`'s rules.
+   */
+  filePrefix(path: string): Promise<PrFileContentResult>;
   close(): void;
 }
 
@@ -125,6 +132,8 @@ function asRequest(value: unknown): PrDataRequest | undefined {
   if (value.kind === "files") return { kind: "files", pr };
   if (value.kind === "content" && isSafePath(value.path))
     return { kind: "content", pr, path: value.path };
+  if (value.kind === "prefix" && isSafePath(value.path))
+    return { kind: "prefix", pr, path: value.path };
   return undefined;
 }
 
@@ -140,6 +149,8 @@ function answer(
       return source.files(request.pr, signal);
     case "content":
       return source.content(request.pr, request.path, signal);
+    case "prefix":
+      return source.prefix(request.pr, request.path, signal);
   }
 }
 
@@ -284,6 +295,7 @@ export function openPrData(
   return {
     files,
     fileContent: (path) => atHead((head) => send({ kind: "content", pr: head, path })),
+    filePrefix: (path) => atHead((head) => send({ kind: "prefix", pr: head, path })),
     close() {
       closed = true;
       pending.clear();

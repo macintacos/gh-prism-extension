@@ -111,6 +111,10 @@ export function scanLine(syntax: CommentSyntax, state: ScanState, rawLine: strin
   };
 }
 
+/** Whether `line`, ignoring surrounding whitespace, is one of `syntax`'s compiler directives. */
+export const isDirective = (syntax: CommentSyntax, line: string): boolean =>
+  (syntax.directives ?? []).some((prefix) => line.trim().startsWith(prefix));
+
 const countOf = (line: string, delimiter: string) => line.split(delimiter).length - 1;
 
 function scanCode(syntax: CommentSyntax, docstringMayOpen: boolean, line: string): Step {
@@ -123,8 +127,7 @@ function scanCode(syntax: CommentSyntax, docstringMayOpen: boolean, line: string
     return scanInside({ closer: opened.closer, kind: "comment" }, line.slice(opened.opener.length));
   }
 
-  const isDirective = (syntax.directives ?? []).some((prefix) => line.startsWith(prefix));
-  if (line.startsWith(syntax.lineMarker) && !isDirective) {
+  if (line.startsWith(syntax.lineMarker) && !isDirective(syntax, line)) {
     return { kind: "comment", position: "code" };
   }
 

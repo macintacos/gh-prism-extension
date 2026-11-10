@@ -83,6 +83,8 @@ const cases: Record<SectionKey, string[]> = {
     "MODULE.bazel",
   ],
   implementation: [
+    "src/generated/schema.rs",
+    "src/client/sdk.gen.ts",
     "plugin/lsp.lua",
     ".mise/tasks/test",
     "lua/plugins/changeset/init.lua",

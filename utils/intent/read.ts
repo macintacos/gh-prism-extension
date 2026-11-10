@@ -10,8 +10,9 @@ import {
 } from "../github/pr-diff";
 import type { PrDataClient } from "../github/pr-port";
 import type { DiffPin, DiffRef } from "../github/pr-ref";
-import type { PrDataProblem, PrFilesResult } from "../github/pr-source";
+import type { PrDataProblem, PrFileContentResult, PrFilesResult } from "../github/pr-source";
 import { commentLineCounts, type DocVerdict, docHunkVerdicts } from "../hunk-rules/doc-intent";
+import { markerVerdict, patchMarkerVerdict } from "../hunk-rules/generated";
 import { type ScannedHead, scanHeadText } from "../hunk-rules/head-scan";
 import { inlineTestHunkVerdicts, inlineTestRuleApplies } from "../hunk-rules/inline-tests";
 import { classify, SECTIONS, type SectionKey } from "../sections";
@@ -26,8 +27,11 @@ export const HEAD_READS_AT_ONCE = 6;
 
 /** Why the view keeps path-only sections. */
 export type PathOnlyReason = PrDataProblem | "commit-filtered";
-/** The sections a rule can claim a file or hunk for, whatever its path says. */
-export type IntentSection = Extract<SectionKey, "docs" | "tests">;
+/**
+ * The sections a rule can claim a file or hunk for, whatever its path says. Generated claims only
+ * whole files.
+ */
+export type IntentSection = Extract<SectionKey, "docs" | "tests" | "generated">;
 
 /** One section's part of a file whose hunks span several sections. */
 export interface SectionShare {
@@ -80,54 +84,82 @@ async function readHead(
 
 const sumHunkLines = (hunks: readonly PrHunk[]): LineCounts => sum(hunks.map(hunkLineCounts));
 
-/** One file's hunk sections, and the comment lines in its hunks that stay in Implementation. */
+/** Where one file lands, and the comment lines in its hunks that stay in Implementation. */
 interface FileIntent {
-  /**
-   * Each hunk's rule section, or `undefined` to keep it in the path section; aligned with
-   * `parsePrHunks`.
-   */
-  readonly sections: (IntentSection | undefined)[];
+  /** `undefined` keeps the file in its path section. */
+  readonly placement: Placement | undefined;
   readonly commentLines: LineCounts;
 }
 
+const NO_LINES: LineCounts = { added: 0, removed: 0 };
+const GENERATED: FileIntent = {
+  placement: { kind: "whole", section: "generated" },
+  commentLines: NO_LINES,
+};
+
+/** The complete lines of `file`'s prefix: a prefix read can cut its last line short. */
+async function prefixLines(
+  client: Pick<PrDataClient, "filePrefix">,
+  file: PrFileDiff,
+): Promise<string[] | undefined> {
+  const prefix = await client.filePrefix(file.path);
+  return prefix.ok ? prefix.text.split("\n").slice(0, -1) : undefined;
+}
+
 /**
- * `file`'s hunk sections and Implementation comment lines. The head is read only when the patch
- * can't settle every hunk as docs and a rule or a comment count needs it. A file whose every hunk
- * is docs moves whole to Docs & Comments; otherwise a hunk in a test block counts as Tests even
- * when it only edits a doc comment, and an Implementation file that keeps a code hunk outside its
- * test blocks keeps its other docs hunks too, counting their comment lines. A head read for any reason settles every unclaimed hunk's count, as it is
- * the more accurate scan; a hunk whose comment lines only the unread head could confirm counts
- * none.
+ * `file`'s placement and Implementation comment lines; whole in Generated when the patch, the
+ * shared head, or one prefix read (none after a failed head read) shows a generator's marker. The
+ * head is read only when the patch can't settle every hunk as docs and a rule or a comment count
+ * needs it. A file whose every hunk is docs moves whole to Docs & Comments; otherwise a hunk in a
+ * test block counts as Tests even when it only edits a doc comment, and an Implementation file that
+ * keeps a code hunk outside its test blocks keeps its other docs hunks too, counting their comment
+ * lines. A head read for any reason settles every unclaimed hunk's count, as it is the more
+ * accurate scan; a hunk whose comment lines only the unread head could confirm counts none.
  */
 async function fileIntent(
-  client: Pick<PrDataClient, "fileContent">,
+  client: Pick<PrDataClient, "fileContent" | "filePrefix">,
   file: PrFileDiff,
 ): Promise<FileIntent> {
-  const noLines = { added: 0, removed: 0 };
-  const patchVerdicts = docHunkVerdicts(file);
-  // also [] for binary or renamed
-  if (patchVerdicts.every(isDocs))
-    return { sections: patchVerdicts.map(() => "docs"), commentLines: noLines };
+  const marker = patchMarkerVerdict(file);
+  if (marker === "generated") return GENERATED;
 
+  const patchVerdicts = docHunkVerdicts(file);
+  const allDocs = patchVerdicts.every(isDocs); // also true for binary or renamed
   const hunks = hunksOf(file);
   const countsComments = classify(file.path) === "implementation";
   const patchCounts = countsComments ? hunks.map((hunk) => commentLineCounts(file.path, hunk)) : [];
   const needsHead =
-    inlineTestRuleApplies(file) ||
-    patchVerdicts.includes("needs-content") ||
-    patchCounts.includes("needs-content");
+    !allDocs &&
+    (inlineTestRuleApplies(file) ||
+      patchVerdicts.includes("needs-content") ||
+      patchCounts.includes("needs-content"));
   const head = needsHead ? await readHead(client, file) : undefined;
 
+  if (marker === "needs-content") {
+    const lines = needsHead ? head?.lines : await prefixLines(client, file);
+    if (lines && markerVerdict(file.path, lines) === "generated") return GENERATED;
+  }
+
+  if (allDocs) {
+    return {
+      placement: placementOf(
+        file,
+        patchVerdicts.map(() => "docs"),
+      ),
+      commentLines: NO_LINES,
+    };
+  }
   const sections =
     head === undefined ? patchSections(file.path, patchVerdicts) : headSections(file, head);
-  if (!countsComments) return { sections, commentLines: noLines };
+  const placement = placementOf(file, sections);
+  if (!countsComments) return { placement, commentLines: NO_LINES };
   const counts = hunks.map((hunk, i) => {
-    if (sections[i] !== undefined) return noLines;
+    if (sections[i] !== undefined) return NO_LINES;
     if (head !== undefined) return commentLineCounts(file.path, hunk, head);
     const count = patchCounts[i];
-    return count === undefined || count === "needs-content" ? noLines : count;
+    return count === undefined || count === "needs-content" ? NO_LINES : count;
   });
-  return { sections, commentLines: sum(counts) };
+  return { placement, commentLines: sum(counts) };
 }
 
 /** Where a docs hunk goes in a file that doesn't move whole: an Implementation file keeps it. */
@@ -206,11 +238,13 @@ async function mapAtMost<T, R>(
  * Reads the PR's files and places each one's hunks. A file whose head can't be read keeps the hunks
  * its patch settles, and the rest stay in its path section; only a `files()` failure makes the
  * result not ok. `onProgress` reports once after `files()` succeeds, then once per file as it is
- * placed. At most `HEAD_READS_AT_ONCE` files are placed at once.
+ * placed. At most `HEAD_READS_AT_ONCE` files are placed at once. Each path in `generated`, the
+ * files GitHub flags generated, lands whole in Generated without a read.
  */
 export async function readIntent(
-  client: Pick<PrDataClient, "fileContent"> & { files(): Promise<PrFilesResult> },
+  client: Pick<PrDataClient, "fileContent" | "filePrefix"> & { files(): Promise<PrFilesResult> },
   onProgress?: (progress: IntentProgress) => void,
+  generated: ReadonlySet<string> = new Set(),
 ): Promise<IntentResult> {
   const listed = await client.files();
   if (!listed.ok) return listed;
@@ -219,10 +253,10 @@ export async function readIntent(
   onProgress?.({ checked: 0, total });
   let checked = 0;
   const placed = await mapAtMost(listed.files, HEAD_READS_AT_ONCE, async (file) => {
-    const { sections, commentLines } = await fileIntent(client, file);
+    const intent = generated.has(file.path) ? GENERATED : await fileIntent(client, file);
     checked += 1;
     onProgress?.({ checked, total });
-    return { path: file.path, placement: placementOf(file, sections), commentLines };
+    return { path: file.path, ...intent };
   });
 
   const placements = new Map<string, Placement>();
@@ -246,14 +280,23 @@ export interface IntentSources {
    * the diff.
    */
   readonly pinOf?: (diff: DiffRef) => DiffPin | undefined;
+  /** Paths the page says GitHub marks generated: each lands whole in Generated, unread. */
+  readonly generatedOf?: (diff: DiffRef) => ReadonlySet<string>;
 }
 
 /** Problems a later read of a file may not hit. */
 const PASSING: ReadonlySet<PrDataProblem> = new Set(["rate-limited", "failed"]);
 
-/** A key for `files` read at `headSha`: a diff whose head or patches change gets a new one. */
-async function diffKey(headSha: string, files: readonly PrFileDiff[]): Promise<string> {
-  const bytes = new TextEncoder().encode(JSON.stringify([headSha, files]));
+/**
+ * A key for `files` read at `headSha` with the page's `generated` flags: a diff whose head,
+ * patches, or flags change gets a new one.
+ */
+async function diffKey(
+  headSha: string,
+  files: readonly PrFileDiff[],
+  generated: ReadonlySet<string>,
+): Promise<string> {
+  const bytes = new TextEncoder().encode(JSON.stringify([headSha, files, [...generated].sort()]));
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
   return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -271,7 +314,8 @@ async function keepUnder(
 
 /**
  * Where a diff's files land: from `cache` when it holds this very diff, else read and
- * cached. The cache is checked by the page's pin first, and a pinned hit connects nothing. A read
+ * cached. The diff key covers the page's generated flags, so a change in them reads the diff
+ * again. The cache is checked by the page's pin first, and a pinned hit connects nothing. A read
  * that a file's passing problem cut short isn't cached. A commit-filtered route connects nothing;
  * otherwise the client is closed when `signal` aborts. Never rejects; once `signal` aborts it may
  * never settle.
@@ -279,15 +323,18 @@ async function keepUnder(
 export async function intentFor(
   route: FilesRoute,
   signal: AbortSignal,
-  { connect, cache, pinOf }: IntentSources,
+  { connect, cache, pinOf, generatedOf }: IntentSources,
   onProgress?: (progress: IntentProgress) => void,
 ): Promise<IntentResult> {
   if (route.commitFiltered) return { ok: false, problem: "commit-filtered" };
 
   const pin = pinOf?.(route.diff);
+  // No flags in the pin key: the pin and the flags come from the same route data, so a pinned
+  // page always carries its flags.
   const pinned = pin && pinKey(pin);
   const early = pinned ? await cache.get(pinned) : undefined;
   if (early) return early;
+  const generated = generatedOf?.(route.diff) ?? new Set<string>();
 
   const client = connect(route.diff);
   // An already-aborted signal never fires "abort": the pinned lookup outlasted the visit.
@@ -297,7 +344,7 @@ export async function intentFor(
   const listed = await client.files();
   if (!listed.ok) return listed;
 
-  const key = await diffKey(listed.headSha, listed.files);
+  const key = await diffKey(listed.headSha, listed.files, generated);
   // Only a pin naming the head these files were read at may file them.
   // ponytail: the worker keeps a PR's diff by head alone, so a retarget read while it is alive
   // files the old base's diff under the new pin; key the worker's diff by base too if that bites.
@@ -309,16 +356,20 @@ export async function intentFor(
   }
 
   let cutShort = false;
+  const notingCutShort =
+    (read: (path: string) => Promise<PrFileContentResult>) => async (path: string) => {
+      const content = await read(path);
+      if (!content.ok && PASSING.has(content.problem)) cutShort = true;
+      return content;
+    };
   const result = await readIntent(
     {
       files: () => client.files(),
-      fileContent: async (path) => {
-        const content = await client.fileContent(path);
-        if (!content.ok && PASSING.has(content.problem)) cutShort = true;
-        return content;
-      },
+      fileContent: notingCutShort((path) => client.fileContent(path)),
+      filePrefix: notingCutShort((path) => client.filePrefix(path)),
     },
     onProgress,
+    generated,
   );
 
   // ponytail: a pinned diff is stored under both keys, doubling its slots and bytes; file the pin

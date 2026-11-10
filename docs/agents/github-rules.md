@@ -11,8 +11,8 @@ sheet's `GitHub hooks:` header, `entrypoints/content/diffs/`,
 GitHub changes its markup without notice, so keeping its selectors in one seam keeps a
 breakage to one place to fix. There are two exceptions.
 [`utils/github/pr-ref.ts`](../../utils/github/pr-ref.ts) keeps its own selector for the
-page's embedded data, from which it reads the diff pin, the head SHA, and each file's
-Viewed state; it reads JSON, not markup a feature hooks.
+page's embedded data, from which it reads the diff pin, the head SHA, each file's Viewed
+state, and GitHub's generated flags; it reads JSON, not markup a feature hooks.
 [`utils/github/team-roster.ts`](../../utils/github/team-roster.ts) keeps its own selectors
 because it parses a fetched members page, not the live page. **A new page kind (pull
 request, commit) is a new entry in `PAGE_KINDS` in `files-page.ts`, not a branch on kind**
@@ -386,6 +386,26 @@ on a private one.
   answers 500, click, and read the header and counter. Find the handler by grepping
   GitHub's assets for `file_review`, as [§ Re-checking GitHub](#re-checking-github)
   describes. Restore every toggled file.
+
+## Generated files
+
+- **Read GitHub's generated flag from route data** (observed 2026-11-09). GitHub marks a
+  generated file (from `linguist-generated` or linguist's own rules) in the files page's
+  embedded data: on a pull request,
+  `payload.pullRequestsChangesRoute.diffContents[].newTreeEntry.isGenerated`; on a commit,
+  `payload.commitRoute.diffEntryData[].newTreeEntry.isGenerated`. Not `diffSummaries`.
+  Only a full load carries it, and only for the first batch of diffs. In the DOM, a
+  generated file's diff shows a "Load Diff" placeholder reading "Some generated files are
+  not rendered by default".
+- **Key the flag by `newTreeEntry.path`.** It is the head path, the same key as
+  `PrFileDiff.path`. A deleted file has `newTreeEntry: null`.
+- **Match a commit page by SHA prefix.** `commitRoute.commit.oid` is always the full SHA,
+  while a commit URL may name an abbreviated one.
+- **Re-check:** full-load the Files changed tab of PR #3 (`complicated-change`) of a
+  sandbox from `scripts/create-sandbox.sh`, parse
+  `script[data-target="react-app.embeddedData"]` in the console, and confirm
+  `src/generated/schema.rs` has `newTreeEntry.isGenerated: true`. Repeat on
+  `macintacos/gh-prism-sandbox@9b57964`, loaded by its abbreviated SHA.
 
 ## PR base data
 
