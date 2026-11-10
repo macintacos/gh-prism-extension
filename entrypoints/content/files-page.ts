@@ -1003,6 +1003,46 @@ export function changedCells(root: ParentNode): ChangedCell[] {
   });
 }
 
+/** GitHub's two ways of drawing a diff. */
+export type DiffLayout = "unified" | "split";
+
+/**
+ * The layout the mounted diffs under `diffs` are drawn in, never read from `?diff=`. It is
+ * `undefined` while no diff table is mounted. A pull request draws a file that is all additions or
+ * all deletions unified even in Split, so a page holding only such files reads `"unified"`.
+ */
+export function currentLayout(diffs: ParentNode): DiffLayout | undefined {
+  const tables = [...diffs.querySelectorAll("table[data-diff-anchor]")];
+  // ponytail: column count can't see Split on a pull request of only one-sided files; read the open
+  // menu's aria-checked, or ?diff= when present, if a caller needs the saved setting.
+  if (tables.some((table) => table.querySelector("colgroup")?.childElementCount === 4)) {
+    return "split";
+  }
+  return tables.length ? "unified" : undefined;
+}
+
+/**
+ * Calls `onChange` with the layout of the diffs under `diffs` at the start, when one is mounted,
+ * then 50 ms after each change to a different layout, until `signal` aborts. Never reports
+ * `undefined`: diffs unmounting keep the last layout.
+ */
+export function followLayout(
+  diffs: Element,
+  onChange: (layout: DiffLayout) => void,
+  { signal }: { signal: AbortSignal },
+): void {
+  let last: DiffLayout | undefined;
+  const reportIfChanged = () => {
+    const layout = currentLayout(diffs);
+    if (!layout || layout === last) return;
+    last = layout;
+    onChange(layout);
+  };
+
+  observeDiffs(diffs, reportIfChanged, { signal });
+  reportIfChanged();
+}
+
 /** The `diff-…` anchor `link` points at: it names the file's diff and prefixes its line anchors. */
 export const anchorOf = (link: HTMLAnchorElement): string | undefined =>
   link.getAttribute("href")?.slice(1);

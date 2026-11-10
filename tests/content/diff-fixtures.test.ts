@@ -1,6 +1,11 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from "vitest";
-import { changedCells } from "../../entrypoints/content/files-page";
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
+import {
+  changedCells,
+  currentLayout,
+  type DiffLayout,
+  followLayout,
+} from "../../entrypoints/content/files-page";
 import commitSplit from "../fixtures/commit-page-diff-split.html?raw";
 import commitUnified from "../fixtures/commit-page-diff-unified.html?raw";
 import commitWhitespace from "../fixtures/commit-page-diff-whitespace.html?raw";
@@ -10,18 +15,13 @@ import prUnified from "../fixtures/files-page-diff-unified.html?raw";
 
 const EXPANDED_ANCHOR = "diff-ff278ec599adfd033d35a083ebe8948db8bf177c9817dee8ddc4f3a9e3f5728eR1";
 
-const cellsPerRow = (): number[] =>
-  [...document.querySelectorAll("tr")].map(
-    (row) => row.querySelectorAll("td.diff-text-cell").length,
-  );
-
 const sideAndLine = (root: ParentNode): string[] =>
   changedCells(root).map(({ side, line }) => `${side} ${line}`);
 
 type Fixture = {
   name: string;
   html: string;
-  layout: "unified" | "split";
+  layout: DiffLayout;
   expected: string[];
 };
 
@@ -78,14 +78,138 @@ describe.each(FIXTURES)("$name", ({ html, layout, expected }) => {
     }
   });
 
-  it("holds up to as many text cells per row as its layout has sides", () => {
+  it("reads its layout", () => {
     document.body.innerHTML = html;
 
-    const counts = new Set(cellsPerRow().filter(Boolean));
+    expect(currentLayout(document)).toBe(layout);
+  });
+});
 
-    const sides = layout === "split" ? 2 : 1;
-    expect(counts.has(sides)).toBe(true);
-    expect([...counts].every((count) => count <= sides)).toBe(true);
+describe("currentLayout", () => {
+  afterEach(() => {
+    history.replaceState(null, "", location.pathname);
+  });
+
+  it.each([
+    { name: "files-page-diff-split", html: prSplit, query: "?diff=unified", layout: "split" },
+    { name: "commit-page-diff-split", html: commitSplit, query: "?diff=unified", layout: "split" },
+    { name: "files-page-diff-unified", html: prUnified, query: "?diff=split", layout: "unified" },
+    {
+      name: "commit-page-diff-unified",
+      html: commitUnified,
+      query: "?diff=split",
+      layout: "unified",
+    },
+  ])("reads $name as $layout under $query", ({ html, query, layout }) => {
+    history.replaceState(null, "", query);
+    document.body.innerHTML = html;
+
+    expect(currentLayout(document)).toBe(layout);
+  });
+
+  it("reads split when any mounted table is split", () => {
+    document.body.innerHTML = prRename + prSplit;
+
+    expect(currentLayout(document)).toBe("split");
+  });
+
+  it("reads nothing while no diff is mounted", () => {
+    document.body.innerHTML = "";
+
+    expect(currentLayout(document)).toBeUndefined();
+  });
+});
+
+describe("followLayout", () => {
+  let controller: AbortController;
+  let onChange: Mock<(layout: DiffLayout) => void>;
+
+  const follow = () => followLayout(document.body, onChange, { signal: controller.signal });
+
+  const switchTableTo = (html: string) => {
+    const template = document.createElement("template");
+    template.innerHTML = html;
+    const table = document.querySelector("table");
+    if (table) table.innerHTML = template.content.querySelector("table")?.innerHTML ?? "";
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    controller = new AbortController();
+    onChange = vi.fn();
+  });
+
+  afterEach(() => {
+    controller.abort();
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
+  });
+
+  it("reports the layout already on the page", () => {
+    document.body.innerHTML = commitUnified;
+
+    follow();
+
+    expect(onChange.mock.calls).toEqual([["unified"]]);
+  });
+
+  it("reports the layout once a diff mounts", async () => {
+    document.body.innerHTML = "";
+    follow();
+    expect(onChange).not.toHaveBeenCalled();
+
+    document.body.innerHTML = commitSplit;
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(onChange.mock.calls).toEqual([["split"]]);
+  });
+
+  it("reports a switch inside a kept table", async () => {
+    document.body.innerHTML = commitUnified;
+    follow();
+
+    switchTableTo(commitSplit);
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(onChange.mock.calls.flat()).toEqual(["unified", "split"]);
+  });
+
+  it("stays quiet when rows change but the layout does not", async () => {
+    document.body.innerHTML = commitUnified;
+    follow();
+
+    document.body.innerHTML = commitUnified;
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the last layout while no diff is mounted", async () => {
+    document.body.innerHTML = commitUnified;
+    follow();
+
+    document.body.innerHTML = "";
+    await vi.advanceTimersByTimeAsync(50);
+    expect(onChange).toHaveBeenCalledTimes(1);
+
+    document.body.innerHTML = commitUnified;
+    await vi.advanceTimersByTimeAsync(50);
+    expect(onChange).toHaveBeenCalledTimes(1);
+
+    document.body.innerHTML = commitSplit;
+    await vi.advanceTimersByTimeAsync(50);
+    expect(onChange.mock.calls.flat()).toEqual(["unified", "split"]);
+  });
+
+  it("stops reporting once its signal aborts", async () => {
+    document.body.innerHTML = commitUnified;
+    follow();
+    controller.abort();
+
+    switchTableTo(commitSplit);
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(onChange).toHaveBeenCalledTimes(1);
   });
 });
 
