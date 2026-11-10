@@ -1,17 +1,10 @@
 import { type PrFileDiff, type PrHunk, parsePrHunks } from "../github/pr-diff";
 
-/** Where a reverse apply stands: the old lines so far, the next head line, and each side's no-newline marker. */
-interface Rebuild {
-  readonly old: string[];
-  cursor: number;
-  oldMarked: boolean;
-  headMarked: boolean;
-}
-
 /**
  * The old text of `file`, rebuilt by applying its patch in reverse to `head`, its head text.
  * `undefined` when there is no old text to rebuild — a binary, added or deleted file, or one with
  * no hunks, as a pure rename or a mode-only change — and when the patch does not apply to `head`.
+ * `head` must be the exact text: line endings are compared as they are.
  */
 export function baseText(file: PrFileDiff, head: string): string | undefined {
   if (file.kind === "binary" || file.status === "added" || file.status === "deleted")
@@ -19,88 +12,79 @@ export function baseText(file: PrFileDiff, head: string): string | undefined {
   const hunks = parsePrHunks(file.patch);
   if (hunks.length === 0) return undefined;
 
-  const headLines = head.split("\n");
-  const headEndsWithNewline = headLines.at(-1) === "";
-  if (headEndsWithNewline) headLines.pop();
-
-  const state: Rebuild = { old: [], cursor: 0, oldMarked: false, headMarked: false };
-  if (!hunks.every((hunk) => applyHunk(state, hunk, headLines))) return undefined;
-  if (!finishHead(state, headLines, headEndsWithNewline)) return undefined;
-
-  const endsWithNewline = state.oldMarked ? false : state.headMarked || headEndsWithNewline;
-  return state.old.length === 0 ? "" : state.old.join("\n") + (endsWithNewline ? "\n" : "");
-}
-
-/** Applies one hunk in reverse, copying the untouched head lines before it; `false` when it does not apply. */
-function applyHunk(state: Rebuild, hunk: PrHunk, headLines: readonly string[]): boolean {
-  if (state.oldMarked || state.headMarked) return false;
-  const start = hunk.newCount === 0 ? hunk.newStart : hunk.newStart - 1;
-  if (start < state.cursor || start > headLines.length) return false;
-  state.old.push(...headLines.slice(state.cursor, start));
-  state.cursor = start;
-  if (state.old.length !== (hunk.oldCount === 0 ? hunk.oldStart : hunk.oldStart - 1)) return false;
-
-  const oldBefore = state.old.length;
-  let previous: string | undefined;
-  for (const line of hunk.lines) {
-    if (!applyLine(state, line, previous, headLines)) return false;
-    previous = line;
+  // Each line keeps its "\n", so head's last line without one matches only a marked patch line.
+  const headLines = head.match(/[^\n]*\n|[^\n]+/g) ?? [];
+  const old: string[] = [];
+  let cursor = 0;
+  for (const hunk of hunks) {
+    const next = applyHunk(hunk, headLines, cursor, old);
+    if (next === undefined) return undefined;
+    cursor = next;
   }
+  copyLines(headLines, cursor, headLines.length, old);
 
-  return state.cursor - start === hunk.newCount && state.old.length - oldBefore === hunk.oldCount;
+  // Only a text's last line may lack its newline.
+  if (old.some((line, i) => i < old.length - 1 && !line.endsWith("\n"))) return undefined;
+  return old.join("");
 }
 
-/** Applies one body line; `previous` is the body line before it, if any. */
-function applyLine(
-  state: Rebuild,
-  line: string,
-  previous: string | undefined,
+/** One body line of a hunk; `text` keeps its newline unless a `\` line follows it. */
+interface HunkOp {
+  readonly kind: " " | "+" | "-";
+  text: string;
+}
+
+/**
+ * Applies one hunk in reverse onto `old`, copying the untouched head lines before it; the next head
+ * line's index, or `undefined` when the hunk does not apply.
+ */
+function applyHunk(
+  hunk: PrHunk,
   headLines: readonly string[],
-): boolean {
-  const prefix = line[0];
-  if (prefix === "\\") return markNoNewline(state, previous);
-  if (prefix === "-") {
-    if (state.oldMarked) return false;
-    state.old.push(line.slice(1));
-    return true;
+  cursor: number,
+  old: string[],
+): number | undefined {
+  const start = linesBefore(hunk.newStart, hunk.newCount);
+  if (start < cursor || start > headLines.length) return undefined;
+  copyLines(headLines, cursor, start, old);
+  if (old.length !== linesBefore(hunk.oldStart, hunk.oldCount)) return undefined;
+
+  const ops = hunkOps(hunk.lines);
+  if (ops === undefined) return undefined;
+  const oldBefore = old.length;
+  let next = start;
+  for (const { kind, text } of ops) {
+    if (kind !== "-" && headLines[next++] !== text) return undefined;
+    if (kind !== "+") old.push(text);
   }
-  if (prefix === "+") {
-    if (state.headMarked || !matchesHead(state, line.slice(1), headLines)) return false;
-    state.cursor++;
-    return true;
+
+  return next - start === hunk.newCount && old.length - oldBefore === hunk.oldCount
+    ? next
+    : undefined;
+}
+
+/** Lines before a hunk side: a zero-count side's start names the line before it. */
+const linesBefore = (start: number, count: number): number => (count === 0 ? start : start - 1);
+
+/** Reads a hunk's body lines; `undefined` for an unknown prefix or a `\` line with nothing to mark. */
+function hunkOps(lines: readonly string[]): HunkOp[] | undefined {
+  const ops: HunkOp[] = [];
+  for (const line of lines) {
+    if (line.startsWith("\\")) {
+      const previous = ops.at(-1);
+      if (previous === undefined || !previous.text.endsWith("\n")) return undefined;
+      previous.text = previous.text.slice(0, -1);
+      continue;
+    }
+    // A blank context line may arrive as an empty string, with no prefix.
+    const kind = line === "" ? " " : line[0];
+    if (kind !== " " && kind !== "+" && kind !== "-") return undefined;
+    ops.push({ kind, text: `${line.slice(1)}\n` });
   }
-  if (prefix !== " " && prefix !== undefined) return false;
-
-  const text = line.slice(1);
-  if (state.oldMarked || state.headMarked || !matchesHead(state, text, headLines)) return false;
-  state.old.push(text);
-  state.cursor++;
-  return true;
+  return ops;
 }
 
-function matchesHead(state: Rebuild, text: string, headLines: readonly string[]): boolean {
-  return state.cursor < headLines.length && headLines[state.cursor] === text;
-}
-
-/** Marks the side(s) of `previous` as ending without a newline; `false` for a marker with no line to mark. */
-function markNoNewline(state: Rebuild, previous: string | undefined): boolean {
-  if (previous === undefined || previous.startsWith("\\")) return false;
-  if (!previous.startsWith("+")) state.oldMarked = true;
-  if (!previous.startsWith("-")) state.headMarked = true;
-  return true;
-}
-
-/** Checks head's end against the markers and copies the head lines after the last hunk; `false` on a mismatch. */
-function finishHead(
-  state: Rebuild,
-  headLines: readonly string[],
-  headEndsWithNewline: boolean,
-): boolean {
-  const atEnd = state.cursor === headLines.length;
-  if (state.headMarked) return atEnd && !headEndsWithNewline;
-  if (state.oldMarked) return atEnd;
-  if (atEnd) return headEndsWithNewline;
-
-  state.old.push(...headLines.slice(state.cursor));
-  return true;
+/** Copies `lines[from..to)` onto `into` without spreading, which overflows the stack on long runs. */
+function copyLines(lines: readonly string[], from: number, to: number, into: string[]): void {
+  for (const line of lines.slice(from, to)) into.push(line);
 }

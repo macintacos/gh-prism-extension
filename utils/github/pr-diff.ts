@@ -27,7 +27,7 @@ export interface PrHunk {
   readonly oldStart: number;
   /** Lines on the hunk's old side: its context and `-` lines. */
   readonly oldCount: number;
-  /** 1-based head-file line where the hunk's new side starts; 0 for a deleted file's `+0,0`. */
+  /** 1-based head-file line where the hunk's new side starts; the line before it when `newCount` is 0, so 0 for a deleted file. */
   readonly newStart: number;
   /** Lines on the hunk's new side: its context and `+` lines. */
   readonly newCount: number;

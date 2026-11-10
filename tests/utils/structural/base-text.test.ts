@@ -134,6 +134,15 @@ describe("baseText", () => {
     expect(baseText(file, head)).toBe(old);
   });
 
+  it("rebuilds a one-line hunk between long untouched runs", () => {
+    const run = "x\n".repeat(200_000);
+    const file = modified(lines("@@ -200001 +200001 @@", "-a", "+A"));
+
+    const old = baseText(file, `${run}A\n${run}`);
+
+    expect(old).toBe(`${run}a\n${run}`);
+  });
+
   it.each([
     {
       name: "a context line that differs from head",
@@ -199,6 +208,21 @@ describe("baseText", () => {
       name: "a hunk after a no-newline marker",
       patch: lines("@@ -1 +1 @@", "-a", NO_NEWLINE, "+A", "@@ -3 +3 @@", "-c", "+C"),
       head: "A\nb\nC\n",
+    },
+    {
+      name: "a head without a final newline where the patch says it has one",
+      patch: lines("@@ -1 +1 @@", "-a", NO_NEWLINE, "+b"),
+      head: "b",
+    },
+    {
+      name: "a no-newline marker that is the first line of its hunk",
+      patch: lines("@@ -1 +1 @@", NO_NEWLINE, "-a", "+A"),
+      head: "A\n",
+    },
+    {
+      name: "a no-newline marker that follows another",
+      patch: lines("@@ -1 +1 @@", "-a", "+A", NO_NEWLINE, NO_NEWLINE),
+      head: "A",
     },
     {
       name: "a body line with an unknown prefix",
