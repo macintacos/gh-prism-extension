@@ -1,0 +1,22 @@
+diff --git a/web-tree-sitter.js b/web-tree-sitter.js
+index 6b343811b1b949ce95e17c1b4108fda6b373d5e9..60f2f28dee9a02cb50e2501194061e83519dc86b 100644
+--- a/web-tree-sitter.js
++++ b/web-tree-sitter.js
+@@ -2362,7 +2362,7 @@ async function Module2(moduleArg = {}) {
+           }
+           args = args.join(",");
+           var func = `(${args}) => { ${body} };`;
+-          ASM_CONSTS[start] = eval(func);
++          throw new Error(`gh-prism: EM_ASM side modules are unsupported: ${func}`);
+         }
+         __name(addEmAsm, "addEmAsm");
+         if ("__start_em_asm" in moduleExports) {
+@@ -2385,7 +2385,7 @@ async function Module2(moduleArg = {}) {
+             }
+           }
+           var func = `(${jsArgs}) => ${body};`;
+-          moduleExports[name] = eval(func);
++          throw new Error(`gh-prism: EM_JS side modules are unsupported: ${func}`);
+         }
+         __name(addEmJs, "addEmJs");
+         for (var name in moduleExports) {
