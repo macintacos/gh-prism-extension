@@ -18,7 +18,8 @@
 ::highlight(gh-prism-removed) {
   background-color: var(--diffBlob-deletionWord-bgColor);
   text-decoration: underline;
-  text-decoration-color: var(--fgColor-danger);
+  /* --fgColor-danger holds only 2.78:1 on the dark theme's deletion word background. */
+  text-decoration-color: var(--display-red-fgColor);
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
 }

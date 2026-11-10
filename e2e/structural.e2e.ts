@@ -278,7 +278,7 @@ const TOKENS = `<style>
     --diffBlob-deletionNum-bgColor: rgb(255, 150, 150);
     --bgColor-default: rgb(255, 255, 255);
     --fgColor-success: rgb(0, 100, 0);
-    --fgColor-danger: rgb(100, 0, 0);
+    --display-red-fgColor: rgb(100, 0, 0);
   }
   td[data-selected="true"] { background-color: rgb(255, 230, 120); }
   #swatch { position: fixed; left: 0; bottom: 0; width: 8px; height: 8px; background: rgb(255, 230, 120); }
