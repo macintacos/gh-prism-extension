@@ -3791,6 +3791,7 @@ const PR_TOOLBAR_BODY = PR_BODY.replace(
 ).replace("</section>", "</section></div>");
 
 const boxRight = (box: { x: number; width: number } | null) => (box ? box.x + box.width : NaN);
+const boxBottom = (box: { y: number; height: number } | null) => (box ? box.y + box.height : NaN);
 
 /** Firefox reports box coordinates as float32, so a whole-pixel distance can come back a few millionths of a pixel off. */
 const toHundredths = (px: number) => Math.round(px * 100) / 100;
@@ -3854,6 +3855,32 @@ test("the Conversation button opens an overlay framing the pull request's Conver
   const frame = page.frameLocator("#gh-prism-conversation iframe");
   await expect(frame.locator("#conversation")).toBeVisible();
   await expect(frame.locator(".gh-prism-conversation-button")).toHaveCount(0);
+});
+
+// GitHub's collapsed sticky header: a --base-size-48 row over a thin divider, with GitHub's
+// universal border-box and the Primer tokens a routed page lacks.
+const PR_STICKY_HEADER_BODY = PR_BODY.replace(
+  '<section class="toolbar__ztHN6">',
+  '<style>*, ::before, ::after { box-sizing: border-box; } :root { --base-size-48: 3rem; --borderWidth-thin: 0.0625rem; --borderColor-default: #d1d9e0; } .StickyHeaderSlotBar__x { position: fixed; inset: 0 0 auto; border-bottom: var(--borderWidth-thin) solid var(--borderColor-default); } .miniHeaderInner__x { height: var(--base-size-48); }</style><div class="StickyHeaderSlotBar__x"><div class="miniHeaderInner__x"></div></div><section class="toolbar__ztHN6">',
+);
+
+test("the Conversation panel's header divider continues GitHub's collapsed sticky header's", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  await serve(context, PR_URL, PR_STICKY_HEADER_BODY);
+  await page.goto(PR_URL);
+  await expect(conversationButton(page)).toBeVisible();
+
+  await page.keyboard.press("Shift+Backslash");
+
+  const header = page.locator(".gh-prism-conversation-header");
+  await expect(header).toBeVisible();
+  expect(boxBottom(await header.boundingBox())).toBeCloseTo(
+    boxBottom(await page.locator(".StickyHeaderSlotBar__x").boundingBox()),
+    2,
+  );
 });
 
 test("Escape inside the Conversation frame closes the overlay, handing focus back to its button", async ({

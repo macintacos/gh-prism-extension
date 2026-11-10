@@ -6,6 +6,33 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-10: The Conversation panel's header takes GitHub's collapsed sticky header's box
+
+- **Asked:** GitHub's collapsed sticky header, the bar that stays at the top of Files
+  changed once its header scrolls away, has a 48px row. The panel's header row was 44px,
+  so its divider sat 4px above GitHub's. The maintainer asked for the dividers to meet,
+  and to "adjust elements in that header to match the increase in space".
+- **Compared:**
+  - for the height, Primer's `--base-size-48` token, which GitHub sizes that bar's row
+    with, or a fixed 48px;
+  - for the taller row's contents, Primer's medium 32px controls, a larger title, more
+    padding, or the same controls and title centred in the row.
+- **Won:**
+  - A 48px content box from `--base-size-48`, over the same `--borderWidth-thin` (1px)
+    `--borderColor-default` divider. The two dividers meet on one line in both the panel's
+    overlay and pinned modes.
+  - The small 28px controls and the 14px semibold title, centred in the row, with the 12px
+    inline padding kept.
+- **Why:**
+  - The token keeps the header in step with GitHub's bar if Primer's value or the root
+    font size changes.
+  - GitHub's own bar centres Primer's small controls and a 14px semibold title in its 48px
+    row. Centred the same way, the panel's controls and title sit at the same heights as
+    GitHub's across the seam. Medium controls or a larger title would sit off them.
+  - More block padding would size the row from its contents rather than from GitHub's
+    token, so the divider would drift whenever a control's size changed. The 12px inline
+    padding stays, because the taller row adds space only above and below the controls.
+
 ## 2026-11-09: Three member columns, eight then Show all
 
 - **Asked:** "now that we made it a little wider, I think we can go to three columns of

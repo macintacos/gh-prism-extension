@@ -242,10 +242,23 @@ on a private one.
   writes on `body`'s `style`, so watch that attribute and window resizes for changes.
 - **Don't measure the sticky bar itself.** The commit page's bar has no stable hook, and
   the pull request's is `height: 0` until stuck.
+- **Expect a pull request's collapsed sticky header to be a `--base-size-48` row over a
+  `--borderWidth-thin` `--borderColor-default` divider.** That header is the bar of title,
+  state, and review controls that stays at the top of the window once the page's header
+  scrolls away. Its row is `[class*="miniHeaderInner__"]`, which centres Primer's 28px
+  small controls. The divider is the bottom border of the row's parent,
+  `[class*="StickyHeaderSlotBar__"]`. `panel.css` gives the Conversation panel's header
+  the same box, so the two dividers meet on one line. Observed on gh-prism-sandbox's PR
+  #10 on 2026-11-10.
 - **Re-check:** on a public commit page, read the file header's computed `top` and compare
   it with the sticky bar's height, at both sides of the 1011px breakpoint. On a signed-in
   pull request, watch `body`'s `style` for `--base-sticky-header-height` while crossing
-  1011px, and compare it with a file header's computed `top`.
+  1011px, and compare it with a file header's computed `top`. Scroll that pull request
+  until its page header collapses into the sticky header, and read the rules for
+  `miniHeaderInner__` and `StickyHeaderSlotBar__` from `document.styleSheets`. Then open
+  the Conversation panel with Shift+\ and compare the bottom of `StickyHeaderSlotBar__`
+  with the bottom of `.gh-prism-conversation-header`, in the panel's overlay mode and
+  again after its pin button pins it as a column.
 
 ## The header counter
 

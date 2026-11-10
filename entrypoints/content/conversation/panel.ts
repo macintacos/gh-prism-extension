@@ -366,7 +366,7 @@ function mountPanel(
   const header = el(
     doc,
     "header",
-    "gh-prism-conversation-header tw:flex tw:items-center tw:gap-2 tw:px-3 tw:py-2",
+    "gh-prism-conversation-header tw:flex tw:items-center tw:gap-2 tw:px-3",
     prismMark(doc),
     el(
       doc,

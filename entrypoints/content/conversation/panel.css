@@ -1,6 +1,8 @@
-/* GitHub hooks: Primer's --prc-dialog-scrollgutter and --zIndex-sticky; [data-turbo-body]'s
-   isolation: isolate, wrapping #__primerPortalRoot__; section[class*="toolbar__"], a
-   justify-content: space-between row of two [data-component="Stack"] groups, the end one last.
+/* GitHub hooks: Primer's --prc-dialog-scrollgutter and --zIndex-sticky; --base-size-48, the
+   height of Files changed's collapsed sticky header ([class*="miniHeaderInner__"]) above its
+   --borderWidth-thin divider; [data-turbo-body]'s isolation: isolate, wrapping
+   #__primerPortalRoot__; section[class*="toolbar__"], a justify-content: space-between row of
+   two [data-component="Stack"] groups, the end one last.
    In the framed Conversation, panel.ts reads [data-testid="mergebox-partial"]
    section[aria-label="Checks"], #partial-discussion-sidebar, and .js-discussion; in the framed
    overview, section[data-overview-sidebar-item][aria-label="Reviewers"] and
@@ -167,8 +169,12 @@ section[class*="toolbar__"] > .gh-prism-pr-owners:active {
   color: var(--fgColor-accent);
 }
 
-/* A border, not a shadow below the box: the positioned body paints over anything outside it. */
+/* GitHub's collapsed sticky header's box, so the two dividers meet on one line. A border, not a
+   shadow below the box: the positioned body paints over anything outside it. Content-box keeps
+   the border outside the 48px, where GitHub's divider sits. */
 .gh-prism-conversation-header {
+  box-sizing: content-box;
+  min-block-size: var(--base-size-48, 48px);
   border-bottom: var(--borderWidth-thin, 1px) solid var(--borderColor-default);
 }
 
