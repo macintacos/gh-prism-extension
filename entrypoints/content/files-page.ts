@@ -1006,10 +1006,10 @@ const ANCHOR_END = /([LR])(\d+)$/;
 export function changedCells(root: ParentNode): ChangedCell[] {
   return [...root.querySelectorAll(CHANGED_CODE)].flatMap((code) => {
     const anchor = code.closest("td")?.dataset.lineAnchor ?? "";
-    const [, letter, line] = ANCHOR_END.exec(anchor) ?? [];
+    const [, sideLetter, line] = ANCHOR_END.exec(anchor) ?? [];
     const textRoot = code.querySelector(":scope > .diff-text-inner");
-    return letter && line && textRoot
-      ? [{ side: letter === "R" ? "new" : "old", line: Number(line), textRoot } as const]
+    return sideLetter && line && textRoot
+      ? [{ side: sideLetter === "R" ? "new" : "old", line: Number(line), textRoot } as const]
       : [];
   });
 }
@@ -1050,11 +1050,11 @@ export function followLayout(
   onChange: (layout: DiffLayout) => void,
   { signal }: { signal: AbortSignal },
 ): void {
-  let last: DiffLayout | undefined;
+  let lastReported: DiffLayout | undefined;
   const reportIfChanged = () => {
     const layout = currentLayout(diffs);
-    if (!layout || layout === last) return;
-    last = layout;
+    if (!layout || layout === lastReported) return;
+    lastReported = layout;
     onChange(layout);
   };
 
