@@ -186,6 +186,17 @@ badge. _Avoid_: tag; pill, which names the diffstat's per-section labels
 
 **Total**: The diffstat view that shows GitHub's own count.
 
+### Structural diffs
+
+**Structural mode**: gh-prism's optional diff mode that compares a changed file's old and
+new tokens and marks, on GitHub's own diff rows, only the tokens that changed. It is off
+until the reviewer picks Structural. _Avoid_: split, which is a placement and GitHub's
+two-column layout; semantic diff; syntactic diff; difftastic mode
+
+**Quiet row**: A diff row GitHub shows as added or deleted in which structural mode finds
+no changed token, as in a line that was only reindented or reformatted. Structural mode
+dims it. _Avoid_: dimmed row, unchanged row, whitespace-only row
+
 ### The Conversation panel
 
 **Conversation panel**: A panel on the left edge of a pull request's Files changed tab
@@ -215,4 +226,6 @@ of the page over instead of covering it. _Avoid_: docked, which is the sidebar's
   "Viewer" (`ownedByViewer`) is GitHub's word for the person reading the diff.
 - "Sidebar" is only gh-prism's sectioned file list, never the Conversation panel, though
   both sit at a page edge.
+- "Side" is the edge the sidebar docks on. A diff's two versions of a file are its old
+  side and new side; never call either one "side" alone.
 - The Docs & Comments section's key is `docs`. They are the same section.
