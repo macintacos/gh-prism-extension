@@ -1,6 +1,7 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import type { ConfigEnv } from "wxt";
+import type { ConfigEnv, ResolvedPublicFile, Wxt, WxtHooks } from "wxt";
+import { WASM_SOURCES } from "../utils/structural/packaged";
 import config from "../wxt.config";
 
 const envFor = (browser: string): ConfigEnv => ({
@@ -67,5 +68,49 @@ describe("wxt.config", () => {
     expect(firefox).toMatch(/[/\\]decode-named-character-reference[/\\]index\.js$/);
     expect(chrome).toBe(firefox);
     expect(readFileSync(firefox ?? "", "utf8")).not.toContain("innerHTML");
+  });
+
+  it("lets each browser's extension pages compile WebAssembly under its default policy", async () => {
+    const chrome = await manifestFor("chrome");
+    const firefox = await manifestFor("firefox");
+
+    expect(chrome.content_security_policy).toEqual({
+      extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
+    });
+    expect(firefox.content_security_policy).toEqual({
+      extension_pages: "script-src 'self' 'wasm-unsafe-eval'; upgrade-insecure-requests;",
+    });
+  });
+
+  it.each(["chrome", "firefox"])(
+    "asks %s for no permission beyond its install set",
+    async (browser) => {
+      const manifest = await manifestFor(browser);
+
+      expect(manifest.permissions).toEqual(["storage", "declarativeNetRequestWithHostAccess"]);
+      expect(manifest.host_permissions).toEqual([
+        "https://github.com/*",
+        "https://patch-diff.githubusercontent.com/*",
+        "https://raw.githubusercontent.com/*",
+      ]);
+      expect(manifest).not.toHaveProperty("optional_permissions");
+      expect(manifest).not.toHaveProperty("optional_host_permissions");
+      expect(manifest).not.toHaveProperty("web_accessible_resources");
+    },
+  );
+
+  it("copies each packaged WebAssembly file into the build", async () => {
+    const hooks: Partial<WxtHooks> = config.hooks ?? {};
+    const hook = hooks["build:publicAssets"];
+    if (!hook) throw new Error("build:publicAssets hook missing");
+    const files: ResolvedPublicFile[] = [];
+
+    await hook({} as Wxt, files);
+
+    expect(files.map((file) => file.relativeDest)).toEqual(
+      WASM_SOURCES.map(([, file]) => `structural/${file}`),
+    );
+    for (const file of files)
+      expect(existsSync("absoluteSrc" in file ? file.absoluteSrc : "")).toBe(true);
   });
 });
