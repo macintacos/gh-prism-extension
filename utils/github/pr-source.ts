@@ -59,13 +59,13 @@ interface PrCacheEntry {
 }
 
 /**
- * `body` decoded until `bytes` bytes arrive or it ends, then cancelled; a server that ignores
+ * `body` decoded until `maxBytes` bytes arrive or it ends, then cancelled; a server that ignores
  * `Range` sends the whole file. A gzip 206 can fail at its cut tail: the text decoded before the
  * failure stands, and a body that fails before any text is `undefined`.
  */
 async function readAtMost(
   body: ReadableStream<Uint8Array> | null,
-  bytes: number,
+  maxBytes: number,
 ): Promise<string | undefined> {
   if (!body) return "";
   const reader = body.getReader();
@@ -75,10 +75,10 @@ async function readAtMost(
   let failed = false;
 
   try {
-    while (received < bytes) {
+    while (received < maxBytes) {
       const { done, value } = await reader.read();
       if (done) break;
-      const take = value.subarray(0, bytes - received);
+      const take = value.subarray(0, maxBytes - received);
       received += take.byteLength;
       text += decoder.decode(take, { stream: true });
     }

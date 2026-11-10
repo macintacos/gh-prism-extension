@@ -356,16 +356,17 @@ export async function intentFor(
   }
 
   let cutShort = false;
-  const noting = (read: (path: string) => Promise<PrFileContentResult>) => async (path: string) => {
-    const content = await read(path);
-    if (!content.ok && PASSING.has(content.problem)) cutShort = true;
-    return content;
-  };
+  const notingCutShort =
+    (read: (path: string) => Promise<PrFileContentResult>) => async (path: string) => {
+      const content = await read(path);
+      if (!content.ok && PASSING.has(content.problem)) cutShort = true;
+      return content;
+    };
   const result = await readIntent(
     {
       files: () => client.files(),
-      fileContent: noting((path) => client.fileContent(path)),
-      filePrefix: noting((path) => client.filePrefix(path)),
+      fileContent: notingCutShort((path) => client.fileContent(path)),
+      filePrefix: notingCutShort((path) => client.filePrefix(path)),
     },
     onProgress,
     generated,

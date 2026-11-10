@@ -40,14 +40,14 @@ export function patchMarkerVerdict(file: PrFileDiff): MarkerVerdict {
   if (file.kind === "binary" || file.status === "deleted") return "not-generated";
   if (classify(file.path) !== "implementation") return "not-generated";
 
-  const [first] = parsePrHunks(file.patch);
-  const shown =
-    first?.newStart === 1
-      ? first.lines.filter((line) => !line.startsWith("-") && !line.startsWith("\\"))
+  const [firstHunk] = parsePrHunks(file.patch);
+  const headLines =
+    firstHunk?.newStart === 1
+      ? firstHunk.lines.filter((line) => !line.startsWith("-") && !line.startsWith("\\"))
       : [];
   const verdict = markerVerdict(
     file.path,
-    shown.map((line) => line.slice(1)),
+    headLines.map((line) => line.slice(1)),
   );
 
   // An added file's patch is the whole file.
