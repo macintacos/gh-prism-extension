@@ -81,6 +81,15 @@ const DIFF_BASE_PATH = [
   "oldCommitOid",
 ] as const;
 
+function parsed(json: string | null | undefined): unknown {
+  if (json == null) return undefined;
+  try {
+    return JSON.parse(json);
+  } catch {
+    return undefined;
+  }
+}
+
 type PageDocument = { querySelector(selectors: string): { textContent: string | null } | null };
 
 /**
@@ -91,14 +100,7 @@ type PageDocument = { querySelector(selectors: string): { textContent: string | 
  * navigation it still holds the previous page's payload, hence the match check.
  */
 function prPageData(json: string | null | undefined, pr: PrRef): unknown {
-  if (json == null) return undefined;
-  let data: unknown;
-  try {
-    data = JSON.parse(json);
-  } catch {
-    return undefined;
-  }
-
+  const data = parsed(json);
   const route = at(data, "payload", "pullRequestsLayoutRoute");
   const matches =
     at(route, "pullRequest", "number") === pr.number &&
@@ -171,6 +173,45 @@ export function viewedFromEmbeddedData(
   return { offered, viewed };
 }
 
+/** {@link prPageData}'s check for a commit page. */
+function commitPageData(json: string | null | undefined, commit: CommitHead): unknown {
+  const data = parsed(json);
+  const route = at(data, "payload", "commitRoute");
+  const matches =
+    sameName(at(route, "commit", "oid"), commit.headSha) &&
+    sameName(at(route, "repo", "ownerLogin"), commit.owner) &&
+    sameName(at(route, "repo", "name"), commit.repo);
+  return matches ? data : undefined;
+}
+
+/**
+ * The paths GitHub's embedded page data flags `isGenerated`, empty unless that data names `diff`.
+ *
+ * @remarks
+ * An entry without the flag or a path is skipped alone: a missing flag only means "not known
+ * generated".
+ */
+// ponytail: only a full load embeds this, and a large PR only its first batch of diffs; a soft
+// navigation flags nothing. Markers still catch scannable code. Upgrade: also read the mounted
+// diffs' "Some generated files are not rendered by default" notice, re-landing as they mount.
+export function generatedFromEmbeddedData(
+  json: string | null | undefined,
+  diff: DiffRef,
+): ReadonlySet<string> {
+  const entries =
+    diff.kind === "pr"
+      ? at(prPageData(json, diff), "payload", "pullRequestsChangesRoute", "diffContents")
+      : at(commitPageData(json, diff), "payload", "commitRoute", "diffEntryData");
+  const paths = new Set<string>();
+  if (!Array.isArray(entries)) return paths;
+  for (const entry of entries) {
+    const path = at(entry, "newTreeEntry", "path");
+    if (at(entry, "newTreeEntry", "isGenerated") === true && typeof path === "string" && path)
+      paths.add(path);
+  }
+  return paths;
+}
+
 const EMBEDDED_DATA_SELECTOR = 'script[data-target="react-app.embeddedData"]';
 const EMBEDDED_DATA_SCRIPT =
   /<script[^>]*data-target="react-app\.embeddedData"[^>]*>([\s\S]*?)<\/script>/;
@@ -197,4 +238,9 @@ export function readViewedSeed(doc: PageDocument, diff: DiffRef): ViewedSeed | u
   return diff.kind === "pr"
     ? viewedFromEmbeddedData(doc.querySelector(EMBEDDED_DATA_SELECTOR)?.textContent, diff)
     : undefined;
+}
+
+/** {@link generatedFromEmbeddedData} for a live page's `document`. */
+export function readGeneratedPaths(doc: PageDocument, diff: DiffRef): ReadonlySet<string> {
+  return generatedFromEmbeddedData(doc.querySelector(EMBEDDED_DATA_SELECTOR)?.textContent, diff);
 }

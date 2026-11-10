@@ -320,6 +320,18 @@ on a private one.
   page's path with `accept: application/json` would return the same key path, fresh
   (verified from the page's main world only). Read `user.shouldShowViewedFilesCount` from
   the same route data as the seed.
+- **Read GitHub's generated flag from route data.** GitHub marks a generated file (from
+  `linguist-generated` or linguist's own rules) in the files page's embedded data: on a
+  pull request,
+  `payload.pullRequestsChangesRoute.diffContents[].newTreeEntry.isGenerated`; on a commit,
+  `payload.commitRoute.diffEntryData[].newTreeEntry.isGenerated`. Not `diffSummaries`.
+  Only a full load carries it, and only for the first batch of diffs. In the DOM, a
+  generated file's diff shows a "Load Diff" placeholder reading "Some generated files are
+  not rendered by default".
+  - **Re-check:** full-load the sandbox PR #3 Files changed tab, parse
+    `script[data-target="react-app.embeddedData"]` in the console, and confirm
+    `src/generated/schema.rs` has `newTreeEntry.isGenerated: true`. Repeat on commit
+    `9b5796441f2498c992dc509fc497040927a7166e`.
 - **Follow toggles through the header's button, not the tree or `diff_entries`.** Tree
   rows carry no Viewed mark, and `diff_entries` batches carry no Viewed field. A header
   exists only for a mounted diff, so it gives no coverage, but it tracks every toggle.

@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { CommitHead, PrRef } from "../../../utils/github/pr-ref";
 import {
   diffPinFromEmbeddedData,
+  generatedFromEmbeddedData,
   prEmbeddedDataFromHtml,
   prHeadShaFromEmbeddedData,
   readDiffPin,
+  readGeneratedPaths,
   readPrPageHeadSha,
   readViewedSeed,
   viewedFromEmbeddedData,
@@ -235,5 +237,75 @@ describe("readViewedSeed", () => {
       headSha: sha,
     };
     expect(readViewedSeed(doc, commit)).toBeUndefined();
+  });
+});
+
+const generatedEntries = [
+  { newTreeEntry: { path: "src/generated/schema.rs", isGenerated: true } },
+  { newTreeEntry: { path: "src/engine.rs", isGenerated: false } },
+  { oldTreeEntry: { path: "gone.rs" }, newTreeEntry: null },
+];
+
+const commitOid = "9b5796441f2498c992dc509fc497040927a7166e";
+const generatedCommit: CommitHead = {
+  kind: "commit",
+  owner: "macintacos",
+  repo: "gh-prism-sandbox",
+  headSha: commitOid,
+};
+
+const commitPayload = (oid: string, name: string) =>
+  JSON.stringify({
+    payload: {
+      commitRoute: {
+        commit: { oid },
+        repo: { ownerLogin: "Macintacos", name },
+        diffEntryData: generatedEntries,
+      },
+    },
+  });
+
+describe("generatedFromEmbeddedData", () => {
+  it("reads a PR's files GitHub flags generated", () => {
+    expect(
+      generatedFromEmbeddedData(viewedPayload({ diffContents: generatedEntries }), viewedPr),
+    ).toEqual(new Set(["src/generated/schema.rs"]));
+  });
+
+  it("reads a commit's files GitHub flags generated", () => {
+    expect(
+      generatedFromEmbeddedData(
+        commitPayload(commitOid.toUpperCase(), "gh-prism-sandbox"),
+        generatedCommit,
+      ),
+    ).toEqual(new Set(["src/generated/schema.rs"]));
+  });
+
+  it.each([
+    ["a payload naming another PR", viewedPayload({ diffContents: generatedEntries }), pr],
+    ["a payload without the changes route", viewedPayload(undefined), viewedPr],
+    [
+      "a commit payload naming another oid",
+      commitPayload(sha, "gh-prism-sandbox"),
+      generatedCommit,
+    ],
+    [
+      "a commit payload naming another repository",
+      commitPayload(commitOid, "other"),
+      generatedCommit,
+    ],
+    ["null JSON", null, viewedPr],
+    ["unparsable JSON", "{not json", viewedPr],
+  ] as const)("flags nothing for %s", (_, json, diff) => {
+    expect(generatedFromEmbeddedData(json, diff)).toEqual(new Set());
+  });
+});
+
+describe("readGeneratedPaths", () => {
+  it("reads the page's embedded data", () => {
+    const doc = {
+      querySelector: () => ({ textContent: viewedPayload({ diffContents: generatedEntries }) }),
+    };
+    expect(readGeneratedPaths(doc, viewedPr)).toEqual(new Set(["src/generated/schema.rs"]));
   });
 });
