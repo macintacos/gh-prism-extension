@@ -293,10 +293,17 @@ on a private one.
   (`div.d-flex.pt-1 > div[class*="markersWrapper__"] > … [data-testid="review-thread"]`),
   not in a row of its own. A `td`'s `textContent`, or a text-node walk rooted at the `td`,
   takes in the comment.
-- **Expect up to two text cells per row in split, and one in unified; only the count tells
-  the layout.** On a pull request, a one-sided split row holds one `td.diff-text-cell`,
-  and its other side holds `td.empty-diff-line` cells. A pull request's unified cells
-  carry `left-side` alone, whatever their side, so don't read the side from a class there.
+- **Expect up to two text cells per row in split, and one in unified, but don't read the
+  layout from that count.** A commit's one-sided split table holds at most one
+  `td.diff-text-cell` per row; read the layout from the columns instead (see
+  [§ Diff layout](#diff-layout)). On a pull request, a one-sided split row holds one
+  `td.diff-text-cell`, and its other side holds `td.empty-diff-line` cells. A pull
+  request's unified cells carry `left-side` alone, whatever their side, so don't read the
+  side from a class there.
+- **`changedCells` in `files-page.ts` collects changed cells this way,** reading side and
+  line from the anchor suffix. That is safe only because it yields changed cells, never
+  the context cells or hunk headers whose suffix misleads. A caller collects again on each
+  `observeDiffs` report rather than holding cells, since tables are replaced.
 - **Find a renamed file's region by the hash of its new path:**
   [`macintacos/gh-prism-sandbox` PR #3](https://github.com/macintacos/gh-prism-sandbox/pull/3/changes)'s
   `src/util.rs` renamed to `src/helpers.rs` is `#diff-c2a0fff5…`. Region ids and their
@@ -400,8 +407,41 @@ on a private one.
   the browser stores it is unknown. Choosing Unified back restored it.
 - **Use `?diff=split` when the menu can't be driven.** It switches a pull request and a
   commit to split for that load only: a reload without it returns to the saved layout.
-  `?diff=unified` loaded unified while the saved layout was Unified; whether it overrides
-  a saved Split is unchecked. Observed in Chromium 157 and Firefox 157 on 2026-11-10.
+  `?diff=unified` loads unified even with Split saved, and loading either value doesn't
+  change the saved choice. Observed in Chromium 157 and Firefox 157 on 2026-11-10; the
+  override of a saved Split in Chromium 157 only, signed in.
+- **Expect one saved layout for pull request and commit pages.** Choosing a layout on one
+  page kind shows on the other (Chromium 157, signed in, 2026-11-10; Firefox unchecked).
+- **Read the layout from a diff table's columns: 3 `colgroup > col` in unified, 4 in
+  split,** on both page kinds. `currentLayout` and `followLayout` in `files-page.ts` read
+  it this way. Exception: a pull request draws a file that is all additions or all
+  deletions with 3 columns even in split, saved or from `?diff=split`; a commit's
+  one-sided file follows the layout. The hunk cell's `colspan` is 4 in both layouts, so it
+  doesn't tell the layout either. Observed in Chromium 157 and Firefox 157 on 2026-11-10,
+  on [sandbox PR #3](https://github.com/macintacos/gh-prism-sandbox/pull/3/changes),
+  [sandbox commit `8d807ee`](https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee),
+  and the added file of
+  [sandbox PR #9](https://github.com/macintacos/gh-prism-sandbox/pull/9/changes).
+- **Expect a Layout choice to switch in place.** It doesn't navigate or reload: each
+  `table` element stays connected while its rows and `colgroup` are replaced within about
+  40 ms. `location` gains `?diff=split` or `?diff=unified` by history replacement, with no
+  `popstate`, and nothing outside the tables marks the switch, so `followLayout` watches
+  the tables (Chromium 157, signed in, 2026-11-10; Firefox unchecked).
+- **Expect the menu's `aria-checked` to follow the layout on screen, not the saved
+  choice,** including under `?diff=` on both page kinds. On a pull request whose files are
+  all one-sided, it says Split while every table has 3 columns (Chromium 157, signed in,
+  2026-11-10; Firefox unchecked). The Layout items carry `aria-keyshortcuts` `u` (Unified)
+  and `s` (Split).
+- **Find the gear as the only `button:has(.octicon-gear)` inside the row
+  `findFilesToolbar` finds,** on both page kinds at 1280px and 700px wide;
+  `findLayoutGear` in `files-page.ts` reads it this way. A commit's second, hidden gear in
+  `#diff_file_tree > .d-md-none` sits outside that row. The gear carries
+  `aria-haspopup="true"` and `aria-expanded` `"false"` or `"true"`, and no `aria-controls`
+  (Chromium 157, signed in, 2026-11-10).
+- **Test the gear against the captured toolbars:**
+  `tests/fixtures/files-page-toolbar.html` (a pull request's, menu open) and
+  `tests/fixtures/commit-page-toolbar.html`. Each fixture's header comment names its
+  source page.
 - **Re-check:** signed in, on `macintacos/gh-prism-sandbox` PR #3's Changes and on commit
   `8d807ee`, read the gear's `aria-labelledby` target text, its `data-testid`, and its
   ancestors. Click it, then read every `[role^=menuitem]` under `#__primerPortalRoot__`
@@ -412,7 +452,12 @@ on a private one.
   checked Layout item, choose Split, reload, read the layout, then choose the original
   item and confirm it is checked after a reload, and load `?diff=unified` while Split is
   saved. On the commit, count the gear role query's matches at 1280px and 700px wide and
-  read which is visible.
+  read which is visible. For the columns, load PR #3 and commit `8d807ee` each with
+  `?diff=split` and `?diff=unified`, and PR #9 with `?diff=split`, and read
+  `[...document.querySelectorAll('table[data-diff-anchor]')].map(t => t.querySelector('colgroup')?.childElementCount)`;
+  for deleted files, use [cli/cli PR #14872](https://github.com/cli/cli/pull/14872) and
+  [cli/cli@b564a77225](https://github.com/cli/cli/commit/b564a77225) after clicking Load
+  Diff.
 
 ## Sticky headers
 

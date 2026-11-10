@@ -7,8 +7,9 @@
  * commit's message toggle starts, follows a pull request's narrow-layout overlay and the file-tree
  * filter menu, finds and follows the rows and code-owner shields of a pull request's Reviewers
  * lists and its comments' authors on Conversation and Files changed, measures and follows GitHub's
- * right-hand panel beside a pull request's Files changed, and copies that menu's group, divider,
- * and item for gh-prism's entries, so the selectors stay in this seam; it builds no UI of its own
+ * right-hand panel beside a pull request's Files changed, copies that menu's group, divider, and
+ * item for gh-prism's entries, collects a mounted diff's changed cells, reads and follows the diff
+ * layout, and finds the layout gear, so the selectors stay in this seam; it builds no UI of its own
  * and imports nothing from WXT. The pull request selectors come from EXC-1662's survey.
  */
 
