@@ -1,6 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { extensionOf, scanHeadText } from "../../../utils/hunk-rules/head-scan";
+import {
+  type CommentSyntax,
+  commentSyntaxOf,
+  extensionOf,
+  isDirective,
+  scanHeadText,
+} from "../../../utils/hunk-rules/head-scan";
 import { lines } from "../../fixtures/head-scan";
+
+describe("isDirective", () => {
+  it.each([
+    ["api/a.go", true],
+    ["src/a.ts", false],
+  ])("reads //go:build as a directive in %s: %s", (path, directive) =>
+    expect(isDirective(commentSyntaxOf(path) as CommentSyntax, "  //go:build linux")).toBe(
+      directive,
+    ),
+  );
+});
 
 describe("extensionOf", () => {
   it.each([
