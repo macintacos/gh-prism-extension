@@ -10,26 +10,49 @@ import prUnified from "../fixtures/files-page-diff-unified.html?raw";
 
 const EXPANDED_ANCHOR = "diff-ff278ec599adfd033d35a083ebe8948db8bf177c9817dee8ddc4f3a9e3f5728eR1";
 
-const changedCells = (): HTMLTableCellElement[] =>
-  [...document.querySelectorAll<HTMLTableCellElement>("td.diff-text-cell")].filter((cell) =>
-    cell.querySelector("code.diff-text.addition, code.diff-text.deletion"),
-  );
+const textCells = (): HTMLTableCellElement[] => [
+  ...document.querySelectorAll<HTMLTableCellElement>("td.diff-text-cell"),
+];
+
+const isChanged = (cell: HTMLTableCellElement): boolean =>
+  cell.querySelector("code.diff-text.addition, code.diff-text.deletion") !== null;
+
+const changedCells = (): HTMLTableCellElement[] => textCells().filter(isChanged);
+
+const contextCells = (): HTMLTableCellElement[] => textCells().filter((cell) => !isChanged(cell));
+
+const anchorParts = (cell: HTMLTableCellElement): { side?: string; line?: string } => {
+  const [, side, line] = /([LR])(\d+)$/.exec(cell.dataset.lineAnchor ?? "") ?? [];
+  return { side, line };
+};
 
 const cellsPerRow = (): number[] =>
   [...document.querySelectorAll("tr")].map(
     (row) => row.querySelectorAll("td.diff-text-cell").length,
   );
 
-const FIXTURES = [
-  { name: "files-page-diff-unified", html: prUnified, cells: 1 },
-  { name: "files-page-diff-split", html: prSplit, cells: 2 },
-  { name: "files-page-diff-rename", html: prRename, cells: 1 },
-  { name: "commit-page-diff-unified", html: commitUnified, cells: 1 },
-  { name: "commit-page-diff-split", html: commitSplit, cells: 2 },
-  { name: "commit-page-diff-whitespace", html: commitWhitespace, cells: 1 },
+type Fixture = {
+  name: string;
+  html: string;
+  page: "pull" | "commit";
+  layout: "unified" | "split";
+};
+
+const FIXTURES: Fixture[] = [
+  { name: "files-page-diff-unified", html: prUnified, page: "pull", layout: "unified" },
+  { name: "files-page-diff-split", html: prSplit, page: "pull", layout: "split" },
+  { name: "files-page-diff-rename", html: prRename, page: "pull", layout: "unified" },
+  { name: "commit-page-diff-unified", html: commitUnified, page: "commit", layout: "unified" },
+  { name: "commit-page-diff-split", html: commitSplit, page: "commit", layout: "split" },
+  {
+    name: "commit-page-diff-whitespace",
+    html: commitWhitespace,
+    page: "commit",
+    layout: "unified",
+  },
 ];
 
-describe.each(FIXTURES)("$name", ({ html, cells }) => {
+describe.each(FIXTURES)("$name", ({ html, page, layout }) => {
   it("anchors each changed cell to its side and line, with a marker before its text", () => {
     document.body.innerHTML = html;
 
@@ -37,28 +60,25 @@ describe.each(FIXTURES)("$name", ({ html, cells }) => {
 
     expect(changed.length).toBeGreaterThan(0);
     for (const cell of changed) {
-      const anchor = cell.dataset.lineAnchor ?? "";
-      const [, side, line] = /([LR])(\d+)$/.exec(anchor) ?? [];
+      const { side, line } = anchorParts(cell);
       const [, left, right] =
         /-(\d+|empty)-(\d+|empty)-\d+$/.exec(cell.dataset.gridCellId ?? "") ?? [];
       const code = cell.querySelector("code.diff-text");
-      expect(isLineAnchor(anchor)).toBe(true);
+      expect(isLineAnchor(cell.dataset.lineAnchor ?? "")).toBe(true);
       expect(line).toBe(side === "R" ? right : left);
       expect(side).toBe(code?.classList.contains("addition") ? "R" : "L");
       const marker = code?.firstElementChild;
       expect(marker?.matches("span.diff-text-marker")).toBe(true);
       expect(["+", "-"]).toContain(marker?.textContent);
       expect(marker?.nextElementSibling?.classList.contains("diff-text-inner")).toBe(true);
+      expect(code?.childElementCount).toBe(2);
     }
   });
 
   it("gives context cells their text without a marker", () => {
     document.body.innerHTML = html;
 
-    const changed = new Set(changedCells());
-    const context = [...document.querySelectorAll("td.diff-text-cell")].filter(
-      (cell) => !changed.has(cell as HTMLTableCellElement) && cell.querySelector("code"),
-    );
+    const context = contextCells();
 
     expect(context.length).toBeGreaterThan(0);
     for (const cell of context) {
@@ -67,30 +87,70 @@ describe.each(FIXTURES)("$name", ({ html, cells }) => {
     }
   });
 
-  it("holds as many text cells per row as its layout has sides", () => {
+  it("holds up to as many text cells per row as its layout has sides", () => {
     document.body.innerHTML = html;
 
-    expect(Math.max(...cellsPerRow())).toBe(cells);
+    const counts = new Set(cellsPerRow().filter(Boolean));
+
+    const sides = layout === "split" ? 2 : 1;
+    expect(counts.has(sides)).toBe(true);
+    expect([...counts].every((count) => count <= sides)).toBe(true);
+  });
+
+  it("carries side and line data attributes on pull request cells only", () => {
+    document.body.innerHTML = html;
+
+    const changed = changedCells();
+
+    for (const cell of changed) {
+      const { side, line } = anchorParts(cell);
+      if (page === "pull") {
+        expect(cell.dataset.diffSide?.[0]?.toUpperCase()).toBe(side);
+        expect(cell.dataset.lineNumber).toBe(line);
+        expect(cell.dataset.diffLineKey).toBeDefined();
+      } else {
+        expect(cell.dataset.diffSide).toBeUndefined();
+        expect(cell.dataset.lineNumber).toBeUndefined();
+        expect(cell.dataset.diffLineKey).toBeUndefined();
+      }
+    }
   });
 });
 
 describe.each([
   { name: "files-page-diff-unified", html: prUnified },
   { name: "files-page-diff-split", html: prSplit },
-])("$name", ({ html }) => {
-  it("carries a mounted review thread and an expanded-context row", () => {
+])("$name review thread", ({ html }) => {
+  it("mounts inside the line's text cell, after its code", () => {
     document.body.innerHTML = html;
 
-    expect(document.querySelector('[data-testid="review-thread"]')).not.toBeNull();
-    expect(document.querySelector(`[data-line-anchor="${EXPANDED_ANCHOR}"]`)).not.toBeNull();
+    const thread = document.querySelector('[data-testid="review-thread"]');
+    const cell = thread?.closest("td.diff-text-cell");
+    const code = cell?.querySelector("code");
+
+    expect(cell).toBeTruthy();
+    expect(thread?.closest(".diff-text-inner")).toBeNull();
+    expect(code && thread && code.compareDocumentPosition(thread)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
+  it("carries an expanded-context row", () => {
+    document.body.innerHTML = html;
+
+    const expanded = document.querySelector(`[data-line-anchor="${EXPANDED_ANCHOR}"]`);
+
+    expect(expanded).not.toBeNull();
   });
 });
 
-describe("files-page-diff-rename", () => {
+describe("files-page-diff-rename paths", () => {
   it("names both the old and the new path", () => {
     document.body.innerHTML = prRename;
 
-    expect(document.body.textContent).toContain("src/helpers.rs");
-    expect(document.body.textContent).toContain("src/util.rs");
+    const text = document.body.textContent;
+
+    expect(text).toContain("src/helpers.rs");
+    expect(text).toContain("src/util.rs");
   });
 });
