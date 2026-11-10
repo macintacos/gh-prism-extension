@@ -969,6 +969,40 @@ export const lineRowOfAnchor = (page: FilesPage, anchor: string): HTMLTableRowEl
     : null;
 };
 
+/** Which version of a file a diff cell shows. */
+export type DiffSide = "old" | "new";
+
+/** A changed line's code cell in a mounted diff. */
+export interface ChangedCell {
+  readonly side: DiffSide;
+  /** The line's number on `side`. */
+  readonly line: number;
+  /** Holds the line's code text alone: no `+`/`-` marker and no review thread. */
+  readonly textRoot: Element;
+}
+
+// The child combinator keeps hunk headers and a review thread's own markup out.
+const CHANGED_CODE =
+  "td.diff-text-cell > code.diff-text.addition, td.diff-text-cell > code.diff-text.deletion";
+
+const ANCHOR_END = /([LR])(\d+)$/;
+
+/**
+ * The changed code cells under `root`, in document order. Hold none across an `observeDiffs`
+ * report: GitHub replaces a file's table on context expansion, collapse, Load Diff, and a layout
+ * switch.
+ */
+export function changedCells(root: ParentNode): ChangedCell[] {
+  return [...root.querySelectorAll(CHANGED_CODE)].flatMap((code) => {
+    const anchor = code.closest("td")?.dataset.lineAnchor ?? "";
+    const [, letter, line] = ANCHOR_END.exec(anchor) ?? [];
+    const textRoot = code.querySelector(":scope > .diff-text-inner");
+    return letter && line && textRoot
+      ? [{ side: letter === "R" ? "new" : "old", line: Number(line), textRoot } as const]
+      : [];
+  });
+}
+
 /** The `diff-…` anchor `link` points at: it names the file's diff and prefixes its line anchors. */
 export const anchorOf = (link: HTMLAnchorElement): string | undefined =>
   link.getAttribute("href")?.slice(1);
