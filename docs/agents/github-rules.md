@@ -344,12 +344,70 @@ on a private one.
   counts (Chromium 157, signed in, 2026-11-10). Count tables only after loading every
   file: its generated `issue-triage.lock.yml` sits behind Load diff, so a first count
   finds 4 tables for 5 files.
-- **Paint over a cell's text with the CSS Custom Highlight API from a constructed sheet.**
-  A `::highlight()` rule in a `CSSStyleSheet` added through `document.adoptedStyleSheets`
-  applies under GitHub's CSP. A Highlight paints over the `.x` word mark's background, and
-  a translucent one (`rgba(255,0,255,.4)`) lets the mark's tint show through; the mark's
-  computed background stays unchanged. Observed on sandbox PR #3's `timeout_ms = 500` row
-  in Chromium 157 and Firefox 157 on 2026-11-10.
+- **Paint over a cell's text with the CSS Custom Highlight API, from a content script's
+  world, with the `::highlight()` rules in a `<style>` appended to `document.head`.**
+  `new Highlight(range)`, `CSS.highlights.set`, and such a `<style>` all work from a
+  content script on github.com, with no CSP or Xray error, and the page's main world can
+  read the content script's registry. Deleting the highlight and removing the `<style>`
+  restores the pixels. A constructed sheet in `document.adoptedStyleSheets` works too, but
+  is a second mounting pattern. A Highlight paints over the `.x` word mark's background:
+  an opaque one covers it, and a translucent one (`rgba(255,0,255,.4)`) lets the mark's
+  tint show through. Observed on sandbox PR #3's `timeout_ms = 500` row in Chromium 157
+  and Firefox 157 on 2026-11-10.
+- **Style a `::highlight()` with `background-color`, `text-decoration: underline`,
+  `text-decoration-color`, `text-decoration-thickness`, `text-underline-offset`, and
+  `var()`; all apply.** Over a selected cell,
+  `td[data-selected="true"] *::highlight(name) { background-color: transparent; }` removes
+  the highlight's background and keeps its underline. The same rule without the `*` does
+  nothing (Chromium 157 and Firefox 157, sandbox PR #3, 2026-11-10).
+- **Find a stale `Range` by its cell's `isConnected` or by `range.collapsed`, never by
+  `startContainer.isConnected`.** After a context expansion replaces a table, a `Range`
+  into the old table collapses onto the surviving ancestor, stays connected, and still
+  counts in `Highlight.size` (Chromium 157 and Firefox 157, sandbox PR #3, 2026-11-10).
+- **Compare a cell's text through `.diff-text-inner.textContent`.** It has no trailing
+  newline, keeps tabs as tabs, holds no non-breaking space, and excludes the `+`/`-`
+  marker; an empty added line is `""`. Syntax spans split the text across several text
+  nodes (Chromium 157 and Firefox 157, sandbox PR #3 and cli/cli@aac4387, 2026-11-10).
+- **Address a split row's cells by position.** A split row has four `td`s on both page
+  kinds: old number, old code, new number, new code, so `td:nth-child(-n+2)` is the old
+  side and `td:nth-child(n+3)` the new, and `td:nth-child(1)` to `(4)` address one cell
+  each. Number cells carry no side marker that works on both page kinds. A one-sided pull
+  request row fills its empty side with two `td.empty-diff-line` (Chromium 157 and Firefox
+  157, sandbox PR #3 and cli/cli@aac4387 in Split, 2026-11-10).
+- **Override a changed cell's background only with `!important`.** GitHub sets each
+  add/delete cell's background inline on the `td`, as
+  `background-color: var(--diffBlob-additionLine-bgColor, …)` and
+  `--diffBlob-deletionLine-bgColor`. Number cells use `--diffBlob-additionNum-bgColor` and
+  `--diffBlob-deletionNum-bgColor`, and context cells `--bgColor-default` (Chromium 157
+  and Firefox 157, sandbox PR #3 and cli/cli@aac4387, 2026-11-10).
+- **Expect a selected line to set `data-selected="true"` on its row's non-empty `td`s and
+  remove their inline background.** A two-sided row has four selected cells; a one-sided
+  row's `td.empty-diff-line` cells never get the attribute, so it has two.
+  `.diff-text-cell[data-selected="true"]` and the number-cell rules then paint
+  `--bgColor-attention-muted`. Selection is an attribute change, so `observeDiffs` does
+  not report it. A click on a number cell,
+  `td.new-diff-line-number[data-diff-side][data-line-number]` (the same class on both
+  sides, so tell them apart by `data-diff-side`), selects one line and sets the hash to
+  `#<anchor>R<n>`. A pointer drag across number cells, or a click and then a click with
+  Shift held as real key state, selects a range; a click modifier does not, under
+  Playwright. Loading a line hash in a fresh headless tab selected no cell within 15 s.
+  Observed in Chromium 157 and Firefox 157 on sandbox PR #3 in Split, 2026-11-10.
+- **Beat GitHub's word marks with a table-scoped rule of the same shape, without
+  `!important`.** GitHub paints them by
+  `.diff-text-cell .syntax-highlighted-line.addition .x` and `.deletion .x` (specificity
+  0,4,0) from `--diffBlob-additionWord-bgColor` and `--diffBlob-deletionWord-bgColor`.
+  `table[data-x] .syntax-highlighted-line.addition .x { background-color: transparent; }`
+  wins; `table[data-x] .diff-text-inner .x` does not (Chromium 157 and Firefox 157,
+  sandbox PR #3, 2026-11-10).
+- **Find the comment controls by these hooks.** The add-comment button is
+  `button[data-add-comment-button="true"]` (`aria-label="Add comment"`), shown once a
+  row's code cell is hovered. Its form is a `[role=dialog]` named "Comment view", with no
+  `<form>`; its textarea is `textarea[placeholder="Leave a comment"]`
+  (`aria-label="Markdown value"`), and its buttons are Cancel, Comment, and Start a
+  review. A thread's reply opener is `button[class*="CompactCommentInputContainer"]`,
+  reading "Write a reply" and `aria-hidden` until the thread is expanded; it opens the
+  same textarea and Cancel (Chromium 157 and Firefox 157, sandbox PR #3 in Split,
+  2026-11-10).
 - **Test against the captured tables:** `tests/fixtures/files-page-diff-*.html` (pull
   request unified, split, and rename) and `tests/fixtures/commit-page-diff-*.html` (commit
   unified, split, and `?w=1`). Each fixture's header comment names its source page. Like

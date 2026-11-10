@@ -119,10 +119,11 @@ stateDiagram-v2
 
 [`entrypoints/content/visit/land.ts`](../entrypoints/content/visit/land.ts) runs on each
 page. `showVisit` mounts six views (the sidebar sections, the diff order, the j/k file
-keys, the diffstat, and the on-screen and Viewed trackers that feed the sidebar). Then
-`land` passes the intent read's steps to the views: pending while the read runs, and with
-an owner filter until the code owners land too; progress as files are placed, landed with
-the result, and then each file's section. Every view gets a step before any view gets the
+keys, the diffstat, and the on-screen and Viewed trackers that feed the sidebar), and a
+seventh, the structural painter, when `showVisit` is given `structural`. Then `land`
+passes the intent read's steps to the views: pending while the read runs, and with an
+owner filter until the code owners land too; progress as files are placed, landed with the
+result, and then each file's section. Every view gets a step before any view gets the
 next. `land` owns the only observer of the native tree, and it re-lists the sections after
 each change to the tree. While a pull request's narrow layout has its "Files" overlay
 open, `land` also observes the overlay's copy of the tree and lists from it, telling each
@@ -876,6 +877,58 @@ not the page: on a commit page GitHub's client mount replaces the markup and scr
 the top after the cover lifts, so the hold re-finds the line in whatever markup shows,
 until the user scrolls, clicks, or types, or 5 s pass.
 
+## Structural painter
+
+[`entrypoints/content/diffs/structural.ts`](../entrypoints/content/diffs/structural.ts)
+paints structural mode onto GitHub's own mounted diff rows. A quiet row is one GitHub
+shows as added or deleted in which structural mode finds no changed token, such as a
+reindented line; [`CONTEXT.md`](../CONTEXT.md) defines both terms. It marks each changed
+token and each quiet row, and moves, inserts, or re-renders no GitHub node. Nothing
+constructs it unless `showVisit` is given `structural`, and no caller gives it yet, so the
+shipped default path mounts no `<style>`, registers no highlight, and adds no observer.
+
+The painter takes a `StructuralPainting`. Its `annotationsOf(path)` returns a file's
+`StructuralFile` from [`utils/structural/changes.ts`](../utils/structural/changes.ts): the
+line annotations and the text they were computed from. Its `report(path, outcome)` is
+called with `painted` or `mismatch` for a mounted file when that outcome is first known
+and whenever it changes.
+
+- **Changed tokens** are `Range`s in two registered `Highlight`s, `gh-prism-added` and
+  `gh-prism-removed`, styled by `::highlight()` rules in
+  [`diffs/structural.css`](../entrypoints/content/diffs/structural.css). The painter
+  reaches the highlight registry through the diffs element's own window.
+- **A quiet row** carries `data-gh-prism-quiet` with the quiet side: `old`, `new`, or both
+  sides, space-separated, and a painted table carries `data-gh-prism-structural`. The
+  sheet keys on both.
+- **One pass per animation frame.** The `sections` hook and every `observeDiffs` report
+  schedule a frame, and a pending frame is reused. The pass first reads every table, then
+  writes, so its reads (`querySelectorAll`, `dataset`, `textContent`) never force a layout
+  after a write.
+- **Per-table repainting.** A map from each table to what it holds lets a pass repaint
+  only the tables that changed. A table counts as changed when `annotationsOf` returns a
+  different `StructuralFile` object (compared by identity), its cells' text elements, or
+  any of its ranges' `collapsed` state changes. A replaced table's ranges collapse onto a
+  surviving ancestor rather than detaching, so the pass drops them by that test.
+- **A mismatch skips the whole file.** Every mounted changed cell needs an annotation and
+  text equal to the expected line. If one fails, the table gets no highlight, no quiet
+  row, and no table attribute, and the file reports `mismatch`. Annotations for lines the
+  page does not mount, as with Hide whitespace (`?w=1`), are fine.
+- **Split only, per table.** The painter paints a table only when `currentLayout` reads it
+  as split, so it skips a unified page and a one-sided file's three-column table.
+- **Selected lines are left to the sheet.** GitHub marks a selected line by an attribute
+  `observeDiffs` does not report, so the sheet never tints a selected cell and clears a
+  highlight's background over one.
+- **Annotations are pulled each pass.** The painter calls `annotationsOf` again on every
+  pass and repaints a table whose `StructuralFile` changed. Nothing pushes a pass when a
+  file's annotations arrive.
+
+On abort the painter cancels its frame, deletes both highlights, removes both attributes,
+and removes its `<style>`.
+
+On [cli/cli#14805 in Split](https://github.com/cli/cli/pull/14805/changes?diff=split) on
+2026-11-10, in Chromium and Firefox alike, the painter held 260 ranges (46 added, 214
+removed) across 25 mounted split tables, none stale.
+
 ## Styling
 
 New UI uses Tailwind CSS v4 utilities with a `tw:` prefix. Colors, radii, and type come
@@ -904,7 +957,7 @@ entrypoints/
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
-    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
+    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet
     header/              diffstat breakout
     conversation/        a code owner's files popup and gh-prism's shield, in the Reviewers lists and beside Conversation and Files changed comment authors; the Conversation panel and its button, dressing its frame, and the messages the frame posts
     ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, column separator, view-transition glide, keycaps and the Shift+\ toolbar button, Tailwind tokens

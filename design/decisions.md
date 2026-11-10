@@ -6,6 +6,30 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-10: Structural mode's changed tokens and quiet rows
+
+- **Compared:** for a changed token, GitHub's word-mark colour alone, or with an
+  underline. For a quiet row, dimming its text, dropping GitHub's tint, or stepping the
+  tint down. For the underline's colour, a `--diffBlob-*` variable, or the foregrounds
+  that lines added and removed already take. For the removed underline, three Primer
+  candidates measured live against the deletion word background on sandbox PR #3:
+  `--fgColor-danger` (3.73:1 light, 2.78:1 dark), `--borderColor-danger-emphasis` (3.81:1,
+  2.02:1), and `--display-red-fgColor` (4.32:1, 3.57:1).
+- **Won:** a changed token takes GitHub's word-mark background plus a 2px underline,
+  offset 3px, in `--fgColor-success` when added and `--display-red-fgColor` when removed.
+  A quiet row's two cells on its quiet side step GitHub's tint down to 40% over
+  `--bgColor-default`, keeping the text and the `+`/`-` marker. In painted tables,
+  GitHub's own word marks are switched off.
+- **Why:** the word-mark background keeps the text contrast GitHub ships, and the
+  underline is the signal that does not rely on colour. The `--diffBlob-*` family's only
+  foreground is the text colour, which would read as ordinary underlined text. The added
+  underline holds 3.8:1 light and 3.37:1 dark, above the 3:1 floor for non-text marks.
+  `--fgColor-danger` failed that floor in the dark theme, so the removed underline takes
+  `--display-red-fgColor`. Dimming a quiet row's text takes syntax colours below 4.5:1, as
+  the Viewed dim does. Dropping the tint leaves it indistinguishable from context but for
+  its marker. Switching GitHub's marks off means no mark gh-prism did not choose reads as
+  a changed token.
+
 ## 2026-11-10: A toolbar toggle and Shift+\ for a commit's message, with motion
 
 This replaces the 2026-10-29 "Hiding a commit's message" entry below: its hide control,
