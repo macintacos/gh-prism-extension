@@ -61,11 +61,11 @@ describe.each(FIXTURES)("$name", ({ html, page, layout }) => {
     expect(changed.length).toBeGreaterThan(0);
     for (const cell of changed) {
       const { side, line } = anchorParts(cell);
-      const [, left, right] =
+      const [, oldLine, newLine] =
         /-(\d+|empty)-(\d+|empty)-\d+$/.exec(cell.dataset.gridCellId ?? "") ?? [];
       const code = cell.querySelector("code.diff-text");
       expect(isLineAnchor(cell.dataset.lineAnchor ?? "")).toBe(true);
-      expect(line).toBe(side === "R" ? right : left);
+      expect(line).toBe(side === "R" ? newLine : oldLine);
       expect(side).toBe(code?.classList.contains("addition") ? "R" : "L");
       const marker = code?.firstElementChild;
       expect(marker?.matches("span.diff-text-marker")).toBe(true);
