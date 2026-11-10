@@ -348,8 +348,8 @@ test("paints a changed token, tints a quiet row, and leaves a selected row GitHu
   });
   if (!token) throw new Error("no painted token");
   const pixel = (x: number, y: number) => page.screenshot({ clip: { x, y, width: 1, height: 1 } });
-  const swatch = page.viewportSize();
-  if (!swatch) throw new Error("no viewport");
-  expect((await pixel(token.x, token.y)).equals(await pixel(1, swatch.height - 2))).toBe(true);
+  const viewport = page.viewportSize();
+  if (!viewport) throw new Error("no viewport");
+  expect((await pixel(token.x, token.y)).equals(await pixel(1, viewport.height - 2))).toBe(true);
   for (const cell of quietCells) expect(await background(cell)).toBe("rgb(255, 230, 120)");
 });

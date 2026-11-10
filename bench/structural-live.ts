@@ -27,7 +27,7 @@ declare const window: Window & { readonly structural: StructuralHarness };
 
 const SANDBOX = "https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split";
 // src/engine.rs, which carries the page's one review thread on line 22.
-const ENGINE = "diff-ff278ec599adfd033d35a083ebe8948db8bf177c9817dee8ddc4f3a9e3f5728e";
+const ENGINE_ANCHOR = "diff-ff278ec599adfd033d35a083ebe8948db8bf177c9817dee8ddc4f3a9e3f5728e";
 
 const { values } = parseArgs({
   options: {
@@ -76,7 +76,7 @@ const settle = (page: Page) => page.waitForTimeout(400);
 
 const engineCell = (page: Page, side: "left" | "right", line: number) =>
   page.locator(
-    `table[data-diff-anchor="${ENGINE}"] td.diff-text-cell[data-diff-side="${side}"][data-line-number="${line}"]`,
+    `table[data-diff-anchor="${ENGINE_ANCHOR}"] td.diff-text-cell[data-diff-side="${side}"][data-line-number="${line}"]`,
   );
 
 /** Loads `target` and waits out the re-render GitHub makes a few seconds after load. */
@@ -113,7 +113,7 @@ function startWithThreadLinePainted(page: Page): Promise<void> {
       };
     }
     window.structural.start(files);
-  }, ENGINE);
+  }, ENGINE_ANCHOR);
 }
 
 const ranges = (page: Page) => page.evaluate(() => window.structural.ranges());
@@ -171,11 +171,13 @@ async function parity(page: Page): Promise<void> {
         annotation.quiet && Number(line) !== 22 && files[engine]?.text.new[Number(line)]?.trim(),
     );
     return Number(quiet?.[0]);
-  }, ENGINE);
+  }, ENGINE_ANCHOR);
   const painted = engineCell(page, "right", 22);
   const quiet = engineCell(page, "right", quietLine);
   const context = page
-    .locator(`table[data-diff-anchor="${ENGINE}"] td.diff-text-cell[style*="bgColor-default"]`)
+    .locator(
+      `table[data-diff-anchor="${ENGINE_ANCHOR}"] td.diff-text-cell[style*="bgColor-default"]`,
+    )
     .first();
 
   const aria = await diffs.ariaSnapshot();
@@ -244,7 +246,7 @@ async function parity(page: Page): Promise<void> {
   await multiLine(page, painted, quiet, selected);
 
   await page
-    .locator(`table[data-diff-anchor="${ENGINE}"] button`, { hasText: "Write a reply" })
+    .locator(`table[data-diff-anchor="${ENGINE_ANCHOR}"] button`, { hasText: "Write a reply" })
     .first()
     .click();
   const reply = page.getByPlaceholder("Leave a comment").first();
@@ -323,7 +325,7 @@ async function checkStopped(page: Page): Promise<void> {
 async function linkedLine(from: Page): Promise<void> {
   // A fresh tab, so the hash arrives on the page's first navigation as a followed link's would.
   const page = await from.context().newPage();
-  await load(page, `${url}#${ENGINE}R22`);
+  await load(page, `${url}#${ENGINE_ANCHOR}R22`);
   await page
     .locator('td[data-selected="true"]')
     .first()
@@ -355,7 +357,7 @@ async function linkedLine(from: Page): Promise<void> {
     ) as Range | undefined;
     const box = range?.getBoundingClientRect();
     return box && { x: box.x + box.width / 2, y: box.y + 3 };
-  }, ENGINE);
+  }, ENGINE_ANCHOR);
   const expected = rgbOf(await background(engineCell(page, "right", 22)));
   const got = token ? await pixel(page, token.x, token.y) : [];
   const ok =

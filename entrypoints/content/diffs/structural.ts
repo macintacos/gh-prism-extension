@@ -46,7 +46,7 @@ interface Plan {
   readonly added: readonly Range[];
   readonly removed: readonly Range[];
   /** The quiet rows the table held before this plan. */
-  readonly before: ReadonlyMap<Element, string>;
+  readonly quietBefore: ReadonlyMap<Element, string>;
   readonly painted: Painted;
 }
 
@@ -100,7 +100,7 @@ function planTable(
   path: string,
   file: StructuralFile,
   cells: readonly ChangedCell[],
-  before: ReadonlyMap<Element, string>,
+  quietBefore: ReadonlyMap<Element, string>,
 ): Plan {
   const roots = cells.map(({ textRoot }) => textRoot);
   const added: Range[] = [];
@@ -111,7 +111,7 @@ function planTable(
     const annotation = file.annotations[side][line];
     if (!annotation || textRoot.textContent !== file.text[side][line]) {
       const painted = { file, roots, ranges: [], quiet: new Map() };
-      return { table, path, outcome: "mismatch", added: [], removed: [], before, painted };
+      return { table, path, outcome: "mismatch", added: [], removed: [], quietBefore, painted };
     }
 
     if (annotation.quiet) {
@@ -124,7 +124,7 @@ function planTable(
   }
 
   const painted = { file, roots, ranges: [...added, ...removed], quiet };
-  return { table, path, outcome: "painted", added, removed, before, painted };
+  return { table, path, outcome: "painted", added, removed, quietBefore, painted };
 }
 
 /**
@@ -142,8 +142,8 @@ export function paintStructural(
   const win = doc.defaultView;
   if (!win || signal.aborted) return {};
 
-  const added = new win.Highlight();
-  const removed = new win.Highlight();
+  const addedHighlight = new win.Highlight();
+  const removedHighlight = new win.Highlight();
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   const painted = new Map<HTMLTableElement, Painted>();
   const reported = new Map<string, PaintOutcome>();
@@ -152,23 +152,23 @@ export function paintStructural(
 
   const collect = (): Pass => {
     const plans: Plan[] = [];
-    const kept = new Set<HTMLTableElement>();
+    const fresh = new Set<HTMLTableElement>();
     for (const { table, anchor, layout } of diffTables(diffs)) {
       const path = paths.get(anchor);
       const file = path === undefined ? undefined : annotationsOf(path);
       if (path === undefined || !file || layout !== "split") continue;
       const cells = changedCells(table);
-      const before = painted.get(table);
-      if (isFresh(before, file, cells)) kept.add(table);
-      else plans.push(planTable(table, path, file, cells, before?.quiet ?? new Map()));
+      const lastPaint = painted.get(table);
+      if (isFresh(lastPaint, file, cells)) fresh.add(table);
+      else plans.push(planTable(table, path, file, cells, lastPaint?.quiet ?? new Map()));
     }
-    return { plans, stale: [...painted.keys()].filter((table) => !kept.has(table)) };
+    return { plans, stale: [...painted.keys()].filter((table) => !fresh.has(table)) };
   };
   const dropRanges = (table: HTMLTableElement): Painted | undefined => {
     const entry = painted.get(table);
     for (const range of entry?.ranges ?? []) {
-      added.delete(range);
-      removed.delete(range);
+      addedHighlight.delete(range);
+      removedHighlight.delete(range);
     }
     painted.delete(table);
     return entry;
@@ -177,22 +177,15 @@ export function paintStructural(
     table.removeAttribute(TABLE_ATTR);
     for (const row of entry?.quiet.keys() ?? []) row.removeAttribute(QUIET_ATTR);
   };
-  const paint = ({
-    table,
-    outcome,
-    added: adds,
-    removed: removes,
-    before,
-    painted: entry,
-  }: Plan) => {
-    for (const range of adds) added.add(range);
-    for (const range of removes) removed.add(range);
+  const paint = ({ table, outcome, added, removed, quietBefore, painted: entry }: Plan) => {
+    for (const range of added) addedHighlight.add(range);
+    for (const range of removed) removedHighlight.add(range);
 
     if (outcome === "mismatch" && table.hasAttribute(TABLE_ATTR)) table.removeAttribute(TABLE_ATTR);
     if (outcome === "painted" && !table.hasAttribute(TABLE_ATTR))
       table.setAttribute(TABLE_ATTR, "");
 
-    for (const row of before.keys())
+    for (const row of quietBefore.keys())
       if (!entry.quiet.has(row) && row.hasAttribute(QUIET_ATTR)) row.removeAttribute(QUIET_ATTR);
     for (const [row, value] of entry.quiet)
       if (row.getAttribute(QUIET_ATTR) !== value) row.setAttribute(QUIET_ATTR, value);
@@ -229,8 +222,8 @@ export function paintStructural(
   };
 
   doc.head.append(style);
-  win.CSS.highlights.set(ADDED_HIGHLIGHT, added);
-  win.CSS.highlights.set(REMOVED_HIGHLIGHT, removed);
+  win.CSS.highlights.set(ADDED_HIGHLIGHT, addedHighlight);
+  win.CSS.highlights.set(REMOVED_HIGHLIGHT, removedHighlight);
   observeDiffs(diffs, schedule, { signal });
   signal.addEventListener("abort", () => {
     if (frame !== undefined) win.cancelAnimationFrame(frame);
