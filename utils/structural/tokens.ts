@@ -73,10 +73,11 @@ export function keyedByIndentation(tokens: readonly Token[], text: string): Toke
   let line = -1;
 
   return tokens.map((token) => {
-    const lastLine = line;
+    const previousLine = line;
     while ((starts[line + 1] ?? Infinity) <= token.start) line++;
     const lineStart = starts[line] ?? 0;
-    const startsLogicalLine = line !== lastLine && bracketDepth === 0 && token.type !== "comment";
+    const startsLogicalLine =
+      line !== previousLine && bracketDepth === 0 && token.type !== "comment";
     const keyed = startsLogicalLine ? withDepth(token, text, lineStart, widths) : token;
     bracketDepth += BRACKET_DEPTH[token.type] ?? 0;
     return keyed;

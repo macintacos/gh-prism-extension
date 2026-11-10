@@ -69,7 +69,12 @@ function changesOf(result: EngineResult): StructuralChanges {
   return result.changes;
 }
 
-async function texts(id: GrammarId, oldText: string, newText: string, overrides?: Overrides) {
+async function changedTexts(
+  id: GrammarId,
+  oldText: string,
+  newText: string,
+  overrides?: Overrides,
+) {
   const changes = changesOf(await run(id, oldText, newText, overrides));
   return { old: spanTexts(oldText, changes.old), new: spanTexts(newText, changes.new) };
 }
@@ -95,7 +100,7 @@ describe("structuralChanges", () => {
     async (id, name) => {
       const { oldText, newText } = readPair(id, name);
 
-      expect(await texts(id, oldText, newText)).toEqual({ old: [], new: [] });
+      expect(await changedTexts(id, oldText, newText)).toEqual({ old: [], new: [] });
     },
   );
 
@@ -103,7 +108,7 @@ describe("structuralChanges", () => {
     const { oldText, newText } = readPair(id, "rename");
     const renamed = id === "python" ? "sum_" : "sum";
 
-    expect(await texts(id, oldText, newText)).toEqual({
+    expect(await changedTexts(id, oldText, newText)).toEqual({
       old: ["total", "total"],
       new: [renamed, renamed],
     });
@@ -112,13 +117,13 @@ describe("structuralChanges", () => {
   it.each(GRAMMARS)("marks only the added %s argument and its comma", async (id) => {
     const { oldText, newText } = readPair(id, "added-argument");
 
-    expect(await texts(id, oldText, newText)).toEqual({ old: [], new: [",", "third"] });
+    expect(await changedTexts(id, oldText, newText)).toEqual({ old: [], new: [",", "third"] });
   });
 
   it("marks a Python statement moved out of its block", async () => {
     const { oldText, newText } = readPair("python", "moved-out-of-block");
 
-    expect(await texts("python", oldText, newText)).toEqual({ old: ["b"], new: ["b"] });
+    expect(await changedTexts("python", oldText, newText)).toEqual({ old: ["b"], new: ["b"] });
   });
 
   it.each([
@@ -137,7 +142,10 @@ describe("structuralChanges", () => {
   ])(
     "marks a Python statement moved out of its block $name",
     async ({ oldText, newText, moved }) => {
-      expect(await texts("python", oldText, newText)).toEqual({ old: [moved], new: [moved] });
+      expect(await changedTexts("python", oldText, newText)).toEqual({
+        old: [moved],
+        new: [moved],
+      });
     },
   );
 
@@ -155,7 +163,7 @@ describe("structuralChanges", () => {
   ] as const)(
     "finds no change in a %s reindent of a comment or JSX text",
     async (id, two, four) => {
-      expect(await texts(id, two, four)).toEqual({ old: [], new: [] });
+      expect(await changedTexts(id, two, four)).toEqual({ old: [], new: [] });
     },
   );
 
@@ -167,7 +175,9 @@ describe("structuralChanges", () => {
     const oldText = `a();\n${oldBody && body}`;
     const newText = `a();\n${newBody && body}`;
 
-    const result = await texts("typescript", oldText, newText, { limits: { maxEditLength: 10 } });
+    const result = await changedTexts("typescript", oldText, newText, {
+      limits: { maxEditLength: 10 },
+    });
 
     expect(result.old.length + result.new.length).toBe(1_500);
   });
@@ -198,7 +208,7 @@ describe("structuralChanges", () => {
       expected: { old: ["a", "b"], new: ["x", "c"] },
     },
   ])("$name", async ({ oldText, newText, regions, expected }) => {
-    expect(await texts("typescript", oldText, newText, { regions })).toEqual(expected);
+    expect(await changedTexts("typescript", oldText, newText, { regions })).toEqual(expected);
   });
 
   it.each(GRAMMARS)("fails a %s text that does not parse", async (id) => {
@@ -275,7 +285,7 @@ describe("structuralChanges", () => {
 
     expect(result).toEqual({ ok: false, reason: "too-large" });
     expect(clock.calls).toBeLessThan(100);
-    expect(await texts("javascript", oldText, newText)).toEqual({
+    expect(await changedTexts("javascript", oldText, newText)).toEqual({
       old: ["total", "total"],
       new: ["sum", "sum"],
     });
@@ -315,7 +325,7 @@ describe("structuralChanges", () => {
       ...clockAfterPauses(),
       limits: { maxDiffMs: 15 },
     });
-    const fast = await texts("typescript", oldText, newText, {
+    const fast = await changedTexts("typescript", oldText, newText, {
       ...clockAfterPauses(),
       limits: { maxDiffMs: 100 },
     });
@@ -341,9 +351,9 @@ describe("structuralChanges", () => {
     const { oldText, newText } = readPair("typescript", "rename");
     const crlf = (text: string) => text.replaceAll("\n", "\r\n");
 
-    const result = await texts("typescript", crlf(oldText), crlf(newText));
+    const result = await changedTexts("typescript", crlf(oldText), crlf(newText));
 
-    expect(result).toEqual(await texts("typescript", oldText, newText));
+    expect(result).toEqual(await changedTexts("typescript", oldText, newText));
   });
 
   it("measures columns in UTF-16 code units", async () => {

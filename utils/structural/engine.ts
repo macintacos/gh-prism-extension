@@ -97,14 +97,14 @@ export async function structuralChanges(input: EngineInput): Promise<EngineResul
   await pause();
   if (signal.aborted) throw signal.reason;
 
-  const old = sourceOf(oldText, oldTokens);
-  const added = sourceOf(newText, newTokens);
-  const changed = changedTokens(regions, old, added, limits, now);
+  const oldSource = sourceOf(oldText, oldTokens);
+  const newSource = sourceOf(newText, newTokens);
+  const changed = changedTokens(regions, oldSource, newSource, limits, now);
   if (changed === undefined) return refuse("too-large");
 
   return {
     ok: true,
-    changes: { old: spansOf(old, changed.old), new: spansOf(added, changed.new) },
+    changes: { old: spansOf(oldSource, changed.old), new: spansOf(newSource, changed.new) },
   };
 }
 
@@ -157,18 +157,18 @@ interface ChangedTokens {
 /** The tokens one Myers diff per region finds changed; `undefined` past the diff caps. */
 function changedTokens(
   regions: readonly ChangedRegion[],
-  old: Source,
-  added: Source,
+  oldSource: Source,
+  newSource: Source,
   limits: EngineLimits,
   now: () => number,
 ): ChangedTokens | undefined {
   const deadline = now() + limits.maxDiffMs;
   const parts: ChangedTokens[] = [];
-  for (const window of diffWindows(regions, old, added)) {
+  for (const window of diffWindows(regions, oldSource, newSource)) {
     if (now() > deadline) return undefined;
     const part = windowChanges(
-      old.tokens.slice(window.oldFrom, window.oldTo),
-      added.tokens.slice(window.newFrom, window.newTo),
+      oldSource.tokens.slice(window.oldFrom, window.oldTo),
+      newSource.tokens.slice(window.newFrom, window.newTo),
       limits.maxEditLength,
     );
     if (part === undefined) return undefined;
@@ -216,25 +216,34 @@ const sameKeys = (a: readonly Token[], b: readonly Token[]) =>
  * unchanged runs disagreeing; a mismatch before the first or after the last widens that window to
  * the file's edge.
  */
-function diffWindows(regions: readonly ChangedRegion[], old: Source, added: Source): TokenWindow[] {
+function diffWindows(
+  regions: readonly ChangedRegion[],
+  oldSource: Source,
+  newSource: Source,
+): TokenWindow[] {
   const windows: TokenWindow[] = [];
   const unchangedMatch = (oldFrom: number, oldTo: number, newFrom: number, newTo: number) =>
     oldTo >= oldFrom &&
     newTo >= newFrom &&
-    sameKeys(old.tokens.slice(oldFrom, oldTo), added.tokens.slice(newFrom, newTo));
+    sameKeys(oldSource.tokens.slice(oldFrom, oldTo), newSource.tokens.slice(newFrom, newTo));
 
   for (const region of regions) {
-    const from = tokenRange(
-      old.tokens,
-      offsetOf(old, region.oldStart),
-      offsetOf(old, region.oldEnd),
+    const oldRange = tokenRange(
+      oldSource.tokens,
+      offsetOf(oldSource, region.oldStart),
+      offsetOf(oldSource, region.oldEnd),
     );
-    const to = tokenRange(
-      added.tokens,
-      offsetOf(added, region.newStart),
-      offsetOf(added, region.newEnd),
+    const newRange = tokenRange(
+      newSource.tokens,
+      offsetOf(newSource, region.newStart),
+      offsetOf(newSource, region.newEnd),
     );
-    const window = { oldFrom: from.from, oldTo: from.to, newFrom: to.from, newTo: to.to };
+    const window = {
+      oldFrom: oldRange.from,
+      oldTo: oldRange.to,
+      newFrom: newRange.from,
+      newTo: newRange.to,
+    };
     const last = windows.at(-1);
     const before = last ?? { oldTo: 0, newTo: 0 };
     if (unchangedMatch(before.oldTo, window.oldFrom, before.newTo, window.newFrom))
@@ -244,8 +253,11 @@ function diffWindows(regions: readonly ChangedRegion[], old: Source, added: Sour
   }
 
   const last = windows.at(-1);
-  if (last && !unchangedMatch(last.oldTo, old.tokens.length, last.newTo, added.tokens.length))
-    Object.assign(last, { oldTo: old.tokens.length, newTo: added.tokens.length });
+  if (
+    last &&
+    !unchangedMatch(last.oldTo, oldSource.tokens.length, last.newTo, newSource.tokens.length)
+  )
+    Object.assign(last, { oldTo: oldSource.tokens.length, newTo: newSource.tokens.length });
   return windows;
 }
 
