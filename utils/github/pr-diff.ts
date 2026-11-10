@@ -23,20 +23,33 @@ export type PrFileDiff =
 
 /** One `@@` hunk of a {@link PrFileDiff} patch. */
 export interface PrHunk {
+  /** 1-based old-file line where the hunk's old side starts; the line before it when `oldCount` is 0. */
+  readonly oldStart: number;
+  /** Lines on the hunk's old side: its context and `-` lines. */
+  readonly oldCount: number;
   /** 1-based head-file line where the hunk's new side starts; 0 for a deleted file's `+0,0`. */
   readonly newStart: number;
+  /** Lines on the hunk's new side: its context and `+` lines. */
+  readonly newCount: number;
   /** The hunk's body lines, each keeping git's ` `, `+`, `-` or `\` prefix. */
   readonly lines: readonly string[];
 }
 
-const HUNK_HEADER = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
+const HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
 
 /** Splits a text file's `patch` at each `@@` header, dropping the header's function context. */
 export function parsePrHunks(patch: string): PrHunk[] {
-  const hunks: { newStart: number; lines: string[] }[] = [];
+  const hunks: (Omit<PrHunk, "lines"> & { lines: string[] })[] = [];
   for (const line of patch.split("\n")) {
     const header = HUNK_HEADER.exec(line);
-    if (header) hunks.push({ newStart: Number(header[1]), lines: [] });
+    if (header)
+      hunks.push({
+        oldStart: Number(header[1]),
+        oldCount: Number(header[2] ?? 1),
+        newStart: Number(header[3]),
+        newCount: Number(header[4] ?? 1),
+        lines: [],
+      });
     else hunks.at(-1)?.lines.push(line);
   }
   return hunks;
