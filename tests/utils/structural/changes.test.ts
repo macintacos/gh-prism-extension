@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { parsePrHunks } from "../../../utils/github/pr-diff";
-import { annotateLines, type StructuralChanges } from "../../../utils/structural/changes";
+import {
+  annotateLines,
+  type LineAnnotations,
+  type StructuralChanges,
+} from "../../../utils/structural/changes";
 import { lines } from "../../fixtures/head-scan";
 
 const RENAME = lines(
@@ -21,7 +25,7 @@ describe("annotateLines", () => {
     name: string;
     patch: string;
     changes: StructuralChanges;
-    expected: unknown;
+    expected: LineAnnotations;
   }>([
     {
       name: "a reindented block gives quiet rows",
@@ -113,6 +117,18 @@ describe("annotateLines", () => {
         old: { 2: QUIET, 21: QUIET },
         new: { 2: QUIET, 31: QUIET, 32: QUIET },
       },
+    },
+    {
+      name: "an added file numbers its new lines from 1",
+      patch: lines("@@ -0,0 +1,2 @@", "+a", "+b"),
+      changes: { old: [], new: [] },
+      expected: { old: {}, new: { 1: QUIET, 2: QUIET } },
+    },
+    {
+      name: "a pure insertion numbers from its new start",
+      patch: lines("@@ -3,0 +4,1 @@", "+x"),
+      changes: { old: [], new: [] },
+      expected: { old: {}, new: { 4: QUIET } },
     },
   ])("$name", ({ patch, changes, expected }) => {
     const hunks = parsePrHunks(patch);
