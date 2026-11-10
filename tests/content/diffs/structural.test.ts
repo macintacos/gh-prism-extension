@@ -20,7 +20,8 @@ import prUnified from "../../fixtures/files-page-diff-unified.html?raw";
 import { HighlightStub, stubHighlights } from "../../fixtures/highlights";
 
 const QUIET: LineAnnotation = { quiet: true };
-const PAINTED = "[data-gh-prism-structural], [data-gh-prism-quiet]";
+const CHANGED: LineAnnotation = { quiet: false, ranges: [] };
+const PAINTED = "[data-gh-prism-structural], [data-gh-prism-quiet], [data-gh-prism-moved]";
 
 /** Mounts each fixture's table in its own region, all inside one diffs container. */
 function mountDiffs(...htmls: string[]): HTMLElement {
@@ -84,6 +85,15 @@ const cellAt = (table: HTMLTableElement, side: DiffSide, line: number): ChangedC
   return cell;
 };
 
+/** Mounts `commitSplit` with its new line 137 a copy of its old line 137, indented two spaces. */
+function mountMoved(): HTMLElement {
+  const diffs = mountDiffs(commitSplit);
+  const table = tableAt(diffs);
+  const moved = `  ${cellAt(table, "old", 137).textRoot.textContent ?? ""}`;
+  cellAt(table, "new", 137).textRoot.textContent = moved;
+  return diffs;
+}
+
 const sameLine = (a: ChangedCell, b: ChangedCell) => a.side === b.side && a.line === b.line;
 
 /** A range over the first occurrence of `token` in `cell`'s text. */
@@ -129,6 +139,16 @@ describe("paintStructural", () => {
   ) => {
     const diffs = mountDiffs(...htmls);
     for (const table of tables(diffs)) files.set(anchorOfTable(table), fileOf(table, annotate));
+    paint(diffs);
+    await flush();
+    return diffs;
+  };
+
+  /** Paints `commitSplit` with its new line 137 a moved copy of its old line 137. */
+  const paintMoved = async (annotate: (cell: ChangedCell) => LineAnnotation) => {
+    const diffs = mountMoved();
+    const table = tableAt(diffs);
+    files.set(anchorOfTable(table), fileOf(table, annotate));
     paint(diffs);
     await flush();
     return diffs;
@@ -237,6 +257,66 @@ describe("paintStructural", () => {
 
     const row = cellAt(tableAt(diffs), "old", 137).textRoot.closest("tr");
     expect(row?.getAttribute("data-gh-prism-quiet")).toBe("old new");
+  });
+
+  it("marks a moved line's row with its sides", async () => {
+    const diffs = await paintMoved(() => CHANGED);
+
+    const row = cellAt(tableAt(diffs), "old", 137).textRoot.closest("tr");
+    expect(row?.getAttribute("data-gh-prism-moved")).toBe("old new");
+  });
+
+  it("marks no quiet line moved", async () => {
+    const diffs = await paintMoved(() => QUIET);
+
+    expect(diffs.querySelector("[data-gh-prism-moved]")).toBeNull();
+  });
+
+  it("gives a mismatched table no moved mark", async () => {
+    const diffs = mountMoved();
+    const table = tableAt(diffs);
+    files.set(
+      anchorOfTable(table),
+      fileOf(table, () => CHANGED),
+    );
+    cellAt(table, "old", 137).textRoot.textContent = "other";
+
+    paint(diffs);
+    await flush();
+
+    expect(diffs.querySelector("[data-gh-prism-moved]")).toBeNull();
+  });
+
+  it("repaints from a new file object without rewriting an unchanged moved row", async () => {
+    const diffs = await paintMoved(() => CHANGED);
+    const table = tableAt(diffs);
+    const setAttribute = vi.spyOn(Element.prototype, "setAttribute");
+
+    files.set(
+      anchorOfTable(table),
+      fileOf(table, () => CHANGED),
+    );
+    diffs.append(document.createElement("div"));
+    await flush();
+
+    const movedWrites = setAttribute.mock.calls.filter(([name]) => name === "data-gh-prism-moved");
+    expect(movedWrites).toEqual([]);
+    expect(diffs.querySelector("[data-gh-prism-moved]")).not.toBeNull();
+  });
+
+  it("takes the mark off when a new file object no longer pairs the line", async () => {
+    const diffs = await paintMoved(() => CHANGED);
+    const table = tableAt(diffs);
+    const old137 = cellAt(table, "old", 137);
+
+    files.set(
+      anchorOfTable(table),
+      fileOf(table, (cell) => (sameLine(cell, old137) ? QUIET : CHANGED)),
+    );
+    diffs.append(document.createElement("div"));
+    await flush();
+
+    expect(old137.textRoot.closest("tr")?.hasAttribute("data-gh-prism-moved")).toBe(false);
   });
 
   it("paints nothing before the sections list the files", async () => {

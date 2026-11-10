@@ -1,8 +1,9 @@
 /* GitHub hooks: a split row's td by position (old number, old code, new number, new code),
    td.empty-diff-line, td[data-selected="true"], .syntax-highlighted-line.addition .x and
    .deletion .x (GitHub's word marks), the --diffBlob-* variables, --bgColor-default,
-   --fgColor-success, and --display-red-fgColor. structural.ts writes data-gh-prism-structural on
-   a painted table and data-gh-prism-quiet on a quiet row. */
+   --fgColor-success, --fgColor-muted, and --display-red-fgColor. structural.ts writes
+   data-gh-prism-structural on a painted table, data-gh-prism-quiet on a quiet row, and
+   data-gh-prism-moved on a moved line's row. */
 
 :root {
   --gh-prism-quiet-tint: 40%;
@@ -67,4 +68,11 @@ tr[data-gh-prism-quiet~="new"] > td:nth-child(4):not([data-selected="true"], .em
     var(--diffBlob-additionLine-bgColor) var(--gh-prism-quiet-tint),
     var(--bgColor-default)
   ) !important;
+}
+
+/* A moved line keeps its dashed outline when selected: the dash is its mark. */
+tr[data-gh-prism-moved~="old"] > td:nth-child(2),
+tr[data-gh-prism-moved~="new"] > td:nth-child(4) {
+  outline: 1px dashed var(--fgColor-muted);
+  outline-offset: -1px;
 }

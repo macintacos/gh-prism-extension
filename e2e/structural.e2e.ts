@@ -34,7 +34,7 @@ const PR_SPLIT = "files-page-diff-split.html";
 const COMMIT_SPLIT = "commit-page-diff-split.html";
 const PR_ANCHOR = "diff-ff278ec599adfd033d35a083ebe8948db8bf177c9817dee8ddc4f3a9e3f5728e";
 const COMMIT_ANCHOR = "diff-cc3fb1ce8d7fcf13784c71a054155c0fcde23acb2ebee6c808198187e6232c6a";
-const MARKED = "[data-gh-prism-structural], [data-gh-prism-quiet]";
+const MARKED = "[data-gh-prism-structural], [data-gh-prism-quiet], [data-gh-prism-moved]";
 
 /** Mounts `#diffs` with one region per fixture (an empty region for `""`), then `bundle`. */
 async function mount(page: Page, bundle: string, fixtures: readonly string[], head = "") {
@@ -300,6 +300,7 @@ const TOKENS = `<style>
     --bgColor-default: rgb(255, 255, 255);
     --fgColor-success: rgb(0, 100, 0);
     --display-red-fgColor: rgb(100, 0, 0);
+    --fgColor-muted: rgb(90, 90, 90);
   }
   td[data-selected="true"] { background-color: rgb(255, 230, 120); }
   #swatch { position: fixed; left: 0; bottom: 0; width: 8px; height: 8px; background: rgb(255, 230, 120); }
@@ -352,4 +353,58 @@ test("paints a changed token, tints a quiet row, and leaves a selected row GitHu
   if (!viewport) throw new Error("no viewport");
   expect((await pixel(token.x, token.y)).equals(await pixel(1, viewport.height - 2))).toBe(true);
   for (const cell of quietCells) expect(await background(cell)).toBe("rgb(255, 230, 120)");
+});
+
+test("outlines a moved line's code cells dashed, and keeps the outline on a selected row", async ({
+  page,
+  bundle,
+}) => {
+  await mount(page, bundle, [COMMIT_SPLIT], TOKENS);
+  const row = page.locator(`tr:has(td[data-line-anchor="${COMMIT_ANCHOR}L137"])`);
+  const codeCells = [row.locator("td").nth(1), row.locator("td").nth(3)];
+  const outline = (cell: (typeof codeCells)[number]) =>
+    cell.evaluate((td) => {
+      const { outlineStyle, outlineColor } = getComputedStyle(td);
+      return { outlineStyle, outlineColor };
+    });
+  const unmarked = await codeCells[0]?.screenshot();
+
+  await row.evaluate((tr, anchor) => {
+    const [, oldCode, , newCode] = tr.querySelectorAll(":scope > td");
+    const oldText = oldCode?.querySelector(".diff-text-inner");
+    const newText = newCode?.querySelector(".diff-text-inner");
+    if (!oldText || !newText) throw new Error("no code text");
+    newText.textContent = `  ${oldText.textContent ?? ""}`;
+
+    const files = window.structural.synthesize();
+    const file = files[anchor];
+    if (!file) throw new Error("no file");
+    const changed = { quiet: false, ranges: [] };
+    files[anchor] = {
+      ...file,
+      annotations: {
+        old: { ...file.annotations.old, 137: changed },
+        new: { ...file.annotations.new, 137: changed },
+      },
+    };
+    window.structural.start(files);
+  }, COMMIT_ANCHOR);
+  await repaint(page);
+
+  await expect(row).toHaveAttribute("data-gh-prism-moved", "old new");
+  for (const cell of codeCells)
+    expect(await outline(cell)).toEqual({
+      outlineStyle: "dashed",
+      outlineColor: "rgb(90, 90, 90)",
+    });
+  expect((await codeCells[0]?.screenshot())?.equals(unmarked ?? Buffer.alloc(0))).toBe(false);
+
+  await row.evaluate((tr) => {
+    for (const td of tr.querySelectorAll("td")) td.dataset.selected = "true";
+  });
+  for (const cell of codeCells) expect((await outline(cell)).outlineStyle).toBe("dashed");
+
+  await page.evaluate(() => window.structural.stop());
+  for (const cell of codeCells) expect((await outline(cell)).outlineStyle).toBe("none");
+  await expect(page.locator(MARKED)).toHaveCount(0);
 });

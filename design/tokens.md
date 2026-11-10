@@ -42,7 +42,8 @@ A changed token takes GitHub's word-mark backgrounds, `--diffBlob-additionWord-b
 and `--diffBlob-deletionWord-bgColor`, and an underline in `--fgColor-success` when added
 or `--display-red-fgColor` when removed. A quiet row's strength is
 `--gh-prism-quiet-tint`, the share of GitHub's own line tint mixed into
-`--bgColor-default`.
+`--bgColor-default`. A moved line's code cell takes a 1px dashed outline in
+`--fgColor-muted`.
 
 The spectrum is `SECTION_SPECTRUM` in `ui/section-catalog.ts`: a left-to-right band of
 every section's hue, in section order.

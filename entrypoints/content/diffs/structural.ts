@@ -1,4 +1,5 @@
 import type { ColumnRange, StructuralFile } from "@/utils/structural/changes";
+import { movedLines } from "@/utils/structural/moved";
 import { type ChangedCell, changedCells, diffTables, observeDiffs } from "../files-page";
 import type { LandingView } from "../visit/land";
 import { pathsByAnchor } from "./on-screen";
@@ -29,13 +30,15 @@ export const REMOVED_HIGHLIGHT = "gh-prism-removed";
 
 const TABLE_ATTR = "data-gh-prism-structural";
 const QUIET_ATTR = "data-gh-prism-quiet";
+const MOVED_ATTR = "data-gh-prism-moved";
 
-/** What one table holds: the file it was painted from, its cells' text roots, its ranges and quiet rows. */
+/** What one table holds: the file it was painted from, its cells' text roots, its ranges, and its quiet and moved rows. */
 interface Painted {
   readonly file: StructuralFile;
   readonly roots: readonly Element[];
   readonly ranges: readonly Range[];
   readonly quiet: ReadonlyMap<Element, string>;
+  readonly moved: ReadonlyMap<Element, string>;
 }
 
 /** The writes one table needs, read in full before any is made. */
@@ -47,7 +50,26 @@ interface Plan {
   readonly removed: readonly Range[];
   /** The quiet rows the table held before this plan. */
   readonly quietBefore: ReadonlyMap<Element, string>;
+  /** The moved rows the table held before this plan. */
+  readonly movedBefore: ReadonlyMap<Element, string>;
   readonly painted: Painted;
+}
+
+/** Adds `side` to `row`'s value in `rows`, as `old`, `new`, or `old new`. */
+function markSide(rows: Map<Element, string>, row: Element, side: string): void {
+  rows.set(row, rows.has(row) ? `${rows.get(row)} ${side}` : side);
+}
+
+/** Writes `attr` onto the rows in `now` and off the rows only in `before`, touching no row already right. */
+function writeRows(
+  attr: string,
+  before: ReadonlyMap<Element, string>,
+  now: ReadonlyMap<Element, string>,
+): void {
+  for (const row of before.keys())
+    if (!now.has(row) && row.hasAttribute(attr)) row.removeAttribute(attr);
+  for (const [row, value] of now)
+    if (row.getAttribute(attr) !== value) row.setAttribute(attr, value);
 }
 
 /** One pass's reads: the tables to paint, and the painted tables that are no longer fresh. */
@@ -100,31 +122,45 @@ function planTable(
   path: string,
   file: StructuralFile,
   cells: readonly ChangedCell[],
-  quietBefore: ReadonlyMap<Element, string>,
+  before: Painted | undefined,
 ): Plan {
   const roots = cells.map(({ textRoot }) => textRoot);
+  const quietBefore = before?.quiet ?? new Map<Element, string>();
+  const movedBefore = before?.moved ?? new Map<Element, string>();
+  const movedLinesOf = movedLines(file);
   const added: Range[] = [];
   const removed: Range[] = [];
   const quiet = new Map<Element, string>();
+  const moved = new Map<Element, string>();
 
   for (const { side, line, textRoot, row } of cells) {
     const annotation = file.annotations[side][line];
     if (!annotation || textRoot.textContent !== file.text[side][line]) {
-      const painted = { file, roots, ranges: [], quiet: new Map() };
-      return { table, path, outcome: "mismatch", added: [], removed: [], quietBefore, painted };
+      const painted = { file, roots, ranges: [], quiet: new Map(), moved: new Map() };
+      return {
+        table,
+        path,
+        outcome: "mismatch",
+        added: [],
+        removed: [],
+        quietBefore,
+        movedBefore,
+        painted,
+      };
     }
 
     if (annotation.quiet) {
-      quiet.set(row, quiet.has(row) ? `${quiet.get(row)} ${side}` : side);
+      markSide(quiet, row, side);
       continue;
     }
 
+    if (movedLinesOf[side].has(line)) markSide(moved, row, side);
     const ranges = annotation.ranges.flatMap((columns) => rangeOf(textRoot, columns) ?? []);
     (side === "old" ? removed : added).push(...ranges);
   }
 
-  const painted = { file, roots, ranges: [...added, ...removed], quiet };
-  return { table, path, outcome: "painted", added, removed, quietBefore, painted };
+  const painted = { file, roots, ranges: [...added, ...removed], quiet, moved };
+  return { table, path, outcome: "painted", added, removed, quietBefore, movedBefore, painted };
 }
 
 /**
@@ -160,7 +196,7 @@ export function paintStructural(
       const cells = changedCells(table);
       const lastPaint = painted.get(table);
       if (isFresh(lastPaint, file, cells)) fresh.add(table);
-      else plans.push(planTable(table, path, file, cells, lastPaint?.quiet ?? new Map()));
+      else plans.push(planTable(table, path, file, cells, lastPaint));
     }
     return { plans, stale: [...painted.keys()].filter((table) => !fresh.has(table)) };
   };
@@ -176,8 +212,17 @@ export function paintStructural(
   const unmark = (table: HTMLTableElement, entry: Painted | undefined) => {
     table.removeAttribute(TABLE_ATTR);
     for (const row of entry?.quiet.keys() ?? []) row.removeAttribute(QUIET_ATTR);
+    for (const row of entry?.moved.keys() ?? []) row.removeAttribute(MOVED_ATTR);
   };
-  const paint = ({ table, outcome, added, removed, quietBefore, painted: entry }: Plan) => {
+  const paint = ({
+    table,
+    outcome,
+    added,
+    removed,
+    quietBefore,
+    movedBefore,
+    painted: entry,
+  }: Plan) => {
     for (const range of added) addedHighlight.add(range);
     for (const range of removed) removedHighlight.add(range);
 
@@ -185,10 +230,8 @@ export function paintStructural(
     if (outcome === "painted" && !table.hasAttribute(TABLE_ATTR))
       table.setAttribute(TABLE_ATTR, "");
 
-    for (const row of quietBefore.keys())
-      if (!entry.quiet.has(row) && row.hasAttribute(QUIET_ATTR)) row.removeAttribute(QUIET_ATTR);
-    for (const [row, value] of entry.quiet)
-      if (row.getAttribute(QUIET_ATTR) !== value) row.setAttribute(QUIET_ATTR, value);
+    writeRows(QUIET_ATTR, quietBefore, entry.quiet);
+    writeRows(MOVED_ATTR, movedBefore, entry.moved);
 
     painted.set(table, entry);
   };
@@ -232,9 +275,12 @@ export function paintStructural(
     win.CSS.highlights.delete(REMOVED_HIGHLIGHT);
 
     // Sweeps the DOM, not `painted`: it also catches marks on a table GitHub moved since its pass.
-    for (const element of diffs.querySelectorAll(`[${TABLE_ATTR}], [${QUIET_ATTR}]`)) {
+    for (const element of diffs.querySelectorAll(
+      `[${TABLE_ATTR}], [${QUIET_ATTR}], [${MOVED_ATTR}]`,
+    )) {
       element.removeAttribute(TABLE_ATTR);
       element.removeAttribute(QUIET_ATTR);
+      element.removeAttribute(MOVED_ATTR);
     }
 
     style.remove();

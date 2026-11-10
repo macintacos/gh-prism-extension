@@ -400,6 +400,8 @@ async function contrast(page: Page): Promise<void> {
       const page = rgba("var(--bgColor-default)").slice(0, 3);
       // Keep in sync with structural.css's underline colours.
       const sides = { addition: "--fgColor-success", deletion: "--display-red-fgColor" } as const;
+      // Keep in sync with structural.css's moved outline colour.
+      const movedColor = "--fgColor-muted";
       const result = Object.entries(sides).map(([side, underlineColor]) => {
         const line = over(rgba(`var(--diffBlob-${side}Line-bgColor)`), page);
         const word = over(rgba(`var(--diffBlob-${side}Word-bgColor)`), line);
@@ -410,16 +412,17 @@ async function contrast(page: Page): Promise<void> {
             over(rgba(`var(--diffBlob-${side}Word-fgColor, var(--fgColor-default))`), word),
             word,
           ),
+          moved: ratio(over(rgba(`var(${movedColor})`), line), line),
         };
       });
       probe.remove();
       return result;
     });
-    for (const { side, underline, text } of ratios)
+    for (const { side, underline, text, moved } of ratios)
       check(
         `12 contrast ${mode} ${side}`,
-        underline >= 3 && text >= 4.5,
-        `(underline ${underline}:1, text ${text}:1)`,
+        underline >= 3 && text >= 4.5 && moved >= 3,
+        `(underline ${underline}:1, text ${text}:1, moved ${moved}:1)`,
       );
   }
 }

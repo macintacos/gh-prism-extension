@@ -6,6 +6,28 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-10: Structural mode's moved lines
+
+- **Compared:** for the mark, a 1px dashed outline on the moved line's code cell, a dashed
+  underline under the line's text, a dashed rule down the cell's start edge, or dropping
+  the changed-token paint so only the mark shows. For its colour, `--fgColor-muted`, the
+  added and removed foregrounds, or an attention colour.
+- **Won:** `outline: 1px dashed var(--fgColor-muted)`, offset -1px, on the old and new
+  code cells of a moved line. The changed-token paint stays, and a selected moved line
+  keeps its outline.
+- **Why:** the dash is a shape, so colour is never the only signal. An outline changes no
+  layout, where a border would resize the cell. It stays clear of the token underlines,
+  which a dashed underline would collide with on the lines that carry the most of them. A
+  start-edge rule reads as a side stripe. Dropping the token paint would hide changes the
+  engine reported. `--fgColor-muted` is a Primer variable that GitHub themes. It is also
+  gh-prism's most-used neutral, so the mark adds no colour; a red or green dash would read
+  as added or removed. Measured live on sandbox PR #3 against GitHub's line tint, the
+  outline holds 5.49:1 (light, addition), 5.33:1 (light, deletion), 5.43:1 (dark,
+  addition), and 5.91:1 (dark, deletion), above the 3:1 floor for non-text marks.
+- **Skipped:** an accessible name for the mark, pairing lines across files, and joining
+  adjacent moved lines into one outline. As a result, adjacent moved lines show a doubled
+  dashed rule where their outlines meet.
+
 ## 2026-11-10: Structural mode's changed tokens and quiet rows
 
 - **Compared:** for a changed token, GitHub's word-mark colour alone, or with an
