@@ -260,6 +260,132 @@ on a private one.
   `[data-path-digest=…] { display: none !important }` and scroll the list for gaps; on PR
   #1, hide a region alone, then its entry, and measure the gap each leaves.
 
+## Diff lines
+
+- **Find a changed cell as `td.diff-text-cell` holding `code.diff-text.addition` or
+  `code.diff-text.deletion`.** A context cell is the same `td` whose `code.diff-text`
+  carries neither class. Each hunk header is a `td.diff-hunk-cell`.
+- **Read a cell's side and line from the `data-line-anchor` suffix on the `td`:**
+  `diff-<sha256 of the path>R<n>` for the new side, `…L<n>` for the old. On a pull
+  request, context cells anchor as `R<n>`, the left cell of a split row included, and a
+  file's first hunk header anchors as `R0`. On a commit, a split row's left context cell
+  anchors as `L<n>`, and the mid-file hunk header of
+  [sandbox commit `8d807ee`](https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee)
+  carries no anchor. Pull request cells also carry `data-diff-side="left|right"`,
+  `data-line-number`, and `data-diff-line-key="b:<n>-l:<old>-r:<new>"`; commit cells carry
+  none of the three. So on a pull request read the side from `data-diff-side`, and on a
+  commit from the anchor suffix. Both pages carry `data-grid-cell-id` as
+  `diff-<hash>-<old>-<new>-<column>`, where a split row's missing opposite line reads
+  `empty`.
+- **Find the code text in `.diff-text-inner`, after `span.diff-text-marker`,** the two
+  being the `code`'s only children. A context line has `.diff-text-inner` and no marker.
+  GitHub's word marks are `.x.x-first.x-last` on the syntax span inside
+  `.diff-text-inner`.
+- **Expect two cells per row in split and one in unified.** Split cells are classed
+  `left-side-diff-cell` and `right-side-diff-cell`. A pull request's unified cells carry
+  `left-side` alone, whatever their side, so don't read the side from a class there.
+- **Find a pull request file's region, its diff container, as
+  `#diff-<sha256 of the path>`,** and a renamed file's as the hash of its new path:
+  [sandbox PR #3](https://github.com/macintacos/gh-prism-sandbox/pull/3/changes)'s
+  `src/util.rs` renamed to `src/helpers.rs` is `#diff-c2a0fff5…`. A commit page's region
+  has no such id; its `table` carries the hash as `data-diff-anchor` (Chromium 157 and
+  Firefox 157, 2026-11-10).
+- **Don't look for a mark on expanded context.** Expanding `src/engine.rs` on sandbox PR
+  #3 took its table from anchors R16–R24 to R0–R24, and rows R1–R15 carry the same classes
+  as any context row (Chromium 157, 2026-11-10).
+- **Expect `?w=1` to keep the anchors of the rows it leaves.** On
+  [cli/cli@aac4387](https://github.com/cli/cli/commit/aac43870d4526ebc88ee0ec5151f0bf857483e19)
+  it drops the changed cells from 25 to 3, keeping `L144`, `R144`, and `R145`
+  unrenumbered; the whitespace-only lines show as context (Chromium 157, 2026-11-10).
+- **Re-stash text nodes after expanding context or re-opening a file.** In Chromium 157
+  and Firefox 157 on 2026-11-10, on sandbox PR #3's `src/engine.rs` and on commit
+  `8d807ee`, expanding context replaced the region's element, table, and every text node.
+  Collapsing a file with its header chevron (`.octicon-chevron-down`, no `aria-expanded`)
+  unmounted the table, and re-opening it mounted a new one. Hovering a row, clicking its
+  line number, and scrolling far away and back kept every node. A collapse did not survive
+  a reload.
+- **Expect every row of a file to mount at once, even past 1,328 lines.** On
+  [sandbox PR #2](https://github.com/macintacos/gh-prism-sandbox/pull/2/changes),
+  `web/src/data/catalog.ts` (+3000) is the sandbox's only file over 1,328 lines and its
+  only file behind the Load diff button, so it answers both. After the click, its region
+  held 3001 `tr.diff-line-row` and 3001 anchors. Scrolling to the middle, the bottom, and
+  back unmounted and reused none of them, in Chromium 157 and Firefox 157 on 2026-11-10.
+  Load diff replaced the region's element but kept its id. The page-level
+  `[data-testid="virtualized-diffs-list"]` virtualizes files, not rows.
+- **Expect a merge commit's page and its `.diff` to show the first-parent diff.**
+  [cli/cli@1837454](https://github.com/cli/cli/commit/18374541e44ad568208c2f45b14cc51c201121bd)
+  (parents `679ca5f` and `ebec795`) shows the same 5 files as its `.diff` and as a compare
+  against `679ca5f`, and each loaded file's addition and deletion cells match its `.diff`
+  counts (Chromium 157, signed in, 2026-11-10). Count tables only after loading every
+  file: its generated `issue-triage.lock.yml` sits behind Load diff, so a first count
+  finds 4 tables for 5 files.
+- **Paint over a cell's text with the CSS Custom Highlight API from a constructed sheet.**
+  A `::highlight()` rule in a `CSSStyleSheet` added through `document.adoptedStyleSheets`
+  applies under GitHub's CSP. A Highlight paints over the `.x` word mark's background, and
+  a translucent one (`rgba(255,0,255,.4)`) lets the mark's tint show through; the mark's
+  computed background stays `rgb(255, 206, 203)`. Observed on sandbox PR #3's
+  `timeout_ms = 500` row in Chromium 157 and Firefox 157 on 2026-11-10.
+- **Test against the captured tables:** `tests/fixtures/files-page-diff-*.html` (pull
+  request unified, split, and rename) and `tests/fixtures/commit-page-diff-*.html` (commit
+  unified, split, and `?w=1`). Each fixture's header comment names its source page. Like
+  every fixture, they can lag GitHub's live markup.
+- **Re-check:** signed in, load sandbox PR #3's Changes and commit `8d807ee`, each plain
+  and with `?diff=split`. Over `td.diff-text-cell`, read the `code` classes, the `td`'s
+  `data-line-anchor`, `data-diff-side`, `data-line-number`, `data-diff-line-key`, and
+  `data-grid-cell-id`, the `code`'s children in order, and the cells per `tr`; read the
+  `R0` anchor's element. Compare each region id with `crypto.subtle.digest('SHA-256', …)`
+  of its path. On PR #3, click `button[aria-label="Expand file up from line 17"]` in page
+  context (it is `aria-hidden`, so a role query misses it) and diff the rows' classes. For
+  text nodes, stash the text nodes of a region's `.diff-text-inner` elements on `window`,
+  run each interaction, and read each node's `isConnected`. On PR #2, click Load diff in
+  `#diff-211423e32384e0dd9ef7b5ea32ea75b4e16f023deb9254c5b58d7d9e7ddaa6b0`, count
+  `tr.diff-line-row`, keep the first, middle, and last rows, and scroll. Count changed
+  cells on cli/cli@aac4387 with and without `?w=1`. Curl cli/cli@1837454's `.diff`,
+  compare its per-file `+`/`-` counts with the page's after scrolling to the end, and with
+  `gh api repos/cli/cli/compare/679ca5f...1837454`. For the Highlight API, set a Range
+  from the start of a `.diff-text-inner` through its first `.x`, add the rule above, and
+  screenshot the row before and after.
+
+## Diff layout
+
+- **Find the layout gear by its accessible name, which differs by page.** On a pull
+  request it is `getByRole('button', { name: 'Diff settings' })`. On a commit it is
+  `getByRole('button', { name: 'Open diff view settings' }).first()`; one button matched
+  in Chromium 157 and Firefox 157 on 2026-11-10, but an earlier read the same day matched
+  two, so keep `.first()`. Both are Primer `IconButton`s with an `.octicon-gear` and no
+  test id, named by `aria-labelledby` pointing at a Primer tooltip `span`.
+- **Expect a pull request's gear in the page-wide `[class*="toolbar__"]` sticky header**
+  (`section.stickyHeader__…`), not in a file header and not in the `file-controls__`
+  container `VIEWED_COUNTER` in `files-page.ts` reads. A commit's gear sits in the row
+  above its file list.
+- **Read the layout from the `menuitemradio` items' `aria-checked`.** The menu mounts
+  under `#__primerPortalRoot__`. Its Layout group holds `menuitemradio` Unified and Split.
+  A pull request then has a Whitespace changes `menuitem` that opens a submenu of
+  `menuitemradio` Always show, Always hide, and Hide for this diff only, then
+  `menuitemcheckbox` Minimize comments and Compact line height. A commit has no Whitespace
+  changes group; its checkboxes are Minimize comments, Hide whitespace, and Compact line
+  height. Observed in Chromium 157 and Firefox 157 on 2026-11-10.
+- **Expect a commit's Hide whitespace to follow `?w=1`:** its `aria-checked` is `false` on
+  a plain load and `true` on a `?w=1` load. A pull request's `?w=1` leaves its whitespace
+  submenu on Always show; sandbox PR #3 has no whitespace-only line, so its rows can't
+  show whether `?w=1` applies there; settle it on a pull request with a whitespace-only
+  change. Observed in Chromium 157 and Firefox 157 on 2026-11-10.
+- **Expect the menu's layout choice to persist for the account.** Choosing Split on
+  sandbox PR #3 kept split, and Split checked, after a reload without a parameter.
+  Choosing Unified back restored it (Chromium 157, 2026-11-10).
+- **Use `?diff=split` when the menu can't be driven.** It switches a pull request and a
+  commit to split for that load only: a reload without it returns to the saved layout.
+  `?diff=unified` loads unified. Observed in Chromium 157 and Firefox 157 on 2026-11-10.
+- **Re-check:** signed in, on sandbox PR #3's Changes and on commit `8d807ee`, read the
+  gear's `aria-labelledby` target text, its `data-testid`, and its ancestors. Click it,
+  then read every `[role^=menuitem]` under `#__primerPortalRoot__` with its `role`, text,
+  and `aria-checked`; on the pull request, hover Whitespace changes for its submenu. Load
+  each page with `?diff=split`, then `?diff=unified`, then plain, and count the
+  `td.diff-text-cell` per row. Open the commit's menu on a plain load and on a `?w=1` load
+  without clicking any `menuitemcheckbox`. To check persistence, note the checked Layout
+  item, choose Split, reload, read the layout, then choose the original item and confirm
+  it is checked after a reload.
+
 ## Sticky headers
 
 - **Read the band GitHub's sticky chrome covers from a file header's computed `top`.**
