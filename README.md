@@ -17,7 +17,7 @@ Install it:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/hero-dark.png">
-  <img src="docs/images/hero-light.png" width="1408" alt="A pull request's Files changed tab with gh-prism. The tab row shows five lines-changed counts, one per section, and the sidebar on the right lists files under Implementation, Tests, and Docs & Comments, with render.rs marked Partial.">
+  <img src="docs/images/hero-light.png" width="1408" alt="A pull request's Files changed tab with gh-prism. Beside the branch names are five lines-changed counts, one per section, and the sidebar on the right lists files under Implementation, Tests, and Docs & Comments, with render.rs marked Partial.">
 </picture>
 
 ## What it does
@@ -46,7 +46,7 @@ Implementation, Tests, Docs & Comments, Config, and Generated / lockfiles.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/sections-dark.png">
-  <img src="docs/images/sections-light.png" width="401" alt="The gh-prism sidebar with Implementation (4 files, render.rs marked Partial), Tests (2), Docs & Comments (4, ending in an Implementation comments row), Config (2), and Generated / lockfiles (1), each with its lines added and removed.">
+  <img src="docs/images/sections-light.png" width="360" alt="The gh-prism sidebar with Implementation (3 files, render.rs marked Partial), Tests (2), Docs & Comments (4, ending in an Implementation comments row), Config (2), and Generated / lockfiles (2), each with its lines added and removed.">
 </picture>
 
 </details>
@@ -93,7 +93,7 @@ them (`N/M`).
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/viewed-dark.png">
-  <img src="docs/images/viewed-light.png" width="401" alt="The gh-prism sidebar with schema.rs, engine.rs, and helpers.rs ticked and dimmed. The headings read Implementation 3/4, Tests 0/2, Docs & Comments 0/4, Config 0/2, and Generated / lockfiles 0/1.">
+  <img src="docs/images/viewed-light.png" width="360" alt="The gh-prism sidebar with engine.rs and helpers.rs ticked and dimmed. The headings read Implementation 2/3, Tests 0/2, Docs & Comments 0/4, Config 0/2, and Generated / lockfiles 1/2, its collapsed section holding the ticked schema.rs.">
 </picture>
 
 </details>
@@ -107,11 +107,11 @@ The lines-changed count in the header splits into one count per section.
 - Click the counts to switch to GitHub's total and back. gh-prism remembers your choice.
 
 <details>
-<summary>Screenshot: a pull request's tab row with one count per section</summary>
+<summary>Screenshot: a pull request's header with one count per section</summary>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/lines-changed-dark.png">
-  <img src="docs/images/lines-changed-light.png" width="1248" alt="A pull request's header on the Conversation tab. At the right end of the tab row are five counts, each with its section's icon: +9 −3, +12 −0, +6 −6, +2 −1, and +7 −0.">
+  <img src="docs/images/lines-changed-light.png" width="1248" alt="A pull request's header on the Overview tab. Beside the branch names are five counts, each with its section's icon: +6 −2, +12 −0, +6 −6, +2 −1, and +10 −1.">
 </picture>
 
 </details>
@@ -128,11 +128,11 @@ the left, so you can read and reply to it without leaving the diffs.
   and projects.
 
 <details>
-<summary>Screenshot: the Conversation tab pinned beside a pull request's diffs</summary>
+<summary>Screenshot: the Overview tab pinned beside a pull request's diffs</summary>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/conversation-dark.png">
-  <img src="docs/images/conversation-light.png" width="950" alt="Files changed with the Conversation panel pinned on the left. Its header holds the reviewers jump, the pressed pin, and close, over the pull request's description and its three commits. Beside it, the toolbar starts with the Conversation button and its Shift+backslash keycap.">
+  <img src="docs/images/conversation-light.png" width="950" alt="Files changed with the Overview panel pinned on the left. Its header holds the reviewers jump, the pressed pin, and close, over the merge box and the pull request's description. Beside it, the toolbar starts with the Conversation button and its Shift+backslash keycap.">
 </picture>
 
 </details>
