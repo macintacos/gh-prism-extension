@@ -133,7 +133,7 @@ function planTable(
   const roots = cells.map(({ textRoot }) => textRoot);
   const quietBefore = before?.quiet ?? new Map<Element, string>();
   const movedBefore = before?.moved ?? new Map<Element, string>();
-  const movedLinesOf = movedLines(file);
+  const movedInFile = movedLines(file);
   const added: Range[] = [];
   const removed: Range[] = [];
   const quiet = new Map<Element, string>();
@@ -160,7 +160,7 @@ function planTable(
       continue;
     }
 
-    if (movedLinesOf[side].has(line)) markSide(moved, row, side);
+    if (movedInFile[side].has(line)) markSide(moved, row, side);
     const ranges = annotation.ranges.flatMap((columns) => rangeOf(textRoot, columns) ?? []);
     (side === "old" ? removed : added).push(...ranges);
   }

@@ -11,12 +11,12 @@ export interface MovedLines {
  * line order. A blank line never moves, and neither does a quiet line.
  */
 export function movedLines(file: StructuralFile): MovedLines {
-  const partners = removedByText(file.text.old, file.annotations.old);
+  const unpaired = removedByText(file.text.old, file.annotations.old);
 
   const old = new Set<number>();
   const added = new Set<number>();
   for (const [line, text] of movableLines(file.text.new, file.annotations.new)) {
-    const partner = partners.get(text)?.shift();
+    const partner = unpaired.get(text)?.shift();
     if (partner === undefined) continue;
     old.add(partner);
     added.add(line);
