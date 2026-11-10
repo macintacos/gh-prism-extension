@@ -6,6 +6,140 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-10: A toolbar toggle and Shift+\ for a commit's message, with motion
+
+This replaces the 2026-10-29 "Hiding a commit's message" entry below: its hide control,
+its way back, "no motion", and its per-commit hidden state.
+
+- **Asked:** the maintainer, on a commit page: closing the message column "doesn't have a
+  button in an obvious location I would've imagined that shift+\ would work"; the column
+  "should get the shift+\ button instead of a 'hide' button", "always visible", like the
+  file tree's toggle and the Conversation button; and closing and opening "should have a
+  nice animation".
+- **Compared:**
+  - for the control's place, the column's controls row, as before, or the diffs' toolbar,
+    first in its row or beside GitHub's tree toggle;
+  - for its form, a labelled button, or the Conversation button's icon and keycap;
+  - for its icon, `eye` and `eye-closed`, `sidebar-collapse`, `markdown`, or `git-commit`;
+  - for its name, one that flips with the state, or one name with `aria-expanded`;
+  - for showing that the message is open, nothing, as the Conversation button, or the
+    pressed fill GitHub's tree toggle takes while its tree shows;
+  - for the "Show commit message" row in GitHub's box's place, keeping it or dropping it;
+  - above the diffs, a control of its own in the commit's card, or the same toolbar
+    toggle;
+  - for the column's motion, the file tree's view-transition glide, animating the column's
+    width, or sliding the column off the row's start edge at its full width;
+  - above the diffs, no motion, or folding the message's height;
+  - for focus after Shift+\, the message, or the toggle;
+  - for the hidden state, one per commit, as before, or one for every commit, as GitHub's
+    file tree keeps;
+  - on a page whose toolbar row gh-prism can't find, keeping a hidden message hidden, or
+    showing it.
+- **Won:**
+  - One toggle, first in the diffs' toolbar row, in both layouts. It is the Conversation
+    button's form: Primer's small default Button holding Octicons `git-commit`, then the
+    "⇧\" keycap. `ui/key-button.ts` builds both buttons.
+  - It is named "Commit message" in both states, with `aria-expanded`, `aria-controls`,
+    and `aria-keyshortcuts`. Its tooltip reads "Commit message (Shift+\)" and opens
+    rightward.
+  - While the message shows, it takes the default Button's pressed fill,
+    `--button-default-bgColor-active`.
+  - Shift+\ presses it, on a commit page where gh-prism renders the message. The key moves
+    focus to the toggle without a ring. A click leaves focus on the toggle. Focus held
+    inside the message moves to the toggle as the message hides.
+  - The "Hide" button and the "Show commit message" row are gone.
+  - The column slides off the row's start edge on the "State, closing" row of `tokens.md`,
+    160 ms `ease-out`, and back on its Spatial row, 280 ms. The column keeps its full
+    width, and the tree and the diffs move with its edge.
+  - Above the diffs, the message folds its height shut and open on the same two rows, and
+    GitHub's own box folds with it in the plaintext view.
+  - A toggle pressed again mid-slide turns the slide around from where it is. Under
+    reduced motion the message takes its new state at once.
+  - One hidden state for every commit, in `sync:commitMessageHidden`. Hiding the message
+    on one commit hides it on every commit page until the reader shows it again. A tab
+    keeps its own copy, so a soft navigation opens as the reader last left it; another
+    tab's pick shows on its next full load, as the Conversation panel's open state does.
+  - Without the toolbar row there is no toggle and no key, and a hidden message shows.
+- **Why:**
+  - The toolbar is sticky, so the toggle stays on screen in both states and at any scroll.
+    The controls row left with the message it hid, which is why the way back needed a
+    second control somewhere else.
+  - First in the row puts the toggle at the diffs' start edge, beside the column it
+    controls. With the tree docked left, it comes before the tree's toggle, in the order
+    the two columns sit on the page.
+  - The maintainer pointed at the Conversation button and the tree toggle, and one form
+    for the three toolbar toggles reads as one family.
+  - `sidebar-collapse` is the tree toggle's icon, so two of them a few pixels apart would
+    differ only by keycap. An eye flips with the state, and a disclosure keeps one icon.
+    `markdown` is the view switch's icon. `git-commit` names what the toggle controls and
+    is used nowhere else on the page.
+  - The toggle discloses the message, so `aria-expanded` carries the state and the name
+    stays put, as `patterns.md` § Switches says.
+  - The Conversation button needs no fill because its open panel covers the page. A closed
+    message column leaves no trace, so the fill is how the toggle shows its state at a
+    glance, and it matches the tree toggle beside it.
+  - The toggle and its key bring a hidden message back from either layout, so the row in
+    the commit's card repeated them and cost the card a line.
+  - The pinned Conversation panel already slides off the page's left edge while the page
+    moves with it, on these timings. The glide cross-fades two snapshots of the diffs,
+    which the maintainer found jarring on that panel. Animating the width rewraps the
+    message's text in every frame. A slide at full width does neither.
+  - The fold moves the diffs with the message's edge instead of jumping them by the
+    message's height.
+  - `\` already lands on the tree toggle without a ring, and the message is prose with no
+    first control worth landing on.
+  - A hidden message with no toggle and no key could never be shown again.
+  - A reader who hides the message wants room for the diffs, and wants it on the next
+    commit too, as with the file tree. `sync:` carries it with the message's view.
+    `local:hiddenCommitMessages`, the per-commit list a released version wrote, is removed
+    on each install or update.
+- **Known limits:** Above the diffs, on a page scrolled past the commit's card, the toggle
+  changes only its own fill, because the message is off screen. Chrome before 145 ignores
+  `focus({ focusVisible: false })` and rings the toggle after Shift+\.
+
+## 2026-11-10: A conventional commit's title leads with a type label
+
+- **Asked:** "if a commit message follows conventional commit formatting … for the first
+  line, I'd like to stylize it similarly, using a github-style badge, with the context in
+  parentheses (if it's there) as a subtle grey text, and then the rest of the message."
+  The model was Refined GitHub's labels on a commits list.
+- **Compared:**
+  - for the label, GitHub's own `IssueLabel` classes, which the commit page's sheets
+    already style, or a pill rebuilt from Primer's tokens;
+  - for its colours, Refined GitHub's per-type values, or the five section hues;
+  - for its size in the rendered title, GitHub's 12px label, or the 14px body size;
+  - for the scope, muted at the title's weight, or muted and lighter;
+  - for GitHub's box on a subject-only commit, a badged copy in front of GitHub's hidden
+    title, or GitHub's own text node rewritten, as Refined GitHub does;
+  - for the plain-text view, the badge, or the message as written.
+- **Won:**
+  - GitHub's `IssueLabel hx_IssueLabel` classes, coloured through their `--label-*`
+    properties.
+  - Refined GitHub's values and names: the colours of GitHub's default issue labels for
+    `feat`, `fix`, `docs`, `build`, `refactor`, `test`, `ci`, and `perf`, and a neutral
+    label for `chore`, `revert`, and `style`. A breaking change's `!` ends the label.
+  - In the rendered title, the label is 14px, 22px tall with its border, and raised 2px to
+    centre it on the text. In GitHub's box it is 12px, GitHub's own label size. Both are
+    in the sans face.
+  - The scope in `--fgColor-muted` at the title's weight, with its colon.
+  - A copy in front of GitHub's hidden title.
+  - No badge in the plain-text view.
+- **Why:**
+  - GitHub's label rules already switch between a solid fill in a light theme and a tinted
+    one in a dark theme. A rebuilt pill would copy that arithmetic and drift from it.
+  - A title reads the same on the commits list, under Refined GitHub, and on the commit's
+    page. The section hues already mean a section, so a type in one would read as a
+    section.
+  - Refined GitHub sets its label at 14px beside a 16px title. At 12px beside the 20px
+    rendered title the label looked undersized, and at 14px it still fits the title's 25px
+    line, so a wrapped title keeps its line height. GitHub's box sets its title at 14px in
+    a 21px line, which the 20px-tall 12px label fits.
+  - The description is the title's one emphasis. A muted scope steps back from it without
+    a second weight in the heading.
+  - React owns GitHub's title and can write its text again at any render. A copy leaves
+    React's nodes as they were, and removing it restores the box.
+  - The plain-text view is the message as its author wrote it, prefix included.
+
 ## 2026-11-10: The Conversation panel's header takes GitHub's collapsed sticky header's box
 
 - **Asked:** GitHub's collapsed sticky header, the bar that stays at the top of Files

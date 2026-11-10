@@ -138,6 +138,40 @@ describe("renderCommitMessage", () => {
     expect(first?.textContent).toBe("- not a list");
   });
 
+  it("leads a conventional title with its type's label and its scope, ahead of its inline Markdown", () => {
+    const [first] =
+      renderCommitMessage(document, crafted("chore(deps): bump `anyhow`", null)) ?? [];
+    const title = first as Element;
+
+    expect(title.nodeName).toBe("H1");
+    const label = title.querySelector(".gh-prism-commit-type");
+    expect([label?.textContent, label?.getAttribute("data-type")]).toEqual(["Chore", "chore"]);
+    expect(title.querySelector(".gh-prism-commit-scope")?.textContent).toBe("deps: ");
+    expect(title.querySelector("code")?.textContent).toBe("anyhow");
+    expect(title.textContent).toBe("Chore deps: bump anyhow");
+  });
+
+  it("keeps GitHub's link in a conventional title's scope", () => {
+    const link = issueLink();
+    const card = crafted("", null);
+    card.title.replaceChildren("fix(", link, "): close the gap");
+
+    const [title] = renderCommitMessage(document, card) ?? [];
+
+    const scope = (title as Element).querySelector(".gh-prism-commit-scope");
+    expect(scope?.querySelector("a")?.getAttribute("href")).toBe(
+      (link as Element).getAttribute("href"),
+    );
+    expect(title?.textContent).toBe(`Fix ${link.textContent}: close the gap`);
+  });
+
+  it("renders a conventional title whose description parses as a block as text after its label", () => {
+    const [first] = renderCommitMessage(document, crafted("fix: - not a list", null)) ?? [];
+
+    expect(first?.nodeName).toBe("H1");
+    expect(first?.textContent).toBe("Fix - not a list");
+  });
+
   it("renders a subject-only message as the title alone", () => {
     const nodes = renderCommitMessage(document, cardOf("subject"));
 

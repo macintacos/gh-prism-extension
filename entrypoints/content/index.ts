@@ -21,7 +21,6 @@ import {
   readViewedSeed,
 } from "@/utils/github/pr-ref";
 import { teamRosterReader } from "@/utils/github/team-roster";
-import { hiddenKeyOf, hiddenKeysOf, isHidden, withHidden } from "@/utils/hidden-commits";
 import { storedIntents } from "@/utils/intent/cache";
 import {
   type IntentSources,
@@ -33,13 +32,13 @@ import {
   type CommitMessageView,
   classicNoticeDismissed,
   commitColumnWidth,
+  commitMessageHidden,
   commitMessageView,
   conversationOpen,
   conversationPinned,
   conversationWidth,
   type DiffstatView,
   diffstatView,
-  hiddenCommitMessages,
   sidebarSide,
   whatsNewSeen,
 } from "@/utils/prefs";
@@ -87,8 +86,8 @@ const CACHED_DIFFS = 50;
  * and on Conversation lists a code owner's files from their Reviewers sidebar shield. On
  * Conversation and Files changed, lists them from the shield beside their comments. On a commit's
  * page, shows its message rendered as Markdown, above the diffs or in a column beside them, with a
- * switch to its plain text. On a pull request's classic Files changed page, explains why gh-prism
- * is off there, and shields its review comment authors.
+ * switch to its plain text and a toolbar toggle that hides it. On a pull request's classic Files
+ * changed page, explains why gh-prism is off there, and shields its review comment authors.
  */
 export default defineContentScript({
   // Every GitHub page: soft navigation reaches a pull request without re-injecting the script.
@@ -120,7 +119,7 @@ export default defineContentScript({
       readSavedDiffstat(),
       readSavedCommitMessage(),
       readSavedColumnWidth(),
-      readHiddenMessages(),
+      readSavedHidden(),
       readSavedPinned(),
       readSavedOpen(),
       readSavedConversationWidth(),
@@ -129,7 +128,8 @@ export default defineContentScript({
     ]);
     const side = sideChoiceOf(savedSide);
     const commitMessage = commitMessageChoiceOf(savedCommitMessage, savedColumnWidth);
-    const hiddenMessages: HiddenMessages = { keys: hiddenKeysOf(savedHidden) };
+    // Shared by every visit, so a soft navigation to another commit opens as the reader last left it.
+    const messageHidden = { hidden: savedHidden === true };
     const seenChildren: SeenChildren = new Map();
     // Shared by every visit, so a switch on one tab or page carries to the next.
     const diffstat = {
@@ -194,13 +194,13 @@ export default defineContentScript({
             diffUrl: location.origin + location.pathname,
             version,
           };
-          const hiddenKey = route.diff.kind === "commit" ? hiddenKeyOf(route.diff) : undefined;
           const messageVisit: CommitMessageVisit = {
             since: performance.now(),
-            hidden: hiddenKey !== undefined && isHidden(hiddenMessages.keys, hiddenKey),
+            hidden: messageHidden.hidden,
           };
           const saveHidden = (hidden: boolean) => {
-            if (hiddenKey) saveHiddenMessage(hiddenMessages, hiddenKey, hidden);
+            messageHidden.hidden = hidden;
+            saveMessageHidden(hidden);
           };
           const steps =
             route.diff.kind === "commit"
@@ -513,31 +513,19 @@ const saveConversationWidth = (width: number) =>
       console.error("gh-prism: saving the Conversation panel's width failed", error),
     );
 
-/** The commits whose message this tab knows are hidden, kept current as its visits hide them. */
-interface HiddenMessages {
-  keys: readonly string[];
-}
-
-/** The stored hidden commit messages, unchecked, or none when storage won't read. */
-const readHiddenMessages = (): Promise<unknown> =>
-  hiddenCommitMessages.getValue().catch((error: unknown) => {
-    console.error("gh-prism: reading the hidden commit messages failed", error);
-    return hiddenCommitMessages.fallback;
+/** Whether a commit's message was left hidden, unchecked, or shown when storage won't read. */
+const readSavedHidden = (): Promise<unknown> =>
+  commitMessageHidden.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading whether the commit message is hidden failed", error);
+    return commitMessageHidden.fallback;
   });
 
-/**
- * Records `key`'s commit message as `hidden` or shown in the tab's `hiddenMessages` and in storage,
- * read afresh so a pick another tab made since this one started survives.
- */
-function saveHiddenMessage(hiddenMessages: HiddenMessages, key: string, hidden: boolean): void {
-  hiddenMessages.keys = withHidden(hiddenMessages.keys, key, hidden);
-  hiddenCommitMessages
-    .getValue()
-    .then((saved) => hiddenCommitMessages.setValue(withHidden(hiddenKeysOf(saved), key, hidden)))
+const saveMessageHidden = (hidden: boolean) =>
+  commitMessageHidden
+    .setValue(hidden)
     .catch((error: unknown) =>
-      console.error("gh-prism: saving the hidden commit messages failed", error),
+      console.error("gh-prism: saving whether the commit message is hidden failed", error),
     );
-}
 
 /** Whether the user dismissed the classic page's notice; not, when storage won't read. */
 const readNoticeDismissed = (): Promise<boolean> =>

@@ -492,7 +492,6 @@ test("a commit's message runs its prose under its controls, in the narrowest col
       return {
         message: { right, left },
         viewSwitch: rect(".gh-prism-commit-view-switch"),
-        hide: rect(".gh-prism-commit-hide"),
         title: rect(".gh-prism-commit-message-body > h1"),
         list: rect(".gh-prism-commit-message-body > ul"),
       };
@@ -509,8 +508,8 @@ test("a commit's message runs its prose under its controls, in the narrowest col
   expect(mark && mark.y + mark.height).toBeGreaterThan(column.viewSwitch.top);
   expect(mark?.y).toBeLessThan(column.viewSwitch.bottom);
   expect(column.viewSwitch.left).toBeGreaterThanOrEqual(column.message.left + 24);
-  expect(column.hide.right).toBe(column.message.right - 24);
-  expect(column.title.top).toBeGreaterThanOrEqual(column.hide.bottom);
+  expect(column.viewSwitch.right).toBe(column.message.right - 24);
+  expect(column.title.top).toBeGreaterThanOrEqual(column.viewSwitch.bottom);
   expect(column.list.left).toBe(column.message.left + 24);
   expect(column.list.right).toBe(column.message.right - 24);
 
@@ -519,7 +518,7 @@ test("a commit's message runs its prose under its controls, in the narrowest col
 
   const above = await layout();
 
-  expect(above.title.top).toBeLessThan(above.hide.bottom);
+  expect(above.title.top).toBeLessThan(above.viewSwitch.bottom);
   expect(above.list.right).toBe(above.message.right - 12);
 });
 
@@ -587,6 +586,32 @@ test("a subject-only commit keeps GitHub's box, with no column or switch", async
     page.locator(".gh-prism-commit-message, .gh-prism-commit-column, .gh-prism-commit-slot"),
   ).toHaveCount(0);
   await expect(page.locator(MESSAGE_BOX)).toBeVisible();
+});
+
+test("a conventional commit's title leads with its type's label, in the rendering and in GitHub's box", async ({
+  context,
+  page,
+}) => {
+  const subjectOnly = readFixture("commit-message-subject.html").replace(
+    "<div>Replace msgpack",
+    "<div>fix(encoder): replace msgpack",
+  );
+  const withBody = "https://github.com/o/r/commit/9f707bc6d2d249be450352203059fb2a22bce9dd";
+  await serve(context, COMMIT_URL, commitBodyWith(subjectOnly));
+  await serve(context, withBody, commitBodyWith(readFixture("commit-message-lists.html")));
+
+  await page.goto(COMMIT_URL);
+
+  const badged = page.locator(`${MESSAGE_BOX} .gh-prism-commit-title`);
+  await expect(badged.locator(".gh-prism-commit-type")).toHaveText("Fix");
+  await expect(badged).toHaveText("Fix encoder: replace msgpack with a minimal node ID encoder");
+  await expect(page.locator(`${MESSAGE_BOX} > span:first-child > div`)).toBeHidden();
+
+  await page.goto(withBody);
+
+  const title = page.locator(".gh-prism-commit-message-body > h1");
+  await expect(title.locator(".gh-prism-commit-type")).toHaveText("Feature");
+  await expect(title).toHaveText("Feature order the diffs like the sidebar");
 });
 
 test("a commit's Older and Newer hold their place from its first frame, and step to its parent and back", async ({
@@ -773,7 +798,9 @@ test("a commit's message column resizes from its edge by mouse and keyboard, and
   }).toPass({ timeout: 20_000 });
 });
 
-test("hiding a commit's message keeps it hidden on that commit alone, across commits and reloads", async ({
+const messageToggle = (page: Page) => page.getByRole("button", { name: "Commit message" });
+
+test("the toolbar's toggle hides the message on every commit, across commits and reloads, until it shows it again", async ({
   context,
   page,
 }) => {
@@ -790,41 +817,127 @@ test("hiding a commit's message keeps it hidden on that commit alone, across com
   );
   await page.setViewportSize({ width: 1440, height: 900 });
   const column = page.locator(".gh-prism-commit-column");
-  const hide = page.getByRole("button", { name: "Hide commit message" });
-  const showAgain = page.getByRole("button", { name: "Show commit message" });
+  const toggle = messageToggle(page);
   const diffsLeft = () =>
     page.evaluate(
       () => document.getElementById("diff-content-parent")?.getBoundingClientRect().left,
     );
   await page.goto(COMMIT_URL);
   await expect(column).toBeVisible();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  expect(
+    await toggle.evaluate((button) => button === button.parentElement?.firstElementChild),
+  ).toBe(true);
   const besideColumn = await diffsLeft();
 
-  await hide.click();
+  await toggle.click();
 
   await expect(column).toHaveCount(0);
-  await expect(showAgain).toBeFocused();
+  await expect(toggle).toBeVisible();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator(MESSAGE_BOX)).toBeHidden();
   expect(await diffsLeft()).toBeLessThan(besideColumn ?? 0);
 
-  await page.goto(other);
-  await expect(column).toBeVisible();
-  await expect(showAgain).toHaveCount(0);
-
-  // The pick saves asynchronously; load the hidden commit until a load reads it back.
+  // The pick saves asynchronously; load another commit until a load reads it back.
   await expect(async () => {
-    await page.goto(COMMIT_URL);
-    await expect(showAgain).toBeVisible({ timeout: 5000 });
+    await page.goto(other);
+    await expect(toggle).toHaveAttribute("aria-expanded", "false", { timeout: 5000 });
   }).toPass({ timeout: 20_000 });
   await expect(column).toHaveCount(0);
   await page.reload();
-  await expect(showAgain).toBeVisible();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator(MESSAGE_BOX)).toBeHidden();
 
-  await showAgain.click();
+  await toggle.click();
 
   await expect(column.locator(".gh-prism-commit-message-body > h1")).toBeVisible();
-  await expect(hide).toBeFocused();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+});
+
+test("Shift+\\ hides a commit's message and shows it again, landing on its toggle without a focus ring, while a text field types it", async ({
+  context,
+  page,
+}) => {
+  await serve(
+    context,
+    COMMIT_URL,
+    withLayoutRow(commitBodyWith(readFixture("commit-message-lists.html"))),
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const column = page.locator(".gh-prism-commit-column");
+  const toggle = messageToggle(page);
+  const filter = page.getByRole("textbox", { name: /^Filter files/ });
+  await page.goto(COMMIT_URL);
+  await expect(column).toBeVisible();
+  await expectInside(toggle.locator("kbd"), toggle);
+  expect(await toggle.evaluate((button) => getComputedStyle(button, "::after").content)).toContain(
+    "Shift+\\",
+  );
+
+  await filter.press("Shift+Backslash");
+  await expect(filter).toHaveValue("|");
+  await expect(column).toBeVisible();
+
+  await page.locator(".gh-prism-commit-view-switch").focus();
+  await page.keyboard.press("Shift+Backslash");
+  await expect(column).toHaveCount(0);
+  await expect(toggle).toBeFocused();
+  expect(await toggle.evaluate((button) => button.matches(":focus-visible"))).toBe(false);
+
+  await page.keyboard.press("Shift+Backslash");
+  await expect(column.locator(".gh-prism-commit-message-body > h1")).toBeVisible();
+  await expect(toggle).toBeFocused();
+});
+
+test("a commit's message column slides out with the diffs at its edge in every frame, and leaves at once under reduced motion", async ({
+  context,
+  page,
+}) => {
+  await serve(
+    context,
+    COMMIT_URL,
+    withLayoutRow(commitBodyWith(readFixture("commit-message-lists.html"))),
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const column = page.locator(".gh-prism-commit-column");
+  // Each frame the column outlives the toggle's click: the diffs' left edge, and the gap between
+  // the column's right edge and the pane after it.
+  const framesOfHiding = () =>
+    page.evaluate(
+      () =>
+        new Promise<{ left: number; gap: number }[]>((resolve) => {
+          const shown = document.querySelector(".gh-prism-commit-column");
+          const diffs = document.getElementById("diff-content-parent");
+          const frames: { left: number; gap: number }[] = [];
+          const sample = () => {
+            const next = shown?.nextElementSibling;
+            if (!shown?.isConnected || !next || !diffs) return resolve(frames);
+            const { left } = diffs.getBoundingClientRect();
+            const gap = next.getBoundingClientRect().left - shown.getBoundingClientRect().right;
+            frames.push({ left, gap });
+            requestAnimationFrame(sample);
+          };
+          document.querySelector<HTMLElement>(".gh-prism-commit-toggle")?.click();
+          sample();
+        }),
+    );
+  await page.goto(COMMIT_URL);
+  await expect(column.locator(".gh-prism-commit-message-body > h1")).toBeVisible();
+
+  const frames = await framesOfHiding();
+
+  expect(frames.length).toBeGreaterThan(0);
+  expect(frames.map(({ gap }) => toHundredths(gap))).toEqual(frames.map(() => 0));
+  const lefts = frames.map(({ left }) => left);
+  expect(lefts).toEqual([...lefts].sort((a, b) => b - a));
+  await expect(column).toHaveCount(0);
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await messageToggle(page).click();
+  await expect(column).toBeVisible();
+  expect(await column.evaluate((shown) => shown.getAnimations().length)).toBe(0);
+
+  expect(await framesOfHiding()).toEqual([]);
 });
 
 for (const width of [1280, 1440]) {
@@ -3793,8 +3906,11 @@ const PR_TOOLBAR_BODY = PR_BODY.replace(
 const boxRight = (box: { x: number; width: number } | null) => (box ? box.x + box.width : NaN);
 const boxBottom = (box: { y: number; height: number } | null) => (box ? box.y + box.height : NaN);
 
-/** Firefox reports box coordinates as float32, so a whole-pixel distance can come back a few millionths of a pixel off. */
-const toHundredths = (px: number) => Math.round(px * 100) / 100;
+/**
+ * Firefox reports box coordinates as float32, so a whole-pixel distance can come back a few
+ * millionths of a pixel off, either side of zero; `+ 0` turns the `-0` that rounds to into `0`.
+ */
+const toHundredths = (px: number) => Math.round(px * 100) / 100 + 0;
 
 for (const [width, layout] of [
   [1280, "regular"],

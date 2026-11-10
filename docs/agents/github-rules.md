@@ -111,6 +111,14 @@ methods.
   and the diffs' ContentWrapper (`order` 2). The pane wrapper is
   `position: sticky; top: 0; height: 100vh`, and the window, not the row, scrolls.
   `findCommitColumnRow` finds the row from the sidebar.
+- **Find a commit's toolbar row as
+  `#diff-content-parent > * > :has([aria-controls="diff_file_tree"])`.** The row is a
+  `position: sticky; top: 0` flex row with an 8px gap, first in the wrapper that
+  `#diff-content-parent` holds. Its first child wraps the two tree toggles, and its second
+  is a full-width group holding the code search and the settings button. The sidebar
+  carries a copy of the row inside a `d-md-none` wrapper, for the layout below 768px, so
+  scope the match to `#diff-content-parent`. `findFilesToolbar` finds the row, and the
+  commit message's toggle starts it.
 - **Read the message from the box, not the embedded page data.** The data holds it only as
   HTML (`shortMessageMarkdown`, `bodyMessageHtml`), never as raw text.
 - **Read a commit's first parent from `a[data-hotkey="p"]` in the card's row
@@ -129,6 +137,18 @@ methods.
   rely on its classes too: `message.ts` writes `contains-task-list`, `task-list-item`, and
   `task-list-item-checkbox`, so if checkboxes or bullets lose their styling, check those
   classes in GitHub's sheet first.
+- **Rely on GitHub's label sheet.** `.IssueLabel` and `.hx_IssueLabel` load on commit
+  pages, from GitHub's `primer` and `global` sheets (observed 2026-11-10). A
+  `span.IssueLabel.hx_IssueLabel` is a 12px medium-weight pill, and `hx_IssueLabel` paints
+  it from six custom properties, `--label-r`, `--label-g`, `--label-b`, `--label-h`,
+  `--label-s`, and `--label-l`: a solid fill in a light theme, and an 18% fill with
+  lightened text in a dark one. `commit/title-badge.css` sets the six per type.
+- **Never rewrite the title's text in GitHub's box; stand a copy in front of it.** React
+  owns the title `div`. `commit/subject-badge.ts` inserts a `span` before it, which
+  `findCommitMessage`'s `> div` skips, and `subject-badge.css` hides the `div`.
+- **Expect Refined GitHub to badge commit lists only.** Its conventional-commits feature
+  runs on `isCommitList` pages and leaves a commit's own page as GitHub drew it (Refined
+  GitHub 26.11.6, observed 2026-11-10), so gh-prism's type label is the only one there.
 - **Re-check:** load a public commit page and a pull request. Read the placeholder text
   and `getComputedStyle(document.documentElement).scrollBehavior` from the DOM. Read the
   hydration re-render and the nav helper from GitHub's bundle as
@@ -140,8 +160,16 @@ methods.
   `[class*="PageLayout-PageLayoutContent"]`'s children, the pane wrapper's `position`,
   `top`, and `height`, and confirm `document.scrollingElement` is what scrolls. Read the
   parents row of a merge (cli/cli@0cf1092) and a root commit
-  (octocat/Hello-World@553c207). On a commit page, append an `<a>` to another commit
-  inside the parents row, click it, and check that a `window` property survives.
+  (octocat/Hello-World@553c207). Read the parent and grandparent of each
+  `[aria-controls="diff_file_tree"]` button, and the row's computed `position`, `top`, and
+  `gap`, at 1600px and 600px. At both widths, two buttons sit under `#diff-content-parent`
+  with one grandparent, which is a child of `#diff-content-parent`'s child and computes
+  `sticky`, `0px`, and `8px`. On a commit page, append an `<a>` to another commit inside
+  the parents row, click it, and check that a `window` property survives. Append a scratch
+  `span.IssueLabel.hx_IssueLabel` with the six `--label-*` properties set, and read its
+  computed `background-color` in a light and a dark theme. With Refined GitHub loaded
+  beside gh-prism, load a conventional commit's page and count
+  `[rgh-conventional-commits]`.
 
 ## A commit's next commit
 

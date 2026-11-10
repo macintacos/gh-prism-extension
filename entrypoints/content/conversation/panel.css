@@ -13,6 +13,7 @@
 @import "../ui/keycap.css";
 @import "../ui/pr-owners.css";
 @source "./panel.ts";
+@source "../ui/key-button.ts";
 @source "../ui/keycap.ts";
 
 /* GitHub's toolbar row spaces its two groups apart; the button makes a third item, so the end

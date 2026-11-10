@@ -2,12 +2,16 @@
    (other than the column's separator) or after .gh-prism-commit-slot; and
    [class*="PageLayout-PageLayoutContent"]'s flex row, whose panes sort at order 1 or
    PageLayout's --region-order-pane-end, which the column's tw:-order-1 sorts before; and
-   .markdown-body's headings, which the body's heading rules outrank. Every other rule selects
-   only gh-prism's own classes. */
+   .markdown-body's headings, which the body's heading rules outrank; and title-badge.css's.
+   Every other rule selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @import "../ui/column-width.css";
 @import "../ui/mark.css";
+@import "../ui/keycap.css";
+@import "./title-badge.css";
 @source "./message-view.ts";
+@source "../ui/key-button.ts";
+@source "../ui/keycap.ts";
 
 /* GitHub's box, while the rendered message stands in for it; in the column, the separator follows
    the message instead. */
@@ -40,6 +44,15 @@
 
 .gh-prism-commit-message-body.markdown-body > h1:first-child {
   font-size: var(--text-title-size-medium, 1.25rem);
+}
+
+/* 22px tall with its border and raised to mid-line, so the title keeps its 25px lines. Compound,
+   to outrank GitHub's .IssueLabel. */
+.gh-prism-commit-message-body.markdown-body h1 > .gh-prism-commit-type {
+  margin-inline-end: 2px;
+  font-size: var(--text-body-size-medium, 0.875rem);
+  line-height: 20px;
+  vertical-align: 2px;
 }
 
 /* Beside the title's first line, so the lines below run the message's full width. The negative
@@ -139,7 +152,45 @@
   color: var(--button-invisible-iconColor-rest);
 }
 
+/* Pressed while the message shows, as GitHub's tree toggle beside it is while its tree does. */
+.gh-prism-commit-toggle[aria-expanded="true"] {
+  border-color: var(--button-default-borderColor-active);
+  background-color: var(--button-default-bgColor-active);
+}
+
+/* Primer's tooltip, opening rightward from the toolbar's start. */
+.gh-prism-commit-toggle::after {
+  content: attr(aria-label) " (" attr(aria-keyshortcuts) ")";
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline-start: 0;
+  z-index: 100;
+  padding: 4px 8px;
+  border-radius: var(--borderRadius-medium);
+  background: var(--tooltip-bgColor);
+  color: var(--tooltip-fgColor);
+  font-size: var(--text-body-size-small);
+  font-weight: var(--base-text-weight-normal);
+  line-height: var(--text-body-lineHeight-small);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 120ms ease-out,
+    visibility 120ms;
+}
+
+.gh-prism-commit-toggle:is(:hover, :focus-visible)::after {
+  opacity: 1;
+  visibility: visible;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .gh-prism-commit-toggle::after {
+    transition: none;
+  }
+
   .gh-prism-commit-skeleton,
   .gh-prism-commit-skeleton > span {
     animation: none;

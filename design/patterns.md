@@ -151,12 +151,12 @@ A tooltip copies Primer's. It is an `::after` on the control that shows the cont
 `aria-label`, on `--tooltip-bgColor`, at the small body size, and it fades in over 120 ms
 on hover and focus. It opens toward the inside of the sidebar or the page, so it never
 clips at an edge. `sidebar/side.css`, `sidebar/report.css`, `commit/step-links.css`,
-`conversation/panel.css`, `ui/mark.css`, and `ui/pr-owners.css` hold the six in use. The
-code owners button beside a Reviewers heading sits near the sidebar's inline end, so
-`conversation/reviewer-files.css` overrides `ui/pr-owners.css`'s tooltip for it to open
-leftward from the button's end. Only the mark's opens on hover alone, since the mark takes
-no focus. Inside the header counter's tooltips, which take no pointer, the mark's own
-tooltip never opens.
+`commit/message-view.css`, `conversation/panel.css`, `ui/mark.css`, and `ui/pr-owners.css`
+hold the seven in use. The code owners button beside a Reviewers heading sits near the
+sidebar's inline end, so `conversation/reviewer-files.css` overrides `ui/pr-owners.css`'s
+tooltip for it to open leftward from the button's end. Only the mark's opens on hover
+alone, since the mark takes no focus. Inside the header counter's tooltips, which take no
+pointer, the mark's own tooltip never opens.
 
 The owner filter icons' tooltips (§ Owner identities) look the same but sit in the top
 layer, because their surfaces scroll, and an `::after` there would widen the scroller's
@@ -175,14 +175,16 @@ which join the owner heading's accessible name, say the same as the tooltip, so 
 and screen-reader users lose nothing.
 
 A control that takes a key names it in its tooltip, after the action's name, and sets
-`aria-keyshortcuts`, so assistive technology announces the key. Three sets of controls
-take keys:
+`aria-keyshortcuts`, so assistive technology announces the key. Four sets of controls take
+keys:
 
 - Older and Newer beside a commit's SHA take Shift+J and Shift+K. Their tooltips name the
   key in words, as "Older commit: 9eb4db2 (Shift+J)", and only while the link goes
   somewhere, because a held-off link's key does nothing.
 - The Conversation button takes Shift+\. Its tooltip reads "Conversation (Shift+\)", or
   "Overview (Shift+\)" where GitHub serves its pull request overview.
+- The commit message toggle takes Shift+\ on a commit's page, which has no Conversation
+  button. Its tooltip reads "Commit message (Shift+\)".
 - GitHub's file-tree toggle takes `\`. Its tooltip is GitHub's own, so only its
   `aria-keyshortcuts` and keycap name the key.
 
@@ -193,6 +195,10 @@ Each also shows its key at rest as a keycap (`exceptions.md` says why):
 - The Conversation button is Primer's small default Button, like GitHub's "All commits"
   beside it. It holds its icon, then the keycap, so it reads as the comment-discussion
   icon, then "⇧\".
+- The commit message toggle takes the same form, with Octicons `git-commit`, and starts
+  the toolbar above a commit's diffs. While the message shows, it takes the default
+  Button's pressed fill, as the tree toggle does while its tree shows.
+  `shiftBackslashButton` in `ui/key-button.ts` builds both buttons.
 - GitHub's tree toggle is drawn as the same small default Button, with inline-end padding
   for the keycap. Expanded, it takes the default Button's pressed fill,
   `--button-default-bgColor-active`, so expanded and collapsed still differ. The keycap is
@@ -222,9 +228,8 @@ the state. Focus stays on it across the flip. It holds one Octicon in both state
 - **In the sidebar,** where room is short, it is Primer's small invisible IconButton,
   named by an `aria-label` that its tooltip shows. `sidebar/side.ts` builds it.
 - **Beside a commit's message,** it is Primer's small invisible Button: the Octicon, then
-  a visible label that is its name, so it needs no tooltip. The message's hide button and
-  the button that shows the message again take the same form. `commit/message-view.ts`
-  builds all three.
+  a visible label that is its name, so it needs no tooltip. `commit/message-view.ts`
+  builds it.
 - **After a code owner's name,** it is a link drawn as Primer's small invisible
   IconButton, named by an `aria-label` that its tooltip shows. Its flip is a page load,
   and it takes the selected fill in its second state. `ui/owner-identity.ts` builds it.
@@ -236,11 +241,13 @@ A toggle that opens or holds something keeps one name in both states and carries
 in ARIA instead, so the name says what it controls. The Conversation button keeps
 "Conversation" and sets `aria-expanded` while the panel is open; the panel's pin keeps
 "Pin Conversation" and sets `aria-pressed` while pinned. Where GitHub serves its pull
-request overview, each says "Overview" in Conversation's place. Between its title and pin,
-the panel's header holds two jump controls in the pin's form, "Jump to checks" and "Jump
-to reviewers, labels, and projects", each with a tooltip opening below the header and
-shown only while the frame has its section. Over the overview only the second shows,
-landing on its Reviewers section. `conversation/panel.ts` builds them all.
+request overview, each says "Overview" in Conversation's place. The commit message toggle
+keeps "Commit message" and sets `aria-expanded` while the message shows;
+`commit/message-toggle.ts` builds it. Between its title and pin, the panel's header holds
+two jump controls in the pin's form, "Jump to checks" and "Jump to reviewers, labels, and
+projects", each with a tooltip opening below the header and shown only while the frame has
+its section. Over the overview only the second shows, landing on its Reviewers section.
+`conversation/panel.ts` builds them all.
 
 The Older and Newer links beside a commit's SHA take Primer's ButtonGroup, not a switch's
 form, as a pull request's commit view pairs its Prev and Next: two small default Buttons
@@ -249,6 +256,29 @@ chevron sits at the group's outer edge, in `--fgColor-muted`. Their tooltip name
 commit each goes to, which the label doesn't. A link with nowhere to go keeps its place as
 Primer's disabled default Button, and its tooltip says why. `commit/step-links.ts` and
 `commit/step-links.css` build them.
+
+## Conventional commit titles
+
+A commit title that opens with a conventional commit prefix shows the prefix as a type
+label and a scope, then the description. `CONTEXT.md` defines both terms.
+
+- **The type label** is GitHub's own label: the `IssueLabel hx_IssueLabel` classes, fully
+  round, at medium weight in the sans face. It reads the type's name: Feature, Fix, Chore,
+  Revert, Style, Docs, Build, Refactor, Test, CI, or Performance, ending in `!` for a
+  breaking change. `commit/title-badge.css` gives each type the colour of one of GitHub's
+  default issue labels; Chore, Revert, and Style stay neutral. `exceptions.md` records the
+  colour.
+- **The scope** follows in `--fgColor-muted` at the title's weight, with its colon and
+  without its parentheses.
+- **The description** keeps the title's own colour and weight.
+
+Two titles take it. The rendered message's title, in the column and above the diffs, sets
+the label at the body size, which fits the title's 25px line, and raises it 2px to centre
+it on the text. GitHub's box, on a subject-only commit, sets it at GitHub's 12px label
+size. The plain-text view shows the message as written, with no label.
+`commit/title-badge.ts` reads the prefix and builds the label and scope,
+`commit/message.ts` and `commit/message-view.css` place them in the rendered title, and
+`commit/subject-badge.ts` and `commit/subject-badge.css` place them in GitHub's box.
 
 ## Floating surfaces
 
@@ -285,6 +315,18 @@ the reader picked. `ui/column-width.ts` and `ui/column-width.css` build it for t
 message column and the Conversation panel. The Conversation panel's overlay takes the same
 separator but floats over the page, so its bound is the window less 48px, the strip left
 to click outside it.
+
+A column the reader closes slides off its start edge at its full width, and what sits
+beside it moves with its edge, so nothing rewraps or is drawn twice. It leaves on the
+"State, closing" row of the [motion scale](tokens.md#motion) and comes back on the Spatial
+row. Under reduced motion it takes its new state at once. Two columns do this:
+
+- The pinned Conversation panel slides off the page's left edge. It animates its translate
+  and the page's padding (`conversation/panel.ts`).
+- The commit message column slides off the start edge of GitHub's layout row. It animates
+  its start margin, and its toggle pressed again mid-slide turns the slide around
+  (`commit/message-view.ts`). Above the diffs, where the message is no column, it folds
+  its height shut and open on the same two rows.
 
 ## Code owner's files
 
@@ -480,10 +522,10 @@ Each of these eight surfaces carries one mark:
 - **Classic Files-changed dialog:** the footer's start corner, with the buttons at the
   end. Both still fit at the dialog's 296px minimum width.
 - **Commit message column:** the start of the controls row, above the message's first
-  line, with "Show plain text" and "Hide" at the row's end. It scrolls with the message.
-  When the row wraps in a narrow column, the mark stays at the start of its first line.
-  Above the diffs, on a narrow window, the message carries no mark, because there it
-  stands in for GitHub's own message box inside GitHub's card.
+  line, with "Show plain text" at the row's end. It scrolls with the message. When the row
+  wraps in a narrow column, the mark stays at the start of its first line. Above the
+  diffs, on a narrow window, the message carries no mark, because there it stands in for
+  GitHub's own message box inside GitHub's card.
 - **Conversation panel:** its header, beside the pin and close buttons.
 
 The commit's Older and Newer links, the Reviewers shields themselves, and every inline

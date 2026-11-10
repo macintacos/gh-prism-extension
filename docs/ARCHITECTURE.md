@@ -142,7 +142,9 @@ On a pull request's Files changed tab,
 request's Conversation tab in a panel on the left edge. `index.ts` builds the panel per
 visit, only for a pull request. On each page, `showConversationButton` puts its button
 first in the toolbar row that `findFilesToolbar` in
-[`files-page.ts`](../entrypoints/content/files-page.ts) finds.
+[`files-page.ts`](../entrypoints/content/files-page.ts) finds. `shiftBackslashButton` in
+[`ui/key-button.ts`](../entrypoints/content/ui/key-button.ts) builds the button, as it
+builds the commit message's toggle.
 
 For a viewer GitHub serves its pull request overview, the same URL loads the overview in
 the Conversation tab's place. `prPageName` in `files-page.ts` reads which from the header
@@ -327,6 +329,25 @@ after an unclosed `[`. `renderCommitMessage` estimates that cost per paragraph a
 a message past a budget, because a crafted message well under 50,000 characters would
 otherwise freeze the page for seconds.
 
+A conventional title leads with its type label. `parseConventionalTitle` in
+[`entrypoints/content/commit/title-badge.ts`](../entrypoints/content/commit/title-badge.ts)
+reads the prefix as Refined GitHub, a GitHub browser extension, reads it on a commits
+list: one of eleven types in any case, an optional scope in parentheses, an optional `!`
+for a breaking change, then a colon. A title with an unknown type, or with nothing after
+the prefix, stays as written. `titleBadge` builds the label from GitHub's own `IssueLabel`
+classes, which the commit page's sheets already style, and the scope in muted text.
+`renderCommitMessage` puts them at the start of the `h1` and parses only the description
+as Markdown.
+
+A subject-only commit keeps GitHub's box, so `badgeSubject` in
+[`entrypoints/content/commit/subject-badge.ts`](../entrypoints/content/commit/subject-badge.ts)
+badges the title there. React owns that title, so `badgeSubject` leaves it in place,
+hidden by `subject-badge.css`, and stands a copy led by the label in front of it. It
+copies the title again whenever GitHub re-renders it, and removes the copy when the
+visit's signal aborts. The copy's `title` holds GitHub's title as written, so a reader can
+still read the prefix the label replaced. The plain-text view shows the message as
+written.
+
 A switch at the rendering's top-right corner flips between it and GitHub's box and saves
 the pick as `commitMessageView` in [`utils/prefs.ts`](../utils/prefs.ts). `index.ts` reads
 it before watching, as it does the sidebar side and the counter's view, and hands every
@@ -346,11 +367,11 @@ before GitHub's box and hides it in the message's place, in both views. The colu
 plaintext view shows `div.gh-prism-commit-message-plain` instead: copies of the box's
 children, taken when the message mounts, laid out as the box is, as a flex column.
 
-The switch and the hide button sit in `div.gh-prism-commit-controls`, ahead of the title
-and the rest of the message, so every line below the controls runs the message's full
-width. In the column, the controls take a row of their own, and the message is inset 24px,
-as GitHub insets its file tree and diffs. Above the diffs, they float beside the title's
-first line, and the message keeps GitHub's box's 8px 12px inset.
+The switch sits in `div.gh-prism-commit-controls`, ahead of the title and the rest of the
+message, so every line below the controls runs the message's full width. In the column,
+the controls take a row of their own, and the message is inset 24px, as GitHub insets its
+file tree and diffs. Above the diffs, they float beside the title's first line, and the
+message keeps GitHub's box's 8px 12px inset.
 
 The column is 320px wide until the reader resizes it. `columnSeparator` in
 [`entrypoints/content/ui/column-width.ts`](../entrypoints/content/ui/column-width.ts),
@@ -363,16 +384,33 @@ window has past 1012px, so the column narrows with the window, and moves back ab
 diffs once the window can't spare 256px, below 1268px. A `resize` listener applies both,
 and a commit page with no row keeps the message above the diffs at any width.
 
-A hide button beside the switch takes the message off the page, column and all, and puts
-`div.gh-prism-commit-restore` in GitHub's box's place, before the slot that keeps the box
-hidden, with a **Show commit message** button that brings it back; focus moves between the
-two. The pick belongs to that one commit: `index.ts` keys it as `owner/repo@sha` with
-[`utils/hidden-commits.ts`](../utils/hidden-commits.ts), which matches a full SHA against
-an abbreviated one, and saves the newest 100 keys as `hiddenCommitMessages` in
-[`utils/prefs.ts`](../utils/prefs.ts). It reads them before watching and keeps the tab's
-copy current, so a soft navigation back to a hidden commit finds it hidden, and it rereads
-storage before each save, so another tab's picks survive. A commit that opens hidden
-renders nothing until the reader shows it, and then renders at once.
+A toggle hides the message, column and all, and shows it again. `showMessageToggle` in
+[`entrypoints/content/commit/message-toggle.ts`](../entrypoints/content/commit/message-toggle.ts)
+puts it first in the toolbar row above the diffs, which `findFilesToolbar` finds, so it
+stays on screen whether the message shows or not. It is named "Commit message" and carries
+`aria-expanded`. Shift+\ moves focus to the toggle without a focus ring, then presses it.
+`toggleKeyOf` in [`ui/toggle-keys.ts`](../entrypoints/content/ui/toggle-keys.ts) reads the
+key, as it reads the Conversation panel's. Focus held inside the message moves to the
+toggle as the message hides. While the message is hidden, only `span.gh-prism-commit-slot`
+stands before GitHub's box, keeping the box hidden. Where gh-prism can't find the toolbar
+row, it adds no toggle, and a commit hidden before shows its message.
+
+`mountMessage` in `message-view.ts` moves the message with the Web Animations API. The
+column slides off the row's start edge by its start margin, at its full width, so its text
+never rewraps and the tree and the diffs move with its edge. Above the diffs, the message
+folds its height shut, and GitHub's box folds with it in the plaintext view. Hiding takes
+160 ms and showing 280 ms, the "State, closing" and Spatial rows of the motion scale in
+[`design/tokens.md`](../design/tokens.md). The message stays mounted until its slide out
+ends. A toggle pressed again before then reverses the running animation. Under reduced
+motion the message takes its new state at once.
+
+The pick holds for every commit, as GitHub's file tree's does: `index.ts` saves it as
+`commitMessageHidden` in [`utils/prefs.ts`](../utils/prefs.ts). It reads it before
+watching and keeps the tab's copy current, so a soft navigation to another commit opens as
+the reader last left it. Another tab's pick shows on its next full load. The background
+removes `local:hiddenCommitMessages`, the per-commit list a released version wrote, on
+each install or update. A message that opens hidden renders nothing until the reader shows
+it, and then renders at once.
 
 gh-prism never edits GitHub's box: the view's sheet only hides it, and it shows again when
 the reader switches to it above the diffs, when the visit aborts, or when gh-prism can't
@@ -861,15 +899,15 @@ entrypoints/
   conversation-frame.content.ts  content script in the Conversation panel's frame
   content/
     index.ts             content script entry: wires the watchers, intent, and views
-    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; Conversation and Files changed comments' authors; a commit's message box and the row its message column joins; the toolbar row the Conversation button starts
-    commit/              a commit's message rendered as Markdown in GitHub's box's place, or in a resizable column beside the diffs, with its switch back to GitHub's box and its hide button
+    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; Conversation and Files changed comments' authors; a commit's message box and the row its message column joins; the toolbar row the Conversation button or a commit's message toggle starts
+    commit/              a commit's message rendered as Markdown in GitHub's box's place, or in a resizable column beside the diffs, with its switch back to GitHub's box and the toolbar toggle that hides it; a conventional title's type label
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking
     header/              diffstat breakout
     conversation/        a code owner's files popup and gh-prism's shield, in the Reviewers lists and beside Conversation and Files changed comment authors; the Conversation panel and its button, dressing its frame, and the messages the frame posts
-    ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, column separator, view-transition glide, Tailwind tokens
+    ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, column separator, view-transition glide, keycaps and the Shift+\ toolbar button, Tailwind tokens
 utils/
   github/                routes, diff parsing, the PR data port and source, code owners and reviewers
     conversation-frame.ts  the per-tab session rule that lets only the Conversation panel frame a PR's Conversation tab, and the panel's request for it
@@ -877,7 +915,6 @@ utils/
   hunk-rules/            the docstring and inline-test rules, and the generator-marker scan
   sections.ts            path rules for the five sections
   prefs.ts               saved preferences
-  hidden-commits.ts      which commits' messages are hidden, capped
   whats-new.ts           when the what's-new block shows
 tests/                   Vitest unit tests, mirroring the source tree
 e2e/                     Playwright smoke tests against the built extension

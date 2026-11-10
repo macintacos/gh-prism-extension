@@ -2,7 +2,8 @@
  * Shows a commit page's message rendered as GitHub-flavored Markdown in place of GitHub's
  * preformatted box, or in a sticky column beside the diffs on a wide window, with a switch to its
  * plain text. Its place is held in a loading state from the visit's start, so nothing moves when
- * the rendering lands. GitHub's box stays in the page, hidden and unchanged: it shows again on
+ * the rendering lands. A toggle in the diffs' toolbar hides it and shows it again, sliding it out
+ * of and into its place. GitHub's box stays in the page, hidden and unchanged: it shows again on
  * abort, when the rendering fails, and as the plain text above the diffs; in the column, the plain
  * text is a copy of its contents.
  */
@@ -15,11 +16,13 @@ import {
   findCommitMessage,
 } from "../files-page";
 import { type ColumnWidthChoice, columnSeparator, fitsColumn } from "../ui/column-width";
-import { EYE_ICON, el, icon } from "../ui/dom";
+import { el, icon } from "../ui/dom";
 import { prismMark } from "../ui/mark";
 import { renderCommitMessage, withinCaps } from "./message";
+import { showMessageToggle } from "./message-toggle";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./message-view.css?inline";
+import { badgeSubject } from "./subject-badge";
 
 /**
  * When to render, the tab's view choice for `showCommitMessage` to apply, and how to persist a
@@ -65,11 +68,12 @@ export interface CommitMessageVisit {
 /**
  * Stands in for a commit page's message box with its rendering, until `signal` aborts, opening in
  * `choice`'s view; its switch records each pick in `choice` and `save`s it. The message's place
- * shows a loading state at once, and the rendering fills it after `afterSections`. Its hide
- * control leaves a way back in the box's place, and records each change in `visit` and
- * `saveHidden`s it. GitHub's box stays as it is on any other page, for a message with only a
- * subject line or past the renderer's caps, while plain text is picked above the diffs, and from
- * the moment the rendering fails.
+ * shows a loading state at once, and the rendering fills it after `afterSections`. A toggle
+ * starting the diffs' toolbar, which Shift+\ presses, hides the message and shows it again, and
+ * records each change in `visit` and `saveHidden`s it. GitHub's box stays as it is on any other
+ * page, for a message with only a subject line, whose title gains only its conventional commit
+ * badge, or past the renderer's caps, while plain text is picked above the diffs, and from the
+ * moment the rendering fails.
  */
 export function showCommitMessage(
   page: FilesPage,
@@ -97,46 +101,53 @@ function standIn(
   { afterSections, choice, save, saveWidth, saveHidden, visit }: CommitMessageOptions,
 ): void {
   // A subject line alone gains nothing from rendering.
-  if (!message?.body || !withinCaps(message) || visit.rendered === "failed") return;
+  if (!message.body) {
+    badgeSubject(page, signal);
+    return;
+  }
+  if (!withinCaps(message) || visit.rendered === "failed") return;
   const doc = page.sidebar.ownerDocument;
   const failed = new AbortController();
   const shown = AbortSignal.any([signal, failed.signal]);
   const elapsed = (doc.defaultView?.performance.now() ?? visit.since) - visit.since;
 
   const view = messageView(doc, message.box, { choice, save });
-  const restore = restoreRow(doc);
+  const toggle = showMessageToggle(page, shown, view.container.id);
+  // Without the toggle nothing could bring a hidden message back, so it shows.
+  const hidden = () => visit.hidden && toggle !== undefined;
   if (visit.rendered) view.fill(visit.rendered, "at once");
   else view.wait(elapsed, bodyLines(message.body));
   const place = mountMessage(
     page,
-    { box: message.box, container: view.container, restore: restore.row },
-    { choice, saveWidth, visit },
+    { box: message.box, container: view.container },
+    { choice, saveWidth, hidden },
     shown,
   );
 
-  const render = () => {
-    if (shown.aborted || visit.rendered || visit.hidden) return;
+  const render = (entrance: "revealed" | "at once") => {
+    if (shown.aborted || visit.rendered || hidden()) return;
     const nodes = renderedOrWarn(doc, findCommitMessage(page) ?? message);
     visit.rendered = nodes ?? "failed";
-    if (nodes) view.fill(nodes, "revealed");
+    if (nodes) view.fill(nodes, entrance);
     else failed.abort();
   };
-  const setHidden = (hidden: boolean) => {
-    const [leaving, arriving] = hidden
-      ? [view.container, restore.button]
-      : [restore.row, view.hide];
-    const hadFocus = leaving.contains(doc.activeElement);
-    visit.hidden = hidden;
-    saveHidden(hidden);
-    place();
-    if (!hidden) render();
-    if (hadFocus) arriving.focus({ preventScroll: true });
+  const flip = () => {
+    const heldFocus = place.holdsFocus();
+    visit.hidden = !visit.hidden;
+    saveHidden(visit.hidden);
+    showExpanded();
+    // Rendered before it slides in, so one motion brings it back.
+    render("at once");
+    if (shown.aborted) return;
+    place.slide();
+    if (heldFocus) toggle?.focus({ focusVisible: false });
   };
+  const showExpanded = () => toggle?.setAttribute("aria-expanded", String(!hidden()));
 
-  view.hide.addEventListener("click", () => setHidden(true));
-  restore.button.addEventListener("click", () => setHidden(false));
+  showExpanded();
+  toggle?.addEventListener("click", flip);
 
-  if (!visit.rendered && !visit.hidden) afterSections(render);
+  if (!visit.rendered && !hidden()) afterSections(() => render("revealed"));
 }
 
 /** How many of `body`'s lines hold text, up to the skeleton's three. */
@@ -153,24 +164,33 @@ function renderedOrWarn(doc: Document, message: CommitMessage): Node[] | undefin
   }
 }
 
+/** Where `mountMessage` put a commit's message, for its toggle to move. */
+interface MessagePlace {
+  /**
+   * Places the message as `hidden` now says, sliding it out of or into its place: the column off
+   * the row's start edge and back, the diffs moving with it; above the diffs, folding shut and
+   * open. A slide still running turns around. Under reduced motion it takes its place at once.
+   */
+  readonly slide: () => void;
+  /** Whether focus is on the message, its controls, or the column's separator. */
+  readonly holdsFocus: () => boolean;
+}
+
 /**
  * Mounts `container`, the message and its controls, in a sticky column at the left of `page`'s
- * layout row on a window with room for it, else just before `box`, or, while `visit` is hidden,
- * `restore` in `box`'s place, following GitHub's re-renders and the window's width, until `signal`
- * aborts. Returns how to place them again once `visit.hidden` changes.
+ * layout row on a window with room for it, else just before `box`, or nowhere while `hidden`,
+ * following GitHub's re-renders and the window's width, until `signal` aborts.
  */
 function mountMessage(
   page: FilesPage,
-  { box, container, restore }: { box: Element; container: HTMLElement; restore: HTMLElement },
+  { box, container }: { box: Element; container: HTMLElement },
   {
     choice,
     saveWidth,
-    visit,
-  }: Pick<CommitMessageOptions, "choice" | "saveWidth"> & {
-    visit: Pick<CommitMessageVisit, "hidden">;
-  },
+    hidden,
+  }: Pick<CommitMessageOptions, "choice" | "saveWidth"> & { hidden: () => boolean },
   signal: AbortSignal,
-): () => void {
+): MessagePlace {
   const doc = page.sidebar.ownerDocument;
   const win = doc.defaultView;
   const slot = Object.assign(el(doc, "span", "gh-prism-commit-slot"), { hidden: true });
@@ -188,22 +208,21 @@ function mountMessage(
   // falls back above the diffs.
   const row = findCommitColumnRow(page);
   const style = Object.assign(doc.createElement("style"), { textContent: css });
+  // The slide out of or into place still running; the message stays mounted until it ends.
+  let slides: Animation[] = [];
 
   const unmount = () => {
     container.remove();
     slot.remove();
     column.remove();
-    restore.remove();
   };
-  const moveToRestore = (currentBox: Element) => {
+  const moveAway = (currentBox: Element) => {
     column.remove();
     mark.remove();
     container.remove();
     if (slot.nextElementSibling !== currentBox) currentBox.before(slot);
-    if (restore.nextElementSibling !== slot) slot.before(restore);
   };
   const moveIntoColumn = (connectedRow: Element, currentBox: Element) => {
-    restore.remove();
     if (column.parentElement !== connectedRow) connectedRow.prepend(column);
     if (container.parentElement !== column) column.prepend(container);
     if (!mark.isConnected) container.querySelector(".gh-prism-commit-controls")?.prepend(mark);
@@ -214,17 +233,41 @@ function mountMessage(
     column.remove();
     mark.remove();
     slot.remove();
-    restore.remove();
     if (container.nextElementSibling !== currentBox) currentBox.before(container);
   };
 
   const follow = () => {
     const currentBox = findCommitMessage(page)?.box;
     if (!currentBox) unmount();
-    else if (visit.hidden) moveToRestore(currentBox);
+    else if (hidden() && slides.length === 0) moveAway(currentBox);
     else if (win && fitsColumn(win.innerWidth) && row?.isConnected) {
       moveIntoColumn(row, currentBox);
     } else moveAboveDiffs(currentBox);
+  };
+  const settle = () => {
+    const ended = slides;
+    slides = [];
+    if (!signal.aborted) follow();
+    // Each held its last frame until the message took its place.
+    for (const slid of ended) slid.cancel();
+  };
+  const slide = () => {
+    if (slides.length > 0) {
+      for (const running of slides) running.reverse();
+      return;
+    }
+    if (!win || reducesMotion(doc)) {
+      follow();
+      return;
+    }
+
+    const to = hidden() ? "out" : "in";
+    if (to === "in") follow();
+    const currentBox = findCommitMessage(page)?.box;
+    slides = column.isConnected
+      ? [slideColumn(column, to)]
+      : [container, currentBox].filter(isShown(win)).map((part) => fold(win, part, to));
+    void Promise.all(slides.map((running) => running.finished)).then(settle, settle);
   };
 
   follow();
@@ -237,29 +280,81 @@ function mountMessage(
 
   signal.addEventListener("abort", () => {
     observer.disconnect();
+    for (const running of slides) running.cancel();
     unmount();
     style.remove();
   });
-  return follow;
+  return {
+    slide,
+    holdsFocus: () => column.contains(doc.activeElement) || container.contains(doc.activeElement),
+  };
+}
+
+const reducesMotion = (doc: Document): boolean =>
+  doc.defaultView?.matchMedia("(prefers-reduced-motion: reduce)").matches ?? false;
+
+const isShown =
+  (win: Window) =>
+  (part: Element | undefined): part is Element =>
+    part !== undefined && win.getComputedStyle(part).display !== "none";
+
+// The motion scale's spatial row, as the sections drop in after loading and the Conversation
+// panel opens, and its closing row.
+const SPATIAL = { duration: 280, easing: "cubic-bezier(0.2, 0.7, 0.2, 1)" };
+const CLOSING = { duration: 160, easing: "ease-out" };
+
+/** A slide's timing: quicker out than in, holding its last frame until the caller cancels it. */
+const slideTiming = (to: "in" | "out"): KeyframeAnimationOptions => ({
+  ...(to === "in" ? SPATIAL : CLOSING),
+  fill: "both",
+});
+
+/**
+ * Slides `column` off its row's start edge, or back on, at its full width, so its text never
+ * rewraps and the row's other panes move with its edge.
+ */
+function slideColumn(column: HTMLElement, to: "in" | "out"): Animation {
+  const on = { marginInlineStart: "0px" };
+  const off = { marginInlineStart: `-${column.getBoundingClientRect().width}px` };
+  return column.animate(to === "in" ? [off, on] : [on, off], slideTiming(to));
+}
+
+/** Folds `part`, a block above the diffs, shut or open, so what follows it moves with its edge. */
+function fold(win: Window, part: Element, to: "in" | "out"): Animation {
+  const { paddingTop, paddingBottom, borderTopWidth, borderBottomWidth } =
+    win.getComputedStyle(part);
+  const held = { boxSizing: "border-box", minHeight: "0px", overflow: "clip" };
+  const open = {
+    ...held,
+    height: `${part.getBoundingClientRect().height}px`,
+    paddingTop,
+    paddingBottom,
+    borderTopWidth,
+    borderBottomWidth,
+  };
+  const shut = {
+    ...held,
+    height: "0px",
+    paddingTop: "0px",
+    paddingBottom: "0px",
+    borderTopWidth: "0px",
+    borderBottomWidth: "0px",
+  };
+  return part.animate(to === "in" ? [shut, open] : [open, shut], slideTiming(to));
 }
 
 /** Octicons 19.15.0 (MIT, GitHub Inc.): markdown. */
 const MARKDOWN =
   "M14.85 3c.63 0 1.15.52 1.14 1.15v7.7c0 .63-.51 1.15-1.15 1.15H1.15C.52 13 0 12.48 0 11.84V4.15C0 3.52.52 3 1.15 3ZM9 11V5H7L5.5 7 4 5H2v6h2V8l1.5 1.92L7 8v3Zm2.99.5L14.5 8H13V5h-2v3H9.5Z";
 
-/** Octicons 19.15.0 (MIT, GitHub Inc.): eye-closed. */
-const EYE_CLOSED =
-  "M.143 2.31a.75.75 0 0 1 1.047-.167l14.5 10.5a.75.75 0 1 1-.88 1.214l-2.248-1.628C11.346 13.19 9.792 14 8 14c-1.981 0-3.67-.992-4.933-2.078C1.797 10.832.88 9.577.43 8.9a1.619 1.619 0 0 1 0-1.797c.353-.533.995-1.42 1.868-2.305L.31 3.357A.75.75 0 0 1 .143 2.31Zm1.536 5.622A.12.12 0 0 0 1.657 8c0 .021.006.045.022.068.412.621 1.242 1.75 2.366 2.717C5.175 11.758 6.527 12.5 8 12.5c1.195 0 2.31-.488 3.29-1.191L9.063 9.695A2 2 0 0 1 6.058 7.52L3.529 5.688a14.207 14.207 0 0 0-1.85 2.244ZM8 3.5c-.516 0-1.017.09-1.499.251a.75.75 0 1 1-.473-1.423A6.207 6.207 0 0 1 8 2c1.981 0 3.67.992 4.933 2.078 1.27 1.091 2.187 2.345 2.637 3.023a1.62 1.62 0 0 1 0 1.798c-.11.166-.248.365-.41.587a.75.75 0 1 1-1.21-.887c.148-.201.272-.382.371-.53a.119.119 0 0 0 0-.137c-.412-.621-1.242-1.75-2.366-2.717C10.825 4.242 9.473 3.5 8 3.5Z";
-
 const LABEL: Record<CommitMessageView, string> = {
   rendered: "Show plain text",
   plaintext: "Show Markdown",
 };
 
-/** The message's container, its hide button, and how to fill its body. */
+/** The message's container, and how to fill its body. */
 interface MessageView {
   readonly container: HTMLElement;
-  readonly hide: HTMLButtonElement;
   /**
    * Shows a skeleton of a title and `lines` lines in a loading state, its fade-in and pulse
    * `elapsed` ms along, so a skeleton shown again mid-visit carries on where the last one was.
@@ -270,7 +365,7 @@ interface MessageView {
 }
 
 /**
- * An empty body under a switch to plain text and a hide button, with a copy of `box`'s children
+ * An empty body under a switch to plain text, with a copy of `box`'s children
  * that the column shows as that plain text, returned with `data-view` already set to `choice.view`
  * so a plain-text reader never sees the rendering paint. Each click of the switch flips the view,
  * records it in `choice`, and `save`s it.
@@ -282,8 +377,6 @@ function messageView(
 ): MessageView {
   const mark = icon(doc, MARKDOWN, {});
   const button = textButton(doc, "gh-prism-commit-view-switch");
-  const hide = textButton(doc, "gh-prism-commit-hide", icon(doc, EYE_CLOSED, {}), "Hide");
-  hide.setAttribute("aria-label", "Hide commit message");
   const body = el(doc, "div", "gh-prism-commit-message-body markdown-body");
   const container = el(
     doc,
@@ -294,7 +387,6 @@ function messageView(
       "div",
       "gh-prism-commit-controls tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1",
       button,
-      hide,
     ),
     body,
     // Copies the children, not the box: findCommitMessage matches the box's own class.
@@ -305,6 +397,8 @@ function messageView(
       ...[...box.childNodes].map((node) => node.cloneNode(true)),
     ),
   );
+
+  container.id = "gh-prism-commit-message";
 
   const showView = (view: CommitMessageView) => {
     container.dataset.view = view;
@@ -323,12 +417,11 @@ function messageView(
     const from = container.offsetHeight;
     body.replaceChildren(...nodes);
     body.removeAttribute("aria-busy");
-    const still = doc.defaultView?.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (entrance === "revealed" && !still) reveal(container, body, from);
+    if (entrance === "revealed" && !reducesMotion(doc)) reveal(container, body, from);
   };
 
   showView(choice.view);
-  return { container, hide, wait, fill };
+  return { container, wait, fill };
 }
 
 /** Bars standing in for the title and `lines` lines of the body until the rendering lands. */
@@ -342,9 +435,6 @@ function skeleton(doc: Document, elapsed: number, lines: number): HTMLElement {
   bars.style.setProperty("--gh-prism-commit-elapsed", `${Math.round(elapsed)}ms`);
   return bars;
 }
-
-// The motion scale's spatial row, as the sections drop in after loading.
-const SPATIAL = { duration: 280, easing: "cubic-bezier(0.2, 0.7, 0.2, 1)" };
 
 /** Fades `body` in where the skeleton stood, easing `container` from `from` px to its height. */
 function reveal(container: HTMLElement, body: HTMLElement, from: number): void {
@@ -366,39 +456,14 @@ function messageColumn(doc: Document): HTMLElement {
   return column;
 }
 
-/**
- * Primer's small invisible Button holding `content`, an icon and its label; the switch, the hide
- * button, and the way back share it.
- */
-function textButton(doc: Document, name: string, ...content: (Node | string)[]): HTMLButtonElement {
+/** Primer's small invisible Button, for the switch's icon and label. */
+function textButton(doc: Document, name: string): HTMLButtonElement {
   const button = el(
     doc,
     "button",
     "gh-prism-commit-button tw:inline-flex tw:items-center tw:gap-1 tw:h-[var(--control-small-size,28px)] tw:px-2 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-fgColor-rest)] tw:[font-family:inherit] tw:text-body-small tw:font-medium tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
-    ...content,
   );
   button.classList.add(name);
   button.type = "button";
   return button;
-}
-
-/**
- * The row standing in GitHub's box's place while the message is hidden, holding Primer's small
- * invisible Button that shows it again.
- */
-function restoreRow(doc: Document): { row: HTMLElement; button: HTMLButtonElement } {
-  const button = textButton(
-    doc,
-    "gh-prism-commit-show",
-    icon(doc, EYE_ICON, {}),
-    "Show commit message",
-  );
-  // Ruled off as GitHub's box is, from the card's next row.
-  const row = el(
-    doc,
-    "div",
-    "gh-prism-commit-restore tw:flex tw:p-2 tw:border-b tw:border-border-default",
-    button,
-  );
-  return { row, button };
 }

@@ -44,7 +44,7 @@ describe("background", () => {
 
   // Chrome refires onInstalled with reason "update" on a dev reload.
   it.each([{ reason: "install" }, { reason: "update", previousVersion: "0.0.0" }] as const)(
-    "forgets cached sections on $reason",
+    "forgets cached sections and retired keys on $reason",
     async (details) => {
       // Raw keys on purpose, so the test outlives a move to typed storage items.
       const stored = {
@@ -52,6 +52,7 @@ describe("background", () => {
         "intent.v1:k": {},
         "intent.v2": ["k"],
         "intent.v2:k": {},
+        hiddenCommitMessages: { "o/r@abc": true },
         unrelated: 1,
       };
       await fakeBrowser.storage.local.set(stored);

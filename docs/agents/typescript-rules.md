@@ -26,6 +26,10 @@ imports a sheet or writes `tw:` classes are in [`styling-rules.md`](styling-rule
 - **List a new kind of stored data in
   [`README.md` § Permissions](../../README.md#permissions) in the same change.** The
   `storage` permission already exists, so that line is the only other change needed.
+- **Retire a released key by removing it, not by leaving it.** A key no item reads any
+  more still sits in users' browsers. Name it in `utils/prefs.ts` and remove it with
+  `storage.removeItem` in the background's `runtime.onInstalled` listener, beside
+  `forgetIntents`, and keep that removal.
 
 ## Firefox
 

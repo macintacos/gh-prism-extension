@@ -13,6 +13,7 @@ export default defineConfig({
         /conversation\/reviewer-files\.css/,
         /diffstat-view\.css/,
         /message-view\.css/,
+        /subject-badge\.css/,
         /loading-view\.css/,
         /notice\.css/,
         /owner-section\.css/,

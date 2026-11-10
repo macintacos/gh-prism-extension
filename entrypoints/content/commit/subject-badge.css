@@ -1,0 +1,13 @@
+/* GitHub hooks: the commit message box's title div, the sibling after .gh-prism-commit-title; and
+   title-badge.css's. Every other rule selects only gh-prism's own classes. */
+@import "./title-badge.css";
+
+/* GitHub's title, while the badged copy stands in front of it. */
+.gh-prism-commit-title + div {
+  display: none !important;
+}
+
+/* A block, as GitHub's title is. */
+.gh-prism-commit-title {
+  display: block;
+}

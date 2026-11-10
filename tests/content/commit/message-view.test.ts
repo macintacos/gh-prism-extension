@@ -11,6 +11,7 @@ import {
   findCommitMessage,
   findFilesPage,
 } from "../../../entrypoints/content/files-page";
+import { toggleKeyInit } from "../../../entrypoints/content/ui/toggle-keys";
 import { watchFilesPages } from "../../../entrypoints/content/visit/watch";
 import type { CommitMessageView } from "../../../utils/prefs";
 import { loadCommitFixture, loadFixture } from "../../fixtures/files-page";
@@ -40,6 +41,12 @@ function pageOf(): FilesPage {
   if (!page) throw new Error("no Files page");
   return page;
 }
+
+const setReducedMotion = (reduce: boolean) => {
+  (
+    window as unknown as { happyDOM: { settings: { device: { prefersReducedMotion: string } } } }
+  ).happyDOM.settings.device.prefersReducedMotion = reduce ? "reduce" : "no-preference";
+};
 
 let controller: AbortController;
 let tasks: (() => void)[];
@@ -192,17 +199,13 @@ describe("showCommitMessage", () => {
     expect(save).toHaveBeenLastCalledWith("rendered");
   });
 
-  it("labels each control with visible text that starts its accessible name", () => {
+  it("labels its view switch with visible text that starts its accessible name", () => {
     show();
     runIdle();
 
-    const controls = [...(container()?.querySelectorAll("button") ?? [])];
-    expect(controls).toHaveLength(2);
-    for (const control of controls) {
-      const label = control.textContent?.trim().toLowerCase() ?? "";
-      expect(label).not.toBe("");
-      expect(nameOf(control)?.toLowerCase().startsWith(label)).toBe(true);
-    }
+    const label = viewButton()?.textContent?.trim().toLowerCase() ?? "";
+    expect(label).not.toBe("");
+    expect(nameOf(viewButton())?.toLowerCase().startsWith(label)).toBe(true);
   });
 
   it("removes itself and its sheet on abort, showing GitHub's box again", () => {
@@ -243,6 +246,18 @@ describe("showCommitMessage", () => {
     expect(sheets()).toHaveLength(0);
     expect(shows(box())).toBe(true);
     expect(box().outerHTML).toBe(before);
+  });
+
+  it("badges a subject-only conventional message in GitHub's box", () => {
+    loadCommitFixture("subject");
+    messageOf().title.textContent = "perf(encoder): write node IDs in one pass";
+
+    show();
+
+    expect(container()).toBeNull();
+    expect(messageOf().title.previousElementSibling?.textContent).toBe(
+      "Performance encoder: write node IDs in one pass",
+    );
   });
 
   it("mounts nothing on a pull request's page", () => {
@@ -296,11 +311,6 @@ describe("showCommitMessage", () => {
 });
 
 describe("showCommitMessage's loading state", () => {
-  const setReducedMotion = (reduce: boolean) => {
-    (
-      window as unknown as { happyDOM: { settings: { device: { prefersReducedMotion: string } } } }
-    ).happyDOM.settings.device.prefersReducedMotion = reduce ? "reduce" : "no-preference";
-  };
   const messageBody = () => container()?.querySelector(".gh-prism-commit-message-body");
   const nestTooDeep = () => {
     const body = box().querySelector(".extended-commit-description-container");
@@ -784,24 +794,49 @@ describe("showCommitMessage's column width", () => {
   });
 });
 
-describe("showCommitMessage's hide control", () => {
-  const hideButton = () => document.querySelector<HTMLButtonElement>(".gh-prism-commit-hide");
-  const restore = () => document.querySelector<HTMLElement>(".gh-prism-commit-restore");
-  const restoreButton = () => restore()?.querySelector("button");
+describe("showCommitMessage's toolbar toggle", () => {
+  const toggle = () => document.querySelector<HTMLButtonElement>(".gh-prism-commit-toggle");
+  const toolbarRow = () =>
+    document.querySelector('#diff-content-parent [aria-controls="diff_file_tree"]')?.parentElement
+      ?.parentElement;
+  const pressShiftBackslash = (target: EventTarget = document.body) => {
+    const event = new KeyboardEvent("keydown", {
+      ...toggleKeyInit("Shift+\\"),
+      bubbles: true,
+      cancelable: true,
+    });
+    target.dispatchEvent(event);
+    return event;
+  };
 
-  afterEach(() => setViewport(DEFAULT));
+  beforeEach(() => setReducedMotion(true));
+  afterEach(() => {
+    setReducedMotion(false);
+    setViewport(DEFAULT);
+  });
 
-  it("hides the message and GitHub's box, leaving a way back in the box's place, and saves the pick", () => {
+  it("starts the diffs' toolbar, naming the message, its key, and that it shows", () => {
+    show();
+
+    expect(toolbarRow()?.firstElementChild).toBe(toggle());
+    expect(toggle()?.type).toBe("button");
+    expect(nameOf(toggle())).toBe("Commit message");
+    expect(toggle()?.getAttribute("aria-keyshortcuts")).toBe("Shift+\\");
+    expect(toggle()?.getAttribute("aria-expanded")).toBe("true");
+    expect(toggle()?.getAttribute("aria-controls")).toBe(container()?.id);
+    expect(toggle()?.querySelector("kbd")?.textContent).toBe("⇧\\");
+  });
+
+  it("hides the message and GitHub's box, staying in the toolbar, and saves the pick", () => {
     show();
     runIdle();
-    expect(hideButton()?.getAttribute("aria-label")).toBe("Hide commit message");
 
-    hideButton()?.click();
+    toggle()?.click();
 
     expect(container()).toBeNull();
     expect(shows(box())).toBe(false);
-    expect(restore()?.parentElement).toBe(box().parentElement);
-    expect(restoreButton()?.type).toBe("button");
+    expect(toolbarRow()?.firstElementChild).toBe(toggle());
+    expect(toggle()?.getAttribute("aria-expanded")).toBe("false");
     expect(visit.hidden).toBe(true);
     expect(saveHidden).toHaveBeenLastCalledWith(true);
   });
@@ -811,37 +846,36 @@ describe("showCommitMessage's hide control", () => {
     show();
     runIdle();
 
-    hideButton()?.click();
+    toggle()?.click();
 
     expect(column()).toBeNull();
-    expect(restore()?.parentElement).toBe(box().parentElement);
   });
 
   it("brings the message back where the window puts it, saving the pick", () => {
     setViewport(WIDE);
     show();
     runIdle();
-    hideButton()?.click();
+    toggle()?.click();
 
-    restoreButton()?.click();
+    toggle()?.click();
 
     expect(column()?.firstElementChild).toBe(container());
-    expect(restore()).toBeNull();
+    expect(toggle()?.getAttribute("aria-expanded")).toBe("true");
     expect(visit.hidden).toBe(false);
     expect(saveHidden).toHaveBeenLastCalledWith(false);
   });
 
-  it("opens hidden for a commit hidden before, rendering only once it's shown", () => {
+  it("opens hidden when the message was left hidden, rendering only once it's shown", () => {
     visit.hidden = true;
 
     show();
 
     expect(container()).toBeNull();
-    expect(restore()).not.toBeNull();
+    expect(toggle()?.getAttribute("aria-expanded")).toBe("false");
     expect(shows(box())).toBe(false);
     expect(tasks).toHaveLength(0);
 
-    restoreButton()?.click();
+    toggle()?.click();
 
     expect(container()?.hasAttribute("aria-busy")).toBe(false);
     expect(container()?.querySelector(".gh-prism-commit-message-body > h1")).not.toBeNull();
@@ -849,26 +883,49 @@ describe("showCommitMessage's hide control", () => {
 
   it("renders nothing while hidden before the browser is idle", () => {
     show();
-    hideButton()?.click();
+    toggle()?.click();
 
     runIdle();
 
     expect(visit.rendered).toBeUndefined();
-    expect(restore()).not.toBeNull();
+    expect(container()).toBeNull();
   });
 
-  it("hands focus to the control that brings the message back, and back again", () => {
+  it("hides and shows the message on Shift+\\, landing focus on the toggle", () => {
     show();
     runIdle();
-    hideButton()?.focus();
 
-    hideButton()?.click();
+    const press = pressShiftBackslash();
 
-    expect(document.activeElement).toBe(restoreButton());
+    expect(container()).toBeNull();
+    expect(press.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(toggle());
 
-    restoreButton()?.click();
+    pressShiftBackslash();
 
-    expect(document.activeElement).toBe(hideButton());
+    expect(container()).not.toBeNull();
+    expect(document.activeElement).toBe(toggle());
+  });
+
+  it("leaves a Shift+\\ typed into a field to the field", () => {
+    const field = document.body.appendChild(document.createElement("input"));
+    show();
+    runIdle();
+
+    const press = pressShiftBackslash(field);
+
+    expect(container()).not.toBeNull();
+    expect(press.defaultPrevented).toBe(false);
+  });
+
+  it("hands focus held inside the message to the toggle as it hides", () => {
+    show();
+    runIdle();
+    viewButton()?.focus();
+
+    toggle()?.click();
+
+    expect(document.activeElement).toBe(toggle());
   });
 
   it("leaves the view the tab picked as it is", () => {
@@ -876,37 +933,167 @@ describe("showCommitMessage's hide control", () => {
     show();
     runIdle();
 
-    hideButton()?.click();
-    restoreButton()?.click();
+    toggle()?.click();
+    toggle()?.click();
 
     expect(container()?.dataset.view).toBe("plaintext");
     expect(choice.view).toBe("plaintext");
     expect(save).not.toHaveBeenCalled();
   });
 
-  it("goes back to GitHub's box when a message shown again can't be rendered", () => {
+  it("goes back to GitHub's box, with no toggle, when a message shown again can't be rendered", () => {
     const body = box().querySelector(".extended-commit-description-container");
     if (!body) throw new Error("no body");
     body.textContent = `${">".repeat(40)} deep`;
     visit.hidden = true;
     show();
 
-    restoreButton()?.click();
+    toggle()?.click();
 
     expect(container()).toBeNull();
-    expect(restore()).toBeNull();
+    expect(toggle()).toBeNull();
     expect(shows(box())).toBe(true);
   });
 
-  it("removes its way back on abort, showing GitHub's box", () => {
+  it("leaves the toolbar on abort, showing GitHub's box", () => {
     show();
     runIdle();
-    hideButton()?.click();
+    toggle()?.click();
 
     controller.abort();
 
-    expect(restore()).toBeNull();
+    expect(toggle()).toBeNull();
     expect(shows(box())).toBe(true);
+  });
+
+  it("shows a hidden commit's message where the toolbar row is missing, since nothing could bring it back", () => {
+    toolbarRow()?.remove();
+    visit.hidden = true;
+
+    show();
+    pressShiftBackslash();
+
+    expect(toggle()).toBeNull();
+    expect(container()).not.toBeNull();
+  });
+
+  it("replaces a toggle a cloned toolbar carries", () => {
+    toolbarRow()?.prepend(
+      Object.assign(document.createElement("button"), { className: "gh-prism-commit-toggle" }),
+    );
+
+    show();
+
+    expect(document.querySelectorAll(".gh-prism-commit-toggle")).toHaveLength(1);
+  });
+
+  it("adds no toggle beside a subject-only message, which keeps GitHub's box", () => {
+    loadCommitFixture("subject");
+
+    show();
+
+    expect(toggle()).toBeNull();
+  });
+
+  describe("with motion", () => {
+    const finishSlides = async (element: Element | null | undefined) => {
+      for (const animation of element?.getAnimations() ?? []) animation.finish();
+      await afterMutations();
+    };
+
+    beforeEach(() => setReducedMotion(false));
+
+    it("slides the column out before giving the diffs its room", async () => {
+      setViewport(WIDE);
+      show();
+      runIdle();
+      const shown = column();
+
+      toggle()?.click();
+
+      expect(shown?.isConnected).toBe(true);
+      expect(shown?.getAnimations()).toHaveLength(1);
+      expect(toggle()?.getAttribute("aria-expanded")).toBe("false");
+
+      await finishSlides(shown);
+
+      expect(column()).toBeNull();
+    });
+
+    it("slides the column back in", async () => {
+      setViewport(WIDE);
+      show();
+      runIdle();
+      toggle()?.click();
+      await finishSlides(column());
+
+      toggle()?.click();
+
+      expect(column()?.firstElementChild).toBe(container());
+      expect(column()?.getAnimations()).toHaveLength(1);
+    });
+
+    it("folds the message above the diffs away before removing it", async () => {
+      show();
+      runIdle();
+      const shown = container();
+
+      toggle()?.click();
+
+      expect(shown?.isConnected).toBe(true);
+      expect(shown?.getAnimations()).toHaveLength(1);
+
+      await finishSlides(shown);
+
+      expect(container()).toBeNull();
+      expect(shows(box())).toBe(false);
+    });
+
+    it("folds GitHub's box away with the plaintext view above the diffs", async () => {
+      choice.view = "plaintext";
+      show();
+      runIdle();
+
+      toggle()?.click();
+
+      expect(box().getAnimations()).toHaveLength(1);
+
+      for (const animation of container()?.getAnimations() ?? []) animation.finish();
+      await finishSlides(box());
+
+      expect(box().getAnimations()).toHaveLength(0);
+      expect(shows(box())).toBe(false);
+    });
+
+    it("hands GitHub's box back unfolded on abort mid-slide", () => {
+      choice.view = "plaintext";
+      show();
+      runIdle();
+      toggle()?.click();
+
+      controller.abort();
+
+      expect(box().getAnimations()).toHaveLength(0);
+    });
+
+    it("keeps the message when toggled back before its slide out ends", async () => {
+      setViewport(WIDE);
+      show();
+      runIdle();
+      const shown = column();
+      toggle()?.click();
+
+      toggle()?.click();
+
+      expect(shown?.getAnimations()).toHaveLength(1);
+
+      await finishSlides(shown);
+
+      expect(shown?.getAnimations()).toHaveLength(0);
+      expect(column()).toBe(shown);
+      expect(visit.hidden).toBe(false);
+      expect(toggle()?.getAttribute("aria-expanded")).toBe("true");
+    });
   });
 });
 

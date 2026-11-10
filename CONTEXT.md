@@ -170,6 +170,14 @@ aren't.
 
 **Glide**: The smooth scroll that ends a reveal. _Avoid_: slide
 
+**Conventional title**: A commit title that opens with a conventional commit prefix
+gh-prism knows: a type such as `fix`, an optional scope in parentheses naming the area
+changed, an optional `!` for a breaking change, then a colon.
+
+**Type label**: The label a conventional title leads with in place of its prefix, naming
+the type, such as Feature for `feat`. The label and the scope after it are the title's
+badge. _Avoid_: tag; pill, which names the diffstat's per-section labels
+
 **Diffstat**: The header's lines-changed counter, shown as a breakout or a total.
 
 **Breakout**: The diffstat view with one pill per section.

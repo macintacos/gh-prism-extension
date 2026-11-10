@@ -2,14 +2,14 @@
  * The one script module that holds selectors into GitHub's Files view markup; the stylesheets list
  * theirs in a `GitHub hooks:` header. It holds a `PageKind` for a pull request's page and a
  * commit's, finds a Files view's page, a pull request's classic page, or its header on its header
- * tabs, finds a commit's message box and the row naming its parent, reads its rows, finds the row
- * a commit's message column joins, finds the toolbar row a pull request's Conversation button
- * starts, follows a pull request's narrow-layout overlay and the file-tree filter menu, finds and
- * follows the rows and code-owner shields of a pull request's Reviewers lists and its comments'
- * authors on Conversation and Files changed, measures and follows GitHub's right-hand panel beside
- * a pull request's Files changed, and copies that menu's group, divider, and item for gh-prism's
- * entries, so the selectors stay in this seam; it builds no UI of its own and imports nothing from
- * WXT. The pull request selectors come from EXC-1662's survey.
+ * tabs, finds a commit's message box and the row naming its parent, reads its rows, finds the row a
+ * commit's message column joins, finds the toolbar row a pull request's Conversation button or a
+ * commit's message toggle starts, follows a pull request's narrow-layout overlay and the file-tree
+ * filter menu, finds and follows the rows and code-owner shields of a pull request's Reviewers
+ * lists and its comments' authors on Conversation and Files changed, measures and follows GitHub's
+ * right-hand panel beside a pull request's Files changed, and copies that menu's group, divider,
+ * and item for gh-prism's entries, so the selectors stay in this seam; it builds no UI of its own
+ * and imports nothing from WXT. The pull request selectors come from EXC-1662's survey.
  */
 
 import { LOGIN } from "@/utils/github/code-owners";
@@ -44,10 +44,10 @@ export interface PageKind {
    */
   readonly commitColumnRow?: string;
   /**
-   * Selects the toolbar row the Conversation button starts; a kind without one, a commit's, has
-   * no Conversation tab.
+   * Selects the toolbar row above the diffs, which a pull request's Conversation button or a
+   * commit's message toggle starts.
    */
-  readonly toolbar?: string;
+  readonly toolbar: string;
   /** A toolbar tree-toggle button; its parent wraps the toggle's buttons. */
   readonly treeToggle: string;
   /** The toggle buttons that collapse the tree in place, not the narrow layout's overlay toggle. */
@@ -124,6 +124,7 @@ export const commitPage = {
   commitHeader: '[class*="commitBranchContainer__"] > pre',
   commitColumnRow: '[class*="PageLayout-PageLayoutContent"]',
   // A commit's sidebar carries a copy of the toolbar for the narrow layout.
+  toolbar: '#diff-content-parent > * > :has([aria-controls="diff_file_tree"])',
   treeToggle: '#diff-content-parent [aria-controls="diff_file_tree"]',
   // `.d-md-none` marks the narrow layout's overlay toggle.
   treeToggleButton: '[aria-controls="diff_file_tree"]:not(.d-md-none)',
@@ -182,7 +183,7 @@ export function findFilesPage(root: ParentNode): FilesPage | undefined {
 
 /** A commit's message box, as `findCommitMessage` finds it. */
 export interface CommitMessage {
-  /** GitHub's box, which gh-prism hides but never changes. */
+  /** GitHub's box, which gh-prism hides and whose own nodes it never changes. */
   readonly box: Element;
   /** GitHub's title `div`: the message's first line, as text and GitHub's links. */
   readonly title: Element;
@@ -790,10 +791,9 @@ export function findTreeToggle(page: FilesPage): Element | undefined {
   return page.sidebar.ownerDocument.querySelector(page.kind.treeToggle)?.parentElement ?? undefined;
 }
 
-/** The toolbar row the Conversation button starts, or `undefined` on a kind without one. */
+/** The toolbar row above `page`'s diffs, or `undefined` while it's missing. */
 export function findFilesToolbar(page: FilesPage): Element | undefined {
-  const { toolbar } = page.kind;
-  return (toolbar && page.sidebar.ownerDocument.querySelector(toolbar)) || undefined;
+  return page.sidebar.ownerDocument.querySelector(page.kind.toolbar) ?? undefined;
 }
 
 /** What GitHub calls a pull request's own page: its overview, or the classic Conversation tab. */

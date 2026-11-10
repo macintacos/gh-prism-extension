@@ -1135,8 +1135,10 @@ describe("the commit kind", () => {
     expect(findFilterOptions(foundPage())).toBe(filterOptionsButton(document).parentElement);
   });
 
-  it("finds no toolbar row for a Conversation button on a commit's page", () => {
-    expect(findFilesToolbar(foundPage())).toBeUndefined();
+  it("finds the diffs' toolbar row, not the copy inside the sidebar", () => {
+    const toggle = diffs().querySelector('[aria-controls="diff_file_tree"]');
+
+    expect(findFilesToolbar(foundPage())).toBe(toggle?.parentElement?.parentElement);
   });
 
   it("finds the toolbar's tree toggle, not the copy inside the sidebar", () => {

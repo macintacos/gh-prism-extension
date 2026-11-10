@@ -143,16 +143,19 @@ A commit message longer than its subject line renders as Markdown in a column be
 diffs, and Older and Newer links step through its history.
 
 - Drag the column's edge to resize it. **Show plain text** shows the message as GitHub
-  does, and **Hide** hides it on that commit.
+  does.
+- The button at the left end of the toolbar above the diffs, a commit icon beside a
+  <kbd>⇧&#92;</kbd> keycap, hides the message on every commit and shows it again. So does
+  <kbd>Shift</kbd>+<kbd>&#92;</kbd>, unless you're typing.
 - Press <kbd>Shift</kbd>+<kbd>J</kbd> for Older and <kbd>Shift</kbd>+<kbd>K</kbd> for
   Newer, unless you're typing.
 
 <details>
-<summary>Screenshot: a commit's message rendered beside its diffs, with Older and Newer</summary>
+<summary>Screenshot: a commit's message beside its diffs, its title led by a Feature label</summary>
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/commit-dark.png">
-  <img src="docs/images/commit-light.png" width="1408" alt="Commit f98efef with Older and Newer beside its SHA and one lines-changed count per section it touches. On the left, the message renders as a heading over a bulleted list, under Show plain text and Hide.">
+  <img src="docs/images/commit-light.png" width="1408" alt="Commit f98efef with Older and Newer beside its SHA and one lines-changed count per section it touches. On the left, under Show plain text, the message renders as a heading over a bulleted list; the heading opens with a Feature label and the scope owners in grey. The pressed message toggle, a commit icon beside a Shift+backslash keycap, starts the toolbar above the diffs.">
 </picture>
 
 </details>
@@ -231,12 +234,12 @@ syncs these to your other computers:
 - Whether the header shows lines changed by section or GitHub's total.
 - Whether a commit's message shows as Markdown or plain text.
 - Whether the Conversation panel is pinned, and whether it's open.
+- Whether you hid the commit message.
 
 It keeps these on this computer only:
 
 - The width of the commit message column.
 - The width of the pinned Conversation panel.
-- The commits you hid the message on, up to the 100 most recent.
 - Whether you closed the dialog on GitHub's classic Files changed tab.
 - Which version's release notes, shown in the sidebar after an update, you dismissed or
   first saw, and when.

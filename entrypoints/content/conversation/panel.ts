@@ -21,7 +21,7 @@ import {
   widestColumn,
 } from "../ui/column-width";
 import { el, icon, isEditable, PEOPLE_ICON, X_ICON } from "../ui/dom";
-import { keycap } from "../ui/keycap";
+import { shiftBackslashButton } from "../ui/key-button";
 import { prismMark } from "../ui/mark";
 import { toggleKeyInit, toggleKeyOf } from "../ui/toggle-keys";
 import { CONVERSATION_ESCAPE, CONVERSATION_KEY, isFrameMessage } from "./frame-messages";
@@ -657,17 +657,12 @@ export function showConversationButton(
   if (!toolbar) return undefined;
   const doc = toolbar.ownerDocument;
 
-  // Primer's small default Button, like "All commits" beside it: the icon, then the keycap.
-  const button = el(
-    doc,
-    "button",
-    "gh-prism-conversation-button tw:relative tw:shrink-0 tw:inline-flex tw:items-center tw:gap-1 tw:h-[var(--control-small-size,28px)] tw:px-2 tw:[border:var(--borderWidth-thin,1px)_solid_var(--button-default-borderColor-rest)] tw:rounded-medium tw:bg-[var(--button-default-bgColor-rest)] tw:[box-shadow:var(--button-default-shadow-resting)] tw:text-[color:var(--button-default-fgColor-rest)] tw:[font-family:var(--fontStack-sansSerif)] tw:text-body-small tw:font-medium tw:cursor-pointer tw:hover:bg-[var(--button-default-bgColor-hover)] tw:active:bg-[var(--button-default-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
-    icon(doc, COMMENT_DISCUSSION, { class: "tw:text-fg-muted" }),
-    keycap(doc, "\\", { shift: true }),
-  );
-  button.type = "button";
-  button.setAttribute("aria-label", panel.name);
-  button.setAttribute("aria-keyshortcuts", "Shift+\\");
+  // Like "All commits" beside it.
+  const button = shiftBackslashButton(doc, {
+    className: "gh-prism-conversation-button",
+    label: panel.name,
+    path: COMMENT_DISCUSSION,
+  });
   button.addEventListener("click", () => panel.toggle());
 
   // A DOM clone of the toolbar, such as a restored snapshot, can carry an earlier button.

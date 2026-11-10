@@ -71,12 +71,15 @@ export const conversationWidth = storage.defineItem<number>("local:conversationW
 });
 
 /**
- * The commits whose message the user hid, newest last, keyed as `utils/hidden-commits.ts` keys
- * them; kept on this computer only.
+ * Whether the user last left a commit's message hidden, on every commit; Chrome sync carries it to
+ * their other computers when on.
  */
-export const hiddenCommitMessages = storage.defineItem<string[]>("local:hiddenCommitMessages", {
-  fallback: [],
+export const commitMessageHidden = storage.defineItem<boolean>("sync:commitMessageHidden", {
+  fallback: false,
 });
+
+/** A retired key a released version wrote: the commits whose message the user hid, one by one. */
+export const RETIRED_HIDDEN_COMMITS = "local:hiddenCommitMessages";
 
 /**
  * Whether the user dismissed the notice on GitHub's classic Files changed page; kept on this

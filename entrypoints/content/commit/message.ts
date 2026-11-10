@@ -1,7 +1,8 @@
 /**
  * Renders a commit message out of GitHub's box as GitHub-flavored Markdown: its title as an `h1`,
- * its body reflowed like a README. Every element is built with `el()`; no HTML string is ever
- * parsed, so raw HTML in a message shows as text. GitHub's own links in the box are copied in.
+ * led by its badge when it is a conventional commit's, its body reflowed like a README. Every
+ * element is built with `el()`; no HTML string is ever parsed, so raw HTML in a message shows as
+ * text. GitHub's own links in the box are copied in.
  */
 import type { Definition, List, ListItem, Nodes, Resource, Root, Table } from "mdast";
 import { fromMarkdown } from "mdast-util-from-markdown";
@@ -9,6 +10,7 @@ import { gfmFromMarkdown } from "mdast-util-gfm";
 import { gfm } from "micromark-extension-gfm";
 import type { CommitMessage } from "../files-page";
 import { el } from "../ui/dom";
+import { type ConventionalTitle, parseConventionalTitle, titleBadge } from "./title-badge";
 
 type Content = (Node | string)[];
 
@@ -36,13 +38,14 @@ export function renderCommitMessage(
   const source = sourceWithinCaps(message);
   if (!source) return undefined;
 
-  const titleTree = parse(source.title);
+  const conventional = parseConventionalTitle(source.title);
+  const titleTree = parse(conventional?.rest ?? source.title);
   const bodyTree = parse(source.body);
   if (tooDeep(titleTree) || tooDeep(bodyTree)) return undefined;
 
   const { links } = source;
   const context = { doc, links, definitions: definitionsOf(bodyTree) };
-  const heading = titleOf(context, titleTree, message.title);
+  const heading = titleOf(context, titleTree, { original: message.title, conventional });
   const rest = bodyTree.children.flatMap((node) => nodesOf(context, node, "linked"));
   return [
     heading,
@@ -144,18 +147,35 @@ function definitionsOf(tree: Root): Map<string, Definition> {
   return definitions;
 }
 
-/** The title as an `h1`: its inline Markdown, or GitHub's own nodes when it parses as a block. */
-function titleOf(context: Context, tree: Root, original: Element): HTMLHeadingElement {
+/** GitHub's title, and its conventional commit prefix when it opens with one. */
+interface Title {
+  readonly original: Element;
+  readonly conventional: ConventionalTitle | undefined;
+}
+
+/**
+ * The title as an `h1`, `tree` being what follows its conventional prefix: its badge, then its
+ * inline Markdown, or, when it parses as a block, its text after a badge and GitHub's own nodes
+ * without one.
+ */
+function titleOf(
+  context: Context,
+  tree: Root,
+  { original, conventional }: Title,
+): HTMLHeadingElement {
   const [only] = tree.children;
-  if (tree.children.length === 1 && only?.type === "paragraph") {
-    return el(
-      context.doc,
-      "h1",
-      "",
-      ...only.children.flatMap((n) => nodesOf(context, n, "linked")),
-    );
-  }
-  return el(context.doc, "h1", "", ...[...original.childNodes].map((n) => n.cloneNode(true)));
+  const inline = tree.children.length === 1 && only?.type === "paragraph";
+  const unparsed = conventional
+    ? linked(context, conventional.rest)
+    : [...original.childNodes].map((n) => n.cloneNode(true));
+
+  const badge = conventional
+    ? titleBadge(context.doc, conventional, linked(context, conventional.scope ?? ""))
+    : [];
+  const description = inline
+    ? only.children.flatMap((n) => nodesOf(context, n, "linked"))
+    : unparsed;
+  return el(context.doc, "h1", "", ...badge, ...description);
 }
 
 const write = (context: Context, mode: Mode, value: string): Content =>

@@ -12,6 +12,13 @@ the departure as intended.
   near-black and warm-light grounds. gh-prism paints inside GitHub's page, where grounds
   of its own would clash with the page around them, and Primer's variables already follow
   the reviewer's theme.
+- **Colour: a type label takes GitHub's label colours, not Primer's variables.**
+  `brief.md` takes every colour from a Primer variable. A conventional commit's type label
+  (`patterns.md` § Conventional commit titles) takes the labels Refined GitHub draws on a
+  commits list, because the maintainer asked for them. Its colours are the fixed RGB
+  values of GitHub's default issue labels, which no Primer variable holds. GitHub's own
+  label rules still paint them, so they follow the reviewer's theme. The label's text
+  names the type, so colour is never the only signal.
 - **Faces: GitHub's font stacks, not Berkeley Mono for code.** Reviewers don't have
   Berkeley Mono installed. A file name in the sidebar should also match its diff header,
   which GitHub sets in its own monospace stack.
@@ -25,10 +32,11 @@ the departure as intended.
   reviewer holds a row on hover or focus, which they do to read it.
 - **Key hints: in the tooltip, not on the control.** The default puts a keycap on every
   control. GitHub shows its own shortcuts in tooltips, and keycaps at rest would make the
-  sidebar louder than the page around it. Four controls are exceptions to this rule,
+  sidebar louder than the page around it. Five controls are exceptions to this rule,
   because the maintainer asked for keys a reader can see without hovering: a commit's
-  Older and Newer, the Conversation button (⇧\), and GitHub's file-tree toggle (\). Each
-  shows its key as a keycap at rest. Every other control keeps its key in its tooltip.
+  Older and Newer, the Conversation button (⇧\), the commit message toggle (⇧\), and
+  GitHub's file-tree toggle (\). Each shows its key as a keycap at rest. Every other
+  control keeps its key in its tooltip.
 - **Keys: no `?` help and no `/` search.** The default binds both. On this page, GitHub
   binds `?` to its shortcut list and `/` to search, and gh-prism takes no key GitHub
   binds.
@@ -47,7 +55,9 @@ the departure as intended.
   `kbd` rule, whose border and raised bottom edge are `--borderColor-neutral-muted`: 1.2:1
   against Older's and Newer's buttons in a light theme and 1.3:1 in a dark one. The
   Conversation button's and the tree toggle's keycaps sit on the default Button's
-  `--button-default-bgColor-rest` fill, the same fill as Older's and Newer's. The keycap's
+  `--button-default-bgColor-rest` fill, the same fill as Older's and Newer's. The commit
+  message toggle's keycap sits on that fill too, or on `--button-default-bgColor-active`
+  while the message shows, as the tree toggle's does while its tree shows. The keycap's
   text holds the text floor, and the keycap is no control of its own, so its edge only
   frames a key that already reads.
 - **Header hairlines: decoration, below the 3:1 floor.** The floor holds hairlines to 3:1.

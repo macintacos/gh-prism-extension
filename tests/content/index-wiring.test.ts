@@ -223,6 +223,21 @@ describe("content script", () => {
     expect(views).toEqual([opens]);
   });
 
+  it.each<{ saved?: unknown; hidden: boolean }>([
+    { saved: true, hidden: true },
+    { saved: "yes", hidden: false },
+    { hidden: false },
+  ])("opens a commit's message hidden: $hidden (saved: $saved)", async ({ saved, hidden }) => {
+    // Raw key on purpose, so the test outlives a move to typed storage items.
+    if (saved !== undefined) await fakeBrowser.storage.sync.set({ commitMessageHidden: saved });
+    history.replaceState(null, "", "/o/r/commit/dd95cdc");
+    loadCommitFixture();
+
+    await run();
+
+    expect(vi.mocked(showCommitMessage).mock.calls[0]?.[2].visit.hidden).toBe(hidden);
+  });
+
   it.each<{ pinned?: unknown; left?: unknown; viewport: number; open: boolean }>([
     { pinned: true, left: true, viewport: 1400, open: true },
     { pinned: true, left: false, viewport: 1400, open: false },

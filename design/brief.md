@@ -20,19 +20,21 @@ hover and focus, so a reviewer who never looks for it never sees it.
 
 - **Take every colour, face, size, and radius from Primer.** GitHub themes Primer's
   variables, so an element built from them follows the reviewer's theme with no variant of
-  its own. The file icons are the one exception, in `tokens.md` § Colour.
-- **Spend colour on three things only: sections, file types, and lines added or removed.**
-  A file type's colour is its icon's, such as Rust's or npm's. Git status colours stay off
-  file names and icons, because a coloured name would read as one of the three.
+  its own. The file icons are one exception, in `tokens.md` § Colour; a conventional
+  commit's type label is the other, in `exceptions.md`.
+- **Spend colour on four things only: sections, file types, lines added or removed, and a
+  conventional commit's type label.** A file type's colour is its icon's, such as Rust's
+  or npm's. Git status colours stay off file names and icons, because a coloured name
+  would read as one of the four.
 - **Dim a Viewed file within the text floors; never hide it.** A reviewer returns to
   Viewed files, and a hidden row would change the list they are scanning. The ticked box
   marks Viewed too, so the dimming is never the only signal.
 - **Keep controls quiet at rest, and show their detail on hover and focus.** A section's
   icon gives way to its chevron, and a control's tooltip names its action and key. Focus
   shows the same detail as hover, so a keyboard user gets it too. A commit's Older and
-  Newer, the Conversation button, and the file-tree toggle are the exceptions: each shows
-  its key as a keycap at rest, so a reader sees the keys without hovering, because the
-  maintainer asked for it.
+  Newer, the Conversation button, the commit message toggle, and the file-tree toggle are
+  the exceptions: each shows its key as a keycap at rest, so a reader sees the keys
+  without hovering, because the maintainer asked for it.
 - **Move only to confirm an action or show a state change.** Keep motion brief, never
   block input on it, and let a frequent action such as stepping through files with `j`
   land without a flourish. The one exception: a truncated name in the sidebar scrolls back
@@ -42,7 +44,8 @@ hover and focus, so a reviewer who never looks for it never sees it.
   page.** GitHub binds `?` to its shortcut list and `/` to search. gh-prism binds `j` and
   `k` to step through files in the sidebar's order, Shift+J and Shift+K to follow a
   commit's Older and Newer links, `\` to collapse and expand the file tree, and Shift+\ to
-  open and close the Conversation panel.
+  open and close the Conversation panel on a pull request, or to hide and show the message
+  on a commit's page.
 - **Play no sound.** gh-prism runs inside github.com, where a sound would surprise the
   reviewer, and it has no settings surface to turn one off.
 - **Say an empty or degraded state in one plain sentence, with no illustration and no

@@ -73,6 +73,14 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   ancestor.** happy-dom keeps the style it computed before `<html>` gains
   `data-gh-prism-panel`, so a read before `dressConversationFrame` and one after compare
   equal whatever `frame.css` says.
+- **End a Web Animations API animation with `finish()`.** happy-dom's animations report
+  `running` and never advance, under real or fake timers, so `finished` settles only once
+  a test calls `finish()`.
+  [`message-view.test.ts`](../../tests/content/commit/message-view.test.ts)'s
+  `finishSlides` does it. Prove what an animation draws in the e2e suite:
+  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "a commit's message column slides out
+  with the diffs at its edge in every frame…" samples each frame. Prove that `reverse()`
+  turns an animation around in a live check.
 - **Stub an iframe's `contentWindow`.** happy-dom's `disableIframePageLoading` means an
   iframe never gets one.
 

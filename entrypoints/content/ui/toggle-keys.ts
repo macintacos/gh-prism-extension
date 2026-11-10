@@ -1,6 +1,9 @@
 import { isEditable } from "./dom";
 
-/** The keys that toggle the file tree (`\`) and the Conversation panel (`Shift+\`). */
+/**
+ * The keys that toggle the file tree (`\`), and the Conversation panel or a commit's message
+ * (`Shift+\`).
+ */
 export type ToggleKey = "\\" | "Shift+\\";
 
 /**

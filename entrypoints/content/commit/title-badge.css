@@ -1,0 +1,92 @@
+/* GitHub hooks: .IssueLabel.hx_IssueLabel, GitHub's label, which a .gh-prism-commit-type also is
+   and which paints the --label-* properties set here for the page's theme. */
+
+.gh-prism-commit-scope {
+  color: var(--fgColor-muted);
+}
+
+/* GitHub's box sets its title in monospace, and a label is never monospace. */
+/* GitHub's box sets its title in monospace, and a label is never monospace. */
+/* The colours of GitHub's default labels, as Refined GitHub gives each type on a commits list:
+   enhancement, bug, documentation, and so on. A type with none of its own stays neutral. */
+.gh-prism-commit-type {
+  font-family: var(--fontStack-sansSerif);
+  --label-r: 255;
+  --label-g: 255;
+  --label-b: 255;
+  --label-h: 0;
+  --label-s: 0;
+  --label-l: 100;
+}
+
+.gh-prism-commit-type[data-type="feat"] {
+  --label-r: 162;
+  --label-g: 238;
+  --label-b: 239;
+  --label-h: 180;
+  --label-s: 70;
+  --label-l: 78;
+}
+
+.gh-prism-commit-type[data-type="fix"] {
+  --label-r: 215;
+  --label-g: 58;
+  --label-b: 74;
+  --label-h: 353;
+  --label-s: 66;
+  --label-l: 53;
+}
+
+.gh-prism-commit-type[data-type="docs"] {
+  --label-r: 0;
+  --label-g: 117;
+  --label-b: 202;
+  --label-h: 205;
+  --label-s: 100;
+  --label-l: 39;
+}
+
+.gh-prism-commit-type[data-type="build"] {
+  --label-r: 217;
+  --label-g: 63;
+  --label-b: 11;
+  --label-h: 15;
+  --label-s: 90;
+  --label-l: 44;
+}
+
+.gh-prism-commit-type[data-type="refactor"] {
+  --label-r: 0;
+  --label-g: 107;
+  --label-b: 117;
+  --label-h: 185;
+  --label-s: 100;
+  --label-l: 22;
+}
+
+.gh-prism-commit-type[data-type="test"] {
+  --label-r: 251;
+  --label-g: 202;
+  --label-b: 4;
+  --label-h: 48;
+  --label-s: 96;
+  --label-l: 50;
+}
+
+.gh-prism-commit-type[data-type="ci"] {
+  --label-r: 197;
+  --label-g: 222;
+  --label-b: 245;
+  --label-h: 208;
+  --label-s: 70;
+  --label-l: 86;
+}
+
+.gh-prism-commit-type[data-type="perf"] {
+  --label-r: 83;
+  --label-g: 25;
+  --label-b: 231;
+  --label-h: 256;
+  --label-s: 81;
+  --label-l: 50;
+}
