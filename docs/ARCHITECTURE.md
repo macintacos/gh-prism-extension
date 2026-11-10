@@ -913,7 +913,7 @@ utils/
     conversation-frame.ts  the per-tab session rule that lets only the Conversation panel frame a PR's Conversation tab, and the panel's request for it
   intent/                reading, caching, and landing intent
   hunk-rules/            the docstring and inline-test rules, and the generator-marker scan
-  structural/            rebuilding a changed file's old text from its patch; mapping an engine's structural changes onto diff lines
+  structural/            rebuilding a changed file's old text from its patch; the tree-sitter token-diff engine and its grammar table; mapping an engine's structural changes onto diff lines
   sections.ts            path rules for the five sections
   prefs.ts               saved preferences
   whats-new.ts           when the what's-new block shows

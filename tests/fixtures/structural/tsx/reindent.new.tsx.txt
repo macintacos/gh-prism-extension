@@ -1,0 +1,9 @@
+export function Total({ items }: { items: number[] }) {
+    return (
+        <ul className="total">
+            {items.map((item) => (
+                <li key={item}>{item}</li>
+            ))}
+        </ul>
+    );
+}
