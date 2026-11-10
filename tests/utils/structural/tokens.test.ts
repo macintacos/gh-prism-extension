@@ -77,4 +77,13 @@ describe("keyedByIndentation", () => {
 
     expect(wrapped).toEqual(oneLine);
   });
+
+  it("keys a very long line in linear time", async () => {
+    const text = `x = [${"1, ".repeat(83_000)}1]\n`;
+
+    const keys = await pythonKeys(text);
+
+    expect(keys[0]).toBe("0\u0000x");
+    expect(keys.slice(1).every((key) => !key.includes("\u0000"))).toBe(true);
+  }, 1_000);
 });

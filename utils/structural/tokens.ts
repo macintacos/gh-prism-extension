@@ -54,19 +54,33 @@ const BRACKET_DEPTH: Record<string, number> = { "(": 1, "[": 1, "{": 1, ")": -1,
 export function keyedByIndentation(tokens: readonly Token[], text: string): Token[] {
   // ponytail: a tab counts as one column; a backslash continuation, a comment-only line, and a
   // closing `"""` on its own line each read as a new logical line. Tokenize like CPython if these bite.
+  const starts = lineStarts(text);
   const widths: number[] = [];
   let bracketDepth = 0;
-  let lastLineStart = -1;
+  let line = -1;
 
   return tokens.map((token) => {
-    const lineStart = text.lastIndexOf("\n", token.start - 1) + 1;
-    const firstOnLine = lineStart !== lastLineStart;
-    lastLineStart = lineStart;
+    const lastLine = line;
+    while ((starts[line + 1] ?? Infinity) <= token.start) line++;
+    const lineStart = starts[line] ?? 0;
+    const firstOnLine = line !== lastLine;
     const keyed =
       firstOnLine && bracketDepth === 0 ? withDepth(token, text, lineStart, widths) : token;
     bracketDepth += BRACKET_DEPTH[token.key] ?? 0;
     return keyed;
   });
+}
+
+/** The offset of each line's first character; a trailing `\n` starts no extra line. */
+export function lineStarts(text: string): number[] {
+  const starts = [0];
+  for (
+    let at = text.indexOf("\n");
+    at !== -1 && at + 1 < text.length;
+    at = text.indexOf("\n", at + 1)
+  )
+    starts.push(at + 1);
+  return starts;
 }
 
 /** `token` keyed by its line's block depth, after updating `widths` (mutated) with the line's indent. */
