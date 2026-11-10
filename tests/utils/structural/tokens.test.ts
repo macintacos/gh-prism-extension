@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { GrammarId } from "../../../utils/structural/grammar";
-import { keyedByIndentation, leafTokens, type Token } from "../../../utils/structural/tokens";
+import {
+  DEPTH_SEPARATOR,
+  keyedByIndentation,
+  leafTokens,
+  type Token,
+} from "../../../utils/structural/tokens";
 import { parserFor } from "../../fixtures/structural";
 
 async function tokensOf(id: GrammarId, text: string, maxTokens = Infinity) {
@@ -41,6 +46,39 @@ describe("leafTokens", () => {
     expect(tokens?.map((token) => token.key)).toContain("a\nb");
   });
 
+  it("records each leaf's node type", async () => {
+    const tokens = await tokensOf("python", 'x.split("(")');
+
+    const brackets = tokens?.filter((token) => token.key === "(");
+    expect(brackets?.map((token) => token.type)).toEqual(["(", "string_content"]);
+  });
+
+  it("keeps a template literal's whitespace in its key", async () => {
+    const tokens = await tokensOf("javascript", "const s = `a\n  b`;");
+
+    expect(tokens?.map((token) => token.key)).toContain("a\n  b");
+  });
+
+  it.each([
+    [
+      "typescript",
+      "class A {\n  /**\n   * a\n   */\n  x = 1;\n}",
+      "class A {\n    /**\n     * a\n     */\n    x = 1;\n}",
+    ],
+    [
+      "tsx",
+      "x = <div>\n    hello world\n    <b>x</b>\n  </div>;",
+      "x = <div>\n      hello world\n      <b>x</b>\n    </div>;",
+    ],
+  ] as const)(
+    "keys %s comments and JSX text without their lines' indentation",
+    async (id, two, four) => {
+      const keys = async (text: string) => (await tokensOf(id, text))?.map((token) => token.key);
+
+      expect(await keys(four)).toEqual(await keys(two));
+    },
+  );
+
   it("gives up past maxTokens", async () => {
     expect(await tokensOf("javascript", "let a = [b, c, d];", 3)).toBeUndefined();
   });
@@ -59,8 +97,8 @@ describe("keyedByIndentation", () => {
     const dedented = await pythonKeys("def f(x):\n    if x:\n        a()\n    b()\n");
 
     const b = nested.findIndex((key) => key.endsWith("b"));
-    expect(nested[b]).toBe("2\u0000b");
-    expect(dedented[b]).toBe("1\u0000b");
+    expect(nested[b]).toBe(`2${DEPTH_SEPARATOR}b`);
+    expect(dedented[b]).toBe(`1${DEPTH_SEPARATOR}b`);
     expect(dedented.toSpliced(b, 1)).toEqual(nested.toSpliced(b, 1));
   });
 
@@ -78,12 +116,25 @@ describe("keyedByIndentation", () => {
     expect(wrapped).toEqual(oneLine);
   });
 
+  it("counts no bracket inside a string", async () => {
+    const keys = await pythonKeys('s = "("\nb()\n');
+
+    expect(keys).toContain(`0${DEPTH_SEPARATOR}b`);
+  });
+
+  it("leaves the depths alone at a comment-only line", async () => {
+    const keys = await pythonKeys("if x:\n    a()\n# note\n    b()\n");
+
+    expect(keys).toContain("# note");
+    expect(keys).toContain(`1${DEPTH_SEPARATOR}b`);
+  });
+
   it("keys a very long line in linear time", async () => {
     const text = `x = [${"1, ".repeat(83_000)}1]\n`;
 
     const keys = await pythonKeys(text);
 
-    expect(keys[0]).toBe("0\u0000x");
-    expect(keys.slice(1).every((key) => !key.includes("\u0000"))).toBe(true);
+    expect(keys[0]).toBe(`0${DEPTH_SEPARATOR}x`);
+    expect(keys.slice(1).every((key) => !key.includes(DEPTH_SEPARATOR))).toBe(true);
   }, 1_000);
 });

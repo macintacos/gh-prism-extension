@@ -27,6 +27,7 @@ describe("grammarOf", () => {
     const sensitive = ["a.ts", "a.tsx", "a.js", "a.py"].filter(
       (path) => grammarOf(path)?.indentationSensitive,
     );
+
     expect(sensitive).toEqual(["a.py"]);
   });
 });

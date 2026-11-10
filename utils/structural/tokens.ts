@@ -5,24 +5,33 @@ export interface Token {
   readonly start: number;
   readonly end: number;
   readonly key: string;
+  /** The leaf's tree-sitter node type; `""` for a parent's own text between its children. */
+  readonly type: string;
 }
+
+/** Leaf types whose continuation lines' indentation is layout, not content. */
+const INDENT_FREE_TYPES = new Set(["comment", "jsx_text"]);
 
 /**
  * `tree`'s leaves in source order as tokens keyed by their text; a parent's own non-blank text
- * between its children is a token too. `undefined` past `maxTokens`.
+ * between its children is a token too. A comment or JSX text is keyed without its continuation
+ * lines' leading whitespace. `undefined` past `maxTokens`.
  */
 export function leafTokens(tree: Tree, text: string, maxTokens: number): Token[] | undefined {
   const tokens: Token[] = [];
   const parentEnds: number[] = [];
   let covered = 0;
-  const push = (start: number, end: number) =>
-    tokens.push({ start, end, key: text.slice(start, end) }) <= maxTokens;
+  const push = (start: number, end: number, type: string) => {
+    const raw = text.slice(start, end);
+    const key = INDENT_FREE_TYPES.has(type) ? raw.replace(/\n[ \t]*/g, "\n") : raw;
+    return tokens.push({ start, end, key, type }) <= maxTokens;
+  };
   const fillTo = (end: number) => {
     const ok =
-      parentEnds.length === 0 ||
+      parentEnds.length === 0 || // text outside the root node is not a token
       end <= covered ||
       !/\S/.test(text.slice(covered, end)) ||
-      push(covered, end);
+      push(covered, end, "");
     covered = Math.max(covered, end);
     return ok;
   };
@@ -36,7 +45,7 @@ export function leafTokens(tree: Tree, text: string, maxTokens: number): Token[]
         parentEnds.push(end);
         continue;
       }
-      if (end > start && !push(start, end)) return undefined;
+      if (end > start && !push(start, end, cursor.nodeType)) return undefined;
       covered = Math.max(covered, end);
       while (!cursor.gotoNextSibling()) {
         if (!cursor.gotoParent()) return tokens;
@@ -48,12 +57,16 @@ export function leafTokens(tree: Tree, text: string, maxTokens: number): Token[]
   }
 }
 
+// A line inside brackets is a continuation line and carries no depth, so a rewrap stays quiet.
 const BRACKET_DEPTH: Record<string, number> = { "(": 1, "[": 1, "{": 1, ")": -1, "]": -1, "}": -1 };
+
+/** Joins a depth to a key; no source token contains it, so a depth never collides with text. */
+export const DEPTH_SEPARATOR = "\u0000";
 
 /** `tokens` with each logical line's block depth prefixed to the key of the line's first token. */
 export function keyedByIndentation(tokens: readonly Token[], text: string): Token[] {
-  // ponytail: a tab counts as one column; a backslash continuation, a comment-only line, and a
-  // closing `"""` on its own line each read as a new logical line. Tokenize like CPython if these bite.
+  // ponytail: a tab counts as one column, and a backslash continuation or a string's
+  // continuation line reads as a new logical line. Tokenize like CPython if these bite.
   const starts = lineStarts(text);
   const widths: number[] = [];
   let bracketDepth = 0;
@@ -63,10 +76,9 @@ export function keyedByIndentation(tokens: readonly Token[], text: string): Toke
     const lastLine = line;
     while ((starts[line + 1] ?? Infinity) <= token.start) line++;
     const lineStart = starts[line] ?? 0;
-    const firstOnLine = line !== lastLine;
-    const keyed =
-      firstOnLine && bracketDepth === 0 ? withDepth(token, text, lineStart, widths) : token;
-    bracketDepth += BRACKET_DEPTH[token.key] ?? 0;
+    const startsLogicalLine = line !== lastLine && bracketDepth === 0 && token.type !== "comment";
+    const keyed = startsLogicalLine ? withDepth(token, text, lineStart, widths) : token;
+    bracketDepth += BRACKET_DEPTH[token.type] ?? 0;
     return keyed;
   });
 }
@@ -83,10 +95,13 @@ export function lineStarts(text: string): number[] {
   return starts;
 }
 
-/** `token` keyed by its line's block depth, after updating `widths` (mutated) with the line's indent. */
+/**
+ * `token` keyed by its line's block depth, after updating `widths` (mutated) with the line's
+ * indent.
+ */
 function withDepth(token: Token, text: string, lineStart: number, widths: number[]): Token {
   const width = /^[ \t]*/.exec(text.slice(lineStart, token.start))?.[0].length ?? 0;
   if (width > (widths.at(-1) ?? 0)) widths.push(width);
   while ((widths.at(-1) ?? 0) > width) widths.pop();
-  return { ...token, key: `${widths.length}\u0000${token.key}` };
+  return { ...token, key: `${widths.length}${DEPTH_SEPARATOR}${token.key}` };
 }

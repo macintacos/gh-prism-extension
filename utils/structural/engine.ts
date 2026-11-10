@@ -7,6 +7,7 @@ import { keyedByIndentation, leafTokens, lineStarts, type Token } from "./tokens
 /** Why the engine returned no changes. */
 export type EngineRefusal = "unsupported" | "too-large" | "failed";
 
+/** The engine's answer for one file: its changes, or a refusal. Never partial. */
 export type EngineResult =
   | { readonly ok: true; readonly changes: StructuralChanges }
   | { readonly ok: false; readonly reason: EngineRefusal };
@@ -22,30 +23,38 @@ export interface ChangedRegion {
   readonly newEnd: number;
 }
 
-/** A grammar and a parser its caller has loaded with that grammar's language. */
+/**
+ * A grammar and a parser its caller has loaded with that grammar's language; the engine does not
+ * check the pairing.
+ */
 export interface LoadedGrammar {
   readonly grammar: Grammar;
   readonly parser: Parser;
 }
 
 export interface EngineLimits {
+  /** UTF-16 units, per side. */
   readonly maxTextLength: number;
+  /** Milliseconds, per side's parse. */
   readonly maxParseMs: number;
+  /** Per side. */
   readonly maxTokens: number;
+  /** Edits one region's diff may reach. */
   readonly maxEditLength: number;
+  /** Milliseconds across all regions, checked between them. */
   readonly maxDiffMs: number;
 }
 
 export const DEFAULT_LIMITS: EngineLimits = Object.freeze({
-  /** UTF-16 units per side: about 1.5 times the largest file the spike measured. */
+  /** About 1.5 times the largest file measured (170,549 bytes). */
   maxTextLength: 256_000,
-  /** Per side: one parse is one uninterruptible stage; the slowest warm parse seen was about 70 ms. */
+  /** One parse is one uninterruptible stage; the slowest warm parse seen was about 70 ms. */
   maxParseMs: 100,
-  /** Per side: the leaf walk costs about as much as the parse; the largest file seen had 12,483. */
+  /** The leaf walk costs about as much as the parse; the largest file seen had 12,483. */
   maxTokens: 20_000,
-  /** Per region: giving up at 1,000 costs about 46 ms on two unrelated 3,000-token sides. */
+  /** Giving up at 1,000 costs about 46 ms on two unrelated 3,000-token sides. */
   maxEditLength: 1_000,
-  /** Across all regions, checked between them, so with one region's worst case the stage stays near 100 ms. */
+  /** With one region's worst case, keeps the diff stage near 100 ms. */
   maxDiffMs: 50,
 });
 
@@ -54,7 +63,10 @@ export interface EngineInput {
   readonly newText: string;
   /** `undefined` when `grammarOf` found no grammar for the file. */
   readonly language: LoadedGrammar | undefined;
-  /** The file's changed runs in order; tokens outside them are taken as unchanged. */
+  /**
+   * The file's changed runs in order, in 1-based lines of these exact texts, split on `\n` only;
+   * tokens outside them are taken as unchanged.
+   */
   readonly regions: readonly ChangedRegion[];
   readonly limits: EngineLimits;
   readonly signal: AbortSignal;
@@ -67,7 +79,7 @@ export interface EngineInput {
 /**
  * The tokens each version of a file changed, or why they can't be had: `unsupported` without a
  * grammar, `too-large` past a limit, `failed` when either text does not parse. Rejects with
- * `signal.reason` once `signal` aborts.
+ * `signal.reason` if `signal` has aborted at the start or after either parse.
  */
 export async function structuralChanges(input: EngineInput): Promise<EngineResult> {
   const { oldText, newText, language, regions, limits, signal, now, pause } = input;
@@ -85,12 +97,14 @@ export async function structuralChanges(input: EngineInput): Promise<EngineResul
   await pause();
   if (signal.aborted) throw signal.reason;
 
-  const changed = changedTokens({ oldText, newText, oldTokens, newTokens, regions }, limits, now);
+  const old = sourceOf(oldText, oldTokens);
+  const added = sourceOf(newText, newTokens);
+  const changed = changedTokens(regions, old, added, limits, now);
   if (changed === undefined) return refuse("too-large");
 
   return {
     ok: true,
-    changes: { old: spansOf(oldText, changed.old), new: spansOf(newText, changed.new) },
+    changes: { old: spansOf(old, changed.old), new: spansOf(added, changed.new) },
   };
 }
 
@@ -119,60 +133,53 @@ function tokensOf(
   }
 }
 
-interface TokenPair {
-  readonly oldText: string;
-  readonly newText: string;
-  readonly oldTokens: readonly Token[];
-  readonly newTokens: readonly Token[];
-  readonly regions: readonly ChangedRegion[];
+/** A text with the offset of each of its lines, and its tokens. */
+interface Source {
+  readonly text: string;
+  readonly starts: readonly number[];
+  readonly tokens: readonly Token[];
 }
 
+const sourceOf = (text: string, tokens: readonly Token[]): Source => ({
+  text,
+  starts: lineStarts(text),
+  tokens,
+});
+
+/** The offset where 1-based `line` starts, or the text's end past its last line. */
+const offsetOf = ({ text, starts }: Source, line: number) => starts[line - 1] ?? text.length;
+
 interface ChangedTokens {
-  readonly old: Token[];
-  readonly new: Token[];
+  readonly old: readonly Token[];
+  readonly new: readonly Token[];
 }
 
 /** The tokens one Myers diff per region finds changed; `undefined` past the diff caps. */
 function changedTokens(
-  { oldText, newText, oldTokens, newTokens, regions }: TokenPair,
+  regions: readonly ChangedRegion[],
+  old: Source,
+  added: Source,
   limits: EngineLimits,
   now: () => number,
 ): ChangedTokens | undefined {
   const deadline = now() + limits.maxDiffMs;
-  const oldStarts = lineStarts(oldText);
-  const newStarts = lineStarts(newText);
-  const offset = (starts: number[], text: string, line: number) => starts[line - 1] ?? text.length;
-  const ranges = regions.map((region) => ({
-    oldStart: offset(oldStarts, oldText, region.oldStart),
-    oldEnd: offset(oldStarts, oldText, region.oldEnd),
-    newStart: offset(newStarts, newText, region.newStart),
-    newEnd: offset(newStarts, newText, region.newEnd),
-  }));
-
-  const changed: ChangedTokens = { old: [], new: [] };
-  for (const span of tokenSpans(ranges, oldTokens, newTokens)) {
+  const parts: ChangedTokens[] = [];
+  for (const window of diffWindows(regions, old, added)) {
     if (now() > deadline) return undefined;
-    const part = spanChanges(
-      oldTokens.slice(span.oldFrom, span.oldTo),
-      newTokens.slice(span.newFrom, span.newTo),
+    const part = windowChanges(
+      old.tokens.slice(window.oldFrom, window.oldTo),
+      added.tokens.slice(window.newFrom, window.newTo),
       limits.maxEditLength,
     );
     if (part === undefined) return undefined;
-    changed.old.push(...part.old);
-    changed.new.push(...part.new);
+    parts.push(part);
   }
-  return changed;
+
+  return { old: parts.flatMap((part) => part.old), new: parts.flatMap((part) => part.new) };
 }
 
-/** A changed region as character offsets, `End` exclusive. */
-interface OffsetRegion {
-  readonly oldStart: number;
-  readonly oldEnd: number;
-  readonly newStart: number;
-  readonly newEnd: number;
-}
-
-interface Span {
+/** The old and new token index ranges one Myers diff covers, `To` exclusive. */
+interface TokenWindow {
   oldFrom: number;
   oldTo: number;
   newFrom: number;
@@ -191,8 +198,11 @@ function firstIndex(tokens: readonly Token[], past: (token: Token) => boolean): 
   return low;
 }
 
-/** The token index range `[from, to)` overlapping `[start, end)`; for an empty range, the token straddling it. */
-const tokenSpan = (tokens: readonly Token[], start: number, end: number) => ({
+/**
+ * The token index range `[from, to)` overlapping `[start, end)`; an empty range yields the token
+ * straddling it, or none.
+ */
+const tokenRange = (tokens: readonly Token[], start: number, end: number) => ({
   from: firstIndex(tokens, (token) => token.end > start),
   to: firstIndex(tokens, (token) => token.start >= end),
 });
@@ -201,60 +211,73 @@ const sameKeys = (a: readonly Token[], b: readonly Token[]) =>
   a.length === b.length && a.every((token, i) => token.key === b[i]?.key);
 
 /**
- * Each region as token index spans, merged until the tokens between spans (and before the first
+ * Each region as a token window, merged until the tokens between windows (and before the first
  * and after the last) match one for one, so a token straddling a region boundary never leaves the
- * unchanged runs disagreeing.
+ * unchanged runs disagreeing; a mismatch before the first or after the last widens that window to
+ * the file's edge.
  */
-function tokenSpans(
-  regions: readonly OffsetRegion[],
-  oldTokens: readonly Token[],
-  newTokens: readonly Token[],
-): Span[] {
-  const spans: Span[] = [];
+function diffWindows(regions: readonly ChangedRegion[], old: Source, added: Source): TokenWindow[] {
+  const windows: TokenWindow[] = [];
   const unchangedMatch = (oldFrom: number, oldTo: number, newFrom: number, newTo: number) =>
     oldTo >= oldFrom &&
     newTo >= newFrom &&
-    sameKeys(oldTokens.slice(oldFrom, oldTo), newTokens.slice(newFrom, newTo));
+    sameKeys(old.tokens.slice(oldFrom, oldTo), added.tokens.slice(newFrom, newTo));
 
   for (const region of regions) {
-    const old = tokenSpan(oldTokens, region.oldStart, region.oldEnd);
-    const added = tokenSpan(newTokens, region.newStart, region.newEnd);
-    const span = { oldFrom: old.from, oldTo: old.to, newFrom: added.from, newTo: added.to };
-    const last = spans.at(-1);
+    const from = tokenRange(
+      old.tokens,
+      offsetOf(old, region.oldStart),
+      offsetOf(old, region.oldEnd),
+    );
+    const to = tokenRange(
+      added.tokens,
+      offsetOf(added, region.newStart),
+      offsetOf(added, region.newEnd),
+    );
+    const window = { oldFrom: from.from, oldTo: from.to, newFrom: to.from, newTo: to.to };
+    const last = windows.at(-1);
     const before = last ?? { oldTo: 0, newTo: 0 };
-    if (unchangedMatch(before.oldTo, span.oldFrom, before.newTo, span.newFrom)) spans.push(span);
-    else if (last) Object.assign(last, { oldTo: span.oldTo, newTo: span.newTo });
-    else spans.push({ ...span, oldFrom: 0, newFrom: 0 });
+    if (unchangedMatch(before.oldTo, window.oldFrom, before.newTo, window.newFrom))
+      windows.push(window);
+    else if (last) Object.assign(last, { oldTo: window.oldTo, newTo: window.newTo });
+    else windows.push({ ...window, oldFrom: 0, newFrom: 0 });
   }
 
-  const last = spans.at(-1);
-  if (last && !unchangedMatch(last.oldTo, oldTokens.length, last.newTo, newTokens.length))
-    Object.assign(last, { oldTo: oldTokens.length, newTo: newTokens.length });
-  return spans;
+  const last = windows.at(-1);
+  if (last && !unchangedMatch(last.oldTo, old.tokens.length, last.newTo, added.tokens.length))
+    Object.assign(last, { oldTo: old.tokens.length, newTo: added.tokens.length });
+  return windows;
 }
 
 /**
- * The tokens one span changed, `undefined` past `maxEditLength`. The diff runs in a canonical
- * order of the two key lists, because Myers breaks ties by direction and swapping old and new
- * must only swap the sides.
+ * The tokens one window changed, `undefined` past `maxEditLength`. A side with no tokens leaves
+ * the other changed whole. The diff runs in a canonical order of the two key lists, because
+ * Myers breaks ties by direction and swapping old and new must only swap the sides.
  */
-function spanChanges(
-  oldTokens: Token[],
-  newTokens: Token[],
+function windowChanges(
+  oldTokens: readonly Token[],
+  newTokens: readonly Token[],
   maxEditLength: number,
 ): ChangedTokens | undefined {
+  if (oldTokens.length === 0 || newTokens.length === 0) return { old: oldTokens, new: newTokens };
+
   const oldKeys = oldTokens.map((token) => token.key);
   const newKeys = newTokens.map((token) => token.key);
   const flipped = inCanonicalOrder(newKeys, oldKeys) && !inCanonicalOrder(oldKeys, newKeys);
+  const [[first, firstKeys], [second, secondKeys]] = flipped
+    ? ([
+        [newTokens, newKeys],
+        [oldTokens, oldKeys],
+      ] as const)
+    : ([
+        [oldTokens, oldKeys],
+        [newTokens, newKeys],
+      ] as const);
 
-  const parts = flipped
-    ? diffArrays(newKeys, oldKeys, { maxEditLength })
-    : diffArrays(oldKeys, newKeys, { maxEditLength });
+  const parts = diffArrays(firstKeys, secondKeys, { maxEditLength });
   if (parts === undefined) return undefined;
 
-  const [removed, added] = flipped
-    ? changesOf(parts, newTokens, oldTokens)
-    : changesOf(parts, oldTokens, newTokens);
+  const [removed, added] = changesOf(parts, first, second);
   return flipped ? { old: added, new: removed } : { old: removed, new: added };
 }
 
@@ -275,32 +298,41 @@ function changesOf(
   const added: Token[] = [];
   let firstAt = 0;
   let secondAt = 0;
+
   for (const part of parts) {
-    if (part.removed) removed.push(...first.slice(firstAt, firstAt + part.count));
-    if (part.added) added.push(...second.slice(secondAt, secondAt + part.count));
+    for (let i = 0; i < part.count; i++) {
+      if (part.removed) removed.push(first[firstAt + i] as Token);
+      if (part.added) added.push(second[secondAt + i] as Token);
+    }
     if (!part.added) firstAt += part.count;
     if (!part.removed) secondAt += part.count;
   }
+
   return [removed, added];
 }
 
-/** One span per line each of `tokens` touches, without line terminators; `tokens` in source order. */
-function spansOf(text: string, tokens: readonly Token[]): TokenSpan[] {
-  const starts = lineStarts(text);
+/**
+ * One span per line each of `tokens` touches, without line terminators; `tokens` in source
+ * order.
+ */
+function spansOf({ text, starts }: Source, tokens: readonly Token[]): TokenSpan[] {
+  const textEnd = text.endsWith("\n") ? text.length - 1 : text.length;
   const spans: TokenSpan[] = [];
   let line = 0;
+
   for (const token of tokens) {
     for (let at = token.start; at < token.end; ) {
       while ((starts[line + 1] ?? Infinity) <= at) line++;
       const lineStart = starts[line] ?? 0;
-      const newline = text.indexOf("\n", at);
-      const lineEnd = newline === -1 ? text.length : newline;
+      const lineEnd = (starts[line + 1] ?? textEnd + 1) - 1;
+
       const pieceEnd = Math.min(token.end, lineEnd);
-      const end = pieceEnd === newline && text[pieceEnd - 1] === "\r" ? pieceEnd - 1 : pieceEnd;
+      const end = pieceEnd === lineEnd && text[pieceEnd - 1] === "\r" ? pieceEnd - 1 : pieceEnd;
       if (end > at)
         spans.push({ line: line + 1, startCol: at - lineStart, endCol: end - lineStart });
       at = lineEnd + 1;
     }
   }
+
   return spans;
 }

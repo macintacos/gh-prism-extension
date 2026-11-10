@@ -121,6 +121,86 @@ describe("structuralChanges", () => {
     expect(await texts("python", oldText, newText)).toEqual({ old: ["b"], new: ["b"] });
   });
 
+  it.each([
+    {
+      name: "after a bracket in a string",
+      oldText: 's = "("\ndef f(x):\n    if x:\n        a()\n        b()\n',
+      newText: 's = "("\ndef f(x):\n    if x:\n        a()\n    b()\n',
+      moved: "b",
+    },
+    {
+      name: "past a comment-only line",
+      oldText: "if x:\n    a()\n# note\n    b()\n    c()\n",
+      newText: "if x:\n    a()\n# note\n    b()\nc()\n",
+      moved: "c",
+    },
+  ])(
+    "marks a Python statement moved out of its block $name",
+    async ({ oldText, newText, moved }) => {
+      expect(await texts("python", oldText, newText)).toEqual({ old: [moved], new: [moved] });
+    },
+  );
+
+  it.each([
+    [
+      "typescript",
+      "class A {\n  /**\n   * a\n   */\n  x = 1;\n}\n",
+      "class A {\n    /**\n     * a\n     */\n    x = 1;\n}\n",
+    ],
+    [
+      "tsx",
+      "const x = (\n  <div>\n    hello world\n    <b>x</b>\n  </div>\n);\n",
+      "const x = (\n    <div>\n        hello world\n        <b>x</b>\n    </div>\n);\n",
+    ],
+  ] as const)(
+    "finds no change in a %s reindent of a comment or JSX text",
+    async (id, two, four) => {
+      expect(await texts(id, two, four)).toEqual({ old: [], new: [] });
+    },
+  );
+
+  it.each([
+    ["an insertion", "", "\n"],
+    ["a deletion", "\n", ""],
+  ])("marks %s past maxEditLength whole", async (_, oldBody, newBody) => {
+    const body = "f(x);\n".repeat(300);
+    const oldText = `a();\n${oldBody && body}`;
+    const newText = `a();\n${newBody && body}`;
+
+    const result = await texts("typescript", oldText, newText, { limits: { maxEditLength: 10 } });
+
+    expect(result.old.length + result.new.length).toBe(1_500);
+  });
+
+  it.each([
+    {
+      name: "merges two regions sharing a token",
+      oldText: "const s = `a\nb\nc\nd`;\n",
+      newText: "const s = `a\nB\nc\nD`;\n",
+      regions: [
+        { oldStart: 2, oldEnd: 3, newStart: 2, newEnd: 3 },
+        { oldStart: 4, oldEnd: 5, newStart: 4, newEnd: 5 },
+      ],
+      expected: { old: ["a", "b", "c", "d"], new: ["a", "B", "c", "D"] },
+    },
+    {
+      name: "widens the first region to a mismatch before it",
+      oldText: "a;\nb;\n",
+      newText: "x;\nc;\n",
+      regions: [{ oldStart: 2, oldEnd: 3, newStart: 2, newEnd: 3 }],
+      expected: { old: ["a", "b"], new: ["x", "c"] },
+    },
+    {
+      name: "widens the last region to a mismatch after it",
+      oldText: "a;\nb;\n",
+      newText: "x;\nc;\n",
+      regions: [{ oldStart: 1, oldEnd: 2, newStart: 1, newEnd: 2 }],
+      expected: { old: ["a", "b"], new: ["x", "c"] },
+    },
+  ])("$name", async ({ oldText, newText, regions, expected }) => {
+    expect(await texts("typescript", oldText, newText, { regions })).toEqual(expected);
+  });
+
   it.each(GRAMMARS)("fails a %s text that does not parse", async (id) => {
     const { oldText, newText } = readPair(id, "parse-error");
 
