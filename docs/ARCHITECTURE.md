@@ -31,6 +31,23 @@ and a leftover rule still matches only that tab's marked URL. It also clears the
 cache whenever the extension is installed, updated, or reloaded in development, and on a
 fresh install it marks the installed version's what's-new notes dismissed.
 
+The structural diff engine is a separate script,
+[`entrypoints/structural-engine.ts`](../entrypoints/structural-engine.ts), that the
+background loads only when structural mode first asks for a diff
+([`utils/structural/engine-script.ts`](../utils/structural/engine-script.ts)). It is
+separate because the background builds as one file, so bundling the engine into it would
+parse the engine at every start. Firefox's background page appends it as a script element;
+Chrome's service worker loads it with `importScripts`, which Chrome allows only for a
+script the worker imported while installing, so the worker imports it once then.
+[`utils/structural/runner.ts`](../utils/structural/runner.ts) compiles the tree-sitter
+runtime and each grammar on first use, only from the packaged `structural/*.wasm` files,
+which is why the manifest's `extension_pages` policy carries `'wasm-unsafe-eval'`.
+[`utils/structural/host.ts`](../utils/structural/host.ts) runs one request at a time and
+yields before each, so intent reads queued on the port are answered first, and drops a
+queued request whose port closed. Nothing is evicted or persisted: the background's idle
+shutdown discards the engine and its grammars, and the next request rebuilds them. Nothing
+calls the host until the PR data port gains a structural request kind.
+
 The content script in [`entrypoints/content/index.ts`](../entrypoints/content/index.ts)
 runs on every github.com page at `document_start`, so its watcher is in place before
 GitHub first renders the page. It cannot match only Files view URLs, because of GitHub's
@@ -952,7 +969,8 @@ these surfaces' sheets `@import`s the mark's partial, `ui/mark.css`.
 
 ```text
 entrypoints/
-  background.ts          service worker: PR data port, the Conversation panel's framing rule, cache clearing and what's-new mark on install
+  background.ts          service worker: PR data port, the Conversation panel's framing rule, cache clearing and what's-new mark on install; in Chrome, the install-time import of the structural engine script
+  structural-engine.ts   the structural engine script the background loads on first use
   conversation-frame.content.ts  content script in the Conversation panel's frame
   content/
     index.ts             content script entry: wires the watchers, intent, and views
@@ -970,7 +988,7 @@ utils/
     conversation-frame.ts  the per-tab session rule that lets only the Conversation panel frame a PR's Conversation tab, and the panel's request for it
   intent/                reading, caching, and landing intent
   hunk-rules/            the docstring and inline-test rules, and the generator-marker scan
-  structural/            rebuilding a changed file's old text from its patch; the tree-sitter token-diff engine and its grammar table; mapping an engine's structural changes onto diff lines
+  structural/            rebuilding a changed file's old text from its patch; the tree-sitter token-diff engine and its grammar table; mapping an engine's structural changes onto diff lines; the request shape a message carries, the runner that compiles the packaged WebAssembly, the one-at-a-time host, the engine-script loader, and the list of packaged files
   sections.ts            path rules for the five sections
   prefs.ts               saved preferences
   whats-new.ts           when the what's-new block shows
