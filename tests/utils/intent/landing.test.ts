@@ -79,6 +79,21 @@ describe("sectionsOf", () => {
     ]);
   });
 
+  it("lands a file placed whole in Generated only there, whatever its path says", () => {
+    const generated = landingOf({
+      ok: true,
+      placements: new Map<string, Placement>([
+        ["src/client/sdk.gen.ts", { kind: "whole", section: "generated" }],
+      ]),
+      lines: new Map<string, FileLines>([["src/client/sdk.gen.ts", { added: 3, removed: 1 }]]),
+      commentLines: new Map(),
+    });
+
+    expect(
+      placesOf(sectionsOf(generated, files("src/client/sdk.gen.ts")), "src/client/sdk.gen.ts"),
+    ).toEqual([{ section: "generated", share: undefined, lines: { added: 3, removed: 1 } }]);
+  });
+
   it("lists a split file once per share, each with the share and its lines", () => {
     const [implementation, docs] = split.shares;
     expect(placesOf(sections, "src/render.rs")).toEqual([

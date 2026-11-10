@@ -51,8 +51,8 @@ Comments, Config, and Generated / lockfiles. _Avoid_: category, group, bucket
 
 **Path section**: The section a file's path alone puts it in. _Avoid_: default section
 
-**Rule section**: A section a hunk rule can claim whatever the path says: Docs & Comments
-or Tests.
+**Rule section**: A section a rule can claim whatever the path says: Docs & Comments,
+Tests, or Generated, which a rule claims only whole.
 
 ### Placing files
 

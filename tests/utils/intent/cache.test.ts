@@ -25,6 +25,7 @@ const landed: Extract<IntentResult, { ok: true }> = {
   ok: true,
   placements: new Map([
     ["README.md", { kind: "whole", section: "docs" }],
+    ["src/client/sdk.gen.ts", { kind: "whole", section: "generated" }],
     [
       "src/render.rs",
       {
