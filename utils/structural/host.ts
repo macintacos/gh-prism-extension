@@ -16,7 +16,7 @@ export interface HostDeps {
  * engine.
  */
 export function structuralHost(deps: HostDeps): EngineRun {
-  let previous: Promise<unknown> = Promise.resolve();
+  let queueTail: Promise<unknown> = Promise.resolve();
   const load = retriedOnFailure(deps.loadEngine);
 
   const runOne: EngineRun = async (request, signal) => {
@@ -35,8 +35,8 @@ export function structuralHost(deps: HostDeps): EngineRun {
   };
 
   return (request, signal) => {
-    const result = previous.then(() => runOne(request, signal));
-    previous = result.catch(() => {});
+    const result = queueTail.then(() => runOne(request, signal));
+    queueTail = result.catch(() => {});
     return result;
   };
 }

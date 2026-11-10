@@ -86,15 +86,15 @@ function scratchCopy(copy: string): void {
 
 /** `text` with `" // edited"` appended to each 1-based line in `lines`, and the one-line regions. */
 function edited(text: string, lines: readonly number[]) {
-  const all = text.split("\n");
-  for (const line of lines) all[line - 1] += " // edited";
+  const textLines = text.split("\n");
+  for (const line of lines) textLines[line - 1] += " // edited";
   const regions: ChangedRegion[] = lines.map((line) => ({
     oldStart: line,
     oldEnd: line + 1,
     newStart: line,
     newEnd: line + 1,
   }));
-  return { newText: all.join("\n"), regions };
+  return { newText: textLines.join("\n"), regions };
 }
 
 function editedRequest(path: string, lines: readonly number[]): StructuralRequest {
@@ -274,8 +274,8 @@ async function measure(page: Page) {
   const warmRunMs = median(warmUp.map(runMs));
   const warm = [];
   for (let i = 0; i < 20; i++) {
-    const last: number = warm.at(-1)?.runMs ?? warmRunMs;
-    warm.push(await runWithPing(page, reference, Math.random() * last));
+    const lastRunMs: number = warm.at(-1)?.runMs ?? warmRunMs;
+    warm.push(await runWithPing(page, reference, Math.random() * lastRunMs));
   }
 
   const dropped = await send<{ firstOk: boolean; secondRejected: boolean }>(page, {
@@ -285,8 +285,8 @@ async function measure(page: Page) {
 
   const largeRuns = [];
   for (let i = 0; i < 12; i++) {
-    const last: number = largeRuns.at(-1)?.runMs ?? 200;
-    largeRuns.push(await runWithPing(page, large, Math.random() * last));
+    const lastRunMs: number = largeRuns.at(-1)?.runMs ?? 200;
+    largeRuns.push(await runWithPing(page, large, Math.random() * lastRunMs));
   }
 
   const maxWarmPingMs = Math.max(...warm.map((w) => w.pingMs));

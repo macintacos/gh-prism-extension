@@ -30,15 +30,15 @@ export type BenchReply = { id: number; result: unknown } | { id: number; error: 
  */
 export function serveBench(): void {
   const host = structuralHost({ loadEngine: loadEngineScript, pause: yieldToMessages });
-  let pings: number[] = [];
+  let pingTimes: number[] = [];
 
   const answer = async (message: BenchMessage) => {
     switch (message.op) {
       case "state":
         return { loaded: Boolean(Reflect.get(globalThis, ENGINE_GLOBAL)) };
       case "pings": {
-        const handled = pings;
-        pings = [];
+        const handled = pingTimes;
+        pingTimes = [];
         return { handled };
       }
       case "run": {
@@ -66,7 +66,8 @@ export function serveBench(): void {
   };
 
   browser.runtime.onConnect.addListener((port) => {
-    if (port.name === PR_DATA_PORT) port.onMessage.addListener(() => pings.push(performance.now()));
+    if (port.name === PR_DATA_PORT)
+      port.onMessage.addListener(() => pingTimes.push(performance.now()));
     if (port.name !== BENCH_PORT) return;
     port.onMessage.addListener(async (message: BenchMessage) => {
       const reply: BenchReply = await answer(message).then(

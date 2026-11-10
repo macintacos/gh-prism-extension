@@ -18,20 +18,22 @@ export interface RunnerDeps {
 
 /** An `EngineRun` that loads web-tree-sitter's runtime and each grammar on first use. */
 export function engineRunner(deps: RunnerDeps): EngineRun {
-  const init = retriedOnFailure(() => Parser.init({ locateFile: () => deps.urlOf(RUNTIME_WASM) }));
-  const parsers = new Map<GrammarId, () => Promise<Parser>>();
+  const initRuntime = retriedOnFailure(() =>
+    Parser.init({ locateFile: () => deps.urlOf(RUNTIME_WASM) }),
+  );
+  const parserLoaders = new Map<GrammarId, () => Promise<Parser>>();
   const parserFor = (id: GrammarId) => {
-    let load = parsers.get(id);
-    if (!load) {
-      load = retriedOnFailure(async () => {
-        await init();
+    let loadParser = parserLoaders.get(id);
+    if (!loadParser) {
+      loadParser = retriedOnFailure(async () => {
+        await initRuntime();
         const parser = new Parser();
         parser.setLanguage(await Language.load(deps.urlOf(GRAMMAR_WASM[id])));
         return parser;
       });
-      parsers.set(id, load);
+      parserLoaders.set(id, loadParser);
     }
-    return load();
+    return loadParser();
   };
 
   return async ({ oldText, newText, grammar, regions, limits }, signal) => {

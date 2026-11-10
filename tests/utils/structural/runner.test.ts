@@ -74,12 +74,12 @@ describe("engineRunner", () => {
     const run = runnerWith(urlOf);
 
     const first = await run(TYPESCRIPT, live());
-    const calls = urlOf.mock.calls.length;
+    const callsAfterFirst = urlOf.mock.calls.length;
     const second = await run(TYPESCRIPT, live());
 
     expect(first).toEqual({ ok: false, reason: "failed" });
     expect(second).toEqual({ ok: false, reason: "failed" });
-    expect(urlOf.mock.calls.length).toBeGreaterThan(calls);
+    expect(urlOf.mock.calls.length).toBeGreaterThan(callsAfterFirst);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("typescript"), expect.anything());
     warn.mockRestore();
   });

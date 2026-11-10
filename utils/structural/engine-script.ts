@@ -17,16 +17,16 @@ interface WorkerGlobal {
   };
 }
 
-const worker = () => globalThis as unknown as WorkerGlobal;
+const workerGlobal = () => globalThis as unknown as WorkerGlobal;
 const engineUrl = () => browser.runtime.getURL(ENGINE_SCRIPT);
 
 /** Chrome only: lets later worker lives import the engine script on demand. Call during the worker's first evaluation. */
 export function precacheEngineScript(): void {
   if (import.meta.env.BROWSER === "firefox") return;
   // Chrome refuses importScripts of a script the worker did not import while installing.
-  worker().addEventListener("install", () => {
+  workerGlobal().addEventListener("install", () => {
     try {
-      worker().importScripts(engineUrl());
+      workerGlobal().importScripts(engineUrl());
     } catch (error) {
       console.warn("gh-prism: couldn't precache the structural engine script", error);
     }
@@ -39,7 +39,7 @@ export async function loadEngineScript(): Promise<EngineRun> {
   // importScripts re-evaluates the script on every call.
   if (!global[ENGINE_GLOBAL]) {
     if (import.meta.env.BROWSER === "firefox") await appendScript(engineUrl());
-    else worker().importScripts(engineUrl());
+    else workerGlobal().importScripts(engineUrl());
   }
 
   const run = global[ENGINE_GLOBAL];
@@ -55,7 +55,7 @@ export function yieldToMessages(): Promise<void> {
   }
   // Chrome runs a port message ahead of a background-priority task, but behind setTimeout(0),
   // MessageChannel, and scheduler.yield().
-  return worker().scheduler.postTask(() => {}, { priority: "background" });
+  return workerGlobal().scheduler.postTask(() => {}, { priority: "background" });
 }
 
 /** Appends a script element for `url` to the document's head and resolves once it loads. */
