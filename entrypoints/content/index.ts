@@ -70,6 +70,7 @@ import {
   type StructuralMode,
   structuralChoiceOf,
 } from "./diffs/structural-mode";
+import { showDiffViewControl } from "./diffs/view-control";
 import { visitViewed } from "./diffs/viewed";
 import { findCommentAuthors, findFilesCommentAuthors, followRightPanel } from "./files-page";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
@@ -253,7 +254,7 @@ export default defineContentScript({
             const owner = route.diff.kind === "pr" ? ownerOf(location.search) : undefined;
             showReportLink(page, signal, reportOptions);
             showOwnerSection(page, signal, { codeOwners, prReviewers, navigate });
-            showVisit(page, signal, {
+            const { startStructural } = showVisit(page, signal, {
               intent,
               diffstat: visitDiffstat,
               viewed,
@@ -267,6 +268,15 @@ export default defineContentScript({
               whatsNew: whatsNewForPage?.(),
               landHash,
               structural: structuralFor(),
+            });
+            showDiffViewControl(page, signal, {
+              choice: pageStructural(structural, () => {
+                const started = structuralFor();
+                if (started) startStructural(started);
+              }),
+              commit: route.diff.kind === "commit",
+              offersStructural: !route.commitFiltered,
+              search: () => location.search,
             });
             showCommitMessage(page, signal, {
               afterSections: afterLanding(intent),
@@ -582,6 +592,22 @@ function structuralModeOf(
     commit,
     search: () => location.search,
     unifiedSeen: () => structural.set(false),
+  };
+}
+
+/** `structural` for one page, whose `set(true)` also calls `started`, so the page shows the mode. */
+function pageStructural(structural: StructuralChoice, started: () => void): StructuralChoice {
+  return {
+    get on() {
+      return structural.on;
+    },
+    get whileOn() {
+      return structural.whileOn;
+    },
+    set(on) {
+      structural.set(on);
+      if (on) started();
+    },
   };
 }
 

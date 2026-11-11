@@ -1,0 +1,100 @@
+/* GitHub hooks:
+   .container-show-on-sm: a pull request's wrapper around the gear, which the control sits in.
+   #diff-content-parent: a commit's diffs, whose toolbar the control hides from on a narrow window. */
+@import "../ui/tailwind.css" prefix(tw);
+@source "./view-control.ts";
+
+/* An 8px gap to the gear; a commit's group already has its own gap. */
+.container-show-on-sm .gh-prism-diff-view {
+  margin-inline-end: 8px;
+}
+
+/* Below 768px a commit's search box shrinks to make room; GitHub's own menu still switches. */
+@media (max-width: 767px) {
+  #diff-content-parent .gh-prism-diff-view {
+    display: none;
+  }
+}
+
+.gh-prism-diff-view-segment:hover:not([aria-pressed="true"], [aria-disabled="true"]) {
+  background-color: var(--controlTrack-bgColor-hover);
+}
+
+/* Primer's knob: weight and edge carry the state, not colour. */
+.gh-prism-diff-view-segment[aria-pressed="true"] {
+  border-color: var(--controlKnob-borderColor-rest);
+  background-color: var(--controlKnob-bgColor-rest);
+  font-weight: var(--base-text-weight-semibold);
+}
+
+.gh-prism-diff-view-segment[aria-disabled="true"] {
+  color: var(--control-fgColor-disabled);
+  cursor: not-allowed;
+}
+
+/* Primer's hidden bold copy: each label holds its semibold width, so pressing shifts nothing. */
+.gh-prism-diff-view-label {
+  display: inline-grid;
+}
+
+.gh-prism-diff-view-label::after {
+  content: attr(data-text);
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-weight: var(--base-text-weight-semibold);
+}
+
+/* A rule between two unpressed neighbours, as Primer's. */
+.gh-prism-diff-view-item {
+  position: relative;
+}
+
+.gh-prism-diff-view-item:not(:has([aria-pressed="true"]))
+  + .gh-prism-diff-view-item:not(:has([aria-pressed="true"]))::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 0;
+  width: 1px;
+  height: 12px;
+  transform: translateY(-50%);
+  background-color: var(--borderColor-default);
+}
+
+/* Primer's tooltip, opening downward and toward the page's inside, on Structural alone. */
+.gh-prism-diff-view-segment[data-view="structural"]::after {
+  content: attr(aria-description);
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline-end: 0;
+  z-index: 100;
+  width: max-content;
+  max-width: 280px;
+  padding: 4px 8px;
+  border-radius: var(--borderRadius-medium);
+  background: var(--tooltip-bgColor);
+  color: var(--tooltip-fgColor);
+  font-size: var(--text-body-size-small);
+  font-weight: var(--base-text-weight-normal);
+  line-height: var(--text-body-lineHeight-small);
+  text-align: start;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 120ms ease-out,
+    visibility 120ms;
+}
+
+.gh-prism-diff-view-segment[data-view="structural"]:is(:hover, :focus-visible)::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-prism-diff-view-segment[data-view="structural"]::after {
+    transition: none;
+  }
+}
