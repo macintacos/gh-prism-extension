@@ -226,6 +226,50 @@ describe("showDiffViewControl", () => {
     expect(control()?.nextElementSibling).toBe(findLayoutGear(page));
   });
 
+  it("hides while the toolbar has no room for it, and shows again once it has", () => {
+    let resized: (() => void) | undefined;
+    // happy-dom's ResizeObserver never fires, so the test calls its callback.
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(callback: () => void) {
+          resized = callback;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const page = pageOf("pr", "split");
+    const toolbar = findFilesToolbar(page);
+    if (!toolbar) throw new Error("fixture has no toolbar");
+    let room = 600;
+    Object.defineProperty(toolbar, "clientWidth", { get: () => room });
+    Object.defineProperty(toolbar, "scrollWidth", {
+      get: () => Math.max(room, control()?.hidden ? 500 : 700),
+    });
+
+    show(page, choiceOf(false).choice);
+    const cramped = control()?.hidden;
+    room = 800;
+    resized?.();
+
+    vi.unstubAllGlobals();
+    expect(cramped).toBe(true);
+    expect(control()?.hidden).toBe(false);
+  });
+
+  it("stays shown in a toolbar that overflows as far without it", () => {
+    const page = pageOf("pr", "split");
+    const toolbar = findFilesToolbar(page);
+    if (!toolbar) throw new Error("fixture has no toolbar");
+    Object.defineProperty(toolbar, "clientWidth", { get: () => 600 });
+    Object.defineProperty(toolbar, "scrollWidth", { get: () => 608 });
+
+    show(page, choiceOf(false).choice);
+
+    expect(control()?.hidden).toBe(false);
+  });
+
   it("removes the control and its style on abort", () => {
     const page = pageOf("pr", "split");
     show(page, choiceOf(false).choice);
@@ -463,19 +507,41 @@ describe("showDiffViewControl", () => {
     expect(log).toEqual([]);
   });
 
-  it("runs a press whose segment was replaced between pointerdown and pointerup", async () => {
+  it("runs a press the page re-mounted the control during, between pointerdown and pointerup", async () => {
     const page = pageOf("pr", "split");
     const log: string[] = [];
     recordItemClicks(log);
     const { choice } = choiceOf(false, log);
-    show(page, choice);
+    const first = new AbortController();
+    showDiffViewControl(page, first.signal, {
+      choice,
+      commit: false,
+      offersStructural: true,
+      search: () => location.search,
+    });
 
     segment("unified")?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    first.abort();
+    show(page, choice);
+    segment("unified")?.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+    await flush();
+
+    expect(log).toEqual(["choose unified"]);
+  });
+
+  it("forgets a press released off the control", async () => {
+    const page = pageOf("pr", "split");
+    const log: string[] = [];
+    recordItemClicks(log);
+    show(page, choiceOf(false, log).choice);
+
+    segment("unified")?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    document.body.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
     control()?.remove();
     await flush();
     segment("unified")?.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
     await flush();
 
-    expect(log).toEqual(["choose unified"]);
+    expect(log).toEqual([]);
   });
 });

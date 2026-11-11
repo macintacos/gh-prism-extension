@@ -9,6 +9,10 @@
   margin-inline-end: 8px;
 }
 
+.gh-prism-diff-view[hidden] {
+  display: none;
+}
+
 /* Below 768px a commit's search box shrinks to make room; GitHub's own menu still switches. */
 @media (max-width: 767px) {
   #diff-content-parent .gh-prism-diff-view {
@@ -20,9 +24,10 @@
   background-color: var(--controlTrack-bgColor-hover);
 }
 
-/* Primer's knob: weight and edge carry the state, not colour. */
+/* Primer's knob: weight and edge carry the state, not colour. Its own edge falls short of 3:1 on
+   the track, so the edge takes the neutral emphasis border. */
 .gh-prism-diff-view-segment[aria-pressed="true"] {
-  border-color: var(--controlKnob-borderColor-rest);
+  border-color: var(--borderColor-neutral-emphasis);
   background-color: var(--controlKnob-bgColor-rest);
   font-weight: var(--base-text-weight-semibold);
 }

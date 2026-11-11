@@ -153,8 +153,9 @@ export function showDiffViewControl(
   let busy = false;
   let gaveUp = false;
   let heard: AbortSignal | undefined;
-  // Hydrating the toolbar on a press can swap the control mid-press, and then no click fires.
-  let pressedSegment: HTMLElement | undefined;
+  // Hydration can replace the page mid-press, re-mounting the control, and then no click fires.
+  // The press is kept on <html>, where the control the re-mount draws can find it.
+  const root = doc.documentElement;
 
   const shown = () => ({
     layout: certainLayout(page.diffs, { commit }),
@@ -223,12 +224,27 @@ export function showDiffViewControl(
     for (const button of control.querySelectorAll<HTMLElement>("[data-view]")) {
       const view = button.dataset.view as DiffView;
       button.addEventListener("click", () => void press(view));
-      button.addEventListener("pointerdown", () => (pressedSegment = button));
+      button.addEventListener("pointerdown", () => {
+        root.dataset.ghPrismDiffViewDown = view;
+        button.dataset.down = "";
+      });
       button.addEventListener("pointerup", () => {
-        if (pressedSegment && !pressedSegment.isConnected) void press(view);
+        // A segment that never saw this press's pointerdown replaced the one that did.
+        if (root.dataset.ghPrismDiffViewDown === view && button.dataset.down === undefined)
+          void press(view);
       });
     }
     gear.before(control);
+  };
+
+  // GitHub's toolbar never wraps, so a control it has no room for would scroll the page sideways.
+  const fitToToolbar = () => {
+    const toolbar = findFilesToolbar(page);
+    if (!control || !toolbar) return;
+    control.hidden = true;
+    const room = Math.max(toolbar.clientWidth, toolbar.scrollWidth);
+    control.hidden = false;
+    control.hidden = toolbar.scrollWidth > room;
   };
 
   const follow = () => {
@@ -241,12 +257,17 @@ export function showDiffViewControl(
     }
     if (control?.nextElementSibling !== gear) mount(gear);
     render();
+    fitToToolbar();
   };
 
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   doc.head.append(style);
   // After each segment's own pointerup, so a press released elsewhere is forgotten.
-  const forgetPress = () => (pressedSegment = undefined);
+  const forgetPress = () => {
+    delete root.dataset.ghPrismDiffViewDown;
+    for (const button of doc.querySelectorAll<HTMLElement>(".gh-prism-diff-view [data-down]"))
+      delete button.dataset.down;
+  };
   doc.addEventListener("pointerup", forgetPress, { signal });
   doc.addEventListener("pointercancel", forgetPress, { signal });
   signal.addEventListener("abort", () => {
@@ -258,5 +279,10 @@ export function showDiffViewControl(
   // A pull request's toolbar is a page-wide header outside its diffs.
   const toolbar = findFilesToolbar(page);
   if (toolbar && !page.diffs.contains(toolbar)) observeDiffs(toolbar, follow, { signal });
+  if (toolbar) {
+    const resizes = new ResizeObserver(fitToToolbar);
+    resizes.observe(toolbar);
+    signal.addEventListener("abort", () => resizes.disconnect());
+  }
   follow();
 }
