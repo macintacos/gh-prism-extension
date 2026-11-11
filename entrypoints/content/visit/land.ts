@@ -21,7 +21,7 @@ import type { IntentProgress, IntentResult, PendingIntent } from "@/utils/intent
 import { followFileKeys } from "../diffs/file-keys";
 import { followOnScreen } from "../diffs/on-screen";
 import { showDiffOrder } from "../diffs/order";
-import { paintStructural, type StructuralPainting } from "../diffs/structural";
+import { type StructuralMode, showStructural } from "../diffs/structural-mode";
 import { followViewed, type VisitViewed } from "../diffs/viewed";
 import {
   anchorOf,
@@ -214,7 +214,7 @@ const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
  * members list them. `whatsNew`, when given, opens the sidebar with its block. `filter`, when
  * given, makes each code owner's name in the sidebar's popovers and dialogs filter by that owner.
  * `landHash`, the visit's, lands the URL's hash once the diffs are revealed. `structural`, when
- * given, paints structural mode onto the diffs.
+ * given, shows Structural mode on the diffs, requesting the files on screen.
  */
 export function showVisit(
   page: FilesPage,
@@ -246,7 +246,7 @@ export function showVisit(
     filter?: OwnerFilter;
     whatsNew?: WhatsNew;
     landHash: () => void;
-    structural?: StructuralPainting;
+    structural?: StructuralMode;
   },
 ): void {
   const sidebar = showSections(page, signal, { teamMembers, teamAvatar, teamRoster, filter });
@@ -254,15 +254,25 @@ export function showVisit(
     if (read && !signal.aborted) sidebar.owners(read);
   });
   if (whatsNew) sidebar.root.prepend(whatsNewBlock(page.sidebar.ownerDocument, whatsNew));
+  const structuralView = structural && showStructural(page, signal, structural);
   const views: LandingView[] = [
     sidebar,
     showDiffOrder(page, signal, { landHash }),
     followFileKeys(page, signal),
     showDiffstat(headerOf(page), { ...diffstat, signal }),
-    followOnScreen(page, sidebar.onScreen, signal),
+    followOnScreen(
+      page,
+      structuralView
+        ? (paths) => {
+            sidebar.onScreen(paths);
+            structuralView.onScreen(paths);
+          }
+        : sidebar.onScreen,
+      signal,
+    ),
     followViewed(page, viewed, sidebar.viewed, signal),
   ];
-  if (structural) views.push(paintStructural(page.diffs, signal, structural));
+  if (structuralView) views.push(structuralView);
   const keep =
     owner === undefined || codeOwners === undefined
       ? undefined
