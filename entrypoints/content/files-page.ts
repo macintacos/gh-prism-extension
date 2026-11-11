@@ -1189,7 +1189,7 @@ const STICKY_HEADER = '[role="region"] > [class*="diffHeaderWrapper__"]';
 export function coveredTop(page: FilesPage): number {
   const header = page.diffs.querySelector(STICKY_HEADER);
   if (!header) return 0;
-  return parseFloat(getComputedStyle(header).top) || 0;
+  return Math.max(0, parseFloat(getComputedStyle(header).top) || 0);
 }
 
 /**

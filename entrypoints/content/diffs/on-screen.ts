@@ -71,8 +71,9 @@ export function followOnScreen(
     showIfChanged();
   };
   const build = () => {
+    const next = new IntersectionObserver(intersect, { rootMargin: `-${top}px 0px 0px 0px` });
     observer?.disconnect();
-    observer = new IntersectionObserver(intersect, { rootMargin: `-${top}px 0px 0px 0px` });
+    observer = next;
     for (const region of anchorsByRegion.keys()) observer.observe(region);
   };
   // Unobserves regions that left, so the observer holds no detached node, and drops them from
