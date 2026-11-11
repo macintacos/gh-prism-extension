@@ -128,6 +128,21 @@ and exits 1 when a check fails. Like the rest of `bench/`, it stays out of CI.
 likewise for `firefox`); they are a dated record, not a baseline anything compares
 against.
 
+`bun bench/structural-caps.ts <chromium|firefox>` benches the structural engine's caps in
+the built extension, through the same scratch copy as `bench/structural-host.ts`. Its
+samples are every fixture pair under `tests/fixtures/structural/`, the 40 largest changed
+TypeScript, JavaScript, and Python files of nodejs/node#66212 (read with `gh` and raw
+GitHub URLs into a temporary directory, never committed), a size ladder of a TypeScript
+and a Python file repeated to 50,000 through 300,000 UTF-16 units, and two unrelated sides
+of 1,000, 2,000, and 3,000 tokens. Each sample runs 20 times at `DEFAULT_LIMITS`, counted
+by outcome, and 5 times with every cap lifted, beside 5 identical-sides runs that time the
+parses alone; it reports each side's text length and tokens, the parse time per side, and
+the diff stage's time. In Chromium it also reports the offscreen document's JS heap. It
+prints one JSON object and exits 1 when a sample within the size caps answers `too-slow`,
+which holds only on a quiet machine. `bench/structural-caps/results/*.json` hold a quiet
+and a loaded (`<browser>-loaded.json`) run per browser; they are a dated record, not a
+baseline.
+
 `bun bench/structural-mode-live.ts <chromium|firefox> <storage-state path> [url…]` checks
 Structural mode in the built extension on live GitHub. It needs a signed-in Playwright
 `storageState` file; the default URLs are sandbox PRs #3 and #4 and two sandbox commits,

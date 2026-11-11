@@ -274,7 +274,7 @@ describe("structuralChanges", () => {
   });
 
   it("cancels a parse past maxParseMs, then parses normally again", async () => {
-    const text = `${"[".repeat(100_000)}${"]".repeat(100_000)};\n`;
+    const text = `${"[".repeat(40_000)}${"]".repeat(40_000)};\n`;
     const clock = countingClock();
     const { oldText, newText } = readPair("javascript", "rename");
 
