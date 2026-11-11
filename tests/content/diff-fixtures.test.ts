@@ -4,7 +4,9 @@ import {
   changedCells,
   currentLayout,
   type DiffLayout,
+  type DiffSide,
   followLayout,
+  showsUnified,
 } from "../../entrypoints/content/files-page";
 import commitSplit from "../fixtures/commit-page-diff-split.html?raw";
 import commitUnified from "../fixtures/commit-page-diff-unified.html?raw";
@@ -260,5 +262,71 @@ describe("files-page-diff-rename paths", () => {
 
     expect(text).toContain("src/helpers.rs");
     expect(text).toContain("src/util.rs");
+  });
+});
+
+describe("showsUnified", () => {
+  const PULL = { commit: false, search: "" };
+
+  /** `files-page-diff-rename` with its changed rows on `drop` removed, leaving a one-sided file. */
+  const oneSided = (drop: DiffSide): string => {
+    document.body.innerHTML = prRename;
+    for (const { side, row } of changedCells(document)) if (side === drop) row.remove();
+    const kept = changedCells(document).map(({ side }) => side);
+    expect(kept.length).toBeGreaterThan(0);
+    expect(kept.every((side) => side !== drop)).toBe(true);
+    return document.body.innerHTML;
+  };
+
+  it.each([
+    { name: "a split table", html: () => prSplit, where: PULL, unified: false },
+    { name: "no table", html: () => "", where: PULL, unified: false },
+    {
+      name: "an all-additions pull request",
+      html: () => oneSided("old"),
+      where: PULL,
+      unified: false,
+    },
+    {
+      name: "an all-deletions pull request",
+      html: () => oneSided("new"),
+      where: PULL,
+      unified: false,
+    },
+    {
+      name: "an all-additions pull request under ?diff=unified",
+      html: () => oneSided("old"),
+      where: { commit: false, search: "?diff=unified" },
+      unified: true,
+    },
+    {
+      name: "an all-additions commit",
+      html: () => oneSided("old"),
+      where: { commit: true, search: "" },
+      unified: true,
+    },
+    { name: "a two-sided pull request table", html: () => prRename, where: PULL, unified: true },
+    {
+      name: "a commit's unified table",
+      html: () => commitUnified,
+      where: { commit: true, search: "" },
+      unified: true,
+    },
+    {
+      name: "a two-sided table beside a split one",
+      html: () => prRename + prSplit,
+      where: PULL,
+      unified: false,
+    },
+    {
+      name: "a split table under ?diff=unified",
+      html: () => prSplit,
+      where: { commit: false, search: "?diff=unified" },
+      unified: false,
+    },
+  ])("reads $name as unified: $unified", ({ html, where, unified }) => {
+    document.body.innerHTML = html();
+
+    expect(showsUnified(document, where)).toBe(unified);
   });
 });

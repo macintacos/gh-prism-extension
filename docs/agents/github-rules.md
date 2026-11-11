@@ -506,6 +506,12 @@ on a private one.
   `?diff=split`. The hunk cell's `colspan`, the all-deletions half of the exception
   (cli/cli PR #14872 and `b564a77225`), and saved Split for the exception were read in
   Chromium 157 only (Firefox unchecked).
+- **Tell GitHub's real Unified with `showsUnified` in `files-page.ts`, not
+  `currentLayout`.** It says Unified only on evidence Split can't produce, with no
+  four-column table mounted: a commit page, `?diff=unified` in the URL, or a pull
+  request's three-column table holding both an old-side and a new-side changed cell. A
+  pull request in Unified whose mounted files are all one-sided can't be told from Split
+  without the parameter, so it reads not Unified.
 - **Expect a Layout choice to switch in place.** It doesn't navigate or reload: each
   `table` element stays connected while its rows and `colgroup` are replaced within about
   40 ms. `location` gains `?diff=split` or `?diff=unified` by history replacement, with no
