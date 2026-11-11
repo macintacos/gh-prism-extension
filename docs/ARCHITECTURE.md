@@ -72,8 +72,8 @@ request still lets queued intent reads go first, but no longer guards against en
 which now runs on the Worker's thread. Nothing is evicted or persisted: in Firefox an idle
 event page discards its Worker, and in Chrome the idle offscreen document closes and takes
 its Worker with it, so the engine and its grammars go, and the next request rebuilds them.
-The background builds the host on the first `structural` request, and no content script
-sends one yet.
+The background builds the host on the first `structural` request, which a content script
+sends only while Structural mode is on.
 
 The content script in [`entrypoints/content/index.ts`](../entrypoints/content/index.ts)
 runs on every github.com page at `document_start`, so its watcher is in place before
@@ -164,21 +164,22 @@ stateDiagram-v2
 [`entrypoints/content/visit/land.ts`](../entrypoints/content/visit/land.ts) runs on each
 page. `showVisit` always mounts six views: the sidebar sections, the diff order, the j/k
 file keys, the diffstat, and the on-screen and Viewed trackers that feed the sidebar. It
-mounts a seventh, the structural painter, only when it is given `structural`. Then `land`
-passes the intent read's steps to the views: pending while the read runs, and with an
-owner filter until the code owners land too; progress as files are placed, landed with the
-result, and then each file's section. Every view gets a step before any view gets the
-next. `land` owns the only observer of the native tree, and it re-lists the sections after
-each change to the tree. While a pull request's narrow layout has its "Files" overlay
-open, `land` also observes the overlay's copy of the tree and lists from it, telling each
-view through `shownIn` before it re-lists. One visit reads intent once: `index.ts` wraps
-the read in `shareIntent`, so every page of the visit joins the same read. A header tab's
-visit reads intent the same way, and `showHeaderTab` mounts only the diffstat on each of
-its pages. A visit to a pull request's whole diff names that pull request to the diffstat,
-and the browser tab's `DiffstatChoice` holds the breakout last landed for it. A later
-visit to the same pull request shows that breakout while its own read runs, so moving
-between Files changed and a header tab never flashes GitHub's total, and its own breakout
-replaces it once the read lands. A commit and a commit filter hold none.
+mounts a seventh, the structural painter, only when it is given `structural`, which
+`index.ts` gives only while Structural mode is on. Then `land` passes the intent read's
+steps to the views: pending while the read runs, and with an owner filter until the code
+owners land too; progress as files are placed, landed with the result, and then each
+file's section. Every view gets a step before any view gets the next. `land` owns the only
+observer of the native tree, and it re-lists the sections after each change to the tree.
+While a pull request's narrow layout has its "Files" overlay open, `land` also observes
+the overlay's copy of the tree and lists from it, telling each view through `shownIn`
+before it re-lists. One visit reads intent once: `index.ts` wraps the read in
+`shareIntent`, so every page of the visit joins the same read. A header tab's visit reads
+intent the same way, and `showHeaderTab` mounts only the diffstat on each of its pages. A
+visit to a pull request's whole diff names that pull request to the diffstat, and the
+browser tab's `DiffstatChoice` holds the breakout last landed for it. A later visit to the
+same pull request shows that breakout while its own read runs, so moving between Files
+changed and a header tab never flashes GitHub's total, and its own breakout replaces it
+once the read lands. A commit and a commit filter hold none.
 
 ## The Conversation panel
 
@@ -938,9 +939,25 @@ paints structural mode onto GitHub's own mounted diff rows. A quiet row is one G
 shows as added or deleted in which structural mode finds no changed token, such as a
 reindented line; [`CONTEXT.md`](../CONTEXT.md) defines both terms. It marks each changed
 token, each quiet row, and each moved line, and moves, inserts, or re-renders no GitHub
-node. Nothing constructs it unless `showVisit` is given `structural`, and no caller gives
-it yet, so the shipped default path mounts no `<style>`, registers no highlight, and adds
-no observer.
+node. Nothing constructs it unless `showVisit` is given `structural`, and `index.ts` gives
+it only while Structural mode is on, so the default path mounts no `<style>`, registers no
+highlight, and adds no observer.
+
+Structural mode is saved as `structuralMode` in [`utils/prefs.ts`](../utils/prefs.ts).
+`index.ts` reads it before watching, narrowing it with `=== true`, into a choice shared by
+every visit, and does not watch it live: another tab's change shows on its next full load.
+While it is off, a visit builds nothing. While it is on, a visit builds its
+`StructuralMode` on its first page: `structuralFiles` in
+[`diffs/structural-files.ts`](../entrypoints/content/diffs/structural-files.ts) opens the
+visit's own port on the first request, asks for each on-screen file once, keeps every
+answer until the visit ends, and closes the port when the visit aborts, so a soft
+navigation cancels in-flight engine work. `showStructural` in
+[`diffs/structural-mode.ts`](../entrypoints/content/diffs/structural-mode.ts) requests the
+files `followOnScreen` reports while the diffs read Split, and, when an answer settles,
+calls the painter's `sections` again with its last arguments, which is how a late answer
+gets painted. Once it sees GitHub's Unified layout, it turns the choice off and saves it
+off, ending the visit's mode, so later pages mount nothing. The head outline is still set
+by nothing.
 
 The painter takes a `StructuralPainting`. Its `annotationsOf(path)` returns a file's
 `StructuralFile` from [`utils/structural/changes.ts`](../utils/structural/changes.ts): the
@@ -1024,7 +1041,7 @@ entrypoints/
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
-    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet
+    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet; structural-files.ts, a visit's structural answers; structural-mode.ts, Structural mode on a page
     header/              diffstat breakout
     conversation/        a code owner's files popup and gh-prism's shield, in the Reviewers lists and beside Conversation and Files changed comment authors; the Conversation panel and its button, dressing its frame, and the messages the frame posts
     ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, column separator, view-transition glide, keycaps and the Shift+\ toolbar button, Tailwind tokens

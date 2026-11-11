@@ -241,6 +241,25 @@ test("creates no structural engine context while Structural is off", async ({
   expect(contexts).toEqual([]);
 });
 
+test("paints no structural highlight while Structural is off", async ({ context, page }) => {
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+  const nav = page.getByRole("navigation", { name: "Changed files by section" });
+  await expect(nav.getByRole("heading", { name: "Implementation" })).toBeVisible();
+
+  const painted = await page.evaluate(() => ({
+    highlights: ["gh-prism-added", "gh-prism-removed"].filter((name) => CSS.highlights.has(name)),
+    marked: document.querySelectorAll(
+      "[data-gh-prism-structural], [data-gh-prism-quiet], [data-gh-prism-moved]",
+    ).length,
+    sheets: [...document.head.querySelectorAll("style")].filter((style) =>
+      style.textContent.includes("::highlight(gh-prism-"),
+    ).length,
+  }));
+
+  expect(painted).toEqual({ highlights: [], marked: 0, sheets: 0 });
+});
+
 test("a commit mounts its sections in path-only mode", async ({ context, page }) => {
   await serve(context, COMMIT_URL, COMMIT_BODY);
   await page.goto(COMMIT_URL);
