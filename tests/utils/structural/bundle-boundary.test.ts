@@ -16,6 +16,7 @@ const ENGINE_FROM_HUNK_RULES = [
 const TYPE_ONLY: readonly (readonly [file: string, modules: readonly string[]])[] = [
   ["utils/hunk-rules/head-scan.ts", ENGINE_FROM_HUNK_RULES],
   ["utils/hunk-rules/inline-tests.ts", ENGINE_FROM_HUNK_RULES],
+  ["utils/intent/read.ts", ENGINE_FROM_HUNK_RULES],
   ["utils/structural/host.ts", ["./engine", "./runner", "./tokens", "web-tree-sitter"]],
   ["utils/structural/engine-script.ts", ["./engine", "./runner", "./tokens", "web-tree-sitter"]],
   [

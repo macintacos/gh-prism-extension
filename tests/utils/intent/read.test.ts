@@ -1761,3 +1761,124 @@ describe("intentFor", () => {
     expect(second.filePrefix).toHaveBeenCalled();
   });
 });
+
+describe("intentFor with a head outline", () => {
+  const pin: DiffPin = { baseSha: "b".repeat(40), headSha };
+  const files: PrFilesResult = { ok: true, files: [modified("src/render.rs", renderPatch)] };
+  const renderRead = () => fakeClient(files, { ok: true, text: renderHead });
+  const visit = (sources: Parameters<typeof intentFor>[2]) =>
+    intentFor(route, new AbortController().signal, sources);
+  const noOutline = async () => undefined;
+
+  /** A cache that records every key it is asked to store under. */
+  function recordingCache() {
+    const cache = memoryCache();
+    const stored: string[] = [];
+    const set = cache.set;
+    cache.set = (key, intent) => {
+      stored.push(key);
+      return set(key, intent);
+    };
+    return { cache, stored };
+  }
+
+  async function modeOffDiffKey(): Promise<string> {
+    const listed = files.ok ? files.files : [];
+    const bytes = new TextEncoder().encode(JSON.stringify([headSha, listed, []]));
+    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+    return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+
+  it("stores a read without an outline under the pin and the diff's content hash", async () => {
+    const { cache, stored } = recordingCache();
+
+    await visit({ connect: renderRead, cache, pinOf: () => pin });
+
+    await vi.waitFor(() => expect(stored).toHaveLength(2));
+    expect(stored).toEqual([await modeOffDiffKey(), `${pin.baseSha}...${pin.headSha}`]);
+  });
+
+  it("stores a read with an outline under keys of its own", async () => {
+    const { cache, stored } = recordingCache();
+
+    await visit({ connect: renderRead, cache, pinOf: () => pin, headOutline: noOutline });
+
+    await vi.waitFor(() => expect(stored).toHaveLength(2));
+    expect(stored).not.toContain(await modeOffDiffKey());
+    expect(stored).not.toContain(`${pin.baseSha}...${pin.headSha}`);
+  });
+
+  it("reads again for an outline when only a read without one is cached", async () => {
+    const cache = memoryCache();
+    await visit({ connect: renderRead, cache, pinOf: () => pin });
+    const second = renderRead();
+
+    await visit({ connect: () => second, cache, pinOf: () => pin, headOutline: noOutline });
+
+    expect(second.fileContent).toHaveBeenCalled();
+  });
+
+  it("reads again without an outline when only a read with one is cached", async () => {
+    const cache = memoryCache();
+    await visit({ connect: renderRead, cache, pinOf: () => pin, headOutline: noOutline });
+    const second = renderRead();
+
+    await visit({ connect: () => second, cache, pinOf: () => pin });
+
+    expect(second.fileContent).toHaveBeenCalled();
+  });
+
+  it.each([
+    ["resolves no outline", noOutline],
+    ["rejects", async () => Promise.reject(new Error("no parser"))],
+  ])("line-scans the head when the outline read %s", async (_, headOutline) => {
+    const lineScanned = await visit({ connect: renderRead, cache: memoryCache() });
+
+    const result = await visit({ connect: renderRead, cache: memoryCache(), headOutline });
+
+    expect(result).toEqual(lineScanned);
+  });
+
+  it("asks for each read head's outline once, with the route's diff and the file's path", async () => {
+    const headOutline = vi.fn(async (_diff: DiffRef, _path: string) => undefined);
+    const twoFiles: PrFilesResult = {
+      ok: true,
+      files: [modified("src/render.rs", renderPatch), modified("src/parser.rs", parserPatch)],
+    };
+
+    await visit({
+      connect: () => fakeClient(twoFiles, { ok: true, text: renderHead }),
+      cache: memoryCache(),
+      headOutline,
+    });
+
+    expect(headOutline.mock.calls).toEqual([[pr, "src/render.rs"]]);
+  });
+
+  it("asks for no outline on a pinned revisit", async () => {
+    const cache = memoryCache();
+    await visit({ connect: renderRead, cache, pinOf: () => pin, headOutline: noOutline });
+    const headOutline = vi.fn(noOutline);
+
+    await visit({ connect: renderRead, cache, pinOf: () => pin, headOutline });
+
+    expect(headOutline).not.toHaveBeenCalled();
+  });
+
+  const helperFiles: PrFilesResult = {
+    ok: true,
+    files: [modified("src/helper.ts", lines("@@ -2,1 +2,1 @@", "-  return 1;", "+  return 2;"))],
+  };
+  const helperRead = () =>
+    fakeClient(helperFiles, { ok: true, text: lines("check(() => {", "  return 2;", "});") });
+
+  it("lands a hunk in Tests when the outline puts it in a test block the line scan misses", async () => {
+    const headOutline = async () => ({ spans: [], testBlocks: [{ start: 1, end: 3 }] });
+
+    const outlined = await visit({ connect: helperRead, cache: memoryCache(), headOutline });
+    const lineScanned = await visit({ connect: helperRead, cache: memoryCache() });
+
+    expect(outlined.ok && outlined.placements.get("src/helper.ts")).toEqual(whole("tests"));
+    expect(lineScanned.ok && lineScanned.placements.get("src/helper.ts")).toBeUndefined();
+  });
+});

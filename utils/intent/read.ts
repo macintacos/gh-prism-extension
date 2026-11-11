@@ -13,9 +13,10 @@ import type { DiffPin, DiffRef } from "../github/pr-ref";
 import type { PrDataProblem, PrFileContentResult, PrFilesResult } from "../github/pr-source";
 import { commentLineCounts, type DocVerdict, docHunkVerdicts } from "../hunk-rules/doc-intent";
 import { markerVerdict, patchMarkerVerdict } from "../hunk-rules/generated";
-import { type ScannedHead, scanHeadText } from "../hunk-rules/head-scan";
+import { headFromOutline, type ScannedHead, scanHeadText } from "../hunk-rules/head-scan";
 import { inlineTestHunkVerdicts, inlineTestRuleApplies } from "../hunk-rules/inline-tests";
 import { classify, SECTIONS, type SectionKey } from "../sections";
+import type { HeadOutline } from "../structural/outline";
 import type { IntentCache, LandedIntent } from "./cache";
 import { sectionOf, sum } from "./landing";
 
@@ -74,12 +75,22 @@ export type IntentResult =
 
 const isDocs = (verdict: DocVerdict) => verdict === "docs";
 
+/** Where `readIntent` reads a file's head and prefix, and, when given, its head's outline. */
+type FileReads = Pick<PrDataClient, "fileContent" | "filePrefix"> & {
+  readonly headOutline?: (path: string) => Promise<HeadOutline | undefined>;
+};
+
 async function readHead(
-  client: Pick<PrDataClient, "fileContent">,
+  client: Pick<FileReads, "fileContent" | "headOutline">,
   file: PrFileDiff,
 ): Promise<ScannedHead | undefined> {
   const content = await client.fileContent(file.path);
-  return content.ok ? scanHeadText(file.path, content.text) : undefined;
+  if (!content.ok) return undefined;
+
+  const outline = await client.headOutline?.(file.path).catch(() => undefined);
+  return outline
+    ? headFromOutline(file.path, content.text, outline)
+    : scanHeadText(file.path, content.text);
 }
 
 const sumHunkLines = (hunks: readonly PrHunk[]): LineCounts => sum(hunks.map(hunkLineCounts));
@@ -116,10 +127,7 @@ async function prefixLines(
  * lines. A head read for any reason settles every unclaimed hunk's count, as it is the more
  * accurate scan; a hunk whose comment lines only the unread head could confirm counts none.
  */
-async function fileIntent(
-  client: Pick<PrDataClient, "fileContent" | "filePrefix">,
-  file: PrFileDiff,
-): Promise<FileIntent> {
+async function fileIntent(client: FileReads, file: PrFileDiff): Promise<FileIntent> {
   const marker = patchMarkerVerdict(file);
   if (marker === "generated") return GENERATED;
 
@@ -242,7 +250,7 @@ async function mapAtMost<T, R>(
  * files GitHub flags generated, lands whole in Generated without a read.
  */
 export async function readIntent(
-  client: Pick<PrDataClient, "fileContent" | "filePrefix"> & { files(): Promise<PrFilesResult> },
+  client: FileReads & { files(): Promise<PrFilesResult> },
   onProgress?: (progress: IntentProgress) => void,
   generated: ReadonlySet<string> = new Set(),
 ): Promise<IntentResult> {
@@ -282,26 +290,34 @@ export interface IntentSources {
   readonly pinOf?: (diff: DiffRef) => DiffPin | undefined;
   /** Paths the page says GitHub marks generated: each lands whole in Generated, unread. */
   readonly generatedOf?: (diff: DiffRef) => ReadonlySet<string>;
+  /**
+   * A parse's outline of `path`'s head file, set only while structural mode is on. `undefined`
+   * when there is none; a rejection counts as none. Unset, the head is line-scanned.
+   */
+  readonly headOutline?: (diff: DiffRef, path: string) => Promise<HeadOutline | undefined>;
 }
 
 /** Problems a later read of a file may not hit. */
 const PASSING: ReadonlySet<PrDataProblem> = new Set(["rate-limited", "failed"]);
 
 /**
- * A key for `files` read at `headSha` with the page's `generated` flags: a diff whose head,
- * patches, or flags change gets a new one.
+ * A key for `files` read at `headSha` with the page's `generated` flags, `outlined` when heads were
+ * read with an outline: a diff whose head, patches, flags, or head reading change gets a new one.
  */
 async function diffKey(
   headSha: string,
   files: readonly PrFileDiff[],
   generated: ReadonlySet<string>,
+  outlined: boolean,
 ): Promise<string> {
-  const bytes = new TextEncoder().encode(JSON.stringify([headSha, files, [...generated].sort()]));
+  const parts = [headSha, files, [...generated].sort()];
+  const bytes = new TextEncoder().encode(JSON.stringify(outlined ? [...parts, "outline"] : parts));
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
   return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-const pinKey = ({ baseSha, headSha }: DiffPin) => `${baseSha}...${headSha}`;
+const pinKey = ({ baseSha, headSha }: DiffPin, outlined: boolean) =>
+  `${baseSha}...${headSha}${outlined ? "#outline" : ""}`;
 
 /** Files `intent` under each key in turn: concurrent sets race on the cache's index. */
 async function keepUnder(
@@ -315,7 +331,8 @@ async function keepUnder(
 /**
  * Where a diff's files land: from `cache` when it holds this very diff, else read and
  * cached. The diff key covers the page's generated flags, so a change in them reads the diff
- * again. The cache is checked by the page's pin first, and a pinned hit connects nothing. A read
+ * again; both keys mark a read made with `headOutline`, so outlined and line-scanned reads never
+ * answer each other. The cache is checked by the page's pin first, and a pinned hit connects nothing. A read
  * that a file's passing problem cut short isn't cached. A commit-filtered route connects nothing;
  * otherwise the client is closed when `signal` aborts. Never rejects; once `signal` aborts it may
  * never settle.
@@ -323,15 +340,16 @@ async function keepUnder(
 export async function intentFor(
   route: FilesRoute,
   signal: AbortSignal,
-  { connect, cache, pinOf, generatedOf }: IntentSources,
+  { connect, cache, pinOf, generatedOf, headOutline }: IntentSources,
   onProgress?: (progress: IntentProgress) => void,
 ): Promise<IntentResult> {
   if (route.commitFiltered) return { ok: false, problem: "commit-filtered" };
 
+  const outlined = headOutline !== undefined;
   const pin = pinOf?.(route.diff);
   // No flags in the pin key: the pin and the flags come from the same route data, so a pinned
   // page always carries its flags.
-  const pinned = pin && pinKey(pin);
+  const pinned = pin && pinKey(pin, outlined);
   const early = pinned ? await cache.get(pinned) : undefined;
   if (early) return early;
   const generated = generatedOf?.(route.diff) ?? new Set<string>();
@@ -344,7 +362,7 @@ export async function intentFor(
   const listed = await client.files();
   if (!listed.ok) return listed;
 
-  const key = await diffKey(listed.headSha, listed.files, generated);
+  const key = await diffKey(listed.headSha, listed.files, generated, outlined);
   // Only a pin naming the head these files were read at may file them.
   // ponytail: the worker keeps a PR's diff by head alone, so a retarget read while it is alive
   // files the old base's diff under the new pin; key the worker's diff by base too if that bites.
@@ -367,6 +385,7 @@ export async function intentFor(
       files: () => client.files(),
       fileContent: notingCutShort((path) => client.fileContent(path)),
       filePrefix: notingCutShort((path) => client.filePrefix(path)),
+      ...(headOutline && { headOutline: (path: string) => headOutline(route.diff, path) }),
     },
     onProgress,
     generated,
