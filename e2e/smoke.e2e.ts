@@ -217,6 +217,30 @@ test("a pull request mounts its sections in path-only mode", async ({ context, p
   await expect(page.locator(".gh-prism-whats-new")).toHaveCount(0);
 });
 
+test("creates no structural engine context while Structural is off", async ({
+  browserName,
+  context,
+  page,
+}) => {
+  test.skip(
+    browserName === "firefox",
+    "Playwright's Firefox exposes neither the background nor an add-on's workers, so this test can't list its contexts",
+  );
+  await serve(context, PR_URL, PR_BODY);
+  await page.goto(PR_URL);
+  const nav = page.getByRole("navigation", { name: "Changed files by section" });
+  await expect(nav.getByRole("heading", { name: "Implementation" })).toBeVisible();
+
+  const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
+  const contexts = await worker.evaluate(() =>
+    (globalThis as unknown as { chrome: WxtBrowser }).chrome.runtime.getContexts({
+      contextTypes: ["OFFSCREEN_DOCUMENT"],
+    }),
+  );
+
+  expect(contexts).toEqual([]);
+});
+
 test("a commit mounts its sections in path-only mode", async ({ context, page }) => {
   await serve(context, COMMIT_URL, COMMIT_BODY);
   await page.goto(COMMIT_URL);

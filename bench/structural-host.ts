@@ -44,6 +44,8 @@ const PR_DATA_PORT = "gh-prism:pr-data";
 const MAX_PING_MS = 25;
 // Short enough to wait out, long enough that the gaps between the bench's messages never stop it.
 const FIREFOX_IDLE_MS = 5000;
+// Past the offscreen document's 30 s idle close.
+const IDLE_WAIT_MS = 35_000;
 
 const BACKGROUND = `import { defineBackground } from "wxt/utils/define-background";
 import { serveBench } from "@/bench/structural-host/serve";
@@ -289,6 +291,19 @@ async function measure(page: Page) {
     largeRuns.push(await runWithPing(page, large, Math.random() * lastRunMs));
   }
 
+  await stopBackground(page);
+  const restart = await send<RunResult>(page, { op: "run", request: reference });
+
+  await page.waitForTimeout(IDLE_WAIT_MS);
+  const afterIdle = await send<{ loaded: boolean }>(page, { op: "state" });
+
+  const warnings =
+    browserName === "chromium"
+      ? await send<{ loaded: string[]; withoutOffscreen: string[] } | null>(page, {
+          op: "warnings",
+        })
+      : null;
+
   const maxWarmPingMs = Math.max(...warm.map((w) => w.pingMs));
   const maxLargePingMs = Math.max(...largeRuns.map((r) => r.pingMs));
   const warmPingsDuringRun = warm.filter((w) => w.pingDuringRun).length;
@@ -300,6 +315,11 @@ async function measure(page: Page) {
     warmOk: warm.every((w) => w.ok),
     pingWithinBound: Math.max(maxWarmPingMs, maxLargePingMs) <= MAX_PING_MS,
     warmPingsDuringRun: warmPingsDuringRun >= warm.length / 2,
+    restartOk: restart.ok,
+    idleDiscards: !afterIdle.loaded,
+    ...(warnings && {
+      noNewWarning: JSON.stringify(warnings.loaded) === JSON.stringify(warnings.withoutOffscreen),
+    }),
   };
   return {
     browser: browserName,
@@ -327,6 +347,9 @@ async function measure(page: Page) {
       maxPingMs: maxLargePingMs,
       runs: largeRuns,
     },
+    restart: { ok: restart.ok, reason: restart.reason, runMs: runMs(restart) },
+    afterIdle,
+    warnings,
   };
 }
 

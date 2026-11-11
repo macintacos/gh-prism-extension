@@ -11,6 +11,7 @@ export const BENCH_PORT = "gh-prism:bench";
 export type BenchMessage =
   | { id: number; op: "state" }
   | { id: number; op: "pings" }
+  | { id: number; op: "warnings" }
   | { id: number; op: "run"; request: StructuralRequest }
   | { id: number; op: "dropped"; request: StructuralRequest };
 
@@ -43,6 +44,8 @@ export function serveBench(): void {
         pingTimes = [];
         return { handled };
       }
+      case "warnings":
+        return permissionWarnings();
       case "run": {
         const start = performance.now();
         const result = await host(message.request, new AbortController().signal);
@@ -95,4 +98,22 @@ function engineContextProbe(): () => Promise<boolean> {
     }
   };
   return async () => constructed > 0;
+}
+
+/**
+ * Chrome's install warnings for the manifest as loaded and for it without `"offscreen"`, or null
+ * where `getPermissionWarningsByManifest` is unavailable.
+ */
+async function permissionWarnings() {
+  const management = (globalThis as { chrome?: typeof browser }).chrome?.management;
+  if (!management?.getPermissionWarningsByManifest) return null;
+  const manifest = browser.runtime.getManifest();
+  const without = {
+    ...manifest,
+    permissions: manifest.permissions?.filter((p) => p !== "offscreen"),
+  };
+  return {
+    loaded: await management.getPermissionWarningsByManifest(JSON.stringify(manifest)),
+    withoutOffscreen: await management.getPermissionWarningsByManifest(JSON.stringify(without)),
+  };
 }

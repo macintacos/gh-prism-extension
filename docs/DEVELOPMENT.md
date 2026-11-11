@@ -116,13 +116,16 @@ cancels them, never submitting one. Its last line reads `parity: all checks pass
 every check ran, and `parity: <N> checks passed, <M> not driven` otherwise.
 
 `bun bench/structural-host.ts <chromium|firefox>` benches the structural engine's host in
-the built extension: that the engine loads only on first use, a cold and a warm run, and
-how long a PR data port message waits while a run is in flight. It builds a scratch copy
-of the working tree with a test-only background addition and a relay content script,
-prints one JSON object, and exits 1 when a check fails. Like the rest of `bench/`, it
-stays out of CI. `bench/structural-host/results/*.json` hold one run per browser, written
-by `bun bench/structural-host.ts chromium > bench/structural-host/results/chromium.json`
-(and likewise for `firefox`); they are a dated record, not a baseline anything compares
+the built extension: that the engine loads only on first use, a cold and a warm run, how
+long a PR data port message waits while a run is in flight (at most 25 ms), that a run
+succeeds after the background restarts, and that the engine's context is gone after 35
+idle seconds. In Chromium it also checks that the `offscreen` permission adds no install
+warning. It builds a scratch copy of the working tree with a test-only background addition
+and a relay content script, prints one JSON object, and exits 1 when a check fails. Like
+the rest of `bench/`, it stays out of CI. `bench/structural-host/results/*.json` hold one
+run per browser, written by
+`bun bench/structural-host.ts chromium > bench/structural-host/results/chromium.json` (and
+likewise for `firefox`); they are a dated record, not a baseline anything compares
 against.
 
 ## Sandbox repositories
