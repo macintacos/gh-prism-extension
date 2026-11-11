@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { ENGINE_SCRIPT } from "../../../utils/structural/engine-script";
-import { loadEngineThread } from "../../../utils/structural/engine-thread";
+import { engineThread } from "../../../utils/structural/engine-thread";
 import { REQUEST } from "../../fixtures/structural-request";
 
 afterEach(() => {
@@ -10,7 +10,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe("loadEngineThread in Firefox", () => {
+describe("engineThread in Firefox", () => {
   it("constructs one Worker on the engine script at the first request", async () => {
     vi.stubEnv("BROWSER", "firefox");
     const urls: string[] = [];
@@ -28,7 +28,7 @@ describe("loadEngineThread in Firefox", () => {
       },
     );
 
-    const run = await loadEngineThread();
+    const run = engineThread();
     const urlsBeforeRequests = [...urls];
 
     void run(REQUEST, new AbortController().signal);
@@ -41,7 +41,7 @@ describe("loadEngineThread in Firefox", () => {
   });
 });
 
-describe("loadEngineThread in Chrome", () => {
+describe("engineThread in Chrome", () => {
   function stubOffscreen() {
     const createDocument = vi.fn(async () => {});
     const getContexts = vi.fn(async () => []);
@@ -56,7 +56,7 @@ describe("loadEngineThread in Chrome", () => {
   it("creates the offscreen document at the first request", async () => {
     const { createDocument } = stubOffscreen();
 
-    const run = await loadEngineThread();
+    const run = engineThread();
     await run(REQUEST, new AbortController().signal);
 
     expect(createDocument).toHaveBeenCalledExactlyOnceWith(
@@ -70,7 +70,7 @@ describe("loadEngineThread in Chrome", () => {
   it("calls nothing until a request arrives", async () => {
     const { createDocument, getContexts, sendMessage } = stubOffscreen();
 
-    await loadEngineThread();
+    engineThread();
 
     expect(createDocument).not.toHaveBeenCalled();
     expect(getContexts).not.toHaveBeenCalled();

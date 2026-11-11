@@ -1027,7 +1027,7 @@ utils/
     conversation-frame.ts  the per-tab session rule that lets only the Conversation panel frame a PR's Conversation tab, and the panel's request for it
   intent/                reading, caching, and landing intent
   hunk-rules/            the docstring and inline-test rules, and the generator-marker scan; a head is line-scanned, or built from a head outline when one is given
-  structural/            rebuilding a changed file's old text from its patch; the tree-sitter token-diff engine and its grammar table; outlining a head file's multi-line comments, strings, and test blocks from a parse; mapping an engine's structural changes onto diff lines; pairing a file's moved lines; the request shape a message carries, the runner that compiles the packaged WebAssembly, the one-at-a-time host, the engine Worker's message channel, Chrome's offscreen relay, the engine-thread loader, and the list of packaged files
+  structural/            rebuilding a changed file's old text from its patch; the tree-sitter token-diff engine and its grammar table; outlining a head file's multi-line comments, strings, and test blocks from a parse; mapping an engine's structural changes onto diff lines; pairing a file's moved lines; the request shape a message carries, the runner that compiles the packaged WebAssembly, the one-at-a-time host, the engine Worker's message channel, Chrome's offscreen relay, the engine thread the host runs requests on, and the list of packaged files
   sections.ts            path rules for the five sections
   prefs.ts               saved preferences
   whats-new.ts           when the what's-new block shows
