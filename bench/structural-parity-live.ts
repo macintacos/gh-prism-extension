@@ -152,10 +152,10 @@ interface Paint {
  * per-file counts under the file key `*`, with nothing known stale or outside a changed cell.
  */
 const paintOf = async (page: Page): Promise<Paint> => {
-  const read = await ask<ProbePaint>(page, { op: "paint" });
-  return read.perRange
-    ? read
-    : { perRange: false, byAnchor: { "*": read.total }, stale: 0, outsideChanged: 0 };
+  const probed = await ask<ProbePaint>(page, { op: "paint" });
+  return probed.perRange
+    ? probed
+    : { perRange: false, byAnchor: { "*": probed.total }, stale: 0, outsideChanged: 0 };
 };
 const rangeCount = (paint: Paint) => Object.values(paint.byAnchor).reduce((a, b) => a + b, 0);
 /** `anchor`'s ranges, or every range where only the total is known. */
@@ -331,7 +331,7 @@ async function storageWithoutIntent(page: Page): Promise<string> {
 /** 0a: this checkout with the mode off against a build of trunk, on PR3 and C1. */
 async function modeOffIsTrunk(page: Page, trunk: string | undefined): Promise<void> {
   if (!trunk) return notDriven("0a", "mode off is trunk", "no --trunk build given");
-  const seen = await trunkSignatures(trunk);
+  const trunkByUrl = await trunkSignatures(trunk);
   await ask(page, { op: "set", on: false });
   const storageBefore = await storageWithoutIntent(page);
   for (const url of [PR3, C1]) {
@@ -339,22 +339,22 @@ async function modeOffIsTrunk(page: Page, trunk: string | undefined): Promise<vo
       await open(page, url);
       const sig = await signature(page);
       const sizes = await toolbarSizes(page);
-      const was = seen.get(url);
+      const onTrunk = trunkByUrl.get(url);
       const traces = await structuralTraces(page);
       const paint = await paintOf(page);
       const offscreen = browserName === "chromium" ? await offscreenDocuments(page.context()) : 0;
-      const sameSizes = JSON.stringify(sizes) === JSON.stringify(was?.sizes);
+      const sameSizes = JSON.stringify(sizes) === JSON.stringify(onTrunk?.sizes);
       record(
         "0a",
         `mode off is trunk ${url}`,
-        sig === was?.sig &&
+        sig === onTrunk?.sig &&
           sameSizes &&
           traces.attributes + traces.notices + traces.sheets === 0 &&
           rangeCount(paint) === 0 &&
           offscreen === 0,
-        sig === was?.sig
-          ? JSON.stringify({ sameSizes, sizes, trunk: was?.sizes, ...traces, offscreen })
-          : `signature ${firstDifference(was?.sig ?? "", sig)}`,
+        sig === onTrunk?.sig
+          ? JSON.stringify({ sameSizes, sizes, trunk: onTrunk?.sizes, ...traces, offscreen })
+          : `signature ${firstDifference(onTrunk?.sig ?? "", sig)}`,
       );
     });
   }

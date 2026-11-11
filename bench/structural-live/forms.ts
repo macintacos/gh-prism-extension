@@ -47,8 +47,12 @@ export async function commentOn(
   const box = page.getByPlaceholder("Leave a comment").first();
   await box.fill("parity");
   await settle(page);
-  const left = await stale(page);
-  report.check(name, (await box.isVisible()) && left === 0, `(form open, stale ${left})`);
+  const staleRanges = await stale(page);
+  report.check(
+    name,
+    (await box.isVisible()) && staleRanges === 0,
+    `(form open, stale ${staleRanges})`,
+  );
   await page.getByRole("button", { name: "Cancel", exact: true }).first().click();
   await settle(page);
   report.check(`${name} cancelled`, (await page.getByPlaceholder("Leave a comment").count()) === 0);
