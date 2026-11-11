@@ -117,7 +117,10 @@ const structuralTraces = (page: Page) =>
     { attrs: STRUCTURAL_ATTRS, notices: NOTICES },
   );
 
-/** The text of gh-prism's node directly before `anchor`'s mounted table: `null` for none, `undefined` while unmounted. */
+/**
+ * The text of gh-prism's node directly before `anchor`'s mounted table: `null` for none,
+ * `undefined` while unmounted.
+ */
 const noticeBefore = (page: Page, anchor: string) =>
   page.evaluate(
     ({ anchor, notices }) => {

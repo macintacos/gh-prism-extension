@@ -37,7 +37,8 @@ export function noticeOf(
   return answer && outcome === "mismatch" ? "mismatch" : undefined;
 }
 
-// Keep in sync with structural-notices.css's selector, the notice's class string below, and the copies in e2e/smoke.e2e.ts and bench/structural-mode-live.ts.
+// Keep in sync with structural-notices.css's selector, the notice's class string below, and the
+// copies in e2e/smoke.e2e.ts and bench/structural-mode-live.ts.
 export const NOTICE_CLASS = "gh-prism-structural-notice";
 export const LOADING_CLASS = "gh-prism-structural-loading";
 export const KIND_ATTR = "data-gh-prism-structural-notice";
@@ -52,7 +53,7 @@ interface Want {
   readonly current: Element | undefined;
 }
 
-/** One pass's reads: each table's want, every path pending, and every node of ours under the diffs. */
+/** One pass's reads: each table's want, every pending path, and our nodes under the diffs. */
 interface Pass {
   readonly wants: readonly Want[];
   readonly pending: ReadonlySet<string>;
@@ -149,7 +150,8 @@ export function showStructuralNotices(
       );
     }
   };
-  // A settled pass writes nothing: each insertion wakes observeDiffs, so the next pass must be the last.
+  // A settled pass writes nothing: each insertion wakes observeDiffs, so the next pass must be the
+  // last.
   const pass = () => {
     const work = collect();
     apply(work);
