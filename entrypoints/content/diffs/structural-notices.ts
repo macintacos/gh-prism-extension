@@ -109,7 +109,7 @@ export function showStructuralNotices(
     const notice = el(
       doc,
       "p",
-      "gh-prism-structural-notice tw:m-0 tw:py-1 tw:px-4 tw:text-body-small tw:leading-body-small tw:text-fg-muted",
+      "gh-prism-structural-notice tw:m-0 tw:py-1 tw:ps-10 tw:pe-4 tw:text-body-small tw:leading-body-small tw:text-fg-muted",
       NOTICE_COPY[show],
     );
     notice.setAttribute(KIND_ATTR, show);
