@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ADDED_HIGHLIGHT } from "../../../entrypoints/content/diffs/structural";
+import { ADDED_HIGHLIGHT, type PaintOutcome } from "../../../entrypoints/content/diffs/structural";
 import type {
   StructuralAnswer,
   StructuralFiles,
@@ -23,24 +23,35 @@ const flush = () => vi.advanceTimersByTimeAsync(100);
 function fakeFiles() {
   const requested: string[] = [];
   const answers = new Map<string, StructuralAnswer>();
+  const pending = new Set<string>();
+  const outcomes = new Map<string, PaintOutcome>();
   const listeners = new Set<() => void>();
   const files: StructuralFiles = {
     request: (paths) => void requested.push(...paths),
     answerOf: (path) => answers.get(path),
-    pending: () => false,
+    pending: (path) => pending.has(path),
     onAnswer(listener, signal) {
       listeners.add(listener);
       signal.addEventListener("abort", () => listeners.delete(listener));
     },
-    report: () => {},
-    outcomeOf: () => undefined,
+    report: (path, outcome) => void outcomes.set(path, outcome),
+    outcomeOf: (path) => outcomes.get(path),
   };
-  const settle = (path: string, file: StructuralFile) => {
-    answers.set(path, { ok: true, file });
+  const answer = (path: string, settled: StructuralAnswer) => {
+    pending.delete(path);
+    answers.set(path, settled);
     for (const listener of listeners) listener();
   };
-  return { files, requested, settle };
+  const settle = (path: string, file: StructuralFile) => answer(path, { ok: true, file });
+  return { files, requested, pending, answer, settle };
 }
+
+const ours = (diffs: Element) =>
+  diffs.querySelectorAll(".gh-prism-structural-notice, .gh-prism-structural-loading");
+const notices = (diffs: Element) =>
+  [...diffs.querySelectorAll(".gh-prism-structural-notice")].map((notice) =>
+    notice.getAttribute("data-gh-prism-notice"),
+  );
 
 /** `files-page-diff-rename` with its deleted rows removed, leaving an all-additions table. */
 function allAdditions(): string {
@@ -120,6 +131,10 @@ describe("showStructural", () => {
 
   it("mounts nothing and requests nothing on a page already in Unified", async () => {
     const diffs = mountDiffs(prRename);
+    fake.answer(anchorOfTable(tables(diffs)[0] as HTMLTableElement), {
+      ok: false,
+      problem: "failed",
+    });
 
     const view = show(diffs);
     view.sections?.(sectionsOf(diffs), new Set());
@@ -129,7 +144,87 @@ describe("showStructural", () => {
     expect(unifiedSeen).toHaveBeenCalledTimes(1);
     expect(stub.highlights.size).toBe(0);
     expect(document.head.querySelector("style")).toBeNull();
+    expect(ours(diffs)).toHaveLength(0);
     expect(fake.requested).toEqual([]);
+  });
+
+  /** A split page shown with its sections fed, and its first table's path. */
+  const showSplit = () => {
+    const diffs = mountDiffs(prSplit);
+    const view = show(diffs);
+    view.sections?.(sectionsOf(diffs), new Set());
+    const table = tables(diffs)[0];
+    if (!table) throw new Error("no table");
+    return { diffs, view, table, path: anchorOfTable(table) };
+  };
+
+  it("shows a failed answer's notice once it settles", async () => {
+    const { diffs, path } = showSplit();
+    await flush();
+
+    fake.answer(path, { ok: false, problem: "failed" });
+    await flush();
+
+    expect(notices(diffs)).toEqual(["failed"]);
+  });
+
+  it("shows no notice for a not-applicable answer", async () => {
+    const { diffs, path } = showSplit();
+
+    fake.answer(path, { ok: false, problem: "not-applicable" });
+    await flush();
+
+    expect(ours(diffs)).toHaveLength(0);
+  });
+
+  it("shows the mismatch notice and no highlight for an answer whose text differs from the table's", async () => {
+    const { diffs, table, path } = showSplit();
+
+    fake.settle(path, { ...fileOf(table), text: { old: {}, new: {} } });
+    await flush();
+
+    expect(notices(diffs)).toEqual(["mismatch"]);
+    expect((stub.highlights.get(ADDED_HIGHLIGHT) as HighlightStub | undefined)?.size ?? 0).toBe(0);
+  });
+
+  it("shows a requested file's loading line after 150 ms, until its answer settles", async () => {
+    const { diffs, view, table, path } = showSplit();
+    fake.pending.add(path);
+    view.onScreen(new Set([path]));
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(diffs.querySelector(".gh-prism-structural-loading")).toBeNull();
+
+    await vi.advanceTimersByTimeAsync(200);
+
+    expect(diffs.querySelector(".gh-prism-structural-loading")).not.toBeNull();
+
+    fake.settle(path, fileOf(table));
+    await flush();
+
+    expect(ours(diffs)).toHaveLength(0);
+  });
+
+  const showNotice = (path: string) => fake.answer(path, { ok: false, problem: "failed" });
+  const showLoading = (path: string) => void fake.pending.add(path);
+  const endMode = () => until.abort();
+  const endPage = () => visit.abort();
+  it.for([
+    { shown: "notice", mark: showNotice, ending: "the mode turns off", end: endMode },
+    { shown: "notice", mark: showNotice, ending: "the page ends", end: endPage },
+    { shown: "loading line", mark: showLoading, ending: "the mode turns off", end: endMode },
+    { shown: "loading line", mark: showLoading, ending: "the page ends", end: endPage },
+  ])("removes its $shown when $ending", async ({ mark, end }) => {
+    const { diffs, view, path } = showSplit();
+    mark(path);
+    view.onScreen(new Set([path]));
+    await vi.advanceTimersByTimeAsync(300);
+    expect(ours(diffs)).toHaveLength(1);
+
+    end();
+    await flush();
+
+    expect(ours(diffs)).toHaveLength(0);
   });
 
   it("requests exactly the on-screen paths on a split page", () => {

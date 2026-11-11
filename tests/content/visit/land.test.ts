@@ -384,6 +384,9 @@ describe("structural mode on a visit", () => {
 
     expect(stub.highlights.size).toBe(0);
     expect(structuralMarks()).toHaveLength(0);
+    expect(
+      document.querySelector(".gh-prism-structural-notice, .gh-prism-structural-loading"),
+    ).toBeNull();
   });
 
   it("registers both highlights when the visit is given structural mode", async () => {

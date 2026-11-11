@@ -2,6 +2,7 @@ import { currentLayout, type FilesPage, observeDiffs, showsUnified } from "../fi
 import type { FileSection, LandingView } from "../visit/land";
 import { paintStructural } from "./structural";
 import type { StructuralFiles } from "./structural-files";
+import { noticeOf, showStructuralNotices } from "./structural-notices";
 
 /** What a visit gives each of its pages to show Structural mode. */
 export interface StructuralMode {
@@ -54,7 +55,8 @@ export type StructuralView = LandingView & { onScreen(paths: ReadonlySet<string>
 
 /**
  * Shows Structural mode on `page` until `signal` or `mode.until` aborts: requests the on-screen
- * files while the diffs read Split, and paints each answer as it settles. Mounts nothing when the
+ * files while the diffs read Split, paints each answer as it settles, and shows each file's
+ * fallback notice or held-back loading line beside its diff. Mounts nothing when the
  * page already shows Unified or either signal has already aborted, and tells `mode.unifiedSeen`
  * once Unified is seen.
  */
@@ -72,12 +74,21 @@ export function showStructural(
     return { onScreen: () => {} };
   }
 
+  const notices = showStructuralNotices(page.diffs, live, (path) =>
+    mode.files.pending(path)
+      ? "pending"
+      : noticeOf(mode.files.answerOf(path), mode.files.outcomeOf(path)),
+  );
   const painter = paintStructural(page.diffs, live, {
     annotationsOf: (path) => {
       const answer = mode.files.answerOf(path);
       return answer?.ok ? answer.file : undefined;
     },
-    report: mode.files.report,
+    // Nothing else announces an outcome change to the notices.
+    report: (path, outcome) => {
+      mode.files.report(path, outcome);
+      notices.refresh();
+    },
   });
 
   let onScreen: ReadonlySet<string> = new Set();
@@ -86,14 +97,19 @@ export function showStructural(
   // text) files nor cancelled when it leaves; drop or deprioritise off-screen requests if a fast
   // scroll through a large pull request backs up the background's gate.
   const requestIfSplit = () => {
-    if (currentLayout(page.diffs) === "split") mode.files.request(onScreen);
+    if (currentLayout(page.diffs) !== "split") return;
+    mode.files.request(onScreen);
+    notices.refresh();
   };
 
   observeDiffs(page.diffs, () => (unified() ? mode.unifiedSeen() : requestIfSplit()), {
     signal: live,
   });
   // The painter repaints only when told; a settled answer tells it through this re-call.
-  mode.files.onAnswer(() => lastSections && painter.sections?.(...lastSections), live);
+  mode.files.onAnswer(() => {
+    if (lastSections) painter.sections?.(...lastSections);
+    notices.refresh();
+  }, live);
 
   return {
     onScreen(paths) {
@@ -103,6 +119,7 @@ export function showStructural(
     sections(...args) {
       lastSections = args;
       painter.sections?.(...args);
+      notices.sections?.(...args);
     },
   };
 }
