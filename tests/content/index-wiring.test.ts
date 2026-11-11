@@ -397,20 +397,19 @@ describe("content script", () => {
       await fakeBrowser.storage.sync.set({ structuralMode: true });
       await run();
       const first = structuralOf(0);
+
       first?.files.request(["a.ts"]);
-
-      expect(connectPrData).toHaveBeenCalledOnce();
-      expect(connectPrData).toHaveBeenCalledWith(readFilesRoute(PR)?.diff);
-
+      const firstAsked = vi.mocked(connectPrData).mock.calls.slice();
       history.pushState(null, "", "/o/r/pull/2/changes");
       document.dispatchEvent(new Event("soft-nav:end"));
       await afterMutations();
+      const next = structuralOf(-1);
+      next?.files.request(["a.ts"]);
+
+      expect(firstAsked).toEqual([[readFilesRoute(PR)?.diff]]);
       const client = vi.mocked(connectPrData).mock.results[0]?.value as PrDataClient;
       expect(client.close).toHaveBeenCalledOnce();
-
-      const next = structuralOf(-1);
       expect(next?.files).not.toBe(first?.files);
-      next?.files.request(["a.ts"]);
       expect(connectPrData).toHaveBeenCalledTimes(2);
     });
 
@@ -429,6 +428,15 @@ describe("content script", () => {
           structuralMode: false,
         }),
       );
+    });
+
+    it("gives a commit-filtered pull request page no Structural mode", async () => {
+      await fakeBrowser.storage.sync.set({ structuralMode: true });
+      history.replaceState(null, "", `${PR}/dd95cdc`);
+
+      await run();
+
+      expect(structuralOf(0)).toBeUndefined();
     });
 
     it("gives no page of an off visit Structural mode", async () => {

@@ -39,6 +39,7 @@ import {
   loadHeaderFixture,
   openOverlay,
 } from "../../fixtures/files-page";
+import prSplit from "../../fixtures/files-page-diff-split.html?raw";
 import { stubHighlights } from "../../fixtures/highlights";
 import { landedWith, pendingIntent, whole } from "../../fixtures/intent";
 import {
@@ -391,7 +392,7 @@ describe("structural mode on a visit", () => {
     expect([...stub.highlights.keys()]).toEqual([ADDED_HIGHLIGHT, REMOVED_HIGHLIGHT]);
   });
 
-  it("still marks the on-screen files in the sidebar when given structural mode", async () => {
+  it("marks the on-screen files in the sidebar and asks Structural mode for them", async () => {
     let fire: IntersectionObserverCallback = () => {};
     vi.stubGlobal(
       "IntersectionObserver",
@@ -408,11 +409,16 @@ describe("structural mode on a visit", () => {
       id: anchorOf(linkTo("src/lib.rs")),
     });
     region.setAttribute("role", "region");
+    region.innerHTML = prSplit;
     const entry = document.createElement("div");
     entry.append(region);
     diffList().append(entry);
+    const request = vi.fn<(paths: Iterable<string>) => void>();
+    const structural = structuralMode();
 
-    remountWith(() => Promise.resolve(result), undefined, { structural: structuralMode() });
+    remountWith(() => Promise.resolve(result), undefined, {
+      structural: { ...structural, files: { ...structural.files, request } },
+    });
     await afterDebounce();
     fire(
       [{ target: region, isIntersecting: true } as unknown as IntersectionObserverEntry],
@@ -421,6 +427,7 @@ describe("structural mode on a visit", () => {
 
     const docs = document.querySelector('.gh-prism-section[data-section="docs"]');
     expect(docs?.hasAttribute("data-on-screen")).toBe(true);
+    expect(request).toHaveBeenLastCalledWith(new Set(["src/lib.rs"]));
   });
 });
 

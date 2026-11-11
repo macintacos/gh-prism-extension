@@ -4,28 +4,23 @@ import type { PrFileDiff } from "../../../utils/github/pr-diff";
 import type { PrHeadAndFilesResult } from "../../../utils/github/pr-source";
 import type { FileChangesResult } from "../../../utils/structural/file-changes";
 
-/** A promise and the function that settles it. */
-function held<T>() {
-  let settle!: (value: T) => void;
-  const promise = new Promise<T>((resolve) => {
-    settle = resolve;
-  });
-  return { promise, settle };
-}
-
+/** A client whose listing, like the real one's, is shared until it answers a problem. */
 function fakeClient() {
-  const listing = held<PrHeadAndFilesResult>();
-  const answers = new Map<string, ReturnType<typeof held<FileChangesResult>>>();
-  const client = {
-    files: vi.fn(() => listing.promise),
-    structural: vi.fn((path: string) => {
-      const answer = held<FileChangesResult>();
-      answers.set(path, answer);
-      return answer.promise;
-    }),
-    close: vi.fn(),
+  const fake = {
+    listing: Promise.withResolvers<PrHeadAndFilesResult>(),
+    answers: new Map<string, PromiseWithResolvers<FileChangesResult>>(),
+    client: {
+      files: vi.fn(() => fake.listing.promise),
+      structural: vi.fn((path: string) => {
+        const answer = Promise.withResolvers<FileChangesResult>();
+        fake.answers.set(path, answer);
+        return answer.promise;
+      }),
+      close: vi.fn(),
+    },
+    connect: vi.fn(() => fake.client),
   };
-  return { client, listing, answers, connect: vi.fn(() => client) };
+  return fake;
 }
 
 function textFile(path: string, patch: string): PrFileDiff {
@@ -42,8 +37,10 @@ async function settle(
   result: FileChangesResult,
   files: PrHeadAndFilesResult = { ok: true, headSha: "abc", files: [textFile(path, PATCH)] },
 ) {
-  fake.listing.settle(files);
-  fake.answers.get(path)?.settle(result);
+  const listing = fake.listing;
+  if (!files.ok) fake.listing = Promise.withResolvers();
+  listing.resolve(files);
+  fake.answers.get(path)?.resolve(result);
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
@@ -52,13 +49,14 @@ describe("structuralFiles", () => {
     const fake = fakeClient();
     const files = structuralFiles(fake.connect, new AbortController().signal);
 
-    expect(fake.connect).not.toHaveBeenCalled();
+    const connectedBefore = fake.connect.mock.calls.length;
     files.request(["a.ts"]);
 
+    expect(connectedBefore).toBe(0);
     expect(fake.connect).toHaveBeenCalledTimes(1);
   });
 
-  it("asks each new path once and lists the files once", () => {
+  it("asks each new path once", () => {
     const fake = fakeClient();
     const files = structuralFiles(fake.connect, new AbortController().signal);
 
@@ -66,8 +64,19 @@ describe("structuralFiles", () => {
     files.request(["a.ts"]);
 
     expect(fake.client.structural.mock.calls).toEqual([["a.ts"], ["b.ts"]]);
-    expect(fake.client.files).toHaveBeenCalledTimes(1);
     expect(fake.connect).toHaveBeenCalledTimes(1);
+  });
+
+  it("lists the files afresh for a path asked after a listing failed", async () => {
+    const fake = fakeClient();
+    const files = structuralFiles(fake.connect, new AbortController().signal);
+    files.request(["a.ts"]);
+    await settle(fake, "a.ts", NO_CHANGES, { ok: false, problem: "rate-limited" });
+
+    files.request(["b.ts"]);
+    await settle(fake, "b.ts", NO_CHANGES);
+
+    expect(files.answerOf("b.ts")).toMatchObject({ ok: true });
   });
 
   it("asks a settled path nothing more", async () => {

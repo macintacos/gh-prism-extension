@@ -16,8 +16,8 @@ export interface StructuralFiles {
   request(paths: Iterable<string>): void;
   /** The settled answer for `path`, the same object on every call; `undefined` until it settles. */
   answerOf(path: string): StructuralAnswer | undefined;
-  /** Calls `listener` after each answer settles, until `signal` aborts. */
-  onAnswer(listener: () => void, signal: AbortSignal): void;
+  /** Calls `listener` after each answer settles, until `until` aborts or the visit ends. */
+  onAnswer(listener: () => void, until: AbortSignal): void;
   /** Records the painter's latest outcome for `path`. */
   report(path: string, outcome: PaintOutcome): void;
   /** The painter's latest outcome for `path`. */
@@ -42,15 +42,17 @@ function answerFor(
   return file ? { ok: true, file } : FAILED;
 }
 
-/** `connect` is called on the first request; its client is closed when `signal` aborts. */
+/**
+ * `connect` is called on the first request; its client is closed when `signal` aborts. Nothing that
+ * settles after `signal` aborts is kept or announced.
+ */
 export function structuralFiles(
   connect: () => StructuralClient,
   signal: AbortSignal,
 ): StructuralFiles {
   let client: StructuralClient | undefined;
-  let listing: Promise<PrHeadAndFilesResult> | undefined;
   const asked = new Set<string>();
-  // ponytail: every answer, `failed` included (a Worker restart, say), is kept until the next
+  // ponytail: a file's answer, `failed` included (a Worker restart, say), is kept until the next
   // visit; retry a failed one when the notices need to.
   const answers = new Map<string, StructuralAnswer>();
   const listeners = new Set<() => void>();
@@ -66,8 +68,7 @@ export function structuralFiles(
 
   const ask = (path: string) => {
     const port = opened();
-    listing ??= port.files();
-    void Promise.all([port.structural(path), listing]).then(([changes, files]) => {
+    void Promise.all([port.structural(path), port.files()]).then(([changes, files]) => {
       if (signal.aborted) return;
       answers.set(path, answerFor(path, changes, files));
       for (const listener of listeners) listener();

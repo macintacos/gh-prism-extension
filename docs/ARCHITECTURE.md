@@ -944,10 +944,15 @@ it only while Structural mode is on, so the default path mounts no `<style>`, re
 highlight, and adds no observer.
 
 Structural mode is saved as `structuralMode` in [`utils/prefs.ts`](../utils/prefs.ts).
-`index.ts` reads it before watching, narrowing it with `=== true`, into a choice shared by
-every visit, and does not watch it live: another tab's change shows on its next full load.
-While it is off, a visit builds nothing. While it is on, a visit builds its
-`StructuralMode` on its first page: `structuralFiles` in
+`index.ts` reads it before watching, narrowing it with `=== true`, and builds one
+`StructuralChoice` with `structuralChoiceOf`, both in
+[`diffs/structural-mode.ts`](../entrypoints/content/diffs/structural-mode.ts), shared by
+every visit. It does not watch the saved value live: another tab's change shows on its
+next full load. The choice holds `on`; `whileOn`, a signal that aborts when the mode next
+turns off and is already aborted while it is off; and `set(on)`, which records and saves
+the value. While it is off, or on a commit-filtered pull request page, a visit builds
+nothing. While it is on, a visit builds its `StructuralMode` on its first page, living
+until the visit or `whileOn` aborts: `structuralFiles` in
 [`diffs/structural-files.ts`](../entrypoints/content/diffs/structural-files.ts) opens the
 visit's own port on the first request, asks for each on-screen file once, keeps every
 answer until the visit ends, and closes the port when the visit aborts, so a soft
@@ -955,9 +960,9 @@ navigation cancels in-flight engine work. `showStructural` in
 [`diffs/structural-mode.ts`](../entrypoints/content/diffs/structural-mode.ts) requests the
 files `followOnScreen` reports while the diffs read Split, and, when an answer settles,
 calls the painter's `sections` again with its last arguments, which is how a late answer
-gets painted. Once it sees GitHub's Unified layout, it turns the choice off and saves it
-off, ending the visit's mode, so later pages mount nothing. The head outline is still set
-by nothing.
+gets painted. Once it sees GitHub's Unified layout, it calls `set(false)`, which saves the
+choice off and aborts `whileOn`, ending the visit's mode and the page's paint, so later
+pages mount nothing. Nothing sets the head outline yet.
 
 The painter takes a `StructuralPainting`. Its `annotationsOf(path)` returns a file's
 `StructuralFile` from [`utils/structural/changes.ts`](../utils/structural/changes.ts): the

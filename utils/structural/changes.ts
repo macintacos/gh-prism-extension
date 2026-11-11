@@ -54,12 +54,7 @@ export interface StructuralFile {
   readonly text: { readonly old: TextByLine; readonly new: TextByLine };
 }
 
-/**
- * Annotations for the `+` and `-` lines of `hunks`. A span on any other line is dropped: context
- * text is the same on both sides, so a token reported there is the engine's mismatch, not a
- * change. Columns are passed through unchecked: `changes` must come from the texts these hunks
- * describe. `undefined` when a hunk's body cannot be read.
- */
+/** {@link structuralFile}'s annotations alone. */
 export function annotateLines(
   changes: StructuralChanges,
   hunks: readonly PrHunk[],
@@ -68,8 +63,11 @@ export function annotateLines(
 }
 
 /**
- * {@link annotateLines}'s annotations with each annotated line's text from `hunks`, without its
- * line terminator. `undefined` when a hunk's body cannot be read.
+ * Annotations for the `+` and `-` lines of `hunks`, with each annotated line's text from `hunks`,
+ * without its line terminator. A span on any other line is dropped: context text is the same on
+ * both sides, so a token reported there is the engine's mismatch, not a change. Columns are passed
+ * through unchecked: `changes` must come from the texts these hunks describe. `undefined` when a
+ * hunk's body cannot be read.
  */
 export function structuralFile(
   changes: StructuralChanges,

@@ -9,12 +9,11 @@
  * Builds a scratch copy of the working tree with a bench-only content script that sets and reads
  * the preference and asks the port for a file's answer. Choosing Unified changes the account's
  * saved Layout; the run chooses the original again before it ends, on failure too. Prints one line
- * per check, ends with `mismatch: <n> of <m>`, writes the same lines to
- * `bench/structural-mode-live/results/<browser>.txt`, and exits 1 on a failed assertion.
+ * per check, ends with `mismatch: <n> of <m>`, and exits 1 on a failed assertion.
  */
 
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type BrowserContext, chromium, firefox, type Page } from "@playwright/test";
@@ -30,6 +29,7 @@ if ((browserName !== "chromium" && browserName !== "firefox") || !state) {
   );
   process.exit(1);
 }
+const statePath: string = state;
 
 const SANDBOX = "https://github.com/macintacos/gh-prism-sandbox";
 const PR4 = `${SANDBOX}/pull/4/changes`;
@@ -49,11 +49,7 @@ import { probe } from "@/bench/structural-mode-live/probe";
 export default defineContentScript({ matches: ["https://github.com/*"], main: probe });
 `;
 
-const lines: string[] = [];
-const log = (line: string) => {
-  lines.push(line);
-  console.log(line);
-};
+const log = (line: string) => console.log(line);
 
 class Failure extends Error {}
 
@@ -65,7 +61,10 @@ function check(name: string, ok: boolean, detail = ""): void {
 /** GitHub's anchor for a file's diff: `diff-` and the SHA-256 of its path. */
 const anchorOf = (path: string) => `diff-${createHash("sha256").update(path).digest("hex")}`;
 
-/** Asks the probe content script, retrying until it answers, and returns its result. */
+/**
+ * Asks the probe content script, retrying until it answers, and returns its result as `T`
+ * unchecked: the caller names the type the probe's `op` replies with.
+ */
 async function ask<T>(page: Page, request: ProbeRequest, timeoutMs = 60_000): Promise<T> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
@@ -294,12 +293,15 @@ function gearLayout(page: Page): LayoutChoice {
 const unifiedInSearch = (page: Page) =>
   page.evaluate(() => new URLSearchParams(location.search).get("diff") === "unified");
 
-/** Pass 3: choosing Unified from the gear on pull request #4 turns the preference off. */
-async function unifiedTurnsOff(page: Page): Promise<void> {
+/**
+ * Pass 3: choosing Unified from the gear on pull request #4 turns the preference off. Returns the
+ * Layout saved before it.
+ */
+async function unifiedTurnsOff(page: Page): Promise<Layout> {
   // The menu's checked item follows the layout on screen, so the saved one reads without `?diff=`.
   await load(page, PR4);
   const layout = gearLayout(page);
-  await withLayoutRestored(layout, async (original) => {
+  const original = await withLayoutRestored(layout, async (original) => {
     log(`layout before: ${original}`);
     // A saved Unified on that load already turned the preference off.
     await ask(page, { op: "set", on: true });
@@ -335,11 +337,13 @@ async function unifiedTurnsOff(page: Page): Promise<void> {
         `split: location.search still holds diff=unified: ${await unifiedInSearch(page)} (${await page.evaluate(() => location.search)})`,
       );
     }
+    return original;
   });
   if ((await layout.read()) === "split")
     log(
       `split restored: location.search still holds diff=unified: ${await unifiedInSearch(page)} (${await page.evaluate(() => location.search)})`,
     );
+  return original;
 }
 
 async function launch(build: string, profile: string): Promise<BrowserContext> {
@@ -352,7 +356,7 @@ async function launch(build: string, profile: string): Promise<BrowserContext> {
           viewport,
           args: [`--disable-extensions-except=${build}`, `--load-extension=${build}`],
         });
-  const { cookies } = JSON.parse(readFileSync(state as string, "utf8")) as {
+  const { cookies } = JSON.parse(readFileSync(statePath, "utf8")) as {
     cookies: Parameters<BrowserContext["addCookies"]>[0];
   };
   await context.addCookies(cookies);
@@ -374,10 +378,10 @@ try {
   );
   await modeOff(page);
   await modeOn(page);
-  await unifiedTurnsOff(page);
+  const before = await unifiedTurnsOff(page);
   await load(page, PR4);
   const after = await gearLayout(page).read();
-  check("layout as found", lines.includes(`layout before: ${after}`), `(after: ${after})`);
+  check("layout as found", after === before, `(before: ${before}, after: ${after})`);
 } catch (error) {
   log(error instanceof Failure ? error.message : String(error));
   process.exitCode = 1;
@@ -385,7 +389,4 @@ try {
   await context?.close();
   rmSync(copy, { recursive: true, force: true });
   rmSync(profile, { recursive: true, force: true });
-  const results = join(import.meta.dirname, "structural-mode-live/results");
-  mkdirSync(results, { recursive: true });
-  writeFileSync(join(results, `${browserName}.txt`), `${lines.join("\n")}\n`);
 }

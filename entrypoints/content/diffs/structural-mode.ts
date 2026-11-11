@@ -8,11 +8,45 @@ export interface StructuralMode {
   readonly files: StructuralFiles;
   /** Aborts when the visit ends or the mode turns off. */
   readonly until: AbortSignal;
+  /** Whether the visit is a commit's page, where three columns always mean Unified. */
   readonly commit: boolean;
   /** The page's current `location.search`. */
   readonly search: () => string;
-  /** Called once when GitHub's Unified layout is seen. */
+  /** Called once when GitHub's Unified layout is seen; must turn the mode off, aborting `until`. */
   readonly unifiedSeen: () => void;
+}
+
+/** Whether Structural mode is on, shared by every visit. */
+export interface StructuralChoice {
+  readonly on: boolean;
+  /** Aborts when the mode next turns off; a new signal each time it turns on. */
+  readonly whileOn: AbortSignal;
+  /** Sets and saves the mode; turning it off aborts `whileOn`. */
+  set(on: boolean): void;
+}
+
+/** A Structural choice starting at `on`, saving each change through `save`. */
+export function structuralChoiceOf(on: boolean, save: (on: boolean) => void): StructuralChoice {
+  let current = on ? new AbortController() : undefined;
+  let whileOn = current?.signal ?? AbortSignal.abort();
+  return {
+    get on() {
+      return current !== undefined;
+    },
+    get whileOn() {
+      return whileOn;
+    },
+    set(next) {
+      if (next && !current) {
+        current = new AbortController();
+        whileOn = current.signal;
+      } else if (!next) {
+        current?.abort();
+        current = undefined;
+      }
+      save(next);
+    },
+  };
 }
 
 /** The painter's view, plus the tap `showVisit` feeds the on-screen paths into. */
@@ -21,7 +55,8 @@ export type StructuralView = LandingView & { onScreen(paths: ReadonlySet<string>
 /**
  * Shows Structural mode on `page` until `signal` or `mode.until` aborts: requests the on-screen
  * files while the diffs read Split, and paints each answer as it settles. Mounts nothing when the
- * page already shows Unified, and tells `mode.unifiedSeen` once Unified is seen.
+ * page already shows Unified or either signal has already aborted, and tells `mode.unifiedSeen`
+ * once Unified is seen.
  */
 export function showStructural(
   page: Pick<FilesPage, "diffs">,
@@ -30,6 +65,7 @@ export function showStructural(
 ): StructuralView {
   const live = AbortSignal.any([signal, mode.until]);
   const unified = () => showsUnified(page.diffs, { commit: mode.commit, search: mode.search() });
+
   if (live.aborted) return { onScreen: () => {} };
   if (unified()) {
     mode.unifiedSeen();
@@ -43,24 +79,21 @@ export function showStructural(
     },
     report: mode.files.report,
   });
+
   let onScreen: ReadonlySet<string> = new Set();
   let lastSections: [readonly FileSection[], ReadonlySet<string>] | undefined;
+  // ponytail: every path that crosses the screen is asked once, never narrowed to painted (Split,
+  // text) files nor cancelled when it leaves; drop or deprioritise off-screen requests if a fast
+  // scroll through a large pull request backs up the background's gate.
   const requestIfSplit = () => {
     if (currentLayout(page.diffs) === "split") mode.files.request(onScreen);
   };
 
-  let seen = false;
-  observeDiffs(
-    page.diffs,
-    () => {
-      if (seen) return;
-      if (unified()) {
-        seen = true;
-        mode.unifiedSeen();
-      } else requestIfSplit();
-    },
-    { signal: live },
-  );
+  observeDiffs(page.diffs, () => (unified() ? mode.unifiedSeen() : requestIfSplit()), {
+    signal: live,
+  });
+  // The painter repaints only when told; a settled answer tells it through this re-call.
+  mode.files.onAnswer(() => lastSections && painter.sections?.(...lastSections), live);
 
   return {
     onScreen(paths) {
@@ -68,9 +101,6 @@ export function showStructural(
       if (!live.aborted) requestIfSplit();
     },
     sections(...args) {
-      // The painter repaints only when told; a settled answer tells it through this re-call.
-      if (!lastSections)
-        mode.files.onAnswer(() => lastSections && painter.sections?.(...lastSections), live);
       lastSections = args;
       painter.sections?.(...args);
     },

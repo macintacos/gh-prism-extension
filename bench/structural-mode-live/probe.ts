@@ -1,10 +1,12 @@
+/** Bench-only content script body that `bench/scratch-build.ts` wraps; it must never ship. */
+
 import { ADDED_HIGHLIGHT, REMOVED_HIGHLIGHT } from "@/entrypoints/content/diffs/structural";
 import { structuralFiles } from "@/entrypoints/content/diffs/structural-files";
 import { readFilesRoute } from "@/utils/github/files-route";
 import { connectPrData } from "@/utils/github/pr-port";
 import { structuralMode } from "@/utils/prefs";
 
-/** A request the live bench posts to the page; `n` pairs it with its reply. */
+/** A request the live bench posts to the page. */
 export type ProbeRequest =
   | { readonly op: "set"; readonly on: boolean }
   | { readonly op: "get" }

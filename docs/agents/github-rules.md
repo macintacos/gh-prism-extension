@@ -483,7 +483,8 @@ on a private one.
   without a parameter, in one Chromium 157 session on 2026-11-10. The account stores it: a
   choice saved in Chromium 156 showed on Firefox 157's next load, and the reverse (signed
   in, 2026-11-10). Choosing Unified back restored it. With Unified saved, a pull request
-  loaded without `?diff=` draws Unified, which turns the Structural preference off.
+  loaded without `?diff=` draws Unified, which turns the Structural preference off once a
+  two-sided file mounts.
 - **Use `?diff=split` when the menu can't be driven.** It switches a pull request and a
   commit to split for that load only: a reload without it returns to the saved layout.
   `?diff=unified` loads unified even with Split saved, and loading either value doesn't

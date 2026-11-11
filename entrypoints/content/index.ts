@@ -65,7 +65,11 @@ import {
 import { showReviewerFiles } from "./conversation/reviewer-files";
 import { hashLanding } from "./diffs/reveal";
 import { structuralFiles } from "./diffs/structural-files";
-import type { StructuralMode } from "./diffs/structural-mode";
+import {
+  type StructuralChoice,
+  type StructuralMode,
+  structuralChoiceOf,
+} from "./diffs/structural-mode";
 import { visitViewed } from "./diffs/viewed";
 import { findCommentAuthors, findFilesCommentAuthors, followRightPanel } from "./files-page";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
@@ -141,11 +145,8 @@ export default defineContentScript({
       choice: diffstatChoiceOf(savedDiffstat),
       save: saveDiffstat,
     } satisfies DiffstatOptions;
-    // Shared by every visit; a later control reads and sets it.
-    const structural: StructuralChoice = {
-      choice: { on: savedStructural === true },
-      save: saveStructural,
-    };
+    // Shared by every visit, so Unified seen on one keeps the next one off.
+    const structural = structuralChoiceOf(savedStructural === true, saveStructural);
     const notice: NoticeChoice = { dismissed };
     const conversation = conversationChoiceOf(
       { pinned: savedPinned, open: savedOpen, width: savedConversationWidth },
@@ -234,10 +235,11 @@ export default defineContentScript({
               : undefined;
           const prOwnersGuard = panel && prOwnersPressGuard(document, visit);
           const landHash = hashLanding(document, visit);
-          // Built on first use while on, and afresh once turned off, so nothing runs while off.
+          // Built on a page's first use while on, and again if the mode is turned back on in this
+          // visit; never while off.
           let mode: StructuralMode | undefined;
           const structuralFor = () => {
-            if (!structural.choice.on) return undefined;
+            if (!structural.on || route.commitFiltered) return undefined;
             if (!mode || mode.until.aborted) {
               mode = structuralModeOf(structural, {
                 connect: () => sources.connect(route.diff),
@@ -551,12 +553,6 @@ const saveMessageHidden = (hidden: boolean) =>
       console.error("gh-prism: saving whether the commit message is hidden failed", error),
     );
 
-/** Whether Structural mode is on, shared by every visit. */
-interface StructuralChoice {
-  readonly choice: { on: boolean };
-  readonly save: (on: boolean) => void;
-}
-
 /** Whether Structural mode was left on, unchecked, or off when storage won't read. */
 const readSavedStructural = (): Promise<unknown> =>
   structuralMode.getValue().catch((error: unknown) => {
@@ -579,18 +575,13 @@ function structuralModeOf(
   structural: StructuralChoice,
   { connect, commit, visit }: { connect: () => PrDataClient; commit: boolean; visit: AbortSignal },
 ): StructuralMode {
-  const off = new AbortController();
-  const until = AbortSignal.any([visit, off.signal]);
+  const until = AbortSignal.any([visit, structural.whileOn]);
   return {
     files: structuralFiles(connect, until),
     until,
     commit,
     search: () => location.search,
-    unifiedSeen: () => {
-      structural.choice.on = false;
-      structural.save(false);
-      off.abort();
-    },
+    unifiedSeen: () => structural.set(false),
   };
 }
 

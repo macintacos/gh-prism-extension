@@ -8,6 +8,7 @@ import type {
 import {
   type StructuralMode,
   showStructural,
+  structuralChoiceOf,
 } from "../../../entrypoints/content/diffs/structural-mode";
 import { changedCells, type DiffSide } from "../../../entrypoints/content/files-page";
 import type { FileSection } from "../../../entrypoints/content/visit/land";
@@ -97,6 +98,25 @@ function fileOf(table: HTMLTableElement): StructuralFile {
   return { annotations, text };
 }
 
+describe("structuralChoiceOf", () => {
+  it("gives a fresh live signal when turned back on, and saves each setting", () => {
+    const save = vi.fn<(on: boolean) => void>();
+    const structural = structuralChoiceOf(false, save);
+    const atLoad = structural.whileOn;
+
+    structural.set(true);
+    const on = structural.whileOn;
+    const liveWhileOn = !on.aborted;
+    structural.set(false);
+
+    expect(atLoad.aborted).toBe(true);
+    expect(liveWhileOn).toBe(true);
+    expect(on.aborted).toBe(true);
+    expect(structural.on).toBe(false);
+    expect(save.mock.calls).toEqual([[true], [false]]);
+  });
+});
+
 describe("showStructural", () => {
   let stub: ReturnType<typeof stubHighlights>;
   let visit: AbortController;
@@ -109,7 +129,7 @@ describe("showStructural", () => {
     stub = stubHighlights();
     visit = new AbortController();
     until = new AbortController();
-    unifiedSeen = vi.fn<() => void>();
+    unifiedSeen = vi.fn<() => void>(() => until.abort());
     fake = fakeFiles();
   });
 
@@ -132,6 +152,7 @@ describe("showStructural", () => {
 
   it("mounts nothing and requests nothing on a page already in Unified", async () => {
     const diffs = mountDiffs(prRename);
+
     const view = show(diffs);
     view.sections?.(sectionsOf(diffs), new Set());
     view.onScreen(new Set(["a.ts"]));

@@ -78,7 +78,10 @@ export const commitMessageHidden = storage.defineItem<boolean>("sync:commitMessa
   fallback: false,
 });
 
-/** Whether the user turned Structural mode on; Chrome sync carries it to their other computers when on. */
+/**
+ * Whether the user last left Structural mode on; Chrome sync carries it to their other computers
+ * when on.
+ */
 export const structuralMode = storage.defineItem<boolean>("sync:structuralMode", {
   fallback: false,
 });
