@@ -17,159 +17,159 @@
   },
   "cold": {
     "ok": true,
-    "runMs": 65,
+    "runMs": 60,
     "pingDelayMs": 5,
-    "pingMs": 1,
+    "pingMs": 2,
     "pingDuringRun": true
   },
   "secondGrammar": {
     "ok": true,
     "runMs": 18
   },
-  "idlePingMedianMs": 1,
-  "idlePingsMs": [0, 0, 1, 1, 1, 1, 1, 0, 1, 1],
+  "idlePingMedianMs": 0,
+  "idlePingsMs": [0, 0, 0, 0, 1, 1, 0, 1, 0, 1],
   "warm": {
-    "medianWarmUpRunMs": 37,
+    "medianWarmUpRunMs": 30,
     "maxPingMs": 1,
-    "pingsDuringRun": 15,
+    "pingsDuringRun": 17,
     "runs": [
       {
         "ok": true,
-        "runMs": 36,
-        "pingDelayMs": 33.965666340357046,
+        "runMs": 30,
+        "pingDelayMs": 10.70907088613707,
+        "pingMs": 1,
+        "pingDuringRun": true
+      },
+      {
+        "ok": true,
+        "runMs": 29,
+        "pingDelayMs": 4.7524575885264895,
+        "pingMs": 1,
+        "pingDuringRun": true
+      },
+      {
+        "ok": true,
+        "runMs": 30,
+        "pingDelayMs": 3.9201108438545704,
+        "pingMs": 1,
+        "pingDuringRun": true
+      },
+      {
+        "ok": true,
+        "runMs": 30,
+        "pingDelayMs": 12.893744713517226,
+        "pingMs": 0,
+        "pingDuringRun": true
+      },
+      {
+        "ok": true,
+        "runMs": 29,
+        "pingDelayMs": 24.125754658503094,
         "pingMs": 1,
         "pingDuringRun": false
       },
       {
         "ok": true,
-        "runMs": 38,
-        "pingDelayMs": 24.710037824007532,
-        "pingMs": 1,
-        "pingDuringRun": true
-      },
-      {
-        "ok": true,
-        "runMs": 36,
-        "pingDelayMs": 10.329762768456108,
+        "runMs": 30,
+        "pingDelayMs": 22.649613244209203,
         "pingMs": 0,
         "pingDuringRun": true
       },
       {
         "ok": true,
-        "runMs": 38,
-        "pingDelayMs": 34.401525619487224,
+        "runMs": 30,
+        "pingDelayMs": 0.8137242223682994,
+        "pingMs": 1,
+        "pingDuringRun": true
+      },
+      {
+        "ok": true,
+        "runMs": 30,
+        "pingDelayMs": 2.2547806649068836,
+        "pingMs": 1,
+        "pingDuringRun": true
+      },
+      {
+        "ok": true,
+        "runMs": 31,
+        "pingDelayMs": 9.912531290434618,
+        "pingMs": 0,
+        "pingDuringRun": true
+      },
+      {
+        "ok": true,
+        "runMs": 31,
+        "pingDelayMs": 19.49021052822445,
+        "pingMs": 0,
+        "pingDuringRun": true
+      },
+      {
+        "ok": true,
+        "runMs": 29,
+        "pingDelayMs": 27.461383974294492,
         "pingMs": 1,
         "pingDuringRun": false
       },
       {
         "ok": true,
-        "runMs": 37,
-        "pingDelayMs": 15.446024213309194,
+        "runMs": 31,
+        "pingDelayMs": 7.542376531840887,
+        "pingMs": 0,
+        "pingDuringRun": true
+      },
+      {
+        "ok": true,
+        "runMs": 32,
+        "pingDelayMs": 10.389730319369349,
+        "pingMs": 0,
+        "pingDuringRun": true
+      },
+      {
+        "ok": true,
+        "runMs": 31,
+        "pingDelayMs": 18.497805957505527,
+        "pingMs": 0,
+        "pingDuringRun": true
+      },
+      {
+        "ok": true,
+        "runMs": 30,
+        "pingDelayMs": 21.64322510559699,
+        "pingMs": 0,
+        "pingDuringRun": true
+      },
+      {
+        "ok": true,
+        "runMs": 30,
+        "pingDelayMs": 0.8279053252577928,
         "pingMs": 1,
         "pingDuringRun": true
       },
       {
         "ok": true,
-        "runMs": 36,
-        "pingDelayMs": 29.349995278728397,
+        "runMs": 30,
+        "pingDelayMs": 0.7458206869425754,
+        "pingMs": 1,
+        "pingDuringRun": true
+      },
+      {
+        "ok": true,
+        "runMs": 31,
+        "pingDelayMs": 26.591522238360223,
         "pingMs": 1,
         "pingDuringRun": false
       },
       {
         "ok": true,
-        "runMs": 36,
-        "pingDelayMs": 4.993976723985211,
-        "pingMs": 1,
-        "pingDuringRun": true
-      },
-      {
-        "ok": true,
-        "runMs": 36,
-        "pingDelayMs": 2.9572328021369234,
+        "runMs": 30,
+        "pingDelayMs": 15.198122380939916,
         "pingMs": 0,
         "pingDuringRun": true
       },
       {
         "ok": true,
-        "runMs": 36,
-        "pingDelayMs": 33.48353538526186,
-        "pingMs": 1,
-        "pingDuringRun": false
-      },
-      {
-        "ok": true,
-        "runMs": 34,
-        "pingDelayMs": 5.605856866365978,
-        "pingMs": 0,
-        "pingDuringRun": true
-      },
-      {
-        "ok": true,
-        "runMs": 36,
-        "pingDelayMs": 0.060933043018132294,
-        "pingMs": 1,
-        "pingDuringRun": true
-      },
-      {
-        "ok": true,
-        "runMs": 37,
-        "pingDelayMs": 18.783115751957325,
-        "pingMs": 0,
-        "pingDuringRun": true
-      },
-      {
-        "ok": true,
-        "runMs": 38,
-        "pingDelayMs": 31.18230753521344,
-        "pingMs": 0,
-        "pingDuringRun": true
-      },
-      {
-        "ok": true,
-        "runMs": 37,
-        "pingDelayMs": 21.03917356311732,
-        "pingMs": 1,
-        "pingDuringRun": true
-      },
-      {
-        "ok": true,
-        "runMs": 37,
-        "pingDelayMs": 1.719574680937098,
-        "pingMs": 0,
-        "pingDuringRun": true
-      },
-      {
-        "ok": true,
-        "runMs": 36,
-        "pingDelayMs": 3.9220835229692343,
-        "pingMs": 1,
-        "pingDuringRun": true
-      },
-      {
-        "ok": true,
-        "runMs": 36,
-        "pingDelayMs": 20.540408884438396,
-        "pingMs": 1,
-        "pingDuringRun": true
-      },
-      {
-        "ok": true,
-        "runMs": 38,
-        "pingDelayMs": 30.322469900677017,
-        "pingMs": 1,
-        "pingDuringRun": false
-      },
-      {
-        "ok": true,
-        "runMs": 37,
-        "pingDelayMs": 35.08215298130496,
-        "pingMs": 0,
-        "pingDuringRun": true
-      },
-      {
-        "ok": true,
-        "runMs": 35,
-        "pingDelayMs": 18.739674831096202,
+        "runMs": 29,
+        "pingDelayMs": 1.944757543340433,
         "pingMs": 1,
         "pingDuringRun": true
       }
@@ -182,13 +182,13 @@
   "large": {
     "lines": 5357,
     "results": ["too-large"],
-    "maxPingMs": 2,
+    "maxPingMs": 3,
     "runs": [
       {
         "ok": false,
         "reason": "too-large",
         "runMs": 5,
-        "pingDelayMs": 118.84540972183353,
+        "pingDelayMs": 133.16046937207284,
         "pingMs": 1,
         "pingDuringRun": false
       },
@@ -196,71 +196,7 @@
         "ok": false,
         "reason": "too-large",
         "runMs": 6,
-        "pingDelayMs": 1.1010114278554695,
-        "pingMs": 2,
-        "pingDuringRun": true
-      },
-      {
-        "ok": false,
-        "reason": "too-large",
-        "runMs": 5,
-        "pingDelayMs": 5.457783844637381,
-        "pingMs": 0,
-        "pingDuringRun": false
-      },
-      {
-        "ok": false,
-        "reason": "too-large",
-        "runMs": 6,
-        "pingDelayMs": 1.6800107620947924,
-        "pingMs": 1,
-        "pingDuringRun": true
-      },
-      {
-        "ok": false,
-        "reason": "too-large",
-        "runMs": 7,
-        "pingDelayMs": 1.8378308051653447,
-        "pingMs": 1,
-        "pingDuringRun": true
-      },
-      {
-        "ok": false,
-        "reason": "too-large",
-        "runMs": 5,
-        "pingDelayMs": 2.6171724667375824,
-        "pingMs": 0,
-        "pingDuringRun": true
-      },
-      {
-        "ok": false,
-        "reason": "too-large",
-        "runMs": 4,
-        "pingDelayMs": 3.133616001858936,
-        "pingMs": 1,
-        "pingDuringRun": true
-      },
-      {
-        "ok": false,
-        "reason": "too-large",
-        "runMs": 6,
-        "pingDelayMs": 3.283874242305868,
-        "pingMs": 0,
-        "pingDuringRun": true
-      },
-      {
-        "ok": false,
-        "reason": "too-large",
-        "runMs": 4,
-        "pingDelayMs": 2.6645014355218173,
-        "pingMs": 1,
-        "pingDuringRun": true
-      },
-      {
-        "ok": false,
-        "reason": "too-large",
-        "runMs": 6,
-        "pingDelayMs": 0.26505315412065444,
+        "pingDelayMs": 1.094118421183417,
         "pingMs": 2,
         "pingDuringRun": true
       },
@@ -268,23 +204,87 @@
         "ok": false,
         "reason": "too-large",
         "runMs": 6,
-        "pingDelayMs": 4.386163263177746,
+        "pingDelayMs": 0.9626653800233691,
+        "pingMs": 3,
+        "pingDuringRun": true
+      },
+      {
+        "ok": false,
+        "reason": "too-large",
+        "runMs": 5,
+        "pingDelayMs": 4.611192810327745,
         "pingMs": 1,
         "pingDuringRun": true
       },
       {
         "ok": false,
         "reason": "too-large",
-        "runMs": 7,
-        "pingDelayMs": 1.0990474237542232,
+        "runMs": 6,
+        "pingDelayMs": 4.252132136292944,
         "pingMs": 1,
+        "pingDuringRun": true
+      },
+      {
+        "ok": false,
+        "reason": "too-large",
+        "runMs": 5,
+        "pingDelayMs": 1.6730548322420757,
+        "pingMs": 0,
+        "pingDuringRun": true
+      },
+      {
+        "ok": false,
+        "reason": "too-large",
+        "runMs": 5,
+        "pingDelayMs": 4.6804563689426955,
+        "pingMs": 1,
+        "pingDuringRun": true
+      },
+      {
+        "ok": false,
+        "reason": "too-large",
+        "runMs": 6,
+        "pingDelayMs": 2.9326037170561787,
+        "pingMs": 1,
+        "pingDuringRun": true
+      },
+      {
+        "ok": false,
+        "reason": "too-large",
+        "runMs": 5,
+        "pingDelayMs": 2.438021980293919,
+        "pingMs": 0,
+        "pingDuringRun": true
+      },
+      {
+        "ok": false,
+        "reason": "too-large",
+        "runMs": 6,
+        "pingDelayMs": 4.558702667218924,
+        "pingMs": 0,
+        "pingDuringRun": true
+      },
+      {
+        "ok": false,
+        "reason": "too-large",
+        "runMs": 5,
+        "pingDelayMs": 4.750201869109912,
+        "pingMs": 0,
+        "pingDuringRun": true
+      },
+      {
+        "ok": false,
+        "reason": "too-large",
+        "runMs": 5,
+        "pingDelayMs": 2.8437705299058162,
+        "pingMs": 0,
         "pingDuringRun": true
       }
     ]
   },
   "restart": {
     "ok": true,
-    "runMs": 70
+    "runMs": 68
   },
   "afterIdle": {
     "loaded": false

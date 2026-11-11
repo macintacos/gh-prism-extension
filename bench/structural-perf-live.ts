@@ -140,7 +140,8 @@ async function scrollFrames({
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(from));
     const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
     const selector = `[data-diff-anchor="diff-${hex}"], #diff-${hex}`;
-    // The list grows as it mounts, so the page's end counts only after 5 s without growth.
+    // The list grows as it mounts, and GitHub can pause for several seconds between batches, so
+    // the page's end counts only after 30 s without growth.
     let stuck = 0;
     for (;;) {
       const file = document.querySelector(selector);
@@ -150,7 +151,7 @@ async function scrollFrames({
       }
       const atEnd = scrollY + innerHeight >= document.documentElement.scrollHeight - 1;
       stuck = atEnd ? stuck + 1 : 0;
-      if (stuck > 50) throw new Error(`${from} never mounted`);
+      if (stuck > 300) throw new Error(`${from} never mounted`);
       scrollBy(0, 2000);
       await new Promise((done) => setTimeout(done, 100));
     }
@@ -224,6 +225,22 @@ async function settled(page: Page) {
     if (state.first && state.now - state.last >= QUIET_MS) return state;
   }
   throw new Error(`the load did not settle within ${LOAD_TIMEOUT_MS / 1000} s`);
+}
+
+/**
+ * `measure`, tried up to three times: after several loads of a very large pull request GitHub
+ * sometimes stops short of the whole file list, so the start file never mounts.
+ */
+async function measureWithRetry(variant: Variant): Promise<Run> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await measure(variant);
+    } catch (error) {
+      if (attempt === 3 || !(error instanceof Error && error.message.includes("never mounted")))
+        throw error;
+      console.error(`${variant}: ${error.message.split("\n")[0]}; loading again`);
+    }
+  }
 }
 
 async function measure(variant: Variant): Promise<Run> {
@@ -329,7 +346,7 @@ console.log(`url: ${url}, timed scroll from ${start ?? "the top"}`);
 const results = Object.fromEntries(variants.map((v) => [v, [] as Run[]])) as Record<Variant, Run[]>;
 for (let index = 0; index < runs; index++)
   for (const variant of rotated(index)) {
-    const run = await measure(variant);
+    const run = await measureWithRetry(variant);
     results[variant].push(run);
     console.error(
       `run ${index + 1} ${variant}: loadMs=${onPull ? Math.round(run.loadMs) : "n/a"} p95=${fixed(percentile(run.frames, 95))} frames=${run.frames.length} errors=${run.errors.length}`,

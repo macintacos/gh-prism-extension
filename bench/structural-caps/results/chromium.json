@@ -11,7 +11,7 @@
   "tooSlowWithinCaps": [],
   "heap": {
     "beforeFirstSample": 620316,
-    "peak": 80932504
+    "peak": 83558288
   },
   "samples": [
     {
@@ -30,12 +30,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 0.5499999523162842,
-      "defaultsDiffMs": 0.14999985694885254,
-      "liftedMedianMs": 0.5,
-      "liftedMaxMs": 0.5,
-      "parseMsPerSide": 0.20000004768371582,
-      "diffMs": 0.09999990463256836
+      "defaultsMedianMs": 0.40000000037252903,
+      "defaultsDiffMs": 0.09999999962747097,
+      "liftedMedianMs": 0.3999999985098839,
+      "liftedMaxMs": 1,
+      "parseMsPerSide": 0.15000000037252903,
+      "diffMs": 0.09999999776482582
     },
     {
       "name": "fixture:python/reindent.py.txt",
@@ -53,12 +53,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 0.5,
-      "defaultsDiffMs": 0,
-      "liftedMedianMs": 0.40000009536743164,
-      "liftedMaxMs": 0.40000009536743164,
-      "parseMsPerSide": 0.25,
-      "diffMs": -0.09999990463256836
+      "defaultsMedianMs": 0.34999999962747097,
+      "defaultsDiffMs": 0.04999999888241291,
+      "liftedMedianMs": 0.2999999988824129,
+      "liftedMaxMs": 0.40000000037252903,
+      "parseMsPerSide": 0.15000000037252903,
+      "diffMs": -1.862645149230957e-9
     },
     {
       "name": "fixture:python/rewrap.py.txt",
@@ -76,12 +76,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 0.40000009536743164,
-      "defaultsDiffMs": 0.10000014305114746,
-      "liftedMedianMs": 0.5,
-      "liftedMaxMs": 0.5999999046325684,
-      "parseMsPerSide": 0.1499999761581421,
-      "diffMs": 0.20000004768371582
+      "defaultsMedianMs": 0.30000000074505806,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 0.30000000074505806,
+      "liftedMaxMs": 0.30000000074505806,
+      "parseMsPerSide": 0.15000000037252903,
+      "diffMs": 0
     },
     {
       "name": "fixture:python/parse-error.py.txt",
@@ -99,12 +99,12 @@
       "outcomes": {
         "failed": 20
       },
-      "defaultsMedianMs": 0.34999990463256836,
-      "defaultsDiffMs": -0.04999995231628418,
-      "liftedMedianMs": 0.2999999523162842,
-      "liftedMaxMs": 0.6000001430511475,
-      "parseMsPerSide": 0.19999992847442627,
-      "diffMs": -0.09999990463256836
+      "defaultsMedianMs": 0.2000000011175871,
+      "defaultsDiffMs": -0.09999999776482582,
+      "liftedMedianMs": 0.19999999925494194,
+      "liftedMaxMs": 0.2999999988824129,
+      "parseMsPerSide": 0.14999999944120646,
+      "diffMs": -0.09999999962747097
     },
     {
       "name": "fixture:python/added-argument.py.txt",
@@ -122,12 +122,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 0.3999999761581421,
-      "defaultsDiffMs": 0.10000002384185791,
-      "liftedMedianMs": 0.40000009536743164,
-      "liftedMaxMs": 0.6000001430511475,
-      "parseMsPerSide": 0.1499999761581421,
-      "diffMs": 0.10000014305114746
+      "defaultsMedianMs": 0.2999999988824129,
+      "defaultsDiffMs": -1.862645149230957e-9,
+      "liftedMedianMs": 0.30000000074505806,
+      "liftedMaxMs": 0.5,
+      "parseMsPerSide": 0.15000000037252903,
+      "diffMs": 0
     },
     {
       "name": "fixture:python/moved-out-of-block.py.txt",
@@ -145,12 +145,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 0.3500000238418579,
-      "defaultsDiffMs": -0.04999983310699463,
-      "liftedMedianMs": 0.40000009536743164,
-      "liftedMaxMs": 0.5999999046325684,
-      "parseMsPerSide": 0.19999992847442627,
-      "diffMs": 2.384185791015625e-7
+      "defaultsMedianMs": 0.30000000074505806,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 0.2000000011175871,
+      "liftedMaxMs": 0.30000000074505806,
+      "parseMsPerSide": 0.15000000037252903,
+      "diffMs": -0.09999999962747097
     },
     {
       "name": "fixture:tsx/reindent.tsx.txt",
@@ -168,11 +168,11 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 0.5,
-      "defaultsDiffMs": 0.09999990463256836,
-      "liftedMedianMs": 0.40000009536743164,
-      "liftedMaxMs": 0.5,
-      "parseMsPerSide": 0.20000004768371582,
+      "defaultsMedianMs": 0.40000000037252903,
+      "defaultsDiffMs": 0.09999999962747097,
+      "liftedMedianMs": 0.30000000074505806,
+      "liftedMaxMs": 0.40000000037252903,
+      "parseMsPerSide": 0.15000000037252903,
       "diffMs": 0
     },
     {
@@ -191,12 +191,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 0.30000007152557373,
-      "defaultsDiffMs": -1.1920928955078125e-7,
-      "liftedMedianMs": 0.2999999523162842,
-      "liftedMaxMs": 0.3000001907348633,
-      "parseMsPerSide": 0.15000009536743164,
-      "diffMs": -2.384185791015625e-7
+      "defaultsMedianMs": 0.2000000011175871,
+      "defaultsDiffMs": 1.862645149230957e-9,
+      "liftedMedianMs": 0.30000000074505806,
+      "liftedMaxMs": 0.40000000037252903,
+      "parseMsPerSide": 0.09999999962747097,
+      "diffMs": 0.10000000149011612
     },
     {
       "name": "fixture:tsx/rewrap.tsx.txt",
@@ -214,12 +214,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 0.40000009536743164,
+      "defaultsMedianMs": 0.30000000074505806,
       "defaultsDiffMs": 0,
-      "liftedMedianMs": 0.3000001907348633,
-      "liftedMaxMs": 0.40000009536743164,
-      "parseMsPerSide": 0.20000004768371582,
-      "diffMs": -0.09999990463256836
+      "liftedMedianMs": 0.2999999988824129,
+      "liftedMaxMs": 0.40000000037252903,
+      "parseMsPerSide": 0.15000000037252903,
+      "diffMs": -1.862645149230957e-9
     },
     {
       "name": "fixture:tsx/rename.tsx.txt",
@@ -237,12 +237,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 0.39999985694885254,
-      "defaultsDiffMs": 0.09999990463256836,
-      "liftedMedianMs": 0.39999985694885254,
-      "liftedMaxMs": 0.40000009536743164,
-      "parseMsPerSide": 0.1499999761581421,
-      "diffMs": 0.09999990463256836
+      "defaultsMedianMs": 0.30000000074505806,
+      "defaultsDiffMs": 0.09999999962747097,
+      "liftedMedianMs": 0.30000000074505806,
+      "liftedMaxMs": 0.40000000037252903,
+      "parseMsPerSide": 0.10000000055879354,
+      "diffMs": 0.09999999962747097
     },
     {
       "name": "fixture:tsx/parse-error.tsx.txt",
@@ -260,12 +260,12 @@
       "outcomes": {
         "failed": 20
       },
-      "defaultsMedianMs": 0.39999985694885254,
-      "defaultsDiffMs": 0.09999990463256836,
-      "liftedMedianMs": 0.2999999523162842,
-      "liftedMaxMs": 0.40000009536743164,
-      "parseMsPerSide": 0.1499999761581421,
-      "diffMs": 0
+      "defaultsMedianMs": 0.2999999988824129,
+      "defaultsDiffMs": 0.09999999776482582,
+      "liftedMedianMs": 0.19999999925494194,
+      "liftedMaxMs": 0.30000000074505806,
+      "parseMsPerSide": 0.10000000055879354,
+      "diffMs": -1.862645149230957e-9
     },
     {
       "name": "fixture:typescript/rename.ts.txt",
@@ -283,12 +283,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 0.39999985694885254,
-      "defaultsDiffMs": 0.09999966621398926,
-      "liftedMedianMs": 0.2999999523162842,
-      "liftedMaxMs": 0.40000009536743164,
-      "parseMsPerSide": 0.15000009536743164,
-      "diffMs": -2.384185791015625e-7
+      "defaultsMedianMs": 0.2999999998137355,
+      "defaultsDiffMs": 9.313225746154785e-10,
+      "liftedMedianMs": 0.2000000011175871,
+      "liftedMaxMs": 0.30000000074505806,
+      "parseMsPerSide": 0.14999999944120646,
+      "diffMs": -0.09999999776482582
     },
     {
       "name": "fixture:typescript/rewrap.ts.txt",
@@ -306,12 +306,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 0.40000009536743164,
+      "defaultsMedianMs": 0.30000000074505806,
       "defaultsDiffMs": 0,
-      "liftedMedianMs": 0.40000009536743164,
-      "liftedMaxMs": 0.5,
-      "parseMsPerSide": 0.20000004768371582,
-      "diffMs": 0
+      "liftedMedianMs": 0.2999999988824129,
+      "liftedMaxMs": 0.30000000074505806,
+      "parseMsPerSide": 0.15000000037252903,
+      "diffMs": -1.862645149230957e-9
     },
     {
       "name": "fixture:typescript/reindent.ts.txt",
@@ -329,12 +329,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 0.40000009536743164,
-      "defaultsDiffMs": 2.384185791015625e-7,
-      "liftedMedianMs": 0.40000009536743164,
-      "liftedMaxMs": 0.5,
-      "parseMsPerSide": 0.19999992847442627,
-      "diffMs": 2.384185791015625e-7
+      "defaultsMedianMs": 0.30000000074505806,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 0.30000000074505806,
+      "liftedMaxMs": 0.30000000074505806,
+      "parseMsPerSide": 0.15000000037252903,
+      "diffMs": 0
     },
     {
       "name": "fixture:typescript/added-argument.ts.txt",
@@ -352,12 +352,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 0.39999985694885254,
-      "defaultsDiffMs": 0.09999966621398926,
-      "liftedMedianMs": 0.2999999523162842,
-      "liftedMaxMs": 0.39999985694885254,
-      "parseMsPerSide": 0.15000009536743164,
-      "diffMs": -2.384185791015625e-7
+      "defaultsMedianMs": 0.25,
+      "defaultsDiffMs": -0.04999999888241291,
+      "liftedMedianMs": 0.30000000074505806,
+      "liftedMaxMs": 0.30000000074505806,
+      "parseMsPerSide": 0.14999999944120646,
+      "diffMs": 1.862645149230957e-9
     },
     {
       "name": "fixture:typescript/parse-error.ts.txt",
@@ -375,12 +375,12 @@
       "outcomes": {
         "failed": 20
       },
-      "defaultsMedianMs": 0.2999999523162842,
+      "defaultsMedianMs": 0.2000000011175871,
       "defaultsDiffMs": 0,
-      "liftedMedianMs": 0.2999999523162842,
-      "liftedMaxMs": 0.40000009536743164,
-      "parseMsPerSide": 0.1499999761581421,
-      "diffMs": 0
+      "liftedMedianMs": 0.19999999925494194,
+      "liftedMaxMs": 0.30000000074505806,
+      "parseMsPerSide": 0.10000000055879354,
+      "diffMs": -1.862645149230957e-9
     },
     {
       "name": "fixture:javascript/added-argument.js.txt",
@@ -398,12 +398,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 0.39999985694885254,
-      "defaultsDiffMs": 0.09999966621398926,
-      "liftedMedianMs": 0.2999999523162842,
-      "liftedMaxMs": 0.3000001907348633,
-      "parseMsPerSide": 0.15000009536743164,
-      "diffMs": -2.384185791015625e-7
+      "defaultsMedianMs": 0.2999999988824129,
+      "defaultsDiffMs": 0.09999999776482582,
+      "liftedMedianMs": 0.2999999988824129,
+      "liftedMaxMs": 0.30000000074505806,
+      "parseMsPerSide": 0.10000000055879354,
+      "diffMs": 0.09999999776482582
     },
     {
       "name": "fixture:javascript/parse-error.js.txt",
@@ -421,12 +421,12 @@
       "outcomes": {
         "failed": 20
       },
-      "defaultsMedianMs": 0.2999999523162842,
-      "defaultsDiffMs": -2.384185791015625e-7,
-      "liftedMedianMs": 0.2999999523162842,
-      "liftedMaxMs": 0.40000009536743164,
-      "parseMsPerSide": 0.15000009536743164,
-      "diffMs": -2.384185791015625e-7
+      "defaultsMedianMs": 0.30000000074505806,
+      "defaultsDiffMs": 0.09999999962747097,
+      "liftedMedianMs": 0.2000000011175871,
+      "liftedMaxMs": 0.2999999988824129,
+      "parseMsPerSide": 0.10000000055879354,
+      "diffMs": 0
     },
     {
       "name": "fixture:javascript/reindent.js.txt",
@@ -444,12 +444,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 0.3500000238418579,
-      "defaultsDiffMs": 0.05000007152557373,
-      "liftedMedianMs": 0.40000009536743164,
-      "liftedMaxMs": 0.40000009536743164,
-      "parseMsPerSide": 0.1499999761581421,
-      "diffMs": 0.10000014305114746
+      "defaultsMedianMs": 0.2999999988824129,
+      "defaultsDiffMs": -1.862645149230957e-9,
+      "liftedMedianMs": 0.30000000074505806,
+      "liftedMaxMs": 0.3999999985098839,
+      "parseMsPerSide": 0.15000000037252903,
+      "diffMs": 0
     },
     {
       "name": "fixture:javascript/rewrap.js.txt",
@@ -467,12 +467,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 0.39999985694885254,
-      "defaultsDiffMs": 0.09999966621398926,
-      "liftedMedianMs": 0.3000001907348633,
-      "liftedMaxMs": 0.40000009536743164,
-      "parseMsPerSide": 0.15000009536743164,
-      "diffMs": 0
+      "defaultsMedianMs": 0.2000000011175871,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 0.2999999988824129,
+      "liftedMaxMs": 0.30000000074505806,
+      "parseMsPerSide": 0.10000000055879354,
+      "diffMs": 0.09999999776482582
     },
     {
       "name": "fixture:javascript/rename.js.txt",
@@ -490,12 +490,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 0.2999999523162842,
-      "defaultsDiffMs": -0.09999990463256836,
-      "liftedMedianMs": 0.39999985694885254,
-      "liftedMaxMs": 0.40000009536743164,
-      "parseMsPerSide": 0.19999992847442627,
-      "diffMs": 0
+      "defaultsMedianMs": 0.20000000018626451,
+      "defaultsDiffMs": -0.0999999986961484,
+      "liftedMedianMs": 0.19999999925494194,
+      "liftedMaxMs": 0.2000000011175871,
+      "parseMsPerSide": 0.14999999944120646,
+      "diffMs": -0.09999999962747097
     },
     {
       "name": "pr:deps/npm/tap-snapshots/test/lib/docs.js.test.cjs",
@@ -513,12 +513,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 2.700000047683716,
-      "defaultsDiffMs": -13.099999904632568,
-      "liftedMedianMs": 18.200000047683716,
-      "liftedMaxMs": 21.300000190734863,
-      "parseMsPerSide": 7.899999976158142,
-      "diffMs": 2.4000000953674316
+      "defaultsMedianMs": 2.199999999254942,
+      "defaultsDiffMs": -8.900000000372529,
+      "liftedMedianMs": 13.199999999254942,
+      "liftedMaxMs": 15,
+      "parseMsPerSide": 5.5499999998137355,
+      "diffMs": 2.099999999627471
     },
     {
       "name": "pr:deps/npm/test/lib/commands/ls.js",
@@ -536,12 +536,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 1.25,
-      "defaultsDiffMs": -45.15000009536743,
-      "liftedMedianMs": 49.60000014305115,
-      "liftedMaxMs": 52.09999990463257,
-      "parseMsPerSide": 23.200000047683716,
-      "diffMs": 3.200000047683716
+      "defaultsMedianMs": 1,
+      "defaultsDiffMs": -32.40000000037253,
+      "liftedMedianMs": 35.59999999962747,
+      "liftedMaxMs": 36.5,
+      "parseMsPerSide": 16.700000000186265,
+      "diffMs": 2.199999999254942
     },
     {
       "name": "pr:deps/npm/node_modules/@npmcli/config/lib/definitions/definitions.js",
@@ -559,12 +559,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 21.350000023841858,
-      "defaultsDiffMs": 0.45000016689300537,
-      "liftedMedianMs": 22.700000047683716,
-      "liftedMaxMs": 23.200000047683716,
-      "parseMsPerSide": 10.449999928474426,
-      "diffMs": 1.8000001907348633
+      "defaultsMedianMs": 16.09999999962747,
+      "defaultsDiffMs": 1.099999999627471,
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 17.199999999254942,
+      "parseMsPerSide": 7.5,
+      "diffMs": 1
     },
     {
       "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/arborist/reify.js",
@@ -582,12 +582,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 23.899999856948853,
-      "defaultsDiffMs": -0.3000001907348633,
-      "liftedMedianMs": 23.700000047683716,
-      "liftedMaxMs": 25,
-      "parseMsPerSide": 12.100000023841858,
-      "diffMs": -0.5
+      "defaultsMedianMs": 17.40000000037253,
+      "defaultsDiffMs": 0.6999999992549419,
+      "liftedMedianMs": 17.300000000745058,
+      "liftedMaxMs": 18.699999999254942,
+      "parseMsPerSide": 8.350000000558794,
+      "diffMs": 0.599999999627471
     },
     {
       "name": "pr:deps/npm/test/lib/commands/audit.js",
@@ -605,12 +605,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 26.699999928474426,
-      "defaultsDiffMs": 1.1999999284744263,
-      "liftedMedianMs": 26.399999856948853,
-      "liftedMaxMs": 27.100000143051147,
-      "parseMsPerSide": 12.75,
-      "diffMs": 0.8999998569488525
+      "defaultsMedianMs": 18.950000000186265,
+      "defaultsDiffMs": 0.14999999944120646,
+      "liftedMedianMs": 18.800000000745058,
+      "liftedMaxMs": 19,
+      "parseMsPerSide": 9.400000000372529,
+      "diffMs": 0
     },
     {
       "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/arborist/build-ideal-tree.js",
@@ -628,12 +628,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 19.75,
-      "defaultsDiffMs": 2.049999952316284,
-      "liftedMedianMs": 20,
-      "liftedMaxMs": 20.299999952316284,
-      "parseMsPerSide": 8.850000023841858,
-      "diffMs": 2.299999952316284
+      "defaultsMedianMs": 14.599999999627471,
+      "defaultsDiffMs": 1.299999998882413,
+      "liftedMedianMs": 14.599999999627471,
+      "liftedMaxMs": 14.799999998882413,
+      "parseMsPerSide": 6.650000000372529,
+      "diffMs": 1.299999998882413
     },
     {
       "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/browser/index.js",
@@ -651,12 +651,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 18.65000009536743,
-      "defaultsDiffMs": -0.4500000476837158,
-      "liftedMedianMs": 18.5,
-      "liftedMaxMs": 20,
-      "parseMsPerSide": 9.550000071525574,
-      "diffMs": -0.6000001430511475
+      "defaultsMedianMs": 13.599999999627471,
+      "defaultsDiffMs": 0.19999999925494194,
+      "liftedMedianMs": 13.600000001490116,
+      "liftedMaxMs": 13.900000000372529,
+      "parseMsPerSide": 6.7000000001862645,
+      "diffMs": 0.2000000011175871
     },
     {
       "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/index.js",
@@ -674,12 +674,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 19.700000047683716,
-      "defaultsDiffMs": 0.9000000953674316,
-      "liftedMedianMs": 19,
-      "liftedMaxMs": 19.5,
-      "parseMsPerSide": 9.399999976158142,
-      "diffMs": 0.20000004768371582
+      "defaultsMedianMs": 13.800000000745058,
+      "defaultsDiffMs": 0.5,
+      "liftedMedianMs": 13.400000000372529,
+      "liftedMaxMs": 13.899999998509884,
+      "parseMsPerSide": 6.650000000372529,
+      "diffMs": 0.09999999962747097
     },
     {
       "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/node/index.js",
@@ -697,12 +697,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 18.450000047683716,
-      "defaultsDiffMs": -0.25,
-      "liftedMedianMs": 18.5,
-      "liftedMaxMs": 19.5,
-      "parseMsPerSide": 9.350000023841858,
-      "diffMs": -0.20000004768371582
+      "defaultsMedianMs": 13.599999999627471,
+      "defaultsDiffMs": 0.19999999925494194,
+      "liftedMedianMs": 13.5,
+      "liftedMaxMs": 14,
+      "parseMsPerSide": 6.7000000001862645,
+      "diffMs": 0.09999999962747097
     },
     {
       "name": "pr:deps/npm/node_modules/lru-cache/dist/esm/browser/index.js",
@@ -720,12 +720,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 18.200000047683716,
-      "defaultsDiffMs": -1.0999999046325684,
-      "liftedMedianMs": 19.09999990463257,
-      "liftedMaxMs": 19.200000047683716,
-      "parseMsPerSide": 9.649999976158142,
-      "diffMs": -0.20000004768371582
+      "defaultsMedianMs": 13.5,
+      "defaultsDiffMs": 0.19999999925494194,
+      "liftedMedianMs": 13.5,
+      "liftedMaxMs": 13.800000000745058,
+      "parseMsPerSide": 6.650000000372529,
+      "diffMs": 0.19999999925494194
     },
     {
       "name": "pr:deps/npm/node_modules/lru-cache/dist/esm/index.js",
@@ -743,12 +743,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 19.09999990463257,
-      "defaultsDiffMs": 0.09999990463256836,
-      "liftedMedianMs": 19.700000047683716,
-      "liftedMaxMs": 20,
-      "parseMsPerSide": 9.5,
-      "diffMs": 0.7000000476837158
+      "defaultsMedianMs": 13.400000000372529,
+      "defaultsDiffMs": 0.30000000074505806,
+      "liftedMedianMs": 13.400000000372529,
+      "liftedMaxMs": 13.900000000372529,
+      "parseMsPerSide": 6.5499999998137355,
+      "diffMs": 0.30000000074505806
     },
     {
       "name": "pr:deps/npm/node_modules/lru-cache/dist/esm/node/index.js",
@@ -766,12 +766,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 18.74999988079071,
-      "defaultsDiffMs": 0.24999988079071045,
-      "liftedMedianMs": 18.299999952316284,
-      "liftedMaxMs": 18.90000009536743,
-      "parseMsPerSide": 9.25,
-      "diffMs": -0.20000004768371582
+      "defaultsMedianMs": 13.549999999813735,
+      "defaultsDiffMs": 0.35000000055879354,
+      "liftedMedianMs": 13.400000000372529,
+      "liftedMaxMs": 13.799999998882413,
+      "parseMsPerSide": 6.599999999627471,
+      "diffMs": 0.2000000011175871
     },
     {
       "name": "pr:deps/npm/test/lib/commands/publish.js",
@@ -789,12 +789,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 19.350000143051147,
-      "defaultsDiffMs": 2.750000238418579,
-      "liftedMedianMs": 18.799999952316284,
-      "liftedMaxMs": 19.200000047683716,
-      "parseMsPerSide": 8.299999952316284,
-      "diffMs": 2.200000047683716
+      "defaultsMedianMs": 13.699999999254942,
+      "defaultsDiffMs": 1.599999999627471,
+      "liftedMedianMs": 13.699999999254942,
+      "liftedMaxMs": 14.699999999254942,
+      "parseMsPerSide": 6.0499999998137355,
+      "diffMs": 1.599999999627471
     },
     {
       "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/node.js",
@@ -812,12 +812,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 15.099999904632568,
-      "defaultsDiffMs": 0.19999980926513672,
-      "liftedMedianMs": 15.399999856948853,
-      "liftedMaxMs": 16.200000047683716,
-      "parseMsPerSide": 7.450000047683716,
-      "diffMs": 0.4999997615814209
+      "defaultsMedianMs": 11.099999999627471,
+      "defaultsDiffMs": 0.30000000074505806,
+      "liftedMedianMs": 11.099999999627471,
+      "liftedMaxMs": 11.099999999627471,
+      "parseMsPerSide": 5.3999999994412065,
+      "diffMs": 0.30000000074505806
     },
     {
       "name": "pr:deps/npm/tap-snapshots/test/lib/commands/sbom.js.test.cjs",
@@ -835,12 +835,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 2.5,
-      "defaultsDiffMs": 0.20000004768371582,
-      "liftedMedianMs": 2.4000000953674316,
-      "liftedMaxMs": 2.5999999046325684,
-      "parseMsPerSide": 1.149999976158142,
-      "diffMs": 0.10000014305114746
+      "defaultsMedianMs": 1.900000000372529,
+      "defaultsDiffMs": 0.19999999925494194,
+      "liftedMedianMs": 1.900000000372529,
+      "liftedMaxMs": 2.699999999254942,
+      "parseMsPerSide": 0.8500000005587935,
+      "diffMs": 0.19999999925494194
     },
     {
       "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/shrinkwrap.js",
@@ -858,12 +858,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 14.200000047683716,
-      "defaultsDiffMs": 0.40000009536743164,
-      "liftedMedianMs": 13.599999904632568,
-      "liftedMaxMs": 14.200000047683716,
-      "parseMsPerSide": 6.899999976158142,
-      "diffMs": -0.20000004768371582
+      "defaultsMedianMs": 9.949999999254942,
+      "defaultsDiffMs": 0.44999999925494194,
+      "liftedMedianMs": 10.400000000372529,
+      "liftedMaxMs": 10.599999999627471,
+      "parseMsPerSide": 4.75,
+      "diffMs": 0.900000000372529
     },
     {
       "name": "pr:deps/npm/test/lib/commands/install.js",
@@ -881,12 +881,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 15,
-      "defaultsDiffMs": 1.2000000476837158,
-      "liftedMedianMs": 15.299999952316284,
-      "liftedMaxMs": 15.799999952316284,
-      "parseMsPerSide": 6.899999976158142,
-      "diffMs": 1.5
+      "defaultsMedianMs": 10.699999999254942,
+      "defaultsDiffMs": 1.199999999254942,
+      "liftedMedianMs": 10.599999999627471,
+      "liftedMaxMs": 11,
+      "parseMsPerSide": 4.75,
+      "diffMs": 1.099999999627471
     },
     {
       "name": "pr:deps/npm/tap-snapshots/test/lib/utils/error-message.js.test.cjs",
@@ -904,12 +904,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 3.299999952316284,
-      "defaultsDiffMs": 0.09999990463256836,
-      "liftedMedianMs": 3.299999952316284,
-      "liftedMaxMs": 3.4000000953674316,
-      "parseMsPerSide": 1.600000023841858,
-      "diffMs": 0.09999990463256836
+      "defaultsMedianMs": 2.299999998882413,
+      "defaultsDiffMs": 0.09999999776482582,
+      "liftedMedianMs": 2.200000001117587,
+      "liftedMaxMs": 2.299999998882413,
+      "parseMsPerSide": 1.1000000005587935,
+      "diffMs": 0
     },
     {
       "name": "pr:deps/npm/node_modules/@npmcli/config/lib/index.js",
@@ -927,12 +927,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 13.700000047683716,
-      "defaultsDiffMs": 1.5,
-      "liftedMedianMs": 13.5,
-      "liftedMaxMs": 13.900000095367432,
-      "parseMsPerSide": 6.100000023841858,
-      "diffMs": 1.2999999523162842
+      "defaultsMedianMs": 9.400000000372529,
+      "defaultsDiffMs": 1.0000000018626451,
+      "liftedMedianMs": 9.400000000372529,
+      "liftedMaxMs": 9.599999999627471,
+      "parseMsPerSide": 4.199999999254942,
+      "diffMs": 1.0000000018626451
     },
     {
       "name": "pr:deps/npm/node_modules/tinyglobby/node_modules/picomatch/lib/parse.js",
@@ -950,12 +950,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 15.699999928474426,
-      "defaultsDiffMs": 0.5000001192092896,
-      "liftedMedianMs": 15.700000047683716,
-      "liftedMaxMs": 15.799999952316284,
-      "parseMsPerSide": 7.599999904632568,
-      "diffMs": 0.5000002384185791
+      "defaultsMedianMs": 11,
+      "defaultsDiffMs": 0.40000000037252903,
+      "liftedMedianMs": 10.899999998509884,
+      "liftedMaxMs": 11,
+      "parseMsPerSide": 5.2999999998137355,
+      "diffMs": 0.2999999988824129
     },
     {
       "name": "pr:deps/npm/test/lib/commands/approve-scripts.js",
@@ -973,12 +973,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 11.799999952316284,
-      "defaultsDiffMs": -2.384185791015625e-7,
-      "liftedMedianMs": 11.799999952316284,
-      "liftedMaxMs": 12.100000143051147,
-      "parseMsPerSide": 5.900000095367432,
-      "diffMs": -2.384185791015625e-7
+      "defaultsMedianMs": 8.25,
+      "defaultsDiffMs": 0.15000000037252903,
+      "liftedMedianMs": 8.199999999254942,
+      "liftedMaxMs": 8.5,
+      "parseMsPerSide": 4.0499999998137355,
+      "diffMs": 0.09999999962747097
     },
     {
       "name": "pr:deps/npm/test/lib/utils/allow-scripts-writer.js",
@@ -996,12 +996,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 11.100000143051147,
-      "defaultsDiffMs": 0.6000001430511475,
-      "liftedMedianMs": 11.200000047683716,
-      "liftedMaxMs": 11.400000095367432,
-      "parseMsPerSide": 5.25,
-      "diffMs": 0.7000000476837158
+      "defaultsMedianMs": 7.599999999627471,
+      "defaultsDiffMs": 0.40000000037252903,
+      "liftedMedianMs": 7.5,
+      "liftedMaxMs": 7.799999998882413,
+      "parseMsPerSide": 3.599999999627471,
+      "diffMs": 0.30000000074505806
     },
     {
       "name": "pr:deps/npm/test/lib/commands/profile.js",
@@ -1019,12 +1019,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 11.300000190734863,
-      "defaultsDiffMs": -0.2999997138977051,
-      "liftedMedianMs": 11.400000095367432,
-      "liftedMaxMs": 11.700000047683716,
-      "parseMsPerSide": 5.799999952316284,
-      "diffMs": -0.19999980926513672
+      "defaultsMedianMs": 7.700000001117587,
+      "defaultsDiffMs": -0.49999999813735485,
+      "liftedMedianMs": 8.099999999627471,
+      "liftedMaxMs": 9.099999999627471,
+      "parseMsPerSide": 4.099999999627471,
+      "diffMs": -0.09999999962747097
     },
     {
       "name": "pr:deps/npm/test/lib/commands/view.js",
@@ -1042,12 +1042,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 11.700000047683716,
-      "defaultsDiffMs": 1.2000000476837158,
-      "liftedMedianMs": 11.899999856948853,
-      "liftedMaxMs": 12.100000143051147,
-      "parseMsPerSide": 5.25,
-      "diffMs": 1.3999998569488525
+      "defaultsMedianMs": 8.049999999813735,
+      "defaultsDiffMs": 1.2499999990686774,
+      "liftedMedianMs": 8,
+      "liftedMaxMs": 8.199999999254942,
+      "parseMsPerSide": 3.400000000372529,
+      "diffMs": 1.199999999254942
     },
     {
       "name": "pr:deps/npm/test/lib/base-cmd.js",
@@ -1065,12 +1065,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 9.099999904632568,
-      "defaultsDiffMs": 2,
-      "liftedMedianMs": 9,
-      "liftedMaxMs": 9.199999809265137,
-      "parseMsPerSide": 3.549999952316284,
-      "diffMs": 1.9000000953674316
+      "defaultsMedianMs": 6.400000000372529,
+      "defaultsDiffMs": 1.400000000372529,
+      "liftedMedianMs": 6.400000000372529,
+      "liftedMaxMs": 7.099999999627471,
+      "parseMsPerSide": 2.5,
+      "diffMs": 1.400000000372529
     },
     {
       "name": "pr:deps/npm/test/lib/commands/diff.js",
@@ -1088,12 +1088,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 11,
-      "defaultsDiffMs": -0.10000014305114746,
-      "liftedMedianMs": 11.199999809265137,
-      "liftedMaxMs": 12.299999952316284,
-      "parseMsPerSide": 5.550000071525574,
-      "diffMs": 0.09999966621398926
+      "defaultsMedianMs": 7.750000000931323,
+      "defaultsDiffMs": 0.35000000055879354,
+      "liftedMedianMs": 7.699999999254942,
+      "liftedMaxMs": 7.900000000372529,
+      "parseMsPerSide": 3.7000000001862645,
+      "diffMs": 0.2999999988824129
     },
     {
       "name": "pr:deps/npm/test/lib/commands/cache.js",
@@ -1111,12 +1111,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 10.74999988079071,
-      "defaultsDiffMs": 0.04999983310699463,
-      "liftedMedianMs": 10.5,
-      "liftedMaxMs": 10.700000047683716,
-      "parseMsPerSide": 5.350000023841858,
-      "diffMs": -0.20000004768371582
+      "defaultsMedianMs": 7.2999999998137355,
+      "defaultsDiffMs": 0.10000000055879354,
+      "liftedMedianMs": 7.300000000745058,
+      "liftedMaxMs": 7.400000000372529,
+      "parseMsPerSide": 3.599999999627471,
+      "diffMs": 0.10000000149011612
     },
     {
       "name": "pr:deps/npm/tap-snapshots/test/lib/commands/ls.js.test.cjs",
@@ -1134,12 +1134,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 2.9000000953674316,
-      "defaultsDiffMs": 0.2999999523162842,
-      "liftedMedianMs": 2.700000047683716,
-      "liftedMaxMs": 2.8999998569488525,
-      "parseMsPerSide": 1.3000000715255737,
-      "diffMs": 0.09999990463256836
+      "defaultsMedianMs": 2,
+      "defaultsDiffMs": -0.09999999962747097,
+      "liftedMedianMs": 2,
+      "liftedMaxMs": 2.099999999627471,
+      "parseMsPerSide": 1.0499999998137355,
+      "diffMs": -0.09999999962747097
     },
     {
       "name": "pr:deps/npm/test/lib/npm.js",
@@ -1157,12 +1157,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 10.300000190734863,
-      "defaultsDiffMs": 0.3000001907348633,
-      "liftedMedianMs": 10.099999904632568,
-      "liftedMaxMs": 10.399999856948853,
-      "parseMsPerSide": 5,
-      "diffMs": 0.09999990463256836
+      "defaultsMedianMs": 7.199999999254942,
+      "defaultsDiffMs": 0.19999999925494194,
+      "liftedMedianMs": 7.099999999627471,
+      "liftedMaxMs": 7.200000001117587,
+      "parseMsPerSide": 3.5,
+      "diffMs": 0.09999999962747097
     },
     {
       "name": "pr:deps/npm/test/lib/commands/config.js",
@@ -1180,12 +1180,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 10.200000047683716,
-      "defaultsDiffMs": 0.2999999523162842,
-      "liftedMedianMs": 10.400000095367432,
-      "liftedMaxMs": 10.799999952316284,
-      "parseMsPerSide": 4.950000047683716,
-      "diffMs": 0.5
+      "defaultsMedianMs": 7.099999999627471,
+      "defaultsDiffMs": -2.299999998882413,
+      "liftedMedianMs": 7.5,
+      "liftedMaxMs": 7.799999998882413,
+      "parseMsPerSide": 4.699999999254942,
+      "diffMs": -1.8999999985098839
     },
     {
       "name": "pr:deps/npm/test/lib/commands/ci.js",
@@ -1203,12 +1203,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 7.900000095367432,
-      "defaultsDiffMs": 1.6000001430511475,
-      "liftedMedianMs": 7.8999998569488525,
-      "liftedMaxMs": 8,
-      "parseMsPerSide": 3.149999976158142,
-      "diffMs": 1.5999999046325684
+      "defaultsMedianMs": 5.599999999627471,
+      "defaultsDiffMs": 1.299999998882413,
+      "liftedMedianMs": 5.5,
+      "liftedMaxMs": 5.899999998509884,
+      "parseMsPerSide": 2.150000000372529,
+      "diffMs": 1.199999999254942
     },
     {
       "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/arborist/isolated-reifier.js",
@@ -1226,12 +1226,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 7.5,
-      "defaultsDiffMs": 0,
-      "liftedMedianMs": 7.400000095367432,
-      "liftedMaxMs": 7.700000047683716,
-      "parseMsPerSide": 3.75,
-      "diffMs": -0.09999990463256836
+      "defaultsMedianMs": 5.4500000001862645,
+      "defaultsDiffMs": -0.049999999813735485,
+      "liftedMedianMs": 5.400000000372529,
+      "liftedMaxMs": 5.700000001117587,
+      "parseMsPerSide": 2.75,
+      "diffMs": -0.09999999962747097
     },
     {
       "name": "pr:deps/npm/node_modules/@npmcli/package-json/lib/normalize.js",
@@ -1249,12 +1249,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 7.75,
-      "defaultsDiffMs": 0.34999990463256836,
-      "liftedMedianMs": 8.099999904632568,
-      "liftedMaxMs": 8.400000095367432,
-      "parseMsPerSide": 3.700000047683716,
-      "diffMs": 0.6999998092651367
+      "defaultsMedianMs": 5.650000000372529,
+      "defaultsDiffMs": 0.25000000186264515,
+      "liftedMedianMs": 5.599999999627471,
+      "liftedMaxMs": 5.700000001117587,
+      "parseMsPerSide": 2.699999999254942,
+      "diffMs": 0.2000000011175871
     },
     {
       "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/place-dep.js",
@@ -1272,12 +1272,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 5.699999809265137,
-      "defaultsDiffMs": -2.384185791015625e-7,
-      "liftedMedianMs": 5.800000190734863,
-      "liftedMaxMs": 6,
-      "parseMsPerSide": 2.850000023841858,
-      "diffMs": 0.10000014305114746
+      "defaultsMedianMs": 4.249999999068677,
+      "defaultsDiffMs": 0.24999999906867743,
+      "liftedMedianMs": 4.199999999254942,
+      "liftedMaxMs": 4.199999999254942,
+      "parseMsPerSide": 2,
+      "diffMs": 0.19999999925494194
     },
     {
       "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/arborist/load-actual.js",
@@ -1295,12 +1295,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 5.900000095367432,
-      "defaultsDiffMs": 0.5000002384185791,
-      "liftedMedianMs": 5.900000095367432,
-      "liftedMaxMs": 6.200000047683716,
-      "parseMsPerSide": 2.6999999284744263,
-      "diffMs": 0.5000002384185791
+      "defaultsMedianMs": 4.300000000745058,
+      "defaultsDiffMs": 0.5,
+      "liftedMedianMs": 4.300000000745058,
+      "liftedMaxMs": 4.300000000745058,
+      "parseMsPerSide": 1.900000000372529,
+      "diffMs": 0.5
     },
     {
       "name": "pr:deps/npm/test/lib/commands/doctor.js",
@@ -1318,12 +1318,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 10.600000023841858,
-      "defaultsDiffMs": 0.20000016689300537,
-      "liftedMedianMs": 11,
-      "liftedMaxMs": 11.299999952316284,
-      "parseMsPerSide": 5.199999928474426,
-      "diffMs": 0.6000001430511475
+      "defaultsMedianMs": 7.699999999254942,
+      "defaultsDiffMs": 0.3999999985098839,
+      "liftedMedianMs": 7.5,
+      "liftedMaxMs": 7.700000001117587,
+      "parseMsPerSide": 3.650000000372529,
+      "diffMs": 0.19999999925494194
     },
     {
       "name": "pr:deps/npm/node_modules/npm-packlist/lib/index.js",
@@ -1341,12 +1341,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 6.549999952316284,
-      "defaultsDiffMs": 1.6499998569488525,
-      "liftedMedianMs": 6.6000001430511475,
-      "liftedMaxMs": 6.799999952316284,
-      "parseMsPerSide": 2.450000047683716,
-      "diffMs": 1.7000000476837158
+      "defaultsMedianMs": 4.599999999627471,
+      "defaultsDiffMs": 1.199999999254942,
+      "liftedMedianMs": 4.599999999627471,
+      "liftedMaxMs": 4.699999999254942,
+      "parseMsPerSide": 1.7000000001862645,
+      "diffMs": 1.199999999254942
     },
     {
       "name": "pr:deps/npm/tap-snapshots/test/lib/commands/view.js.test.cjs",
@@ -1364,12 +1364,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 2.0999999046325684,
-      "defaultsDiffMs": 0.2999999523162842,
-      "liftedMedianMs": 2,
-      "liftedMaxMs": 2.0999999046325684,
-      "parseMsPerSide": 0.8999999761581421,
-      "diffMs": 0.20000004768371582
+      "defaultsMedianMs": 1.5,
+      "defaultsDiffMs": 0.2000000011175871,
+      "liftedMedianMs": 1.400000000372529,
+      "liftedMaxMs": 1.5,
+      "parseMsPerSide": 0.6499999994412065,
+      "diffMs": 0.10000000149011612
     },
     {
       "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/node/index.min.js",
@@ -1387,12 +1387,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 34.950000047683716,
-      "defaultsDiffMs": 20.350000143051147,
-      "liftedMedianMs": 39.200000047683716,
-      "liftedMaxMs": 41.09999990463257,
-      "parseMsPerSide": 7.299999952316284,
-      "diffMs": 24.600000143051147
+      "defaultsMedianMs": 25.5,
+      "defaultsDiffMs": 14.700000001117587,
+      "liftedMedianMs": 29.5,
+      "liftedMaxMs": 30.300000000745058,
+      "parseMsPerSide": 5.3999999994412065,
+      "diffMs": 18.700000001117587
     },
     {
       "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/browser/index.min.js",
@@ -1410,12 +1410,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 35.39999997615814,
-      "defaultsDiffMs": 19.99999988079071,
-      "liftedMedianMs": 42.09999990463257,
-      "liftedMaxMs": 42.89999985694885,
-      "parseMsPerSide": 7.700000047683716,
-      "diffMs": 26.699999809265137
+      "defaultsMedianMs": 25.399999999441206,
+      "defaultsDiffMs": 14.600000000558794,
+      "liftedMedianMs": 29.09999999962747,
+      "liftedMaxMs": 29.200000001117587,
+      "parseMsPerSide": 5.3999999994412065,
+      "diffMs": 18.300000000745058
     },
     {
       "name": "ladder:typescript:50000",
@@ -1433,12 +1433,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 14.300000071525574,
-      "defaultsDiffMs": 0.8999999761581421,
-      "liftedMedianMs": 14,
-      "liftedMaxMs": 14.300000190734863,
-      "parseMsPerSide": 6.700000047683716,
-      "diffMs": 0.5999999046325684
+      "defaultsMedianMs": 10.399999999441206,
+      "defaultsDiffMs": 0.20000000018626451,
+      "liftedMedianMs": 10.199999999254942,
+      "liftedMaxMs": 10.299999998882413,
+      "parseMsPerSide": 5.099999999627471,
+      "diffMs": 0
     },
     {
       "name": "ladder:typescript:100000",
@@ -1456,12 +1456,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 1.5,
-      "defaultsDiffMs": -28.09999990463257,
-      "liftedMedianMs": 29.90000009536743,
-      "liftedMaxMs": 30.09999990463257,
-      "parseMsPerSide": 14.799999952316284,
-      "diffMs": 0.3000001907348633
+      "defaultsMedianMs": 1.200000001117587,
+      "defaultsDiffMs": -20.5,
+      "liftedMedianMs": 22.100000001490116,
+      "liftedMaxMs": 22.799999998882413,
+      "parseMsPerSide": 10.850000000558794,
+      "diffMs": 0.40000000037252903
     },
     {
       "name": "ladder:typescript:150000",
@@ -1479,12 +1479,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 2.1999999284744263,
-      "defaultsDiffMs": -40.50000011920929,
-      "liftedMedianMs": 44.10000014305115,
-      "liftedMaxMs": 44.5,
-      "parseMsPerSide": 21.350000023841858,
-      "diffMs": 1.4000000953674316
+      "defaultsMedianMs": 1.700000001117587,
+      "defaultsDiffMs": -30.499999998137355,
+      "liftedMedianMs": 32.600000001490116,
+      "liftedMaxMs": 33.09999999962747,
+      "parseMsPerSide": 16.09999999962747,
+      "diffMs": 0.4000000022351742
     },
     {
       "name": "ladder:typescript:200000",
@@ -1502,12 +1502,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 2.6500000953674316,
-      "defaultsDiffMs": -54.950000047683716,
-      "liftedMedianMs": 57.39999985694885,
-      "liftedMaxMs": 58.40000009536743,
-      "parseMsPerSide": 28.800000071525574,
-      "diffMs": -0.20000028610229492
+      "defaultsMedianMs": 2.199999999254942,
+      "defaultsDiffMs": -39.70000000111759,
+      "liftedMedianMs": 43,
+      "liftedMaxMs": 44.79999999888241,
+      "parseMsPerSide": 20.950000000186265,
+      "diffMs": 1.099999999627471
     },
     {
       "name": "ladder:typescript:250000",
@@ -1525,12 +1525,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 3.1999999284744263,
-      "defaultsDiffMs": -67.00000011920929,
-      "liftedMedianMs": 73,
-      "liftedMaxMs": 73.20000004768372,
-      "parseMsPerSide": 35.10000002384186,
-      "diffMs": 2.799999952316284
+      "defaultsMedianMs": 2.699999999254942,
+      "defaultsDiffMs": -49.09999999962747,
+      "liftedMedianMs": 53.40000000037253,
+      "liftedMaxMs": 53.80000000074506,
+      "parseMsPerSide": 25.899999999441206,
+      "diffMs": 1.6000000014901161
     },
     {
       "name": "ladder:typescript:300000",
@@ -1548,12 +1548,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 4,
-      "defaultsDiffMs": -82,
-      "liftedMedianMs": 89.60000014305115,
-      "liftedMaxMs": 90.5,
-      "parseMsPerSide": 43,
-      "diffMs": 3.6000001430511475
+      "defaultsMedianMs": 3.200000001117587,
+      "defaultsDiffMs": -60.899999998509884,
+      "liftedMedianMs": 65.90000000037253,
+      "liftedMaxMs": 67.39999999850988,
+      "parseMsPerSide": 32.049999999813735,
+      "diffMs": 1.800000000745058
     },
     {
       "name": "ladder:python:50000",
@@ -1571,12 +1571,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 26.299999952316284,
-      "defaultsDiffMs": -0.10000014305114746,
-      "liftedMedianMs": 26.399999856948853,
-      "liftedMaxMs": 27,
-      "parseMsPerSide": 13.200000047683716,
-      "diffMs": -2.384185791015625e-7
+      "defaultsMedianMs": 18.850000000558794,
+      "defaultsDiffMs": 0.35000000055879354,
+      "liftedMedianMs": 18.699999999254942,
+      "liftedMaxMs": 18.90000000037253,
+      "parseMsPerSide": 9.25,
+      "diffMs": 0.19999999925494194
     },
     {
       "name": "ladder:python:100000",
@@ -1594,12 +1594,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 0.9000000953674316,
-      "defaultsDiffMs": -51.19999980926514,
-      "liftedMedianMs": 53.799999952316284,
-      "liftedMaxMs": 54,
-      "parseMsPerSide": 26.049999952316284,
-      "diffMs": 1.7000000476837158
+      "defaultsMedianMs": 0.599999999627471,
+      "defaultsDiffMs": -36.59999999962747,
+      "liftedMedianMs": 37.5,
+      "liftedMaxMs": 38.100000001490116,
+      "parseMsPerSide": 18.59999999962747,
+      "diffMs": 0.30000000074505806
     },
     {
       "name": "ladder:python:150000",
@@ -1617,12 +1617,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 1.0499999523162842,
-      "defaultsDiffMs": -76.65000009536743,
-      "liftedMedianMs": 79.70000004768372,
-      "liftedMaxMs": 81.60000014305115,
-      "parseMsPerSide": 38.85000002384186,
-      "diffMs": 2
+      "defaultsMedianMs": 0.900000000372529,
+      "defaultsDiffMs": -54.29999999888241,
+      "liftedMedianMs": 56.69999999925494,
+      "liftedMaxMs": 58.5,
+      "parseMsPerSide": 27.59999999962747,
+      "diffMs": 1.5
     },
     {
       "name": "ladder:python:200000",
@@ -1640,12 +1640,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 1.2999999523162842,
-      "defaultsDiffMs": -103.40000009536743,
-      "liftedMedianMs": 106.10000014305115,
-      "liftedMaxMs": 111.30000019073486,
-      "parseMsPerSide": 52.35000002384186,
-      "diffMs": 1.4000000953674316
+      "defaultsMedianMs": 1.099999999627471,
+      "defaultsDiffMs": -72.90000000037253,
+      "liftedMedianMs": 75.80000000074506,
+      "liftedMaxMs": 78.40000000037253,
+      "parseMsPerSide": 37,
+      "diffMs": 1.800000000745058
     },
     {
       "name": "ladder:python:250000",
@@ -1663,12 +1663,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 1.7000000476837158,
-      "defaultsDiffMs": -127.70000004768372,
-      "liftedMedianMs": 131.09999990463257,
-      "liftedMaxMs": 134.60000014305115,
-      "parseMsPerSide": 64.70000004768372,
-      "diffMs": 1.6999998092651367
+      "defaultsMedianMs": 1.299999998882413,
+      "defaultsDiffMs": -91.60000000149012,
+      "liftedMedianMs": 94.5,
+      "liftedMaxMs": 97.40000000037253,
+      "parseMsPerSide": 46.450000000186265,
+      "diffMs": 1.599999999627471
     },
     {
       "name": "ladder:python:300000",
@@ -1686,12 +1686,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 1.8999998569488525,
-      "defaultsDiffMs": -153.00000023841858,
-      "liftedMedianMs": 157.80000019073486,
-      "liftedMaxMs": 165.5,
-      "parseMsPerSide": 77.45000004768372,
-      "diffMs": 2.9000000953674316
+      "defaultsMedianMs": 1.400000000372529,
+      "defaultsDiffMs": -110.59999999962747,
+      "liftedMedianMs": 113.59999999962747,
+      "liftedMaxMs": 116.30000000074506,
+      "parseMsPerSide": 56,
+      "diffMs": 1.599999999627471
     },
     {
       "name": "unrelated:1000",
@@ -1709,12 +1709,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 23.100000143051147,
-      "defaultsDiffMs": 20.800000190734863,
-      "liftedMedianMs": 74.79999995231628,
-      "liftedMaxMs": 75.20000004768372,
-      "parseMsPerSide": 1.149999976158142,
-      "diffMs": 72.5
+      "defaultsMedianMs": 15.950000000186265,
+      "defaultsDiffMs": 14.350000000558794,
+      "liftedMedianMs": 49.80000000074506,
+      "liftedMaxMs": 50.09999999962747,
+      "parseMsPerSide": 0.7999999998137355,
+      "diffMs": 48.20000000111759
     },
     {
       "name": "unrelated:2000",
@@ -1732,12 +1732,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 25.149999856948853,
-      "defaultsDiffMs": 21.049999952316284,
-      "liftedMedianMs": 283.5,
-      "liftedMaxMs": 285,
-      "parseMsPerSide": 2.049999952316284,
-      "diffMs": 279.40000009536743
+      "defaultsMedianMs": 17.300000000745058,
+      "defaultsDiffMs": 14.100000001490116,
+      "liftedMedianMs": 200.10000000149012,
+      "liftedMaxMs": 203.10000000149012,
+      "parseMsPerSide": 1.599999999627471,
+      "diffMs": 196.90000000223517
     },
     {
       "name": "unrelated:3000",
@@ -1755,13 +1755,13 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 27.799999952316284,
-      "defaultsDiffMs": 21.5,
-      "liftedMedianMs": 649.2999999523163,
-      "liftedMaxMs": 665.4000000953674,
-      "parseMsPerSide": 3.149999976158142,
-      "diffMs": 643
+      "defaultsMedianMs": 18.649999999441206,
+      "defaultsDiffMs": 14.249999999068677,
+      "liftedMedianMs": 450.5,
+      "liftedMaxMs": 456.30000000074506,
+      "parseMsPerSide": 2.2000000001862645,
+      "diffMs": 446.09999999962747
     }
   ],
-  "uptime": "4:17  up 14 days, 19:56, 12 users, load averages: 4.27 14.90 51.29"
+  "uptime": "16:56  up  2:52, 18 users, load averages: 4.14 7.22 5.05"
 }

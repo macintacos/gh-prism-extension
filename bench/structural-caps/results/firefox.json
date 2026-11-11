@@ -29,12 +29,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 18,
+      "defaultsMedianMs": 16,
       "defaultsDiffMs": 0,
-      "liftedMedianMs": 17,
-      "liftedMaxMs": 20,
-      "parseMsPerSide": 9,
-      "diffMs": -1
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 17,
+      "parseMsPerSide": 8,
+      "diffMs": 0
     },
     {
       "name": "fixture:python/reindent.py.txt",
@@ -52,11 +52,11 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 18,
-      "defaultsDiffMs": 0,
-      "liftedMedianMs": 18,
-      "liftedMaxMs": 20,
-      "parseMsPerSide": 9,
+      "defaultsMedianMs": 16,
+      "defaultsDiffMs": 1,
+      "liftedMedianMs": 15,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 7.5,
       "diffMs": 0
     },
     {
@@ -75,11 +75,11 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 17,
+      "defaultsMedianMs": 16,
       "defaultsDiffMs": 1,
-      "liftedMedianMs": 17,
-      "liftedMaxMs": 18,
-      "parseMsPerSide": 8,
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 7.5,
       "diffMs": 1
     },
     {
@@ -98,12 +98,12 @@
       "outcomes": {
         "failed": 20
       },
-      "defaultsMedianMs": 11,
-      "defaultsDiffMs": -5,
-      "liftedMedianMs": 12,
-      "liftedMaxMs": 12,
+      "defaultsMedianMs": 10,
+      "defaultsDiffMs": -6,
+      "liftedMedianMs": 10,
+      "liftedMaxMs": 11,
       "parseMsPerSide": 8,
-      "diffMs": -4
+      "diffMs": -6
     },
     {
       "name": "fixture:python/added-argument.py.txt",
@@ -121,12 +121,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 16.5,
-      "defaultsDiffMs": -0.5,
-      "liftedMedianMs": 18,
-      "liftedMaxMs": 19,
-      "parseMsPerSide": 8.5,
-      "diffMs": 1
+      "defaultsMedianMs": 16,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 8,
+      "diffMs": 0
     },
     {
       "name": "fixture:python/moved-out-of-block.py.txt",
@@ -144,12 +144,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 18,
+      "defaultsMedianMs": 16,
       "defaultsDiffMs": 1,
-      "liftedMedianMs": 17,
-      "liftedMaxMs": 18,
-      "parseMsPerSide": 8.5,
-      "diffMs": 0
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 7.5,
+      "diffMs": 1
     },
     {
       "name": "fixture:tsx/reindent.tsx.txt",
@@ -167,12 +167,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 17,
+      "defaultsMedianMs": 16,
       "defaultsDiffMs": 0,
-      "liftedMedianMs": 18,
-      "liftedMaxMs": 19,
-      "parseMsPerSide": 8.5,
-      "diffMs": 1
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 8,
+      "diffMs": 0
     },
     {
       "name": "fixture:tsx/added-argument.tsx.txt",
@@ -190,12 +190,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 17,
-      "defaultsDiffMs": 1,
-      "liftedMedianMs": 18,
-      "liftedMaxMs": 19,
+      "defaultsMedianMs": 15,
+      "defaultsDiffMs": -1,
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 16,
       "parseMsPerSide": 8,
-      "diffMs": 2
+      "diffMs": 0
     },
     {
       "name": "fixture:tsx/rewrap.tsx.txt",
@@ -213,12 +213,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 17,
+      "defaultsMedianMs": 16,
       "defaultsDiffMs": 0,
-      "liftedMedianMs": 18,
-      "liftedMaxMs": 19,
-      "parseMsPerSide": 8.5,
-      "diffMs": 1
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 17,
+      "parseMsPerSide": 8,
+      "diffMs": 0
     },
     {
       "name": "fixture:tsx/rename.tsx.txt",
@@ -236,11 +236,11 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 17,
-      "defaultsDiffMs": 0,
-      "liftedMedianMs": 16,
-      "liftedMaxMs": 20,
-      "parseMsPerSide": 8.5,
+      "defaultsMedianMs": 15,
+      "defaultsDiffMs": -1,
+      "liftedMedianMs": 15,
+      "liftedMaxMs": 17,
+      "parseMsPerSide": 8,
       "diffMs": -1
     },
     {
@@ -259,12 +259,12 @@
       "outcomes": {
         "failed": 20
       },
-      "defaultsMedianMs": 11.5,
-      "defaultsDiffMs": -4.5,
-      "liftedMedianMs": 12,
-      "liftedMaxMs": 13,
-      "parseMsPerSide": 8,
-      "diffMs": -4
+      "defaultsMedianMs": 11,
+      "defaultsDiffMs": -4,
+      "liftedMedianMs": 10,
+      "liftedMaxMs": 11,
+      "parseMsPerSide": 7.5,
+      "diffMs": -5
     },
     {
       "name": "fixture:typescript/rename.ts.txt",
@@ -282,12 +282,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 17,
-      "defaultsDiffMs": -1,
-      "liftedMedianMs": 17,
-      "liftedMaxMs": 18,
-      "parseMsPerSide": 9,
-      "diffMs": -1
+      "defaultsMedianMs": 16,
+      "defaultsDiffMs": 1,
+      "liftedMedianMs": 15,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 7.5,
+      "diffMs": 0
     },
     {
       "name": "fixture:typescript/rewrap.ts.txt",
@@ -305,12 +305,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 17,
+      "defaultsMedianMs": 16,
       "defaultsDiffMs": 1,
-      "liftedMedianMs": 18,
-      "liftedMaxMs": 19,
-      "parseMsPerSide": 8,
-      "diffMs": 2
+      "liftedMedianMs": 15,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 7.5,
+      "diffMs": 0
     },
     {
       "name": "fixture:typescript/reindent.ts.txt",
@@ -328,12 +328,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 17,
-      "defaultsDiffMs": 0,
-      "liftedMedianMs": 18,
-      "liftedMaxMs": 20,
-      "parseMsPerSide": 8.5,
-      "diffMs": 1
+      "defaultsMedianMs": 15,
+      "defaultsDiffMs": -1,
+      "liftedMedianMs": 15,
+      "liftedMaxMs": 15,
+      "parseMsPerSide": 8,
+      "diffMs": -1
     },
     {
       "name": "fixture:typescript/added-argument.ts.txt",
@@ -351,12 +351,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 17,
+      "defaultsMedianMs": 15,
       "defaultsDiffMs": 0,
-      "liftedMedianMs": 18,
-      "liftedMaxMs": 19,
-      "parseMsPerSide": 8.5,
-      "diffMs": 1
+      "liftedMedianMs": 15,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 7.5,
+      "diffMs": 0
     },
     {
       "name": "fixture:typescript/parse-error.ts.txt",
@@ -374,12 +374,12 @@
       "outcomes": {
         "failed": 20
       },
-      "defaultsMedianMs": 11.5,
-      "defaultsDiffMs": -6.5,
-      "liftedMedianMs": 14,
-      "liftedMaxMs": 19,
-      "parseMsPerSide": 9,
-      "diffMs": -4
+      "defaultsMedianMs": 10.5,
+      "defaultsDiffMs": -4.5,
+      "liftedMedianMs": 10,
+      "liftedMaxMs": 11,
+      "parseMsPerSide": 7.5,
+      "diffMs": -5
     },
     {
       "name": "fixture:javascript/added-argument.js.txt",
@@ -397,11 +397,11 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 18,
+      "defaultsMedianMs": 16,
       "defaultsDiffMs": 0,
-      "liftedMedianMs": 17,
-      "liftedMaxMs": 18,
-      "parseMsPerSide": 9,
+      "liftedMedianMs": 15,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 8,
       "diffMs": -1
     },
     {
@@ -420,11 +420,11 @@
       "outcomes": {
         "failed": 20
       },
-      "defaultsMedianMs": 12,
-      "defaultsDiffMs": -6,
-      "liftedMedianMs": 13,
-      "liftedMaxMs": 15,
-      "parseMsPerSide": 9,
+      "defaultsMedianMs": 10.5,
+      "defaultsDiffMs": -5.5,
+      "liftedMedianMs": 11,
+      "liftedMaxMs": 14,
+      "parseMsPerSide": 8,
       "diffMs": -5
     },
     {
@@ -443,12 +443,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 17.5,
-      "defaultsDiffMs": -0.5,
-      "liftedMedianMs": 17,
-      "liftedMaxMs": 18,
-      "parseMsPerSide": 9,
-      "diffMs": -1
+      "defaultsMedianMs": 16,
+      "defaultsDiffMs": 1,
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 7.5,
+      "diffMs": 1
     },
     {
       "name": "fixture:javascript/rewrap.js.txt",
@@ -466,11 +466,11 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 17,
-      "defaultsDiffMs": 0,
-      "liftedMedianMs": 18,
-      "liftedMaxMs": 19,
-      "parseMsPerSide": 8.5,
+      "defaultsMedianMs": 15.5,
+      "defaultsDiffMs": 0.5,
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 7.5,
       "diffMs": 1
     },
     {
@@ -489,12 +489,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 17,
-      "defaultsDiffMs": -1,
-      "liftedMedianMs": 18,
-      "liftedMaxMs": 19,
-      "parseMsPerSide": 9,
-      "diffMs": 0
+      "defaultsMedianMs": 15,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 7.5,
+      "diffMs": 1
     },
     {
       "name": "pr:deps/npm/tap-snapshots/test/lib/docs.js.test.cjs",
@@ -512,12 +512,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 6,
-      "defaultsDiffMs": -31,
-      "liftedMedianMs": 37,
-      "liftedMaxMs": 40,
-      "parseMsPerSide": 18.5,
-      "diffMs": 0
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -25,
+      "liftedMedianMs": 31,
+      "liftedMaxMs": 36,
+      "parseMsPerSide": 15,
+      "diffMs": 1
     },
     {
       "name": "pr:deps/npm/test/lib/commands/ls.js",
@@ -535,12 +535,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 6,
-      "defaultsDiffMs": -78,
-      "liftedMedianMs": 87,
-      "liftedMaxMs": 94,
-      "parseMsPerSide": 42,
-      "diffMs": 3
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -57,
+      "liftedMedianMs": 64,
+      "liftedMaxMs": 72,
+      "parseMsPerSide": 31,
+      "diffMs": 2
     },
     {
       "name": "pr:deps/npm/node_modules/@npmcli/config/lib/definitions/definitions.js",
@@ -558,12 +558,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 45.5,
-      "defaultsDiffMs": 0.5,
-      "liftedMedianMs": 45,
-      "liftedMaxMs": 56,
-      "parseMsPerSide": 22.5,
-      "diffMs": 0
+      "defaultsMedianMs": 36,
+      "defaultsDiffMs": 1,
+      "liftedMedianMs": 36,
+      "liftedMaxMs": 37,
+      "parseMsPerSide": 17.5,
+      "diffMs": 1
     },
     {
       "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/arborist/reify.js",
@@ -581,12 +581,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 48,
+      "defaultsMedianMs": 38,
       "defaultsDiffMs": 0,
-      "liftedMedianMs": 49,
-      "liftedMaxMs": 51,
-      "parseMsPerSide": 24,
-      "diffMs": 1
+      "liftedMedianMs": 38,
+      "liftedMaxMs": 39,
+      "parseMsPerSide": 19,
+      "diffMs": 0
     },
     {
       "name": "pr:deps/npm/test/lib/commands/audit.js",
@@ -604,12 +604,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 54,
-      "defaultsDiffMs": 1,
-      "liftedMedianMs": 54,
-      "liftedMaxMs": 56,
-      "parseMsPerSide": 26.5,
-      "diffMs": 1
+      "defaultsMedianMs": 42,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 42,
+      "liftedMaxMs": 44,
+      "parseMsPerSide": 21,
+      "diffMs": 0
     },
     {
       "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/arborist/build-ideal-tree.js",
@@ -627,12 +627,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 43,
+      "defaultsMedianMs": 34,
       "defaultsDiffMs": 2,
-      "liftedMedianMs": 42,
-      "liftedMaxMs": 46,
-      "parseMsPerSide": 20.5,
-      "diffMs": 1
+      "liftedMedianMs": 34,
+      "liftedMaxMs": 34,
+      "parseMsPerSide": 16,
+      "diffMs": 2
     },
     {
       "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/browser/index.js",
@@ -650,12 +650,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 43,
-      "defaultsDiffMs": 0,
-      "liftedMedianMs": 44,
-      "liftedMaxMs": 45,
-      "parseMsPerSide": 21.5,
-      "diffMs": 1
+      "defaultsMedianMs": 34,
+      "defaultsDiffMs": -1,
+      "liftedMedianMs": 33,
+      "liftedMaxMs": 34,
+      "parseMsPerSide": 17.5,
+      "diffMs": -2
     },
     {
       "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/index.js",
@@ -673,12 +673,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 43,
-      "defaultsDiffMs": 0,
-      "liftedMedianMs": 43,
-      "liftedMaxMs": 44,
-      "parseMsPerSide": 21.5,
-      "diffMs": 0
+      "defaultsMedianMs": 34,
+      "defaultsDiffMs": 1,
+      "liftedMedianMs": 34,
+      "liftedMaxMs": 39,
+      "parseMsPerSide": 16.5,
+      "diffMs": 1
     },
     {
       "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/node/index.js",
@@ -696,12 +696,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 44,
-      "defaultsDiffMs": 1,
-      "liftedMedianMs": 43,
-      "liftedMaxMs": 44,
-      "parseMsPerSide": 21.5,
-      "diffMs": 0
+      "defaultsMedianMs": 33,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 34,
+      "liftedMaxMs": 34,
+      "parseMsPerSide": 16.5,
+      "diffMs": 1
     },
     {
       "name": "pr:deps/npm/node_modules/lru-cache/dist/esm/browser/index.js",
@@ -719,12 +719,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 43,
-      "defaultsDiffMs": 1,
-      "liftedMedianMs": 43,
-      "liftedMaxMs": 47,
-      "parseMsPerSide": 21,
-      "diffMs": 1
+      "defaultsMedianMs": 33,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 33,
+      "liftedMaxMs": 33,
+      "parseMsPerSide": 16.5,
+      "diffMs": 0
     },
     {
       "name": "pr:deps/npm/node_modules/lru-cache/dist/esm/index.js",
@@ -742,12 +742,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 43,
-      "defaultsDiffMs": 1,
-      "liftedMedianMs": 43,
-      "liftedMaxMs": 45,
-      "parseMsPerSide": 21,
-      "diffMs": 1
+      "defaultsMedianMs": 33,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 33,
+      "liftedMaxMs": 33,
+      "parseMsPerSide": 16.5,
+      "diffMs": 0
     },
     {
       "name": "pr:deps/npm/node_modules/lru-cache/dist/esm/node/index.js",
@@ -765,12 +765,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 43,
+      "defaultsMedianMs": 33,
       "defaultsDiffMs": 0,
-      "liftedMedianMs": 41,
-      "liftedMaxMs": 45,
-      "parseMsPerSide": 21.5,
-      "diffMs": -2
+      "liftedMedianMs": 33,
+      "liftedMaxMs": 33,
+      "parseMsPerSide": 16.5,
+      "diffMs": 0
     },
     {
       "name": "pr:deps/npm/test/lib/commands/publish.js",
@@ -788,12 +788,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 44,
-      "defaultsDiffMs": 3,
-      "liftedMedianMs": 44,
-      "liftedMaxMs": 45,
-      "parseMsPerSide": 20.5,
-      "diffMs": 3
+      "defaultsMedianMs": 34,
+      "defaultsDiffMs": 2,
+      "liftedMedianMs": 34,
+      "liftedMaxMs": 35,
+      "parseMsPerSide": 16,
+      "diffMs": 2
     },
     {
       "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/node.js",
@@ -811,12 +811,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 38,
-      "defaultsDiffMs": 1,
-      "liftedMedianMs": 39,
-      "liftedMaxMs": 39,
-      "parseMsPerSide": 18.5,
-      "diffMs": 2
+      "defaultsMedianMs": 30,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 30,
+      "liftedMaxMs": 33,
+      "parseMsPerSide": 15,
+      "diffMs": 0
     },
     {
       "name": "pr:deps/npm/tap-snapshots/test/lib/commands/sbom.js.test.cjs",
@@ -834,12 +834,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 20,
-      "defaultsDiffMs": 2,
-      "liftedMedianMs": 20,
+      "defaultsMedianMs": 19,
+      "defaultsDiffMs": -2,
+      "liftedMedianMs": 21,
       "liftedMaxMs": 21,
-      "parseMsPerSide": 9,
-      "diffMs": 2
+      "parseMsPerSide": 10.5,
+      "diffMs": 0
     },
     {
       "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/shrinkwrap.js",
@@ -857,11 +857,11 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 36,
-      "defaultsDiffMs": 1,
-      "liftedMedianMs": 36,
-      "liftedMaxMs": 40,
-      "parseMsPerSide": 17.5,
+      "defaultsMedianMs": 30.5,
+      "defaultsDiffMs": 1.5,
+      "liftedMedianMs": 30,
+      "liftedMaxMs": 31,
+      "parseMsPerSide": 14.5,
       "diffMs": 1
     },
     {
@@ -880,12 +880,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 37,
-      "defaultsDiffMs": 1,
-      "liftedMedianMs": 38,
-      "liftedMaxMs": 38,
-      "parseMsPerSide": 18,
-      "diffMs": 2
+      "defaultsMedianMs": 29,
+      "defaultsDiffMs": 2,
+      "liftedMedianMs": 30,
+      "liftedMaxMs": 30,
+      "parseMsPerSide": 13.5,
+      "diffMs": 3
     },
     {
       "name": "pr:deps/npm/tap-snapshots/test/lib/utils/error-message.js.test.cjs",
@@ -903,12 +903,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 23,
-      "defaultsDiffMs": -4,
-      "liftedMedianMs": 29,
-      "liftedMaxMs": 31,
-      "parseMsPerSide": 13.5,
-      "diffMs": 2
+      "defaultsMedianMs": 20,
+      "defaultsDiffMs": -5,
+      "liftedMedianMs": 26,
+      "liftedMaxMs": 26,
+      "parseMsPerSide": 12.5,
+      "diffMs": 1
     },
     {
       "name": "pr:deps/npm/node_modules/@npmcli/config/lib/index.js",
@@ -926,12 +926,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 35,
-      "defaultsDiffMs": 1,
-      "liftedMedianMs": 33,
-      "liftedMaxMs": 36,
-      "parseMsPerSide": 17,
-      "diffMs": -1
+      "defaultsMedianMs": 29,
+      "defaultsDiffMs": 2,
+      "liftedMedianMs": 29,
+      "liftedMaxMs": 30,
+      "parseMsPerSide": 13.5,
+      "diffMs": 2
     },
     {
       "name": "pr:deps/npm/node_modules/tinyglobby/node_modules/picomatch/lib/parse.js",
@@ -949,11 +949,11 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 39,
+      "defaultsMedianMs": 31,
       "defaultsDiffMs": 1,
-      "liftedMedianMs": 39,
-      "liftedMaxMs": 41,
-      "parseMsPerSide": 19,
+      "liftedMedianMs": 31,
+      "liftedMaxMs": 31,
+      "parseMsPerSide": 15,
       "diffMs": 1
     },
     {
@@ -972,12 +972,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 33,
-      "defaultsDiffMs": 0,
-      "liftedMedianMs": 34,
-      "liftedMaxMs": 35,
-      "parseMsPerSide": 16.5,
-      "diffMs": 1
+      "defaultsMedianMs": 28,
+      "defaultsDiffMs": -2,
+      "liftedMedianMs": 29,
+      "liftedMaxMs": 30,
+      "parseMsPerSide": 15,
+      "diffMs": -1
     },
     {
       "name": "pr:deps/npm/test/lib/utils/allow-scripts-writer.js",
@@ -995,12 +995,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 32,
-      "defaultsDiffMs": -1,
-      "liftedMedianMs": 32,
-      "liftedMaxMs": 33,
-      "parseMsPerSide": 16.5,
-      "diffMs": -1
+      "defaultsMedianMs": 28,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 28,
+      "liftedMaxMs": 29,
+      "parseMsPerSide": 14,
+      "diffMs": 0
     },
     {
       "name": "pr:deps/npm/test/lib/commands/profile.js",
@@ -1018,11 +1018,11 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 33,
-      "defaultsDiffMs": 1,
-      "liftedMedianMs": 32,
-      "liftedMaxMs": 33,
-      "parseMsPerSide": 16,
+      "defaultsMedianMs": 28,
+      "defaultsDiffMs": -1,
+      "liftedMedianMs": 29,
+      "liftedMaxMs": 30,
+      "parseMsPerSide": 14.5,
       "diffMs": 0
     },
     {
@@ -1041,12 +1041,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 32,
-      "defaultsDiffMs": 2,
-      "liftedMedianMs": 32,
-      "liftedMaxMs": 34,
-      "parseMsPerSide": 15,
-      "diffMs": 2
+      "defaultsMedianMs": 28,
+      "defaultsDiffMs": 1,
+      "liftedMedianMs": 28,
+      "liftedMaxMs": 28,
+      "parseMsPerSide": 13.5,
+      "diffMs": 1
     },
     {
       "name": "pr:deps/npm/test/lib/base-cmd.js",
@@ -1064,10 +1064,10 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 31,
-      "defaultsDiffMs": 3,
+      "defaultsMedianMs": 26,
+      "defaultsDiffMs": -2,
       "liftedMedianMs": 29,
-      "liftedMaxMs": 30,
+      "liftedMaxMs": 29,
       "parseMsPerSide": 14,
       "diffMs": 1
     },
@@ -1087,11 +1087,11 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 32,
+      "defaultsMedianMs": 29,
       "defaultsDiffMs": 1,
-      "liftedMedianMs": 32,
-      "liftedMaxMs": 32,
-      "parseMsPerSide": 15.5,
+      "liftedMedianMs": 29,
+      "liftedMaxMs": 29,
+      "parseMsPerSide": 14,
       "diffMs": 1
     },
     {
@@ -1110,12 +1110,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 32,
-      "defaultsDiffMs": 0,
-      "liftedMedianMs": 30,
-      "liftedMaxMs": 33,
-      "parseMsPerSide": 16,
-      "diffMs": -2
+      "defaultsMedianMs": 28,
+      "defaultsDiffMs": -2,
+      "liftedMedianMs": 29,
+      "liftedMaxMs": 30,
+      "parseMsPerSide": 15,
+      "diffMs": -1
     },
     {
       "name": "pr:deps/npm/tap-snapshots/test/lib/commands/ls.js.test.cjs",
@@ -1133,12 +1133,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 22,
-      "defaultsDiffMs": 2,
-      "liftedMedianMs": 22,
-      "liftedMaxMs": 27,
+      "defaultsMedianMs": 19.5,
+      "defaultsDiffMs": -0.5,
+      "liftedMedianMs": 25,
+      "liftedMaxMs": 26,
       "parseMsPerSide": 10,
-      "diffMs": 2
+      "diffMs": 5
     },
     {
       "name": "pr:deps/npm/test/lib/npm.js",
@@ -1156,12 +1156,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 32,
-      "defaultsDiffMs": 1,
+      "defaultsMedianMs": 29.5,
+      "defaultsDiffMs": -0.5,
       "liftedMedianMs": 31,
-      "liftedMaxMs": 31,
-      "parseMsPerSide": 15.5,
-      "diffMs": 0
+      "liftedMaxMs": 32,
+      "parseMsPerSide": 15,
+      "diffMs": 1
     },
     {
       "name": "pr:deps/npm/test/lib/commands/config.js",
@@ -1179,12 +1179,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 31,
-      "defaultsDiffMs": 0,
-      "liftedMedianMs": 32,
-      "liftedMaxMs": 33,
-      "parseMsPerSide": 15.5,
-      "diffMs": 1
+      "defaultsMedianMs": 27.5,
+      "defaultsDiffMs": -1.5,
+      "liftedMedianMs": 29,
+      "liftedMaxMs": 30,
+      "parseMsPerSide": 14.5,
+      "diffMs": 0
     },
     {
       "name": "pr:deps/npm/test/lib/commands/ci.js",
@@ -1202,11 +1202,11 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 28,
-      "defaultsDiffMs": 2,
-      "liftedMedianMs": 28,
-      "liftedMaxMs": 29,
-      "parseMsPerSide": 13,
+      "defaultsMedianMs": 25,
+      "defaultsDiffMs": -3,
+      "liftedMedianMs": 30,
+      "liftedMaxMs": 31,
+      "parseMsPerSide": 14,
       "diffMs": 2
     },
     {
@@ -1226,11 +1226,11 @@
         "ok": 20
       },
       "defaultsMedianMs": 28,
-      "defaultsDiffMs": 0,
+      "defaultsDiffMs": 1,
       "liftedMedianMs": 28,
-      "liftedMaxMs": 30,
-      "parseMsPerSide": 14,
-      "diffMs": 0
+      "liftedMaxMs": 33,
+      "parseMsPerSide": 13.5,
+      "diffMs": 1
     },
     {
       "name": "pr:deps/npm/node_modules/@npmcli/package-json/lib/normalize.js",
@@ -1248,12 +1248,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 28,
-      "defaultsDiffMs": -1,
-      "liftedMedianMs": 27,
+      "defaultsMedianMs": 27,
+      "defaultsDiffMs": -2,
+      "liftedMedianMs": 29,
       "liftedMaxMs": 30,
       "parseMsPerSide": 14.5,
-      "diffMs": -2
+      "diffMs": 0
     },
     {
       "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/place-dep.js",
@@ -1272,11 +1272,11 @@
         "ok": 20
       },
       "defaultsMedianMs": 26,
-      "defaultsDiffMs": -5,
-      "liftedMedianMs": 31,
-      "liftedMaxMs": 32,
-      "parseMsPerSide": 15.5,
-      "diffMs": 0
+      "defaultsDiffMs": -1,
+      "liftedMedianMs": 26,
+      "liftedMaxMs": 27,
+      "parseMsPerSide": 13.5,
+      "diffMs": -1
     },
     {
       "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/arborist/load-actual.js",
@@ -1294,11 +1294,11 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 27,
-      "defaultsDiffMs": 3,
-      "liftedMedianMs": 25,
-      "liftedMaxMs": 28,
-      "parseMsPerSide": 12,
+      "defaultsMedianMs": 27.5,
+      "defaultsDiffMs": 6.5,
+      "liftedMedianMs": 22,
+      "liftedMaxMs": 23,
+      "parseMsPerSide": 10.5,
       "diffMs": 1
     },
     {
@@ -1317,12 +1317,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 32,
-      "defaultsDiffMs": 0,
-      "liftedMedianMs": 33,
-      "liftedMaxMs": 33,
-      "parseMsPerSide": 16,
-      "diffMs": 1
+      "defaultsMedianMs": 28,
+      "defaultsDiffMs": -1,
+      "liftedMedianMs": 29,
+      "liftedMaxMs": 30,
+      "parseMsPerSide": 14.5,
+      "diffMs": 0
     },
     {
       "name": "pr:deps/npm/node_modules/npm-packlist/lib/index.js",
@@ -1341,11 +1341,11 @@
         "ok": 20
       },
       "defaultsMedianMs": 27,
-      "defaultsDiffMs": 2,
-      "liftedMedianMs": 31,
-      "liftedMaxMs": 40,
-      "parseMsPerSide": 12.5,
-      "diffMs": 6
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 29,
+      "liftedMaxMs": 30,
+      "parseMsPerSide": 13.5,
+      "diffMs": 2
     },
     {
       "name": "pr:deps/npm/tap-snapshots/test/lib/commands/view.js.test.cjs",
@@ -1363,12 +1363,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 21.5,
-      "defaultsDiffMs": 1.5,
-      "liftedMedianMs": 24,
-      "liftedMaxMs": 25,
+      "defaultsMedianMs": 20,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 20,
+      "liftedMaxMs": 21,
       "parseMsPerSide": 10,
-      "diffMs": 4
+      "diffMs": 0
     },
     {
       "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/node/index.min.js",
@@ -1386,12 +1386,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 83.5,
-      "defaultsDiffMs": 45.5,
-      "liftedMedianMs": 93,
-      "liftedMaxMs": 95,
-      "parseMsPerSide": 19,
-      "diffMs": 55
+      "defaultsMedianMs": 62,
+      "defaultsDiffMs": 31,
+      "liftedMedianMs": 69,
+      "liftedMaxMs": 70,
+      "parseMsPerSide": 15.5,
+      "diffMs": 38
     },
     {
       "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/browser/index.min.js",
@@ -1409,12 +1409,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 83.5,
-      "defaultsDiffMs": 44.5,
-      "liftedMedianMs": 96,
-      "liftedMaxMs": 97,
-      "parseMsPerSide": 19.5,
-      "diffMs": 57
+      "defaultsMedianMs": 63,
+      "defaultsDiffMs": 32,
+      "liftedMedianMs": 71,
+      "liftedMaxMs": 74,
+      "parseMsPerSide": 15.5,
+      "diffMs": 40
     },
     {
       "name": "ladder:typescript:50000",
@@ -1432,11 +1432,11 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 37.5,
-      "defaultsDiffMs": 2.5,
-      "liftedMedianMs": 36,
-      "liftedMaxMs": 37,
-      "parseMsPerSide": 17.5,
+      "defaultsMedianMs": 29,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 30,
+      "liftedMaxMs": 31,
+      "parseMsPerSide": 14.5,
       "diffMs": 1
     },
     {
@@ -1455,11 +1455,11 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 6,
-      "defaultsDiffMs": -54,
-      "liftedMedianMs": 61,
-      "liftedMaxMs": 69,
-      "parseMsPerSide": 30,
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -41,
+      "liftedMedianMs": 47,
+      "liftedMaxMs": 51,
+      "parseMsPerSide": 23,
       "diffMs": 1
     },
     {
@@ -1479,11 +1479,11 @@
         "too-large": 20
       },
       "defaultsMedianMs": 5,
-      "defaultsDiffMs": -76,
-      "liftedMedianMs": 81,
-      "liftedMaxMs": 84,
-      "parseMsPerSide": 40.5,
-      "diffMs": 0
+      "defaultsDiffMs": -56,
+      "liftedMedianMs": 62,
+      "liftedMaxMs": 63,
+      "parseMsPerSide": 30.5,
+      "diffMs": 1
     },
     {
       "name": "ladder:typescript:200000",
@@ -1501,12 +1501,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 6,
-      "defaultsDiffMs": -93,
-      "liftedMedianMs": 100,
-      "liftedMaxMs": 102,
-      "parseMsPerSide": 49.5,
-      "diffMs": 1
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -68,
+      "liftedMedianMs": 76,
+      "liftedMaxMs": 84,
+      "parseMsPerSide": 36.5,
+      "diffMs": 3
     },
     {
       "name": "ladder:typescript:250000",
@@ -1524,12 +1524,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 6,
-      "defaultsDiffMs": -112,
-      "liftedMedianMs": 122,
-      "liftedMaxMs": 125,
-      "parseMsPerSide": 59,
-      "diffMs": 4
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -84,
+      "liftedMedianMs": 90,
+      "liftedMaxMs": 96,
+      "parseMsPerSide": 44.5,
+      "diffMs": 1
     },
     {
       "name": "ladder:typescript:300000",
@@ -1547,11 +1547,11 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 6,
-      "defaultsDiffMs": -137,
-      "liftedMedianMs": 146,
-      "liftedMaxMs": 149,
-      "parseMsPerSide": 71.5,
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -103,
+      "liftedMedianMs": 111,
+      "liftedMaxMs": 112,
+      "parseMsPerSide": 54,
       "diffMs": 3
     },
     {
@@ -1570,12 +1570,12 @@
       "outcomes": {
         "ok": 20
       },
-      "defaultsMedianMs": 54.5,
-      "defaultsDiffMs": 2.5,
-      "liftedMedianMs": 55,
-      "liftedMaxMs": 55,
-      "parseMsPerSide": 26,
-      "diffMs": 3
+      "defaultsMedianMs": 41,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 41,
+      "liftedMaxMs": 42,
+      "parseMsPerSide": 20.5,
+      "diffMs": 0
     },
     {
       "name": "ladder:python:100000",
@@ -1593,12 +1593,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 6,
-      "defaultsDiffMs": -84,
-      "liftedMedianMs": 93,
-      "liftedMaxMs": 104,
-      "parseMsPerSide": 45,
-      "diffMs": 3
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -62,
+      "liftedMedianMs": 67,
+      "liftedMaxMs": 73,
+      "parseMsPerSide": 33.5,
+      "diffMs": 0
     },
     {
       "name": "ladder:python:150000",
@@ -1616,12 +1616,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 6,
-      "defaultsDiffMs": -125,
-      "liftedMedianMs": 130,
-      "liftedMaxMs": 138,
-      "parseMsPerSide": 65.5,
-      "diffMs": -1
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -89,
+      "liftedMedianMs": 99,
+      "liftedMaxMs": 106,
+      "parseMsPerSide": 47,
+      "diffMs": 5
     },
     {
       "name": "ladder:python:200000",
@@ -1639,12 +1639,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 5.5,
-      "defaultsDiffMs": -159.5,
-      "liftedMedianMs": 166,
-      "liftedMaxMs": 174,
-      "parseMsPerSide": 82.5,
-      "diffMs": 1
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -125,
+      "liftedMedianMs": 122,
+      "liftedMaxMs": 126,
+      "parseMsPerSide": 65,
+      "diffMs": -8
     },
     {
       "name": "ladder:python:250000",
@@ -1662,12 +1662,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 6,
-      "defaultsDiffMs": -197,
-      "liftedMedianMs": 205,
-      "liftedMaxMs": 214,
-      "parseMsPerSide": 101.5,
-      "diffMs": 2
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -146,
+      "liftedMedianMs": 155,
+      "liftedMaxMs": 168,
+      "parseMsPerSide": 75.5,
+      "diffMs": 4
     },
     {
       "name": "ladder:python:300000",
@@ -1685,11 +1685,11 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 6,
-      "defaultsDiffMs": -234,
-      "liftedMedianMs": 249,
-      "liftedMaxMs": 254,
-      "parseMsPerSide": 120,
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -168,
+      "liftedMedianMs": 182,
+      "liftedMaxMs": 202,
+      "parseMsPerSide": 86.5,
       "diffMs": 9
     },
     {
@@ -1708,12 +1708,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 63.5,
-      "defaultsDiffMs": 43.5,
-      "liftedMedianMs": 171,
-      "liftedMaxMs": 172,
-      "parseMsPerSide": 10,
-      "diffMs": 151
+      "defaultsMedianMs": 48,
+      "defaultsDiffMs": 30,
+      "liftedMedianMs": 123,
+      "liftedMaxMs": 127,
+      "parseMsPerSide": 9,
+      "diffMs": 105
     },
     {
       "name": "unrelated:2000",
@@ -1731,12 +1731,12 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 66.5,
-      "defaultsDiffMs": 43.5,
-      "liftedMedianMs": 614,
-      "liftedMaxMs": 624,
-      "parseMsPerSide": 11.5,
-      "diffMs": 591
+      "defaultsMedianMs": 50,
+      "defaultsDiffMs": 31,
+      "liftedMedianMs": 436,
+      "liftedMaxMs": 439,
+      "parseMsPerSide": 9.5,
+      "diffMs": 417
     },
     {
       "name": "unrelated:3000",
@@ -1754,13 +1754,13 @@
       "outcomes": {
         "too-large": 20
       },
-      "defaultsMedianMs": 69,
-      "defaultsDiffMs": 42,
-      "liftedMedianMs": 1340,
-      "liftedMaxMs": 1359,
-      "parseMsPerSide": 13.5,
-      "diffMs": 1313
+      "defaultsMedianMs": 53,
+      "defaultsDiffMs": 31,
+      "liftedMedianMs": 933,
+      "liftedMaxMs": 955,
+      "parseMsPerSide": 11,
+      "diffMs": 911
     }
   ],
-  "uptime": "4:18  up 14 days, 19:58, 12 users, load averages: 4.64 11.75 45.82"
+  "uptime": "16:57  up  2:54, 18 users, load averages: 2.47 5.96 4.77"
 }
