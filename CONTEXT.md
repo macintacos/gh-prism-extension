@@ -207,6 +207,10 @@ that changes section)
 reports each version's changed tokens, or why it can't: no grammar for the file, a file
 past its limits, or text that does not parse. _Avoid_: differ, parser
 
+**Head outline**: What a parse of a changed file's head tells the hunk rules: where its
+multi-line comments and strings sit, and its test blocks. Used only in structural mode;
+otherwise the hunk rules line-scan the head. _Avoid_: parse tree, syntax tree
+
 ### The Conversation panel
 
 **Conversation panel**: A panel on the left edge of a pull request's Files changed tab
