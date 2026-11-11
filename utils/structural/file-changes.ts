@@ -63,7 +63,7 @@ const refuse = (problem: StructuralProblem): FileChangesResult => ({ ok: false, 
  */
 export function fileChanges({ source, run, cachedSpans }: FileChangesDeps): FileChanges {
   const cache = spanCache(cachedSpans);
-  const gated = gate(STRUCTURAL_READS_AT_ONCE);
+  const readingHeads = gate(STRUCTURAL_READS_AT_ONCE);
   // The source shares no in-flight diff read: one at a time, so a burst on a cold source fetches once.
   const listing = gate(1);
 
@@ -86,7 +86,7 @@ export function fileChanges({ source, run, cachedSpans }: FileChangesDeps): File
     const cached = cache.get(key);
     if (cached) return cached;
 
-    const head = await gated(() => {
+    const head = await readingHeads(() => {
       signal.throwIfAborted();
       return source.content(pr, path, signal);
     });

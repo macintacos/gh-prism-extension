@@ -15,23 +15,23 @@ export function changedRegions(hunks: readonly PrHunk[]): ChangedRegion[] | unde
 
     let oldLine = linesBefore(hunk.oldStart, hunk.oldCount) + 1;
     let newLine = linesBefore(hunk.newStart, hunk.newCount) + 1;
-    let open: { -readonly [K in keyof ChangedRegion]: number } | undefined;
+    let openRegion: { -readonly [K in keyof ChangedRegion]: number } | undefined;
     for (const { kind } of ops) {
       if (kind === " ") {
-        open = undefined;
+        openRegion = undefined;
         oldLine++;
         newLine++;
         continue;
       }
 
-      if (!open) {
-        open = { oldStart: oldLine, oldEnd: oldLine, newStart: newLine, newEnd: newLine };
-        regions.push(open);
+      if (!openRegion) {
+        openRegion = { oldStart: oldLine, oldEnd: oldLine, newStart: newLine, newEnd: newLine };
+        regions.push(openRegion);
       }
       if (kind === "-") oldLine++;
       else newLine++;
-      open.oldEnd = oldLine;
-      open.newEnd = newLine;
+      openRegion.oldEnd = oldLine;
+      openRegion.newEnd = newLine;
     }
   }
   return regions;
