@@ -480,8 +480,10 @@ on a private one.
   whitespace-only change.
 - **Expect the menu's layout choice to persist across reloads.** Choosing Split on
   `macintacos/gh-prism-sandbox` PR #3 kept split, and Split checked, after a reload
-  without a parameter, in one Chromium 157 session on 2026-11-10; whether the account or
-  the browser stores it is unknown. Choosing Unified back restored it.
+  without a parameter, in one Chromium 157 session on 2026-11-10. The account stores it: a
+  choice saved in Chromium 156 showed on Firefox 157's next load, and the reverse (signed
+  in, 2026-11-10). Choosing Unified back restored it. With Unified saved, a pull request
+  loaded without `?diff=` draws Unified, which turns the Structural preference off.
 - **Use `?diff=split` when the menu can't be driven.** It switches a pull request and a
   commit to split for that load only: a reload without it returns to the saved layout.
   `?diff=unified` loads unified even with Split saved, and loading either value doesn't
@@ -516,7 +518,10 @@ on a private one.
   `table` element stays connected while its rows and `colgroup` are replaced within about
   40 ms. `location` gains `?diff=split` or `?diff=unified` by history replacement, with no
   `popstate`, and nothing outside the tables marks the switch, so `followLayout` watches
-  the tables (Chromium 157, signed in, 2026-11-10; Firefox unchecked).
+  the tables (Chromium 157, signed in, 2026-11-10). Firefox 157 writes the same `?diff=`
+  replacement, and choosing Split after Unified leaves no `diff=unified` behind, in both
+  browsers, so `showsUnified`'s parameter row holds in both (Chromium 156 and Firefox 157,
+  signed in, 2026-11-10, gear found by its accessible name `Diff settings`).
 - **Expect the menu's `aria-checked` to follow the layout on screen, not the saved
   choice,** including under `?diff=` on both page kinds. On a pull request whose files are
   all one-sided, it says Split while every table has 3 columns (Chromium 157, signed in,
