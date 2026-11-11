@@ -69,10 +69,10 @@ const fixtureTexts = GRAMMARS.flatMap((grammar) =>
   })),
 );
 
-const movedCases = [...pythonCases, ...typescriptCases];
+const inlineCases = [...pythonCases, ...typescriptCases];
 const heads = [
   ...fixtureTexts,
-  ...movedCases.map(({ name, path, head }) => ({ name, path, text: head })),
+  ...inlineCases.map(({ name, path, head }) => ({ name, path, text: head })),
 ];
 
 /** Where the head a parse builds differs from the line scan's, and why the parse is right. */
@@ -103,7 +103,7 @@ describe("a head built from a parse", () => {
     expect(differingLines(scanned, parsed)).toEqual(KNOWN_DIFFERENCES[entry.name]?.lines ?? []);
   });
 
-  it.each(movedCases)("judges $name as the line scan does, but for known differences", (entry) => {
+  it.each(inlineCases)("judges $name as the line scan does, but for known differences", (entry) => {
     const parsed = parsedHead(entry.path, entry.head);
     if (parsed === undefined) return;
 

@@ -217,27 +217,28 @@ function startPositions(spans: readonly OutlineSpan[], lineCount: number): ScanP
 }
 
 /**
- * Scans `lines` in order. `positions`, when given, overrides the start position of each 1-based
+ * Scans `lines` in order. `parsedStarts`, when given, overrides the start position of each 1-based
  * line (`lines.length + 1` is the end of file); otherwise each line starts where the last left.
  */
 function scanLines(
   syntax: CommentSyntax,
   lines: readonly string[],
-  positions?: readonly ScanPosition[],
+  parsedStarts?: readonly ScanPosition[],
 ): ScannedHead {
   const starts: ScanState[] = [];
   const kinds: ScannedHead["kinds"][number][] = [];
   let state = FILE_START;
 
   for (const [index, line] of lines.entries()) {
-    if (positions !== undefined) state = { ...state, position: positions[index + 1] ?? "code" };
+    if (parsedStarts !== undefined)
+      state = { ...state, position: parsedStarts[index + 1] ?? "code" };
     starts.push(state);
     const scanned = scanLine(syntax, state, line);
     kinds.push(insideString(state) ? "string" : scanned.kind);
     state = scanned.state;
   }
 
-  if (positions !== undefined) state = { ...state, position: positions.at(-1) ?? "code" };
+  if (parsedStarts !== undefined) state = { ...state, position: parsedStarts.at(-1) ?? "code" };
   starts.push(state);
   return { lines, starts, kinds };
 }

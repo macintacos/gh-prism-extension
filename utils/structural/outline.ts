@@ -76,19 +76,19 @@ interface Reader {
 function outlineOf(tree: Tree, reader: Reader): HeadOutline {
   const spans: OutlineSpan[] = [];
   const testBlocks: LineBlock[] = [];
-  const stack: { node: Node; inBlock: boolean }[] = [{ node: tree.rootNode, inBlock: false }];
+  const stack: { node: Node; insideTest: boolean }[] = [{ node: tree.rootNode, insideTest: false }];
 
   for (let entry = stack.pop(); entry !== undefined; entry = stack.pop()) {
     const { node } = entry;
     const span = reader.spanOf(node);
     if (span !== undefined) spans.push(span);
 
-    const block = entry.inBlock ? undefined : reader.testOf(node);
-    if (block !== undefined) testBlocks.push(linesOf(block));
+    const testNode = entry.insideTest ? undefined : reader.testOf(node);
+    if (testNode !== undefined) testBlocks.push(linesOf(testNode));
 
-    const inBlock = entry.inBlock || block !== undefined;
+    const insideTest = entry.insideTest || testNode !== undefined;
     for (const child of node.namedChildren.toReversed()) {
-      if (child !== null) stack.push({ node: child, inBlock });
+      if (child !== null) stack.push({ node: child, insideTest });
     }
   }
 
@@ -123,8 +123,8 @@ function scriptSpanOf(node: Node): OutlineSpan | undefined {
 function pythonSpanOf(node: Node): OutlineSpan | undefined {
   if (!multiLine(node) || node.type !== "string") return undefined;
 
-  const triple = node.text.slice(-3);
-  const closer = triple === '"""' || triple === "'''" ? triple : node.text.slice(-1);
+  const lastThree = node.text.slice(-3);
+  const closer = lastThree === '"""' || lastThree === "'''" ? lastThree : node.text.slice(-1);
   return spanOf(node, isDocstring(node) ? "comment" : "string", closer);
 }
 
