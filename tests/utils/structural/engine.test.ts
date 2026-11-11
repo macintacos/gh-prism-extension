@@ -283,7 +283,7 @@ describe("structuralChanges", () => {
       now: clock.now,
     });
 
-    expect(result).toEqual({ ok: false, reason: "too-large" });
+    expect(result).toEqual({ ok: false, reason: "too-slow" });
     expect(clock.calls).toBeLessThan(100);
     expect(await changedTexts("javascript", oldText, newText)).toEqual({
       old: ["total", "total"],
@@ -300,7 +300,7 @@ describe("structuralChanges", () => {
         limits: { maxTextLength: Infinity, maxParseMs: 5 },
         now: countingClock().now,
       }),
-    ).toEqual({ ok: false, reason: "too-large" });
+    ).toEqual({ ok: false, reason: "too-slow" });
   });
 
   it("refuses a diff stage past maxDiffMs, checked between regions", async () => {
@@ -330,7 +330,7 @@ describe("structuralChanges", () => {
       limits: { maxDiffMs: 100 },
     });
 
-    expect(slow).toEqual({ ok: false, reason: "too-large" });
+    expect(slow).toEqual({ ok: false, reason: "too-slow" });
     expect(fast).toEqual({ old: ["a", "b"], new: ["x", "y"] });
   });
 

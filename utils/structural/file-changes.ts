@@ -14,8 +14,8 @@ import type { EngineRun, StructuralRequest } from "./request";
  * Why a file has no structural changes.
  * - `not-applicable`: no old text to compare: binary, added, deleted, or no hunks.
  * - `unsupported`: no grammar for the path, or the engine refuses it.
- * - `too-large`: the head or old text is past the engine's limits, or a parse, token walk, or
- *   diff runs past them, or the result can't cross the port.
+ * - `too-large`: the head or old text is past the engine's limits, a token walk or diff runs past
+ *   them, a parse or diff passes its deadline, or the result can't cross the port.
  * - `failed`: the diff doesn't list the path, the patch doesn't apply to the head, a text doesn't
  *   parse, or the engine's thread failed. Only the last may pass on a retry.
  * - `no-access`, `rate-limited`: the diff or head read's, as {@link PrDataProblem}.
@@ -58,7 +58,7 @@ const refuse = (problem: StructuralProblem): FileChangesResult => ({ ok: false, 
 /**
  * Builds one diff file's structural changes from the source's cached diff and head text, running
  * `run` only for a listed, modified file with a grammar. Settled answers that belong to the file
- * are cached; fetch problems and `failed` are not. A path the diff does not list answers `failed`
+ * are cached; fetch problems, `failed`, and the engine's `too-slow` are not. A path the diff does not list answers `failed`
  * without a head read.
  */
 export function fileChanges({ source, run, cachedSpans }: FileChangesDeps): FileChanges {
@@ -101,8 +101,12 @@ export function fileChanges({ source, run, cachedSpans }: FileChangesDeps): File
     const request = requestFor(file, head.text, grammar);
     if (!request) return refuse("failed");
 
-    const result = answerOf(await runOrFail(run, request, signal));
-    if (result.ok || result.problem !== "failed") cache.set(key, result);
+    const answer = await runOrFail(run, request, signal);
+    const result = answerOf(answer);
+    // A deadline depends on the machine's load, so another run may finish in time.
+    if (answer.ok || (answer.reason !== "too-slow" && answer.reason !== "failed")) {
+      cache.set(key, result);
+    }
     return result;
   };
 }
@@ -154,7 +158,7 @@ async function runOrFail(
 }
 
 const answerOf = (result: EngineResult): FileChangesResult =>
-  result.ok ? result : refuse(result.reason);
+  result.ok ? result : refuse(result.reason === "too-slow" ? "too-large" : result.reason);
 
 /** Apart per diff, so a PR and a commit at the same SHA never share an entry. */
 const cacheKey = (pr: DiffHead, path: string): string => {

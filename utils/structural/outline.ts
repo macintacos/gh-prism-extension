@@ -42,7 +42,8 @@ export interface OutlineInput {
 
 /**
  * `text`'s multi-line comments and strings and its test blocks, or why it has none:
- * `unsupported` without a grammar, `too-large` past a limit, `failed` when it does not parse.
+ * `unsupported` without a grammar, `too-large` past a limit, `too-slow` when the parse passes its
+ * deadline, `failed` when it does not parse.
  */
 export function headOutline({ text, language, limits, now }: OutlineInput): OutlineResult {
   if (language === undefined) return refuse("unsupported");
@@ -52,7 +53,7 @@ export function headOutline({ text, language, limits, now }: OutlineInput): Outl
   language.parser.reset();
   const deadline = now() + limits.maxParseMs;
   const tree = language.parser.parse(text, null, { progressCallback: () => now() > deadline });
-  if (tree === null) return refuse("too-large");
+  if (tree === null) return refuse("too-slow");
 
   try {
     if (tree.rootNode.hasError) return refuse("failed");

@@ -280,15 +280,18 @@ describe("fileChanges", () => {
       expect(run).toHaveBeenCalledTimes(1);
     });
 
-    it("answers an engine refusal from the cache", async () => {
-      const { run, changes } = setup({ run: async () => ({ ok: false, reason: "unsupported" }) });
-      await changes(pr, "src/main.ts", signal());
+    it.each(["unsupported", "too-large"] as const)(
+      "answers the engine's %s from the cache",
+      async (reason) => {
+        const { run, changes } = setup({ run: async () => ({ ok: false, reason }) });
+        await changes(pr, "src/main.ts", signal());
 
-      const result = await changes(pr, "src/main.ts", signal());
+        const result = await changes(pr, "src/main.ts", signal());
 
-      expect(result).toEqual({ ok: false, problem: "unsupported" });
-      expect(run).toHaveBeenCalledTimes(1);
-    });
+        expect(result).toEqual({ ok: false, problem: reason });
+        expect(run).toHaveBeenCalledTimes(1);
+      },
+    );
 
     it("refuses a head past the text limit without running, and caches it", async () => {
       const big = "x".repeat(DEFAULT_LIMITS.maxTextLength + 1);
@@ -314,6 +317,16 @@ describe("fileChanges", () => {
       ]);
 
       expect(fetchFn.mock.calls.filter(([url]) => String(url) === diffUrlOf(pr))).toHaveLength(1);
+    });
+
+    it("answers a stage past its deadline as too large, and runs again on the next request", async () => {
+      const { run, changes } = setup({ run: async () => ({ ok: false, reason: "too-slow" }) });
+      await changes(pr, "src/main.ts", signal());
+
+      const result = await changes(pr, "src/main.ts", signal());
+
+      expect(result).toEqual({ ok: false, problem: "too-large" });
+      expect(run).toHaveBeenCalledTimes(2);
     });
 
     it("runs again after the engine failed", async () => {

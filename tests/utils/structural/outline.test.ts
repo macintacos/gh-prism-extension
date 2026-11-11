@@ -256,13 +256,13 @@ describe("headOutline", () => {
     expect(result).toEqual({ ok: false, reason: "too-large" });
   });
 
-  it("refuses a parse that runs past maxParseMs as too large", () => {
+  it("refuses a parse that runs past maxParseMs as too slow", () => {
     let clock = 0;
     const input = inputOf("typescript", "x;\n".repeat(20_000), { now: () => (clock += 1_000) });
 
     const result = headOutline(input);
 
-    expect(result).toEqual({ ok: false, reason: "too-large" });
+    expect(result).toEqual({ ok: false, reason: "too-slow" });
   });
 
   it("refuses a text with a syntax error as failed", () => {
