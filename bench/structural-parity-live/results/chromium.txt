@@ -1,0 +1,90 @@
+browser: chromium 156.0.8078.4
+0a mode off is trunk https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split: ok {"sameSizes":true,"sizes":["Overview:66x28","Pull request toolbar:1x1",":0x0",":58x28","Move file tree to the left:28x28","All commits:121x28",":28x28",":0x0"],"trunk":["Overview:66x28","Pull request toolbar:1x1",":0x0",":58x28","Move file tree to the left:28x28","All commits:121x28",":28x28",":0x0"],"attributes":0,"notices":0,"sheets":0,"offscreen":0}
+0a mode off is trunk https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split: ok {"sameSizes":true,"sizes":[":0x0",":58x28","Move file tree to the left:28x28","Search within code:215x32",":32x32"],"trunk":[":0x0",":58x28","Move file tree to the left:28x28","Search within code:215x32",":32x32"],"attributes":0,"notices":0,"sheets":0,"offscreen":0}
+0a storage unchanged across the visit: ok
+20 mode off: as 0a, with pass 1 of bench/structural-mode-live.ts
+layout found: unified
+0b Beta tag https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split: ok (1 segment)
+0b Beta tag https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split: ok (1 segment)
+0c signature https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split: ok (0 ranges painted)
+0c signature https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split: ok (16 ranges painted)
+0c signature https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split: ok (3 ranges painted)
+0c signature https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split: ok (2 ranges painted)
+0c signature https://github.com/excessive-dev/gh-prism-codeowners-sandbox/pull/3/changes?diff=split: ok (0 ranges painted)
+14 syntax highlighting: as 0c
+1 comment on a painted row, L side: ok (form open, stale 0)
+1 comment on a painted row, L side cancelled: ok
+1 comment on a painted row, L side opens on the pressed line: ok (form 121px below the cell)
+1 comment on a painted row, R side: ok (form open, stale 0)
+1 comment on a painted row, R side cancelled: ok
+1 comment on a painted row, R side opens on the pressed line: ok (form 121px below the cell)
+1 comment on a quiet row, L side: not driven (no quiet L cell in the file)
+1 comment on a quiet row, R side: not driven (no quiet R cell in the file)
+1 comment on a context row, L side: ok (form open, stale 0)
+1 comment on a context row, L side cancelled: ok
+1 comment on a context row, L side opens on the pressed line: ok (form 121px below the cell)
+1 comment on a context row, R side: ok (form open, stale 0)
+1 comment on a context row, R side cancelled: ok
+1 comment on a context row, R side opens on the pressed line: ok (form 121px below the cell)
+2 multi-line selection: ok (2 rows, quiet rgb(255, 248, 197))
+2 multi-line comment names both lines: ok (1 to 2; form says "lines R1 to R2Add diff commentMarkdown"; (ranges 16, stale 0, marks 2))
+3 suggested change: ok ("```suggestion\n# Amounts are whole cents, never floats.\n```"; (ranges 16, stale 0, marks 2))
+3 batched suggestions: not driven (needs submitted suggestions)
+4 file-level comment: ok (ranges 16, stale 0, marks 2)
+19 comment on a painted row, L side: ok (form open, stale 0)
+19 comment on a painted row, L side cancelled: ok
+19 comment on a painted row, L side opens on the pressed line: ok (form 141px below the cell)
+19 comment on a painted row, R side: ok (form open, stale 0)
+19 comment on a painted row, R side cancelled: ok
+19 comment on a painted row, R side opens on the pressed line: ok (form 141px below the cell)
+19 comment on a quiet row, L side: not driven (no quiet L cell in the file)
+19 comment on a quiet row, R side: not driven (no quiet R cell in the file)
+19 comment on a context row, L side: ok (form open, stale 0)
+19 comment on a context row, L side cancelled: ok
+19 comment on a context row, L side opens on the pressed line: ok (form 121px below the cell)
+19 comment on a context row, R side: ok (form open, stale 0)
+19 comment on a context row, R side cancelled: ok
+19 comment on a context row, R side opens on the pressed line: ok (form 121px below the cell)
+5 pending review: ok (1 pending badge; (ranges 16, stale 0, marks 2))
+5 review discarded: ok (1 pending found, 0 left)
+5 discard from the page: not driven (the Submit review dialog offers no discard)
+5 submit as Comment, Approve, Request changes: not driven (a submitted review cannot be removed)
+6 thread reply: ok (ranges 0, stale 0, marks 0)
+6 thread resolve: ok (ranges 0, stale 0, marks 0)
+6 unresolve from the page: not driven (a resolved thread leaves the diff with no Unresolve control; the API reopens it)
+6 thread ends unresolved: ok (1 reopened through the API)
+6 minimize comments and Copilot actions: not driven (they change or cost account state)
+7 outdated threads: not driven (no outdated thread on any sandbox pull request)
+8 Viewed through GitHub's toggle: ok (ranges 11 → 0 → 11, collapsed true, page 16)
+8 Viewed through gh-prism's sidebar box: ok (ranges 11 → 0 → 11, collapsed true, page 16)
+8 unmark on change: not driven (needs a push)
+9 expand down: not driven (the file offers no such expander)
+9 expand up: ok ((ranges 16, stale 0, marks 2) → (ranges 16, stale 0, marks 2), ranges outside changed 0, marked context rows 0)
+9 expand between: ok ((ranges 16, stale 0, marks 2) → (ranges 16, stale 0, marks 2), ranges outside changed 0, marked context rows 0)
+9 expand all: not driven (the file offers no such expander)
+11 line link R: ok {"off":{"inView":true,"background":"rgb(255, 248, 197)"},"on":{"inView":true,"background":"rgb(255, 248, 197)"}}
+11 line link L: ok {"off":{"inView":true,"background":"rgb(255, 248, 197)"},"on":{"inView":true,"background":"rgb(255, 248, 197)"}}
+11 LINK ten times: ok (10 of 10 in view)
+12 switch away and back https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split: ok (structural 16, unified 0/0/0/0, structural 16/2/1/0, split 0/0/0/0, structural 16/2/1/0)
+12 switch away and back https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split: ok (structural 3, unified 0/0/0/0, structural 3/1/1/0, split 0/0/0/0, structural 3/1/1/0)
+13 hide whitespace: ok (16 ranges, 0 outside changed cells)
+15 copy and find: ok (selection 149/149 chars, "Amounts" 2/2)
+16 grid keys: ok {"off":["diff-61e74e0f64f3763511a5c42049960c636ab255e248b57a1a6f156dea14cd84ebR3","diff-61e74e0f64f3763511a5c42049960c636ab255e248b57a1a6f156dea14cd84ebR2"],"on":["diff-61e74e0f64f3763511a5c42049960c636ab255e248b57a1a6f156dea14cd84ebR3","diff-61e74e0f64f3763511a5c42049960c636ab255e248b57a1a6f156dea14cd84ebR2"]}
+16 screen reader reading: not driven (needs a person with a screen reader)
+17 j, k, and reveal: ok {"off":["diff-ff278ec599a","diff-c2a0fff5575","diff-ff278ec599a","diff-4a04259da48"],"on":["diff-ff278ec599a","diff-c2a0fff5575","diff-ff278ec599a","diff-4a04259da48"]}
+17 OWN shields across switches: ok (1, 1, 1, 1, 1)
+17 github.dev and codespace keys: not driven (they leave the page)
+21 PR3 notices: ok (4 files noticed, 0 wrong)
+N notice density: 4 notices over the page, 4 mounted at once, at most 3 in one viewport
+18 rich diff: ok (0 notices or marks, 0 ranges)
+18 source diff notice again: ok
+18 one-sided: not driven (no such file mounted on PR3)
+18 binary: not driven (no such file mounted on PR3)
+18 renamed, added, deleted, binary: ok ["renamed:table:0n/0m"]
+F moved line focus: not driven (no page marks a moved line)
+R reveal without reload: ok (10 of 10 revealed, marker true, 20 main-frame navigations)
+L loading line: not seen
+10 load diff: ok (diff-e644ee624c8e37bbbb1155980aafda47ad75a15c637006d3995d762677803fd3: painted false, notice "Structural mode doesn't cover this file's language yet, so this is GitHub's diff."; before it 5 one-sided loads, none painted or noticed: true)
+21 BIG too-large notice: ok ("This file is too large for Structural mode, so this is GitHub's diff.")
+M mismatch: 0 of 85
+parity: 64 ok, 0 failed, 18 not driven

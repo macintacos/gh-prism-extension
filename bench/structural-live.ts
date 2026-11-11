@@ -23,6 +23,15 @@ import type { StructuralHarness } from "../e2e/structural-page";
 import { STRUCTURAL_ATTRS } from "../entrypoints/content/diffs/structural-attrs";
 import type { StructuralFile } from "../utils/structural/changes";
 import { bundle } from "./bundle";
+import {
+  background,
+  commentOn,
+  multiLine,
+  numberOf,
+  type Report,
+  type StaleRanges,
+  settle,
+} from "./structural-live/forms";
 
 declare const window: Window & { readonly structural: StructuralHarness };
 
@@ -61,19 +70,8 @@ function notDriven(name: string, why: string): void {
   console.log(`${name}: NOT DRIVEN (${why}) — reviewer check`);
 }
 
-/** A code cell's number cell, the one before it in its row. */
-const numberOf = (cell: Locator) => cell.locator("xpath=preceding-sibling::td[1]");
-
-const selectedRows = (page: Page) =>
-  page.evaluate(
-    () =>
-      new Set(
-        [...document.querySelectorAll('td[data-selected="true"]')].map((td) => td.parentElement),
-      ).size,
-  );
-
-/** Lets `observeDiffs`' 50 ms debounce and the painter's frame run. */
-const settle = (page: Page) => page.waitForTimeout(400);
+const report: Report = { check, notDriven };
+const stale: StaleRanges = async (page) => (await ranges(page)).stale;
 
 const engineCell = (page: Page, side: "left" | "right", line: number) =>
   page.locator(
@@ -128,8 +126,6 @@ const copyOf = (cell: Locator) =>
     return { text: td.textContent, copied, userSelect: getComputedStyle(td).userSelect };
   });
 
-const background = (cell: Locator) => cell.evaluate((td) => getComputedStyle(td).backgroundColor);
-
 /** The `[r, g, b]` of the 1×1 screenshot at (`x`, `y`), from its uncompressed PNG scanline. */
 async function pixel(page: Page, x: number, y: number): Promise<number[]> {
   const png = await page.screenshot({ clip: { x, y, width: 1, height: 1 } });
@@ -146,20 +142,6 @@ async function pixel(page: Page, x: number, y: number): Promise<number[]> {
 }
 
 const rgbOf = (css: string) => (css.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
-
-/** Opens the comment form on `cell`'s row, types, checks the painting survived, and cancels. */
-async function commentOn(page: Page, name: string, cell: Locator): Promise<void> {
-  await cell.hover();
-  await page.locator("button[data-add-comment-button]").first().click();
-  const box = page.getByPlaceholder("Leave a comment").first();
-  await box.fill("parity");
-  await settle(page);
-  const { stale } = await ranges(page);
-  check(name, (await box.isVisible()) && stale === 0, `(form open, stale ${stale})`);
-  await page.getByRole("button", { name: "Cancel", exact: true }).first().click();
-  await settle(page);
-  check(`${name} cancelled`, (await page.getByPlaceholder("Leave a comment").count()) === 0);
-}
 
 /** Every check against the sandbox pull request. */
 async function parity(page: Page): Promise<void> {
@@ -241,10 +223,10 @@ async function parity(page: Page): Promise<void> {
     `(${await background(quiet)} = ${selected})`,
   );
 
-  await commentOn(page, "7 comment on painted row", painted);
-  await commentOn(page, "7 comment on quiet row", quiet);
+  await commentOn(page, "7 comment on painted row", painted, { report, stale });
+  await commentOn(page, "7 comment on quiet row", quiet, { report, stale });
 
-  await multiLine(page, painted, quiet, selected);
+  await multiLine(page, { painted, quiet, selected }, { report });
 
   await page
     .locator(`table[data-diff-anchor="${ENGINE_ANCHOR}"] button`, { hasText: "Write a reply" })
@@ -273,43 +255,6 @@ async function parity(page: Page): Promise<void> {
 
   await linkedLine(page);
   await contrast(page);
-}
-
-/** Selects from the quiet row to the painted one by dragging across their line numbers, as a person does. */
-async function multiLine(
-  page: Page,
-  painted: Locator,
-  quiet: Locator,
-  selected: string,
-): Promise<void> {
-  const [from, to] = [await numberOf(quiet).boundingBox(), await numberOf(painted).boundingBox()];
-  if (!from || !to) return check("8 multi-line range", false, "(no boxes)");
-  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 10 });
-  await page.mouse.up();
-  await settle(page);
-  const rows = await selectedRows(page);
-  if (rows < 2) {
-    notDriven("8 multi-line range", `dragging across line numbers selected ${rows} row`);
-  } else {
-    const allSelected = await page.evaluate(() =>
-      [...document.querySelectorAll('td[data-selected="true"]')].every((td) =>
-        // A one-sided row's empty side carries no data-selected at all.
-        [...(td.parentElement?.querySelectorAll("td:not(.empty-diff-line)") ?? [])].every(
-          (cell) => cell.getAttribute("data-selected") === "true",
-        ),
-      ),
-    );
-    const quietBackground = await background(quiet);
-    check(
-      "8 multi-line range",
-      allSelected && quietBackground === selected,
-      `(${rows} rows, quiet ${quietBackground})`,
-    );
-  }
-  const cancel = page.getByRole("button", { name: "Cancel", exact: true });
-  if (await cancel.count()) await cancel.first().click();
 }
 
 /** Checks the painter left no highlight and no attribute behind. */

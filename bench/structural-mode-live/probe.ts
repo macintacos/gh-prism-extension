@@ -1,5 +1,6 @@
 /** Bench-only content script body that `bench/scratch-build.ts` wraps; it must never ship. */
 
+import { browser } from "wxt/browser";
 import { ADDED_HIGHLIGHT, REMOVED_HIGHLIGHT } from "@/entrypoints/content/diffs/structural";
 import { structuralFiles } from "@/entrypoints/content/diffs/structural-files";
 import { readFilesRoute } from "@/utils/github/files-route";
@@ -12,7 +13,50 @@ export type ProbeRequest =
   | { readonly op: "get" }
   | { readonly op: "highlights" }
   | { readonly op: "paths" }
-  | { readonly op: "answers"; readonly paths: readonly string[] };
+  | { readonly op: "answers"; readonly paths: readonly string[] }
+  | { readonly op: "paint" }
+  | { readonly op: "storage" };
+
+/**
+ * The highlight ranges per diff anchor, how many sit on a node no longer in the page, and how many
+ * sit in a cell GitHub does not mark changed.
+ */
+export type ProbePaint =
+  | {
+      readonly perRange: true;
+      readonly byAnchor: Record<string, number>;
+      readonly stale: number;
+      readonly outsideChanged: number;
+    }
+  | { readonly perRange: false; readonly total: number };
+
+function paint(): ProbePaint {
+  const byAnchor: Record<string, number> = {};
+  let stale = 0;
+  let outsideChanged = 0;
+  try {
+    for (const name of [ADDED_HIGHLIGHT, REMOVED_HIGHLIGHT]) {
+      CSS.highlights.get(name)?.forEach((range) => {
+        const node = range.startContainer;
+        if (!node.isConnected) stale++;
+        if (!node.parentElement?.closest("code.addition, code.deletion")) outsideChanged++;
+        const anchor =
+          node.parentElement
+            ?.closest("table[data-diff-anchor]")
+            ?.getAttribute("data-diff-anchor") ?? "";
+        byAnchor[anchor] = (byAnchor[anchor] ?? 0) + 1;
+      });
+    }
+  } catch {
+    // Firefox denies a content script the ranges another content script made; their count is all
+    // it can read.
+    const total = [ADDED_HIGHLIGHT, REMOVED_HIGHLIGHT]
+      .map((name) => CSS.highlights.get(name)?.size ?? 0)
+      .reduce((a, b) => a + b, 0);
+    return { perRange: false, total };
+  }
+  return { perRange: true, byAnchor, stale, outsideChanged };
+}
 
 /** A path's answer as the bench compares it: the changed lines' text, or the port's problem. */
 export type ProbeAnswer =
@@ -82,6 +126,12 @@ function answer(request: ProbeRequest): Promise<unknown> {
       return paths();
     case "answers":
       return answers(request.paths);
+    case "paint":
+      return Promise.resolve().then(paint);
+    case "storage":
+      return Promise.all([browser.storage.sync.get(null), browser.storage.local.get(null)]).then(
+        ([sync, local]) => ({ sync, local }),
+      );
   }
 }
 

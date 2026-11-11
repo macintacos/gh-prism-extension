@@ -14,16 +14,30 @@
  * per check, ends with `mismatch: <n> of <m>`, and exits 1 on a failed assertion.
  */
 
-import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type BrowserContext, chromium, firefox, type Page } from "@playwright/test";
-import { withExtension } from "playwright-webextext";
-import { STRUCTURAL_ATTRS } from "../entrypoints/content/diffs/structural-attrs";
+import type { BrowserContext, Page } from "@playwright/test";
 import { buildCopy, scratchCopy } from "./scratch-build";
-import { type Layout, type LayoutChoice, withLayoutRestored } from "./structural-mode-live/layout";
-import type { ProbeAnswer, ProbeRequest } from "./structural-mode-live/probe";
+import {
+  anchorOf,
+  ask,
+  Failure,
+  gearLayout,
+  launch,
+  load,
+  NOTICE_SELECTOR,
+  noticeBefore,
+  offscreenDocuments,
+  PROBE,
+  pressedView,
+  segmentOf,
+  shields,
+  structuralTraces,
+  type View,
+} from "./structural-mode-live/harness";
+import { type Layout, withLayoutRestored } from "./structural-mode-live/layout";
+import type { ProbeAnswer } from "./structural-mode-live/probe";
 
 const [browserName, state, ...urlArgs] = process.argv.slice(2);
 if ((browserName !== "chromium" && browserName !== "firefox") || !state) {
@@ -44,106 +58,15 @@ const URLS = urlArgs.length
       `${SANDBOX}/commit/8d807ee?diff=split`,
       `${SANDBOX}/commit/4630717?diff=split`,
     ];
-// Keep in sync with structural-notices.ts's classes and NOTICE_COPY.unsupported.
-const NOTICE_SELECTOR = ".gh-prism-structural-notice, .gh-prism-structural-loading";
+// Keep in sync with structural-notices.ts's NOTICE_COPY.unsupported.
 const UNSUPPORTED_COPY =
   "Structural mode doesn't cover this file's language yet, so this is GitHub's diff.";
-const PROBE = `import { defineContentScript } from "wxt/utils/define-content-script";
-import { probe } from "@/bench/structural-mode-live/probe";
-
-export default defineContentScript({ matches: ["https://github.com/*"], main: probe });
-`;
 
 const log = (line: string) => console.log(line);
-
-class Failure extends Error {}
 
 function check(name: string, ok: boolean, detail = ""): void {
   if (!ok) throw new Failure(`${name}: FAILED ${detail}`);
   log(`${name}: ok ${detail}`.trimEnd());
-}
-
-/** GitHub's anchor for a file's diff: `diff-` and the SHA-256 of its path. */
-const anchorOf = (path: string) => `diff-${createHash("sha256").update(path).digest("hex")}`;
-
-/**
- * Asks the probe content script, retrying until it answers, and returns its result as `T`
- * unchecked: the caller names the type the probe's `op` replies with.
- */
-async function ask<T>(page: Page, request: ProbeRequest, timeoutMs = 60_000): Promise<T> {
-  const deadline = Date.now() + timeoutMs;
-  for (;;) {
-    const reply = await Promise.race([
-      page.evaluate(
-        (request) =>
-          new Promise<{ result?: unknown; error?: string }>((resolve) => {
-            const id = Math.random();
-            const listener = (event: MessageEvent) => {
-              if (event.data?.probeReply !== id) return;
-              removeEventListener("message", listener);
-              resolve(event.data);
-            };
-            addEventListener("message", listener);
-            postMessage({ probe: id, request }, "*");
-          }),
-        request,
-      ),
-      page.waitForTimeout(request.op === "answers" ? timeoutMs : 1000).then(() => undefined),
-    ]);
-    if (reply?.error) throw new Error(`probe ${request.op}: ${reply.error}`);
-    if (reply) return reply.result as T;
-    if (Date.now() > deadline) throw new Error(`probe ${request.op}: no answer`);
-  }
-}
-
-/** Loads `url` and waits for gh-prism's sections, then for GitHub's re-render after load. */
-async function load(page: Page, url: string): Promise<void> {
-  await page.goto(url);
-  await page.locator(".gh-prism-section").first().waitFor({ timeout: 30_000 });
-  await page.locator("table[data-diff-anchor]").first().waitFor({ timeout: 30_000 });
-  await page.waitForTimeout(4000);
-}
-
-/** What the DOM holds of structural mode. */
-const structuralTraces = (page: Page) =>
-  page.evaluate(
-    ({ attrs, notices }) => ({
-      attributes: document.querySelectorAll(attrs.map((a) => `[${a}]`).join(", ")).length,
-      notices: document.querySelectorAll(notices).length,
-      sheets: [...document.querySelectorAll("style")].filter((style) =>
-        style.textContent?.includes("::highlight(gh-prism-"),
-      ).length,
-    }),
-    { attrs: STRUCTURAL_ATTRS, notices: NOTICE_SELECTOR },
-  );
-
-/**
- * The text of gh-prism's node directly before `anchor`'s mounted table: `null` for none,
- * `undefined` while unmounted.
- */
-const noticeBefore = (page: Page, anchor: string) =>
-  page.evaluate(
-    ({ anchor, notices }) => {
-      const table = document.querySelector(`table[data-diff-anchor="${anchor}"]`);
-      if (!table) return undefined;
-      const before = table.previousElementSibling;
-      return before?.matches(notices) ? (before.textContent ?? "") : null;
-    },
-    { anchor, notices: NOTICE_SELECTOR },
-  );
-
-async function offscreenDocuments(context: BrowserContext): Promise<number> {
-  const worker = context.serviceWorkers()[0];
-  if (!worker) return 0;
-  return worker.evaluate(() =>
-    (
-      globalThis as unknown as {
-        chrome: { runtime: { getContexts(f: object): Promise<unknown[]> } };
-      }
-    ).chrome.runtime
-      .getContexts({ contextTypes: ["OFFSCREEN_DOCUMENT"] })
-      .then((found) => found.length),
-  );
 }
 
 /** Pass 1: with the preference at its default, no URL shows any trace of structural mode. */
@@ -331,35 +254,6 @@ async function modeOn(page: Page): Promise<void> {
   log(`mismatch: ${mismatches} of ${answeredOk}`);
 }
 
-/** The gear menu's Layout choice on `page`, read and chosen as a person does. */
-function gearLayout(page: Page): LayoutChoice {
-  const gear = () =>
-    page
-      .getByRole("button", { name: "Diff settings" })
-      .or(
-        page
-          .locator("#diff-content-parent")
-          .getByRole("button", { name: "Open diff view settings" }),
-      )
-      .first();
-  const item = (layout: Layout) =>
-    page.getByRole("menuitemradio", { name: layout === "split" ? "Split" : "Unified" });
-  return {
-    async read() {
-      await gear().click();
-      const split = await item("split").getAttribute("aria-checked");
-      await page.keyboard.press("Escape");
-      return split === "true" ? "split" : "unified";
-    },
-    async choose(layout) {
-      await gear().click();
-      await item(layout).click();
-      await page.waitForTimeout(2500);
-      if (await item(layout).isVisible()) await page.keyboard.press("Escape");
-    },
-  };
-}
-
 const unifiedInSearch = (page: Page) =>
   page.evaluate(() => new URLSearchParams(location.search).get("diff") === "unified");
 
@@ -419,30 +313,6 @@ async function unifiedTurnsOff(page: Page): Promise<Layout> {
     );
   return original;
 }
-
-type View = "Unified" | "Split" | "Structural";
-
-const segmentOf = (page: Page, view: View) =>
-  page
-    .getByRole("list", { name: "Diff view" })
-    .getByRole("button", { name: view === "Structural" ? /^Structural/ : view });
-
-/** The segment the diff view control shows pressed, if any. */
-const pressedView = (page: Page) =>
-  page.evaluate(
-    () =>
-      document.querySelector<HTMLElement>(".gh-prism-diff-view [aria-pressed='true']")?.dataset
-        .view,
-  );
-
-/** Code owner shields drawn in the diffs' file headers. */
-const shields = (page: Page) =>
-  page.evaluate(
-    () =>
-      document.querySelectorAll(
-        ':is([data-testid="diff-content"], #diff-content-parent) svg[class*="octicon-shield"]',
-      ).length,
-  );
 
 /**
  * Where ArrowDown from the first changed diff cell moves focus: `next-row` when it lands on the
@@ -553,6 +423,12 @@ async function viewControl(page: Page): Promise<void> {
       await press("Unified", "split");
       await checkClean("Unified");
       await checkReload("Unified");
+
+      // The round trip that leaves GitHub's own Layout as the last press chose it.
+      await press("Structural", "unified");
+      await press("Unified", "split");
+      await press("Split", "unified");
+      log(`control ${url} round trip: ok`);
     }
   });
   await ask(page, { op: "set", on: false });
@@ -560,29 +436,12 @@ async function viewControl(page: Page): Promise<void> {
   log("view control: ok");
 }
 
-async function launch(build: string, profile: string): Promise<BrowserContext> {
-  const viewport = { width: 1600, height: 900 };
-  const context =
-    browserName === "firefox"
-      ? await withExtension(firefox, build).launchPersistentContext(profile, { viewport })
-      : await chromium.launchPersistentContext(profile, {
-          channel: "chromium",
-          viewport,
-          args: [`--disable-extensions-except=${build}`, `--load-extension=${build}`],
-        });
-  const { cookies } = JSON.parse(readFileSync(statePath, "utf8")) as {
-    cookies: Parameters<BrowserContext["addCookies"]>[0];
-  };
-  await context.addCookies(cookies);
-  return context;
-}
-
 const copy = mkdtempSync(join(tmpdir(), "gh-prism-mode-copy-"));
 const profile = mkdtempSync(join(tmpdir(), "gh-prism-mode-profile-"));
 let context: BrowserContext | undefined;
 try {
   scratchCopy(copy, { "entrypoints/bench-probe.content.ts": PROBE });
-  context = await launch(buildCopy(copy, browserName), profile);
+  context = await launch(browserName, buildCopy(copy, browserName), profile, statePath);
   const page = context.pages()[0] ?? (await context.newPage());
   await page.goto(`${SANDBOX}/pull/4`);
   if (await page.locator('meta[name="user-login"][content=""]').count())

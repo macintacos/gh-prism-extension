@@ -159,9 +159,30 @@ prints one line per check, ends the second pass with `mismatch: <n> of <m>`, and
 when a check fails. `bench/structural-mode-live/results/*.txt` hold one run per browser,
 written by
 `bun bench/structural-mode-live.ts chromium <path> > bench/structural-mode-live/results/chromium.txt`
-(and likewise for `firefox`); they are a dated record, not a baseline.
+(and likewise for `firefox`); they are a dated record, not a baseline. Its diff view
+control pass ends each URL with a round trip from Unified through Structural, Unified, and
+Split, checking the gear's Layout and the count of `POST /users/diffview` after each
+press.
 
-## Sandbox repositories
+`bun bench/structural-parity-live.ts <chromium|firefox> <storage-state path> [--trunk <built extension directory>]`
+runs Structural mode's parity checklist in the built extension on live GitHub: sandbox PRs
+
+## 3 and #4, the two sandbox commits, a gh-prism-extension commit's line link, the
+
+codeowners sandbox's large pull request, and nodejs/node#66212, where it only reads,
+scrolls, and loads diffs. Its strongest check compares a page signature (each diff table's
+markup without the painter's attributes, the sidebar's text, the file order, each file
+header's controls, and one table's accessibility tree) with Split and with Structural;
+with `--trunk`, it also compares the stack's build, mode off, against a build of `main`.
+It opens comment, reply, and suggestion forms and cancels each; it starts a review and
+discards it, deleting any pending review left through `gh api`; it resolves and unresolves
+the sandbox thread, marks a file Viewed and unmarks it, and restores the account's Layout,
+all in a `finally`. It prints one line per check, `<id> <name>: ok`,
+`: FAILED <what was seen>`, or `: not driven (<reason>)`, ends with
+`parity: <N> ok, <F> failed, <M> not driven`, and exits 1 when F is not 0.
+`bench/structural-parity-live/results/*.txt` hold one run per browser, a dated record.
+
+### Sandbox repositories
 
 `scripts/create-sandbox.sh <owner>/<repo>` creates a private repository under an account
 you control, with nine open pull requests. Small, large, and complicated survey GitHub's
@@ -193,7 +214,7 @@ without access to the organization makes the pushes fail; `gh auth setup-git` fi
 A rerun skips the repository, the teams, and each pull request that already exists, and
 brings each body up to date.
 
-## Git hooks
+### Git hooks
 
 hk, a git hook manager configured in [`hk.pkl`](../hk.pkl), runs two hooks:
 
@@ -203,7 +224,7 @@ hk, a git hook manager configured in [`hk.pkl`](../hk.pkl), runs two hooks:
 - **pre-push** runs `mise run test` when a pushed change touches TypeScript, JavaScript,
   `package.json`, or `bun.lock`.
 
-## CI
+### CI
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push and pull
 request, as three jobs, and `e2e` fans out to one job per browser. `check` and `e2e`
@@ -221,7 +242,7 @@ line, run `gh actions-lock` to update the lockfile. It needs the
 [gh-actions-lock](https://github.com/github/gh-actions-lock) extension:
 `gh extension install github/gh-actions-lock`.
 
-## Releases
+### Releases
 
 In Claude Code, run `/release-gh-prism [patch|minor|major]`. The skill computes the next
 version, writes the release notes, asks you once to confirm both, then runs the release
@@ -269,7 +290,7 @@ To rotate the Chrome key, create a new JSON key for the service account in Googl
 set `CHROME_SERVICE_ACCOUNT_PRIVATE_KEY` in the environment to its `private_key`, then
 delete the old key.
 
-## Patched dependencies
+### Patched dependencies
 
 Five dependencies carry local patches in [`patches/`](../patches/), which Bun applies on
 install through `patchedDependencies` in [`package.json`](../package.json):
