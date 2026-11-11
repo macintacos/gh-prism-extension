@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test as base, type CDPSession, expect, type Page } from "@playwright/test";
+import { STRUCTURAL_ATTRS } from "../entrypoints/content/diffs/structural-attrs";
 import type { StructuralFile } from "../utils/structural/changes";
 import type { StructuralHarness } from "./structural-page";
 
@@ -34,7 +35,7 @@ const PR_SPLIT = "files-page-diff-split.html";
 const COMMIT_SPLIT = "commit-page-diff-split.html";
 const PR_ANCHOR = "diff-ff278ec599adfd033d35a083ebe8948db8bf177c9817dee8ddc4f3a9e3f5728e";
 const COMMIT_ANCHOR = "diff-cc3fb1ce8d7fcf13784c71a054155c0fcde23acb2ebee6c808198187e6232c6a";
-const MARKED = "[data-gh-prism-structural], [data-gh-prism-quiet], [data-gh-prism-moved]";
+const MARKED = STRUCTURAL_ATTRS.map((name) => `[${name}]`).join(", ");
 
 /** Mounts `#diffs` with one region per fixture (an empty region for `""`), then `bundle`. */
 async function mount(page: Page, bundle: string, fixtures: readonly string[], head = "") {

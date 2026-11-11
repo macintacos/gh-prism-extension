@@ -19,6 +19,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type BrowserContext, chromium, firefox, type Page } from "@playwright/test";
 import { withExtension } from "playwright-webextext";
+import { STRUCTURAL_ATTRS } from "../entrypoints/content/diffs/structural-attrs";
 import { buildCopy, scratchCopy } from "./scratch-build";
 import { type Layout, type LayoutChoice, withLayoutRestored } from "./structural-mode-live/layout";
 import type { ProbeAnswer, ProbeRequest } from "./structural-mode-live/probe";
@@ -42,8 +43,6 @@ const URLS = urlArgs.length
       `${SANDBOX}/commit/8d807ee?diff=split`,
       `${SANDBOX}/commit/4630717?diff=split`,
     ];
-// Keep in sync with structural.ts's attributes and highlight names.
-const STRUCTURAL_ATTRS = ["data-gh-prism-structural", "data-gh-prism-quiet", "data-gh-prism-moved"];
 // Keep in sync with structural-notices.ts's classes and NOTICE_COPY.unsupported.
 const NOTICE_SELECTOR = ".gh-prism-structural-notice, .gh-prism-structural-loading";
 const UNSUPPORTED_COPY =

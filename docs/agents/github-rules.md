@@ -534,6 +534,33 @@ on a private one.
   `#diff_file_tree > .d-md-none` sits outside that row. The gear carries
   `aria-haspopup="true"` and `aria-expanded` `"false"` or `"true"`, and no `aria-controls`
   (Chromium 157, signed in, 2026-11-10).
+- **Drive the menu from script within one task.** A synthetic `gear.click()` opens it on
+  both page kinds, and its two Layout `menuitemradio` items exist after one
+  `await Promise.resolve()`, at `opacity: 0`; `findLayoutMenu` in `files-page.ts` finds
+  them by their labels. Clicking an item then switches the tables' `colgroup` and unmounts
+  the menu: about 11 to 14 ms after the click on commit `8d807ee` (Chromium 157, signed
+  in, 2026-11-10).
+- **Confirm a Layout choice from `?diff=` and the tables, not the item.** A clicked item
+  never read `aria-checked="true"` before the menu unmounted, in every switch on both page
+  kinds. `certainLayout` in `files-page.ts` reads the layout the tables show for certain.
+- **Expect every item click to `POST /users/diffview`,** the already-checked item
+  included, with a body of `{"diff":"split"}` or `{"diff":"unified"}`. Two choices about
+  30 ms apart send two concurrent posts, and the server can save the earlier one: Split
+  then Unified on commit `8d807ee` left Split saved (Chromium 157, signed in, 2026-11-10).
+  So never click an item for the layout already shown, and don't choose twice in a row.
+- **Close the menu from script with a second `gear.click()` or an `Escape` `keydown`
+  dispatched on the menu.** Both close it on both page kinds without choosing anything and
+  send no `/users/diffview`. Primer returns focus to the gear whenever the menu closes,
+  whatever held it before (Chromium 157, signed in, 2026-11-10).
+- **Expect the gear inside a `container-show-on-sm` wrapper on a pull request,** within
+  the toolbar's end `Stack`, and inside the `width-full` group after "Search within code"
+  on a commit. A node inserted with `gear.before(node)` survived a menu open, a Layout
+  choice, the tree toggle, and scrolling, with no React error (Chromium 155 and Firefox
+  156, 2026-11-10). At 500px wide on a pull request the wrapper hides the gear and such a
+  node with it (`offsetParent === null`), and "More options" shows instead (Chromium 157,
+  signed in, 2026-11-10).
+- **Test the menu against the captured menus:** `tests/fixtures/layout-menu-pr.html` and
+  `tests/fixtures/layout-menu-commit.html`, each opened from the gear with Unified saved.
 - **Test the gear against the captured toolbars:**
   `tests/fixtures/files-page-toolbar.html` (a pull request's, menu open) and
   `tests/fixtures/commit-page-toolbar.html`. Each fixture's header comment names its

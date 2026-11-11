@@ -13,6 +13,7 @@ import {
 } from "@playwright/test";
 import { withExtension } from "playwright-webextext";
 import type { Browser, WxtBrowser } from "wxt/browser";
+import { STRUCTURAL_ATTRS } from "../entrypoints/content/diffs/structural-attrs";
 import { commitPage } from "../entrypoints/content/files-page";
 import { LANGUAGE_ICONS } from "../entrypoints/content/sidebar/language-icons";
 
@@ -247,17 +248,19 @@ test("paints no structural highlight while Structural is off", async ({ context,
   const nav = page.getByRole("navigation", { name: "Changed files by section" });
   await expect(nav.getByRole("heading", { name: "Implementation" })).toBeVisible();
 
-  const painted = await page.evaluate(() => ({
-    highlights: ["gh-prism-added", "gh-prism-removed"].filter((name) => CSS.highlights.has(name)),
-    marked: document.querySelectorAll(
-      "[data-gh-prism-structural], [data-gh-prism-quiet], [data-gh-prism-moved]",
-    ).length,
-    notices: document.querySelectorAll(".gh-prism-structural-notice, .gh-prism-structural-loading")
-      .length,
-    sheets: [...document.head.querySelectorAll("style")].filter((style) =>
-      style.textContent.includes("::highlight(gh-prism-"),
-    ).length,
-  }));
+  const painted = await page.evaluate(
+    (marked) => ({
+      highlights: ["gh-prism-added", "gh-prism-removed"].filter((name) => CSS.highlights.has(name)),
+      marked: document.querySelectorAll(marked).length,
+      notices: document.querySelectorAll(
+        ".gh-prism-structural-notice, .gh-prism-structural-loading",
+      ).length,
+      sheets: [...document.head.querySelectorAll("style")].filter((style) =>
+        style.textContent.includes("::highlight(gh-prism-"),
+      ).length,
+    }),
+    STRUCTURAL_ATTRS.map((name) => `[${name}]`).join(", "),
+  );
 
   expect(painted).toEqual({ highlights: [], marked: 0, notices: 0, sheets: 0 });
 });

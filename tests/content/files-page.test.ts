@@ -25,6 +25,7 @@ import {
   findFilterOptions,
   findHeaderPage,
   findLayoutGear,
+  findLayoutMenu,
   findOverlay,
   findReviewersHeadings,
   findTreeToggle,
@@ -88,6 +89,8 @@ import {
 import prSplit from "../fixtures/files-page-diff-split.html?raw";
 import prUnified from "../fixtures/files-page-diff-unified.html?raw";
 import prToolbar from "../fixtures/files-page-toolbar.html?raw";
+import commitLayoutMenu from "../fixtures/layout-menu-commit.html?raw";
+import prLayoutMenu from "../fixtures/layout-menu-pr.html?raw";
 
 const PATHS = [
   "config/app.toml",
@@ -543,6 +546,43 @@ describe("findReviewersHeadings", () => {
   it("finds nothing on Files changed", () => {
     loadFixture();
     expect(findReviewersHeadings(document)).toEqual([]);
+  });
+});
+
+describe("findLayoutMenu", () => {
+  const openLayoutMenu = (html: string): Element => {
+    document.body.innerHTML = `<div id="__primerPortalRoot__">${html}</div>`;
+    const list = document.querySelector('ul[role="menu"]');
+    if (!list) throw new Error("fixture has no menu");
+    return list;
+  };
+  const itemLabelled = (label: string) =>
+    [...document.querySelectorAll('[role="menuitemradio"]')].find(
+      (item) => item.textContent?.trim() === label,
+    );
+
+  it.each([
+    { name: "a pull request's", html: prLayoutMenu },
+    { name: "a commit's", html: commitLayoutMenu },
+  ])("finds both Layout items in $name menu", ({ html }) => {
+    const list = openLayoutMenu(html);
+
+    expect(findLayoutMenu(document)).toEqual({
+      list,
+      unified: itemLabelled("Unified"),
+      split: itemLabelled("Split"),
+    });
+  });
+
+  it("is undefined with no menu open", () => {
+    expect(findLayoutMenu(document)).toBeUndefined();
+  });
+
+  it("is undefined when the menu lacks the Split item", () => {
+    openLayoutMenu(prLayoutMenu);
+    itemLabelled("Split")?.remove();
+
+    expect(findLayoutMenu(document)).toBeUndefined();
   });
 });
 

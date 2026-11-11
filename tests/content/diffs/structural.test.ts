@@ -6,6 +6,7 @@ import {
   paintStructural,
   REMOVED_HIGHLIGHT,
 } from "../../../entrypoints/content/diffs/structural";
+import { STRUCTURAL_ATTRS } from "../../../entrypoints/content/diffs/structural-attrs";
 import {
   type ChangedCell,
   changedCells,
@@ -22,7 +23,7 @@ import { HighlightStub, stubHighlights } from "../../fixtures/highlights";
 
 const QUIET: LineAnnotation = { quiet: true };
 const CHANGED: LineAnnotation = { quiet: false, ranges: [] };
-const PAINTED = "[data-gh-prism-structural], [data-gh-prism-quiet], [data-gh-prism-moved]";
+const PAINTED = STRUCTURAL_ATTRS.map((name) => `[${name}]`).join(", ");
 
 /** A file whose text is the table's own and whose lines `annotate` annotates, quiet by default. */
 function fileOf(

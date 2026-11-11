@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ADDED_HIGHLIGHT, REMOVED_HIGHLIGHT } from "../../../entrypoints/content/diffs/structural";
+import { STRUCTURAL_ATTRS } from "../../../entrypoints/content/diffs/structural-attrs";
 import type { StructuralMode } from "../../../entrypoints/content/diffs/structural-mode";
 import { LOADING_CLASS, NOTICE_CLASS } from "../../../entrypoints/content/diffs/structural-notices";
 import {
@@ -367,7 +368,7 @@ describe("structural mode on a visit", () => {
     unifiedSeen: () => {},
   });
   const structuralMarks = () =>
-    document.querySelectorAll("[data-gh-prism-structural], [data-gh-prism-quiet]");
+    document.querySelectorAll(STRUCTURAL_ATTRS.map((name) => `[${name}]`).join(", "));
 
   beforeEach(() => {
     stub = stubHighlights();
