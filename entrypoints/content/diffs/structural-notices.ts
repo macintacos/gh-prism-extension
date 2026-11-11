@@ -91,14 +91,14 @@ export function showStructuralNotices(
     const wants: Want[] = [];
     const pending = new Set<string>();
     const tables = diffTables(diffs);
-    const split = tables.some(({ layout }) => layout === "split");
-    for (const { table, anchor, layout } of split ? tables : []) {
+    const showsSplit = tables.some(({ layout }) => layout === "split");
+    for (const { table, anchor, layout } of showsSplit ? tables : []) {
       const path = paths.get(anchor);
       if (path === undefined) continue;
       const state = stateOf(path);
       if (state === "pending") pending.add(path);
-      const held = holds.get(path) === true && layout === "split";
-      const show = state === "pending" ? (held ? "loading" : undefined) : state;
+      const overdue = holds.get(path) === true && layout === "split";
+      const show = state === "pending" ? (overdue ? "loading" : undefined) : state;
       const before = table.previousElementSibling ?? undefined;
       const current = before?.matches(`.${NOTICE_CLASS}, .${LOADING_CLASS}`) ? before : undefined;
       wants.push({ table, show, current });
@@ -153,9 +153,9 @@ export function showStructuralNotices(
   // A settled pass writes nothing: each insertion wakes observeDiffs, so the next pass must be the
   // last.
   const pass = () => {
-    const work = collect();
-    apply(work);
-    trackHolds(work);
+    const reads = collect();
+    apply(reads);
+    trackHolds(reads);
   };
   const schedule = () => {
     if (signal.aborted) return;

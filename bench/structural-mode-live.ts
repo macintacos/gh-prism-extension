@@ -45,8 +45,8 @@ const URLS = urlArgs.length
 // Keep in sync with structural.ts's attributes and highlight names.
 const STRUCTURAL_ATTRS = ["data-gh-prism-structural", "data-gh-prism-quiet", "data-gh-prism-moved"];
 // Keep in sync with structural-notices.ts's classes and NOTICE_COPY.unsupported.
-const NOTICES = ".gh-prism-structural-notice, .gh-prism-structural-loading";
-const UNSUPPORTED =
+const NOTICE_SELECTOR = ".gh-prism-structural-notice, .gh-prism-structural-loading";
+const UNSUPPORTED_COPY =
   "Structural mode doesn't cover this file's language yet, so this is GitHub's diff.";
 const PROBE = `import { defineContentScript } from "wxt/utils/define-content-script";
 import { probe } from "@/bench/structural-mode-live/probe";
@@ -114,7 +114,7 @@ const structuralTraces = (page: Page) =>
         style.textContent?.includes("::highlight(gh-prism-"),
       ).length,
     }),
-    { attrs: STRUCTURAL_ATTRS, notices: NOTICES },
+    { attrs: STRUCTURAL_ATTRS, notices: NOTICE_SELECTOR },
   );
 
 /**
@@ -129,7 +129,7 @@ const noticeBefore = (page: Page, anchor: string) =>
       const before = table.previousElementSibling;
       return before?.matches(notices) ? (before.textContent ?? "") : null;
     },
-    { anchor, notices: NOTICES },
+    { anchor, notices: NOTICE_SELECTOR },
   );
 
 async function offscreenDocuments(context: BrowserContext): Promise<number> {
@@ -225,7 +225,7 @@ async function scrollAndClassify(
 ): Promise<Map<string, string>> {
   const results = new Map<string, string>();
   // Unsupported files seen mounted, and whether any step found their sentence.
-  const unsupported = new Map<string, boolean>();
+  const noticeSeen = new Map<string, boolean>();
   let lastY = -1;
   for (let step = 0; step < 60; step++) {
     await page.waitForTimeout(2500);
@@ -235,7 +235,7 @@ async function scrollAndClassify(
         if (answer.problem !== "unsupported") continue;
         const notice = await noticeBefore(page, anchorOf(path));
         if (notice !== undefined) {
-          unsupported.set(path, (unsupported.get(path) ?? false) || notice === UNSUPPORTED);
+          noticeSeen.set(path, (noticeSeen.get(path) ?? false) || notice === UNSUPPORTED_COPY);
         }
         continue;
       }
@@ -260,7 +260,7 @@ async function scrollAndClassify(
     lastY = y;
     await page.mouse.wheel(0, 700);
   }
-  for (const [path, noticed] of unsupported) {
+  for (const [path, noticed] of noticeSeen) {
     if (!noticed) results.set(path, "notice missing on an unsupported file");
   }
   return results;
@@ -276,16 +276,16 @@ async function richDiffHidesNotice(page: Page): Promise<void> {
   const region = page.locator(`[role="region"][id="${anchor}"]`);
   await region.scrollIntoViewIfNeeded();
   await page.waitForTimeout(2500);
-  check("readme notice", (await noticeBefore(page, anchor)) === UNSUPPORTED);
+  check("readme notice", (await noticeBefore(page, anchor)) === UNSUPPORTED_COPY);
 
   await region.getByRole("button", { name: "Display the rich diff" }).click();
   await page.waitForTimeout(2500);
-  const inRich = await region.locator(NOTICES).count();
-  check("rich diff: no notice", inRich === 0, `(${inRich})`);
+  const noticesInRich = await region.locator(NOTICE_SELECTOR).count();
+  check("rich diff: no notice", noticesInRich === 0, `(${noticesInRich})`);
 
   await region.getByRole("button", { name: "Display the source diff" }).click();
   await page.waitForTimeout(2500);
-  check("source diff: notice again", (await noticeBefore(page, anchor)) === UNSUPPORTED);
+  check("source diff: notice again", (await noticeBefore(page, anchor)) === UNSUPPORTED_COPY);
 }
 
 /** Pass 2: with the preference on, each file the port answered `ok` for paints or mismatches. */

@@ -52,7 +52,7 @@ function fakeFiles() {
 }
 
 const ours = (diffs: Element) => diffs.querySelectorAll(`.${NOTICE_CLASS}, .${LOADING_CLASS}`);
-const notices = (diffs: Element) =>
+const noticeKinds = (diffs: Element) =>
   [...diffs.querySelectorAll(`.${NOTICE_CLASS}`)].map((notice) => notice.getAttribute(KIND_ATTR));
 
 /** `files-page-diff-rename` with its deleted rows removed, leaving an all-additions table. */
@@ -167,7 +167,7 @@ describe("showStructural", () => {
     fake.answer(path, { ok: false, problem: "failed" });
     await flush();
 
-    expect(notices(diffs)).toEqual(["failed"]);
+    expect(noticeKinds(diffs)).toEqual(["failed"]);
   });
 
   it("shows no notice for a not-applicable answer", async () => {
@@ -185,7 +185,7 @@ describe("showStructural", () => {
     fake.settle(path, { ...fileOf(table), text: { old: {}, new: {} } });
     await flush();
 
-    expect(notices(diffs)).toEqual(["mismatch"]);
+    expect(noticeKinds(diffs)).toEqual(["mismatch"]);
     expect((stub.highlights.get(ADDED_HIGHLIGHT) as HighlightStub | undefined)?.size ?? 0).toBe(0);
   });
 
