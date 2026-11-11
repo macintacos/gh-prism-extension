@@ -8,8 +8,9 @@ inside GitHub's pages. That UI is the sidebar, the header counter (the per-secti
 breakout of the lines-changed count, on a commit's page and a pull request's tabs), the
 commit message rendered as Markdown on a commit's page (in a column beside the diffs on a
 wide window), the dialog gh-prism opens on GitHub's classic Files changed page, the code
-owner details dialog that a code-owner shield or the code owners button opens, and the
-Conversation panel that shows a pull request's Conversation tab beside Files changed.
+owner details dialog that a code-owner shield or the code owners button opens, the
+Conversation panel that shows a pull request's Conversation tab beside Files changed, and
+the per-file notice that Structural mode shows above a file it can't show, saying why.
 [`CONTEXT.md`](../CONTEXT.md) defines the domain terms these files use, such as section,
 Viewed, and what's new. [`docs/agents/styling-rules.md`](../docs/agents/styling-rules.md)
 says how a stylesheet is written, imported, and scoped.

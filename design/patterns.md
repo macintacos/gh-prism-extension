@@ -483,7 +483,15 @@ and diff cards they stand in for. Once the sections land, they drop in one after
 `diffs/order.css` hold these.
 
 A view that waits on one load, with no count to show, holds its place with a skeleton
-alone: shaped like what it stands in for, held back 150 ms, then pulsing. Two use it.
+alone: shaped like what it stands in for, held back 150 ms, then pulsing. Two use it: the
+commit's message and the Conversation panel, described below.
+
+A load with nothing to hold a place for, because GitHub's own content stays readable
+meanwhile, shows a line instead of a skeleton. Structural mode's loading line is the one:
+in Split, a 2px `--fgColor-muted` line laid over the top edge of a file's diff table, so
+the code never moves. It shows once that file's request has been pending 150 ms, pulses to
+0.45 opacity, stands still at 0.45 under reduced motion, and is `aria-hidden`.
+`diffs/structural-notices.ts` and `diffs/structural-notices.css` hold it.
 
 A commit's message holds its place the same way, without the bar: from the page's first
 frame, its column or its slot above the diffs shows a title bar and a line for each of the
@@ -556,6 +564,13 @@ of. A hovered mark cycles through the same hues one at a time instead.
 A notice is one plain sentence in small, muted text, with no icon and no illustration. The
 sidebar's "Grouped by path" notices are the model: each says what gh-prism did and, when
 the reviewer can change it, how. `sidebar/sections-view.ts` holds them.
+
+Structural mode's per-file notice is the second user. When the mode can't show a file in
+Split, a sentence directly before the file's diff table, under its file header, says why
+and that this is GitHub's diff. Its text starts in line with the header's path. It is not
+announced, because a pull request in an unsupported language shows the same sentence on
+every file; a screen reader reads it in place, between the header's controls and the diff.
+`diffs/structural-notices.ts` holds it.
 
 ## Dialogs
 

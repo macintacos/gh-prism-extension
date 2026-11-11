@@ -555,6 +555,27 @@ on a private one.
   [cli/cli@b564a77225](https://github.com/cli/cli/commit/b564a77225) after clicking Load
   Diff.
 
+## The file card
+
+- **Insert a node of gh-prism's own before a file's table, never inside GitHub's header.**
+  A file's region has two children: the sticky header wrapper
+  (`[class*="diffHeaderWrapper__"]`), then a card,
+  `div.border.position-relative.rounded-bottom-2`, whose only child is
+  `table[data-diff-anchor]`. A commit page has the same shape. A node placed with
+  `table.before()` renders full width in the card under the header; the header's `top` and
+  box stay the same, the page does not jump, and React logs nothing.
+- **Re-derive the node on every pass.** Collapsing a file or marking it Viewed unmounts
+  the whole card, and expanding mounts a new card and table. The node survives hunk
+  expansion and scrolling.
+- **Sweep a node the rich view leaves behind.** "Display the rich diff" replaces the table
+  with `div.prose-diff` in the same card and keeps any foreign sibling, so the rich view
+  has no `table[data-diff-anchor]` but keeps the old node.
+- Observed 2026-11-10 in Chromium on sandbox PR #3 and commit `8d807ee`.
+- **Re-check:** signed in, on PR #3's Changes in Split and on commit `8d807ee`, read a
+  region's children and its card's children. Insert a `<p>` with `table.before()`, then
+  collapse and expand the file, toggle Viewed, and toggle the rich diff on a Markdown
+  file, reading after each whether the `<p>` and the table are still mounted.
+
 ## Sticky headers
 
 - **Read the band GitHub's sticky chrome covers from a file header's computed `top`.**

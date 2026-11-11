@@ -1012,6 +1012,22 @@ On abort the painter cancels its frame, deletes both highlights, removes
 `data-gh-prism-structural`, `data-gh-prism-quiet`, and `data-gh-prism-moved`, and removes
 its `<style>`.
 
+`showStructural` also mounts the notices, `showStructuralNotices` in
+[`diffs/structural-notices.ts`](../entrypoints/content/diffs/structural-notices.ts), under
+the same signal as the painter, so they too run only while the mode is on. While the diffs
+read Split, each mounted file whose request failed for any reason but `not-applicable`
+(the answer for binary, added, deleted, and pure-rename files), or whose table the painter
+reported as `mismatch`, gets a one-sentence notice. A file whose request is still pending,
+which `StructuralFiles`' `pending(path)` reports, gets a loading line once it has been
+pending 150 ms (`LOADING_DELAY_MS`), so a faster run shows nothing. Both are gh-prism's
+own nodes, inserted directly before the file's `table[data-diff-anchor]`; GitHub's nodes
+are left as they are. A pass reads every table before writing, and leaves a node that is
+already right untouched. It removes every node of its own that no mounted table claims,
+which sweeps a notice left in the card after a switch to GitHub's rich diff. On abort the
+notices clear their timers and frame, and remove every node by class and the `<style>`
+built from
+[`diffs/structural-notices.css`](../entrypoints/content/diffs/structural-notices.css).
+
 On [cli/cli#14805 in Split](https://github.com/cli/cli/pull/14805/changes?diff=split) on
 2026-11-10, in Chromium and Firefox alike, the painter held 260 ranges (46 added, 214
 removed) across 25 mounted split tables, none stale.
@@ -1046,7 +1062,7 @@ entrypoints/
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
-    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet; structural-files.ts, a visit's structural answers; structural-mode.ts, Structural mode on a page
+    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet; structural-files.ts, a visit's structural answers; structural-mode.ts, Structural mode on a page; structural-notices.ts and structural-notices.css, its per-file notices and loading line
     header/              diffstat breakout
     conversation/        a code owner's files popup and gh-prism's shield, in the Reviewers lists and beside Conversation and Files changed comment authors; the Conversation panel and its button, dressing its frame, and the messages the frame posts
     ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, column separator, view-transition glide, keycaps and the Shift+\ toolbar button, Tailwind tokens
