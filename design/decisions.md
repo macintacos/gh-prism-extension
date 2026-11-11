@@ -52,9 +52,16 @@ at the top, dated.
   file, and a separate sentence for a run that timed out, which the too-large sentence
   covers.
 - **Accepted:** a notice that lands on a file already on screen pushes its code down one
-  line, about 26px. The pulse's trough, 0.45 opacity, falls below 3:1, about 1.9:1 in
-  light by calculation (`#59636e` at 0.45 over `#ddf4ff`); the line passes through it for
-  a moment, as the skeletons' pulse does.
+  line, about 26px. On a virtualized list, a remounted file gets its notice again a moment
+  after its table, because the pass waits for the diffs to settle. Measured 2026-11-10 in
+  Chromium on the virtualized commit page
+  <https://github.com/cli/cli/commit/2ea46117e59a9fbcb31f673565eb2b5207e08aae?diff=split>:
+  the row in the viewport's middle moved 0px over 240 scroll steps with the mode on and
+  off, and all 5 re-insertions landed on a table above the viewport, likely held by the
+  browser's scroll anchoring. Firefox and a virtualized pull request list were not
+  measured. The pulse's trough, 0.45 opacity, falls below 3:1, about 1.9:1 in light by
+  calculation (`#59636e` at 0.45 over `#ddf4ff`); the line passes through it for a moment,
+  as the skeletons' pulse does.
 
 ## 2026-11-10: Structural mode's moved lines
 
