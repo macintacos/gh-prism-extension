@@ -5243,6 +5243,10 @@ for (const kind of ["pr", "commit"] as const) {
   }) => {
     await serveLayoutPage(context, page, kind);
     await expect(segment(page, "Unified")).toHaveAttribute("aria-pressed", "true");
+    // A commit's sections land after the control mounts, and the fixture's sidebar sits above the toolbar.
+    await expect(
+      page.getByRole("navigation", { name: "Changed files by section" }),
+    ).not.toHaveAttribute("aria-busy");
     const boxes = () =>
       page.evaluate(() =>
         // In the document, since a focus can scroll the window.

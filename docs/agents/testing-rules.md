@@ -155,6 +155,10 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   landing lands on whatever moved under the pointer.
   [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "the side switch docks the sidebar on the
   other side and remembers it" waits for `data-gh-prism-diffs` to leave `covered` first.
+- **Let the sections land before a test measures the diffs' toolbar on a commit.** The
+  fixture's sidebar stacks above the toolbar, and a commit's sections land after its
+  `.diff` read returns, well after the toolbar's controls mount. Wait for the sections'
+  `navigation` to drop `aria-busy` before the first measurement.
 - **Read the page in a route handler only for the request the test measures.** The page
   can send another request as the test's last step settles, whose handler then runs after
   the test has closed the page, and a page read there fails the test. A handler that only
