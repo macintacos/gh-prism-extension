@@ -5,6 +5,8 @@
  * docstring only at file start or after a line ending in `:`; otherwise it opens a string.
  */
 
+import type { HeadOutline, LineBlock, OutlineSpan } from "../structural/outline";
+
 interface Block {
   readonly opener: string;
   readonly closer: string;
@@ -25,10 +27,12 @@ export interface CommentSyntax {
   readonly directives?: readonly string[];
 }
 
-// ponytail: a line scan, not a tokenizer. It misreads `//` or `/*` inside a template literal or Go
-// raw string, Rust's nested `/* /* */ */`, and Lua's level-n `--[==[` brackets. A `#` or `//` line
-// inside any string whose delimiters are out of view also reads as a comment. Upgrade path: a real
-// tokenizer per language.
+// ponytail: a line scan, not a tokenizer, and the default and fallback. It misreads `//` or `/*`
+// inside a template literal or Go raw string, Rust's nested `/* /* */ */`, and Lua's level-n
+// `--[==[` brackets. A `#` or `//` line inside any string whose delimiters are out of view also reads
+// as a comment. An outline from a tree-sitter parse, when given, replaces its guesses at where each
+// head line starts; a hunk's own lines are still line-scanned, so a literal opened inside the hunk is
+// still guessed.
 const C_LIKE: CommentSyntax = {
   lineMarker: "//",
   blocks: [{ opener: "/*", closer: "*/", gutter: "*" }],
@@ -157,6 +161,8 @@ export interface ScannedHead {
   readonly starts: readonly ScanState[];
   /** How each line reads; `"string"` is a line that starts inside a string literal. */
   readonly kinds: readonly ("blank" | "code" | "comment" | "string")[];
+  /** The file's test blocks, present when the head came from a parse. */
+  readonly testBlocks?: readonly LineBlock[];
 }
 
 const insideString = (state: ScanState) =>
@@ -170,18 +176,62 @@ export function scanHeadText(path: string, text: string): ScannedHead | undefine
   const syntax = commentSyntaxOf(path);
   if (syntax === undefined) return undefined;
 
+  return scanLines(syntax, text.split("\n"), (_, scanned) => scanned);
+}
+
+/**
+ * Splits and comment-scans `text` as {@link scanHeadText} does, but starts each line where
+ * `outline`'s multi-line comments and strings put it, and carries its test blocks. Spans and
+ * blocks that reach past the text are ignored. `undefined` for an extension with no comment syntax.
+ */
+export function headFromOutline(
+  path: string,
+  text: string,
+  outline: HeadOutline,
+): ScannedHead | undefined {
+  const syntax = commentSyntaxOf(path);
+  if (syntax === undefined) return undefined;
+
   const lines = text.split("\n");
+  const fits = (start: number, end: number) => 1 <= start && start <= end && end <= lines.length;
+  const spans = outline.spans.filter((span) => fits(span.startLine, span.endLine));
+  const testBlocks = outline.testBlocks.filter((block) => fits(block.start, block.end));
+
+  const head = scanLines(syntax, lines, (line) => positionIn(spans, line));
+  return { ...head, testBlocks };
+}
+
+/** Where `line` starts: inside the latest-opening span that covers it, else in code. */
+function positionIn(spans: readonly OutlineSpan[], line: number): ScanPosition {
+  let inner: OutlineSpan | undefined;
+  for (const span of spans) {
+    const covers = span.startLine < line && line <= span.endLine;
+    if (covers && (inner === undefined || span.startLine > inner.startLine)) inner = span;
+  }
+  return inner === undefined ? "code" : { closer: inner.closer, kind: inner.kind };
+}
+
+/**
+ * Scans `lines` in order. `positionAt` gives each 1-based line's start position, the end of file
+ * being the line after the last, from the position the previous line's scan left.
+ */
+function scanLines(
+  syntax: CommentSyntax,
+  lines: readonly string[],
+  positionAt: (line: number, scanned: ScanPosition) => ScanPosition,
+): ScannedHead {
   const starts: ScanState[] = [];
   const kinds: ScannedHead["kinds"][number][] = [];
   let state = FILE_START;
 
-  for (const line of lines) {
+  for (const [index, line] of lines.entries()) {
+    state = { ...state, position: positionAt(index + 1, state.position) };
     starts.push(state);
     const scanned = scanLine(syntax, state, line);
     kinds.push(insideString(state) ? "string" : scanned.kind);
     state = scanned.state;
   }
 
-  starts.push(state);
+  starts.push({ ...state, position: positionAt(lines.length + 1, state.position) });
   return { lines, starts, kinds };
 }
