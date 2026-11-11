@@ -2,8 +2,9 @@
  * Live check of Structural mode in the built extension on signed-in GitHub pages: nothing
  * structural, notices included, with the preference off; with it on, each on-screen file painted or
  * skipped for a reason, an unsupported file's notice and none on a painted one, README.md on
- * sandbox PR #3 dropping its notice in the rich diff and showing it again in the source diff; and
- * GitHub's Unified turning it off. Kept out of CI, Vitest and Playwright like the rest of `bench/`.
+ * sandbox PR #3 dropping its notice in the rich diff and showing it again in the source diff;
+ * GitHub's Unified turning it off; and the diff view control driving both. Kept out of CI, Vitest
+ * and Playwright like the rest of `bench/`.
  *
  *   bun bench/structural-mode-live.ts <chromium|firefox> <storage-state path> [url…]
  *
@@ -419,6 +420,148 @@ async function unifiedTurnsOff(page: Page): Promise<Layout> {
   return original;
 }
 
+type View = "Unified" | "Split" | "Structural";
+
+const segmentOf = (page: Page, view: View) =>
+  page
+    .getByRole("list", { name: "Diff view" })
+    .getByRole("button", { name: view === "Structural" ? /^Structural/ : view });
+
+/** The segment the diff view control shows pressed, if any. */
+const pressedView = (page: Page) =>
+  page.evaluate(
+    () =>
+      document.querySelector<HTMLElement>(".gh-prism-diff-view [aria-pressed='true']")?.dataset
+        .view,
+  );
+
+/** Code owner shields drawn in the diffs' file headers. */
+const shields = (page: Page) =>
+  page.evaluate(
+    () =>
+      document.querySelectorAll(
+        ':is([data-testid="diff-content"], #diff-content-parent) svg[class*="octicon-shield"]',
+      ).length,
+  );
+
+/**
+ * Where ArrowDown from the first changed diff cell moves focus: `next-row` when it lands on the
+ * same column one row down.
+ */
+async function arrowDown(page: Page): Promise<string> {
+  const start = await page.evaluate(() => {
+    const cell = document.querySelector<HTMLElement>(
+      "table[data-diff-anchor] td.diff-text-cell:has(code.addition, code.deletion)",
+    );
+    if (!cell) return false;
+    cell.scrollIntoView({ block: "center" });
+    cell.focus();
+    return document.activeElement === cell;
+  });
+  if (!start) return "no focusable cell";
+  await page.keyboard.press("ArrowDown");
+  return page.evaluate(() => {
+    const now = document.activeElement;
+    return now instanceof HTMLTableCellElement && now.matches("td.diff-text-cell")
+      ? "next-row"
+      : `${now?.tagName ?? "none"}.${now?.className ?? ""}`;
+  });
+}
+
+/** Pass 4: the diff view control drives GitHub's Layout and the mode, on each URL. */
+async function viewControl(page: Page): Promise<void> {
+  let diffviewPosts = 0;
+  page.on("request", (request) => {
+    if (request.method() === "POST" && request.url().endsWith("/users/diffview")) diffviewPosts++;
+  });
+  await ask(page, { op: "set", on: false });
+  await load(page, PR4);
+  const layout = gearLayout(page);
+  let paintedSomewhere = false;
+
+  await withLayoutRestored(layout, async () => {
+    for (const url of URLS) {
+      await load(page, url);
+      const shieldCount = await shields(page);
+      const keyOff = await arrowDown(page);
+
+      const press = async (view: View, from: Layout, { mouse = false } = {}) => {
+        const posted = diffviewPosts;
+        const segment = segmentOf(page, view);
+        if (mouse) {
+          const box = await segment.boundingBox();
+          if (!box) throw new Failure(`control ${url} ${view}: FAILED no segment`);
+          await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+        } else await segment.click();
+        await page.waitForTimeout(2500);
+        const wanted: Layout = view === "Unified" ? "unified" : "split";
+        const gear = await layout.read();
+        const on = await ask<boolean>(page, { op: "get" });
+        const shown = await pressedView(page);
+        const posts = diffviewPosts - posted;
+        const shieldsNow = await shields(page);
+        check(
+          `control ${url} ${view}`,
+          shown === view.toLowerCase() &&
+            gear === wanted &&
+            on === (view === "Structural") &&
+            posts === (from === wanted ? 0 : 1) &&
+            shieldsNow === shieldCount,
+          JSON.stringify({ shown, gear, on, posts, shields: [shieldCount, shieldsNow] }),
+        );
+      };
+      const clean = async (after: string) => {
+        const [added, removed] = await ask<number[]>(page, { op: "highlights" });
+        const traces = await structuralTraces(page);
+        check(
+          `control ${url} clean after ${after}`,
+          added === 0 && removed === 0 && traces.attributes === 0 && traces.sheets === 0,
+          JSON.stringify({ added, removed, ...traces }),
+        );
+      };
+      const reloaded = async (view: View) => {
+        await load(page, page.url());
+        const shown = await pressedView(page);
+        check(`control ${url} reload ${view}`, shown === view.toLowerCase(), `(${shown})`);
+      };
+
+      // The first press on a fresh page is a real pointer click, as hydration meets it.
+      await press("Unified", "split", { mouse: true });
+      await press("Structural", "unified");
+      for (let step = 0; step < 4; step++) {
+        await page.mouse.wheel(0, 400);
+        await page.waitForTimeout(1500);
+      }
+      const [added, removed] = await ask<[number, number]>(page, { op: "highlights" });
+      paintedSomewhere ||= added + removed > 0;
+      log(`control ${url} painted after Structural: (${added}, ${removed})`);
+      const keyOn = await arrowDown(page);
+      await reloaded("Structural");
+
+      await press("Split", "split");
+      await clean("Split");
+      const keyAfter = await arrowDown(page);
+      check(
+        `control ${url} ArrowDown`,
+        keyOff === "next-row" && keyOn === keyOff && keyAfter === keyOff,
+        JSON.stringify({ keyOff, keyOn, keyAfter }),
+      );
+
+      await layout.choose("unified");
+      const followed = await pressedView(page);
+      check(`control ${url} follows the gear`, followed === "unified", `(${followed})`);
+
+      await press("Structural", "unified");
+      await press("Unified", "split");
+      await clean("Unified");
+      await reloaded("Unified");
+    }
+  });
+  await ask(page, { op: "set", on: false });
+  check("control painted from a press", paintedSomewhere);
+  log("view control: ok");
+}
+
 async function launch(build: string, profile: string): Promise<BrowserContext> {
   const viewport = { width: 1600, height: 900 };
   const context =
@@ -452,6 +595,7 @@ try {
   await modeOff(page);
   await modeOn(page);
   const before = await unifiedTurnsOff(page);
+  await viewControl(page);
   await load(page, PR4);
   const after = await gearLayout(page).read();
   check("layout as found", after === before, `(before: ${before}, after: ${after})`);

@@ -16,6 +16,7 @@ import type { Browser, WxtBrowser } from "wxt/browser";
 import { STRUCTURAL_ATTRS } from "../entrypoints/content/diffs/structural-attrs";
 import { commitPage } from "../entrypoints/content/files-page";
 import { LANGUAGE_ICONS } from "../entrypoints/content/sidebar/language-icons";
+import { installLayoutMenu } from "../tests/fixtures/layout-menu";
 
 const CHROME_EXTENSION = join(import.meta.dirname, "../.output/chrome-mv3");
 const FIREFOX_EXTENSION = join(import.meta.dirname, "../.output/firefox-mv3");
@@ -5046,3 +5047,228 @@ test("the Conversation panel's sidebar control scrolls to a sidebar below the ti
 
   await expect(control).toBeHidden();
 });
+
+type DiffKind = "pr" | "commit";
+type Layout = "unified" | "split";
+
+const LAYOUT_PAGES = {
+  pr: {
+    url: PR_URL,
+    toolbar: readFixture("files-page-toolbar.html").replace(
+      'aria-haspopup="true" aria-expanded="true"',
+      'aria-haspopup="true" aria-expanded="false"',
+    ),
+    menu: readFixture("layout-menu-pr.html"),
+    tables: {
+      // Changes both sides, so its three columns can only be Unified.
+      unified: readFixture("files-page-diff-rename.html"),
+      split: readFixture("files-page-diff-split.html"),
+    },
+  },
+  commit: {
+    url: COMMIT_URL,
+    toolbar: readFixture("commit-page-toolbar.html"),
+    menu: readFixture("layout-menu-commit.html"),
+    tables: {
+      unified: readFixture("commit-page-diff-unified.html"),
+      split: readFixture("commit-page-diff-split.html"),
+    },
+  },
+} as const;
+
+/** `kind`'s page with its captured toolbar, gear and all, and one diff table in `layout`. */
+const layoutBody = (kind: DiffKind, layout: Layout) => {
+  const { toolbar, tables } = LAYOUT_PAGES[kind];
+  return kind === "pr"
+    ? PR_BODY.replace(/<section class="toolbar__ztHN6">[\s\S]*?<\/section>/, toolbar).replace(
+        /(<div role="region" id="diff-ff278[^"]*">)/,
+        `$1${tables[layout]}`,
+      )
+    : COMMIT_BODY.replace(
+        /(<div id="diff-content-parent" tabindex="-1">\s*<div>\s*)<div class="d-flex[^"]*position-sticky[^"]*">[\s\S]*?<\/div>\s*<\/div>/,
+        `$1${toolbar}`,
+      ).replace(/<table[\s\S]*?<\/table>/, tables[layout]);
+};
+
+/**
+ * Serves `kind`'s page with a gear whose stand-in Layout menu swaps the tables and posts
+ * `/users/diffview`; each post is recorded, and later loads serve the layout it saved.
+ */
+const serveLayoutPage = async (
+  context: BrowserContext,
+  page: Page,
+  kind: DiffKind,
+  { omit }: { omit?: Layout } = {},
+) => {
+  const { url, menu, tables } = LAYOUT_PAGES[kind];
+  const posts: string[] = [];
+  let saved: Layout = "unified";
+  const path = new URL(url).pathname;
+  await context.route(
+    (target) => target.pathname === path,
+    (route) => route.fulfill({ contentType: "text/html", body: layoutBody(kind, saved) }),
+  );
+  await context.route("https://github.com/users/diffview", (route) => {
+    const body = route.request().postData() ?? "";
+    posts.push(body);
+    saved = body.includes("split") ? "split" : "unified";
+    return route.fulfill({ status: 200, body: "" });
+  });
+  await page.addInitScript(installLayoutMenu, { menu, tables, ...(omit ? { omit } : {}) });
+  await page.goto(url);
+  return posts;
+};
+
+const diffView = (page: Page) => page.getByRole("list", { name: "Diff view" });
+const segment = (page: Page, name: "Unified" | "Split" | "Structural") =>
+  diffView(page).getByRole("button", { name: name === "Structural" ? /^Structural/ : name });
+const layoutGear = (page: Page) => page.locator("button:has(.octicon-gear)");
+
+/** The layout the stand-in's last choice put in the URL, as GitHub's gear does. */
+const urlLayout = (page: Page) =>
+  page.evaluate(() => new URLSearchParams(location.search).get("diff"));
+
+/** What the page holds of a structural paint: highlights, marked nodes, and their sheets. */
+const structuralPaint = (page: Page) =>
+  page.evaluate(
+    (marked) => ({
+      highlights: ["gh-prism-added", "gh-prism-removed"].filter((name) => CSS.highlights.has(name)),
+      marked: document.querySelectorAll(marked).length,
+      sheets: [...document.head.querySelectorAll("style")].filter((style) =>
+        style.textContent.includes("::highlight(gh-prism-"),
+      ).length,
+    }),
+    STRUCTURAL_ATTRS.map((name) => `[${name}]`).join(", "),
+  );
+
+for (const kind of ["pr", "commit"] as const) {
+  const where = kind === "pr" ? "a pull request" : "a commit";
+
+  test(`the diff view control switches Split, Structural, and Unified on ${where}, agreeing with the gear`, async ({
+    context,
+    page,
+  }) => {
+    const posts = await serveLayoutPage(context, page, kind);
+    await expect(segment(page, "Unified")).toHaveAttribute("aria-pressed", "true");
+
+    for (const [name, layout] of [
+      ["Split", "split"],
+      ["Structural", "split"],
+      ["Unified", "unified"],
+    ] as const) {
+      await segment(page, name).click();
+
+      await expect(segment(page, name)).toHaveAttribute("aria-pressed", "true");
+      await expect(diffView(page).locator('[aria-pressed="true"]')).toHaveCount(1);
+      expect(await urlLayout(page)).toBe(layout);
+    }
+    expect(posts).toEqual(["diff=split", "diff=unified"]);
+  });
+
+  test(`the diff view control keeps its choice across a reload on ${where}`, async ({
+    context,
+    page,
+  }) => {
+    await serveLayoutPage(context, page, kind);
+
+    for (const name of ["Structural", "Unified"] as const) {
+      await segment(page, name).click();
+      await expect(segment(page, name)).toHaveAttribute("aria-pressed", "true");
+      await page.reload();
+
+      await expect(segment(page, name)).toHaveAttribute("aria-pressed", "true");
+    }
+  });
+
+  for (const leave of ["Unified", "Split"] as const) {
+    test(`the diff view control leaves no structural paint after Structural then ${leave} on ${where}`, async ({
+      context,
+      page,
+    }) => {
+      await serveLayoutPage(context, page, kind);
+      await segment(page, "Structural").click();
+      await expect(segment(page, "Structural")).toHaveAttribute("aria-pressed", "true");
+
+      await segment(page, leave).click();
+
+      await expect(segment(page, leave)).toHaveAttribute("aria-pressed", "true");
+      expect(await structuralPaint(page)).toEqual({ highlights: [], marked: 0, sheets: 0 });
+    });
+  }
+
+  test(`the diff view control follows a Layout chosen from the gear on ${where}`, async ({
+    context,
+    page,
+  }) => {
+    await serveLayoutPage(context, page, kind);
+    await expect(segment(page, "Unified")).toHaveAttribute("aria-pressed", "true");
+
+    await layoutGear(page).evaluate((gear: HTMLElement) => gear.click());
+    await page
+      .getByRole("menuitemradio", { name: /^Split/ })
+      .evaluate((item: HTMLElement) => item.click());
+
+    await expect(segment(page, "Split")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test(`the diff view control is absent without the gear on ${where}`, async ({
+    context,
+    page,
+  }) => {
+    await serve(context, LAYOUT_PAGES[kind].url, kind === "pr" ? PR_BODY : COMMIT_BODY);
+    await page.goto(LAYOUT_PAGES[kind].url);
+    const nav = page.getByRole("navigation", { name: "Changed files by section" });
+    await expect(nav.getByRole("heading", { name: "Implementation" })).toBeVisible();
+
+    await expect(page.locator(".gh-prism-diff-view")).toHaveCount(0);
+  });
+
+  test(`the diff view control removes itself when the gear's menu lacks the Layout item on ${where}`, async ({
+    context,
+    page,
+  }) => {
+    await serveLayoutPage(context, page, kind, { omit: "split" });
+    await expect(segment(page, "Unified")).toHaveAttribute("aria-pressed", "true");
+
+    await segment(page, "Split").click();
+
+    await expect(diffView(page)).toHaveCount(0);
+    await page.reload();
+    await expect(segment(page, "Unified")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test(`the diff view control's segments are Tab stops before the gear on ${where}`, async ({
+    context,
+    page,
+  }) => {
+    await serveLayoutPage(context, page, kind);
+    await expect(segment(page, "Unified")).toHaveAttribute("aria-pressed", "true");
+    const boxes = () =>
+      page.evaluate(() =>
+        // In the document, since a focus can scroll the window.
+        [...document.querySelectorAll(".gh-prism-diff-view, button:has(.octicon-gear)")].map(
+          (node) => {
+            const { left, top, width, height } = node.getBoundingClientRect();
+            return [left + scrollX, top + scrollY, width, height];
+          },
+        ),
+      );
+    const before = await boxes();
+    await segment(page, "Unified").focus();
+
+    const visited = [];
+    for (let press = 0; press < 3; press++) {
+      await page.keyboard.press("Tab");
+      visited.push(
+        await page.evaluate(
+          () =>
+            (document.activeElement as HTMLElement | null)?.dataset.view ??
+            (document.activeElement?.querySelector(".octicon-gear") ? "gear" : "other"),
+        ),
+      );
+    }
+
+    expect(visited).toEqual(["split", "structural", "gear"]);
+    expect(await boxes()).toEqual(before);
+  });
+}

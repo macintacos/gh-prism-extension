@@ -224,7 +224,20 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   `bun bench/structural-mode-live.ts <chromium|firefox> <storage-state path> [url…]`
   ([`bench/structural-mode-live.ts`](../../bench/structural-mode-live.ts)). It changes the
   account's saved Layout and restores it;
-  `bun bench/structural-mode-live/restore-check.ts` proves that restore offline.
+  `bun bench/structural-mode-live/restore-check.ts` proves that restore offline. Its
+  fourth pass drives the diff view control on each URL: each press checked against the
+  gear's Layout, the stored mode, and the count of `POST /users/diffview`, a clean page
+  after leaving Structural, the choice kept across a reload, the control following a
+  Layout chosen from the gear, and ArrowDown in the diffs unchanged by the mode. Its first
+  press is a real pointer click, which hydration meets.
+- **Give an e2e page a gear and a Layout menu by splicing a captured toolbar and adding
+  `installLayoutMenu` with `page.addInitScript`.** The page fixtures have no gear, so
+  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `layoutBody` swaps in
+  `files-page-toolbar.html` or `commit-page-toolbar.html` and one diff table, and
+  [`tests/fixtures/layout-menu.ts`](../../tests/fixtures/layout-menu.ts) plays GitHub's
+  menu from `layout-menu-pr.html` or `layout-menu-commit.html`. A pull request's
+  three-column table counts as Unified only when it changes both sides, so the pull
+  request pages use `files-page-diff-rename.html` for Unified.
 - **Keep a live check's screenshots outside `test-results/`.** Playwright empties it at
   the start of every run.
 - **Keep each end-to-end test independent of the others.** `playwright.config.ts` sets
