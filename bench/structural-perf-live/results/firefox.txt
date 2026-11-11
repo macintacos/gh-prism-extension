@@ -1,0 +1,203 @@
+firefox before: 9:46  up 15 days,  1:26, 12 users, load averages: 3.83 4.13 4.12
+url: https://github.com/nodejs/node/pull/66212/changes?diff=split
+run 1 trunk: loadMs=2649 p95=17.2 frames=2042 errors=0
+run 1 mode-off: loadMs=2948 p95=17.0 frames=2037 errors=0
+run 1 mode-on: loadMs=3137 p95=24.0 frames=1971 errors=0
+run 2 trunk: loadMs=2663 p95=17.2 frames=2014 errors=0
+run 2 mode-off: loadMs=2689 p95=17.1 frames=2031 errors=0
+run 2 mode-on: loadMs=2693 p95=24.1 frames=1959 errors=0
+run 3 trunk: loadMs=2862 p95=17.1 frames=2035 errors=0
+run 3 mode-off: loadMs=2348 p95=17.2 frames=2020 errors=0
+run 3 mode-on: loadMs=2287 p95=23.9 frames=1953 errors=0
+run 4 trunk: loadMs=2170 p95=17.3 frames=2019 errors=0
+run 4 mode-off: loadMs=2629 p95=16.9 frames=2036 errors=0
+run 4 mode-on: loadMs=3104 p95=23.5 frames=1982 errors=0
+run 5 trunk: loadMs=2444 p95=17.1 frames=2038 errors=0
+run 5 mode-off: loadMs=2303 p95=17.4 frames=2014 errors=0
+run 5 mode-on: loadMs=2979 p95=23.8 frames=1962 errors=0
+firefox after: 9:54  up 15 days,  1:33, 12 users, load averages: 4.66 4.31 4.16
+
+firefox, 5 runs, medians (headless frame timing)
+
+| variant | firstDiffMs | loadMs | p50 | p95 | %>16.7ms | >50ms | page errors |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| trunk | 2444 | 2649 | 8.3 | 17.2 | 5.8 | 7 | 0 |
+| mode-off | 2515 | 2629 | 8.3 | 17.1 | 6.2 | 7 | 0 |
+| mode-on | 2547 | 2979 | 8.3 | 23.9 | 7.5 | 8 | 0 |
+mode-on run 1: 0 painted files, last new file at 12.4% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":32}
+mode-on run 2: 0 painted files, last new file at 12.4% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":28}
+mode-on run 3: 0 painted files, last new file at 12.6% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":31}
+mode-on run 4: 0 painted files, last new file at 12.5% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":34}
+mode-on run 5: 0 painted files, last new file at 12.4% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":30}
+bar mode-on vs mode-off loadMs: FAILED 2979 vs 2629
+bar mode-on vs mode-off p95: FAILED 23.9 vs 17.1
+bar mode-on vs mode-off %>16.7ms: ok
+bar mode-off vs trunk loadMs: ok
+bar mode-off vs trunk p95: ok
+bar mode-off vs trunk %>16.7ms: ok
+bar mode-off page errors: ok
+bar mode-on page errors: ok
+--- rerun with --runs 9 (decides) ---
+firefox before: 9:54  up 15 days,  1:34, 12 users, load averages: 5.21 4.43 4.20
+url: https://github.com/nodejs/node/pull/66212/changes?diff=split
+run 1 trunk: loadMs=2486 p95=17.1 frames=2039 errors=0
+run 1 mode-off: loadMs=2452 p95=17.0 frames=2052 errors=0
+run 1 mode-on: loadMs=2811 p95=24.6 frames=1960 errors=0
+run 2 trunk: loadMs=2474 p95=17.0 frames=2029 errors=0
+run 2 mode-off: loadMs=2738 p95=17.2 frames=2042 errors=0
+run 2 mode-on: loadMs=2663 p95=24.0 frames=1943 errors=0
+run 3 trunk: loadMs=2200 p95=17.0 frames=2032 errors=0
+run 3 mode-off: loadMs=2435 p95=16.9 frames=2068 errors=0
+run 3 mode-on: loadMs=2401 p95=23.7 frames=1963 errors=0
+run 4 trunk: loadMs=2651 p95=16.8 frames=2069 errors=0
+run 4 mode-off: loadMs=2684 p95=16.7 frames=2065 errors=0
+run 4 mode-on: loadMs=2451 p95=24.1 frames=1984 errors=0
+run 5 trunk: loadMs=3136 p95=16.7 frames=2053 errors=0
+run 5 mode-off: loadMs=2799 p95=17.4 frames=2013 errors=0
+run 5 mode-on: loadMs=2641 p95=23.5 frames=1975 errors=0
+run 6 trunk: loadMs=2428 p95=17.5 frames=2026 errors=0
+run 6 mode-off: loadMs=2984 p95=17.0 frames=2033 errors=0
+run 6 mode-on: loadMs=2801 p95=17.5 frames=2012 errors=0
+run 7 trunk: loadMs=2246 p95=16.7 frames=2060 errors=0
+run 7 mode-off: loadMs=2794 p95=17.0 frames=2040 errors=0
+run 7 mode-on: loadMs=2506 p95=19.0 frames=1927 errors=0
+run 8 trunk: loadMs=2774 p95=16.8 frames=2045 errors=0
+run 8 mode-off: loadMs=2436 p95=17.0 frames=2020 errors=0
+run 8 mode-on: loadMs=2818 p95=24.7 frames=1956 errors=0
+run 9 trunk: loadMs=3005 p95=16.7 frames=2068 errors=0
+run 9 mode-off: loadMs=2425 p95=17.1 frames=2041 errors=0
+run 9 mode-on: loadMs=2580 p95=24.1 frames=1970 errors=0
+firefox after: 10:08  up 15 days,  1:48, 12 users, load averages: 5.11 4.48 4.24
+
+firefox, 9 runs, medians (headless frame timing)
+
+| variant | firstDiffMs | loadMs | p50 | p95 | %>16.7ms | >50ms | page errors |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| trunk | 2428 | 2486 | 8.3 | 16.8 | 5.6 | 7 | 0 |
+| mode-off | 2436 | 2684 | 8.3 | 17.0 | 5.7 | 7 | 0 |
+| mode-on | 2506 | 2641 | 8.3 | 24.0 | 7.6 | 8 | 0 |
+mode-on run 1: 0 painted files, last new file at 12.6% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":27}
+mode-on run 2: 0 painted files, last new file at 12.4% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":31}
+mode-on run 3: 0 painted files, last new file at 12.5% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":31}
+mode-on run 4: 0 painted files, last new file at 12.5% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":29}
+mode-on run 5: 0 painted files, last new file at 12.4% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":30}
+mode-on run 6: 0 painted files, last new file at 12.3% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":27}
+mode-on run 7: 0 painted files, last new file at 12.4% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":28}
+mode-on run 8: 0 painted files, last new file at 12.6% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":32}
+mode-on run 9: 0 painted files, last new file at 12.5% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":29}
+bar mode-on vs mode-off loadMs: ok
+bar mode-on vs mode-off p95: FAILED 24.0 vs 17.0
+bar mode-on vs mode-off %>16.7ms: ok
+bar mode-off vs trunk loadMs: FAILED 2684 vs 2486
+bar mode-off vs trunk p95: ok
+bar mode-off vs trunk %>16.7ms: ok
+bar mode-off page errors: ok
+bar mode-on page errors: ok
+
+=== virtualized commit page (Phase 2 fix, live), Firefox, 1 run ===
+firefox before: 10:31  up 15 days,  2:11, 12 users, load averages: 5.38 5.02 4.55
+url: https://github.com/nodejs/node/commit/4eb3908d1f237e9dfdf09111540d2a7ede48f8c9?diff=split
+run 1 trunk: loadMs=1001 p95=10.3 frames=345 errors=0
+run 1 mode-off: loadMs=1101 p95=10.2 frames=346 errors=0
+run 1 mode-on: loadMs=1091 p95=10.3 frames=343 errors=0
+firefox after: 10:32  up 15 days,  2:11, 12 users, load averages: 4.54 4.84 4.50
+
+firefox, 1 runs, medians (headless frame timing)
+
+| variant | firstDiffMs | loadMs | p50 | p95 | %>16.7ms | >50ms | page errors |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| trunk | 1026 | 1001 | 8.3 | 10.3 | 2.0 | 0 | 0 |
+| mode-off | 1124 | 1101 | 8.3 | 10.2 | 1.7 | 0 | 0 |
+| mode-on | 1175 | 1091 | 8.3 | 10.3 | 2.6 | 0 | 0 |
+mode-on run 1: 0 painted files, last new file at 0.0% of the page, notices {}
+bar mode-on vs mode-off loadMs: ok
+bar mode-on vs mode-off p95: ok
+bar mode-on vs mode-off %>16.7ms: ok
+bar mode-off vs trunk loadMs: ok
+bar mode-off vs trunk p95: ok
+bar mode-off vs trunk %>16.7ms: ok
+bar mode-off page errors: ok
+bar mode-on page errors: ok
+exit 0
+
+=== SUPPLEMENTAL: --runs 15 --trunk on #66212; decides nothing (started with the one-minute load average under 3) ===
+firefox before: 10:57  up 15 days,  2:37, 12 users, load averages: 2.20 2.89 3.41
+url: https://github.com/nodejs/node/pull/66212/changes?diff=split
+run 1 trunk: loadMs=2631 p95=16.7 frames=2068 errors=0
+run 1 mode-off: loadMs=2696 p95=16.8 frames=2043 errors=0
+run 1 mode-on: loadMs=2239 p95=24.4 frames=1930 errors=0
+run 2 trunk: loadMs=2443 p95=16.8 frames=2042 errors=0
+run 2 mode-off: loadMs=2764 p95=16.7 frames=2080 errors=0
+run 2 mode-on: loadMs=2485 p95=24.6 frames=1926 errors=0
+run 3 trunk: loadMs=2543 p95=17.7 frames=2008 errors=0
+run 3 mode-off: loadMs=2793 p95=17.0 frames=2039 errors=0
+run 3 mode-on: loadMs=2929 p95=18.4 frames=1995 errors=0
+run 4 trunk: loadMs=2406 p95=17.3 frames=2029 errors=0
+run 4 mode-off: loadMs=2589 p95=16.9 frames=2046 errors=0
+run 4 mode-on: loadMs=2509 p95=25.0 frames=1850 errors=0
+run 5 trunk: loadMs=2636 p95=24.5 frames=1935 errors=0
+run 5 mode-off: loadMs=2419 p95=24.9 frames=1930 errors=0
+run 5 mode-on: loadMs=3193 p95=25.0 frames=1867 errors=0
+run 6 trunk: loadMs=2784 p95=24.3 frames=1975 errors=0
+run 6 mode-off: loadMs=2951 p95=24.1 frames=2003 errors=0
+run 6 mode-on: loadMs=2510 p95=25.0 frames=1913 errors=0
+run 7 trunk: loadMs=2625 p95=16.7 frames=2069 errors=0
+run 7 mode-off: loadMs=2758 p95=16.8 frames=2026 errors=0
+run 7 mode-on: loadMs=2675 p95=24.9 frames=1955 errors=0
+run 8 trunk: loadMs=2469 p95=17.1 frames=2014 errors=0
+run 8 mode-off: loadMs=3416 p95=16.7 frames=2069 errors=0
+run 8 mode-on: loadMs=2247 p95=24.9 frames=1952 errors=0
+run 9 trunk: loadMs=3214 p95=16.8 frames=2020 errors=0
+run 9 mode-off: loadMs=2490 p95=16.7 frames=2055 errors=0
+run 9 mode-on: loadMs=2945 p95=24.8 frames=1999 errors=0
+run 10 trunk: loadMs=2895 p95=17.7 frames=2029 errors=0
+run 10 mode-off: loadMs=2566 p95=17.4 frames=2018 errors=0
+run 10 mode-on: loadMs=2709 p95=24.5 frames=1962 errors=0
+run 11 trunk: loadMs=2486 p95=16.7 frames=2039 errors=0
+run 11 mode-off: loadMs=2659 p95=17.1 frames=1976 errors=0
+run 11 mode-on: loadMs=2486 p95=25.0 frames=1923 errors=0
+run 12 trunk: loadMs=2535 p95=16.8 frames=2007 errors=0
+run 12 mode-off: loadMs=2705 p95=16.8 frames=2019 errors=0
+run 12 mode-on: loadMs=3082 p95=24.9 frames=1980 errors=0
+run 13 trunk: loadMs=2738 p95=16.7 frames=2048 errors=0
+run 13 mode-off: loadMs=2404 p95=16.8 frames=2016 errors=0
+run 13 mode-on: loadMs=2689 p95=24.8 frames=1951 errors=0
+run 14 trunk: loadMs=2918 p95=16.7 frames=2059 errors=0
+run 14 mode-off: loadMs=2261 p95=16.6 frames=2041 errors=0
+run 14 mode-on: loadMs=3142 p95=24.9 frames=1972 errors=0
+run 15 trunk: loadMs=3464 p95=17.0 frames=2017 errors=0
+run 15 mode-off: loadMs=2461 p95=17.0 frames=2025 errors=0
+run 15 mode-on: loadMs=2617 p95=24.2 frames=1976 errors=0
+firefox after: 11:21  up 15 days,  3:01, 12 users, load averages: 4.64 4.23 4.01
+
+firefox, 15 runs, medians (headless frame timing)
+
+| variant | firstDiffMs | loadMs | p50 | p95 | %>16.7ms | >50ms | page errors |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| trunk | 2528 | 2631 | 8.3 | 16.8 | 5.5 | 8 | 0 |
+| mode-off | 2529 | 2659 | 8.3 | 16.8 | 5.7 | 7 | 0 |
+| mode-on | 2517 | 2675 | 8.3 | 24.9 | 7.2 | 8 | 0 |
+mode-on run 1: 0 painted files, last new file at 12.4% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":30}
+mode-on run 2: 0 painted files, last new file at 12.6% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":28}
+mode-on run 3: 0 painted files, last new file at 12.4% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":29}
+mode-on run 4: 0 painted files, last new file at 12.4% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":32}
+mode-on run 5: 0 painted files, last new file at 12.6% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":28}
+mode-on run 6: 0 painted files, last new file at 12.3% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":29}
+mode-on run 7: 0 painted files, last new file at 12.4% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":29}
+mode-on run 8: 0 painted files, last new file at 12.4% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":28}
+mode-on run 9: 0 painted files, last new file at 12.4% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":25}
+mode-on run 10: 0 painted files, last new file at 12.6% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":27}
+mode-on run 11: 0 painted files, last new file at 12.4% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":29}
+mode-on run 12: 0 painted files, last new file at 12.2% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":28}
+mode-on run 13: 0 painted files, last new file at 12.6% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":31}
+mode-on run 14: 0 painted files, last new file at 12.3% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":29}
+mode-on run 15: 0 painted files, last new file at 12.4% of the page, notices {"Structural mode doesn't cover this file's language yet, so this is GitHub's diff.":33}
+bar mode-on vs mode-off loadMs: ok
+bar mode-on vs mode-off p95: FAILED 24.9 vs 16.8
+bar mode-on vs mode-off %>16.7ms: ok
+bar mode-off vs trunk loadMs: ok
+bar mode-off vs trunk p95: ok
+bar mode-off vs trunk %>16.7ms: ok
+bar mode-off page errors: ok
+bar mode-on page errors: ok
+exit 1

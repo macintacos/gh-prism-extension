@@ -165,11 +165,9 @@ Split, checking the gear's Layout and the count of `POST /users/diffview` after 
 press.
 
 `bun bench/structural-parity-live.ts <chromium|firefox> <storage-state path> [--trunk <built extension directory>]`
-runs Structural mode's parity checklist in the built extension on live GitHub: sandbox PRs
-
-## 3 and #4, the two sandbox commits, a gh-prism-extension commit's line link, the
-
-codeowners sandbox's large pull request, and nodejs/node#66212, where it only reads,
+runs Structural mode's parity checklist in the built extension on live GitHub: sandbox
+pull requests 3 and 4, the two sandbox commits, a gh-prism-extension commit's line link,
+the codeowners sandbox's large pull request, and nodejs/node#66212, where it only reads,
 scrolls, and loads diffs. Its strongest check compares a page signature (each diff table's
 markup without the painter's attributes, the sidebar's text, the file order, each file
 header's controls, and one table's accessibility tree) with Split and with Structural;
@@ -181,6 +179,21 @@ all in a `finally`. It prints one line per check, `<id> <name>: ok`,
 `: FAILED <what was seen>`, or `: not driven (<reason>)`, ends with
 `parity: <N> ok, <F> failed, <M> not driven`, and exits 1 when F is not 0.
 `bench/structural-parity-live/results/*.txt` hold one run per browser, a dated record.
+
+`bun bench/structural-perf-live.ts <chromium|firefox> <storage-state path> [--runs <n>] [--url <url>] [--trunk <built extension directory>]`
+times a signed-in page, nodejs/node#66212 by default, over 5 runs by default. Each run
+loads the page once per variant, interleaved, each in a fresh profile: `trunk` (the
+`--trunk` build of `main`, skipped without it), `mode-off`, and `mode-on` (both the plain
+`.output/<browser>-mv3`; `mode-on` first presses Structural on a sandbox pull request so
+the profile saves it). It measures navigation to the first diff table, load until the diff
+list stays unchanged for 2 s, and frame deltas while scrolling at 3,000 px/s for at most
+20 s, and counts page errors and, for `mode-on`, painted files and notices. It prints
+`uptime` before and after, a table of medians, and one `bar <name>: ok` or `: FAILED` line
+per bar, `mode-on` against `mode-off` and `mode-off` against `trunk`: median load at most
+the baseline's plus max(100 ms, 5%), scroll p95 at most plus 2 ms, frames over 16.7 ms at
+most plus 2 points, and no page error with the stack's build. It exits 1 when a bar fails.
+Headless frame timing differs from a real device's, equally for every variant.
+`bench/structural-perf-live/results/*.txt` hold one run per browser, a dated record.
 
 ### Sandbox repositories
 
