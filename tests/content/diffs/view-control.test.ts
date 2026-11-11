@@ -454,16 +454,26 @@ describe("showDiffViewControl", () => {
     expect(set).not.toHaveBeenCalled();
   });
 
-  it("gives up when the menu never opens", async () => {
+  it("stays for another press when the gear opens no menu", async () => {
     const page = pageOf("pr", "unified", { menu: false });
     const { choice, set } = choiceOf(false);
     show(page, choice);
 
-    segment("structural")?.click();
+    segment("split")?.click();
     await vi.advanceTimersByTimeAsync(1100);
 
-    expect(control()).toBeNull();
+    expect(control()).not.toBeNull();
     expect(set).not.toHaveBeenCalled();
+
+    installLayoutMenu({
+      menu: prMenu,
+      tables: { unified: prUnified, split: prSplit },
+      signal: controller.signal,
+    });
+    segment("split")?.click();
+    await vi.advanceTimersByTimeAsync(1100);
+
+    expect(pressed()).toEqual(["split"]);
   });
 
   it("leaves the mode off when the page still reads Unified after choosing Split", async () => {

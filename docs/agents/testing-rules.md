@@ -232,8 +232,12 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   fourth pass drives the diff view control on each URL: each press checked against the
   gear's Layout, the stored mode, and the count of `POST /users/diffview`, a clean page
   after leaving Structural, the choice kept across a reload, the control following a
-  Layout chosen from the gear, and ArrowDown in the diffs unchanged by the mode. Its first
-  press is a real pointer click, which hydration meets.
+  Layout chosen from the gear, and ArrowDown in the diffs unchanged by the mode.
+- **Click a live control through its locator, never at coordinates read earlier.**
+  GitHub's toolbar moves: a commit's drops its "Top" button about 50 ms after a scroll to
+  the top, shifting the diff view control 71px, so a `mouse.click` at a `boundingBox()`
+  read before lands on the next segment. `locator.click()` waits for the box to hold still
+  and checks the target is under the pointer.
 - **Give an e2e page a gear and a Layout menu by splicing a captured toolbar and adding
   `installLayoutMenu` with `page.addInitScript`.** The page fixtures have no gear, so
   [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `layoutBody` swaps in

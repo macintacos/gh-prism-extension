@@ -485,14 +485,9 @@ async function viewControl(page: Page): Promise<void> {
       const shieldsBefore = await shields(page);
       const keyOff = await arrowDown(page);
 
-      const press = async (view: View, from: Layout, { mouse = false } = {}) => {
+      const press = async (view: View, from: Layout) => {
         const postsBefore = diffviewPosts;
-        const segment = segmentOf(page, view);
-        if (mouse) {
-          const box = await segment.boundingBox();
-          if (!box) throw new Failure(`control ${url} ${view}: FAILED no segment`);
-          await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-        } else await segment.click();
+        await segmentOf(page, view).click();
         await page.waitForTimeout(2500);
         const wanted: Layout = view === "Unified" ? "unified" : "split";
         const gear = await layout.read();
@@ -529,8 +524,7 @@ async function viewControl(page: Page): Promise<void> {
         check(`control ${url} reload ${view}`, shown === view.toLowerCase(), `(${shown})`);
       };
 
-      // The first press on a fresh page is a real pointer click, as hydration meets it.
-      await press("Unified", "split", { mouse: true });
+      await press("Unified", "split");
       await press("Structural", "unified");
       for (let step = 0; step < 4; step++) {
         await page.mouse.wheel(0, 400);

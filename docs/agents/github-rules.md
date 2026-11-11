@@ -534,6 +534,15 @@ on a private one.
   `#diff_file_tree > .d-md-none` sits outside that row. The gear carries
   `aria-haspopup="true"` and `aria-expanded` `"false"` or `"true"`, and no `aria-controls`
   (Chromium 157, signed in, 2026-11-10).
+- **Expect a gear clicked before the page hydrates to open nothing.** It mounts no menu
+  and stays `aria-expanded="false"`, so a missing menu is no sign GitHub changed it
+  (Chromium, signed in, 2026-11-11).
+- **Expect a commit's toolbar to move under a held pointer.** One frame after hydration it
+  moves 308px right (the gear from x=361 to x=669), so a press held across hydration
+  releases elsewhere. Its "Top" button, 63px plus an 8px gap before the search box, shows
+  only while the page is scrolled; about 50 to 65 ms after a scroll to the top GitHub
+  removes it and everything after it moves 71px. Click a toolbar node through a live
+  locator, never at coordinates read before (Chromium, signed in, 2026-11-11).
 - **Drive the menu from script within one task.** A synthetic `gear.click()` opens it on
   both page kinds, and its two Layout `menuitemradio` items exist after one
   `await Promise.resolve()`, at `opacity: 0`; `findLayoutMenu` in `files-page.ts` finds
@@ -606,6 +615,12 @@ on a private one.
   7. On a pull request, narrow the window to 500px and read the gear's `offsetParent`.
   8. Insert a node before the gear as the page loads, and watch it with a
      `MutationObserver` until the page settles.
+  9. With GitHub's scripts delayed 3 s, click the gear before the page hydrates, then read
+     its `aria-expanded` and look for a Layout menu a second later.
+  10. On the commit, read the gear's `getBoundingClientRect().x` every frame across
+      hydration.
+  11. On the commit, scroll down, read the "Top" button's width and the gear's x, scroll
+      to the top, and read both every frame for 100 ms.
 
 ## The file card
 

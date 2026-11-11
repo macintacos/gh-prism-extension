@@ -70,8 +70,11 @@ at the top, dated.
     hidden below 768px.
   - A visit-wide guard keeps a pointer press from `pointerdown` until the pointer is
     released or cancelled, so a release on the re-mounted segment still presses it when
-    GitHub's hydration re-mounts the page mid-press. A press made as the control first
-    appears can still be lost, about 1 in 9 in a live test, for a reason not yet found.
+    GitHub's hydration re-mounts the page mid-press. A press made before GitHub has
+    hydrated the page opens no menu, so it chooses nothing and the control stays for
+    another press. On a commit's page a press held across hydration is lost, because
+    GitHub's toolbar moves 308px right under the pointer and the release lands off the
+    control.
   - A change made in another tab shows on the next full load.
   - Chrome before 145 rings the segment when focus returns to it after a pointer press.
   - Themes were measured by switching `data-color-mode`, and 200% text by the root font

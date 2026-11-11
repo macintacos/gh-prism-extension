@@ -981,15 +981,16 @@ re-renders on each `observeDiffs` report and when `whileOn` aborts. A press firs
 GitHub's own Layout menu when the layout must change (`chooseLayout`: a synthetic gear
 click, then the Unified or Split item); for Structural it then waits until `showsUnified`
 reads false, and only then sets the mode. Pressing Unified or Split with the mode off
-writes nothing to storage. When the menu or its item isn't found within a second, the
-control closes the menu, leaves the mode alone, and removes itself for the rest of the
-page. When the item already reads checked, it closes the menu without clicking. A press
-stops after any wait once its page aborts. GitHub's toolbar never wraps, so the control
-hides while the toolbar has no room for it. It measures that on mount, on a toolbar
-resize, and on a child-list change in a pull request's toolbar, which sits outside the
-diffs. It moves its resize observer, and on a pull request its child-list observer, to a
-replacement toolbar. Hydration can re-mount the control between `pointerdown` and
-`pointerup`, so no click fires: `pressGuard` in
+writes nothing to storage. When the gear opens no menu within a second, as before GitHub
+hydrates the page, the press chooses nothing and the control stays for another press. When
+a menu opens without the wanted Layout item, the control closes the menu, leaves the mode
+alone, and removes itself for the rest of the page. When the item already reads checked,
+it closes the menu without clicking. A press stops after any wait once its page aborts.
+GitHub's toolbar never wraps, so the control hides while the toolbar has no room for it.
+It measures that on mount, on a toolbar resize, and on a child-list change in a pull
+request's toolbar, which sits outside the diffs. It moves its resize observer, and on a
+pull request its child-list observer, to a replacement toolbar. Hydration can re-mount the
+control between `pointerdown` and `pointerup`, so no click fires: `pressGuard` in
 [`ui/press-guard.ts`](../entrypoints/content/ui/press-guard.ts), built once per visit by
 `index.ts`, keeps the press and runs it on a release over the re-mounted segment of the
 same view once the original has left the page; a release or cancel anywhere else forgets

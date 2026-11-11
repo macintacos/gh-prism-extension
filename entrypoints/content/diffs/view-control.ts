@@ -64,17 +64,18 @@ async function waitFor(
 
 /**
  * Chooses `layout` in GitHub's diff settings menu, resolving once the menu has closed, or a second
- * after the choice: `false`, having chosen nothing, when the menu or the item isn't found within a
- * second or `signal` aborts. The item already checked is never clicked: the menu just closes.
+ * after the choice. Having chosen nothing, it resolves `"unopened"` when no menu opens within a
+ * second (a gear GitHub has not hydrated yet) or `signal` aborts, and `"missing"` when a menu opens
+ * without both Layout items. The item already checked is never clicked: the menu just closes.
  */
 export async function chooseLayout(
   gear: HTMLButtonElement,
   layout: DiffLayout,
   { signal }: { signal: AbortSignal },
-): Promise<boolean> {
+): Promise<"chosen" | "unopened" | "missing"> {
   const doc = gear.ownerDocument;
   const win = doc.defaultView;
-  if (!win) return false;
+  if (!win) return "unopened";
 
   gear.click();
   // The menu's items exist one microtask after the gear's click.
@@ -86,18 +87,19 @@ export async function chooseLayout(
     if (gear.getAttribute("aria-expanded") === "true") gear.click();
   };
   if (!menuOpened || !menu || signal.aborted) {
+    const opened = gear.getAttribute("aria-expanded") === "true";
     close();
-    return false;
+    return opened && !signal.aborted ? "missing" : "unopened";
   }
   // Choosing the shown layout again would post it again.
   if (menu[layout].getAttribute("aria-checked") === "true") {
     close();
-    return true;
+    return "chosen";
   }
 
   menu[layout].click();
   await waitFor(win, () => !findLayoutMenu(doc), MENU_WAIT_MS, signal);
-  return true;
+  return "chosen";
 }
 
 export interface DiffViewOptions {
@@ -171,7 +173,7 @@ function controlOf(doc: Document, offersStructural: boolean): DiffViewControl {
  * The Unified, Split, and Structural control before `page`'s layout gear, re-mounted when GitHub
  * re-renders the toolbar, until `signal` aborts. Shows nothing while the gear is missing, hides
  * while the toolbar has no room for it, and is removed for the rest of the page once GitHub's menu
- * or its item isn't found.
+ * opens without the wanted Layout item. A press whose gear opens no menu chooses nothing.
  */
 export function showDiffViewControl(
   page: FilesPage,
@@ -238,9 +240,9 @@ export function showDiffViewControl(
       // A page torn down mid-press leaves the rest to the page that replaced it.
       if (steps.choose) {
         const gear = findLayoutGear(page);
-        const chosen = !!gear && (await chooseLayout(gear, steps.choose, { signal }));
-        if (signal.aborted) return;
-        if (!chosen) return giveUp();
+        const outcome = gear ? await chooseLayout(gear, steps.choose, { signal }) : "unopened";
+        if (signal.aborted || outcome === "unopened") return;
+        if (outcome === "missing") return giveUp();
         // Primer returns focus to the gear as its menu closes.
         if (doc.activeElement === gear) control?.segments[view].focus();
       }
