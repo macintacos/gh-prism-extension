@@ -1,6 +1,7 @@
 import { browser } from "wxt/browser";
 import { PR_DATA_PORT } from "@/utils/github/pr-port";
-import { ENGINE_GLOBAL, loadEngineScript, yieldToMessages } from "@/utils/structural/engine-script";
+import { yieldToMessages } from "@/utils/structural/engine-script";
+import { loadEngineThread } from "@/utils/structural/engine-thread";
 import { structuralHost } from "@/utils/structural/host";
 import type { StructuralRequest } from "@/utils/structural/request";
 
@@ -29,13 +30,14 @@ export type BenchReply = { id: number; result: unknown } | { id: number; error: 
  * host runs timed in the background's clock, and the times it handled PR data port messages.
  */
 export function serveBench(): void {
-  const host = structuralHost({ loadEngine: loadEngineScript, pause: yieldToMessages });
+  const host = structuralHost({ loadEngine: loadEngineThread, pause: yieldToMessages });
+  const engineExists = engineContextProbe();
   let pingTimes: number[] = [];
 
   const answer = async (message: BenchMessage) => {
     switch (message.op) {
       case "state":
-        return { loaded: Boolean(Reflect.get(globalThis, ENGINE_GLOBAL)) };
+        return { loaded: await engineExists() };
       case "pings": {
         const handled = pingTimes;
         pingTimes = [];
@@ -77,4 +79,20 @@ export function serveBench(): void {
       port.postMessage(reply);
     });
   });
+}
+
+/** Reports whether the engine's context exists: Chrome's offscreen document, or Firefox's Worker. */
+function engineContextProbe(): () => Promise<boolean> {
+  if (import.meta.env.BROWSER !== "firefox")
+    return async () =>
+      (await browser.runtime.getContexts({ contextTypes: ["OFFSCREEN_DOCUMENT"] })).length > 0;
+
+  let constructed = 0;
+  globalThis.Worker = class extends Worker {
+    constructor(...args: ConstructorParameters<typeof Worker>) {
+      super(...args);
+      constructed++;
+    }
+  };
+  return async () => constructed > 0;
 }

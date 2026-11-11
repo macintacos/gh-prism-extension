@@ -31,6 +31,12 @@ imports a sheet or writes `tw:` classes are in [`styling-rules.md`](styling-rule
   `storage.removeItem` in the background's `runtime.onInstalled` listener, beside
   `forgetIntents`, and keep that removal.
 
+## Workers
+
+- **Give a dedicated Worker script no `browser.*` and no `wxt/browser` import.** A Worker
+  has no extension API, so it derives a packaged file's URL from `self.location`, as
+  [`structural-engine.ts`](../../entrypoints/structural-engine.ts) does.
+
 ## Firefox
 
 - **Never let a content script define a custom element.** Firefox hands content scripts

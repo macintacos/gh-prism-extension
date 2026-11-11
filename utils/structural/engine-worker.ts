@@ -9,8 +9,9 @@ export type FromEngine = { id: number; result: EngineResult } | { id: number; er
 export interface EngineWorker {
   postMessage(message: ToEngine): void;
   terminate(): void;
-  onmessage: ((event: { data: FromEngine }) => void) | null;
-  onerror: ((event: unknown) => void) | null;
+  // The DOM's event types, or a real Worker would not be assignable to this interface.
+  onmessage: ((event: MessageEvent<FromEngine>) => void) | null;
+  onerror: ((event: ErrorEvent) => void) | null;
 }
 
 /** The parts of a Worker's global the engine script uses. */

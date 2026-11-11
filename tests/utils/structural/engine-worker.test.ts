@@ -37,7 +37,7 @@ function workerPair() {
     onmessage: null,
     postMessage(message) {
       scope.posted.push(message);
-      queueMicrotask(() => worker.onmessage?.({ data: message }));
+      queueMicrotask(() => worker.onmessage?.(new MessageEvent("message", { data: message })));
     },
   };
   const worker: EngineWorker & { posted: ToEngine[] } = {
@@ -117,7 +117,9 @@ describe("workerEngine", () => {
     await expect(pending).rejects.toBe("gone");
     const id = worker.posted[0]?.id;
     expect(worker.posted[1]).toEqual({ id, cancel: true });
-    expect(() => worker.onmessage?.({ data: { id: id ?? 0, result: RESULT } })).not.toThrow();
+    expect(() =>
+      worker.onmessage?.(new MessageEvent("message", { data: { id: id ?? 0, result: RESULT } })),
+    ).not.toThrow();
   });
 
   it("resolves failed and warns when the Worker posts an error", async () => {
@@ -139,7 +141,8 @@ describe("workerEngine", () => {
 
     const one = engine(REQUEST, signal());
     const two = engine(REQUEST, signal());
-    first.worker.onerror?.(new Event("error"));
+    // Node has no ErrorEvent; failAll reads nothing off the event.
+    first.worker.onerror?.(new Event("error") as ErrorEvent);
 
     await expect(Promise.all([one, two])).resolves.toEqual([FAILED, FAILED]);
     expect(first.worker.terminate).toHaveBeenCalledOnce();

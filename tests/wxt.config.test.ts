@@ -82,22 +82,22 @@ describe("wxt.config", () => {
     });
   });
 
-  it.each(["chrome", "firefox"])(
-    "asks %s for no permission beyond its install set",
-    async (browser) => {
-      const manifest = await manifestFor(browser);
+  it.each([
+    ["chrome", ["storage", "declarativeNetRequestWithHostAccess", "offscreen"]],
+    ["firefox", ["storage", "declarativeNetRequestWithHostAccess"]],
+  ])("asks %s for no permission beyond its install set", async (browser, permissions) => {
+    const manifest = await manifestFor(browser);
 
-      expect(manifest.permissions).toEqual(["storage", "declarativeNetRequestWithHostAccess"]);
-      expect(manifest.host_permissions).toEqual([
-        "https://github.com/*",
-        "https://patch-diff.githubusercontent.com/*",
-        "https://raw.githubusercontent.com/*",
-      ]);
-      expect(manifest).not.toHaveProperty("optional_permissions");
-      expect(manifest).not.toHaveProperty("optional_host_permissions");
-      expect(manifest).not.toHaveProperty("web_accessible_resources");
-    },
-  );
+    expect(manifest.permissions).toEqual(permissions);
+    expect(manifest.host_permissions).toEqual([
+      "https://github.com/*",
+      "https://patch-diff.githubusercontent.com/*",
+      "https://raw.githubusercontent.com/*",
+    ]);
+    expect(manifest).not.toHaveProperty("optional_permissions");
+    expect(manifest).not.toHaveProperty("optional_host_permissions");
+    expect(manifest).not.toHaveProperty("web_accessible_resources");
+  });
 
   it("copies each packaged WebAssembly file into the build", async () => {
     const hooks: Partial<WxtHooks> = config.hooks ?? {};
