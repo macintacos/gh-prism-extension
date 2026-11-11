@@ -87,9 +87,9 @@ export async function chooseLayout(
     if (gear.getAttribute("aria-expanded") === "true") gear.click();
   };
   if (!menuOpened || !menu || signal.aborted) {
-    const opened = gear.getAttribute("aria-expanded") === "true";
+    const gearExpanded = gear.getAttribute("aria-expanded") === "true";
     close();
-    return opened && !signal.aborted ? "missing" : "unopened";
+    return gearExpanded && !signal.aborted ? "missing" : "unopened";
   }
   // Choosing the shown layout again would post it again.
   if (menu[layout].getAttribute("aria-checked") === "true") {
