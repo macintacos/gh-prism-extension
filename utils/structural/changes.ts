@@ -64,25 +64,48 @@ export function annotateLines(
   changes: StructuralChanges,
   hunks: readonly PrHunk[],
 ): LineAnnotations | undefined {
+  return structuralFile(changes, hunks)?.annotations;
+}
+
+/**
+ * {@link annotateLines}'s annotations with each annotated line's text from `hunks`, without its
+ * line terminator. `undefined` when a hunk's body cannot be read.
+ */
+export function structuralFile(
+  changes: StructuralChanges,
+  hunks: readonly PrHunk[],
+): StructuralFile | undefined {
   const oldRanges = rangesByLine(changes.old);
   const newRanges = rangesByLine(changes.new);
   const oldAnnotations: Record<number, LineAnnotation> = {};
   const newAnnotations: Record<number, LineAnnotation> = {};
+  const oldText: Record<number, string> = {};
+  const newText: Record<number, string> = {};
 
   for (const hunk of hunks) {
     const ops = hunkOps(hunk.lines);
     if (ops === undefined) return undefined;
     let oldLine = hunk.oldStart;
     let newLine = hunk.newStart;
-    for (const { kind } of ops) {
-      if (kind === "-") oldAnnotations[oldLine] = annotationOf(oldRanges.get(oldLine));
-      if (kind === "+") newAnnotations[newLine] = annotationOf(newRanges.get(newLine));
+    for (const { kind, text } of ops) {
+      const bare = text.endsWith("\n") ? text.slice(0, -1) : text;
+      if (kind === "-") {
+        oldAnnotations[oldLine] = annotationOf(oldRanges.get(oldLine));
+        oldText[oldLine] = bare;
+      }
+      if (kind === "+") {
+        newAnnotations[newLine] = annotationOf(newRanges.get(newLine));
+        newText[newLine] = bare;
+      }
       if (kind !== "+") oldLine++;
       if (kind !== "-") newLine++;
     }
   }
 
-  return { old: oldAnnotations, new: newAnnotations };
+  return {
+    annotations: { old: oldAnnotations, new: newAnnotations },
+    text: { old: oldText, new: newText },
+  };
 }
 
 /** `spans` grouped by line, each line's ranges in column order. */
