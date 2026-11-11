@@ -280,6 +280,42 @@ describe("fileChanges", () => {
       expect(run).toHaveBeenCalledTimes(1);
     });
 
+    it("answers an engine refusal from the cache", async () => {
+      const { run, changes } = setup({ run: async () => ({ ok: false, reason: "unsupported" }) });
+      await changes(pr, "src/main.ts", signal());
+
+      const result = await changes(pr, "src/main.ts", signal());
+
+      expect(result).toEqual({ ok: false, problem: "unsupported" });
+      expect(run).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses a head past the text limit without running, and caches it", async () => {
+      const big = "x".repeat(DEFAULT_LIMITS.maxTextLength + 1);
+      const { fetchFn, run, changes } = setup({
+        routes: { [rawUrlOf(pr, "src/main.ts")]: async () => new Response(big) },
+      });
+      await changes(pr, "src/main.ts", signal());
+
+      const result = await changes(pr, "src/main.ts", signal());
+
+      expect(result).toEqual({ ok: false, problem: "too-large" });
+      expect(run).not.toHaveBeenCalled();
+      expect(rawCalls(fetchFn)).toBe(1);
+    });
+
+    it("fetches the diff once for concurrent requests on a cold source", async () => {
+      const { fetchFn, changes } = setup();
+
+      await Promise.all([
+        changes(pr, "src/main.ts", signal()),
+        changes(pr, "web/src/data/catalog.ts", signal()),
+        changes(pr, "old.ts", signal()),
+      ]);
+
+      expect(fetchFn.mock.calls.filter(([url]) => String(url) === diffUrlOf(pr))).toHaveLength(1);
+    });
+
     it("runs again after the engine failed", async () => {
       const { run, changes } = setup({ run: async () => ({ ok: false, reason: "failed" }) });
       await changes(pr, "src/main.ts", signal());

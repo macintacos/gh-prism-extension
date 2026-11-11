@@ -13,9 +13,9 @@ import { structuralHost } from "../utils/structural/host";
 import { dismissWhatsNew } from "../utils/whats-new";
 
 /**
- * Serves pull request data, a file's structural changes among it, to content scripts, lets a tab's Conversation panel frame its pull
- * request's Conversation tab, clears the intent cache and retired storage keys on install, and
- * marks a fresh install's what's-new notes dismissed.
+ * Serves pull request data and, on request, a file's structural changes to content scripts, lets
+ * a tab's Conversation panel frame its pull request's Conversation tab, clears the intent cache
+ * and retired storage keys on install, and marks a fresh install's what's-new notes dismissed.
  */
 export default defineBackground(() => {
   // Intents clear on installs, updates, and dev reloads alike: a new build may place files

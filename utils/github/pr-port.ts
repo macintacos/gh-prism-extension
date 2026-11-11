@@ -48,7 +48,7 @@ export interface PrDataPort {
 }
 
 /**
- * One PR or commit view's access to its diff and file contents.
+ * One PR or commit view's access to its diff, file contents, and files' structural changes.
  *
  * @remarks
  * Open one client per view and `close()` it when the view goes away: that cancels in-flight
@@ -75,7 +75,10 @@ export interface PrDataClient {
    * `fileContent`'s rules.
    */
   filePrefix(path: string): Promise<PrFileContentResult>;
-  /** One file's structural changes at the head; only Structural mode calls it. */
+  /**
+   * One diff file's structural changes at the head. Any listed path may be asked; a file with
+   * nothing to compare answers `not-applicable` or `unsupported`. Only Structural mode calls it.
+   */
   structural(path: string): Promise<FileChangesResult>;
   close(): void;
 }
@@ -144,6 +147,7 @@ function asRequest(value: unknown): PrDataRequest | undefined {
   return undefined;
 }
 
+/** What answering one request needs: the data source, the structural builder, the request, and its signal. */
 interface Answering {
   readonly source: PrDataSource;
   readonly structural: FileChanges;

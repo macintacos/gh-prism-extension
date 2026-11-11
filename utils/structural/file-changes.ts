@@ -10,6 +10,16 @@ import { DEFAULT_LIMITS } from "./limits";
 import { changedRegions } from "./regions";
 import type { EngineRun, StructuralRequest } from "./request";
 
+/**
+ * Why a file has no structural changes.
+ * - `not-applicable`: no old text to compare: binary, added, deleted, or no hunks.
+ * - `unsupported`: no grammar for the path, or the engine refuses it.
+ * - `too-large`: the head or old text is past the engine's limits, or a parse, token walk, or
+ *   diff runs past them, or the result can't cross the port.
+ * - `failed`: the diff doesn't list the path, the patch doesn't apply to the head, a text doesn't
+ *   parse, or the engine's thread failed. Only the last may pass on a retry.
+ * - `no-access`, `rate-limited`: the diff or head read's, as {@link PrDataProblem}.
+ */
 export type StructuralProblem = PrDataProblem | "not-applicable" | "unsupported";
 
 /** One file's structural changes, or why there are none. Small enough to cross a port: no file text. */
@@ -24,10 +34,16 @@ export type FileChanges = (
   signal: AbortSignal,
 ) => Promise<FileChangesResult>;
 
-/** The most token spans the cache keeps across all files. */
+/**
+ * The most token spans the cache keeps across all files: about five files at the engine's worst
+ * case, `maxTokens` tokens changed a side.
+ */
 export const CACHED_SPANS = 200_000;
 
-/** The most head texts read at once. Keep in sync with `HEAD_READS_AT_ONCE` in utils/intent/read.ts. */
+/**
+ * The most head texts read at once, across every port: more invites GitHub's rate limiting.
+ * Apart from intent's own six (`HEAD_READS_AT_ONCE`), so intent reads never wait on these.
+ */
 export const STRUCTURAL_READS_AT_ONCE = 6;
 
 export interface FileChangesDeps {
@@ -42,14 +58,20 @@ const refuse = (problem: StructuralProblem): FileChangesResult => ({ ok: false, 
 /**
  * Builds one diff file's structural changes from the source's cached diff and head text, running
  * `run` only for a listed, modified file with a grammar. Settled answers that belong to the file
- * are cached; fetch problems and `failed` are not.
+ * are cached; fetch problems and `failed` are not. A path the diff does not list answers `failed`
+ * without a head read.
  */
 export function fileChanges({ source, run, cachedSpans }: FileChangesDeps): FileChanges {
   const cache = spanCache(cachedSpans);
   const gated = gate(STRUCTURAL_READS_AT_ONCE);
+  // The source shares no in-flight diff read: one at a time, so a burst on a cold source fetches once.
+  const listing = gate(1);
 
   return async (pr, path, signal) => {
-    const listed = await source.files(pr, signal);
+    const listed = await listing(() => {
+      signal.throwIfAborted();
+      return source.files(pr, signal);
+    });
     if (!listed.ok) return listed;
 
     const file = listed.files.find((candidate) => candidate.path === path);
@@ -70,6 +92,11 @@ export function fileChanges({ source, run, cachedSpans }: FileChangesDeps): File
     });
     signal.throwIfAborted();
     if (!head.ok) return head;
+    if (head.text.length > DEFAULT_LIMITS.maxTextLength) {
+      const tooLarge = refuse("too-large");
+      cache.set(key, tooLarge);
+      return tooLarge;
+    }
 
     const request = requestFor(file, head.text, grammar);
     if (!request) return refuse("failed");
@@ -92,22 +119,26 @@ function hasHunks(file: PrFileDiff): file is PrFileDiff & { kind: "text" } {
 
 const BOM = String.fromCharCode(0xfeff);
 
-/**
- * The engine request for `file` at `head`, or `undefined` when the patch does not apply. The head
- * read drops a leading BOM the diff keeps, so a BOM file is retried with it restored.
- */
+/** The engine request for `file` at `head`, or `undefined` when the patch does not apply. */
 function requestFor(
   file: PrFileDiff & { kind: "text" },
   head: string,
   grammar: Grammar,
 ): StructuralRequest | undefined {
   const regions = changedRegions(parsePrHunks(file.patch));
-  const newText = [head, `${BOM}${head}`].find((text) => baseText(file, text) !== undefined);
-  const oldText = newText === undefined ? undefined : baseText(file, newText);
-  if (!regions || newText === undefined || oldText === undefined) return undefined;
-  return { oldText, newText, grammar, regions, limits: DEFAULT_LIMITS };
+  if (!regions) return undefined;
+
+  // The head read drops a leading BOM the diff keeps.
+  for (const newText of [head, `${BOM}${head}`]) {
+    const oldText = baseText(file, newText);
+    if (oldText !== undefined) {
+      return { oldText, newText, grammar, regions, limits: DEFAULT_LIMITS };
+    }
+  }
+  return undefined;
 }
 
+/** The engine's answer, or `failed` when its thread breaks: a Worker error or a lost offscreen document. */
 async function runOrFail(
   run: EngineRun,
   request: StructuralRequest,
@@ -126,10 +157,15 @@ const answerOf = (result: EngineResult): FileChangesResult =>
   result.ok ? result : refuse(result.reason);
 
 /** Apart per diff, so a PR and a commit at the same SHA never share an entry. */
-const cacheKey = (pr: DiffHead, path: string): string =>
-  `${`${pr.owner}/${pr.repo}`.toLowerCase()}/${pr.kind === "pr" ? `pull/${pr.number}` : "commit"}@${pr.headSha}:${path}`;
+const cacheKey = (pr: DiffHead, path: string): string => {
+  const diff = pr.kind === "pr" ? `pull/${pr.number}` : "commit";
+  return `${`${pr.owner}/${pr.repo}`.toLowerCase()}/${diff}@${pr.headSha}:${path}`;
+};
 
-/** Settled answers by key, bounded by `bound` token spans in total; a refusal weighs 1. */
+/**
+ * Settled answers by key, bounded by `bound` token spans in total. An entry weighs its spans plus
+ * one, so empty changes still count; a refusal weighs 1.
+ */
 function spanCache(bound: number) {
   // ponytail: first in, first out; refresh an entry on read if revisits matter.
   const entries = new Map<string, { result: FileChangesResult; weight: number }>();

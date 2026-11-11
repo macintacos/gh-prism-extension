@@ -12,7 +12,8 @@ export interface HostDeps {
 /**
  * Runs structural requests one at a time, each after a pause, so intent reads are answered between
  * them. A request whose signal aborts while it waits is dropped without running the engine. An
- * aborted request's far side keeps running until its next pause while the next request starts.
+ * aborted request keeps running on the engine's thread until its next pause, while the next
+ * request starts.
  */
 export function structuralHost(deps: HostDeps): EngineRun {
   let queueTail: Promise<unknown> = Promise.resolve();

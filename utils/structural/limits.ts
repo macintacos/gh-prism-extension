@@ -1,6 +1,7 @@
-// Background side: import the engine and runner only as types; a value import bundles them into background.js.
+// Imported by the background as a value: import the engine only as a type, or it bundles into background.js.
 import type { EngineLimits } from "./engine";
 
+/** The limits the background sends with every request; a sender never supplies its own. */
 export const DEFAULT_LIMITS: EngineLimits = Object.freeze({
   /** About 1.5 times the largest file measured (170,549 bytes). */
   maxTextLength: 256_000,
