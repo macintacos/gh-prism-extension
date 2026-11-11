@@ -34,26 +34,24 @@ function paint(): ProbePaint {
   const byAnchor: Record<string, number> = {};
   let stale = 0;
   let outsideChanged = 0;
-  try {
-    for (const name of [ADDED_HIGHLIGHT, REMOVED_HIGHLIGHT]) {
-      CSS.highlights.get(name)?.forEach((range) => {
-        const node = range.startContainer;
-        if (!node.isConnected) stale++;
-        if (!node.parentElement?.closest("code.addition, code.deletion")) outsideChanged++;
-        const anchor =
-          node.parentElement
-            ?.closest("table[data-diff-anchor]")
-            ?.getAttribute("data-diff-anchor") ?? "";
-        byAnchor[anchor] = (byAnchor[anchor] ?? 0) + 1;
-      });
-    }
-  } catch {
-    // Firefox denies a content script the ranges another content script made; their count is all
-    // it can read.
+  // Firefox denies a content script the ranges another content script made; their count is all it
+  // can read.
+  if (import.meta.env.BROWSER === "firefox") {
     const total = [ADDED_HIGHLIGHT, REMOVED_HIGHLIGHT]
       .map((name) => CSS.highlights.get(name)?.size ?? 0)
       .reduce((a, b) => a + b, 0);
     return { perRange: false, total };
+  }
+  for (const name of [ADDED_HIGHLIGHT, REMOVED_HIGHLIGHT]) {
+    CSS.highlights.get(name)?.forEach((range) => {
+      const node = range.startContainer;
+      if (!node.isConnected) stale++;
+      if (!node.parentElement?.closest("code.addition, code.deletion")) outsideChanged++;
+      const anchor =
+        node.parentElement?.closest("table[data-diff-anchor]")?.getAttribute("data-diff-anchor") ??
+        "";
+      byAnchor[anchor] = (byAnchor[anchor] ?? 0) + 1;
+    });
   }
   return { perRange: true, byAnchor, stale, outsideChanged };
 }

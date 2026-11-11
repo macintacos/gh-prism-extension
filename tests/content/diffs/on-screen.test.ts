@@ -192,6 +192,12 @@ describe("followOnScreen", () => {
 
     expect(first.disconnected).toBe(false);
     expect(shown()).toEqual(new Set(["src/engine.rs"]));
+
+    vi.stubGlobal("IntersectionObserver", FakeObserver);
+    window.dispatchEvent(new Event("resize"));
+
+    expect(FakeObserver.latest).not.toBe(first);
+    expect(FakeObserver.latest.options.rootMargin).toBe("-40px 0px 0px 0px");
   });
 
   it("insets by the covered band once a header mounts after the start", async () => {

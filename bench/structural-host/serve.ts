@@ -5,7 +5,7 @@ import { engineThread } from "@/utils/structural/engine-thread";
 import { structuralHost } from "@/utils/structural/host";
 import type { StructuralRequest } from "@/utils/structural/request";
 
-/** The port `bench/structural-host.ts` drives through `relay()`. */
+/** The port `bench/structural-host.ts` and `bench/structural-caps.ts` drive through `relay()`. */
 export const BENCH_PORT = "gh-prism:bench";
 
 export type BenchMessage =

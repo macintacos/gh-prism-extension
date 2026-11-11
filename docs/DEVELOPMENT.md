@@ -132,16 +132,15 @@ against.
 the built extension, through the same scratch copy as `bench/structural-host.ts`. Its
 samples are every fixture pair under `tests/fixtures/structural/`, the 40 largest changed
 TypeScript, JavaScript, and Python files of nodejs/node#66212 (read with `gh` and raw
-GitHub URLs into a temporary directory, never committed), a size ladder of a TypeScript
-and a Python file repeated to 50,000 through 300,000 UTF-16 units, and two unrelated sides
-of 1,000, 2,000, and 3,000 tokens. Each sample runs 20 times at `DEFAULT_LIMITS`, counted
-by outcome, and 5 times with every cap lifted, beside 5 identical-sides runs that time the
-parses alone; it reports each side's text length and tokens, the parse time per side, and
-the diff stage's time. In Chromium it also reports the offscreen document's JS heap. It
-prints one JSON object and exits 1 when a sample within the size caps answers `too-slow`,
-which holds only on a quiet machine. `bench/structural-caps/results/*.json` hold a quiet
-and a loaded (`<browser>-loaded.json`) run per browser; they are a dated record, not a
-baseline.
+GitHub URLs, never stored), a size ladder of a TypeScript and a Python file repeated to
+50,000 through 300,000 UTF-16 units, and two unrelated sides of 1,000, 2,000, and 3,000
+tokens. Each sample runs 20 times at `DEFAULT_LIMITS`, counted by outcome, and 5 times
+with every cap lifted, beside 5 identical-sides runs that time the parses alone; it
+reports each side's text length and tokens, the parse time per side, and the diff stage's
+time. In Chromium it also reports the offscreen document's JS heap. It prints one JSON
+object and exits 1 when a sample within the size caps answers `too-slow`, which holds only
+on a quiet machine. `bench/structural-caps/results/*.json` hold a quiet and a loaded
+(`<browser>-loaded.json`) run per browser; they are a dated record, not a baseline.
 
 `bun bench/structural-mode-live.ts <chromium|firefox> <storage-state path> [url…]` checks
 Structural mode in the built extension on live GitHub. It needs a signed-in Playwright
@@ -171,31 +170,48 @@ the codeowners sandbox's large pull request, and nodejs/node#66212, where it onl
 scrolls, and loads diffs. Its strongest check compares a page signature (each diff table's
 markup without the painter's attributes, the sidebar's text, the file order, each file
 header's controls, and one table's accessibility tree) with Split and with Structural;
-with `--trunk`, it also compares the stack's build, mode off, against a build of `main`.
-It opens comment, reply, and suggestion forms and cancels each; it starts a review and
-discards it, deleting any pending review left through `gh api`; it resolves and unresolves
-the sandbox thread, marks a file Viewed and unmarks it, and restores the account's Layout,
-all in a `finally`. It prints one line per check, `<id> <name>: ok`,
-`: FAILED <what was seen>`, or `: not driven (<reason>)`, ends with
-`parity: <N> ok, <F> failed, <M> not driven`, and exits 1 when F is not 0.
-`bench/structural-parity-live/results/*.txt` hold one run per browser, a dated record.
+with `--trunk`, it also compares this checkout's build, mode off, against a build of
+`main`. It opens comment, reply, and suggestion forms and cancels each; it starts a review
+and discards it; it resolves and unresolves the sandbox thread, marks a file Viewed and
+unmarks it, and restores the account's Layout, all in a `finally`. That cleanup reverts
+only what the run changed: through `gh api` it deletes only pending reviews the run
+created and reopens only threads the run resolved, leaving earlier ones alone. It stops
+before any check when `gh` is signed in to an account other than the storage state's. It
+prints one line per check, `<id> <name>: ok`, `: FAILED <what was seen>`, or
+`: not driven (<reason>)`, ends with `parity: <N> ok, <F> failed, <M> not driven`, and
+exits 1 when F is not 0. Lines `L`, `M`, and `N` report measurements and count in no
+tally. `bench/structural-parity-live/results/*.txt` hold one run per browser, a dated
+record.
 
-`bun bench/structural-perf-live.ts <chromium|firefox> <storage-state path> [--runs <n>] [--url <url>] [--trunk <built extension directory>]`
+`bun bench/structural-perf-live.ts <chromium|firefox> <storage-state path> [--runs <n>] [--url <url>] [--start <file path>] [--label <text>] [--trunk <built extension directory>]`
 times a signed-in page, nodejs/node#66212 by default, over 5 runs by default. Each run
-loads the page once per variant, interleaved, each in a fresh profile: `trunk` (the
-`--trunk` build of `main`, skipped without it), `mode-off`, and `mode-on` (both the plain
-`.output/<browser>-mv3`; `mode-on` first presses Structural on a sandbox pull request so
-the profile saves it). It measures navigation to the first diff table, load until the diff
-list stays unchanged for 2 s, and frame deltas while scrolling at 3,000 px/s for at most
-20 s, and counts page errors and, for `mode-on`, painted files and notices. It prints
-`uptime` before and after, a table of medians, and one `bar <name>: ok` or `: FAILED` line
-per bar, `mode-on` against `mode-off` and `mode-off` against `trunk`: median load at most
-the baseline's plus max(100 ms, 5%), scroll p95 at most plus 2 ms, frames over 16.7 ms at
-most plus 2 points, and no page error with the stack's build. It exits 1 when a bar fails.
-Headless frame timing differs from a real device's, equally for every variant.
-`bench/structural-perf-live/results/*.txt` hold one run per browser, a dated record.
+loads the page once per variant, each in a fresh profile, rotating the order from run to
+run: `trunk` (the `--trunk` build of `main`, skipped without it), `mode-off`, and
+`mode-on` (both this checkout's `.output/<browser>-mv3`, found beside the bench). Every
+variant first opens sandbox PR #4, so all start from the same warmed cache; there
+`mode-on` also presses Structural so the profile saves it. It measures navigation to the
+first diff table and, on a pull request, load until the diff list stays unchanged for 2 s
+(`n/a` on any other page, whose load bar is skipped); a load that does not settle within
+120 s fails the run. GitHub mounts files only as you scroll, so it then scrolls untimed
+until the `--start` file mounts and puts it at the top: by default
+`deps/npm/tap-snapshots/test/lib/cli/exit-handler.js.test.cjs`, which opens the default
+page's longest run of modified JavaScript, since its first stretch holds only files
+without a grammar; any other `--url` starts at the top. From there it times frame deltas
+while scrolling at 3,000 px/s for at most 20 s, and counts page errors and, for `mode-on`,
+painted files and notices. It prints `--label`'s text first, `uptime` before and after, a
+table of medians, and one `bar <name>: ok` or `: FAILED` line per bar, `mode-on` against
+`mode-off` and `mode-off` against `trunk`: median load at most the baseline's plus max(100
+ms, 5%), scroll p95 at most plus 2 ms, frames over 16.7 ms at most plus 2 points, and no
+page error with this checkout's build; and `mode-on painted`, which fails when the median
+`mode-on` run painted no file. Beside each load bar, a `paired` line gives the median of
+each run's own difference; it decides nothing. It exits 1 when a bar fails. A timing bar
+that fails over 5 runs is rerun once with `--runs 9`, which decides. Headless frame timing
+differs from a real device's, equally for every variant.
+`bench/structural-perf-live/results/*.txt` are a dated record per browser of up to three
+blocks: a 5-run on nodejs/node#66212; a 9-run rerun when a timing bar failed there, which
+then decides; and one run on a large virtualized commit page.
 
-### Sandbox repositories
+## Sandbox repositories
 
 `scripts/create-sandbox.sh <owner>/<repo>` creates a private repository under an account
 you control, with nine open pull requests. Small, large, and complicated survey GitHub's
@@ -227,7 +243,7 @@ without access to the organization makes the pushes fail; `gh auth setup-git` fi
 A rerun skips the repository, the teams, and each pull request that already exists, and
 brings each body up to date.
 
-### Git hooks
+## Git hooks
 
 hk, a git hook manager configured in [`hk.pkl`](../hk.pkl), runs two hooks:
 
@@ -237,7 +253,7 @@ hk, a git hook manager configured in [`hk.pkl`](../hk.pkl), runs two hooks:
 - **pre-push** runs `mise run test` when a pushed change touches TypeScript, JavaScript,
   `package.json`, or `bun.lock`.
 
-### CI
+## CI
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push and pull
 request, as three jobs, and `e2e` fans out to one job per browser. `check` and `e2e`
@@ -255,7 +271,7 @@ line, run `gh actions-lock` to update the lockfile. It needs the
 [gh-actions-lock](https://github.com/github/gh-actions-lock) extension:
 `gh extension install github/gh-actions-lock`.
 
-### Releases
+## Releases
 
 In Claude Code, run `/release-gh-prism [patch|minor|major]`. The skill computes the next
 version, writes the release notes, asks you once to confirm both, then runs the release
@@ -303,7 +319,7 @@ To rotate the Chrome key, create a new JSON key for the service account in Googl
 set `CHROME_SERVICE_ACCOUNT_PRIVATE_KEY` in the environment to its `private_key`, then
 delete the old key.
 
-### Patched dependencies
+## Patched dependencies
 
 Five dependencies carry local patches in [`patches/`](../patches/), which Bun applies on
 install through `patchedDependencies` in [`package.json`](../package.json):

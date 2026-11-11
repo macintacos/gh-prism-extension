@@ -6,9 +6,11 @@
  *
  * Prints one line per check, `<id> <name>: ok`, `: FAILED <what was seen>`, or
  * `: not driven (<reason>)`, ends with `parity: <N> ok, <F> failed, <M> not driven`, and exits 1
- * when F is not 0. Every form it opens it cancels and nothing is submitted; a review it starts is
- * discarded, the Layout, Viewed toggles, and thread resolution it changes are put back in a
- * `finally`. On nodejs/node it only reads, scrolls, and loads diffs.
+ * when F is not 0. Lines `L`, `M`, and `N` report a measurement, counted in no tally. Every form it
+ * opens it cancels and nothing is submitted; a review it starts is discarded, the Layout, Viewed
+ * toggles, and thread resolution it changes are put back in a `finally`, leaving reviews and
+ * threads that predate the run alone. It stops before any check when `gh` is signed in to another
+ * account than the storage state. On nodejs/node it only reads, scrolls, and loads diffs.
  */
 
 import { execFileSync } from "node:child_process";
@@ -127,8 +129,7 @@ async function open(page: Page, url: string): Promise<void> {
     await wait(page, settle);
     await page
       .getByText("Sorting files into sections")
-      .waitFor({ state: "detached", timeout: 120_000 })
-      .catch(() => undefined);
+      .waitFor({ state: "detached", timeout: 120_000 });
   }
 }
 
@@ -138,10 +139,7 @@ async function press(page: Page, view: View): Promise<void> {
   await wait(page);
 }
 
-/**
- * The page's highlight ranges. In Firefox the probe reads only their total, which stands in for
- * the per-file counts under the file key `*`, with nothing known stale or outside a changed cell.
- */
+/** The page's highlight ranges: per file by diff anchor, and how many are stale or misplaced. */
 interface Paint {
   readonly perRange: boolean;
   readonly byAnchor: Record<string, number>;
@@ -149,6 +147,10 @@ interface Paint {
   readonly outsideChanged: number;
 }
 
+/**
+ * The page's paint. In Firefox the probe reads only the ranges' total, which stands in for the
+ * per-file counts under the file key `*`, with nothing known stale or outside a changed cell.
+ */
 const paintOf = async (page: Page): Promise<Paint> => {
   const read = await ask<ProbePaint>(page, { op: "paint" });
   return read.perRange
@@ -293,7 +295,7 @@ async function withPageRestored(page: Page, body: () => Promise<void>): Promise<
   await ask(page, { op: "set", on: false });
 }
 
-/** 0a: the stack top with the mode off against a build of trunk, on PR3 and C1. */
+/** Each page's signature and toolbar sizes under the `trunk` build. */
 async function trunkSignatures(
   trunk: string,
 ): Promise<Map<string, { sig: string; sizes: string[] }>> {
@@ -326,6 +328,7 @@ async function storageWithoutIntent(page: Page): Promise<string> {
   );
 }
 
+/** 0a: this checkout with the mode off against a build of trunk, on PR3 and C1. */
 async function modeOffIsTrunk(page: Page, trunk: string | undefined): Promise<void> {
   if (!trunk) return notDriven("0a", "mode off is trunk", "no --trunk build given");
   const seen = await trunkSignatures(trunk);
@@ -406,15 +409,25 @@ async function splitAgainstStructural(page: Page): Promise<void> {
   }
 }
 
-/** 1, 2, 3, 4, 19: comment forms on a Structural page, each cancelled. */
-async function commentForms(page: Page, url: string, id: string, anchor: string): Promise<void> {
+/**
+ * 1 and 19: line comment forms on `anchor`'s rows of a Structural page, each cancelled. Returns the
+ * paint the forms started from, or `undefined` when nothing was painted.
+ */
+async function lineComments(
+  page: Page,
+  url: string,
+  id: string,
+  anchor: string,
+): Promise<PaintState | undefined> {
   await open(page, url);
   await press(page, "Structural");
   await page.locator(`table[data-diff-anchor="${anchor}"]`).scrollIntoViewIfNeeded();
   await wait(page);
   const base = await paintState(page);
-  if (rangeCount(base.paint) === 0)
-    return record(id, "painted before the forms", false, paintDetail(base));
+  if (rangeCount(base.paint) === 0) {
+    record(id, "painted before the forms", false, paintDetail(base));
+    return undefined;
+  }
 
   for (const kind of ["painted", "quiet", "context"] as const) {
     for (const side of ["L", "R"] as const) {
@@ -446,8 +459,11 @@ async function commentForms(page: Page, url: string, id: string, anchor: string)
       });
     }
   }
-  if (id !== "1") return;
+  return base;
+}
 
+/** 2, 3, 4: a pull request's multi-line, suggestion, and file-level forms, each cancelled. */
+async function pullRequestForms(page: Page, anchor: string, base: PaintState): Promise<void> {
   const painted = await cellOf(page, anchor, "painted", "R");
   const quiet =
     (await cellOf(page, anchor, "quiet", "R")) ?? (await cellOf(page, anchor, "context", "R"));
@@ -541,9 +557,9 @@ async function commentForms(page: Page, url: string, id: string, anchor: string)
   });
 }
 
-/** Deletes `pull`'s pending review through the API, if one remains; returns how many it found. */
-function discardPendingReviews(pull: number): number {
-  const ids = execFileSync(
+/** The ids of sandbox pull request `pull`'s pending reviews, as `gh`'s account sees them. */
+const pendingReviewIds = (pull: number): string[] =>
+  execFileSync(
     "gh",
     [
       "api",
@@ -555,15 +571,17 @@ function discardPendingReviews(pull: number): number {
   )
     .split("\n")
     .filter(Boolean);
-  for (const id of ids)
+
+/** Deletes the pending reviews on `pull` not in `before`; returns the ids it deleted. */
+function discardNewPendingReviews(pull: number, before: ReadonlySet<string>): string[] {
+  const added = pendingReviewIds(pull).filter((id) => !before.has(id));
+  for (const id of added)
     execFileSync(
       "gh",
       ["api", "-X", "DELETE", `repos/macintacos/gh-prism-sandbox/pulls/${pull}/reviews/${id}`],
-      {
-        stdio: "ignore",
-      },
+      { stdio: "ignore" },
     );
-  return ids.length;
+  return added;
 }
 
 /** 5: a pending review on PR4, discarded. */
@@ -575,11 +593,14 @@ async function reviews(page: Page): Promise<void> {
     const base = await paintState(page);
     const cell = await cellOf(page, PR4_LEDGER, "painted", "R");
     if (!cell) return notDriven("5", "pending review", "no painted R cell");
+    const before = new Set(pendingReviewIds(4));
+    let started = false;
     try {
       await cell.hover();
       await page.locator(ADD_COMMENT).first().click();
       await page.getByPlaceholder("Leave a comment").first().fill("parity check, discarded");
       await page.getByRole("button", { name: "Start a review" }).first().click();
+      started = true;
       await wait(page, 3000);
       const pending = await page.getByText("Pending", { exact: true }).count();
       const now = await paintState(page);
@@ -591,9 +612,14 @@ async function reviews(page: Page): Promise<void> {
       );
     } finally {
       // The page's Submit review dialog offers no discard, so the API discards it.
-      const found = discardPendingReviews(4);
-      const left = discardPendingReviews(4);
-      record("5", "review discarded", left === 0, `(${found} pending found, ${left} left)`);
+      const found = discardNewPendingReviews(4, before);
+      const left = discardNewPendingReviews(4, before);
+      record(
+        "5",
+        "review discarded",
+        left.length === 0 && (!started || found.length >= 1),
+        `(${found.length} new pending found, ${left.length} left, ${before.size} from before the run left alone)`,
+      );
     }
   });
   notDriven("5", "discard from the page", "the Submit review dialog offers no discard");
@@ -604,9 +630,9 @@ async function reviews(page: Page): Promise<void> {
   );
 }
 
-/** Unresolves every resolved review thread on sandbox PR #3 through the API; returns how many. */
-function unresolvePr3Thread(): number {
-  const ids = execFileSync(
+/** The ids of sandbox PR #3's resolved review threads. */
+const resolvedPr3Threads = (): string[] =>
+  execFileSync(
     "gh",
     [
       "api",
@@ -620,7 +646,11 @@ function unresolvePr3Thread(): number {
   )
     .split("\n")
     .filter(Boolean);
-  for (const id of ids)
+
+/** Unresolves sandbox PR #3's resolved threads not in `before`; returns how many. */
+function unresolveNewPr3Threads(before: ReadonlySet<string>): number {
+  const added = resolvedPr3Threads().filter((id) => !before.has(id));
+  for (const id of added)
     execFileSync(
       "gh",
       [
@@ -631,10 +661,13 @@ function unresolvePr3Thread(): number {
       ],
       { stdio: "ignore" },
     );
-  return ids.length;
+  return added.length;
 }
 
-/** 6: PR3's review thread: reply cancelled, resolved, unresolved. */
+/**
+ * 6: PR3's review thread: reply cancelled, resolved, unresolved. PR3 holds no language Structural
+ * paints, so these check the forms work and no paint appears, not that paint survives.
+ */
 async function threads(page: Page): Promise<void> {
   await run("6", "thread reply", async () => {
     await open(page, PR3);
@@ -643,28 +676,50 @@ async function threads(page: Page): Promise<void> {
     const reply = page.locator("button:visible", { hasText: "Write a reply" }).first();
     await reply.scrollIntoViewIfNeeded();
     await wait(page);
-    const base = await paintState(page);
+    const unpainted = (s: PaintState) => rangeCount(s.paint) === 0 && s.marks === 0;
     await reply.click();
     const box = page.getByPlaceholder("Leave a comment").first();
     await box.fill("parity");
-    const open1 = await paintState(page);
-    record("6", "thread reply", (await box.isVisible()) && intact(base, open1), paintDetail(open1));
+    const opened = await box.isVisible();
+    const typing = await paintState(page);
     await box.fill("");
     await page.getByRole("button", { name: "Cancel", exact: true }).first().click();
+    await wait(page, 800);
+    const cancelled = !(await box.isVisible());
+    record(
+      "6",
+      "thread reply",
+      opened && cancelled && unpainted(typing),
+      `(opened ${opened}, cancelled ${cancelled}; page paints nothing: ${paintDetail(typing)})`,
+    );
 
+    const before = new Set(resolvedPr3Threads());
     try {
       await page.locator('[data-testid="unified-comment-resolve-button"]').first().click();
       await wait(page);
-      const resolved = await paintState(page);
-      record("6", "thread resolve", intact(base, resolved), paintDetail(resolved));
+      const resolvedNow = resolvedPr3Threads().filter((id) => !before.has(id)).length;
+      const after = await paintState(page);
+      record(
+        "6",
+        "thread resolve",
+        resolvedNow === 1 && unpainted(after),
+        `(${resolvedNow} newly resolved; page paints nothing: ${paintDetail(after)})`,
+      );
       notDriven(
         "6",
         "unresolve from the page",
         "a resolved thread leaves the diff with no Unresolve control; the API reopens it",
       );
     } finally {
-      const reopened = unresolvePr3Thread();
-      record("6", "thread ends unresolved", true, `(${reopened} reopened through the API)`);
+      const reopened = unresolveNewPr3Threads(before);
+      const restored =
+        JSON.stringify(resolvedPr3Threads().sort()) === JSON.stringify([...before].sort());
+      record(
+        "6",
+        "thread ends unresolved",
+        restored,
+        `(${reopened} reopened through the API, ${before.size} resolved before the run left alone)`,
+      );
     }
   });
   notDriven("6", "minimize comments and Copilot actions", "they change or cost account state");
@@ -915,6 +970,11 @@ async function copyFindKeys(page: Page): Promise<void> {
       getSelection()?.removeAllRanges();
       return n;
     }, token);
+    return { selection, token, matches };
+  };
+  const readKeys = async () => {
+    const painted = await cellOf(page, PR4_LEDGER, "painted", "R");
+    if (!painted) return undefined;
     const keys: string[] = [];
     for (const key of ["ArrowDown", "ArrowRight"]) {
       await painted.evaluate((td) => {
@@ -929,7 +989,7 @@ async function copyFindKeys(page: Page): Promise<void> {
         }),
       );
     }
-    return { selection, token, matches, keys };
+    return keys;
   };
   await run("15", "copy and find", async () => {
     await open(page, PR4);
@@ -949,28 +1009,40 @@ async function copyFindKeys(page: Page): Promise<void> {
         off.matches > 0,
       `(selection ${off.selection.length}/${on.selection.length} chars, "${off.token}" ${off.matches}/${on.matches})`,
     );
+  });
+  await run("16", "grid keys", async () => {
+    await open(page, PR4);
+    const off = await readKeys();
+    await press(page, "Structural");
+    await wait(page);
+    const on = await readKeys();
+    await press(page, "Split");
+    if (!off || !on) return notDriven("16", "grid keys", "no painted cell on ledger.py");
     record(
       "16",
       "grid keys",
-      JSON.stringify(off.keys) === JSON.stringify(on.keys),
-      JSON.stringify({ off: off.keys, on: on.keys }),
+      JSON.stringify(off) === JSON.stringify(on),
+      JSON.stringify({ off, on }),
     );
   });
   notDriven("16", "screen reader reading", "needs a person with a screen reader");
 }
 
-/** The anchor of the file whose region tops the viewport below the sticky headers. */
+/** A viewport line just below GitHub's sticky headers. */
+const BELOW_STICKY_PX = 250;
+
+/** The anchor of the file whose region spans the line below the sticky headers. */
 const currentFile = (page: Page) =>
-  page.evaluate(() => {
-    // The file whose region spans the line below the sticky headers; Structural's notices add
-    // height, so scroll offsets differ by design and only the file is compared.
+  page.evaluate((line) => {
+    // Structural's notices add height, so scroll offsets differ by design and only the file is
+    // compared.
     const regions = [...document.querySelectorAll<HTMLElement>('[role="region"][id^="diff-"]')];
     const at = regions.find((r) => {
       const box = r.getBoundingClientRect();
-      return box.top <= 250 && box.bottom > 250;
+      return box.top <= line && box.bottom > line;
     });
     return at?.id.slice(0, 16) ?? "none";
-  });
+  }, BELOW_STICKY_PX);
 
 /**
  * Waits until the region of `anchor` stops moving, then names it if it sits in the viewport's top
@@ -1159,6 +1231,39 @@ async function kindsAndNotices(page: Page): Promise<void> {
   await press(page, "Split");
 }
 
+/**
+ * Clicks `id`'s Load Diff button, re-finding it before each try: the virtualized list can unmount
+ * the region between finding and clicking, so an unmounted region is scrolled back and retried.
+ */
+async function clickLoadDiff(page: Page, id: string): Promise<void> {
+  const seen: string[] = [];
+  const y = await page.evaluate(() => scrollY);
+  for (let tries = 0; tries < 5; tries++) {
+    await wait(page, 1500);
+    const mounted = await page.evaluate((id) => {
+      const button = [...(document.getElementById(id)?.querySelectorAll("button") ?? [])].find(
+        (b) => b.textContent?.trim() === "Load Diff",
+      );
+      button?.scrollIntoView({ block: "center" });
+      return Boolean(button);
+    }, id);
+    if (!mounted) {
+      seen.push("unmounted");
+      await page.evaluate((top) => scrollTo(0, top), y);
+      continue;
+    }
+    try {
+      await page
+        .locator(`[role="region"][id="${id}"] button`, { hasText: "Load Diff" })
+        .click({ timeout: 5000 });
+      return;
+    } catch (error) {
+      seen.push((error instanceof Error ? error.message : String(error)).split("\n")[0] ?? "");
+    }
+  }
+  throw new Error(`Load Diff on ${id} never clicked: ${seen.join(" | ")}`);
+}
+
 /** 10, 21's BIG half, L, and M: nodejs/node#66212, read and scrolled only. */
 async function bigPage(page: Page): Promise<void> {
   await run("L", "loading line", async () => {
@@ -1192,8 +1297,7 @@ async function bigPage(page: Page): Promise<void> {
         await wait(page, 1000);
         continue;
       }
-      await wait(page, 1500);
-      await page.locator(`[role="region"][id="${id}"] button`, { hasText: "Load Diff" }).click();
+      await clickLoadDiff(page, id);
       const table = page.locator(`table[data-diff-anchor="${id}"]`);
       await table.waitFor({ timeout: 30_000 });
       await table.scrollIntoViewIfNeeded();
@@ -1210,11 +1314,18 @@ async function bigPage(page: Page): Promise<void> {
         skipped.push(`${id} one-sided, painted ${painted}, notice ${Boolean(notice)}`);
         continue;
       }
+      const outcome = painted
+        ? "painted"
+        : notice === NOTICE_COPY.unsupported
+          ? "unsupported notice"
+          : notice === NOTICE_COPY["too-large"]
+            ? "too-large notice"
+            : undefined;
       return record(
         "10",
         "load diff",
-        painted || Boolean(notice),
-        `(${id}: painted ${painted}, notice ${JSON.stringify(notice)}; before it ${skipped.length} one-sided loads, none painted or noticed: ${skipped.every((s) => s.endsWith("painted false, notice false"))})`,
+        outcome !== undefined,
+        `${outcome ?? ""} (${id}: notice ${JSON.stringify(notice)}; before it ${skipped.length} one-sided loads, none painted or noticed: ${skipped.every((s) => s.endsWith("painted false, notice false"))})`,
       );
     }
     notDriven("10", "load diff", `${skipped.length} loads mounted only one-sided tables`);
@@ -1329,13 +1440,9 @@ async function noReloadOnReveal(page: Page): Promise<void> {
   await run("R", "reveal without reload", async () => {
     await open(page, PR3);
     await press(page, "Unified");
-    let navigations = 0;
-    const onNavigate = (frame: { parentFrame(): unknown }) => {
-      if (!frame.parentFrame()) navigations++;
-    };
     await press(page, "Structural");
+    // A reload drops the marker; the sidebar's hash changes are navigations too, so they're not counted.
     await page.evaluate(() => Object.assign(window, { parityMarker: true }));
-    page.on("framenavigated", onNavigate);
     const paths = await page
       .locator("[data-item-path]")
       .evaluateAll((rows) =>
@@ -1353,13 +1460,12 @@ async function noReloadOnReveal(page: Page): Promise<void> {
       }, anchorOf(path));
       if (inView) revealed++;
     }
-    page.off("framenavigated", onNavigate);
     const marker = await page.evaluate(() => "parityMarker" in window);
     record(
       "R",
       "reveal without reload",
       marker && revealed === tries.length,
-      `(${revealed} of ${tries.length} revealed, marker ${marker}, ${navigations} main-frame navigations)`,
+      `(${revealed} of ${tries.length} revealed, marker ${marker})`,
     );
     await press(page, "Split");
   });
@@ -1376,8 +1482,14 @@ try {
   // A form with text asks before discarding it; accepting discards, it never submits.
   page.on("dialog", (dialog) => void dialog.accept());
   await page.goto(`${SANDBOX}/pull/4`);
-  if (await page.locator('meta[name="user-login"][content=""]').count())
-    throw new Error("the storage state does not sign GitHub in");
+  const pageLogin = await page.locator('meta[name="user-login"]').getAttribute("content");
+  if (!pageLogin) throw new Error("the storage state does not sign GitHub in");
+  // The cleanup acts through `gh`, so it must see the reviews and threads the page makes.
+  const ghLogin = execFileSync("gh", ["api", "user", "--jq", ".login"], {
+    encoding: "utf8",
+  }).trim();
+  if (ghLogin !== pageLogin)
+    throw new Error(`gh is signed in as ${ghLogin}, the storage state as ${pageLogin}`);
   log(
     `browser: ${browserName} ${context.browser()?.version() ?? (await page.evaluate(() => navigator.userAgent))}`,
   );
@@ -1388,8 +1500,9 @@ try {
     await betaTag(page);
     await splitAgainstStructural(page);
     log("14 syntax highlighting: as 0c");
-    await commentForms(page, PR4, "1", PR4_LEDGER);
-    await commentForms(page, C1, "19", anchorOf("src/client/types.gen.ts"));
+    const pr4 = await lineComments(page, PR4, "1", PR4_LEDGER);
+    if (pr4) await pullRequestForms(page, PR4_LEDGER, pr4);
+    await lineComments(page, C1, "19", anchorOf("src/client/types.gen.ts"));
     await reviews(page);
     await threads(page);
     await viewed(page);

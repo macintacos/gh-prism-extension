@@ -7,9 +7,9 @@ export const DEFAULT_LIMITS: EngineLimits = Object.freeze({
   maxTextLength: 100_000,
   /** One parse is one uninterruptible stage. */
   maxParseMs: 100,
-  /** No measured side under 20,000 tokens and this text cap parsed in over 50 ms. */
+  /** Every measured side under both size caps parsed in 50 ms or less. */
   maxTokens: 20_000,
-  /** Firefox gives up at 1,000 in about 78 ms on unrelated sides, at 750 in about 45 ms. */
+  /** At 750, Firefox gives up on unrelated sides within the 50 ms diff deadline. */
   maxEditLength: 750,
   /** With one region's worst case, keeps the diff stage near 100 ms. */
   maxDiffMs: 50,

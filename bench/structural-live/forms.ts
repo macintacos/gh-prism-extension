@@ -20,6 +20,7 @@ export type StaleRanges = (page: Page) => Promise<number>;
 /** A code cell's number cell, the one before it in its row. */
 export const numberOf = (cell: Locator) => cell.locator("xpath=preceding-sibling::td[1]");
 
+/** How many rows hold a selected cell; a split row's two selected cells count once. */
 export const selectedRows = (page: Page) =>
   page.evaluate(
     () =>

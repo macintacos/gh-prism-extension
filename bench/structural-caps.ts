@@ -6,13 +6,13 @@
  *   bun bench/structural-caps.ts <chromium|firefox>
  *
  * Samples: every fixture pair under `tests/fixtures/structural/`, the changed TypeScript, JavaScript
- * and Python files of nodejs/node#66212 (read only, fetched to a temporary directory), a size ladder,
+ * and Python files of nodejs/node#66212 (read only, over HTTP, never stored), a size ladder,
  * and an unrelated-sides ladder. Prints one JSON object and exits 1 when a sample within the size
  * caps answers `too-slow`, which only a quiet machine can promise.
  */
 
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { BrowserContext, CDPSession, Page } from "@playwright/test";
@@ -29,6 +29,7 @@ import {
   launch,
   median,
   probePage,
+  runMs,
   send,
 } from "./structural-host/harness";
 import type { RunResult } from "./structural-host/serve";
@@ -106,38 +107,30 @@ async function prSamples(): Promise<Sample[]> {
     .flat()
     .filter((file) => file.status === "modified" && grammarOf(file.filename));
 
-  const dir = mkdtempSync(join(tmpdir(), "gh-prism-caps-pr-"));
-  try {
-    const read = async (sha: string, path: string) => {
-      const response = await fetch(`https://raw.githubusercontent.com/nodejs/node/${sha}/${path}`);
-      if (!response.ok) throw new Error(`${response.status} reading ${path} at ${sha}`);
-      const text = await response.text();
-      writeFileSync(join(dir, `${sha}-${path.replaceAll("/", "_")}`), text);
-      return text;
-    };
-    const all = await Promise.all(
-      files.map(async ({ filename }) => {
-        const oldText = await read(pull.base.sha, filename);
-        const newText = await read(pull.head.sha, filename);
-        return {
-          name: `pr:${filename}`,
-          oldText,
-          newText,
-          grammar: grammarOf(filename) as Grammar,
-          regions: regionsOf(oldText, newText),
-        };
-      }),
-    );
-    return all
-      .toSorted(
-        (a, b) =>
-          Math.max(b.oldText.length, b.newText.length) -
-          Math.max(a.oldText.length, a.newText.length),
-      )
-      .slice(0, MAX_PR_FILES);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
+  const read = async (sha: string, path: string) => {
+    const response = await fetch(`https://raw.githubusercontent.com/nodejs/node/${sha}/${path}`);
+    if (!response.ok) throw new Error(`${response.status} reading ${path} at ${sha}`);
+    return response.text();
+  };
+  const all = await Promise.all(
+    files.map(async ({ filename }) => {
+      const oldText = await read(pull.base.sha, filename);
+      const newText = await read(pull.head.sha, filename);
+      return {
+        name: `pr:${filename}`,
+        oldText,
+        newText,
+        grammar: grammarOf(filename) as Grammar,
+        regions: regionsOf(oldText, newText),
+      };
+    }),
+  );
+  return all
+    .toSorted(
+      (a, b) =>
+        Math.max(b.oldText.length, b.newText.length) - Math.max(a.oldText.length, a.newText.length),
+    )
+    .slice(0, MAX_PR_FILES);
 }
 
 /** `unit` repeated to about each ladder size, edited on every 50th line. */
@@ -187,8 +180,6 @@ async function tokenCount(grammar: Grammar, text: string): Promise<number | null
     tree.delete();
   }
 }
-
-const runMs = (run: RunResult) => run.end - run.start;
 
 /** Chromium: a CDP session on the offscreen document, or undefined when none can be attached. */
 async function offscreenHeap(page: Page): Promise<(() => Promise<number>) | undefined> {

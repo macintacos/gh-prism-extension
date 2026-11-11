@@ -10,7 +10,7 @@ import { type BrowserContext, chromium, firefox, type Page } from "@playwright/t
 import { withExtension } from "playwright-webextext";
 import type { ChangedRegion } from "../../utils/structural/engine";
 import { scratchCopy } from "../scratch-build";
-import type { BenchMessage, BenchReply } from "./serve";
+import type { BenchMessage, BenchReply, RunResult } from "./serve";
 
 export type BrowserName = "chromium" | "firefox";
 
@@ -20,6 +20,7 @@ const ROOT = join(import.meta.dirname, "../..");
 const BENCH_PORT = "gh-prism:bench";
 const PR_DATA_PORT = "gh-prism:pr-data";
 // Short enough to wait out, long enough that the gaps between the bench's messages never stop it.
+// A caller that waits for the background to stop waits longer than this.
 export const FIREFOX_IDLE_MS = 5000;
 
 const BACKGROUND = `import { defineBackground } from "wxt/utils/define-background";
@@ -113,9 +114,11 @@ export async function sendAll(
   return replies;
 }
 
+/** A reply's result, or undefined when there is none. */
 export const resultOf = (reply: Reply | undefined) =>
   reply?.fromBg && "result" in reply.fromBg ? reply.fromBg.result : undefined;
 
+/** Sends one message and resolves with its result cast to `T`, unchecked. */
 export const send = async <T>(page: Page, message: Message) =>
   resultOf((await sendAll(page, [{ message }]))[0]) as T;
 
@@ -125,6 +128,13 @@ export const median = (values: readonly number[]) => {
   return sorted.length % 2 ? (sorted[mid] ?? 0) : ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2;
 };
 
+/** A host run's duration in the background's clock. */
+export const runMs = (run: RunResult) => run.end - run.start;
+
+/**
+ * A persistent context in `profile` with `build` loaded; in Firefox the background's idle timeout
+ * is shortened to `FIREFOX_IDLE_MS`.
+ */
 export async function launch(
   browserName: BrowserName,
   build: string,
@@ -140,6 +150,7 @@ export async function launch(
   });
 }
 
+/** Resolves once the relay answers a message; throws after about 25 s of silence. */
 export async function waitForRelay(page: Page): Promise<void> {
   for (let attempt = 0; attempt < 50; attempt++) {
     const answered = await Promise.race([

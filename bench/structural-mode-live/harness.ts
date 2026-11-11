@@ -24,6 +24,7 @@ import { probe } from "@/bench/structural-mode-live/probe";
 export default defineContentScript({ matches: ["https://github.com/*"], main: probe });
 `;
 
+/** A check that failed: its message is the `<name>: FAILED <detail>` line to print. */
 export class Failure extends Error {}
 
 /** GitHub's anchor for a file's diff: `diff-` and the SHA-256 of its path. */
@@ -118,6 +119,10 @@ export const noticeBefore = (page: Page, anchor: string) =>
     { anchor, notices: NOTICE_SELECTOR },
   );
 
+/**
+ * Chromium's open offscreen documents. Returns 0 when the context has no service worker, so in
+ * Firefox 0 means unknown, not none.
+ */
 export async function offscreenDocuments(context: BrowserContext): Promise<number> {
   const worker = context.serviceWorkers()[0];
   if (!worker) return 0;
@@ -134,6 +139,7 @@ export async function offscreenDocuments(context: BrowserContext): Promise<numbe
 
 export type View = "Unified" | "Split" | "Structural";
 
+/** `view`'s button in gh-prism's diff view control; Structural's name carries its Beta tag. */
 export const segmentOf = (page: Page, view: View) =>
   page
     .getByRole("list", { name: "Diff view" })

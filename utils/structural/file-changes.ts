@@ -58,8 +58,8 @@ const refuse = (problem: StructuralProblem): FileChangesResult => ({ ok: false, 
 /**
  * Builds one diff file's structural changes from the source's cached diff and head text, running
  * `run` only for a listed, modified file with a grammar. Settled answers that belong to the file
- * are cached; fetch problems, `failed`, and the engine's `too-slow` are not. A path the diff does not list answers `failed`
- * without a head read.
+ * are cached; fetch problems, `failed`, and the engine's `too-slow` are not. A path the diff does
+ * not list answers `failed` without a head read.
  */
 export function fileChanges({ source, run, cachedSpans }: FileChangesDeps): FileChanges {
   const cache = spanCache(cachedSpans);

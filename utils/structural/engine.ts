@@ -68,8 +68,8 @@ export interface EngineInput {
 /**
  * The tokens each version of a file changed, or why they can't be had: `unsupported` without a
  * grammar, `too-large` past a size limit, `too-slow` when a parse or the diff passes its deadline,
- * `failed` when either text does not parse. Rejects with
- * `signal.reason` if `signal` has aborted at the start or after either parse.
+ * `failed` when either text does not parse. Rejects with `signal.reason` if `signal` has aborted
+ * at the start or after either parse.
  */
 export async function structuralChanges(input: EngineInput): Promise<EngineResult> {
   const { oldText, newText, language, regions, limits, signal, now, pause } = input;

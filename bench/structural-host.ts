@@ -28,6 +28,7 @@ import {
   median,
   probePage,
   resultOf,
+  runMs,
   send,
   sendAll,
 } from "./structural-host/harness";
@@ -71,8 +72,6 @@ function pythonRequest(): StructuralRequest {
     limits: DEFAULT_LIMITS,
   };
 }
-
-const runMs = (run: RunResult) => run.end - run.start;
 
 /** Ends the background's life, so the next message starts a fresh one. */
 async function stopBackground(page: Page): Promise<void> {
