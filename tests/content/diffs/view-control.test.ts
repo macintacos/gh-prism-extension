@@ -603,13 +603,13 @@ describe("showDiffViewControl", () => {
     });
     show(page, choiceOf(false).choice);
     await flush();
-    const onMount = reads;
+    const readsOnMount = reads;
 
     page.diffs.append(document.createElement("div"));
     await flush();
 
-    expect(onMount).toBeGreaterThan(0);
-    expect(reads).toBe(onMount);
+    expect(readsOnMount).toBeGreaterThan(0);
+    expect(reads).toBe(readsOnMount);
   });
 
   it("writes nothing to its segments on a report that leaves the view as it was", async () => {

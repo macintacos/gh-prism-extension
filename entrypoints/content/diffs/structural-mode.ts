@@ -68,12 +68,12 @@ export function startableStructural(
   signal: AbortSignal,
 ): StartableStructural {
   let started: { view: StructuralView; until: AbortSignal } | undefined;
-  let onScreen: ReadonlySet<string> | undefined;
+  let lastOnScreen: ReadonlySet<string> | undefined;
   let lastSections: [readonly FileSection[], ReadonlySet<string>] | undefined;
 
   return {
     onScreen(paths) {
-      onScreen = paths;
+      lastOnScreen = paths;
       started?.view.onScreen(paths);
     },
     sections(...args) {
@@ -85,7 +85,7 @@ export function startableStructural(
       const view = showStructural(page, signal, mode);
       started = { view, until: mode.until };
       if (lastSections) view.sections?.(...lastSections);
-      if (onScreen) view.onScreen(onScreen);
+      if (lastOnScreen) view.onScreen(lastOnScreen);
     },
   };
 }

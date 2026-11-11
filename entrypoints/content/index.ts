@@ -273,8 +273,8 @@ export default defineContentScript({
             });
             showDiffViewControl(page, signal, {
               choice: pageStructural(structural, () => {
-                const started = structuralFor();
-                if (started) startStructural(started);
+                const mode = structuralFor();
+                if (mode) startStructural(mode);
               }),
               commit: route.diff.kind === "commit",
               offersStructural: !route.commitFiltered,

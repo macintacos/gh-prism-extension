@@ -482,11 +482,11 @@ async function viewControl(page: Page): Promise<void> {
   await withLayoutRestored(layout, async () => {
     for (const url of URLS) {
       await load(page, url);
-      const shieldCount = await shields(page);
+      const shieldsBefore = await shields(page);
       const keyOff = await arrowDown(page);
 
       const press = async (view: View, from: Layout, { mouse = false } = {}) => {
-        const posted = diffviewPosts;
+        const postsBefore = diffviewPosts;
         const segment = segmentOf(page, view);
         if (mouse) {
           const box = await segment.boundingBox();
@@ -498,7 +498,7 @@ async function viewControl(page: Page): Promise<void> {
         const gear = await layout.read();
         const on = await ask<boolean>(page, { op: "get" });
         const shown = await pressedView(page);
-        const posts = diffviewPosts - posted;
+        const posts = diffviewPosts - postsBefore;
         const shieldsNow = await shields(page);
         check(
           `control ${url} ${view}`,
@@ -506,11 +506,11 @@ async function viewControl(page: Page): Promise<void> {
             gear === wanted &&
             on === (view === "Structural") &&
             posts === (from === wanted ? 0 : 1) &&
-            shieldsNow === shieldCount,
-          JSON.stringify({ shown, gear, on, posts, shields: [shieldCount, shieldsNow] }),
+            shieldsNow === shieldsBefore,
+          JSON.stringify({ shown, gear, on, posts, shields: [shieldsBefore, shieldsNow] }),
         );
       };
-      const clean = async (after: string) => {
+      const checkClean = async (after: string) => {
         const [added, removed] = await ask<number[]>(page, { op: "highlights" });
         const traces = await structuralTraces(page);
         check(
@@ -519,7 +519,7 @@ async function viewControl(page: Page): Promise<void> {
           JSON.stringify({ added, removed, ...traces }),
         );
       };
-      const reloaded = async (view: View) => {
+      const checkReload = async (view: View) => {
         await load(page, page.url());
         const shown = await pressedView(page);
         check(`control ${url} reload ${view}`, shown === view.toLowerCase(), `(${shown})`);
@@ -536,10 +536,10 @@ async function viewControl(page: Page): Promise<void> {
       paintedSomewhere ||= added + removed > 0;
       log(`control ${url} painted after Structural: (${added}, ${removed})`);
       const keyOn = await arrowDown(page);
-      await reloaded("Structural");
+      await checkReload("Structural");
 
       await press("Split", "split");
-      await clean("Split");
+      await checkClean("Split");
       const keyAfter = await arrowDown(page);
       check(
         `control ${url} ArrowDown`,
@@ -553,8 +553,8 @@ async function viewControl(page: Page): Promise<void> {
 
       await press("Structural", "unified");
       await press("Unified", "split");
-      await clean("Unified");
-      await reloaded("Unified");
+      await checkClean("Unified");
+      await checkReload("Unified");
     }
   });
   await ask(page, { op: "set", on: false });

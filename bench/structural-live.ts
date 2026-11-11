@@ -315,9 +315,9 @@ async function multiLine(
 /** Checks the painter left no highlight and no attribute behind. */
 async function checkStopped(page: Page): Promise<void> {
   const left = await page.evaluate(
-    (marked) => ({
+    (markedSelector) => ({
       highlights: CSS.highlights.size,
-      attributes: document.querySelectorAll(marked).length,
+      attributes: document.querySelectorAll(markedSelector).length,
     }),
     STRUCTURAL_ATTRS.map((name) => `[${name}]`).join(", "),
   );

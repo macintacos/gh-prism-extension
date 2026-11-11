@@ -17,20 +17,20 @@ export function installLayoutMenu(options: {
   const LABEL = '[data-component="ActionList.Item.Label"]';
   const parse = (html: string) =>
     new DOMParser().parseFromString(`<body>${html}`, "text/html").body;
-  let open: { list: Element; gear: HTMLButtonElement } | undefined;
+  let openMenu: { list: Element; gear: HTMLButtonElement } | undefined;
 
   const close = () => {
-    if (!open) return;
-    open.list.remove();
-    open.gear.setAttribute("aria-expanded", "false");
-    open.gear.focus();
-    open = undefined;
+    if (!openMenu) return;
+    openMenu.list.remove();
+    openMenu.gear.setAttribute("aria-expanded", "false");
+    openMenu.gear.focus();
+    openMenu = undefined;
   };
 
   const choose = (layout: "unified" | "split") => {
     const table = parse(options.tables[layout]).querySelector("table");
-    for (const shown of document.querySelectorAll("table[data-diff-anchor]")) {
-      if (table) shown.replaceWith(document.importNode(table, true));
+    for (const onScreenTable of document.querySelectorAll("table[data-diff-anchor]")) {
+      if (table) onScreenTable.replaceWith(document.importNode(table, true));
     }
     const url = new URL(location.href);
     url.searchParams.set("diff", layout);
@@ -64,7 +64,7 @@ export function installLayoutMenu(options: {
     }
     portal.append(list);
     gear.setAttribute("aria-expanded", "true");
-    open = { list, gear };
+    openMenu = { list, gear };
   };
 
   document.addEventListener(
@@ -72,7 +72,7 @@ export function installLayoutMenu(options: {
     (event) => {
       const gear = event.target instanceof Element ? event.target.closest(GEAR) : null;
       if (!(gear instanceof HTMLButtonElement)) return;
-      if (open) close();
+      if (openMenu) close();
       else queueMicrotask(() => mount(gear));
     },
     { capture: true, ...(options.signal ? { signal: options.signal } : {}) },

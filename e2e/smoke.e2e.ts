@@ -5131,9 +5131,9 @@ const urlLayout = (page: Page) =>
 /** What the page holds of a structural paint: highlights, marked nodes, and their sheets. */
 const structuralPaint = (page: Page) =>
   page.evaluate(
-    (marked) => ({
+    (markedSelector) => ({
       highlights: ["gh-prism-added", "gh-prism-removed"].filter((name) => CSS.highlights.has(name)),
-      marked: document.querySelectorAll(marked).length,
+      marked: document.querySelectorAll(markedSelector).length,
       sheets: [...document.head.querySelectorAll("style")].filter((style) =>
         style.textContent.includes("::highlight(gh-prism-"),
       ).length,

@@ -79,13 +79,13 @@ export async function chooseLayout(
   gear.click();
   // The menu's items exist one microtask after the gear's click.
   await Promise.resolve();
-  const found = await waitFor(win, () => !!findLayoutMenu(doc), MENU_WAIT_MS, signal);
+  const menuOpened = await waitFor(win, () => !!findLayoutMenu(doc), MENU_WAIT_MS, signal);
   const menu = findLayoutMenu(doc);
   const close = () => {
     // A second click closes the menu without choosing.
     if (gear.getAttribute("aria-expanded") === "true") gear.click();
   };
-  if (!found || !menu || signal.aborted) {
+  if (!menuOpened || !menu || signal.aborted) {
     close();
     return false;
   }
@@ -181,10 +181,10 @@ export function showDiffViewControl(
   const doc = page.sidebar.ownerDocument;
   let control: DiffViewControl | undefined;
   // The view last drawn pressed; `null` until the mounted control draws one.
-  let drawn: DiffView | undefined | null = null;
-  let busy = false;
+  let pressedView: DiffView | undefined | null = null;
+  let pressing = false;
   let gaveUp = false;
-  let heard: AbortSignal | undefined;
+  let watchedWhileOn: AbortSignal | undefined;
 
   const shown = () => ({
     layout: certainLayout(page.diffs, { commit }),
@@ -194,15 +194,18 @@ export function showDiffViewControl(
   const render = () => {
     const { layout, on } = shown();
     const view = shownView(layout, on);
-    if (control && view !== drawn) {
-      drawn = view;
+    if (control && view !== pressedView) {
+      pressedView = view;
       for (const [segment, button] of Object.entries(control.segments))
         button.setAttribute("aria-pressed", String(segment === view));
     }
-    if (heard !== choice.whileOn) {
-      heard = choice.whileOn;
+    if (watchedWhileOn !== choice.whileOn) {
+      watchedWhileOn = choice.whileOn;
       // A microtask on: `on` still reads true while `whileOn` aborts.
-      heard.addEventListener("abort", () => queueMicrotask(render), { once: true, signal });
+      watchedWhileOn.addEventListener("abort", () => queueMicrotask(render), {
+        once: true,
+        signal,
+      });
     }
   };
 
@@ -226,11 +229,11 @@ export function showDiffViewControl(
   };
 
   const press = async (view: DiffView) => {
-    if (busy || (view === "structural" && !offersStructural)) return;
+    if (pressing || (view === "structural" && !offersStructural)) return;
     const { layout, on } = shown();
     if (shownView(layout, on) === view) return;
     const steps = stepsFor(view, { layout, on });
-    busy = true;
+    pressing = true;
     try {
       // A page torn down mid-press leaves the rest to the page that replaced it.
       if (steps.choose) {
@@ -246,7 +249,7 @@ export function showDiffViewControl(
       if (signal.aborted) return;
       if (steps.set !== undefined) choice.set(steps.set);
     } finally {
-      busy = false;
+      pressing = false;
       if (!signal.aborted) render();
     }
   };
@@ -266,7 +269,7 @@ export function showDiffViewControl(
     // A DOM clone of the toolbar, such as a restored snapshot, can carry an earlier control.
     for (const stale of doc.querySelectorAll(".gh-prism-diff-view")) stale.remove();
     control = controlOf(doc, offersStructural);
-    drawn = null;
+    pressedView = null;
     for (const view of VIEWS) {
       const segment = control.segments[view];
       segment.addEventListener("click", () => void press(view));
@@ -292,12 +295,12 @@ export function showDiffViewControl(
   // The toolbar's room changes only as it resizes or its children change; GitHub can replace a
   // pull request's toolbar, a page-wide header outside its diffs, without a new page.
   const resizes = new ResizeObserver(fitToToolbar);
-  let watched: Element | undefined;
+  let watchedToolbar: Element | undefined;
   let unwatch: AbortController | undefined;
   const watchToolbar = () => {
     const toolbar = findFilesToolbar(page);
-    if (toolbar === watched) return;
-    watched = toolbar;
+    if (toolbar === watchedToolbar) return;
+    watchedToolbar = toolbar;
     unwatch?.abort();
     resizes.disconnect();
     if (!toolbar) return;
