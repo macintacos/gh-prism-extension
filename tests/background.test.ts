@@ -62,6 +62,27 @@ describe("background", () => {
   });
 
   it("loads no structural engine and serves ports through one listener", () => {
+    const constructed = vi.fn();
+    vi.stubGlobal(
+      "Worker",
+      class {
+        constructor() {
+          constructed();
+        }
+      },
+    );
+    const createDocument = vi.fn();
+    const getContexts = vi.fn();
+    // fakeBrowser has no offscreen namespace and leaves getContexts unimplemented.
+    Object.assign(fakeBrowser, { offscreen: { createDocument } });
+    Object.assign(fakeBrowser.runtime, { getContexts });
+    onConnect.mockClear();
+
+    background.main();
+
+    expect(constructed).not.toHaveBeenCalled();
+    expect(createDocument).not.toHaveBeenCalled();
+    expect(getContexts).not.toHaveBeenCalled();
     expect(onConnect).toHaveBeenCalledOnce();
   });
 

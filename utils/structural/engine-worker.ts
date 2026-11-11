@@ -1,8 +1,10 @@
-// Background side: import the engine and runner only as types; a value import bundles them into background.js.
+// Reached from background.js, the offscreen page, and the engine's Worker script: import the engine and runner only as types, or they are bundled into the first two.
 import type { EngineResult } from "./engine";
 import type { EngineRun, StructuralRequest } from "./request";
 
+/** What the Worker's owner posts: a request, or a cancel for one still running. */
 export type ToEngine = { id: number; request: StructuralRequest } | { id: number; cancel: true };
+/** What the Worker posts back, once per request that was not cancelled. */
 export type FromEngine = { id: number; result: EngineResult } | { id: number; error: string };
 
 /** The parts of a Worker the client uses. */
@@ -16,13 +18,16 @@ export interface EngineWorker {
 
 /** The parts of a Worker's global the engine script uses. */
 export interface EngineScope {
-  postMessage(message: FromEngine): void;
-  onmessage: ((event: { data: ToEngine }) => void) | null;
+  listen(handler: (message: ToEngine) => void): void;
+  post(message: FromEngine): void;
 }
 
 const FAILED: EngineResult = { ok: false, reason: "failed" };
 
-/** An `EngineRun` that posts each request to a Worker, spawned on first use. */
+/**
+ * An `EngineRun` that posts each request to a Worker, spawned on first use. A Worker that errors
+ * is terminated, its pending requests resolve `failed`, and the next request spawns another.
+ */
 export function workerEngine(spawn: () => EngineWorker): EngineRun {
   let worker: EngineWorker | undefined;
   let nextId = 0;
@@ -38,14 +43,18 @@ export function workerEngine(spawn: () => EngineWorker): EngineRun {
 
   const started = (): EngineWorker => {
     if (worker) return worker;
+
     const spawned = spawn();
     spawned.onmessage = ({ data }) => {
       const settle = pending.get(data.id);
       pending.delete(data.id);
-      if ("error" in data) console.warn("gh-prism: the structural engine failed", data.error);
-      settle?.("error" in data ? FAILED : data.result);
+      if ("error" in data) {
+        if (settle) console.warn("gh-prism: the structural engine failed", data.error);
+        settle?.(FAILED);
+      } else settle?.(data.result);
     };
     spawned.onerror = failAll;
+
     worker = spawned;
     return spawned;
   };
@@ -68,11 +77,13 @@ export function workerEngine(spawn: () => EngineWorker): EngineRun {
         target.postMessage({ id, cancel: true });
         reject(signal.reason);
       };
+
       pending.set(id, (result) => {
         signal.removeEventListener("abort", onAbort);
         resolve(result);
       });
       signal.addEventListener("abort", onAbort, { once: true });
+
       target.postMessage({ id, request });
     });
   };
@@ -82,20 +93,20 @@ export function workerEngine(spawn: () => EngineWorker): EngineRun {
 export function serveEngineWorker(scope: EngineScope, run: EngineRun): void {
   const running = new Map<number, AbortController>();
 
-  scope.onmessage = async ({ data }) => {
-    if ("cancel" in data) {
-      running.get(data.id)?.abort();
+  scope.listen(async (message) => {
+    if ("cancel" in message) {
+      running.get(message.id)?.abort();
       return;
     }
 
     const controller = new AbortController();
-    running.set(data.id, controller);
+    running.set(message.id, controller);
     try {
-      scope.postMessage({ id: data.id, result: await run(data.request, controller.signal) });
+      scope.post({ id: message.id, result: await run(message.request, controller.signal) });
     } catch (error) {
-      if (!controller.signal.aborted) scope.postMessage({ id: data.id, error: String(error) });
+      if (!controller.signal.aborted) scope.post({ id: message.id, error: String(error) });
     } finally {
-      running.delete(data.id);
+      running.delete(message.id);
     }
-  };
+  });
 }

@@ -4,13 +4,14 @@
 it.*
 
 gh-prism is a Chrome and Firefox extension built with WXT, a framework for browser
-extensions. It has two parts: a background script that fetches pull request data and lets
-the Conversation panel frame a pull request's Conversation tab, and content scripts. One
-content script reshapes GitHub's Files view and reads a pull request's code owners and
-reviewers itself; the other dresses the Conversation panel's frame. The background runs as
-a service worker in Chrome and as an event page in Firefox. Each section below names the
-module behind its claims, so you can read the code next. Terms such as visit, page,
-intent, and landing are defined in
+extensions. It has two parts, and a third in Chrome: a background script that fetches pull
+request data and lets the Conversation panel frame a pull request's Conversation tab,
+content scripts, and, in Chrome, an offscreen document that hosts the structural engine's
+Worker. One content script reshapes GitHub's Files view and reads a pull request's code
+owners and reviewers itself; the other dresses the Conversation panel's frame. The
+background runs as a service worker in Chrome and as an event page in Firefox. Each
+section below names the module behind its claims, so you can read the code next. Terms
+such as visit, page, intent, and landing are defined in
 [`CONTEXT.md`](../CONTEXT.md).
 
 ## Overview
@@ -38,9 +39,11 @@ separate file because the background builds as one file, so bundling the engine 
 would parse the engine at every start. So only the engine script may import `runner.ts`,
 and modules the background reaches import the engine and the runner as types only, which
 [`tests/utils/structural/bundle-boundary.test.ts`](../tests/utils/structural/bundle-boundary.test.ts)
-checks. [`utils/structural/engine-thread.ts`](../utils/structural/engine-thread.ts) gives
-the host an `EngineRun` that starts nothing until the first request. Firefox's event page
-owns the Worker itself, through
+checks.
+
+[`utils/structural/engine-thread.ts`](../utils/structural/engine-thread.ts) gives the host
+an `EngineRun` that starts nothing until the first request. Firefox's event page owns the
+Worker itself, through
 [`utils/structural/engine-worker.ts`](../utils/structural/engine-worker.ts). Chrome's
 service worker cannot construct a Worker, so, on the first request, it creates an
 offscreen document,
@@ -50,9 +53,12 @@ why Chrome's manifest asks for the `offscreen` permission. The service worker re
 request with `runtime.sendMessage`
 ([`utils/structural/offscreen.ts`](../utils/structural/offscreen.ts)) rather than a port,
 whose `runtime.onConnect` listener the service worker would register at every start; the
-message's response carries the result, so the service worker needs no listener. It checks
-that the document exists before every request, because the document closes itself after 30
-seconds without one. [`utils/structural/runner.ts`](../utils/structural/runner.ts)
+message's response carries the result, so the service worker needs no listener. The
+service worker checks that the document exists before every request, because the document
+closes itself after 30 seconds without one. Overlapping requests share one existence check
+and creation, and a request that finds the document just closed is retried once.
+
+[`utils/structural/runner.ts`](../utils/structural/runner.ts)
 compiles the tree-sitter runtime and each grammar on first use, only from the packaged
 `structural/*.wasm` files, which is why the manifest's `extension_pages` policy carries
 `'wasm-unsafe-eval'`. [`utils/structural/host.ts`](../utils/structural/host.ts) runs one

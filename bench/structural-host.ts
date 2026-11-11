@@ -27,6 +27,7 @@ import { type BrowserContext, chromium, firefox, type Page } from "@playwright/t
 import { withExtension } from "playwright-webextext";
 import { type ChangedRegion, DEFAULT_LIMITS } from "../utils/structural/engine";
 import { grammarOf } from "../utils/structural/grammar";
+import { OFFSCREEN_IDLE_MS } from "../utils/structural/offscreen";
 import type { StructuralRequest } from "../utils/structural/request";
 import type { BenchMessage, BenchReply, RunResult } from "./structural-host/serve";
 
@@ -44,8 +45,8 @@ const PR_DATA_PORT = "gh-prism:pr-data";
 const MAX_PING_MS = 25;
 // Short enough to wait out, long enough that the gaps between the bench's messages never stop it.
 const FIREFOX_IDLE_MS = 5000;
-// Past the offscreen document's 30 s idle close.
-const IDLE_WAIT_MS = 35_000;
+// Longer than the idle close, so the document has closed by the time the wait ends.
+const IDLE_WAIT_MS = OFFSCREEN_IDLE_MS + 5_000;
 
 const BACKGROUND = `import { defineBackground } from "wxt/utils/define-background";
 import { serveBench } from "@/bench/structural-host/serve";

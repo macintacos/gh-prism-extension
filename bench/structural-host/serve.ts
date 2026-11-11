@@ -84,7 +84,10 @@ export function serveBench(): void {
   });
 }
 
-/** Reports whether the engine's context exists: Chrome's offscreen document, or Firefox's Worker. */
+/**
+ * Chrome: whether an offscreen document exists. Firefox: whether this event page has constructed a
+ * Worker, counted by a subclass installed over `globalThis.Worker`.
+ */
 function engineContextProbe(): () => Promise<boolean> {
   if (import.meta.env.BROWSER !== "firefox")
     return async () =>
@@ -107,11 +110,13 @@ function engineContextProbe(): () => Promise<boolean> {
 async function permissionWarnings() {
   const management = (globalThis as { chrome?: typeof browser }).chrome?.management;
   if (!management?.getPermissionWarningsByManifest) return null;
+
   const manifest = browser.runtime.getManifest();
   const without = {
     ...manifest,
     permissions: manifest.permissions?.filter((p) => p !== "offscreen"),
   };
+
   return {
     loaded: await management.getPermissionWarningsByManifest(JSON.stringify(manifest)),
     withoutOffscreen: await management.getPermissionWarningsByManifest(JSON.stringify(without)),

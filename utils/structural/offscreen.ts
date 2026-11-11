@@ -1,11 +1,15 @@
-// Background side: import the engine and runner only as types; a value import bundles them into background.js.
+// Reached from background.js and the offscreen page: import the engine and runner only as types, or they are bundled into both.
 import type { EngineResult } from "./engine";
 import type { EngineRun, StructuralRequest } from "./request";
 
 /** The offscreen document's path in Chrome's build; pass it through `getURL`, whose `PublicPath` type checks it. */
 export const OFFSCREEN_PAGE = "/structural-offscreen.html";
 
+/** How long the offscreen document stays open after its last answer. */
+export const OFFSCREEN_IDLE_MS = 30_000;
+
 const TO_OFFSCREEN = "gh-prism:structural";
+/** What the service worker sends the offscreen document; the tag tells it apart from other runtime messages. */
 export type ToOffscreen =
   | { to: typeof TO_OFFSCREEN; id: string; request: StructuralRequest }
   | { to: typeof TO_OFFSCREEN; id: string; cancel: true };
@@ -18,23 +22,41 @@ export interface OffscreenApi {
   create(): Promise<void>;
   /** Resolves with the document's response, or `undefined` when it closed before answering. */
   send(message: ToOffscreen): Promise<EngineResult | undefined>;
+  /** Unique across service worker lives: the document outlives the worker, so a counter would repeat ids still pending there. */
   newId(): string;
 }
 
 /**
  * An `EngineRun` that relays each request to the offscreen document, creating the document when
- * none exists. Call it through `structuralHost`: two overlapping calls would both create it.
+ * none exists, and retrying once when the document closed between the check and the send.
  */
 export function offscreenEngine(api: OffscreenApi): EngineRun {
+  let ensuring: Promise<void> | undefined;
+  /** One existence check and creation at a time, shared by overlapping requests. */
+  const ensureDocument = () =>
+    (ensuring ??= (async () => {
+      if (!(await api.exists())) await api.create();
+    })().finally(() => {
+      ensuring = undefined;
+    }));
+
   return (request, signal) => {
     if (signal.aborted) return Promise.reject(signal.reason);
     const id = api.newId();
+    let sent = false;
 
     const relayed = (async (): Promise<EngineResult> => {
       try {
-        if (!(await api.exists())) await api.create();
-        const result = await api.send({ to: TO_OFFSCREEN, id, request });
-        if (result) return result;
+        for (const last of [false, true]) {
+          await ensureDocument();
+          if (signal.aborted) return FAILED;
+          sent = true;
+          const result = await api.send({ to: TO_OFFSCREEN, id, request }).catch((error) => {
+            if (last) throw error;
+          });
+          if (result) return result;
+          if (signal.aborted) return FAILED;
+        }
         console.warn("gh-prism: the structural offscreen document closed before answering");
       } catch (error) {
         console.warn("gh-prism: couldn't relay to the structural offscreen document", error);
@@ -42,17 +64,15 @@ export function offscreenEngine(api: OffscreenApi): EngineRun {
       return FAILED;
     })();
 
-    let onAbort = () => {};
-    const aborted = new Promise<never>((_, reject) => {
-      onAbort = () => {
-        reject(signal.reason);
-        // The document answers no cancel, so Chrome rejects this send every time.
-        api.send({ to: TO_OFFSCREEN, id, cancel: true }).catch(() => {});
-      };
-      signal.addEventListener("abort", onAbort, { once: true });
-    });
+    const aborted = Promise.withResolvers<never>();
+    const onAbort = () => {
+      aborted.reject(signal.reason);
+      // Best effort: the document answers no cancel, and may already be gone.
+      if (sent) api.send({ to: TO_OFFSCREEN, id, cancel: true }).catch(() => {});
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
 
-    return Promise.race([relayed, aborted]).finally(() =>
+    return Promise.race([relayed, aborted.promise]).finally(() =>
       signal.removeEventListener("abort", onAbort),
     );
   };
@@ -86,9 +106,10 @@ function isToOffscreen(message: unknown): message is ToOffscreen {
 /** Answers relayed requests with `run`, and closes the document once it has been idle. */
 export function serveOffscreen(deps: OffscreenDeps): void {
   const pending = new Map<string, AbortController>();
-  let cancelClose: (() => void) | undefined;
+  let cancelClose: (() => void) | undefined = deps.closeWhenIdle(() => deps.close());
 
   deps.listen((message, fromTab, respond) => {
+    // A content script can call runtime.sendMessage, and it shares a renderer with the page.
     if (fromTab || !isToOffscreen(message)) return false;
     if ("cancel" in message) {
       pending.get(message.id)?.abort();
@@ -102,7 +123,12 @@ export function serveOffscreen(deps: OffscreenDeps): void {
 
     deps
       .run(message.request, controller.signal)
-      .catch((): EngineResult => FAILED)
+      .catch((error): EngineResult => {
+        if (!controller.signal.aborted) {
+          console.warn("gh-prism: the structural engine failed in the offscreen document", error);
+        }
+        return FAILED;
+      })
       .then((result) => {
         pending.delete(message.id);
         respond(result);

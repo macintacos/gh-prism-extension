@@ -1,11 +1,9 @@
 import { browser } from "wxt/browser";
 import { ENGINE_SCRIPT } from "../../utils/structural/engine-script";
 import { workerEngine } from "../../utils/structural/engine-worker";
-import { serveOffscreen } from "../../utils/structural/offscreen";
+import { OFFSCREEN_IDLE_MS, serveOffscreen } from "../../utils/structural/offscreen";
 
-/** How long the document stays open after its last answer. */
-const IDLE_MS = 30_000;
-
+/** Chrome's offscreen document: owns the engine's Worker and answers the service worker's relayed requests. */
 serveOffscreen({
   run: workerEngine(() => new Worker(browser.runtime.getURL(ENGINE_SCRIPT))),
   listen: (handler) =>
@@ -14,7 +12,7 @@ serveOffscreen({
       handler(message, sender.tab !== undefined, sendResponse),
     ),
   closeWhenIdle: (close) => {
-    const timer = setTimeout(close, IDLE_MS);
+    const timer = setTimeout(close, OFFSCREEN_IDLE_MS);
     return () => clearTimeout(timer);
   },
   close: () => window.close(),

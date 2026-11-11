@@ -43,7 +43,7 @@ export default defineConfig({
     permissions: [
       "storage",
       "declarativeNetRequestWithHostAccess",
-      // Chrome's service worker cannot construct a Worker, so an offscreen document hosts the engine's.
+      // Chrome's service worker cannot construct a Worker, so an offscreen document hosts the engine's; it adds no install warning either.
       ...(browser === "firefox" ? [] : ["offscreen"]),
     ],
     // github.com's .diff and raw/ URLs redirect to these two githubusercontent hosts.

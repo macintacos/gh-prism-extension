@@ -1,17 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { DEFAULT_LIMITS } from "../../../utils/structural/engine";
 import { ENGINE_SCRIPT } from "../../../utils/structural/engine-script";
 import { loadEngineThread } from "../../../utils/structural/engine-thread";
-import type { StructuralRequest } from "../../../utils/structural/request";
-
-const REQUEST: StructuralRequest = {
-  oldText: "a",
-  newText: "b",
-  grammar: undefined,
-  regions: [],
-  limits: DEFAULT_LIMITS,
-};
+import { REQUEST } from "../../fixtures/structural-request";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -38,10 +29,12 @@ describe("loadEngineThread in Firefox", () => {
     );
 
     const run = await loadEngineThread();
-    expect(urls).toEqual([]);
+    const urlsBeforeRequests = [...urls];
+
     void run(REQUEST, new AbortController().signal);
     void run(REQUEST, new AbortController().signal);
 
+    expect(urlsBeforeRequests).toEqual([]);
     expect(urls).toHaveLength(1);
     expect(urls[0]?.endsWith(ENGINE_SCRIPT)).toBe(true);
     expect(postMessage).toHaveBeenCalledTimes(2);

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_LIMITS, type EngineResult } from "../../../utils/structural/engine";
+import type { EngineResult } from "../../../utils/structural/engine";
 import {
   type EngineScope,
   type EngineWorker,
@@ -9,33 +9,17 @@ import {
   workerEngine,
 } from "../../../utils/structural/engine-worker";
 import type { EngineRun, StructuralRequest } from "../../../utils/structural/request";
-
-const REQUEST: StructuralRequest = {
-  oldText: "a",
-  newText: "b",
-  grammar: undefined,
-  regions: [],
-  limits: DEFAULT_LIMITS,
-};
-const RESULT: EngineResult = { ok: false, reason: "unsupported" };
-const FAILED: EngineResult = { ok: false, reason: "failed" };
-
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  let reject!: (reason: unknown) => void;
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
-}
+import { FAILED, REQUEST, RESULT } from "../../fixtures/structural-request";
 
 /** A Worker and its global, each delivering the other's messages a microtask later. */
 function workerPair() {
+  let handler: ((message: ToEngine) => void) | undefined;
   const scope: EngineScope & { posted: FromEngine[] } = {
     posted: [],
-    onmessage: null,
-    postMessage(message) {
+    listen(listener) {
+      handler = listener;
+    },
+    post(message) {
       scope.posted.push(message);
       queueMicrotask(() => worker.onmessage?.(new MessageEvent("message", { data: message })));
     },
@@ -46,7 +30,7 @@ function workerPair() {
     onerror: null,
     postMessage(message) {
       worker.posted.push(message);
-      queueMicrotask(() => scope.onmessage?.({ data: message }));
+      queueMicrotask(() => handler?.(message));
     },
     terminate: vi.fn(),
   };
@@ -106,8 +90,8 @@ describe("workerEngine", () => {
   });
 
   it("rejects at once on abort, posts a cancel, and ignores a late result", async () => {
-    const { worker, scope } = workerPair();
-    scope.onmessage = () => {};
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { worker } = workerPair();
     const engine = workerEngine(() => worker);
     const controller = new AbortController();
 
@@ -115,11 +99,13 @@ describe("workerEngine", () => {
     controller.abort("gone");
 
     await expect(pending).rejects.toBe("gone");
-    const id = worker.posted[0]?.id;
+    const id = worker.posted[0]?.id ?? 0;
     expect(worker.posted[1]).toEqual({ id, cancel: true });
-    expect(() =>
-      worker.onmessage?.(new MessageEvent("message", { data: { id: id ?? 0, result: RESULT } })),
-    ).not.toThrow();
+    expect(() => {
+      worker.onmessage?.(new MessageEvent("message", { data: { id, result: RESULT } }));
+      worker.onmessage?.(new MessageEvent("message", { data: { id, error: "late" } }));
+    }).not.toThrow();
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it("resolves failed and warns when the Worker posts an error", async () => {
@@ -134,7 +120,6 @@ describe("workerEngine", () => {
   it("on a Worker error, terminates it, fails every pending request, and respawns next time", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const first = workerPair();
-    first.scope.onmessage = () => {};
     const second = served(vi.fn(async () => RESULT));
     const spawn = vi.fn().mockReturnValueOnce(first.worker).mockReturnValueOnce(second.worker);
     const engine = workerEngine(spawn);
@@ -204,7 +189,7 @@ describe("serveEngineWorker", () => {
   });
 
   it("posts an error when the run rejects for another reason", async () => {
-    const outcome = deferred<EngineResult>();
+    const outcome = Promise.withResolvers<EngineResult>();
     const { worker, scope } = served(() => outcome.promise);
 
     worker.postMessage({ id: 3, request: REQUEST });
