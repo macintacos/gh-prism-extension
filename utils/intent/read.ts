@@ -86,11 +86,24 @@ async function readHead(
 ): Promise<ScannedHead | undefined> {
   const content = await client.fileContent(file.path);
   if (!content.ok) return undefined;
+  if (client.headOutline === undefined) return scanHeadText(file.path, content.text);
 
-  const outline = await client.headOutline?.(file.path).catch(() => undefined);
-  return outline
-    ? headFromOutline(file.path, content.text, outline)
-    : scanHeadText(file.path, content.text);
+  const outline = await outlineOrNone(client.headOutline, file.path);
+  return outline === undefined
+    ? scanHeadText(file.path, content.text)
+    : headFromOutline(file.path, content.text, outline);
+}
+
+/** `path`'s outline from `read`, or `undefined` when `read` throws or rejects. */
+async function outlineOrNone(
+  read: (path: string) => Promise<HeadOutline | undefined>,
+  path: string,
+): Promise<HeadOutline | undefined> {
+  try {
+    return await read(path);
+  } catch {
+    return undefined;
+  }
 }
 
 const sumHunkLines = (hunks: readonly PrHunk[]): LineCounts => sum(hunks.map(hunkLineCounts));
@@ -291,33 +304,42 @@ export interface IntentSources {
   /** Paths the page says GitHub marks generated: each lands whole in Generated, unread. */
   readonly generatedOf?: (diff: DiffRef) => ReadonlySet<string>;
   /**
-   * A parse's outline of `path`'s head file, set only while structural mode is on. `undefined`
-   * when there is none; a rejection counts as none. Unset, the head is line-scanned.
+   * A parse's outline of `path` at `headSha`, the revision the head text is read at; set only
+   * while structural mode is on. A supplier with nothing to say for a file (no grammar, a refusal)
+   * resolves `undefined`, never an empty outline, whose test blocks would replace the line scan's;
+   * a throw or rejection counts as `undefined`. Unset, the head is line-scanned.
    */
-  readonly headOutline?: (diff: DiffRef, path: string) => Promise<HeadOutline | undefined>;
+  readonly headOutline?: (
+    diff: DiffRef,
+    headSha: string,
+    path: string,
+  ) => Promise<HeadOutline | undefined>;
 }
 
 /** Problems a later read of a file may not hit. */
 const PASSING: ReadonlySet<PrDataProblem> = new Set(["rate-limited", "failed"]);
 
+/** How heads were read: `""` line-scanned, `"outline"` with an outline. Marks both cache keys. */
+type HeadReading = "" | "outline";
+
 /**
- * A key for `files` read at `headSha` with the page's `generated` flags, `outlined` when heads were
- * read with an outline: a diff whose head, patches, flags, or head reading change gets a new one.
+ * A key for `files` read at `headSha` with the page's `generated` flags and `reading`: a diff
+ * whose head, patches, flags, or head reading change gets a new one.
  */
 async function diffKey(
   headSha: string,
   files: readonly PrFileDiff[],
   generated: ReadonlySet<string>,
-  outlined: boolean,
+  reading: HeadReading,
 ): Promise<string> {
   const parts = [headSha, files, [...generated].sort()];
-  const bytes = new TextEncoder().encode(JSON.stringify(outlined ? [...parts, "outline"] : parts));
+  const bytes = new TextEncoder().encode(JSON.stringify(reading ? [...parts, reading] : parts));
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
   return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-const pinKey = ({ baseSha, headSha }: DiffPin, outlined: boolean) =>
-  `${baseSha}...${headSha}${outlined ? "#outline" : ""}`;
+const pinKey = ({ baseSha, headSha }: DiffPin, reading: HeadReading) =>
+  `${baseSha}...${headSha}${reading && `#${reading}`}`;
 
 /** Files `intent` under each key in turn: concurrent sets race on the cache's index. */
 async function keepUnder(
@@ -329,10 +351,10 @@ async function keepUnder(
 }
 
 /**
- * Where a diff's files land: from `cache` when it holds this very diff, else read and
- * cached. The diff key covers the page's generated flags, so a change in them reads the diff
- * again; both keys mark a read made with `headOutline`, so outlined and line-scanned reads never
- * answer each other. The cache is checked by the page's pin first, and a pinned hit connects nothing. A read
+ * Where a diff's files land: from `cache` when it holds this very diff, else read and cached.
+ * The diff key covers the page's generated flags, so a change in them reads the diff again; both
+ * keys mark a read made with `headOutline`, so outlined and line-scanned reads never answer each
+ * other. The cache is checked by the page's pin first, and a pinned hit connects nothing. A read
  * that a file's passing problem cut short isn't cached. A commit-filtered route connects nothing;
  * otherwise the client is closed when `signal` aborts. Never rejects; once `signal` aborts it may
  * never settle.
@@ -345,11 +367,11 @@ export async function intentFor(
 ): Promise<IntentResult> {
   if (route.commitFiltered) return { ok: false, problem: "commit-filtered" };
 
-  const outlined = headOutline !== undefined;
+  const reading: HeadReading = headOutline === undefined ? "" : "outline";
   const pin = pinOf?.(route.diff);
   // No flags in the pin key: the pin and the flags come from the same route data, so a pinned
   // page always carries its flags.
-  const pinned = pin && pinKey(pin, outlined);
+  const pinned = pin && pinKey(pin, reading);
   const early = pinned ? await cache.get(pinned) : undefined;
   if (early) return early;
   const generated = generatedOf?.(route.diff) ?? new Set<string>();
@@ -362,7 +384,7 @@ export async function intentFor(
   const listed = await client.files();
   if (!listed.ok) return listed;
 
-  const key = await diffKey(listed.headSha, listed.files, generated, outlined);
+  const key = await diffKey(listed.headSha, listed.files, generated, reading);
   // Only a pin naming the head these files were read at may file them.
   // ponytail: the worker keeps a PR's diff by head alone, so a retarget read while it is alive
   // files the old base's diff under the new pin; key the worker's diff by base too if that bites.
@@ -385,7 +407,9 @@ export async function intentFor(
       files: () => client.files(),
       fileContent: notingCutShort((path) => client.fileContent(path)),
       filePrefix: notingCutShort((path) => client.filePrefix(path)),
-      ...(headOutline && { headOutline: (path: string) => headOutline(route.diff, path) }),
+      ...(headOutline && {
+        headOutline: (path: string) => headOutline(route.diff, listed.headSha, path),
+      }),
     },
     onProgress,
     generated,

@@ -1,5 +1,6 @@
 import type { Node, Tree } from "web-tree-sitter";
 import type { EngineLimits, EngineRefusal, LoadedGrammar } from "./engine";
+import type { GrammarId } from "./grammar";
 
 /** A comment or string literal that covers more than one line. Lines are 1-based. */
 export interface OutlineSpan {
@@ -11,7 +12,7 @@ export interface OutlineSpan {
   readonly closer: string;
 }
 
-/** 1-based and inclusive, like `PrHunk.newStart`. */
+/** A run of head-file lines, 1-based and inclusive, like `PrHunk.newStart`. */
 export interface LineBlock {
   readonly start: number;
   readonly end: number;
@@ -24,10 +25,12 @@ export interface HeadOutline {
   readonly testBlocks: readonly LineBlock[];
 }
 
+/** The outline of one head file, or a refusal. */
 export type OutlineResult =
   | { readonly ok: true; readonly outline: HeadOutline }
   | { readonly ok: false; readonly reason: EngineRefusal };
 
+/** A head file's text and what `headOutline` needs to parse it. */
 export interface OutlineInput {
   readonly text: string;
   /** `undefined` when `grammarOf` found no grammar for the file. */
@@ -53,7 +56,7 @@ export function headOutline({ text, language, limits, now }: OutlineInput): Outl
 
   try {
     if (tree.rootNode.hasError) return refuse("failed");
-    return { ok: true, outline: outlineOf(tree, language.grammar.id === "python") };
+    return { ok: true, outline: outlineOf(tree, READERS[language.grammar.id]) };
   } finally {
     tree.delete();
   }
@@ -61,21 +64,26 @@ export function headOutline({ text, language, limits, now }: OutlineInput): Outl
 
 const refuse = (reason: EngineRefusal): OutlineResult => ({ ok: false, reason });
 
-/**
- * Walks every named node in source order, without recursion, so deep nesting cannot overflow.
- */
+/** How one grammar's nodes read as spans and test blocks. */
+interface Reader {
+  readonly spanOf: (node: Node) => OutlineSpan | undefined;
+  readonly testOf: (node: Node) => Node | undefined;
+}
+
+/** Walks every named node in source order, without recursion, so deep nesting cannot overflow. */
 // ponytail: visits every named node of a text up to `maxTextLength` with no node budget; add one,
 // as `maxTokens` does for the diff, if a large file's outline shows up in a profile.
-function outlineOf(tree: Tree, python: boolean): HeadOutline {
+function outlineOf(tree: Tree, reader: Reader): HeadOutline {
   const spans: OutlineSpan[] = [];
   const testBlocks: LineBlock[] = [];
   const stack: { node: Node; inBlock: boolean }[] = [{ node: tree.rootNode, inBlock: false }];
+
   for (let entry = stack.pop(); entry !== undefined; entry = stack.pop()) {
     const { node } = entry;
-    const span = python ? pythonSpanOf(node) : scriptSpanOf(node);
+    const span = reader.spanOf(node);
     if (span !== undefined) spans.push(span);
 
-    const block = entry.inBlock ? undefined : python ? pythonTestOf(node) : scriptTestOf(node);
+    const block = entry.inBlock ? undefined : reader.testOf(node);
     if (block !== undefined) testBlocks.push(linesOf(block));
 
     const inBlock = entry.inBlock || block !== undefined;
@@ -83,6 +91,7 @@ function outlineOf(tree: Tree, python: boolean): HeadOutline {
       if (child !== null) stack.push({ node: child, inBlock });
     }
   }
+
   return { spans, testBlocks };
 }
 
@@ -100,6 +109,7 @@ const spanOf = (node: Node, kind: OutlineSpan["kind"], closer: string): OutlineS
   closer,
 });
 
+/** A TypeScript or JavaScript multi-line literal; a string's closer is its own last character. */
 function scriptSpanOf(node: Node): OutlineSpan | undefined {
   if (!multiLine(node)) return undefined;
   if (node.type === "comment") return spanOf(node, "comment", "*/");
@@ -109,6 +119,7 @@ function scriptSpanOf(node: Node): OutlineSpan | undefined {
   return undefined;
 }
 
+/** A Python multi-line string; a docstring is a `comment` span, as the line scan reads it. */
 function pythonSpanOf(node: Node): OutlineSpan | undefined {
   if (!multiLine(node) || node.type !== "string") return undefined;
 
@@ -131,6 +142,8 @@ function isDocstring(node: Node): boolean {
   return isBody && first?.id === statement.id;
 }
 
+// Keep these and `isPythonTest`'s name patterns in sync with the finders in
+// hunk-rules/inline-tests.ts; outline-parity.test.ts compares the two.
 const TEST_CALLEES = new Set(["describe", "it", "test"]);
 const TEST_NAMESPACES = new Set(["test", "tests"]);
 const CALLBACKS = ["arrow_function", "function_expression", "generator_function"];
@@ -149,7 +162,10 @@ function isTestNamespace(node: Node): boolean {
   return name?.type === "identifier" && TEST_NAMESPACES.has(name.text);
 }
 
-/** Whether `node` is a statement calling `describe`, `it`, or `test`, or a chain off one, with a callback. */
+/**
+ * Whether `node` is a statement calling `describe`, `it`, or `test`, or a chain off one,
+ * with a callback.
+ */
 function isTestCall(node: Node): boolean {
   const call = node.type === "expression_statement" ? node.firstNamedChild : null;
   if (call?.type !== "call_expression") return false;
@@ -185,3 +201,11 @@ function isPythonTest(node: Node): boolean {
   }
   return owner?.type !== "class_definition";
 }
+
+const SCRIPT: Reader = { spanOf: scriptSpanOf, testOf: scriptTestOf };
+const READERS: Readonly<Record<GrammarId, Reader>> = {
+  typescript: SCRIPT,
+  tsx: SCRIPT,
+  javascript: SCRIPT,
+  python: { spanOf: pythonSpanOf, testOf: pythonTestOf },
+};

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const ENGINE_FROM_HUNK_RULES = [
+const ENGINE_FROM_CONTENT_SIDE = [
   "../structural/outline",
   "../structural/engine",
   "../structural/runner",
@@ -14,9 +14,9 @@ const ENGINE_FROM_HUNK_RULES = [
  * content bundle.
  */
 const TYPE_ONLY: readonly (readonly [file: string, modules: readonly string[]])[] = [
-  ["utils/hunk-rules/head-scan.ts", ENGINE_FROM_HUNK_RULES],
-  ["utils/hunk-rules/inline-tests.ts", ENGINE_FROM_HUNK_RULES],
-  ["utils/intent/read.ts", ENGINE_FROM_HUNK_RULES],
+  ["utils/hunk-rules/head-scan.ts", ENGINE_FROM_CONTENT_SIDE],
+  ["utils/hunk-rules/inline-tests.ts", ENGINE_FROM_CONTENT_SIDE],
+  ["utils/intent/read.ts", ENGINE_FROM_CONTENT_SIDE],
   ["utils/structural/host.ts", ["./engine", "./runner", "./tokens", "web-tree-sitter"]],
   ["utils/structural/engine-script.ts", ["./engine", "./runner", "./tokens", "web-tree-sitter"]],
   [

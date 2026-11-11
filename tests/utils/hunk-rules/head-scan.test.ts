@@ -3,6 +3,7 @@ import {
   type CommentSyntax,
   commentSyntaxOf,
   extensionOf,
+  FILE_START,
   headFromOutline,
   isDirective,
   scanHeadText,
@@ -38,6 +39,10 @@ describe("scanHeadText", () => {
   it("Python: a line that starts inside a triple-quoted string reads as a string", () => {
     const head = scanHeadText("src/app.py", lines('x = """', "column zero", '"""', "y = 1"));
     expect(head?.kinds).toEqual(["code", "string", "string", "code"]);
+  });
+
+  it("starts line 1 in FILE_START itself", () => {
+    expect(scanHeadText("src/app.ts", "const a = 1;")?.starts[0]).toBe(FILE_START);
   });
 
   it.each(["README.md", "Makefile"])(
@@ -98,6 +103,28 @@ describe("headFromOutline", () => {
 
     expect(head?.starts[2]?.position).toEqual({ kind: "string", closer: "'" });
     expect(head?.starts[4]?.position).toEqual({ kind: "string", closer: "`" });
+  });
+
+  it("of two spans opening on one line, lets the one that ends first set its lines", () => {
+    const text = lines("const a = `${ /* a", "b */ x}", "more", "`;", "const b = 1;");
+    const outline: HeadOutline = {
+      spans: [
+        { kind: "string", startLine: 1, endLine: 4, closer: "`" },
+        { kind: "comment", startLine: 1, endLine: 2, closer: "*/" },
+      ],
+      testBlocks: [],
+    };
+
+    const head = headFromOutline("src/app.ts", text, outline);
+
+    expect(head?.starts.map((start) => start.position)).toEqual([
+      "code",
+      { kind: "comment", closer: "*/" },
+      { kind: "string", closer: "`" },
+      { kind: "string", closer: "`" },
+      "code",
+      "code",
+    ]);
   });
 
   it("ignores a span and a test block past the end of the text", () => {

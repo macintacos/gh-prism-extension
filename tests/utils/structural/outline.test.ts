@@ -208,6 +208,27 @@ const CASES: readonly Case[] = [
     spans: [],
     testBlocks: [block(2, 3)],
   },
+  {
+    name: "an it with a generator callback",
+    id: "typescript",
+    text: lines('it("x", function* () {', "});"),
+    spans: [],
+    testBlocks: [block(1, 2)],
+  },
+  {
+    name: "a JavaScript string continued with a backslash",
+    id: "javascript",
+    text: lines('const s = "a\\', 'b";'),
+    spans: [string(1, 2, '"')],
+    testBlocks: [],
+  },
+  {
+    name: "a docstring after a comment line",
+    id: "python",
+    text: lines("# lead", '"""Mod', 'doc."""'),
+    spans: [comment(2, 3, '"""')],
+    testBlocks: [],
+  },
 ];
 
 describe("headOutline", () => {

@@ -570,13 +570,14 @@ flowchart TD
 ```
 
 A read line-scans each head it fetches, unless the visit's `IntentSources` supplies
-`headOutline`. Then `headFromOutline` in
+`headOutline`, which it asks for each file's outline at the listed head SHA, the revision
+the head text is read at. Then `headFromOutline` in
 [`utils/hunk-rules/head-scan.ts`](../utils/hunk-rules/head-scan.ts) builds the head from
 the `HeadOutline` that [`utils/structural/outline.ts`](../utils/structural/outline.ts)
-makes from a parse, and the inline-test rule uses its `testBlocks`. A file whose outline
-comes back empty or fails is line-scanned as before. Nothing supplies `headOutline` yet. A
-read made with it caches under its own pin and diff keys, so an outlined result and a
-line-scanned one never stand in for each other.
+makes from a parse, and the inline-test rule uses its `testBlocks`. A file with no outline
+(`headOutline` resolves `undefined`, throws, or rejects) is line-scanned as before.
+Nothing supplies `headOutline` yet. A read made with it caches under its own pin and diff
+keys, so an outlined result and a line-scanned one never stand in for each other.
 
 [`utils/intent/cache.ts`](../utils/intent/cache.ts) keeps intent in extension storage.
 `index.ts` sizes it to 50 entries; a pinned diff takes two, one under its diff key and one

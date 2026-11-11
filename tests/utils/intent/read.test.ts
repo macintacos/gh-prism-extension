@@ -1831,6 +1831,12 @@ describe("intentFor with a head outline", () => {
   it.each([
     ["resolves no outline", noOutline],
     ["rejects", async () => Promise.reject(new Error("no parser"))],
+    [
+      "throws",
+      () => {
+        throw new Error("no parser");
+      },
+    ],
   ])("line-scans the head when the outline read %s", async (_, headOutline) => {
     const lineScanned = await visit({ connect: renderRead, cache: memoryCache() });
 
@@ -1839,8 +1845,8 @@ describe("intentFor with a head outline", () => {
     expect(result).toEqual(lineScanned);
   });
 
-  it("asks for each read head's outline once, with the route's diff and the file's path", async () => {
-    const headOutline = vi.fn(async (_diff: DiffRef, _path: string) => undefined);
+  it("asks for each read head's outline once, with the route's diff, the listed head, and the file's path", async () => {
+    const headOutline = vi.fn(async (_diff: DiffRef, _headSha: string, _path: string) => undefined);
     const twoFiles: PrFilesResult = {
       ok: true,
       files: [modified("src/render.rs", renderPatch), modified("src/parser.rs", parserPatch)],
@@ -1852,7 +1858,7 @@ describe("intentFor with a head outline", () => {
       headOutline,
     });
 
-    expect(headOutline.mock.calls).toEqual([[pr, "src/render.rs"]]);
+    expect(headOutline.mock.calls).toEqual([[pr, headSha, "src/render.rs"]]);
   });
 
   it("asks for no outline on a pinned revisit", async () => {

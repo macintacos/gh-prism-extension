@@ -1,7 +1,8 @@
 /**
  * Comment-scans source lines one at a time, for the hunk rules: the docstring rule steps
  * `scanLine` over a hunk's two sides, and `scanHeadText` scans a whole head file once. Block
- * openers count only at line start, so a mid-line `/*` is code. A Python triple quote opens a
+ * openers count only at line start, so a mid-line `/*` is code, except in a head that
+ * `headFromOutline` starts from a parse's spans. A Python triple quote opens a
  * docstring only at file start or after a line ending in `:`; otherwise it opens a string.
  */
 
@@ -27,12 +28,10 @@ export interface CommentSyntax {
   readonly directives?: readonly string[];
 }
 
-// ponytail: a line scan, not a tokenizer, and the default and fallback. It misreads `//` or `/*`
-// inside a template literal or Go raw string, Rust's nested `/* /* */ */`, and Lua's level-n
-// `--[==[` brackets. A `#` or `//` line inside any string whose delimiters are out of view also reads
-// as a comment. An outline from a tree-sitter parse, when given, replaces its guesses at where each
-// head line starts; a hunk's own lines are still line-scanned, so a literal opened inside the hunk is
-// still guessed.
+// ponytail: a line scan, not a tokenizer. It misreads `//` or `/*` inside a template literal or Go
+// raw string, Rust's nested `/* /* */ */`, and Lua's level-n `--[==[` brackets. A `#` or `//` line
+// inside any string whose delimiters are out of view also reads as a comment. Upgrade path: a real
+// tokenizer per language, as `headFromOutline` is for a head file.
 const C_LIKE: CommentSyntax = {
   lineMarker: "//",
   blocks: [{ opener: "/*", closer: "*/", gutter: "*" }],
@@ -176,14 +175,17 @@ export function scanHeadText(path: string, text: string): ScannedHead | undefine
   const syntax = commentSyntaxOf(path);
   if (syntax === undefined) return undefined;
 
-  return scanLines(syntax, text.split("\n"), (_, scanned) => scanned);
+  return scanLines(syntax, text.split("\n"));
 }
 
 /**
  * Splits and comment-scans `text` as {@link scanHeadText} does, but starts each line where
- * `outline`'s multi-line comments and strings put it, and carries its test blocks. Spans and
- * blocks that reach past the text are ignored. `undefined` for an extension with no comment syntax.
+ * `outline`'s multi-line comments and strings put it, and carries its test blocks. A line inside
+ * nested spans starts in the innermost. Spans and blocks that reach past the text are ignored.
+ * `undefined` for an extension with no comment syntax.
  */
+// ponytail: only the head's start states come from the parse; a hunk's own lines are still
+// line-scanned, so a literal opened inside the hunk is still guessed.
 export function headFromOutline(
   path: string,
   text: string,
@@ -197,41 +199,45 @@ export function headFromOutline(
   const spans = outline.spans.filter((span) => fits(span.startLine, span.endLine));
   const testBlocks = outline.testBlocks.filter((block) => fits(block.start, block.end));
 
-  const head = scanLines(syntax, lines, (line) => positionIn(spans, line));
+  const head = scanLines(syntax, lines, startPositions(spans, lines.length));
   return { ...head, testBlocks };
 }
 
-/** Where `line` starts: inside the latest-opening span that covers it, else in code. */
-function positionIn(spans: readonly OutlineSpan[], line: number): ScanPosition {
-  let inner: OutlineSpan | undefined;
-  for (const span of spans) {
-    const covers = span.startLine < line && line <= span.endLine;
-    if (covers && (inner === undefined || span.startLine > inner.startLine)) inner = span;
+/**
+ * Each 1-based line's start position, through the end of file at `lineCount + 1`: inside the
+ * innermost span with `startLine < line <= endLine`, else in code.
+ */
+function startPositions(spans: readonly OutlineSpan[], lineCount: number): ScanPosition[] {
+  const positions: ScanPosition[] = Array(lineCount + 2).fill("code");
+  const outerFirst = spans.toSorted((a, b) => a.startLine - b.startLine || b.endLine - a.endLine);
+  for (const span of outerFirst) {
+    positions.fill({ closer: span.closer, kind: span.kind }, span.startLine + 1, span.endLine + 1);
   }
-  return inner === undefined ? "code" : { closer: inner.closer, kind: inner.kind };
+  return positions;
 }
 
 /**
- * Scans `lines` in order. `positionAt` gives each 1-based line's start position, the end of file
- * being the line after the last, from the position the previous line's scan left.
+ * Scans `lines` in order. `positions`, when given, overrides the start position of each 1-based
+ * line (`lines.length + 1` is the end of file); otherwise each line starts where the last left.
  */
 function scanLines(
   syntax: CommentSyntax,
   lines: readonly string[],
-  positionAt: (line: number, scanned: ScanPosition) => ScanPosition,
+  positions?: readonly ScanPosition[],
 ): ScannedHead {
   const starts: ScanState[] = [];
   const kinds: ScannedHead["kinds"][number][] = [];
   let state = FILE_START;
 
   for (const [index, line] of lines.entries()) {
-    state = { ...state, position: positionAt(index + 1, state.position) };
+    if (positions !== undefined) state = { ...state, position: positions[index + 1] ?? "code" };
     starts.push(state);
     const scanned = scanLine(syntax, state, line);
     kinds.push(insideString(state) ? "string" : scanned.kind);
     state = scanned.state;
   }
 
-  starts.push({ ...state, position: positionAt(lines.length + 1, state.position) });
+  if (positions !== undefined) state = { ...state, position: positions.at(-1) ?? "code" };
+  starts.push(state);
   return { lines, starts, kinds };
 }
