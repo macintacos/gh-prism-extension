@@ -41,7 +41,7 @@ export function workerEngine(spawn: () => EngineWorker): EngineRun {
     pending.clear();
   };
 
-  const started = (): EngineWorker => {
+  const ensureWorker = (): EngineWorker => {
     if (worker) return worker;
 
     const spawned = spawn();
@@ -64,7 +64,7 @@ export function workerEngine(spawn: () => EngineWorker): EngineRun {
 
     let target: EngineWorker;
     try {
-      target = started();
+      target = ensureWorker();
     } catch (error) {
       console.warn("gh-prism: couldn't start the structural engine Worker", error);
       return Promise.resolve(FAILED);

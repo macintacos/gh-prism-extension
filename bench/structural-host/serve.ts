@@ -32,13 +32,13 @@ export type BenchReply = { id: number; result: unknown } | { id: number; error: 
  */
 export function serveBench(): void {
   const host = structuralHost({ loadEngine: loadEngineThread, pause: yieldToMessages });
-  const engineExists = engineContextProbe();
+  const engineContextExists = engineContextProbe();
   let pingTimes: number[] = [];
 
   const answer = async (message: BenchMessage) => {
     switch (message.op) {
       case "state":
-        return { loaded: await engineExists() };
+        return { loaded: await engineContextExists() };
       case "pings": {
         const handled = pingTimes;
         pingTimes = [];
@@ -93,14 +93,14 @@ function engineContextProbe(): () => Promise<boolean> {
     return async () =>
       (await browser.runtime.getContexts({ contextTypes: ["OFFSCREEN_DOCUMENT"] })).length > 0;
 
-  let constructed = 0;
+  let workersConstructed = 0;
   globalThis.Worker = class extends Worker {
     constructor(...args: ConstructorParameters<typeof Worker>) {
       super(...args);
-      constructed++;
+      workersConstructed++;
     }
   };
-  return async () => constructed > 0;
+  return async () => workersConstructed > 0;
 }
 
 /**
@@ -112,13 +112,15 @@ async function permissionWarnings() {
   if (!management?.getPermissionWarningsByManifest) return null;
 
   const manifest = browser.runtime.getManifest();
-  const without = {
+  const manifestWithoutOffscreen = {
     ...manifest,
     permissions: manifest.permissions?.filter((p) => p !== "offscreen"),
   };
 
   return {
     loaded: await management.getPermissionWarningsByManifest(JSON.stringify(manifest)),
-    withoutOffscreen: await management.getPermissionWarningsByManifest(JSON.stringify(without)),
+    withoutOffscreen: await management.getPermissionWarningsByManifest(
+      JSON.stringify(manifestWithoutOffscreen),
+    ),
   };
 }

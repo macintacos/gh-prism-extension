@@ -47,12 +47,12 @@ export function offscreenEngine(api: OffscreenApi): EngineRun {
 
     const relayed = (async (): Promise<EngineResult> => {
       try {
-        for (const last of [false, true]) {
+        for (const isLastAttempt of [false, true]) {
           await ensureDocument();
           if (signal.aborted) return FAILED;
           sent = true;
           const result = await api.send({ to: TO_OFFSCREEN, id, request }).catch((error) => {
-            if (last) throw error;
+            if (isLastAttempt) throw error;
           });
           if (result) return result;
           if (signal.aborted) return FAILED;
@@ -105,21 +105,21 @@ function isToOffscreen(message: unknown): message is ToOffscreen {
 
 /** Answers relayed requests with `run`, and closes the document once it has been idle. */
 export function serveOffscreen(deps: OffscreenDeps): void {
-  const pending = new Map<string, AbortController>();
+  const running = new Map<string, AbortController>();
   let cancelClose: (() => void) | undefined = deps.closeWhenIdle(() => deps.close());
 
   deps.listen((message, fromTab, respond) => {
     // A content script can call runtime.sendMessage, and it shares a renderer with the page.
     if (fromTab || !isToOffscreen(message)) return false;
     if ("cancel" in message) {
-      pending.get(message.id)?.abort();
+      running.get(message.id)?.abort();
       return false;
     }
 
     cancelClose?.();
     cancelClose = undefined;
     const controller = new AbortController();
-    pending.set(message.id, controller);
+    running.set(message.id, controller);
 
     deps
       .run(message.request, controller.signal)
@@ -130,9 +130,9 @@ export function serveOffscreen(deps: OffscreenDeps): void {
         return FAILED;
       })
       .then((result) => {
-        pending.delete(message.id);
+        running.delete(message.id);
         respond(result);
-        if (pending.size === 0) cancelClose = deps.closeWhenIdle(() => deps.close());
+        if (running.size === 0) cancelClose = deps.closeWhenIdle(() => deps.close());
       });
     return true;
   });
