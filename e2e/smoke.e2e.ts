@@ -249,21 +249,7 @@ test("paints no structural highlight while Structural is off", async ({ context,
   const nav = page.getByRole("navigation", { name: "Changed files by section" });
   await expect(nav.getByRole("heading", { name: "Implementation" })).toBeVisible();
 
-  const painted = await page.evaluate(
-    (marked) => ({
-      highlights: ["gh-prism-added", "gh-prism-removed"].filter((name) => CSS.highlights.has(name)),
-      marked: document.querySelectorAll(marked).length,
-      notices: document.querySelectorAll(
-        ".gh-prism-structural-notice, .gh-prism-structural-loading",
-      ).length,
-      sheets: [...document.head.querySelectorAll("style")].filter((style) =>
-        style.textContent.includes("::highlight(gh-prism-"),
-      ).length,
-    }),
-    STRUCTURAL_ATTRS.map((name) => `[${name}]`).join(", "),
-  );
-
-  expect(painted).toEqual({ highlights: [], marked: 0, notices: 0, sheets: 0 });
+  expect(await structuralPaint(page)).toEqual({ highlights: [], marked: 0, notices: 0, sheets: 0 });
 });
 
 test("a commit mounts its sections in path-only mode", async ({ context, page }) => {
@@ -5128,12 +5114,15 @@ const layoutGear = (page: Page) => page.locator("button:has(.octicon-gear)");
 const urlLayout = (page: Page) =>
   page.evaluate(() => new URLSearchParams(location.search).get("diff"));
 
-/** What the page holds of a structural paint: highlights, marked nodes, and their sheets. */
+/** What the page holds of a structural paint: highlights, marked nodes, notices, and sheets. */
 const structuralPaint = (page: Page) =>
   page.evaluate(
     (markedSelector) => ({
       highlights: ["gh-prism-added", "gh-prism-removed"].filter((name) => CSS.highlights.has(name)),
       marked: document.querySelectorAll(markedSelector).length,
+      notices: document.querySelectorAll(
+        ".gh-prism-structural-notice, .gh-prism-structural-loading",
+      ).length,
       sheets: [...document.head.querySelectorAll("style")].filter((style) =>
         style.textContent.includes("::highlight(gh-prism-"),
       ).length,
@@ -5192,7 +5181,12 @@ for (const kind of ["pr", "commit"] as const) {
       await segment(page, leave).click();
 
       await expect(segment(page, leave)).toHaveAttribute("aria-pressed", "true");
-      expect(await structuralPaint(page)).toEqual({ highlights: [], marked: 0, sheets: 0 });
+      expect(await structuralPaint(page)).toEqual({
+        highlights: [],
+        marked: 0,
+        notices: 0,
+        sheets: 0,
+      });
     });
   }
 

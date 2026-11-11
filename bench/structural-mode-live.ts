@@ -515,7 +515,11 @@ async function viewControl(page: Page): Promise<void> {
         const traces = await structuralTraces(page);
         check(
           `control ${url} clean after ${after}`,
-          added === 0 && removed === 0 && traces.attributes === 0 && traces.sheets === 0,
+          added === 0 &&
+            removed === 0 &&
+            traces.attributes === 0 &&
+            traces.sheets === 0 &&
+            traces.notices === 0,
           JSON.stringify({ added, removed, ...traces }),
         );
       };
