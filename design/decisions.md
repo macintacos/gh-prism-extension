@@ -6,6 +6,76 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-10: A Unified, Split, and Structural control beside the diff settings gear
+
+- **Compared:**
+  - for its place, first in the toolbar's row like the other toolbar toggles, before the
+    gear's wrapper, or immediately before the gear;
+  - for its form, Primer's segmented control, a labelled button opening a menu, or a third
+    item beside GitHub's two in its Layout menu;
+  - for its semantics, Primer's `aria-pressed` buttons, or a radio group moved through
+    with the arrow keys;
+  - for the Beta tag, inside the Structural segment or beside the control, and neutral or
+    GitHub's green Preview label;
+  - for confirming a switch, the Layout item's `aria-checked`, or the diff tables;
+  - for a layout the page can't tell, a guess, or no pressed segment.
+- **Won:** Primer's segmented control, immediately before the gear, as three
+  `aria-pressed` buttons that take no key. Structural holds a neutral "Beta" tag in the
+  "No reviewer" tag's form. It also holds the only tooltip: "Highlights what changed in
+  the code and quiets formatting-only changes. Beta: it may have bugs." On a pull request
+  filtered to one commit, Structural is disabled, and its tooltip reads "Structural isn't
+  available while viewing one commit of a pull request." A switch is confirmed from the
+  tables' columns, and no segment is pressed while the layout can't be told. Unified and
+  Split choose GitHub's own Layout item, so GitHub keeps saving the layout; Structural
+  chooses Split and turns the mode on.
+- **Why:**
+  - **Place:** the control replaces a setting the gear's menu holds, so it sits beside the
+    gear, and on a narrow pull request the gear's wrapper then hides the control with the
+    gear.
+  - **Form:** the choice is three-way, GitHub's own Layout is already a one-of-many
+    choice, and a menu would hide which view is on. A third Layout item would live inside
+    React's menu, which gh-prism doesn't edit.
+  - **Semantics:** Primer's own segmented control uses `aria-pressed` buttons, each a Tab
+    stop pressed with Enter or Space, so the control binds no key GitHub might bind.
+  - **Tag:** inside the segment it names the one view it qualifies, and it joins the
+    button's name, "Structural Beta". Green would read as lines added.
+  - **Confirming:** in 10 of 10 live switches the item never read `aria-checked="true"`
+    before GitHub's menu closed. The tables' columns change within 24 to 57 ms.
+  - **No guess:** a pressed segment that disagreed with the gear would mislead; showing
+    nothing is honest.
+- **The 2026-10-28 rejection doesn't apply:** that entry turned down a segmented control
+  for a commit message's two views as loud on every commit, with Preview and Code naming a
+  file. This control replaces a choice GitHub already offers, has three views, and names
+  them in GitHub's own words.
+- **Measured** live on sandbox PR #3 and a sandbox commit in Chromium 156, light then
+  dark, against floors of 4.5:1 for text and 3:1 for marks:
+  - a label on the track 13.07:1 and 18.87:1, on the hovered track 12.55:1 and 12.04:1,
+    and on the knob 15.80:1 and 12.90:1;
+  - the Beta tag on the track 5.06:1 and 7.05:1, on the hovered track 4.86:1 and 4.50:1,
+    and on the knob 6.11:1 and 4.82:1;
+  - the knob's edge on the track 5.06:1 and 3.87:1. Primer's own
+    `--controlKnob-borderColor-rest` measured 1.18:1 and 2.09:1, so the edge takes
+    `--borderColor-neutral-emphasis`, a neutral Primer variable that holds the floor;
+  - the focus ring 4.30:1 and 4.43:1 on the track, and 5.19:1 and 3.03:1 on the knob;
+  - segments at least 24px both ways, 26px high at 100% text and 54px at 200%, and the
+    track 28px, the gear's height, so the toolbar's row keeps its height.
+
+  The dark Beta tag on the hovered track sits exactly on the floor. The Beta pill's
+  hairline, like the "No reviewer" pill's, is decoration; the tag's text carries it.
+- **Known limits:**
+  - No segment is pressed while the layout can't be told: a pull request whose mounted
+    files all change one side only, with the mode off.
+  - The control hides while GitHub's toolbar has no room for it, because that toolbar
+    never wraps; GitHub's own menu still switches layouts. On a commit's page it is also
+    hidden below 768px.
+  - A pointer press is kept on `<html>` from `pointerdown` to `pointerup`, so it survives
+    GitHub's hydration re-mounting the page mid-press. A press made as the control first
+    appears can still be lost, about 1 in 9 in a live test, for a reason not yet found.
+  - A change made in another tab shows on the next full load.
+  - Chrome before 145 rings the segment when focus returns to it after a pointer press.
+  - Themes were measured by switching `data-color-mode`, and 200% text by the root font
+    size, which doesn't scale media queries in `em`.
+
 ## 2026-11-10: Structural mode's notices and loading line
 
 - **Compared:** for where a file's notice sits, inside the sticky file header, after the
