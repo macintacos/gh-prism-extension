@@ -15,6 +15,7 @@ import {
   findLayoutGear,
   findLayoutMenu,
 } from "../../../entrypoints/content/files-page";
+import { type PressGuard, pressGuard } from "../../../entrypoints/content/ui/press-guard";
 import commitSplit from "../../fixtures/commit-page-diff-split.html?raw";
 import commitUnified from "../../fixtures/commit-page-diff-unified.html?raw";
 import commitToolbar from "../../fixtures/commit-page-toolbar.html?raw";
@@ -27,35 +28,55 @@ import { installLayoutMenu } from "../../fixtures/layout-menu";
 import commitMenu from "../../fixtures/layout-menu-commit.html?raw";
 import prMenu from "../../fixtures/layout-menu-pr.html?raw";
 
-const VIEWS: DiffView[] = ["unified", "split", "structural"];
-const LAYOUTS: (DiffLayout | undefined)[] = ["unified", "split", undefined];
-
 describe("shownView", () => {
-  it.each(LAYOUTS.flatMap((layout) => [false, true].map((on) => ({ layout, on }))))(
-    "shows the layout $layout with the mode on: $on",
-    ({ layout, on }) => {
-      const expected = on && layout !== "unified" ? "structural" : layout;
-      expect(shownView(layout, on)).toBe(expected);
+  it.each<{ layout: DiffLayout | undefined; on: boolean; shown: DiffView | undefined }>([
+    { layout: "unified", on: false, shown: "unified" },
+    { layout: "unified", on: true, shown: "unified" },
+    { layout: "split", on: false, shown: "split" },
+    { layout: "split", on: true, shown: "structural" },
+    { layout: undefined, on: false, shown: undefined },
+    { layout: undefined, on: true, shown: "structural" },
+  ])("shows $shown for the layout $layout with the mode on: $on", ({ layout, on, shown }) => {
+    expect(shownView(layout, on)).toBe(shown);
+  });
+});
+
+describe("stepsFor", () => {
+  it.each<{
+    target: DiffView;
+    layout: DiffLayout | undefined;
+    on: boolean;
+    steps: ReturnType<typeof stepsFor>;
+  }>([
+    { target: "unified", layout: "unified", on: false, steps: {} },
+    { target: "unified", layout: "unified", on: true, steps: { set: false } },
+    { target: "unified", layout: "split", on: false, steps: { choose: "unified" } },
+    { target: "unified", layout: "split", on: true, steps: { choose: "unified", set: false } },
+    { target: "unified", layout: undefined, on: false, steps: { choose: "unified" } },
+    { target: "unified", layout: undefined, on: true, steps: { choose: "unified", set: false } },
+    { target: "split", layout: "unified", on: false, steps: { choose: "split" } },
+    { target: "split", layout: "unified", on: true, steps: { choose: "split", set: false } },
+    { target: "split", layout: "split", on: false, steps: {} },
+    { target: "split", layout: "split", on: true, steps: { set: false } },
+    { target: "split", layout: undefined, on: false, steps: { choose: "split" } },
+    { target: "split", layout: undefined, on: true, steps: { choose: "split", set: false } },
+    { target: "structural", layout: "unified", on: false, steps: { choose: "split", set: true } },
+    { target: "structural", layout: "unified", on: true, steps: { choose: "split" } },
+    { target: "structural", layout: "split", on: false, steps: { set: true } },
+    { target: "structural", layout: "split", on: true, steps: {} },
+    { target: "structural", layout: undefined, on: false, steps: { choose: "split", set: true } },
+    { target: "structural", layout: undefined, on: true, steps: { choose: "split" } },
+  ])(
+    "plans a press on $target from $layout with the mode on: $on",
+    ({ target, layout, on, steps }) => {
+      expect(stepsFor(target, { layout, on })).toEqual(steps);
     },
   );
 });
 
-describe("stepsFor", () => {
-  it.each(
-    VIEWS.flatMap((target) =>
-      LAYOUTS.flatMap((layout) => [false, true].map((on) => ({ target, layout, on }))),
-    ),
-  )("plans a press on $target from $layout with the mode on: $on", ({ target, layout, on }) => {
-    const wanted = target === "unified" ? "unified" : "split";
-    const steps = stepsFor(target, { layout, on });
-
-    expect(steps.choose).toBe(layout === wanted ? undefined : wanted);
-    expect(steps.set).toBe(on === (target === "structural") ? undefined : target === "structural");
-  });
-});
-
 describe("showDiffViewControl", () => {
   let controller: AbortController;
+  let guard: PressGuard;
   const flush = () => vi.advanceTimersByTimeAsync(100);
   const control = () => document.querySelector<HTMLElement>(".gh-prism-diff-view");
   const segment = (view: DiffView) =>
@@ -138,6 +159,7 @@ describe("showDiffViewControl", () => {
       commit,
       offersStructural,
       search: () => location.search,
+      guard,
     });
   }
 
@@ -158,6 +180,7 @@ describe("showDiffViewControl", () => {
     vi.useFakeTimers();
     history.replaceState(null, "", "/o/r/pull/1/changes");
     controller = new AbortController();
+    guard = pressGuard(document, controller.signal);
   });
 
   afterEach(() => {
@@ -518,6 +541,7 @@ describe("showDiffViewControl", () => {
       commit: false,
       offersStructural: true,
       search: () => location.search,
+      guard,
     });
 
     segment("unified")?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
@@ -527,6 +551,107 @@ describe("showDiffViewControl", () => {
     await flush();
 
     expect(log).toEqual(["choose unified"]);
+  });
+
+  it("abandons a press whose page is torn down mid-press", async () => {
+    const page = pageOf("pr", "unified");
+    const log: string[] = [];
+    recordItemClicks(log);
+    const { choice, set } = choiceOf(false, log);
+    const first = new AbortController();
+    showDiffViewControl(page, first.signal, {
+      choice,
+      commit: false,
+      offersStructural: true,
+      search: () => location.search,
+      guard,
+    });
+
+    segment("structural")?.click();
+    first.abort();
+    await flush();
+
+    expect(log).toEqual([]);
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it("closes the menu without choosing the layout it already shows", async () => {
+    const page = pageOf("pr", "split");
+    for (const table of page.diffs.querySelectorAll("table")) table.remove();
+    const log: string[] = [];
+    recordItemClicks(log);
+    show(page, choiceOf(false, log).choice);
+
+    segment("unified")?.click();
+    await flush();
+
+    expect(log).toEqual([]);
+    expect(findLayoutMenu(document)).toBeUndefined();
+    expect(control()).not.toBeNull();
+  });
+
+  it("measures the toolbar only on mount, not on a diffs report", async () => {
+    const page = pageOf("pr", "split");
+    const toolbar = findFilesToolbar(page);
+    if (!toolbar) throw new Error("fixture has no toolbar");
+    let reads = 0;
+    Object.defineProperty(toolbar, "scrollWidth", {
+      get: () => {
+        reads++;
+        return 0;
+      },
+    });
+    show(page, choiceOf(false).choice);
+    await flush();
+    const onMount = reads;
+
+    page.diffs.append(document.createElement("div"));
+    await flush();
+
+    expect(onMount).toBeGreaterThan(0);
+    expect(reads).toBe(onMount);
+  });
+
+  it("writes nothing to its segments on a report that leaves the view as it was", async () => {
+    const page = pageOf("pr", "split");
+    show(page, choiceOf(false).choice);
+    await flush();
+    const writes: MutationRecord[] = [];
+    const watch = new MutationObserver((records) => writes.push(...records));
+    const list = control();
+    if (list) watch.observe(list, { attributes: true, subtree: true });
+
+    page.diffs.append(document.createElement("div"));
+    await flush();
+
+    watch.disconnect();
+    expect(writes).toEqual([]);
+  });
+
+  it("follows a toolbar GitHub replaces, re-observing its room", async () => {
+    const observed: Element[] = [];
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe(target: Element) {
+          observed.push(target);
+        }
+        disconnect() {}
+      },
+    );
+    const page = pageOf("pr", "split");
+    show(page, choiceOf(false).choice);
+
+    const toolbar = findFilesToolbar(page);
+    const replacement = toolbar?.cloneNode(true) as Element;
+    for (const stale of replacement.querySelectorAll(".gh-prism-diff-view")) stale.remove();
+    toolbar?.replaceWith(replacement);
+    page.diffs.append(document.createElement("div"));
+    await flush();
+
+    vi.unstubAllGlobals();
+    expect(observed.at(-1)).toBe(replacement);
+    expect(control()?.nextElementSibling).toBe(findLayoutGear(page));
   });
 
   it("forgets a press released off the control", async () => {

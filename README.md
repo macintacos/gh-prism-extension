@@ -175,6 +175,16 @@ a commit's page, picks how the diffs are drawn: **Unified**, **Split**, or **Str
   does choosing Unified from GitHub's own Layout menu. On a pull request filtered to one
   commit, Structural is unavailable. Structural is in beta, so it may have bugs.
 
+<details>
+<summary>Screenshot: a Python file in Structural, with only the changed words highlighted</summary>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/structural-dark.png">
+  <img src="docs/images/structural-light.png" width="1280" alt="The toolbar's Unified, Split, and Structural control with Structural pressed and a Beta tag inside it, beside GitHub's diff settings gear. Below, app/ledger.py in GitHub's split layout, where only the changed words of each edited line are highlighted and underlined, such as “integers” becoming “whole” and the added “never floats” in a comment.">
+</picture>
+
+</details>
+
 ## Install
 
 Install gh-prism from the

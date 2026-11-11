@@ -68,8 +68,9 @@ at the top, dated.
   - The control hides while GitHub's toolbar has no room for it, because that toolbar
     never wraps; GitHub's own menu still switches layouts. On a commit's page it is also
     hidden below 768px.
-  - A pointer press is kept on `<html>` from `pointerdown` to `pointerup`, so it survives
-    GitHub's hydration re-mounting the page mid-press. A press made as the control first
+  - A visit-wide guard keeps a pointer press from `pointerdown` until the pointer is
+    released or cancelled, so a release on the re-mounted segment still presses it when
+    GitHub's hydration re-mounts the page mid-press. A press made as the control first
     appears can still be lost, about 1 in 9 in a live test, for a reason not yet found.
   - A change made in another tab shows on the next full load.
   - Chrome before 145 rings the segment when focus returns to it after a pointer press.

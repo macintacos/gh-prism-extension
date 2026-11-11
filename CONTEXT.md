@@ -204,6 +204,11 @@ order. Structural mode marks both with a dashed outline. A line on a quiet row's
 side is never a moved line. _Avoid_: relocated line; move (the sidebar's word for a file
 that changes section)
 
+**Diff view control**: gh-prism's Unified, Split, and Structural control beside GitHub's
+diff settings gear. It picks GitHub's layout, Unified or Split, or Structural mode;
+picking a layout turns Structural mode off. _Avoid_: layout control, because "layout" is
+GitHub's word for its two-way choice alone
+
 **Engine**: What compares a changed file's old and new tokens for structural mode and
 reports each version's changed tokens, or why it can't: no grammar for the file, a file
 past its limits, or text that does not parse. _Avoid_: differ, parser

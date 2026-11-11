@@ -15,12 +15,16 @@ import {
   showsUnified,
 } from "../files-page";
 import { el } from "../ui/dom";
+import type { PressGuard } from "../ui/press-guard";
 import type { StructuralChoice } from "./structural-mode";
 // ?inline, not a plain import: a plain import ships the sheet in the manifest, styling every
 // github.com page; this mounts only while the control lives.
 import css from "./view-control.css?inline";
 
+/** A segment of the control: GitHub's two layouts, or Structural mode over Split. */
 export type DiffView = "unified" | "split" | "structural";
+
+const VIEWS: readonly DiffView[] = ["unified", "split", "structural"];
 
 /** The segment to show pressed: Structural while the mode is on and Unified is not certain, else the certain layout, else none. */
 export function shownView(layout: DiffLayout | undefined, on: boolean): DiffView | undefined {
@@ -45,14 +49,12 @@ const LAYOUT_WAIT_MS = 2000;
 const POLL_MS = 25;
 
 /** Resolves `true` once `ready()` holds, or `false` after `ms` or on abort. */
-async function until(
+async function waitFor(
   win: Window,
   ready: () => boolean,
   ms: number,
   signal: AbortSignal,
 ): Promise<boolean> {
-  // The menu's items exist one microtask after the gear's click.
-  await Promise.resolve();
   for (let waited = 0; !ready(); waited += POLL_MS) {
     if (waited >= ms || signal.aborted) return false;
     await new Promise((resolve) => win.setTimeout(resolve, POLL_MS));
@@ -60,7 +62,11 @@ async function until(
   return true;
 }
 
-/** Chooses `layout` in GitHub's diff settings menu, resolving once the menu has closed: `false`, having chosen nothing, when the menu or the item isn't found within a second. */
+/**
+ * Chooses `layout` in GitHub's diff settings menu, resolving once the menu has closed, or a second
+ * after the choice: `false`, having chosen nothing, when the menu or the item isn't found within a
+ * second or `signal` aborts. The item already checked is never clicked: the menu just closes.
+ */
 export async function chooseLayout(
   gear: HTMLButtonElement,
   layout: DiffLayout,
@@ -71,16 +77,26 @@ export async function chooseLayout(
   if (!win) return false;
 
   gear.click();
-  const found = await until(win, () => !!findLayoutMenu(doc), MENU_WAIT_MS, signal);
+  // The menu's items exist one microtask after the gear's click.
+  await Promise.resolve();
+  const found = await waitFor(win, () => !!findLayoutMenu(doc), MENU_WAIT_MS, signal);
   const menu = findLayoutMenu(doc);
-  if (!found || !menu) {
+  const close = () => {
     // A second click closes the menu without choosing.
     if (gear.getAttribute("aria-expanded") === "true") gear.click();
+  };
+  if (!found || !menu || signal.aborted) {
+    close();
     return false;
+  }
+  // Choosing the shown layout again would post it again.
+  if (menu[layout].getAttribute("aria-checked") === "true") {
+    close();
+    return true;
   }
 
   menu[layout].click();
-  await until(win, () => !findLayoutMenu(doc), MENU_WAIT_MS, signal);
+  await waitFor(win, () => !findLayoutMenu(doc), MENU_WAIT_MS, signal);
   return true;
 }
 
@@ -92,6 +108,8 @@ export interface DiffViewOptions {
   readonly offersStructural: boolean;
   /** The page's current `location.search`. */
   readonly search: () => string;
+  /** The visit's, so a press outlives the page that started it. */
+  readonly guard: PressGuard;
 }
 
 const STRUCTURAL_TIP =
@@ -121,54 +139,66 @@ function segmentOf(doc: Document, view: DiffView, label: string): HTMLButtonElem
   return button;
 }
 
+interface DiffViewControl {
+  readonly list: HTMLUListElement;
+  readonly segments: Readonly<Record<DiffView, HTMLButtonElement>>;
+}
+
 /** The control's list of three segments, Structural disabled unless `offersStructural`. */
-function controlOf(doc: Document, offersStructural: boolean): HTMLUListElement {
-  const segments = [
-    segmentOf(doc, "unified", "Unified"),
-    segmentOf(doc, "split", "Split"),
-    segmentOf(doc, "structural", "Structural"),
-  ];
-  const structural = segments[2];
-  structural?.setAttribute("aria-description", offersStructural ? STRUCTURAL_TIP : UNOFFERED_TIP);
-  if (!offersStructural) structural?.setAttribute("aria-disabled", "true");
+function controlOf(doc: Document, offersStructural: boolean): DiffViewControl {
+  const segments = {
+    unified: segmentOf(doc, "unified", "Unified"),
+    split: segmentOf(doc, "split", "Split"),
+    structural: segmentOf(doc, "structural", "Structural"),
+  };
+  segments.structural.setAttribute(
+    "aria-description",
+    offersStructural ? STRUCTURAL_TIP : UNOFFERED_TIP,
+  );
+  if (!offersStructural) segments.structural.setAttribute("aria-disabled", "true");
 
   const list = el(
     doc,
     "ul",
-    "gh-prism-diff-view tw:inline-flex tw:items-stretch tw:shrink-0 tw:h-[var(--control-small-size)] tw:m-0 tw:p-0 tw:list-none tw:border tw:border-[var(--controlTrack-borderColor-rest)] tw:rounded-medium tw:bg-[var(--controlTrack-bgColor-rest)]",
-    ...segments.map((segment) => el(doc, "li", "gh-prism-diff-view-item tw:flex", segment)),
+    "gh-prism-diff-view tw:items-stretch tw:shrink-0 tw:h-[var(--control-small-size)] tw:m-0 tw:p-0 tw:list-none tw:border tw:border-[var(--controlTrack-borderColor-rest)] tw:rounded-medium tw:bg-[var(--controlTrack-bgColor-rest)]",
+    ...VIEWS.map((view) => el(doc, "li", "gh-prism-diff-view-item tw:flex", segments[view])),
   );
   list.setAttribute("aria-label", "Diff view");
-  return list;
+  return { list, segments };
 }
 
-/** The Unified, Split, and Structural control before `page`'s layout gear, re-mounted when GitHub re-renders the toolbar, until `signal` aborts. Shows nothing while the gear is missing. */
+/**
+ * The Unified, Split, and Structural control before `page`'s layout gear, re-mounted when GitHub
+ * re-renders the toolbar, until `signal` aborts. Shows nothing while the gear is missing, hides
+ * while the toolbar has no room for it, and is removed for the rest of the page once GitHub's menu
+ * or its item isn't found.
+ */
 export function showDiffViewControl(
   page: FilesPage,
   signal: AbortSignal,
-  { choice, commit, offersStructural, search }: DiffViewOptions,
+  { choice, commit, offersStructural, search, guard }: DiffViewOptions,
 ): void {
   const doc = page.sidebar.ownerDocument;
-  let control: HTMLUListElement | undefined;
+  let control: DiffViewControl | undefined;
+  // The view last drawn pressed; `null` until the mounted control draws one.
+  let drawn: DiffView | undefined | null = null;
   let busy = false;
   let gaveUp = false;
   let heard: AbortSignal | undefined;
-  // Hydration can replace the page mid-press, re-mounting the control, and then no click fires.
-  // The press is kept on <html>, where the control the re-mount draws can find it.
-  const root = doc.documentElement;
 
   const shown = () => ({
     layout: certainLayout(page.diffs, { commit }),
     on: choice.on && offersStructural,
   });
-  const segment = (view: DiffView) =>
-    control?.querySelector<HTMLButtonElement>(`[data-view="${view}"]`) ?? undefined;
 
   const render = () => {
     const { layout, on } = shown();
     const view = shownView(layout, on);
-    for (const button of control?.querySelectorAll<HTMLElement>("[data-view]") ?? [])
-      button.setAttribute("aria-pressed", String(button.dataset.view === view));
+    if (control && view !== drawn) {
+      drawn = view;
+      for (const [segment, button] of Object.entries(control.segments))
+        button.setAttribute("aria-pressed", String(segment === view));
+    }
     if (heard !== choice.whileOn) {
       heard = choice.whileOn;
       // A microtask on: `on` still reads true while `whileOn` aborts.
@@ -180,7 +210,7 @@ export function showDiffViewControl(
     const win = doc.defaultView;
     return (
       !!win &&
-      until(
+      waitFor(
         win,
         () => !showsUnified(page.diffs, { commit, search: search() }),
         LAYOUT_WAIT_MS,
@@ -191,7 +221,7 @@ export function showDiffViewControl(
 
   const giveUp = () => {
     gaveUp = true;
-    control?.remove();
+    control?.list.remove();
     control = undefined;
   };
 
@@ -202,14 +232,18 @@ export function showDiffViewControl(
     const steps = stepsFor(view, { layout, on });
     busy = true;
     try {
+      // A page torn down mid-press leaves the rest to the page that replaced it.
       if (steps.choose) {
         const gear = findLayoutGear(page);
-        if (!gear || !(await chooseLayout(gear, steps.choose, { signal }))) return giveUp();
+        const chosen = !!gear && (await chooseLayout(gear, steps.choose, { signal }));
+        if (signal.aborted) return;
+        if (!chosen) return giveUp();
         // Primer returns focus to the gear as its menu closes.
-        if (doc.activeElement === gear) segment(view)?.focus();
+        if (doc.activeElement === gear) control?.segments[view].focus();
       }
       // The mode turned on while the page still reads Unified turns straight off again.
       if (view === "structural" && !(await leftUnified())) return;
+      if (signal.aborted) return;
       if (steps.set !== undefined) choice.set(steps.set);
     } finally {
       busy = false;
@@ -217,72 +251,74 @@ export function showDiffViewControl(
     }
   };
 
-  const mount = (gear: Element) => {
-    // A DOM clone of the toolbar, such as a restored snapshot, can carry an earlier control.
-    for (const stale of doc.querySelectorAll(".gh-prism-diff-view")) stale.remove();
-    control = controlOf(doc, offersStructural);
-    for (const button of control.querySelectorAll<HTMLElement>("[data-view]")) {
-      const view = button.dataset.view as DiffView;
-      button.addEventListener("click", () => void press(view));
-      button.addEventListener("pointerdown", () => {
-        root.dataset.ghPrismDiffViewDown = view;
-        button.dataset.down = "";
-      });
-      button.addEventListener("pointerup", () => {
-        // A segment that never saw this press's pointerdown replaced the one that did.
-        if (root.dataset.ghPrismDiffViewDown === view && button.dataset.down === undefined)
-          void press(view);
-      });
-    }
-    gear.before(control);
-  };
-
   // GitHub's toolbar never wraps, so a control it has no room for would scroll the page sideways.
   const fitToToolbar = () => {
     const toolbar = findFilesToolbar(page);
     if (!control || !toolbar) return;
-    control.hidden = true;
+    // Hidden only if it adds overflow: the toolbar's room is measured without it, then with it.
+    control.list.hidden = true;
     const room = Math.max(toolbar.clientWidth, toolbar.scrollWidth);
-    control.hidden = false;
-    control.hidden = toolbar.scrollWidth > room;
+    control.list.hidden = false;
+    control.list.hidden = toolbar.scrollWidth > room;
+  };
+
+  const mount = (gear: Element) => {
+    // A DOM clone of the toolbar, such as a restored snapshot, can carry an earlier control.
+    for (const stale of doc.querySelectorAll(".gh-prism-diff-view")) stale.remove();
+    control = controlOf(doc, offersStructural);
+    drawn = null;
+    for (const view of VIEWS) {
+      const segment = control.segments[view];
+      segment.addEventListener("click", () => void press(view));
+      guard(segment, view, () => void press(view));
+    }
+    gear.before(control.list);
+    fitToToolbar();
   };
 
   const follow = () => {
+    watchToolbar();
     const gear = findLayoutGear(page);
     if (gaveUp) return;
     if (!gear) {
-      control?.remove();
+      control?.list.remove();
       control = undefined;
       return;
     }
-    if (control?.nextElementSibling !== gear) mount(gear);
+    if (control?.list.nextElementSibling !== gear) mount(gear);
     render();
-    fitToToolbar();
+  };
+
+  // The toolbar's room changes only as it resizes or its children change; GitHub can replace a
+  // pull request's toolbar, a page-wide header outside its diffs, without a new page.
+  const resizes = new ResizeObserver(fitToToolbar);
+  let watched: Element | undefined;
+  let unwatch: AbortController | undefined;
+  const watchToolbar = () => {
+    const toolbar = findFilesToolbar(page);
+    if (toolbar === watched) return;
+    watched = toolbar;
+    unwatch?.abort();
+    resizes.disconnect();
+    if (!toolbar) return;
+    resizes.observe(toolbar);
+    if (page.diffs.contains(toolbar)) return;
+    unwatch = new AbortController();
+    const onToolbar = () => {
+      follow();
+      fitToToolbar();
+    };
+    observeDiffs(toolbar, onToolbar, { signal: AbortSignal.any([signal, unwatch.signal]) });
   };
 
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   doc.head.append(style);
-  // After each segment's own pointerup, so a press released elsewhere is forgotten.
-  const forgetPress = () => {
-    delete root.dataset.ghPrismDiffViewDown;
-    for (const button of doc.querySelectorAll<HTMLElement>(".gh-prism-diff-view [data-down]"))
-      delete button.dataset.down;
-  };
-  doc.addEventListener("pointerup", forgetPress, { signal });
-  doc.addEventListener("pointercancel", forgetPress, { signal });
   signal.addEventListener("abort", () => {
     style.remove();
-    control?.remove();
+    control?.list.remove();
+    resizes.disconnect();
   });
 
   observeDiffs(page.diffs, follow, { signal });
-  // A pull request's toolbar is a page-wide header outside its diffs.
-  const toolbar = findFilesToolbar(page);
-  if (toolbar && !page.diffs.contains(toolbar)) observeDiffs(toolbar, follow, { signal });
-  if (toolbar) {
-    const resizes = new ResizeObserver(fitToToolbar);
-    resizes.observe(toolbar);
-    signal.addEventListener("abort", () => resizes.disconnect());
-  }
   follow();
 }

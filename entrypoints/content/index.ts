@@ -79,6 +79,7 @@ import { showReportLink } from "./sidebar/report";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar/side";
 import type { WhatsNew } from "./sidebar/whats-new";
 import { prOwnersPressGuard, showPrOwnersButton } from "./ui/pr-owners";
+import { pressGuard } from "./ui/press-guard";
 import { showHeaderTab, showVisit } from "./visit/land";
 import { watchClassicPages, watchFilesPages, watchHeaderPages } from "./visit/watch";
 
@@ -235,6 +236,7 @@ export default defineContentScript({
                 })
               : undefined;
           const prOwnersGuard = panel && prOwnersPressGuard(document, visit);
+          const diffViewGuard = pressGuard(document, visit);
           const landHash = hashLanding(document, visit);
           // Built on a page's first use while on, and again if the mode is turned back on in this
           // visit; never while off.
@@ -277,6 +279,7 @@ export default defineContentScript({
               commit: route.diff.kind === "commit",
               offersStructural: !route.commitFiltered,
               search: () => location.search,
+              guard: diffViewGuard,
             });
             showCommitMessage(page, signal, {
               afterSections: afterLanding(intent),
@@ -595,8 +598,8 @@ function structuralModeOf(
   };
 }
 
-/** `structural` for one page, whose `set(true)` also calls `started`, so the page shows the mode. */
-function pageStructural(structural: StructuralChoice, started: () => void): StructuralChoice {
+/** `structural` for one page, whose `set(true)` also calls `start`, which shows the mode on this page. */
+function pageStructural(structural: StructuralChoice, start: () => void): StructuralChoice {
   return {
     get on() {
       return structural.on;
@@ -606,7 +609,7 @@ function pageStructural(structural: StructuralChoice, started: () => void): Stru
     },
     set(on) {
       structural.set(on);
-      if (on) started();
+      if (on) start();
     },
   };
 }

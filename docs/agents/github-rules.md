@@ -556,9 +556,17 @@ on a private one.
   the toolbar's end `Stack`, and inside the `width-full` group after "Search within code"
   on a commit. A node inserted with `gear.before(node)` survived a menu open, a Layout
   choice, the tree toggle, and scrolling, with no React error (Chromium 155 and Firefox
-  156, 2026-11-10). At 500px wide on a pull request the wrapper hides the gear and such a
-  node with it (`offsetParent === null`), and "More options" shows instead (Chromium 157,
-  signed in, 2026-11-10).
+  156, 2026-11-10). Hydration still re-mounts such a node once as the page first settles,
+  which can land between a `pointerdown` and its `pointerup`, so the press's `click` never
+  fires (Chromium 157, signed in, 2026-11-10). At 500px wide on a pull request the wrapper
+  hides the gear and such a node with it (`offsetParent === null`), and "More options"
+  shows instead (Chromium 157, signed in, 2026-11-10).
+- **Expect the toolbar never to wrap.** An extra child that doesn't fit overflows the page
+  sideways rather than starting a second row, so a node added to it must hide itself when
+  the row has no room (Chromium 157, signed in, 2026-11-10).
+- **Expect a pull request's toolbar outside `page.diffs` and a commit's inside it.** An
+  observer on the diffs sees a commit's toolbar re-render but not a pull request's, so a
+  node in the toolbar watches the toolbar itself (Chromium 157, signed in, 2026-11-10).
 - **Test the menu against the captured menus:** `tests/fixtures/layout-menu-pr.html` and
   `tests/fixtures/layout-menu-commit.html`, each opened from the gear with Unified saved.
 - **Test the gear against the captured toolbars:**
@@ -581,6 +589,23 @@ on a private one.
   for deleted files, use [cli/cli PR #14872](https://github.com/cli/cli/pull/14872) and
   [cli/cli@b564a77225](https://github.com/cli/cli/commit/b564a77225) after clicking Load
   Diff.
+
+  In the console, bind `gear` to the element `findLayoutGear` returns, `toolbar` to the
+  one `findFilesToolbar` returns, and `diffs` to the diff list a `FilesPage`'s `diffs`
+  holds. Then, on both page kinds:
+
+  1. Run `gear.click()`, then `await Promise.resolve()`, and count the Layout
+     `menuitemradio` items.
+  2. Click one item and read its `aria-checked` until the menu unmounts.
+  3. With the Network panel open, click each item, the checked one too, and read each
+     `/users/diffview` request body.
+  4. Close the menu with a second `gear.click()`, then with an `Escape` `keydown` on the
+     menu, and read `document.activeElement` each time.
+  5. Read `toolbar.contains(gear)` and `diffs.contains(toolbar)`.
+  6. Add a wide child before the gear and see the row overflow rather than wrap.
+  7. On a pull request, narrow the window to 500px and read the gear's `offsetParent`.
+  8. Insert a node before the gear as the page loads, and watch it with a
+     `MutationObserver` until the page settles.
 
 ## The file card
 

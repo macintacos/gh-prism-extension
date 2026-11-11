@@ -574,6 +574,12 @@ describe("findLayoutMenu", () => {
     });
   });
 
+  it("finds the Layout menu behind another open menu", () => {
+    openLayoutMenu(`<ul role="menu"><li role="menuitem">Other</li></ul>${prLayoutMenu}`);
+
+    expect(findLayoutMenu(document)?.unified).toBe(itemLabelled("Unified"));
+  });
+
   it("is undefined with no menu open", () => {
     expect(findLayoutMenu(document)).toBeUndefined();
   });

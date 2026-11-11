@@ -9,8 +9,8 @@
   margin-inline-end: 8px;
 }
 
-.gh-prism-diff-view[hidden] {
-  display: none;
+.gh-prism-diff-view:not([hidden]) {
+  display: inline-flex;
 }
 
 /* Below 768px a commit's search box shrinks to make room; GitHub's own menu still switches. */

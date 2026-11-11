@@ -149,8 +149,9 @@ these marks.
 
 A tooltip copies Primer's. It is an `::after` on the control that shows the control's
 `aria-label`, on `--tooltip-bgColor`, at the small body size, and it fades in over 120 ms
-on hover and focus. It opens toward the inside of the sidebar or the page, so it never
-clips at an edge. `sidebar/side.css`, `sidebar/report.css`, `commit/step-links.css`,
+on hover and focus. The diff view control's Structural segment shows its
+`aria-description` instead. It opens toward the inside of the sidebar or the page, so it
+never clips at an edge. `sidebar/side.css`, `sidebar/report.css`, `commit/step-links.css`,
 `commit/message-view.css`, `conversation/panel.css`, `ui/mark.css`, `ui/pr-owners.css`,
 and `diffs/view-control.css` hold the eight in use. The code owners button beside a
 Reviewers heading sits near the sidebar's inline end, so `conversation/reviewer-files.css`
@@ -659,9 +660,7 @@ marks join the owner headings, and `sidebar/owners-popover.ts` builds both:
   and the reviewers' names when they review for the team. It never says "Reviewed",
   because a request may still be pending.
 - **The "No reviewer" tag:** after a group none of whose owners a PR reviewer reviews for,
-  in muted text at the body-small size and medium weight inside a 1px
-  `--borderColor-default` pill, with the 6px padding and `2em` radius of a sidebar
-  section's file counter. A one-line call-out with a muted alert icon above the groups
+  a tag as § Tags describes. A one-line call-out with a muted alert icon above the groups
   counts those files.
 
 Each team's filter icon shows only that team's files, as § Owner identities says. A team

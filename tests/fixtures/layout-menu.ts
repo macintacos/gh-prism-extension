@@ -1,6 +1,6 @@
 /**
  * Plays GitHub's Layout menu on a fixture page: a gear click mounts `menu` under
- * `#__primerPortalRoot__` after a microtask; an item click posts `/users/diffview`, swaps each diff
+ * `#__primerPortalRoot__` after a microtask, its checked item the layout on screen; an item click posts `/users/diffview`, swaps each diff
  * table for its `tables[layout]` copy, replaces `?diff=`, and unmounts the menu, focusing the gear.
  * `omit` leaves one Layout item out. It plays until `signal` aborts, or for the page's life.
  *
@@ -44,8 +44,12 @@ export function installLayoutMenu(options: {
   const mount = (gear: HTMLButtonElement) => {
     const list = parse(options.menu).querySelector('ul[role="menu"]');
     if (!list) return;
+    // Checked as GitHub's: the layout on screen, read off the first table's columns.
+    const columns = document.querySelector("table[data-diff-anchor] > colgroup")?.childElementCount;
+    const shown = columns === 4 ? "split" : "unified";
     for (const item of list.querySelectorAll('[role="menuitemradio"]')) {
       const label = item.querySelector(LABEL)?.textContent?.trim().toLowerCase();
+      item.setAttribute("aria-checked", String(label === shown));
       if (label === options.omit) item.remove();
       else if (label === "unified" || label === "split")
         item.addEventListener("click", () => choose(label));

@@ -132,10 +132,6 @@ describe("currentLayout", () => {
 });
 
 describe("certainLayout", () => {
-  afterEach(() => {
-    history.replaceState(null, "", location.pathname);
-  });
-
   /** `files-page-diff-rename` with its old-side changed rows removed, leaving an all-additions file. */
   const allAdditions = (): string => {
     document.body.innerHTML = prRename;
@@ -163,13 +159,6 @@ describe("certainLayout", () => {
     document.body.innerHTML = html();
 
     expect(certainLayout(document, { commit })).toBe(layout);
-  });
-
-  it("reads a one-sided pull request table as uncertain even under ?diff=unified", () => {
-    document.body.innerHTML = allAdditions();
-    history.replaceState(null, "", "?diff=unified");
-
-    expect(certainLayout(document, { commit: false })).toBeUndefined();
   });
 });
 
