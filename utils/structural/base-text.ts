@@ -58,7 +58,8 @@ function applyHunk(
 }
 
 /** Lines before a hunk side: a zero-count side's start names the line before it. */
-const linesBefore = (start: number, count: number): number => (count === 0 ? start : start - 1);
+export const linesBefore = (start: number, count: number): number =>
+  count === 0 ? start : start - 1;
 
 /** Copies `lines[from..to)` onto `into` without spreading, which overflows the stack on long runs. */
 function copyLines(lines: readonly string[], from: number, to: number, into: string[]): void {
