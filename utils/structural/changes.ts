@@ -86,14 +86,14 @@ export function structuralFile(
     let oldLine = hunk.oldStart;
     let newLine = hunk.newStart;
     for (const { kind, text } of ops) {
-      const bare = text.endsWith("\n") ? text.slice(0, -1) : text;
+      const lineText = text.endsWith("\n") ? text.slice(0, -1) : text;
       if (kind === "-") {
         oldAnnotations[oldLine] = annotationOf(oldRanges.get(oldLine));
-        oldText[oldLine] = bare;
+        oldText[oldLine] = lineText;
       }
       if (kind === "+") {
         newAnnotations[newLine] = annotationOf(newRanges.get(newLine));
-        newText[newLine] = bare;
+        newText[newLine] = lineText;
       }
       if (kind !== "+") oldLine++;
       if (kind !== "-") newLine++;

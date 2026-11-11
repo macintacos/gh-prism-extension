@@ -68,9 +68,9 @@ export function structuralFiles(
 
   const ask = (path: string) => {
     const port = opened();
-    void Promise.all([port.structural(path), port.files()]).then(([changes, files]) => {
+    void Promise.all([port.structural(path), port.files()]).then(([changes, listing]) => {
       if (signal.aborted) return;
-      answers.set(path, answerFor(path, changes, files));
+      answers.set(path, answerFor(path, changes, listing));
       for (const listener of listeners) listener();
     });
   };

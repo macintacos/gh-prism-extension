@@ -72,14 +72,14 @@ async function ask<T>(page: Page, request: ProbeRequest, timeoutMs = 60_000): Pr
       page.evaluate(
         (request) =>
           new Promise<{ result?: unknown; error?: string }>((resolve) => {
-            const n = Math.random();
+            const id = Math.random();
             const listener = (event: MessageEvent) => {
-              if (event.data?.probeReply !== n) return;
+              if (event.data?.probeReply !== id) return;
               removeEventListener("message", listener);
               resolve(event.data);
             };
             addEventListener("message", listener);
-            postMessage({ probe: n, request }, "*");
+            postMessage({ probe: id, request }, "*");
           }),
         request,
       ),

@@ -86,16 +86,16 @@ function answer(request: ProbeRequest): Promise<unknown> {
 }
 
 /**
- * Bench-only content script body: answers each page message `{ probe: n, request }` with
- * `{ probeReply: n, result }` or `{ probeReply: n, error }`.
+ * Bench-only content script body: answers each page message `{ probe: id, request }` with
+ * `{ probeReply: id, result }` or `{ probeReply: id, error }`.
  */
 export function probe(): void {
   window.addEventListener("message", (event) => {
-    const { probe: n, request } = (event.data ?? {}) as { probe?: number; request?: ProbeRequest };
-    if (n === undefined || !request) return;
+    const { probe: id, request } = (event.data ?? {}) as { probe?: number; request?: ProbeRequest };
+    if (id === undefined || !request) return;
     answer(request).then(
-      (result) => window.postMessage({ probeReply: n, result }, "*"),
-      (error: unknown) => window.postMessage({ probeReply: n, error: String(error) }, "*"),
+      (result) => window.postMessage({ probeReply: id, result }, "*"),
+      (error: unknown) => window.postMessage({ probeReply: id, error: String(error) }, "*"),
     );
   });
 }
