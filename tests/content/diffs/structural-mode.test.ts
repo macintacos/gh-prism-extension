@@ -11,8 +11,8 @@ import {
   structuralChoiceOf,
 } from "../../../entrypoints/content/diffs/structural-mode";
 import { changedCells, type DiffSide } from "../../../entrypoints/content/files-page";
-import type { FileSection } from "../../../entrypoints/content/visit/land";
 import type { LineAnnotation, StructuralFile } from "../../../utils/structural/changes";
+import { anchorOfTable, mountDiffs, sectionsOf, tables } from "../../fixtures/diff-tables";
 import prRename from "../../fixtures/files-page-diff-rename.html?raw";
 import prSplit from "../../fixtures/files-page-diff-split.html?raw";
 import { HighlightStub, stubHighlights } from "../../fixtures/highlights";
@@ -49,39 +49,6 @@ function allAdditions(): string {
   for (const { side, row } of changedCells(region)) if (side === "old") row.remove();
   expect(changedCells(region).length).toBeGreaterThan(0);
   return region.innerHTML;
-}
-
-function mountDiffs(...htmls: string[]): HTMLElement {
-  const diffs = document.createElement("div");
-  for (const html of htmls) {
-    const region = document.createElement("div");
-    region.innerHTML = html;
-    diffs.append(region);
-  }
-  document.body.replaceChildren(diffs);
-  return diffs;
-}
-
-const anchorOfTable = (table: HTMLTableElement) => table.dataset.diffAnchor ?? "";
-const tables = (root: ParentNode) => [
-  ...root.querySelectorAll<HTMLTableElement>("table[data-diff-anchor]"),
-];
-
-/** One section listing each table's file, its path being the table's anchor. */
-function sectionsOf(root: ParentNode): FileSection[] {
-  const entries = tables(root).map((table) => {
-    const link = document.createElement("a");
-    link.setAttribute("href", `#${anchorOfTable(table)}`);
-    const file = {
-      path: anchorOfTable(table),
-      link,
-      active: false,
-      status: undefined,
-      comments: null,
-    };
-    return { section: "implementation", lines: undefined, file } as const;
-  });
-  return [{ key: "implementation", entries }];
 }
 
 /** A file whose text is the table's own and whose every changed line has one range. */

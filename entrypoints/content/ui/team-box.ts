@@ -20,7 +20,7 @@ export interface TeamReads {
 /** The most members a team shows whole; a larger one shows `COLLAPSED_COUNT`, then Show all. */
 const FULL_COUNT = 9;
 const COLLAPSED_COUNT = 8;
-const LOADING_DELAY_MS = 150;
+export const LOADING_DELAY_MS = 150;
 
 /**
  * `team`'s box: a header naming it, drawn by `identities`, over its members, which fill in with

@@ -1,0 +1,28 @@
+/* GitHub hooks: table[data-diff-anchor] inside GitHub's file card, which structural-notices.ts
+   places the notice and the loading line directly before, and --fgColor-muted. */
+
+@import "../ui/tailwind.css" prefix(tw);
+@source "./structural-notices.ts";
+
+/* Overlays the table's top edge, so a file's code never moves when it comes and goes. */
+.gh-prism-structural-loading {
+  position: relative;
+  z-index: 1;
+  height: 2px;
+  margin-bottom: -2px;
+  background: var(--fgColor-muted);
+  animation: gh-prism-structural-pulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes gh-prism-structural-pulse {
+  to {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-prism-structural-loading {
+    opacity: 0.45;
+    animation: none;
+  }
+}
