@@ -1,0 +1,94 @@
+import { parsePrHunks } from "@/utils/github/pr-diff";
+import type { PrDataClient } from "@/utils/github/pr-port";
+import type { PrHeadAndFilesResult } from "@/utils/github/pr-source";
+import { type StructuralFile, structuralFile } from "@/utils/structural/changes";
+import type { FileChangesResult, StructuralProblem } from "@/utils/structural/file-changes";
+import type { PaintOutcome } from "./structural";
+
+/** What a visit knows about one requested file once its answer settled. */
+export type StructuralAnswer =
+  | { readonly ok: true; readonly file: StructuralFile }
+  | { readonly ok: false; readonly problem: StructuralProblem };
+
+/** One visit's structural answers, asked for lazily and kept until the visit ends. */
+export interface StructuralFiles {
+  /** Asks for each path not yet asked this visit. Does nothing once the visit has ended. */
+  request(paths: Iterable<string>): void;
+  /** The settled answer for `path`, the same object on every call; `undefined` until it settles. */
+  answerOf(path: string): StructuralAnswer | undefined;
+  /** Calls `listener` after each answer settles, until `signal` aborts. */
+  onAnswer(listener: () => void, signal: AbortSignal): void;
+  /** Records the painter's latest outcome for `path`. */
+  report(path: string, outcome: PaintOutcome): void;
+  /** The painter's latest outcome for `path`. */
+  outcomeOf(path: string): PaintOutcome | undefined;
+}
+
+type StructuralClient = Pick<PrDataClient, "files" | "structural" | "close">;
+
+const FAILED: StructuralAnswer = { ok: false, problem: "failed" };
+
+/** `path`'s answer from the port's changes for it and the diff's listing. */
+function answerFor(
+  path: string,
+  changes: FileChangesResult,
+  listing: PrHeadAndFilesResult,
+): StructuralAnswer {
+  if (!changes.ok) return changes;
+  if (!listing.ok) return listing;
+  const listed = listing.files.find((file) => file.path === path);
+  if (listed?.kind !== "text") return FAILED;
+  const file = structuralFile(changes.changes, parsePrHunks(listed.patch));
+  return file ? { ok: true, file } : FAILED;
+}
+
+/** `connect` is called on the first request; its client is closed when `signal` aborts. */
+export function structuralFiles(
+  connect: () => StructuralClient,
+  signal: AbortSignal,
+): StructuralFiles {
+  let client: StructuralClient | undefined;
+  let listing: Promise<PrHeadAndFilesResult> | undefined;
+  const asked = new Set<string>();
+  // ponytail: every answer, `failed` included (a Worker restart, say), is kept until the next
+  // visit; retry a failed one when the notices need to.
+  const answers = new Map<string, StructuralAnswer>();
+  const listeners = new Set<() => void>();
+  const outcomes = new Map<string, PaintOutcome>();
+
+  const opened = () => {
+    if (client) return client;
+    const connected = connect();
+    signal.addEventListener("abort", () => connected.close(), { once: true });
+    client = connected;
+    return connected;
+  };
+
+  const ask = (path: string) => {
+    const port = opened();
+    listing ??= port.files();
+    void Promise.all([port.structural(path), listing]).then(([changes, files]) => {
+      if (signal.aborted) return;
+      answers.set(path, answerFor(path, changes, files));
+      for (const listener of listeners) listener();
+    });
+  };
+
+  return {
+    request(paths) {
+      if (signal.aborted) return;
+      for (const path of paths) {
+        if (asked.has(path)) continue;
+        asked.add(path);
+        ask(path);
+      }
+    },
+    answerOf: (path) => answers.get(path),
+    onAnswer(listener, until) {
+      listeners.add(listener);
+      until.addEventListener("abort", () => listeners.delete(listener), { once: true });
+    },
+    report: (path, outcome) => void outcomes.set(path, outcome),
+    outcomeOf: (path) => outcomes.get(path),
+  };
+}
