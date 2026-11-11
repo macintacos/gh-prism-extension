@@ -133,14 +133,16 @@ Structural mode in the built extension on live GitHub. It needs a signed-in Play
 `storageState` file; the default URLs are sandbox PRs #3 and #4 and two sandbox commits,
 all in Split. It builds a scratch copy with `bench/scratch-build.ts`, adding a bench-only
 content script that sets and reads the preference and asks the port for a file's answer.
-It runs three passes: with the preference off, no URL shows any structural trace; with it
-on, each on-screen file is painted or skipped for a reason; and choosing Unified from the
-gear turns the preference off. That last pass changes the signed-in account's saved
-Layout, then chooses the original again before the run ends, on failure too;
-`bun bench/structural-mode-live/restore-check.ts` proves that restore offline. It prints
-one line per check, ends the second pass with `mismatch: <n> of <m>`, and exits 1 when a
-check fails. `bench/structural-mode-live/results/*.txt` hold one run per browser, written
-by
+It runs three passes: with the preference off, no URL shows any structural trace, notices
+included; with it on, each on-screen file is painted or skipped for a reason, an
+unsupported file shows its notice and a painted one none, and README.md on sandbox PR #3
+drops its notice in the rich diff and shows it again in the source diff; and choosing
+Unified from the gear turns the preference off. That last pass changes the signed-in
+account's saved Layout, then chooses the original again before the run ends, on failure
+too; `bun bench/structural-mode-live/restore-check.ts` proves that restore offline. It
+prints one line per check, ends the second pass with `mismatch: <n> of <m>`, and exits 1
+when a check fails. `bench/structural-mode-live/results/*.txt` hold one run per browser,
+written by
 `bun bench/structural-mode-live.ts chromium <path> > bench/structural-mode-live/results/chromium.txt`
 (and likewise for `firefox`); they are a dated record, not a baseline.
 

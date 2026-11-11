@@ -21,7 +21,8 @@ at the top, dated.
   - too large: "This file is too large for Structural mode, so this is GitHub's diff."
   - rate-limited: "GitHub is rate-limiting requests, so this is GitHub's diff; reload to
     try Structural mode again."
-  - no access: "Sign in to GitHub to see this file in Structural mode."
+  - no access: "Sign in to GitHub to see this file in Structural mode; until then, this is
+    GitHub's diff."
   - failed: "Structural mode is in beta and couldn't compare this file, so this is
     GitHub's diff."
   - mismatch: "Structural mode is in beta and its reading of this file doesn't match the
@@ -29,7 +30,8 @@ at the top, dated.
 
   The notice carries no `role` and no `aria-live`. For loading, a 2px `--fgColor-muted`
   `<div>` overlaying the table's top 2px, shown once the file's request has been pending
-  150 ms, pulsing to 0.45 opacity, still at 0.45 under reduced motion, and `aria-hidden`.
+  150 ms, pulsing to 0.45 opacity, standing still at full strength under reduced motion,
+  and `aria-hidden`. The line shows only on a file whose own table is drawn in Split.
 - **Why:** the notice leaves the sticky file header and its chrome alone, so the band
   gh-prism measures from the header does not change. After the table, the reason would sit
   below a long diff, and the sidebar is away from the diff being read. The two kinds a
@@ -39,16 +41,20 @@ at the top, dated.
   per file. A screen reader reads it in place, after the file header's controls and before
   the diff. The spectrum is kept for where gh-prism announces itself, a skeleton would
   hide GitHub's readable diff, and a sentence would push the code down and back within a
-  second. Measured 2026-11-10 in Chromium on sandbox PR #3 in Split: the notice holds
-  6.11:1 light (`#59636e` on `#fff`) and 6.50:1 dark (`#9198a1` on `#0d1117`), above
-  4.5:1. The loading line at full opacity holds 5.37:1 light (on `#ddf4ff`) and 5.82:1
-  dark (on about `#111d2e`) against the hunk row it overlays, above 3:1; its 0.45 state
-  was not measured.
+  second. The hold is a timer per pending file, not the CSS animation delay the skeletons
+  use, because a delayed node would be inserted and removed under GitHub's diffs for every
+  request that settles in under 150 ms. Measured 2026-11-10 in Chromium on sandbox PR #3
+  in Split: the notice holds 6.11:1 light (`#59636e` on `#fff`) and 6.50:1 dark (`#9198a1`
+  on `#0d1117`), above 4.5:1. The loading line at full opacity holds 5.37:1 light (on
+  `#ddf4ff`) and 5.82:1 dark (on about `#111d2e`) against the hunk row it overlays, above
+  3:1, and the still line under reduced motion holds those values.
 - **Skipped:** `aria-describedby` from GitHub's grid to the notice, a retry for a failed
   file, and a separate sentence for a run that timed out, which the too-large sentence
   covers.
 - **Accepted:** a notice that lands on a file already on screen pushes its code down one
-  line, about 26px.
+  line, about 26px. The pulse's trough, 0.45 opacity, falls below 3:1, about 1.9:1 in
+  light by calculation (`#59636e` at 0.45 over `#ddf4ff`); the line passes through it for
+  a moment, as the skeletons' pulse does.
 
 ## 2026-11-10: Structural mode's moved lines
 

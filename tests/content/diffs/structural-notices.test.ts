@@ -11,7 +11,7 @@ import {
   showStructuralNotices,
 } from "../../../entrypoints/content/diffs/structural-notices";
 import type { StructuralProblem } from "../../../utils/structural/file-changes";
-import { anchorOfTable, mountDiffs, sectionsOf, tables } from "../../fixtures/diff-tables";
+import { anchorOfTable, mountDiffs, sectionsOf, tableAt } from "../../fixtures/diff-tables";
 import prRename from "../../fixtures/files-page-diff-rename.html?raw";
 import prSplit from "../../fixtures/files-page-diff-split.html?raw";
 import prUnified from "../../fixtures/files-page-diff-unified.html?raw";
@@ -26,12 +26,6 @@ const PROBLEMS: readonly Exclude<StructuralProblem, "not-applicable">[] = [
 ];
 
 const flush = () => vi.advanceTimersByTimeAsync(100);
-
-const tableAt = (diffs: ParentNode, index = 0): HTMLTableElement => {
-  const table = tables(diffs)[index];
-  if (!table) throw new Error(`no table ${index}`);
-  return table;
-};
 
 describe("noticeOf", () => {
   it.each(PROBLEMS)("gives the %s problem its own notice", (problem) => {
@@ -60,7 +54,7 @@ describe("noticeOf", () => {
 describe("NOTICE_COPY", () => {
   it("says each kind in its own single sentence", () => {
     const sentences = Object.values(NOTICE_COPY);
-    expect(new Set(sentences).size).toBe(6);
+    expect(new Set(sentences).size).toBe(sentences.length);
     for (const sentence of sentences) expect(sentence).toMatch(/^[^.]+\.$/);
   });
 });
@@ -210,14 +204,49 @@ describe("showStructuralNotices", () => {
       const table = tableAt(diffs);
       states.set(anchorOfTable(table), "pending");
       mount(diffs);
+      vi.advanceTimersToNextFrame();
 
       await vi.advanceTimersByTimeAsync(149);
       expect(diffs.querySelector(OWN)).toBeNull();
 
       await vi.advanceTimersByTimeAsync(1);
-      await flush();
+      vi.advanceTimersToNextFrame();
       const line = loadingOf(table);
       expect(line?.getAttribute("aria-hidden")).toBe("true");
+    });
+
+    it("starts the hold over when a pending file's table is mounted again", async () => {
+      const diffs = mountDiffs(prSplit);
+      const table = tableAt(diffs);
+      states.set(anchorOfTable(table), "pending");
+      mount(diffs);
+      vi.advanceTimersToNextFrame();
+      await vi.advanceTimersByTimeAsync(50);
+
+      const card = table.parentElement;
+      if (!card) throw new Error("no card");
+      table.remove();
+      await flush();
+      card.append(table);
+      await vi.advanceTimersByTimeAsync(140);
+      expect(diffs.querySelector(OWN)).toBeNull();
+
+      await vi.advanceTimersByTimeAsync(150);
+      expect(loadingOf(table)).not.toBeNull();
+    });
+
+    it("shows the line only on a pending file whose own table is drawn in Split", async () => {
+      const diffs = mountDiffs(prSplit, prRename);
+      const split = tableAt(diffs, 0);
+      const oneSided = tableAt(diffs, 1);
+      states.set(anchorOfTable(split), "pending");
+      states.set(anchorOfTable(oneSided), "pending");
+
+      await show(diffs);
+      await vi.advanceTimersByTimeAsync(200);
+
+      expect(loadingOf(split)).not.toBeNull();
+      expect(loadingOf(oneSided)).toBeNull();
     });
 
     it("never shows the line for a request that settles within 150 ms", async () => {

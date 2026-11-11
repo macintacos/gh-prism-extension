@@ -1,8 +1,9 @@
 /**
  * Live check of Structural mode in the built extension on signed-in GitHub pages: nothing
- * structural with the preference off, each on-screen file painted or skipped for a reason with it
- * on, and GitHub's Unified turning it off. Kept out of CI, Vitest and Playwright like the rest of
- * `bench/`.
+ * structural, notices included, with the preference off; with it on, each on-screen file painted or
+ * skipped for a reason, an unsupported file's notice and none on a painted one, README.md on
+ * sandbox PR #3 dropping its notice in the rich diff and showing it again in the source diff; and
+ * GitHub's Unified turning it off. Kept out of CI, Vitest and Playwright like the rest of `bench/`.
  *
  *   bun bench/structural-mode-live.ts <chromium|firefox> <storage-state path> [url…]
  *

@@ -10,10 +10,11 @@ commit message rendered as Markdown on a commit's page (in a column beside the d
 wide window), the dialog gh-prism opens on GitHub's classic Files changed page, the code
 owner details dialog that a code-owner shield or the code owners button opens, the
 Conversation panel that shows a pull request's Conversation tab beside Files changed, and
-the per-file notice that Structural mode shows above a file it can't show, saying why.
-[`CONTEXT.md`](../CONTEXT.md) defines the domain terms these files use, such as section,
-Viewed, and what's new. [`docs/agents/styling-rules.md`](../docs/agents/styling-rules.md)
-says how a stylesheet is written, imported, and scoped.
+the per-file notice that Structural mode shows above the diff of a file it can't show,
+saying why. [`CONTEXT.md`](../CONTEXT.md) defines the domain terms these files use, such
+as section, Viewed, and what's new.
+[`docs/agents/styling-rules.md`](../docs/agents/styling-rules.md) says how a stylesheet is
+written, imported, and scoped.
 
 ## Routing
 

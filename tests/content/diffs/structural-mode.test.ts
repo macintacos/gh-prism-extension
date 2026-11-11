@@ -10,6 +10,11 @@ import {
   showStructural,
   structuralChoiceOf,
 } from "../../../entrypoints/content/diffs/structural-mode";
+import {
+  KIND_ATTR,
+  LOADING_CLASS,
+  NOTICE_CLASS,
+} from "../../../entrypoints/content/diffs/structural-notices";
 import { changedCells, type DiffSide } from "../../../entrypoints/content/files-page";
 import type { LineAnnotation, StructuralFile } from "../../../utils/structural/changes";
 import { anchorOfTable, mountDiffs, sectionsOf, tables } from "../../fixtures/diff-tables";
@@ -46,12 +51,9 @@ function fakeFiles() {
   return { files, requested, pending, answer, settle };
 }
 
-const ours = (diffs: Element) =>
-  diffs.querySelectorAll(".gh-prism-structural-notice, .gh-prism-structural-loading");
+const ours = (diffs: Element) => diffs.querySelectorAll(`.${NOTICE_CLASS}, .${LOADING_CLASS}`);
 const notices = (diffs: Element) =>
-  [...diffs.querySelectorAll(".gh-prism-structural-notice")].map((notice) =>
-    notice.getAttribute("data-gh-prism-notice"),
-  );
+  [...diffs.querySelectorAll(`.${NOTICE_CLASS}`)].map((notice) => notice.getAttribute(KIND_ATTR));
 
 /** `files-page-diff-rename` with its deleted rows removed, leaving an all-additions table. */
 function allAdditions(): string {
@@ -193,11 +195,11 @@ describe("showStructural", () => {
     view.onScreen(new Set([path]));
     await vi.advanceTimersByTimeAsync(50);
 
-    expect(diffs.querySelector(".gh-prism-structural-loading")).toBeNull();
+    expect(diffs.querySelector(`.${LOADING_CLASS}`)).toBeNull();
 
     await vi.advanceTimersByTimeAsync(200);
 
-    expect(diffs.querySelector(".gh-prism-structural-loading")).not.toBeNull();
+    expect(diffs.querySelector(`.${LOADING_CLASS}`)).not.toBeNull();
 
     fake.settle(path, fileOf(table));
     await flush();

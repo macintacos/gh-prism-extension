@@ -164,22 +164,23 @@ stateDiagram-v2
 [`entrypoints/content/visit/land.ts`](../entrypoints/content/visit/land.ts) runs on each
 page. `showVisit` always mounts six views: the sidebar sections, the diff order, the j/k
 file keys, the diffstat, and the on-screen and Viewed trackers that feed the sidebar. It
-mounts a seventh, the structural painter, only when it is given `structural`, which
-`index.ts` gives only while Structural mode is on. Then `land` passes the intent read's
-steps to the views: pending while the read runs, and with an owner filter until the code
-owners land too; progress as files are placed, landed with the result, and then each
-file's section. Every view gets a step before any view gets the next. `land` owns the only
-observer of the native tree, and it re-lists the sections after each change to the tree.
-While a pull request's narrow layout has its "Files" overlay open, `land` also observes
-the overlay's copy of the tree and lists from it, telling each view through `shownIn`
-before it re-lists. One visit reads intent once: `index.ts` wraps the read in
-`shareIntent`, so every page of the visit joins the same read. A header tab's visit reads
-intent the same way, and `showHeaderTab` mounts only the diffstat on each of its pages. A
-visit to a pull request's whole diff names that pull request to the diffstat, and the
-browser tab's `DiffstatChoice` holds the breakout last landed for it. A later visit to the
-same pull request shows that breakout while its own read runs, so moving between Files
-changed and a header tab never flashes GitHub's total, and its own breakout replaces it
-once the read lands. A commit and a commit filter hold none.
+mounts a seventh, Structural mode (the structural painter and its per-file notices and
+loading line), only when it is given `structural`, which `index.ts` gives only while
+Structural mode is on. Then `land` passes the intent read's steps to the views: pending
+while the read runs, and with an owner filter until the code owners land too; progress as
+files are placed, landed with the result, and then each file's section. Every view gets a
+step before any view gets the next. `land` owns the only observer of the native tree, and
+it re-lists the sections after each change to the tree. While a pull request's narrow
+layout has its "Files" overlay open, `land` also observes the overlay's copy of the tree
+and lists from it, telling each view through `shownIn` before it re-lists. One visit reads
+intent once: `index.ts` wraps the read in `shareIntent`, so every page of the visit joins
+the same read. A header tab's visit reads intent the same way, and `showHeaderTab` mounts
+only the diffstat on each of its pages. A visit to a pull request's whole diff names that
+pull request to the diffstat, and the browser tab's `DiffstatChoice` holds the breakout
+last landed for it. A later visit to the same pull request shows that breakout while its
+own read runs, so moving between Files changed and a header tab never flashes GitHub's
+total, and its own breakout replaces it once the read lands. A commit and a commit filter
+hold none.
 
 ## The Conversation panel
 
@@ -1019,13 +1020,14 @@ read Split, each mounted file whose request failed for any reason but `not-appli
 (the answer for binary, added, deleted, and pure-rename files), or whose table the painter
 reported as `mismatch`, gets a one-sentence notice. A file whose request is still pending,
 which `StructuralFiles`' `pending(path)` reports, gets a loading line once it has been
-pending 150 ms (`LOADING_DELAY_MS`), so a faster run shows nothing. Both are gh-prism's
-own nodes, inserted directly before the file's `table[data-diff-anchor]`; GitHub's nodes
-are left as they are. A pass reads every table before writing, and leaves a node that is
-already right untouched. It removes every node of its own that no mounted table claims,
-which sweeps a notice left in the card after a switch to GitHub's rich diff. On abort the
-notices clear their timers and frame, and remove every node by class and the `<style>`
-built from
+pending 150 ms (`LOADING_DELAY_MS`), so a faster run shows nothing. Only a file whose own
+table is drawn in Split gets the line, since the painter paints no other. Both are
+gh-prism's own nodes, inserted directly before the file's `table[data-diff-anchor]`;
+GitHub's nodes are left as they are. A pass reads every table before writing, and leaves a
+node that is already right untouched. It removes every node of its own that no mounted
+table claims, which sweeps a notice left in the card after a switch to GitHub's rich diff.
+On abort the notices clear their timers and frame, and remove every node by class and the
+`<style>` built from
 [`diffs/structural-notices.css`](../entrypoints/content/diffs/structural-notices.css).
 
 On [cli/cli#14805 in Split](https://github.com/cli/cli/pull/14805/changes?diff=split) on

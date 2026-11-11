@@ -50,15 +50,14 @@ export function structuralChoiceOf(on: boolean, save: (on: boolean) => void): St
   };
 }
 
-/** The painter's view, plus the tap `showVisit` feeds the on-screen paths into. */
+/** Structural mode's view on a page, plus the tap `showVisit` feeds the on-screen paths into. */
 export type StructuralView = LandingView & { onScreen(paths: ReadonlySet<string>): void };
 
 /**
  * Shows Structural mode on `page` until `signal` or `mode.until` aborts: requests the on-screen
- * files while the diffs read Split, paints each answer as it settles, and shows each file's
- * fallback notice or held-back loading line beside its diff. Mounts nothing when the
- * page already shows Unified or either signal has already aborted, and tells `mode.unifiedSeen`
- * once Unified is seen.
+ * files while the diffs read Split, paints each answer as it settles, and shows each file's notice
+ * or held-back loading line beside its diff. Mounts nothing when the page already shows Unified or
+ * either signal has already aborted, and tells `mode.unifiedSeen` once Unified is seen.
  */
 export function showStructural(
   page: Pick<FilesPage, "diffs">,

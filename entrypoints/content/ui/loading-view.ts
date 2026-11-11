@@ -6,6 +6,9 @@ import { el } from "./dom";
 import css from "./loading-view.css?inline";
 import { SECTION_SPECTRUM } from "./section-catalog";
 
+/** How long a loading treatment is held back, so a fast answer never flashes it. */
+export const LOADING_DELAY_MS = 150;
+
 /** A progress bar over a skeleton, drawn while intent is read. */
 export interface LoadingView {
   /** The bar and its skeleton, carrying the bar's stylesheet, so it is styled wherever it mounts. */

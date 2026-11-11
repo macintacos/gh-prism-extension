@@ -1,7 +1,7 @@
 import type { StructuralProblem } from "@/utils/structural/file-changes";
-import { currentLayout, diffTables, observeDiffs } from "../files-page";
+import { diffTables, observeDiffs } from "../files-page";
 import { el } from "../ui/dom";
-import { LOADING_DELAY_MS } from "../ui/team-box";
+import { LOADING_DELAY_MS } from "../ui/loading-view";
 import type { LandingView } from "../visit/land";
 import { pathsByAnchor } from "./on-screen";
 import type { PaintOutcome } from "./structural";
@@ -9,15 +9,17 @@ import type { StructuralAnswer } from "./structural-files";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./structural-notices.css?inline";
 
-/** Why a file shows GitHub's diff under Structural mode: every problem but `not-applicable`, or the painter's mismatch. */
+/** Why a file shows GitHub's diff under Structural mode. */
 export type NoticeKind = Exclude<StructuralProblem, "not-applicable"> | "mismatch";
 
+/** The sentence each kind shows. */
 export const NOTICE_COPY: Record<NoticeKind, string> = {
   unsupported: "Structural mode doesn't cover this file's language yet, so this is GitHub's diff.",
   "too-large": "This file is too large for Structural mode, so this is GitHub's diff.",
   "rate-limited":
     "GitHub is rate-limiting requests, so this is GitHub's diff; reload to try Structural mode again.",
-  "no-access": "Sign in to GitHub to see this file in Structural mode.",
+  "no-access":
+    "Sign in to GitHub to see this file in Structural mode; until then, this is GitHub's diff.",
   failed: "Structural mode is in beta and couldn't compare this file, so this is GitHub's diff.",
   mismatch:
     "Structural mode is in beta and its reading of this file doesn't match the page, so this is GitHub's diff; reload to try again.",
@@ -35,9 +37,10 @@ export function noticeOf(
   return answer && outcome === "mismatch" ? "mismatch" : undefined;
 }
 
+// Keep in sync with structural-notices.css's selector, the notice's class string below, and the copies in e2e/smoke.e2e.ts and bench/structural-mode-live.ts.
 export const NOTICE_CLASS = "gh-prism-structural-notice";
 export const LOADING_CLASS = "gh-prism-structural-loading";
-const KIND_ATTR = "data-gh-prism-notice";
+export const KIND_ATTR = "data-gh-prism-structural-notice";
 
 /** The notices' view, plus `refresh` for a change `observeDiffs` can't see. */
 export type StructuralNotices = LandingView & { refresh(): void };
@@ -74,8 +77,11 @@ export function showStructuralNotices(
 ): StructuralNotices {
   const doc = diffs.ownerDocument;
   const win = doc.defaultView;
+  if (!win || signal.aborted) return { refresh: () => {} };
+
   const style = Object.assign(doc.createElement("style"), { textContent: css });
-  // A pending path's hold: its timer, or `true` once LOADING_DELAY_MS has passed.
+  // A pending path's hold: its timer, or `true` once LOADING_DELAY_MS has passed. A timer, not a
+  // CSS delay: a delayed node would still wake every observeDiffs consumer for each fast answer.
   const holds = new Map<string, number | true>();
   let paths: ReadonlyMap<string, string> = new Map();
   let frame: number | undefined;
@@ -83,13 +89,15 @@ export function showStructuralNotices(
   const collect = (): Pass => {
     const wants: Want[] = [];
     const pending = new Set<string>();
-    const split = currentLayout(diffs) === "split";
-    for (const { table, anchor } of split ? diffTables(diffs) : []) {
+    const tables = diffTables(diffs);
+    const split = tables.some(({ layout }) => layout === "split");
+    for (const { table, anchor, layout } of split ? tables : []) {
       const path = paths.get(anchor);
       if (path === undefined) continue;
       const state = stateOf(path);
       if (state === "pending") pending.add(path);
-      const show = state === "pending" ? (holds.get(path) === true ? "loading" : undefined) : state;
+      const held = holds.get(path) === true && layout === "split";
+      const show = state === "pending" ? (held ? "loading" : undefined) : state;
       const before = table.previousElementSibling ?? undefined;
       const current = before?.matches(`.${NOTICE_CLASS}, .${LOADING_CLASS}`) ? before : undefined;
       wants.push({ table, show, current });
@@ -127,11 +135,11 @@ export function showStructuralNotices(
   const trackHolds = ({ pending }: Pass) => {
     for (const [path, hold] of holds) {
       if (pending.has(path)) continue;
-      if (hold !== true) win?.clearTimeout(hold);
+      if (hold !== true) win.clearTimeout(hold);
       holds.delete(path);
     }
     for (const path of pending) {
-      if (holds.has(path) || !win) continue;
+      if (holds.has(path)) continue;
       holds.set(
         path,
         win.setTimeout(() => {
@@ -141,27 +149,25 @@ export function showStructuralNotices(
       );
     }
   };
-  // Every read precedes every write, so a pass never forces a layout between them.
+  // A settled pass writes nothing: each insertion wakes observeDiffs, so the next pass must be the last.
   const pass = () => {
     const work = collect();
     apply(work);
     trackHolds(work);
   };
   const schedule = () => {
-    if (signal.aborted || !win) return;
+    if (signal.aborted) return;
     frame ??= win.requestAnimationFrame(() => {
       frame = undefined;
       pass();
     });
   };
 
-  if (signal.aborted) return { refresh: () => {} };
-
   doc.head.append(style);
   observeDiffs(diffs, schedule, { signal });
   signal.addEventListener("abort", () => {
-    if (frame !== undefined) win?.cancelAnimationFrame(frame);
-    for (const hold of holds.values()) if (hold !== true) win?.clearTimeout(hold);
+    if (frame !== undefined) win.cancelAnimationFrame(frame);
+    for (const hold of holds.values()) if (hold !== true) win.clearTimeout(hold);
     holds.clear();
 
     for (const node of diffs.querySelectorAll(`.${NOTICE_CLASS}, .${LOADING_CLASS}`)) node.remove();

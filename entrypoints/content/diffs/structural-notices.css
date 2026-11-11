@@ -22,7 +22,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .gh-prism-structural-loading {
-    opacity: 0.45;
     animation: none;
   }
 }

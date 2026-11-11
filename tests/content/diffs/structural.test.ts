@@ -14,7 +14,7 @@ import {
 import type { LineAnnotation, StructuralFile } from "../../../utils/structural/changes";
 import commitSplit from "../../fixtures/commit-page-diff-split.html?raw";
 import commitWhitespaceSplit from "../../fixtures/commit-page-diff-whitespace-split.html?raw";
-import { anchorOfTable, mountDiffs, sectionsOf, tables } from "../../fixtures/diff-tables";
+import { anchorOfTable, mountDiffs, sectionsOf, tableAt, tables } from "../../fixtures/diff-tables";
 import prRename from "../../fixtures/files-page-diff-rename.html?raw";
 import prSplit from "../../fixtures/files-page-diff-split.html?raw";
 import prUnified from "../../fixtures/files-page-diff-unified.html?raw";
@@ -23,12 +23,6 @@ import { HighlightStub, stubHighlights } from "../../fixtures/highlights";
 const QUIET: LineAnnotation = { quiet: true };
 const CHANGED: LineAnnotation = { quiet: false, ranges: [] };
 const PAINTED = "[data-gh-prism-structural], [data-gh-prism-quiet], [data-gh-prism-moved]";
-
-const tableAt = (root: ParentNode, index = 0): HTMLTableElement => {
-  const table = tables(root)[index];
-  if (!table) throw new Error(`no table ${index}`);
-  return table;
-};
 
 /** A file whose text is the table's own and whose lines `annotate` annotates, quiet by default. */
 function fileOf(

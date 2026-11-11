@@ -486,13 +486,6 @@ A view that waits on one load, with no count to show, holds its place with a ske
 alone: shaped like what it stands in for, held back 150 ms, then pulsing. Two use it: the
 commit's message and the Conversation panel, described below.
 
-A load with nothing to hold a place for, because GitHub's own content stays readable
-meanwhile, shows a line instead of a skeleton. Structural mode's loading line is the one:
-in Split, a 2px `--fgColor-muted` line laid over the top edge of a file's diff table, so
-the code never moves. It shows once that file's request has been pending 150 ms, pulses to
-0.45 opacity, stands still at 0.45 under reduced motion, and is `aria-hidden`.
-`diffs/structural-notices.ts` and `diffs/structural-notices.css` hold it.
-
 A commit's message holds its place the same way, without the bar: from the page's first
 frame, its column or its slot above the diffs shows a title bar and a line for each of the
 body's lines, up to three, held back 150 ms, then pulsing. The rendering takes their place
@@ -504,6 +497,10 @@ carries on where the last one was, never fading in twice. `commit/message-view.t
 The Conversation panel holds its frame's place with a skeleton of the Conversation's
 timeline, shown only if the frame hasn't loaded 150 ms after its first open.
 `conversation/panel.css` holds it.
+
+Structural mode's loading line is a 2px line on a pending file's diff table, held back 150
+ms, for a load where GitHub's own content stays readable and there is no place to hold.
+`diffs/structural-notices.ts` and `design/decisions.md` hold the detail.
 
 ## The mark
 

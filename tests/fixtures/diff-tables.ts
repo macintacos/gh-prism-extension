@@ -16,6 +16,12 @@ export const tables = (root: ParentNode) => [
   ...root.querySelectorAll<HTMLTableElement>("table[data-diff-anchor]"),
 ];
 
+export const tableAt = (root: ParentNode, index = 0): HTMLTableElement => {
+  const table = tables(root)[index];
+  if (!table) throw new Error(`no table ${index}`);
+  return table;
+};
+
 export const anchorOfTable = (table: HTMLTableElement) => table.dataset.diffAnchor ?? "";
 
 /** One section listing each table's file, its path being the table's anchor. */
