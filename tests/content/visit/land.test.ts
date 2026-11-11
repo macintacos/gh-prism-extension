@@ -389,6 +389,16 @@ describe("structural mode on a visit", () => {
     expect(document.querySelector(`.${NOTICE_CLASS}, .${LOADING_CLASS}`)).toBeNull();
   });
 
+  it("registers both highlights once Structural mode starts on a visit not given it", async () => {
+    const startStructural = remountWith(() => Promise.resolve(result));
+    await afterDebounce();
+
+    startStructural(structuralMode());
+    await afterDebounce();
+
+    expect([...stub.highlights.keys()]).toEqual([ADDED_HIGHLIGHT, REMOVED_HIGHLIGHT]);
+  });
+
   it("registers both highlights when the visit is given structural mode", async () => {
     remountWith(() => Promise.resolve(result), undefined, { structural: structuralMode() });
     await afterDebounce();

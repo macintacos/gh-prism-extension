@@ -56,7 +56,10 @@ vi.mock(import("../../entrypoints/content/conversation/reviewer-files"), async (
 });
 vi.mock(import("../../entrypoints/content/visit/land"), async (importOriginal) => ({
   ...(await importOriginal()),
-  showVisit: vi.fn((_page, _signal, { intent }) => void intent(() => {})),
+  showVisit: vi.fn((_page, _signal, { intent }) => {
+    void intent(() => {});
+    return { startStructural: () => {} };
+  }),
   showHeaderTab: vi.fn((_page, _signal, { intent }) => void intent(() => {})),
 }));
 vi.mock(import("../../entrypoints/content/commit/message-view"), async (importOriginal) => ({
@@ -213,6 +216,7 @@ describe("content script", () => {
       const views: DiffstatView[] = [];
       vi.mocked(showVisit).mockImplementationOnce((_page, _signal, { diffstat }) => {
         views.push(diffstat.choice.view);
+        return { startStructural: () => {} };
       });
 
       await run();

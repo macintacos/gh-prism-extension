@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, vi } from "vitest";
 import { hashLanding } from "../../entrypoints/content/diffs/reveal";
+import type { StructuralMode } from "../../entrypoints/content/diffs/structural-mode";
 import { visitViewed } from "../../entrypoints/content/diffs/viewed";
 import { findFilesPage } from "../../entrypoints/content/files-page";
 import type { DiffstatOptions } from "../../entrypoints/content/header/diffstat-view";
@@ -60,6 +61,7 @@ export function mountsVisit() {
   let controller = new AbortController();
   let visit = new AbortController();
   let render = () => {};
+  let startStructural: (mode: StructuralMode) => void = () => {};
 
   /**
    * Replaces the mounted visit with one that waits on `intent`, in a tab whose header counter
@@ -79,7 +81,7 @@ export function mountsVisit() {
       structural,
     }: Pick<VisitOptions, "owner" | "codeOwners" | "prReviewers" | "filter" | "structural"> &
       Partial<Pick<VisitOptions, "teamMembers">> = {},
-  ): void => {
+  ): ((mode: StructuralMode) => void) => {
     controller.abort();
     visit.abort();
     visit = new AbortController();
@@ -89,7 +91,7 @@ export function mountsVisit() {
       controller = new AbortController();
       const page = findFilesPage(document);
       if (!page) throw new Error("fixture lacks the Files changed markup");
-      showVisit(page, controller.signal, {
+      ({ startStructural } = showVisit(page, controller.signal, {
         intent,
         diffstat,
         viewed,
@@ -102,9 +104,10 @@ export function mountsVisit() {
         filter,
         structural,
         landHash,
-      });
+      }));
     };
     render();
+    return (mode) => startStructural(mode);
   };
 
   /**

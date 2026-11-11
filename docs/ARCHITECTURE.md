@@ -940,9 +940,12 @@ paints structural mode onto GitHub's own mounted diff rows. A quiet row is one G
 shows as added or deleted in which structural mode finds no changed token, such as a
 reindented line; [`CONTEXT.md`](../CONTEXT.md) defines both terms. It marks each changed
 token, each quiet row, and each moved line, and moves, inserts, or re-renders no GitHub
-node. Nothing constructs it unless `showVisit` is given `structural`, and `index.ts` gives
-it only while Structural mode is on, so the default path mounts no `<style>`, registers no
-highlight, and adds no observer.
+node. Each page of a visit holds a `startableStructural` view, which keeps only the latest
+on-screen paths and sections and constructs the painter only once started: at once when
+`showVisit` is given `structural`, which `index.ts` gives only while Structural mode is
+on, or later through the `startStructural` that `showVisit` returns, which replays both
+into it. So the default path mounts no `<style>`, registers no highlight, and adds no
+observer.
 
 Structural mode is saved as `structuralMode` in [`utils/prefs.ts`](../utils/prefs.ts).
 `index.ts` reads it before watching, narrowing it with `=== true`, and builds one
