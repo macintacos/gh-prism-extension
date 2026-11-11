@@ -61,29 +61,72 @@ describe("background", () => {
     expect(addEventListener).not.toHaveBeenCalledWith("install", expect.anything());
   });
 
-  it("loads no structural engine and serves ports through one listener", () => {
+  describe("over the PR data port", () => {
+    const sha = "a".repeat(40);
+    const pr = { kind: "commit", owner: "o", repo: "r", headSha: sha };
+    const diff =
+      "diff --git a/src/a.ts b/src/a.ts\n--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1 +1 @@\n-const a = 1;\n+const a = 2;\n";
     const constructed = vi.fn();
-    vi.stubGlobal(
-      "Worker",
-      class {
-        constructor() {
-          constructed();
-        }
-      },
-    );
     const createDocument = vi.fn();
-    const getContexts = vi.fn();
-    // fakeBrowser has no offscreen namespace and leaves getContexts unimplemented.
-    Object.assign(fakeBrowser, { offscreen: { createDocument } });
-    Object.assign(fakeBrowser.runtime, { getContexts });
-    onConnect.mockClear();
+    const getContexts = vi.fn(async () => []);
 
-    background.main();
+    beforeEach(() => {
+      constructed.mockClear();
+      createDocument.mockClear();
+      getContexts.mockClear();
+      vi.stubGlobal(
+        "Worker",
+        class {
+          constructor() {
+            constructed();
+          }
+        },
+      );
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url: string) =>
+          String(url).endsWith(".diff")
+            ? new Response(diff)
+            : new Response(String(url).includes("/raw/") ? "const a = 2;\n" : ""),
+        ),
+      );
+      vi.stubGlobal("scheduler", { postTask: async (task: () => void) => task() });
+      // fakeBrowser has no offscreen namespace and leaves getContexts unimplemented.
+      Object.assign(fakeBrowser, { offscreen: { createDocument } });
+      Object.assign(fakeBrowser.runtime, { getContexts });
+    });
 
-    expect(constructed).not.toHaveBeenCalled();
-    expect(createDocument).not.toHaveBeenCalled();
-    expect(getContexts).not.toHaveBeenCalled();
-    expect(onConnect).toHaveBeenCalledOnce();
+    /** Sends each request over a fresh PR data port and waits for every reply. */
+    async function send(...requests: unknown[]) {
+      const port = fakePort(PR_DATA_PORT);
+      serve(port);
+      const [listen] = port.onMessage.addListener.mock.calls[0] ?? [];
+      for (const [id, request] of requests.entries()) listen({ id, request });
+      await vi.waitFor(() => expect(port.postMessage).toHaveBeenCalledTimes(requests.length));
+    }
+
+    it("starts no structural engine for its other requests", async () => {
+      await send(
+        { kind: "files", pr },
+        { kind: "content", pr, path: "src/a.ts" },
+        { kind: "prefix", pr, path: "src/a.ts" },
+      );
+
+      expect(constructed).not.toHaveBeenCalled();
+      expect(createDocument).not.toHaveBeenCalled();
+      expect(getContexts).not.toHaveBeenCalled();
+      expect(onConnect).toHaveBeenCalledOnce();
+    });
+
+    it("starts the engine for a structural request", async () => {
+      const port = fakePort(PR_DATA_PORT);
+      serve(port);
+      const [listen] = port.onMessage.addListener.mock.calls[0] ?? [];
+
+      listen({ id: 0, request: { kind: "structural", pr, path: "src/a.ts" } });
+
+      await vi.waitFor(() => expect(getContexts).toHaveBeenCalled());
+    });
   });
 
   // Chrome refires onInstalled with reason "update" on a dev reload.

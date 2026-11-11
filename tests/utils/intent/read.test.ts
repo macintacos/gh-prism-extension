@@ -453,6 +453,10 @@ function fakeClient(files: PrFilesResult, content: PrFileContentResult, prefix =
     files: vi.fn(async () => (files.ok ? { ...files, headSha } : files)),
     fileContent: vi.fn(async (_path: string) => content),
     filePrefix: vi.fn(async (_path: string) => prefix),
+    structural: vi.fn(async (_path: string) => ({
+      ok: false as const,
+      problem: "failed" as const,
+    })),
     close: vi.fn(),
   };
 }

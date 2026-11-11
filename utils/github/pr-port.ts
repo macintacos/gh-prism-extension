@@ -1,4 +1,5 @@
 import { browser } from "wxt/browser";
+import type { FileChanges, FileChangesResult } from "../structural/file-changes";
 import {
   type CommitHead,
   type DiffHead,
@@ -26,13 +27,15 @@ export type PrDataRequest =
   | { kind: "headAndFiles"; pr: PrRef }
   | { kind: "files"; pr: DiffHead }
   | { kind: "content"; pr: DiffHead; path: string }
-  | { kind: "prefix"; pr: DiffHead; path: string };
+  | { kind: "prefix"; pr: DiffHead; path: string }
+  | { kind: "structural"; pr: DiffHead; path: string };
 
 type PrDataResultsByKind = {
   headAndFiles: PrHeadAndFilesResult;
   files: PrFilesResult;
   content: PrFileContentResult;
   prefix: PrFileContentResult;
+  structural: FileChangesResult;
 };
 type PrDataResult = PrDataResultsByKind[PrDataRequest["kind"]];
 
@@ -72,6 +75,8 @@ export interface PrDataClient {
    * `fileContent`'s rules.
    */
   filePrefix(path: string): Promise<PrFileContentResult>;
+  /** One file's structural changes at the head; only Structural mode calls it. */
+  structural(path: string): Promise<FileChangesResult>;
   close(): void;
 }
 
@@ -134,14 +139,19 @@ function asRequest(value: unknown): PrDataRequest | undefined {
     return { kind: "content", pr, path: value.path };
   if (value.kind === "prefix" && isSafePath(value.path))
     return { kind: "prefix", pr, path: value.path };
+  if (value.kind === "structural" && isSafePath(value.path))
+    return { kind: "structural", pr, path: value.path };
   return undefined;
 }
 
-function answer(
-  source: PrDataSource,
-  request: PrDataRequest,
-  signal: AbortSignal,
-): Promise<PrDataResult> {
+interface Answering {
+  readonly source: PrDataSource;
+  readonly structural: FileChanges;
+  readonly request: PrDataRequest;
+  readonly signal: AbortSignal;
+}
+
+function answer({ source, structural, request, signal }: Answering): Promise<PrDataResult> {
   switch (request.kind) {
     case "headAndFiles":
       return source.headAndFiles(request.pr, signal);
@@ -151,15 +161,21 @@ function answer(
       return source.content(request.pr, request.path, signal);
     case "prefix":
       return source.prefix(request.pr, request.path, signal);
+    case "structural":
+      return structural(request.pr, request.path, signal);
   }
 }
 
 /**
- * Answers one content-side port's requests from `source`, aborting its fetches when the port
- * disconnects. A malformed message is answered `failed` when it carries a valid `id` and
- * ignored otherwise; neither is fetched.
+ * Answers one content-side port's requests from `source`, and `structural` ones from
+ * `structural`, aborting its work when the port disconnects. A malformed message is answered
+ * `failed` when it carries a valid `id` and ignored otherwise; neither is fetched.
  */
-export function servePrDataPort(port: PrDataPort, source: PrDataSource): void {
+export function servePrDataPort(
+  port: PrDataPort,
+  source: PrDataSource,
+  structural: FileChanges,
+): void {
   const controller = new AbortController();
   port.onDisconnect.addListener(() => controller.abort());
 
@@ -173,7 +189,7 @@ export function servePrDataPort(port: PrDataPort, source: PrDataSource): void {
 
     let result: PrDataResult;
     try {
-      result = await answer(source, request, controller.signal);
+      result = await answer({ source, structural, request, signal: controller.signal });
     } catch (error) {
       if (controller.signal.aborted) return;
       port.postMessage({ id: message.id, result: FAILED });
@@ -285,9 +301,9 @@ export function openPrData(
     knownHead ? Promise.resolve({ ok: true, headSha: knownHead }) : undefined,
   );
 
-  async function atHead(
-    request: (head: DiffHead) => Promise<PrFileContentResult>,
-  ): Promise<PrFileContentResult> {
+  async function atHead<R extends { ok: boolean }>(
+    request: (head: DiffHead) => Promise<R>,
+  ): Promise<R | PrFailure> {
     const resolved = await resolveHead();
     return resolved.ok ? request({ ...pr, headSha: resolved.headSha }) : resolved;
   }
@@ -296,6 +312,7 @@ export function openPrData(
     files,
     fileContent: (path) => atHead((head) => send({ kind: "content", pr: head, path })),
     filePrefix: (path) => atHead((head) => send({ kind: "prefix", pr: head, path })),
+    structural: (path) => atHead((head) => send({ kind: "structural", pr: head, path })),
     close() {
       closed = true;
       pending.clear();

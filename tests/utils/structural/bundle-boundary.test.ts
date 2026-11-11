@@ -37,8 +37,19 @@ const TYPE_ONLY: readonly (readonly [file: string, modules: readonly string[]])[
       "../utils/structural/engine",
       "../utils/structural/runner",
       "../utils/structural/tokens",
-      "../utils/structural/host",
       "web-tree-sitter",
+    ],
+  ],
+  ["utils/structural/file-changes.ts", ["./engine", "./runner", "./tokens", "web-tree-sitter"]],
+  ["utils/structural/regions.ts", ["./engine", "./runner", "./tokens", "web-tree-sitter"]],
+  ["utils/structural/limits.ts", ["./engine", "./runner", "./tokens", "web-tree-sitter"]],
+  [
+    "utils/github/pr-port.ts",
+    [
+      "../structural/file-changes",
+      "../structural/host",
+      "../structural/engine-thread",
+      ...ENGINE_FROM_CONTENT_SIDE,
     ],
   ],
 ];

@@ -19,7 +19,11 @@ such as visit, page, intent, and landing are defined in
 The service worker in [`entrypoints/background.ts`](../entrypoints/background.ts) reads
 diffs and file contents from github.com. It serves them to content scripts over a
 long-lived message port, defined in
-[`utils/github/pr-port.ts`](../utils/github/pr-port.ts). Over a second port, defined in
+[`utils/github/pr-port.ts`](../utils/github/pr-port.ts). The same port answers one file's
+structural changes, built in
+[`utils/structural/file-changes.ts`](../utils/structural/file-changes.ts) from the cached
+diff and head text, cached in memory up to a span bound, and cancelled when the port
+closes. Over a second port, defined in
 [`utils/github/conversation-frame.ts`](../utils/github/conversation-frame.ts), it installs
 a per-tab session rule that lets only the Conversation panel's frame load the pull
 request's Conversation tab. In Firefox the rule can't require a github.com initiator,
@@ -67,7 +71,8 @@ request still lets queued intent reads go first, but no longer guards against en
 which now runs on the Worker's thread. Nothing is evicted or persisted: in Firefox an idle
 event page discards its Worker, and in Chrome the idle offscreen document closes and takes
 its Worker with it, so the engine and its grammars go, and the next request rebuilds them.
-Nothing in the shipped build calls the host yet.
+The background builds the host on the first `structural` request, and no content script
+sends one yet.
 
 The content script in [`entrypoints/content/index.ts`](../entrypoints/content/index.ts)
 runs on every github.com page at `document_start`, so its watcher is in place before
@@ -1027,7 +1032,7 @@ utils/
     conversation-frame.ts  the per-tab session rule that lets only the Conversation panel frame a PR's Conversation tab, and the panel's request for it
   intent/                reading, caching, and landing intent
   hunk-rules/            the docstring and inline-test rules, and the generator-marker scan; a head is line-scanned, or built from a head outline when one is given
-  structural/            rebuilding a changed file's old text from its patch; the tree-sitter token-diff engine and its grammar table; outlining a head file's multi-line comments, strings, and test blocks from a parse; mapping an engine's structural changes onto diff lines; pairing a file's moved lines; the request shape a message carries, the runner that compiles the packaged WebAssembly, the one-at-a-time host, the engine Worker's message channel, Chrome's offscreen relay, the engine thread the host runs requests on, and the list of packaged files
+  structural/            rebuilding a changed file's old text from its patch; the tree-sitter token-diff engine and its grammar table; outlining a head file's multi-line comments, strings, and test blocks from a parse; mapping an engine's structural changes onto diff lines; pairing a file's moved lines; the request shape a message carries, the runner that compiles the packaged WebAssembly, the one-at-a-time host, the engine Worker's message channel, Chrome's offscreen relay, the engine thread the host runs requests on, and the list of packaged files; file-changes.ts, which builds and caches a file's structural changes for the port, regions.ts, which reads changed regions from hunks, and limits.ts, the engine's default limits
   sections.ts            path rules for the five sections
   prefs.ts               saved preferences
   whats-new.ts           when the what's-new block shows

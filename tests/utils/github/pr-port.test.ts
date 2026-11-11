@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { openPrData, type PrDataPort, servePrDataPort } from "../../../utils/github/pr-port";
 import type { PrRef } from "../../../utils/github/pr-ref";
 import { createPrDataSource } from "../../../utils/github/pr-source";
+import type { StructuralChanges } from "../../../utils/structural/changes";
+import { CACHED_SPANS, fileChanges } from "../../../utils/structural/file-changes";
+import { structuralHost } from "../../../utils/structural/host";
+import type { EngineRun } from "../../../utils/structural/request";
 import { heldResponses, routedFetch } from "../../fixtures/fetch";
 
 const sha = "a".repeat(40);
@@ -67,16 +71,46 @@ const okRoutes = () => ({
   [`${base}/raw/${sha}/src/engine.rs`]: async () => new Response("fn main() {}"),
 });
 
-function harness(fetchFn: typeof fetch, wrapServer: (s: Side) => Side = (s) => s) {
+const changes: StructuralChanges = {
+  old: [{ line: 1, startCol: 10, endCol: 11 }],
+  new: [{ line: 1, startCol: 10, endCol: 11 }],
+};
+const answersOk: EngineRun = async () => ({ ok: true, changes });
+
+function harness(
+  fetchFn: typeof fetch,
+  wrapServer: (s: Side) => Side = (s) => s,
+  run: EngineRun = answersOk,
+) {
   const source = createPrDataSource(fetchFn);
+  const structural = fileChanges({ source, run, cachedSpans: CACHED_SPANS });
   const servers: Side[] = [];
   const connect = vi.fn(() => {
     const [client, server] = portPair();
     servers.push(server);
-    servePrDataPort(wrapServer(server), source);
+    servePrDataPort(wrapServer(server), source, structural);
     return client;
   });
   return { connect, servers };
+}
+
+const tsDiff =
+  "diff --git a/src/a.ts b/src/a.ts\n--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1 +1 @@\n-const a = 1;\n+const a = 2;\n";
+const commit = { kind: "commit", owner: "o", repo: "r", headSha: sha } as const;
+const tsRoutes = (diffUrl: string) => ({
+  [`${base}/pull/7`]: async () => new Response(page),
+  [diffUrl]: async () => new Response(tsDiff),
+  [`${base}/raw/${sha}/src/a.ts`]: async () => new Response("const a = 2;\n"),
+});
+
+/** One raw server port over `fetchFn` and `run`, and the replies it posts. */
+function served(fetchFn: typeof fetch, run: EngineRun = answersOk) {
+  const [client, server] = portPair();
+  const replies: unknown[] = [];
+  client.messageListeners.push((m) => replies.push(m));
+  const source = createPrDataSource(fetchFn);
+  servePrDataPort(server, source, fileChanges({ source, run, cachedSpans: CACHED_SPANS }));
+  return { client, server, replies };
 }
 
 const urls = (fetchFn: ReturnType<typeof routedFetch>) =>
@@ -298,7 +332,7 @@ describe("openPrData", () => {
 
     const connect = () => {
       const [client, server] = portPair();
-      servePrDataPort(server, source);
+      servePrDataPort(server, source, vi.fn());
       return client;
     };
 
@@ -373,7 +407,12 @@ describe("servePrDataPort", () => {
     const [client, server] = portPair();
     const replies: unknown[] = [];
     client.messageListeners.push((m) => replies.push(m));
-    servePrDataPort(server, createPrDataSource(fetchFn));
+    const source = createPrDataSource(fetchFn);
+    servePrDataPort(
+      server,
+      source,
+      fileChanges({ source, run: answersOk, cachedSpans: CACHED_SPANS }),
+    );
 
     client.postMessage(message);
     await new Promise((r) => setTimeout(r, 0));
@@ -427,6 +466,23 @@ describe("servePrDataPort", () => {
     ["a .. path segment", { id: 1, request: { kind: "content", pr: head, path: "../x" } }],
     ["an empty path segment", { id: 1, request: { kind: "content", pr: head, path: "a//b" } }],
     ["a .. prefix path segment", { id: 1, request: { kind: "prefix", pr: head, path: "../x" } }],
+    ["a structural ../x", { id: 1, request: { kind: "structural", pr: head, path: "../x" } }],
+    ["a structural a/../b", { id: 1, request: { kind: "structural", pr: head, path: "a/../b" } }],
+    ["a structural ./a", { id: 1, request: { kind: "structural", pr: head, path: "./a" } }],
+    ["a structural a//b", { id: 1, request: { kind: "structural", pr: head, path: "a//b" } }],
+    ["a structural /abs", { id: 1, request: { kind: "structural", pr: head, path: "/abs" } }],
+    ["a structural non-string path", { id: 1, request: { kind: "structural", pr: head, path: 3 } }],
+    [
+      "a structural bad pr",
+      { id: 1, request: { kind: "structural", pr: { ...head, number: 0 }, path: "a.ts" } },
+    ],
+    [
+      "a structural commit with a non-hex SHA",
+      {
+        id: 1,
+        request: { kind: "structural", pr: { ...commit, headSha: "main" }, path: "a.ts" },
+      },
+    ],
     [
       "a headAndFiles of a commit",
       {
@@ -443,5 +499,105 @@ describe("servePrDataPort", () => {
     ],
   ])("answers %s failed without fetching", async (_, message) => {
     expect(await repliesTo(message)).toEqual([{ id: 1, result: { ok: false, problem: "failed" } }]);
+  });
+});
+
+describe("structural over the port", () => {
+  const head = { ...pr, headSha: sha };
+  const commitDiff = `${base}/commit/${sha}.diff`;
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+
+  it.each(["%2e%2e/x", "src/unlisted.ts"])(
+    "answers an unlisted %s failed without reading its head",
+    async (path) => {
+      const fetchFn = routedFetch(tsRoutes(`${base}/pull/7.diff`));
+      const { client, replies } = served(fetchFn);
+
+      client.postMessage({ id: 1, request: { kind: "structural", pr: head, path } });
+      await vi.waitFor(() => expect(replies).toHaveLength(1));
+
+      expect(replies).toEqual([{ id: 1, result: { ok: false, problem: "failed" } }]);
+      expect(urls(fetchFn).filter((u) => u.includes("/raw/"))).toEqual([]);
+    },
+  );
+
+  it("answers a commit's request with its changes", async () => {
+    const { client, replies } = served(routedFetch(tsRoutes(commitDiff)));
+
+    client.postMessage({ id: 1, request: { kind: "structural", pr: commit, path: "src/a.ts" } });
+    await vi.waitFor(() => expect(replies).toHaveLength(1));
+
+    expect(replies).toEqual([{ id: 1, result: { ok: true, changes } }]);
+  });
+
+  it("reads a commit's changes through the client", async () => {
+    const client = openPrData(
+      harness(routedFetch(tsRoutes(commitDiff))).connect,
+      commit,
+      undefined,
+    );
+
+    expect(await client.structural("src/a.ts")).toEqual({ ok: true, changes });
+  });
+
+  it("resolves a PR's head before reading its changes", async () => {
+    const fetchFn = routedFetch(tsRoutes(`${base}/pull/7.diff`));
+    const client = openPrData(harness(fetchFn).connect, pr, undefined);
+
+    expect(await client.structural("src/a.ts")).toEqual({ ok: true, changes });
+    expect(urls(fetchFn)).toContain(`${base}/raw/${sha}/src/a.ts`);
+  });
+
+  it("aborts a running request when the port disconnects and posts nothing", async () => {
+    let seen: AbortSignal | undefined;
+    const { client, replies } = served(routedFetch(tsRoutes(commitDiff)), (_, signal) => {
+      seen = signal;
+      return new Promise(() => {});
+    });
+
+    client.postMessage({ id: 1, request: { kind: "structural", pr: commit, path: "src/a.ts" } });
+    await vi.waitFor(() => expect(seen).toBeDefined());
+    client.disconnect();
+    await flush();
+
+    expect(seen?.aborted).toBe(true);
+    expect(replies).toEqual([]);
+  });
+
+  it("drops a queued request without running it when the port disconnects", async () => {
+    const engine = vi.fn<EngineRun>(() => new Promise(() => {}));
+    const run = structuralHost({ engine, pause: async () => {} });
+    const twoFiles = tsDiff + tsDiff.replaceAll("a.ts", "b.ts");
+    const { client } = served(
+      routedFetch({
+        [commitDiff]: async () => new Response(twoFiles),
+        [`${base}/raw/${sha}/src/a.ts`]: async () => new Response("const a = 2;\n"),
+        [`${base}/raw/${sha}/src/b.ts`]: async () => new Response("const a = 2;\n"),
+      }),
+      run,
+    );
+
+    client.postMessage({ id: 1, request: { kind: "structural", pr: commit, path: "src/a.ts" } });
+    client.postMessage({ id: 2, request: { kind: "structural", pr: commit, path: "src/b.ts" } });
+    await vi.waitFor(() => expect(engine).toHaveBeenCalledOnce());
+    client.disconnect();
+    await flush();
+
+    expect(engine).toHaveBeenCalledOnce();
+  });
+
+  it("never settles a call made after close", async () => {
+    const client = openPrData(
+      harness(routedFetch(tsRoutes(commitDiff))).connect,
+      commit,
+      undefined,
+    );
+    client.close();
+
+    const settled = vi.fn();
+    void client.structural("src/a.ts").then(settled);
+    await flush();
+
+    expect(settled).not.toHaveBeenCalled();
   });
 });
