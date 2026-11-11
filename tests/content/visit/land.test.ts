@@ -355,6 +355,7 @@ describe("structural mode on a visit", () => {
     files: {
       request: () => {},
       answerOf: () => undefined,
+      pending: () => false,
       onAnswer: () => {},
       report: () => {},
       outcomeOf: () => undefined,

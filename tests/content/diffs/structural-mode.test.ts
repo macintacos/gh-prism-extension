@@ -27,6 +27,7 @@ function fakeFiles() {
   const files: StructuralFiles = {
     request: (paths) => void requested.push(...paths),
     answerOf: (path) => answers.get(path),
+    pending: () => false,
     onAnswer(listener, signal) {
       listeners.add(listener);
       signal.addEventListener("abort", () => listeners.delete(listener));

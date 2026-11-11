@@ -16,6 +16,8 @@ export interface StructuralFiles {
   request(paths: Iterable<string>): void;
   /** The settled answer for `path`, the same object on every call; `undefined` until it settles. */
   answerOf(path: string): StructuralAnswer | undefined;
+  /** Whether `path` was asked this visit and its answer has not settled. */
+  pending(path: string): boolean;
   /** Calls `listener` after each answer settles, until `until` aborts or the visit ends. */
   onAnswer(listener: () => void, until: AbortSignal): void;
   /** Records the painter's latest outcome for `path`. */
@@ -53,7 +55,7 @@ export function structuralFiles(
   let client: StructuralClient | undefined;
   const asked = new Set<string>();
   // ponytail: a file's answer, `failed` included (a Worker restart, say), is kept until the next
-  // visit; retry a failed one when the notices need to.
+  // visit; retry a failed one if reviewers need it without a reload.
   const answers = new Map<string, StructuralAnswer>();
   const listeners = new Set<() => void>();
   const outcomes = new Map<string, PaintOutcome>();
@@ -85,6 +87,7 @@ export function structuralFiles(
       }
     },
     answerOf: (path) => answers.get(path),
+    pending: (path) => asked.has(path) && !answers.has(path),
     onAnswer(listener, until) {
       listeners.add(listener);
       until.addEventListener("abort", () => listeners.delete(listener), { once: true });
