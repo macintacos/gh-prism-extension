@@ -1,12 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { GrammarId } from "../../../utils/structural/grammar";
-import {
-  DEPTH_SEPARATOR,
-  keyedByIndentation,
-  leafTokens,
-  type Token,
-} from "../../../utils/structural/tokens";
+import { keyedByIndentation, leafTokens, type Token } from "../../../utils/structural/tokens";
 import { parserFor } from "../../fixtures/structural";
+
+/** What joins a line's depth to its first token's key. */
+const DEPTH_SEPARATOR = "\u0000";
 
 async function tokensOf(id: GrammarId, text: string, maxTokens = Infinity) {
   const tree = (await parserFor(id)).parse(text);

@@ -578,6 +578,7 @@ entry.
     try Structural mode again."
   - no access: "Sign in to GitHub to see this file in Structural mode; until then, this is
     GitHub's diff."
+  - unparsed: "Structural mode can't read this file's syntax, so this is GitHub's diff."
   - failed: "Structural mode is in beta and couldn't compare this file, so this is
     GitHub's diff."
   - mismatch: "Structural mode is in beta and its reading of this file doesn't match the

@@ -202,11 +202,14 @@ describe("fileChanges", () => {
   });
 
   describe("refusals", () => {
-    it.each(["too-large", "failed"] as const)("maps the engine's %s", async (reason) => {
-      const { changes } = setup({ run: async () => ({ ok: false, reason }) });
+    it.each(["too-large", "unparsed", "failed"] as const)(
+      "maps the engine's %s",
+      async (reason) => {
+        const { changes } = setup({ run: async () => ({ ok: false, reason }) });
 
-      expect(await changes(pr, "src/main.ts", signal())).toEqual({ ok: false, problem: reason });
-    });
+        expect(await changes(pr, "src/main.ts", signal())).toEqual({ ok: false, problem: reason });
+      },
+    );
 
     it("answers failed when the engine rejects without an abort", async () => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -340,6 +343,16 @@ describe("fileChanges", () => {
 
       expect(result).toEqual({ ok: false, problem: "too-large" });
       expect(run).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps a text the engine could not parse", async () => {
+      const { run, changes } = setup({ run: async () => ({ ok: false, reason: "unparsed" }) });
+      await changes(pr, "src/main.ts", signal());
+
+      const result = await changes(pr, "src/main.ts", signal());
+
+      expect(result).toEqual({ ok: false, problem: "unparsed" });
+      expect(run).toHaveBeenCalledTimes(1);
     });
 
     it("runs again after the engine failed", async () => {

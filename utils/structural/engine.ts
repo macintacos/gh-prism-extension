@@ -8,7 +8,7 @@ import { keyedByIndentation, leafTokens, lineStarts, type Token } from "./tokens
 import { type Unit, wholeLineUnits } from "./units";
 
 /** Why the engine returned no changes. */
-export type EngineRefusal = "unsupported" | "too-large" | "too-slow" | "failed";
+export type EngineRefusal = "unsupported" | "too-large" | "too-slow" | "unparsed" | "failed";
 
 /** The engine's answer for one file: its changes, or a refusal. Never partial. */
 export type EngineResult =
@@ -71,7 +71,7 @@ export interface EngineInput {
 /**
  * The tokens each version of a file changed, or why they can't be had: `unsupported` without a
  * language, `too-large` past a size limit, `too-slow` when a parse or the diff passes its deadline,
- * `failed` when either text of an indentation-sensitive language parses with errors. Any other
+ * `unparsed` when either text of an indentation-sensitive language parses with errors. Any other
  * language's text is compared with its errors. Rejects with `signal.reason` if `signal` has
  * aborted at the start or after either parse.
  */
@@ -145,12 +145,12 @@ function parsed(
   try {
     // A tree with errors still gives every non-blank character a token, so its diff marks only
     // text that differs. A line's depth is read from the tree's brackets, which an error unbalances.
-    if (tree.rootNode.hasError && grammar.indentationSensitive) return "failed";
+    if (tree.rootNode.hasError && grammar.indentationSensitive) return "unparsed";
     const tokens = leafTokens(tree, text, limits.maxTokens);
     if (tokens === undefined) return "too-large";
     return {
       tokens: grammar.indentationSensitive ? keyedByIndentation(tokens, text) : tokens,
-      units: wholeLineUnits(tree, text),
+      units: wholeLineUnits(tree, text, lineStarts(text)),
     };
   } finally {
     tree.delete();
@@ -179,7 +179,7 @@ function sourceOf(text: string, all: readonly Token[]): Source {
     return line;
   });
 
-  const words = tokens.map((token) => WORD.test(token.key));
+  const words = tokens.map((token) => WORD.test(text.slice(token.start, token.end)));
 
   return { text, starts, tokens, lines, words, layout: all.filter((token) => token.layout) };
 }
@@ -256,7 +256,8 @@ function firstIndex(tokens: readonly Token[], past: (token: Token) => boolean): 
   let high = tokens.length;
   while (low < high) {
     const mid = (low + high) >> 1;
-    if (past(tokens[mid] as Token)) high = mid;
+    const token = tokens[mid];
+    if (token === undefined || past(token)) high = mid;
     else low = mid + 1;
   }
   return low;
@@ -366,7 +367,7 @@ function windowChanges(
 function inCanonicalOrder(a: readonly string[], b: readonly string[]): boolean {
   if (a.length !== b.length) return a.length < b.length;
   const i = a.findIndex((key, at) => key !== b[at]);
-  return i === -1 || (a[i] as string) < (b[i] as string);
+  return i === -1 || (a[i] ?? "") < (b[i] ?? "");
 }
 
 /** For each token of the diff's first side, the index of the second side's token `parts` matched it to, or -1. */
@@ -453,7 +454,7 @@ function linesInside(
   for (const unit of units) {
     const own = range(unit.start, unit.end);
     if (!changedWhole(own) || changedWhole(range(unit.parentStart, unit.parentEnd))) continue;
-    for (let i = own.from; i < own.to; i++) wentWhole.add(tokens[i] as Token);
+    for (const token of tokens.slice(own.from, own.to)) wentWhole.add(token);
   }
 
   const inside = changed.filter((token) => !wentWhole.has(token));

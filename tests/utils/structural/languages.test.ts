@@ -568,6 +568,6 @@ describe("structuralChanges in each language", () => {
 
     const result = changedTexts("a.md", text("old"), text("new"));
 
-    await expect(result).rejects.toThrow("a.md refused: failed");
+    await expect(result).rejects.toThrow("a.md refused: unparsed");
   });
 });

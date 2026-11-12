@@ -47,10 +47,10 @@ const each = (language: Grammar, extensions: readonly string[]) =>
 
 // A dotfile's name after its dot is its extension, so `.bashrc` is listed as `bashrc`.
 const GRAMMAR_BY_EXTENSION = new Map<string, Grammar>([
-  ...["ts", "mts", "cts"].map((ext) => [ext, TYPESCRIPT] as const),
+  ...each(TYPESCRIPT, ["ts", "mts", "cts"]),
   ["tsx", grammar("tsx")],
-  ...["js", "mjs", "cjs", "jsx"].map((ext) => [ext, JAVASCRIPT] as const),
-  ...["py", "pyi"].map((ext) => [ext, PYTHON] as const),
+  ...each(JAVASCRIPT, ["js", "mjs", "cjs", "jsx"]),
+  ...each(PYTHON, ["py", "pyi"]),
   ["rs", grammar("rust")],
   ["go", grammar("go")],
   ["css", grammar("css")],
