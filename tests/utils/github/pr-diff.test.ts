@@ -254,7 +254,10 @@ const hunkCases: [string, string, PrHunk[]][] = [
     helpersPatch,
     [
       {
+        oldStart: 11,
+        oldCount: 5,
         newStart: 11,
+        newCount: 5,
         lines: [
           " }",
           " ",
@@ -270,24 +273,86 @@ const hunkCases: [string, string, PrHunk[]][] = [
     "two hunks",
     twoHunks,
     [
-      { newStart: 1, lines: ["-old title", "+new title", " body"] },
-      { newStart: 20, lines: ["-    keep()", "+    keep_more()", " }"] },
+      {
+        oldStart: 1,
+        oldCount: 2,
+        newStart: 1,
+        newCount: 2,
+        lines: ["-old title", "+new title", " body"],
+      },
+      {
+        oldStart: 20,
+        oldCount: 2,
+        newStart: 20,
+        newCount: 2,
+        lines: ["-    keep()", "+    keep_more()", " }"],
+      },
     ],
   ],
   [
     "a header without counts",
     lines("@@ -1 +1 @@", "-old", "+new"),
-    [{ newStart: 1, lines: ["-old", "+new"] }],
+    [
+      {
+        oldStart: 1,
+        oldCount: 1,
+        newStart: 1,
+        newCount: 1,
+        lines: ["-old", "+new"],
+      },
+    ],
+  ],
+  [
+    "a header with one count omitted",
+    lines("@@ -3 +3,2 @@", "-x", "+y", "+z"),
+    [
+      {
+        oldStart: 3,
+        oldCount: 1,
+        newStart: 3,
+        newCount: 2,
+        lines: ["-x", "+y", "+z"],
+      },
+    ],
+  ],
+  [
+    "an added file",
+    lines("@@ -0,0 +1,3 @@", "+a", "+b", "+c"),
+    [
+      {
+        oldStart: 0,
+        oldCount: 0,
+        newStart: 1,
+        newCount: 3,
+        lines: ["+a", "+b", "+c"],
+      },
+    ],
   ],
   [
     "a deleted file",
     lines("@@ -1,3 +0,0 @@", "-a", "-b", "-c"),
-    [{ newStart: 0, lines: ["-a", "-b", "-c"] }],
+    [
+      {
+        oldStart: 1,
+        oldCount: 3,
+        newStart: 0,
+        newCount: 0,
+        lines: ["-a", "-b", "-c"],
+      },
+    ],
   ],
   [
     "a hunk without a newline at end of file",
     noNewlinePatch,
-    [{ newStart: 1, lines: ["-old", "+new", "\\ No newline at end of file"] }],
+    [
+      {
+        oldStart: 1,
+        oldCount: 1,
+        newStart: 1,
+        newCount: 1,
+        lines: ["-old", "+new", "\\ No newline at end of file"],
+      },
+    ],
   ],
   [
     "a header's trailing function context",
@@ -300,7 +365,10 @@ const hunkCases: [string, string, PrHunk[]][] = [
     ),
     [
       {
+        oldStart: 24,
+        oldCount: 3,
         newStart: 24,
+        newCount: 3,
         lines: [
           " They change rarely and stay in prose.",
           "-Each sentence sits on its own line.",
@@ -368,29 +436,61 @@ describe("hunkHeadSpan", () => {
   });
 
   it("counts a blank context line written as an empty string", () => {
-    expect(hunkHeadSpan({ newStart: 4, lines: ["-a", "", "+b"] })).toEqual({ first: 4, last: 5 });
+    expect(
+      hunkHeadSpan({
+        oldStart: 4,
+        oldCount: 2,
+        newStart: 4,
+        newCount: 2,
+        lines: ["-a", "", "+b"],
+      }),
+    ).toEqual({ first: 4, last: 5 });
   });
 });
 
 const lineCountCases: [string, PrHunk, LineCounts][] = [
   [
     "a removed and an added line",
-    { newStart: 1, lines: ["-old title", "+new title", " body"] },
+    {
+      oldStart: 1,
+      oldCount: 2,
+      newStart: 1,
+      newCount: 2,
+      lines: ["-old title", "+new title", " body"],
+    },
     { added: 1, removed: 1 },
   ],
   [
     "a removed line whose text starts with --",
-    { newStart: 1, lines: ["--- old comment", "+-- new comment"] },
+    {
+      oldStart: 1,
+      oldCount: 1,
+      newStart: 1,
+      newCount: 1,
+      lines: ["--- old comment", "+-- new comment"],
+    },
     { added: 1, removed: 1 },
   ],
   [
     "a deleted file's removals",
-    { newStart: 0, lines: ["-a", "-b", "-c"] },
+    {
+      oldStart: 1,
+      oldCount: 3,
+      newStart: 0,
+      newCount: 0,
+      lines: ["-a", "-b", "-c"],
+    },
     { added: 0, removed: 3 },
   ],
   [
     "context, blank and no-newline lines",
-    { newStart: 1, lines: ["-old", " ", "", "+new", "\\ No newline at end of file"] },
+    {
+      oldStart: 1,
+      oldCount: 3,
+      newStart: 1,
+      newCount: 3,
+      lines: ["-old", " ", "", "+new", "\\ No newline at end of file"],
+    },
     { added: 1, removed: 1 },
   ],
 ];
