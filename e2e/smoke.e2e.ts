@@ -5396,3 +5396,50 @@ for (const kind of ["pr", "commit"] as const) {
     expect(await boxes()).toEqual(before);
   });
 }
+
+test("the Structural segment's prism pulses while the pointer or keyboard focus is anywhere on the segment", async ({
+  context,
+  page,
+}) => {
+  await serveLayoutPage(context, page, "pr");
+  await expect(segment(page, "Unified")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-diffs", "covered");
+  const structural = segment(page, "Structural");
+  const pulse = structural.locator(".gh-prism-mark-pulse");
+  const copy = pulse.locator("svg");
+
+  await structural.getByText("Beta", { exact: true }).hover();
+  await expect(pulse).toHaveCSS("opacity", "1");
+  await expect(copy).toHaveCSS("animation-play-state", "running");
+
+  await page.mouse.move(0, 0);
+  await expect(pulse).toHaveCSS("opacity", "0");
+  await expect(copy).toHaveCSS("animation-play-state", "paused");
+
+  await segment(page, "Split").focus();
+  await page.keyboard.press("Tab");
+  await expect(structural).toBeFocused();
+  await expect(pulse).toHaveCSS("opacity", "1");
+  await expect(copy).toHaveCSS("animation-play-state", "running");
+});
+
+test("an unavailable Structural segment's prism stays still under the pointer", async ({
+  context,
+  page,
+}) => {
+  const url = `${PR_URL}/dd95cdc0d7a9a6817998ee6663563e888761f329`;
+  await serve(context, url, layoutBody("pr", "split"));
+  await page.goto(url);
+  const structural = segment(page, "Structural");
+  await expect(structural).toHaveAttribute("aria-disabled", "true");
+  await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-diffs", "covered");
+  const prism = structural.locator(".gh-prism-mark");
+
+  await structural.hover();
+
+  await expect(prism.locator(".gh-prism-mark-pulse")).toHaveCSS("opacity", "0");
+  await expect(prism.locator(".gh-prism-mark-pulse svg")).toHaveCSS(
+    "animation-play-state",
+    "paused",
+  );
+});

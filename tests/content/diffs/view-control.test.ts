@@ -532,6 +532,19 @@ describe("showDiffViewControl", () => {
     ).toBe("Beta");
   });
 
+  it("leads the Structural segment alone with gh-prism's prism, hidden from assistive technology", () => {
+    const page = pageOf("pr", "split");
+
+    show(page, choiceOf(false).choice);
+
+    const prism = segment("structural")?.firstElementChild;
+    expect(prism?.querySelector("svg")).not.toBeNull();
+    expect(prism?.getAttribute("aria-hidden")).toBe("true");
+    expect(prism?.nextElementSibling?.textContent).toBe("Structural");
+    expect(segment("unified")?.querySelector("svg")).toBeNull();
+    expect(segment("split")?.querySelector("svg")).toBeNull();
+  });
+
   it("presses no segment while the layout can't be told", () => {
     const page = pageOf("pr", "split");
     for (const table of page.diffs.querySelectorAll("table")) table.remove();

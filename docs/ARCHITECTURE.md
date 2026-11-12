@@ -1149,7 +1149,11 @@ The sidebar, the header counter's tooltips, the code owner details dialog, the c
 page notice, and the commit message column each append the `prismMark` built by
 [`ui/mark.ts`](../entrypoints/content/ui/mark.ts). The code owners popover and the code
 owner's files popup get theirs from `detailsHint`, the footer they share. Every one of
-these surfaces' sheets `@import`s the mark's partial, `ui/mark.css`.
+these surfaces' sheets `@import`s the mark's partial, `ui/mark.css`. The diff view
+control's sheet imports it too. `diffs/view-control.ts` builds the Structural segment's
+icon, the mark's glyph and the coloured copy that pulses, from `prismGlyph` in
+`ui/mark.ts`, with no name. `diffs/view-control.css` runs the pulse while the segment is
+hovered or shows keyboard focus.
 
 ## Source layout
 
