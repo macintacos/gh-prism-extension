@@ -94,6 +94,18 @@ has no grammar and no parse:
 [`utils/structural/plain-text.ts`](../utils/structural/plain-text.ts) names it, and the
 engine compares its words alone.
 
+A diff of unrelated code still pairs some tokens, such as a `}`, a comma, or a shared
+name, and each pairing would leave a hole in a line's mark.
+[`utils/structural/chance.ts`](../utils/structural/chance.ts) drops those pairings from
+each region's diff, so a block replaced by unrelated code reaches the painter changed in
+full. It calls a line replaced when the diff leaves it less than half its tokens, or half
+of them when it is all punctuation. A line that is not replaced and keeps a word vouches
+for its pairings. A run of paired tokens is dropped when, on a replaced line of either
+side, changed runs at least as long as it sit before and after it, unless its line on the
+other side vouches for it. Any pairing left between two replaced lines is dropped too. A
+line that keeps half its tokens therefore keeps its marks: a renamed name, a changed
+argument, or an argument added to an unchanged call.
+
 The content script in [`entrypoints/content/index.ts`](../entrypoints/content/index.ts)
 runs on every github.com page at `document_start`, so its watcher is in place before
 GitHub first renders the page. It cannot match only Files view URLs, because of GitHub's
@@ -1142,7 +1154,7 @@ utils/
     conversation-frame.ts  the per-tab session rule that lets only the Conversation panel frame a PR's Conversation tab, and the panel's request for it
   intent/                reading, caching, and landing intent
   hunk-rules/            the docstring and inline-test rules, and the generator-marker scan; a head is line-scanned, or built from a head outline when one is given
-  structural/            rebuilding a changed file's old text from its patch; the tree-sitter token-diff engine and its grammar table; outlining a head file's multi-line comments, strings, and test blocks from a parse; mapping an engine's structural changes onto diff lines; the request shape a message carries, the runner that compiles the packaged WebAssembly, the one-at-a-time host, the engine Worker's message channel, Chrome's offscreen relay, the engine thread the host runs requests on, and the list of packaged files; building and caching a file's structural changes for the port; reading changed regions from hunks; the engine's default limits
+  structural/            rebuilding a changed file's old text from its patch; the tree-sitter token-diff engine, its grammar table, and the rule that drops a diff's chance pairings; outlining a head file's multi-line comments, strings, and test blocks from a parse; mapping an engine's structural changes onto diff lines; the request shape a message carries, the runner that compiles the packaged WebAssembly, the one-at-a-time host, the engine Worker's message channel, Chrome's offscreen relay, the engine thread the host runs requests on, and the list of packaged files; building and caching a file's structural changes for the port; reading changed regions from hunks; the engine's default limits
   sections.ts            path rules for the five sections
   prefs.ts               saved preferences
   whats-new.ts           when the what's-new block shows

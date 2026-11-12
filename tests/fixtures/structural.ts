@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { diffLines } from "diff";
 import { Language, Parser } from "web-tree-sitter";
 import { packagedWasmPaths } from "../../scripts/tasks/grammars";
+import { parsePrHunks } from "../../utils/github/pr-diff";
 import type { TokenSpan } from "../../utils/structural/changes";
 import {
   type ChangedRegion,
@@ -10,6 +11,7 @@ import {
 } from "../../utils/structural/engine";
 import type { GrammarId } from "../../utils/structural/grammar";
 import { GRAMMAR_WASM } from "../../utils/structural/packaged";
+import { changedRegions } from "../../utils/structural/regions";
 
 const WASM_PATHS = new Map(packagedWasmPaths());
 
@@ -38,6 +40,17 @@ export function readPair(grammar: GrammarId, name: string): { oldText: string; n
       "utf8",
     );
   return { oldText: read("old"), newText: read("new") };
+}
+
+/**
+ * The changed line runs of the fixture pair `name`'s own patch, as GitHub's hunks give them. The
+ * patch sits beside the grammar directories, which hold source texts alone.
+ */
+export function readRegions(name: string): ChangedRegion[] {
+  const patch = readFileSync(new URL(`structural/${name}.patch.txt`, import.meta.url), "utf8");
+  const regions = changedRegions(parsePrHunks(patch.trimEnd()));
+  if (!regions) throw new Error(`unreadable patch: ${name}`);
+  return regions;
 }
 
 /** The changed line runs `diffLines` finds: each maximal run of removed and added parts. */
