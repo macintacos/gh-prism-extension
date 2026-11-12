@@ -939,14 +939,13 @@ until the user scrolls, clicks, or types, or 5 s pass.
 [`entrypoints/content/diffs/structural.ts`](../entrypoints/content/diffs/structural.ts)
 paints structural mode onto GitHub's own mounted diff rows. A quiet row is one GitHub
 shows as added or deleted in which structural mode finds no changed token, such as a
-reindented line; [`CONTEXT.md`](../CONTEXT.md) defines both terms. It marks each changed
-token, each quiet row, and each moved line, and moves, inserts, or re-renders no GitHub
-node. Each page of a visit holds a `startableStructural` view, which keeps only the latest
-on-screen paths and sections and constructs the painter only once started: at once when
-`showVisit` is given `structural`, which `index.ts` gives only while Structural mode is
-on, or later through the `startStructural` that `showVisit` returns, which replays both
-into it. So the default path mounts no `<style>`, registers no highlight, and adds no
-observer.
+reindented line; [`CONTEXT.md`](../CONTEXT.md) defines both terms. It marks the changed
+tokens and each quiet row, and moves, inserts, or re-renders no GitHub node. Each page of
+a visit holds a `startableStructural` view, which keeps only the latest on-screen paths
+and sections and constructs the painter only once started: at once when `showVisit` is
+given `structural`, which `index.ts` gives only while Structural mode is on, or later
+through the `startStructural` that `showVisit` returns, which replays both into it. So the
+default path mounts no `<style>`, registers no highlight, and adds no observer.
 
 Structural mode is saved as `structuralMode` in [`utils/prefs.ts`](../utils/prefs.ts).
 `index.ts` reads it before watching, narrowing it with `=== true`, and builds one
@@ -1002,18 +1001,27 @@ line annotations and the text they were computed from. Its `report(path, outcome
 called with `painted` or `mismatch` for a mounted file when that outcome is first known
 and whenever it changes.
 
-- **Changed tokens** are `Range`s in two registered `Highlight`s, `gh-prism-added` and
-  `gh-prism-removed`, styled by `::highlight()` rules in
-  [`diffs/structural.css`](../entrypoints/content/diffs/structural.css). The painter
+- **Marks** show a line's changed tokens. `markRanges` in
+  [`diffs/structural-marks.ts`](../entrypoints/content/diffs/structural-marks.ts) joins
+  the tokens that have only whitespace between them, and gives a line changed in full no
+  mark, so GitHub's line tint alone shows it. Each mark is a `Range`.
+- **A mask draws each mark.** A marked line's `.diff-text-inner` carries
+  `data-gh-prism-marks` and a `--gh-prism-marks` custom property: an SVG of padded,
+  rounded rectangles that `maskOf` builds. The sheet,
+  [`diffs/structural.css`](../entrypoints/content/diffs/structural.css), paints a
+  `::before` behind the text in the mark's colour and masks it with that image, so the
+  mark adds no node and takes no space.
+- **A `ResizeObserver` measures the marks.** Each pass hands each marked line to the
+  observer, whose callback reads the ranges' client rects and writes the masks. The
+  observer reports after layout, so the read forces none, and it reports again when a
+  resize wraps a line another way.
+- **The painter also registers the ranges** in two `Highlight`s, `gh-prism-added` and
+  `gh-prism-removed`. Their `::highlight()` rules paint only under
+  `forced-colors: active`, where the browser drops the masked background. The painter
   reaches the highlight registry through the diffs element's own window.
 - **A quiet row** carries `data-gh-prism-quiet` with the quiet side: `old`, `new`, or both
   sides, space-separated, and a painted table carries `data-gh-prism-structural`. The
   sheet keys on both.
-- **A moved line** gives its row `data-gh-prism-moved`, with the same `old` / `new`
-  encoding, and the sheet outlines that side's code cell. `movedLines` in
-  [`utils/structural/moved.ts`](../utils/structural/moved.ts) pairs the lines from the
-  file's own text, so a moved line's partner may sit in a hunk the page does not mount. A
-  quiet line never pairs, so one row can be quiet on one side and moved on the other.
 - **One pass per animation frame.** The `sections` hook and every `observeDiffs` report
   schedule a frame, and a pending frame is reused. The pass first reads every table, then
   writes, so its reads (`querySelectorAll`, `dataset`, `textContent`) never force a layout
@@ -1027,22 +1035,22 @@ and whenever it changes.
   a kept text element, under a cell that holds no range (a quiet cell, or any cell of a
   mismatched table), goes unnoticed until one of those three changes.
 - **A mismatch skips the whole file.** Every mounted changed cell needs an annotation and
-  text equal to the expected line. If one fails, the table gets no highlight, no quiet row
-  or moved line, and no table attribute, and the file reports `mismatch`. Annotations for
-  lines the page does not mount, as with Hide whitespace (`?w=1`), are fine.
+  text equal to the expected line. If one fails, the table gets no mark, no quiet row, and
+  no table attribute, and the file reports `mismatch`. Annotations for lines the page does
+  not mount, as with Hide whitespace (`?w=1`), are fine.
 - **Split only, per table.** The painter reads each table's own layout from `diffTables`
   and paints it only when split, so it skips a unified page and a one-sided file's
   three-column table.
 - **Selected lines are left to the sheet.** GitHub marks a selected line by an attribute
-  `observeDiffs` does not report, so the sheet never tints a selected cell and clears a
-  highlight's background over one.
+  `observeDiffs` does not report, so the sheet never tints a selected cell. A selected
+  line keeps its marks, as it keeps GitHub's own word marks.
 - **Annotations are pulled each pass.** The painter calls `annotationsOf` again on every
   pass and repaints a table whose `StructuralFile` changed. Nothing pushes a pass when a
   file's annotations arrive.
 
-On abort the painter cancels its frame, deletes both highlights, removes
-`data-gh-prism-structural`, `data-gh-prism-quiet`, and `data-gh-prism-moved`, and removes
-its `<style>`.
+On abort the painter cancels its frame, deletes both highlights, disconnects its observer,
+removes `data-gh-prism-structural`, `data-gh-prism-quiet`, `data-gh-prism-marks`, and each
+mask, and removes its `<style>`.
 
 `showStructural` also mounts the notices, `showStructuralNotices` in
 [`diffs/structural-notices.ts`](../entrypoints/content/diffs/structural-notices.ts), under
@@ -1104,7 +1112,7 @@ utils/
     conversation-frame.ts  the per-tab session rule that lets only the Conversation panel frame a PR's Conversation tab, and the panel's request for it
   intent/                reading, caching, and landing intent
   hunk-rules/            the docstring and inline-test rules, and the generator-marker scan; a head is line-scanned, or built from a head outline when one is given
-  structural/            rebuilding a changed file's old text from its patch; the tree-sitter token-diff engine and its grammar table; outlining a head file's multi-line comments, strings, and test blocks from a parse; mapping an engine's structural changes onto diff lines; pairing a file's moved lines; the request shape a message carries, the runner that compiles the packaged WebAssembly, the one-at-a-time host, the engine Worker's message channel, Chrome's offscreen relay, the engine thread the host runs requests on, and the list of packaged files; building and caching a file's structural changes for the port; reading changed regions from hunks; the engine's default limits
+  structural/            rebuilding a changed file's old text from its patch; the tree-sitter token-diff engine and its grammar table; outlining a head file's multi-line comments, strings, and test blocks from a parse; mapping an engine's structural changes onto diff lines; the request shape a message carries, the runner that compiles the packaged WebAssembly, the one-at-a-time host, the engine Worker's message channel, Chrome's offscreen relay, the engine thread the host runs requests on, and the list of packaged files; building and caching a file's structural changes for the port; reading changed regions from hunks; the engine's default limits
   sections.ts            path rules for the five sections
   prefs.ts               saved preferences
   whats-new.ts           when the what's-new block shows

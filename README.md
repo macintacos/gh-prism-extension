@@ -165,12 +165,12 @@ diffs, and Older and Newer links step through its history.
 A control beside GitHub's diff settings gear, on a pull request's Files changed tab and on
 a commit's page, picks how the diffs are drawn: **Unified**, **Split**, or **Structural**.
 
-- Structural draws GitHub's Split layout and highlights the code that changed. Lines whose
+- Structural draws GitHub's Split layout and highlights the code that changed. A line
+  changed in full shows only GitHub's line colour, with no highlight, and lines whose
   change only reformats them take a lighter tint.
-- It keeps GitHub's pairing of old and new lines. It outlines a line that moved within its
-  file, but doesn't line it up with its old place, and doesn't mark code that moved to
-  another file. It works on TypeScript, TSX, JavaScript, and Python files, and leaves
-  every other file as GitHub draws it.
+- It keeps GitHub's pairing of old and new lines, and doesn't mark code that moved. It
+  works on TypeScript, TSX, JavaScript, and Python files, and leaves every other file as
+  GitHub draws it.
 - gh-prism remembers the choice. Choosing Unified or Split turns Structural off, and so
   does choosing Unified from GitHub's own Layout menu. On a pull request filtered to one
   commit, Structural is unavailable. Structural is in beta, so it may have bugs.

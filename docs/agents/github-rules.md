@@ -363,6 +363,23 @@ on a private one.
   an opaque one covers it, and a translucent one (`rgba(255,0,255,.4)`) lets the mark's
   tint show through. Observed on sandbox PR #3's `timeout_ms = 500` row in Chromium 157
   and Firefox 157 on 2026-11-10.
+- **Draw a padded or rounded mark behind a line's text with a masked `::before` on its
+  `.diff-text-inner`, never with `::highlight()`.** A `::highlight()` takes a colour, a
+  background colour, a text decoration, and a text shadow, but no padding, radius, or
+  background image. `.diff-text-inner` is `display: block`, `position: static`, and
+  `overflow: hidden`, on a 20px line, and GitHub gives it no `::before` or `::after`. With
+  `position: relative` and `isolation: isolate` on it, a `::before` at `inset: 0` and
+  `z-index: -1` paints above the `td`'s tint and behind the text, and moves nothing. A
+  `mask` whose image is a `data:image/svg+xml` URL in a custom property, set through
+  `style.setProperty`, passes GitHub's Content Security Policy (CSP). `overflow: hidden`
+  clips the `::before` at the text's first column. A `Range` over a token is 12px tall in
+  Chromium and 13px in Firefox. Observed on sandbox PR #3 and PR #4 in Split, Chromium 156
+  and Firefox 157, 2026-11-11. Re-check: add `structural.css` to the page, set
+  `data-gh-prism-marks` and a `--gh-prism-marks` mask on one `.diff-text-inner`, and read
+  the console for a CSP error and each row's box before and after.
+- **Expect GitHub to keep its word marks on a selected line.** On a selected row, the
+  word-mark span (`.x`) still computes `--diffBlob-additionWord-bgColor` over the `td`'s
+  `--bgColor-attention-muted` (Chromium 156, sandbox PR #3 in Split, 2026-11-11).
 - **Style a `::highlight()` with `background-color`, `text-decoration: underline`,
   `text-decoration-color`, `text-decoration-thickness`, `text-underline-offset`, and
   `var()`; all apply.** Over a selected cell,

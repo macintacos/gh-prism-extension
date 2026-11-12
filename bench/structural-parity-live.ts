@@ -20,7 +20,6 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import type { BrowserContext, Locator, Page } from "@playwright/test";
 import {
-  MOVED_ATTR,
   QUIET_ATTR,
   STRUCTURAL_ATTRS,
   TABLE_ATTR,
@@ -257,7 +256,7 @@ async function cellOf(
 ): Promise<Locator | undefined> {
   const sideCell = `td.diff-text-cell${sideOf(side)}`;
   const lineAnchor = await page.evaluate(
-    ({ anchor, kind, sideCell, quiet, moved }) => {
+    ({ anchor, kind, sideCell, quiet }) => {
       const cells = document.querySelectorAll<HTMLElement>(
         `table[data-diff-anchor="${anchor}"] ${sideCell}[data-line-anchor]`,
       );
@@ -265,14 +264,13 @@ async function cellOf(
         const changed = td.querySelector("code.addition, code.deletion");
         const row = td.closest("tr");
         const isQuiet = row?.matches(`[${quiet}], :has([${quiet}])`) ?? false;
-        const isMoved = row?.matches(`[${moved}], :has([${moved}])`) ?? false;
         if (kind === "context") return !changed && td.textContent?.trim();
         if (kind === "quiet") return changed && isQuiet && td.textContent?.trim();
-        return changed && !isQuiet && !isMoved && td.textContent?.trim();
+        return changed && !isQuiet && td.textContent?.trim();
       });
       return found?.dataset.lineAnchor;
     },
-    { anchor, kind, sideCell, quiet: QUIET_ATTR, moved: MOVED_ATTR },
+    { anchor, kind, sideCell, quiet: QUIET_ATTR },
   );
   return lineAnchor ? page.locator(`${sideCell}[data-line-anchor="${lineAnchor}"]`) : undefined;
 }
@@ -1392,49 +1390,6 @@ async function bigPage(page: Page): Promise<void> {
   await press(page, "Split");
 }
 
-/** F: a focused moved line keeps GitHub's focus ring and its dashed outline. */
-async function movedFocus(page: Page): Promise<void> {
-  for (const url of [PR4, C1, C2]) {
-    await open(page, url);
-    await press(page, "Structural");
-    for (let step = 0; step < 6; step++) {
-      if (await page.locator(`[${MOVED_ATTR}]`).count()) break;
-      await page.mouse.wheel(0, 700);
-      await wait(page, 1200);
-    }
-    const found = await page.evaluate(
-      ({ moved }) => {
-        const movedCell = document.querySelector<HTMLElement>(
-          `[${moved}] td.diff-text-cell, td.diff-text-cell[${moved}]`,
-        );
-        const plain = [...document.querySelectorAll<HTMLElement>("td.diff-text-cell")].find(
-          (td) => !td.closest(`[${moved}]`) && td.querySelector("code.addition, code.deletion"),
-        );
-        if (!movedCell || !plain) return undefined;
-        const ring = (td: HTMLElement) => {
-          td.focus();
-          const before = getComputedStyle(td, "::before");
-          return {
-            border: `${before.borderTopStyle} ${before.borderTopWidth} ${before.borderTopColor}`,
-            outline: getComputedStyle(td).outlineStyle,
-          };
-        };
-        return { moved: ring(movedCell), plain: ring(plain) };
-      },
-      { moved: MOVED_ATTR },
-    );
-    await press(page, "Split");
-    if (!found) continue;
-    return record(
-      "F",
-      `moved line focus ${url}`,
-      found.moved.border === found.plain.border && found.moved.outline === "dashed",
-      JSON.stringify(found),
-    );
-  }
-  notDriven("F", "moved line focus", "no page marks a moved line");
-}
-
 /** R: from Unified, Structural then sidebar reveals never reload the page. */
 async function noReloadOnReveal(page: Page): Promise<void> {
   await run("R", "reveal without reload", async () => {
@@ -1513,7 +1468,6 @@ try {
     await copyFindKeys(page);
     await restOfPage(page);
     await kindsAndNotices(page);
-    await movedFocus(page);
     await noReloadOnReveal(page);
     await bigPage(page);
   });
