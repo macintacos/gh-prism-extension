@@ -495,6 +495,20 @@ on a private one.
   [`macintacos/gh-prism-sandbox` PR #3](https://github.com/macintacos/gh-prism-sandbox/pull/3/changes)
   has no whitespace-only line to show the rows' answer. Settle it on a pull request with a
   whitespace-only change.
+- **Expect a pull request to hide whitespace with no `?w=1` in its URL.** Whitespace
+  changes set to Always hide is saved to the account, and the page then embeds
+  `"hideWhitespace":true`, `"whitespacePreference":"always_hide"`, and
+  `"whitespacePreferenceSource":"user_default"`. The `.diff` never follows it.
+- **Don't read a whitespace-hidden page as the `.diff` minus its whitespace-only lines.**
+  Its rows are `git diff -w`'s, aligned afresh, so a line the `.diff` holds as context can
+  be drawn added or deleted. On
+  [PR #120](https://github.com/macintacos/gh-prism-extension/pull/120/changes)'s
+  `tests/background.test.ts` the `.diff` has one hunk whose
+  `const createDocument = vi.fn();` is context at old 74 and new 70; the page draws three
+  hunks, with that line deleted at `L74` and added at `R70`, and `R130` and `R131` added.
+  `git diff -w` between the page's `baseOid` and `headOid` gives the page's rows exactly
+  (Chromium, 2026-11-11). Re-check: with Always hide saved, compare that file's changed
+  cells with `git diff -w`.
 - **Expect the menu's layout choice to persist across reloads.** Choosing Split on
   `macintacos/gh-prism-sandbox` PR #3 kept split, and Split checked, after a reload
   without a parameter, in one Chromium 157 session on 2026-11-10. The account stores it: a
