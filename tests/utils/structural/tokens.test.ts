@@ -23,6 +23,11 @@ async function pythonKeys(text: string): Promise<string[]> {
   return keyedByIndentation(tokens, text).map((token) => token.key);
 }
 
+/** Each token's own text. */
+async function texts(id: GrammarId, text: string) {
+  return (await tokensOf(id, text))?.map((token) => text.slice(token.start, token.end));
+}
+
 describe("leafTokens", () => {
   it("keys each leaf by its text", async () => {
     const tokens = await tokensOf("typescript", "const a = f(b);");
@@ -38,14 +43,6 @@ describe("leafTokens", () => {
     expect(tokens?.find((token) => token.key === "+")?.start).toBe(text.indexOf("+"));
   });
 
-  it("keeps a template literal's text spanning two lines as one token", async () => {
-    const text = "const s = `a\nb`;";
-
-    const tokens = await tokensOf("javascript", text);
-
-    expect(tokens?.map((token) => token.key)).toContain("a\nb");
-  });
-
   it("records each leaf's node type", async () => {
     const tokens = await tokensOf("python", 'x.split("(")');
 
@@ -53,10 +50,76 @@ describe("leafTokens", () => {
     expect(brackets?.map((token) => token.type)).toEqual(["(", "string_content"]);
   });
 
-  it("keeps a template literal's whitespace in its key", async () => {
-    const tokens = await tokensOf("javascript", "const s = `a\n  b`;");
+  it("gives a string's text one token per word, keyed with the exact spacing before it", async () => {
+    const tokens = await tokensOf("javascript", "const s = `a\n  b c`;");
 
-    expect(tokens?.map((token) => token.key)).toContain("a\n  b");
+    expect(tokens?.map((token) => token.key)).toEqual([
+      "const",
+      "s",
+      "=",
+      "`",
+      "a",
+      "\n  b",
+      " c",
+      "`",
+      ";",
+    ]);
+  });
+
+  it("splits a Python string's text around an escape into words too", async () => {
+    const tokens = await tokensOf("python", 's = "a b\\n c"');
+
+    expect(tokens?.map((token) => token.key)).toEqual(["s", "=", '"', "a", " b", "\\n", " c", '"']);
+  });
+
+  it("keys a JSX text's word with one space for any spacing around it", async () => {
+    const tokens = await tokensOf("tsx", "x = <p>Hello big\n   world {y}</p>;");
+
+    expect(tokens?.filter((token) => token.type === "jsx_text").map((token) => token.key)).toEqual([
+      "Hello",
+      " big",
+      " world ",
+    ]);
+  });
+
+  it("gives a comment one token for its marker and one per word", async () => {
+    expect(await texts("typescript", "x; // copies the group,")).toEqual([
+      "x",
+      ";",
+      "//",
+      "copies",
+      "the",
+      "group",
+      ",",
+    ]);
+  });
+
+  it("gives the * that leads a block comment's later lines no token", async () => {
+    expect(await texts("typescript", "/**\n * a b\n * c\n */")).toEqual([
+      "/**",
+      "a",
+      "b",
+      "c",
+      "*",
+      "/",
+    ]);
+  });
+
+  it.each([
+    ["typescript", "// a\n// b\nx;\n// c", ["//", "a", "b", "x", ";", "//", "c"]],
+    ["python", "# a\n# b\nx\n# c", ["#", "a", "b", "x", "#", "c"]],
+  ] as const)(
+    "gives the marker of a %s line comment that continues another no token",
+    async (id, text, expected) => {
+      expect(await texts(id, text)).toEqual(expected);
+    },
+  );
+
+  it("keys a comment's word apart from the same word in code", async () => {
+    const tokens = await tokensOf("javascript", "// a\na;");
+
+    const [inComment, inCode] = tokens?.filter((token) => token.end - token.start === 1) ?? [];
+    expect(inComment?.key).not.toBe(inCode?.key);
   });
 
   it.each([
@@ -125,7 +188,6 @@ describe("keyedByIndentation", () => {
   it("leaves the depths alone at a comment-only line", async () => {
     const keys = await pythonKeys("if x:\n    a()\n# note\n    b()\n");
 
-    expect(keys).toContain("# note");
     expect(keys).toContain(`1${DEPTH_SEPARATOR}b`);
   });
 
