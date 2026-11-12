@@ -265,3 +265,15 @@ To check behavior live, build the extension and drive Playwright's bundled Chrom
   events for evidence. By hand, load the build as a temporary add-on from
   `about:debugging#/runtime/this-firefox`, and read session rules with
   `await browser.declarativeNetRequest.getSessionRules()` in gh-prism's Inspect console.
+- **Check GitHub's own markup with no extension loaded.** A plain `playwright-cli` session
+  with the saved `storageState` loaded serves the signed-in React views; build nothing for
+  a selector or layout check.
+- **Save a captured page byte for byte by piping it through `jq -j .`.**
+  `playwright-cli --raw eval` prints its result as a JSON string literal, and `jq -r`
+  would append a newline the page doesn't have.
+- **For a markup check in Firefox, point `playwright-cli` at Playwright's cached Firefox
+  with a `--config` file.** Its `--browser=firefox` fails when the CLI's bundled
+  Playwright expects a Firefox build that isn't installed, as playwright-cli 0.1.22 did on
+  2026-11-10. A config whose `browser.launchOptions.executablePath` names the build under
+  `firefox-*/` in Playwright's browser cache (`~/Library/Caches/ms-playwright/` on macOS)
+  works; never install a browser for a check.
