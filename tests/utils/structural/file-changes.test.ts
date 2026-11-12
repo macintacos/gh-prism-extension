@@ -155,9 +155,9 @@ describe("fileChanges", () => {
 
   describe("unsupported", () => {
     it("answers it for a path with no grammar without reading it", async () => {
-      const { fetchFn, run, changes } = setup({ diff: modified("src/lib.rs", OLD, NEW) });
+      const { fetchFn, run, changes } = setup({ diff: modified("src/lib.zig", OLD, NEW) });
 
-      const result = await changes(pr, "src/lib.rs", signal());
+      const result = await changes(pr, "src/lib.zig", signal());
 
       expect(result).toEqual({ ok: false, problem: "unsupported" });
       expect(rawCalls(fetchFn)).toBe(0);

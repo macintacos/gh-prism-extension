@@ -169,9 +169,10 @@ a commit's page, picks how the diffs are drawn: **Unified**, **Split**, or **Str
   changed in full shows only GitHub's line colour, with no highlight, and lines whose
   change only reformats them take a lighter tint. In a comment, a string, or a `.txt`
   file, it highlights the words that changed.
-- It keeps GitHub's pairing of old and new lines, and doesn't mark code that moved. It
-  works on TypeScript, TSX, JavaScript, and Python files, and leaves every other file as
-  GitHub draws it.
+- It keeps GitHub's pairing of old and new lines, and doesn't mark code that moved.
+- It works on Bash, C, C++, C#, CSS, Go, HTML, Java, JavaScript, JSON, Kotlin, Lua,
+  Markdown, PHP, Python, Ruby, Rust, Swift, TOML, TSX, TypeScript, YAML, and `.txt` files,
+  and leaves every other file as GitHub draws it.
 - gh-prism remembers the choice. Choosing Unified or Split turns Structural off, and so
   does choosing Unified from GitHub's own Layout menu. On a pull request filtered to one
   commit, Structural is unavailable. Structural is in beta, so it may have bugs.
@@ -232,24 +233,31 @@ To rebuild a release from its sources zip, unzip it, then run
 GitHub Release notes, which only fill the sidebar's What's new in
 `content-scripts/content.js`. To match a release byte for byte, build with
 `WXT_RELEASE_NOTES` set to that version's GitHub Release notes. The rebuild also
-reproduces the structural engine's WebAssembly: the five `.wasm` files under
-`.output/firefox-mv3/structural/` are copied unmodified from the npm packages `bun.lock`
-pins, `web-tree-sitter` and the `tree-sitter-typescript`, `tree-sitter-javascript`, and
-`tree-sitter-python` grammars. No binary is committed.
+reproduces the structural engine's WebAssembly, the `.wasm` files under
+`.output/firefox-mv3/structural/`. Each is copied unmodified from the npm package
+`bun.lock` pins: `web-tree-sitter` and one grammar package per language. No npm package
+carries the Markdown and Swift grammars, so `bun install` downloads those two from their
+projects' GitHub releases into `.grammars/` and refuses a file whose SHA-256 differs from
+the one [`utils/structural/packaged.ts`](utils/structural/packaged.ts) pins. No binary is
+committed.
 
-Upgrading the engine:
+Upgrading the engine or adding a grammar:
 
 1. Upgrade `web-tree-sitter` and the grammar packages together, to exact versions, because
-   a grammar's ABI must be one the runtime loads. The engine suite parses with all four,
-   so `mise run test structural` fails on a mismatch.
-2. Regenerate or drop `patches/web-tree-sitter@<version>.patch`, per
+   a grammar's ABI must be one the runtime loads. For a downloaded grammar, change its
+   version, URL, and SHA-256 in `FETCHED_WASM`. The engine suite parses with every
+   grammar, so `mise run test structural` fails on a mismatch.
+2. For a new grammar, add its extensions to
+   [`utils/structural/grammar.ts`](utils/structural/grammar.ts), its file to
+   `utils/structural/packaged.ts`, and a row for it in
+   [`tests/utils/structural/languages.test.ts`](tests/utils/structural/languages.test.ts).
+3. Regenerate or drop `patches/web-tree-sitter@<version>.patch`, per
    [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) § Patched dependencies.
-3. Update [`public/third-party-notices.txt`](public/third-party-notices.txt).
-4. Run `mise run lint-firefox` and expect no warnings.
-5. Build the Firefox sources zip and run the sources check: `bunx wxt zip -b firefox`,
+4. Update [`public/third-party-notices.txt`](public/third-party-notices.txt).
+5. Run `mise run lint-firefox` and expect no warnings.
+6. Build the Firefox sources zip and run the sources check: `bunx wxt zip -b firefox`,
    then `bun scripts/tasks/cli.ts check-sources`. It rebuilds from the zip and fails on
    any difference, the `.wasm` files included.
-6. Check both zips stay under 1,000,000 bytes.
 
 ## Permissions
 

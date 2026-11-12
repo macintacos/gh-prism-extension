@@ -248,6 +248,17 @@ describe("headOutline", () => {
     expect(result).toEqual({ ok: false, reason: "unsupported" });
   });
 
+  it("refuses a grammar it has no reader for as unsupported", async () => {
+    const language = {
+      grammar: { id: "go", indentationSensitive: false },
+      parser: await parserFor("go"),
+    } as const;
+
+    const result = headOutline(inputOf("typescript", "package main\n", { language }));
+
+    expect(result).toEqual({ ok: false, reason: "unsupported" });
+  });
+
   it("refuses a text past maxTextLength as too large", () => {
     const input = inputOf("typescript", "x;", { limits: { ...DEFAULT_LIMITS, maxTextLength: 1 } });
 

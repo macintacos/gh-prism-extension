@@ -16,9 +16,11 @@ mise install && mise run setup
 ```
 
 `mise install` installs the pinned tools, Bun among them, and registers the git hooks.
-`mise run setup` then runs `bun install`, whose `postinstall` step runs `wxt prepare` to
-generate WXT's types. Later, `mise run setup` alone is enough: it repeats `mise install`
-first, so it also picks up a changed tool pin.
+`mise run setup` then runs `bun install`, whose `postinstall` step downloads the two
+grammar files no npm package carries into `.grammars/` (`fetch-grammars` in
+[`scripts/tasks/cli.ts`](../scripts/tasks/cli.ts)) and runs `wxt prepare` to generate
+WXT's types. Later, `mise run setup` alone is enough: it repeats `mise install` first, so
+it also picks up a changed tool pin.
 
 `mise run dev` needs both Chrome and Firefox installed, unless a `web-ext.config.ts` turns
 launching off (see [The dev browser](#the-dev-browser)).

@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Argument, Command } from "@commander-js/extra-typings";
+import { FETCHED_WASM } from "../../utils/structural/packaged";
 import { ADDON_GUID, AMO_PAGE, addonStatus, amoFetch, checkAmo } from "./amo/api";
 import {
   createListing,
@@ -12,6 +13,7 @@ import {
   readmeScreenshots,
 } from "./amo/listing";
 import { sourcesZipProblems } from "./amo/sources";
+import { downloaded, FETCHED_DIR, fetchGrammars } from "./grammars";
 import {
   missingSecrets,
   parseCommits,
@@ -154,6 +156,11 @@ const checkSources = () => {
   // stderr keeps create-amo-listing --dry-run's stdout pure JSON.
   console.error(`${zip} rebuilds .output/firefox-mv3 identically`);
 };
+
+program
+  .command("fetch-grammars")
+  .description("Download the grammar files no npm package carries (bun install runs this)")
+  .action(() => fetchGrammars(FETCHED_WASM, FETCHED_DIR, downloaded));
 
 program
   .command("check-sources")

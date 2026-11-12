@@ -1,14 +1,13 @@
-import { createRequire } from "node:module";
 import { describe, expect, it, vi } from "vitest";
+import { packagedWasmPaths } from "../../../scripts/tasks/grammars";
 import { DEFAULT_LIMITS } from "../../../utils/structural/engine";
-import { grammarOf } from "../../../utils/structural/grammar";
-import { GRAMMAR_WASM, RUNTIME_WASM, WASM_SOURCES } from "../../../utils/structural/packaged";
+import { type GrammarId, grammarOf } from "../../../utils/structural/grammar";
+import { GRAMMAR_WASM, RUNTIME_WASM } from "../../../utils/structural/packaged";
 import { PLAIN_TEXT } from "../../../utils/structural/plain-text";
 import type { StructuralRequest } from "../../../utils/structural/request";
 import { engineRunner } from "../../../utils/structural/runner";
 
-const require = createRequire(import.meta.url);
-const PATHS = new Map(WASM_SOURCES.map(([pkg, file]) => [file, require.resolve(`${pkg}/${file}`)]));
+const PATHS = new Map(packagedWasmPaths());
 
 const runnerWith = (urlOf: (file: string) => string) =>
   engineRunner({ urlOf, now: () => performance.now(), pause: () => Promise.resolve() });
@@ -77,6 +76,25 @@ describe("engineRunner", () => {
     });
     expect(urlOf).not.toHaveBeenCalled();
   });
+
+  it.each(Object.keys(GRAMMAR_WASM) as GrammarId[])(
+    "loads no grammar but %s's own for a request in it",
+    async (id) => {
+      const urlOf = packagedUrl();
+      const run = runnerWith(urlOf);
+      const request = { ...TYPESCRIPT, oldText: "", newText: "", regions: [] };
+
+      const result = await run(
+        { ...request, grammar: { id, indentationSensitive: false } },
+        live(),
+      );
+
+      expect(result.ok).toBe(true);
+      expect(
+        urlOf.mock.calls.map(([file]) => file).filter((file) => file !== RUNTIME_WASM),
+      ).toEqual([GRAMMAR_WASM[id]]);
+    },
+  );
 
   it("refuses a request without a grammar and loads nothing", async () => {
     const urlOf = packagedUrl();
