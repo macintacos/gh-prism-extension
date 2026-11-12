@@ -1,0 +1,1767 @@
+{
+  "browser": "chromium",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+  "limits": {
+    "maxTextLength": 100000,
+    "maxParseMs": 100,
+    "maxTokens": 20000,
+    "maxEditLength": 750,
+    "maxDiffMs": 50
+  },
+  "tooSlowWithinCaps": [],
+  "heap": {
+    "beforeFirstSample": 620316,
+    "peak": 80932480
+  },
+  "samples": [
+    {
+      "name": "fixture:python/rename.py.txt",
+      "grammar": "python",
+      "length": {
+        "old": 36,
+        "new": 34
+      },
+      "tokens": {
+        "old": 9,
+        "new": 9
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 0.7000000476837158,
+      "defaultsDiffMs": 0.2999999523162842,
+      "liftedMedianMs": 0.40000009536743164,
+      "liftedMaxMs": 0.5999999046325684,
+      "parseMsPerSide": 0.20000004768371582,
+      "diffMs": 0
+    },
+    {
+      "name": "fixture:python/reindent.py.txt",
+      "grammar": "python",
+      "length": {
+        "old": 87,
+        "new": 97
+      },
+      "tokens": {
+        "old": 19,
+        "new": 19
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 0.5,
+      "defaultsDiffMs": 0.09999990463256836,
+      "liftedMedianMs": 0.40000009536743164,
+      "liftedMaxMs": 0.5,
+      "parseMsPerSide": 0.20000004768371582,
+      "diffMs": 0
+    },
+    {
+      "name": "fixture:python/rewrap.py.txt",
+      "grammar": "python",
+      "length": {
+        "old": 38,
+        "new": 52
+      },
+      "tokens": {
+        "old": 10,
+        "new": 10
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 0.3999999761581421,
+      "defaultsDiffMs": -0.10000002384185791,
+      "liftedMedianMs": 0.5,
+      "liftedMaxMs": 0.7999999523162842,
+      "parseMsPerSide": 0.25,
+      "diffMs": 0
+    },
+    {
+      "name": "fixture:python/parse-error.py.txt",
+      "grammar": "python",
+      "length": {
+        "old": 18,
+        "new": 17
+      },
+      "tokens": {
+        "old": 6,
+        "new": 5
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "failed": 20
+      },
+      "defaultsMedianMs": 0.3999999761581421,
+      "defaultsDiffMs": 0.10000002384185791,
+      "liftedMedianMs": 0.2999999523162842,
+      "liftedMaxMs": 0.40000009536743164,
+      "parseMsPerSide": 0.1499999761581421,
+      "diffMs": 0
+    },
+    {
+      "name": "fixture:python/added-argument.py.txt",
+      "grammar": "python",
+      "length": {
+        "old": 32,
+        "new": 39
+      },
+      "tokens": {
+        "old": 8,
+        "new": 10
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 0.39999985694885254,
+      "defaultsDiffMs": -2.384185791015625e-7,
+      "liftedMedianMs": 0.39999985694885254,
+      "liftedMaxMs": 0.7000000476837158,
+      "parseMsPerSide": 0.20000004768371582,
+      "diffMs": -2.384185791015625e-7
+    },
+    {
+      "name": "fixture:python/moved-out-of-block.py.txt",
+      "grammar": "python",
+      "length": {
+        "old": 44,
+        "new": 40
+      },
+      "tokens": {
+        "old": 15,
+        "new": 15
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 0.40000009536743164,
+      "defaultsDiffMs": 2.384185791015625e-7,
+      "liftedMedianMs": 0.2999999523162842,
+      "liftedMaxMs": 0.6000001430511475,
+      "parseMsPerSide": 0.19999992847442627,
+      "diffMs": -0.09999990463256836
+    },
+    {
+      "name": "fixture:tsx/reindent.tsx.txt",
+      "grammar": "tsx",
+      "length": {
+        "old": 185,
+        "new": 217
+      },
+      "tokens": {
+        "old": 60,
+        "new": 60
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 0.5,
+      "defaultsDiffMs": 0.20000004768371582,
+      "liftedMedianMs": 0.5,
+      "liftedMaxMs": 0.6000001430511475,
+      "parseMsPerSide": 0.1499999761581421,
+      "diffMs": 0.20000004768371582
+    },
+    {
+      "name": "fixture:tsx/added-argument.tsx.txt",
+      "grammar": "tsx",
+      "length": {
+        "old": 39,
+        "new": 46
+      },
+      "tokens": {
+        "old": 10,
+        "new": 12
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 0.30000007152557373,
+      "defaultsDiffMs": 1.1920928955078125e-7,
+      "liftedMedianMs": 0.3000001907348633,
+      "liftedMaxMs": 0.5,
+      "parseMsPerSide": 0.1499999761581421,
+      "diffMs": 2.384185791015625e-7
+    },
+    {
+      "name": "fixture:tsx/rewrap.tsx.txt",
+      "grammar": "tsx",
+      "length": {
+        "old": 123,
+        "new": 131
+      },
+      "tokens": {
+        "old": 30,
+        "new": 30
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 0.3999999761581421,
+      "defaultsDiffMs": 0.10000002384185791,
+      "liftedMedianMs": 0.2999999523162842,
+      "liftedMaxMs": 0.39999985694885254,
+      "parseMsPerSide": 0.1499999761581421,
+      "diffMs": 0
+    },
+    {
+      "name": "fixture:tsx/rename.tsx.txt",
+      "grammar": "tsx",
+      "length": {
+        "old": 44,
+        "new": 40
+      },
+      "tokens": {
+        "old": 12,
+        "new": 12
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 0.2999999523162842,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 0.2999999523162842,
+      "liftedMaxMs": 0.3000001907348633,
+      "parseMsPerSide": 0.1499999761581421,
+      "diffMs": 0
+    },
+    {
+      "name": "fixture:tsx/parse-error.tsx.txt",
+      "grammar": "tsx",
+      "length": {
+        "old": 24,
+        "new": 22
+      },
+      "tokens": {
+        "old": 10,
+        "new": 9
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "failed": 20
+      },
+      "defaultsMedianMs": 0.2999999523162842,
+      "defaultsDiffMs": -0.10000014305114746,
+      "liftedMedianMs": 0.39999985694885254,
+      "liftedMaxMs": 0.40000009536743164,
+      "parseMsPerSide": 0.20000004768371582,
+      "diffMs": -2.384185791015625e-7
+    },
+    {
+      "name": "fixture:typescript/rename.ts.txt",
+      "grammar": "typescript",
+      "length": {
+        "old": 44,
+        "new": 40
+      },
+      "tokens": {
+        "old": 12,
+        "new": 12
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 0.2999999523162842,
+      "defaultsDiffMs": -2.384185791015625e-7,
+      "liftedMedianMs": 0.2999999523162842,
+      "liftedMaxMs": 0.40000009536743164,
+      "parseMsPerSide": 0.15000009536743164,
+      "diffMs": -2.384185791015625e-7
+    },
+    {
+      "name": "fixture:typescript/rewrap.ts.txt",
+      "grammar": "typescript",
+      "length": {
+        "old": 123,
+        "new": 131
+      },
+      "tokens": {
+        "old": 30,
+        "new": 30
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 0.2999999523162842,
+      "defaultsDiffMs": -0.09999990463256836,
+      "liftedMedianMs": 0.2999999523162842,
+      "liftedMaxMs": 0.40000009536743164,
+      "parseMsPerSide": 0.19999992847442627,
+      "diffMs": -0.09999990463256836
+    },
+    {
+      "name": "fixture:typescript/reindent.ts.txt",
+      "grammar": "typescript",
+      "length": {
+        "old": 131,
+        "new": 143
+      },
+      "tokens": {
+        "old": 35,
+        "new": 35
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 0.3000001907348633,
+      "defaultsDiffMs": 2.384185791015625e-7,
+      "liftedMedianMs": 0.40000009536743164,
+      "liftedMaxMs": 0.5,
+      "parseMsPerSide": 0.1499999761581421,
+      "diffMs": 0.10000014305114746
+    },
+    {
+      "name": "fixture:typescript/added-argument.ts.txt",
+      "grammar": "typescript",
+      "length": {
+        "old": 39,
+        "new": 46
+      },
+      "tokens": {
+        "old": 10,
+        "new": 12
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 0.2999999523162842,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 0.20000004768371582,
+      "liftedMaxMs": 0.3000001907348633,
+      "parseMsPerSide": 0.1499999761581421,
+      "diffMs": -0.09999990463256836
+    },
+    {
+      "name": "fixture:typescript/parse-error.ts.txt",
+      "grammar": "typescript",
+      "length": {
+        "old": 24,
+        "new": 22
+      },
+      "tokens": {
+        "old": 10,
+        "new": 9
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "failed": 20
+      },
+      "defaultsMedianMs": 0.2999999523162842,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 0.20000004768371582,
+      "liftedMaxMs": 0.2999999523162842,
+      "parseMsPerSide": 0.1499999761581421,
+      "diffMs": -0.09999990463256836
+    },
+    {
+      "name": "fixture:javascript/added-argument.js.txt",
+      "grammar": "javascript",
+      "length": {
+        "old": 39,
+        "new": 46
+      },
+      "tokens": {
+        "old": 10,
+        "new": 12
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 0.2999999523162842,
+      "defaultsDiffMs": -2.384185791015625e-7,
+      "liftedMedianMs": 0.40000009536743164,
+      "liftedMaxMs": 0.5999999046325684,
+      "parseMsPerSide": 0.15000009536743164,
+      "diffMs": 0.09999990463256836
+    },
+    {
+      "name": "fixture:javascript/parse-error.js.txt",
+      "grammar": "javascript",
+      "length": {
+        "old": 24,
+        "new": 22
+      },
+      "tokens": {
+        "old": 10,
+        "new": 9
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "failed": 20
+      },
+      "defaultsMedianMs": 0.2999999523162842,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 0.2999999523162842,
+      "liftedMaxMs": 0.5,
+      "parseMsPerSide": 0.1499999761581421,
+      "diffMs": 0
+    },
+    {
+      "name": "fixture:javascript/reindent.js.txt",
+      "grammar": "javascript",
+      "length": {
+        "old": 113,
+        "new": 125
+      },
+      "tokens": {
+        "old": 29,
+        "new": 29
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 0.2999999523162842,
+      "defaultsDiffMs": -2.384185791015625e-7,
+      "liftedMedianMs": 0.2999999523162842,
+      "liftedMaxMs": 0.5,
+      "parseMsPerSide": 0.15000009536743164,
+      "diffMs": -2.384185791015625e-7
+    },
+    {
+      "name": "fixture:javascript/rewrap.js.txt",
+      "grammar": "javascript",
+      "length": {
+        "old": 90,
+        "new": 98
+      },
+      "tokens": {
+        "old": 22,
+        "new": 22
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 0.2999999523162842,
+      "defaultsDiffMs": 0.09999990463256836,
+      "liftedMedianMs": 0.2999999523162842,
+      "liftedMaxMs": 0.3000001907348633,
+      "parseMsPerSide": 0.10000002384185791,
+      "diffMs": 0.09999990463256836
+    },
+    {
+      "name": "fixture:javascript/rename.js.txt",
+      "grammar": "javascript",
+      "length": {
+        "old": 44,
+        "new": 40
+      },
+      "tokens": {
+        "old": 12,
+        "new": 12
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 0.2999999523162842,
+      "defaultsDiffMs": 0.09999990463256836,
+      "liftedMedianMs": 0.2999999523162842,
+      "liftedMaxMs": 0.3000001907348633,
+      "parseMsPerSide": 0.10000002384185791,
+      "diffMs": 0.09999990463256836
+    },
+    {
+      "name": "pr:deps/npm/tap-snapshots/test/lib/docs.js.test.cjs",
+      "grammar": "javascript",
+      "length": {
+        "old": 166092,
+        "new": 170547
+      },
+      "tokens": {
+        "old": 7140,
+        "new": 7280
+      },
+      "regions": 63,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 2.799999952316284,
+      "defaultsDiffMs": -12.900000095367432,
+      "liftedMedianMs": 18.09999990463257,
+      "liftedMaxMs": 20.59999990463257,
+      "parseMsPerSide": 7.850000023841858,
+      "diffMs": 2.3999998569488525
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/ls.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 147109,
+        "new": 151482
+      },
+      "tokens": {
+        "old": 26130,
+        "new": 27286
+      },
+      "regions": 6,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 1.2000000476837158,
+      "defaultsDiffMs": -46.59999990463257,
+      "liftedMedianMs": 50.200000047683716,
+      "liftedMaxMs": 51.10000014305115,
+      "parseMsPerSide": 23.899999976158142,
+      "diffMs": 2.4000000953674316
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/config/lib/definitions/definitions.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 91718,
+        "new": 97679
+      },
+      "tokens": {
+        "old": 11427,
+        "new": 11915
+      },
+      "regions": 26,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 23,
+      "defaultsDiffMs": 1.7000000476837158,
+      "liftedMedianMs": 22.200000047683716,
+      "liftedMaxMs": 23.199999809265137,
+      "parseMsPerSide": 10.649999976158142,
+      "diffMs": 0.9000000953674316
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/arborist/reify.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 79587,
+        "new": 80584
+      },
+      "tokens": {
+        "old": 10442,
+        "new": 10511
+      },
+      "regions": 14,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 24.5,
+      "defaultsDiffMs": 0.8999998569488525,
+      "liftedMedianMs": 24.200000047683716,
+      "liftedMaxMs": 24.5,
+      "parseMsPerSide": 11.800000071525574,
+      "diffMs": 0.5999999046325684
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/audit.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 73749,
+        "new": 74114
+      },
+      "tokens": {
+        "old": 14111,
+        "new": 14164
+      },
+      "regions": 10,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 27,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 27.399999856948853,
+      "liftedMaxMs": 27.5,
+      "parseMsPerSide": 13.5,
+      "diffMs": 0.39999985694885254
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/arborist/build-ideal-tree.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 64691,
+        "new": 72757
+      },
+      "tokens": {
+        "old": 8168,
+        "new": 9030
+      },
+      "regions": 17,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 20.450000047683716,
+      "defaultsDiffMs": 1.8499999046325684,
+      "liftedMedianMs": 20.200000047683716,
+      "liftedMaxMs": 20.300000190734863,
+      "parseMsPerSide": 9.300000071525574,
+      "diffMs": 1.5999999046325684
+    },
+    {
+      "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/browser/index.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 63038,
+        "new": 63323
+      },
+      "tokens": {
+        "old": 8999,
+        "new": 9034
+      },
+      "regions": 7,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 19.299999952316284,
+      "defaultsDiffMs": 0.09999990463256836,
+      "liftedMedianMs": 19.300000190734863,
+      "liftedMaxMs": 20.799999952316284,
+      "parseMsPerSide": 9.600000023841858,
+      "diffMs": 0.10000014305114746
+    },
+    {
+      "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/index.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 63038,
+        "new": 63323
+      },
+      "tokens": {
+        "old": 8999,
+        "new": 9034
+      },
+      "regions": 7,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 19.399999976158142,
+      "defaultsDiffMs": 0.19999992847442627,
+      "liftedMedianMs": 19.5,
+      "liftedMaxMs": 19.800000190734863,
+      "parseMsPerSide": 9.600000023841858,
+      "diffMs": 0.2999999523162842
+    },
+    {
+      "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/node/index.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 63038,
+        "new": 63323
+      },
+      "tokens": {
+        "old": 8999,
+        "new": 9034
+      },
+      "regions": 7,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 19.200000047683716,
+      "defaultsDiffMs": 0.20000004768371582,
+      "liftedMedianMs": 19.299999952316284,
+      "liftedMaxMs": 20.90000009536743,
+      "parseMsPerSide": 9.5,
+      "diffMs": 0.2999999523162842
+    },
+    {
+      "name": "pr:deps/npm/node_modules/lru-cache/dist/esm/browser/index.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 62344,
+        "new": 62629
+      },
+      "tokens": {
+        "old": 8920,
+        "new": 8955
+      },
+      "regions": 7,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 19,
+      "defaultsDiffMs": 0.20000004768371582,
+      "liftedMedianMs": 19.09999990463257,
+      "liftedMaxMs": 20.200000047683716,
+      "parseMsPerSide": 9.399999976158142,
+      "diffMs": 0.2999999523162842
+    },
+    {
+      "name": "pr:deps/npm/node_modules/lru-cache/dist/esm/index.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 62344,
+        "new": 62629
+      },
+      "tokens": {
+        "old": 8920,
+        "new": 8955
+      },
+      "regions": 7,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 19.100000023841858,
+      "defaultsDiffMs": -0.19999992847442627,
+      "liftedMedianMs": 19.200000047683716,
+      "liftedMaxMs": 19.700000047683716,
+      "parseMsPerSide": 9.649999976158142,
+      "diffMs": -0.09999990463256836
+    },
+    {
+      "name": "pr:deps/npm/node_modules/lru-cache/dist/esm/node/index.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 62344,
+        "new": 62629
+      },
+      "tokens": {
+        "old": 8920,
+        "new": 8955
+      },
+      "regions": 7,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 19.350000023841858,
+      "defaultsDiffMs": 0.6499999761581421,
+      "liftedMedianMs": 18.90000009536743,
+      "liftedMaxMs": 19.59999990463257,
+      "parseMsPerSide": 9.350000023841858,
+      "diffMs": 0.20000004768371582
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/publish.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 47341,
+        "new": 57228
+      },
+      "tokens": {
+        "old": 9229,
+        "new": 10734
+      },
+      "regions": 5,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 19.200000047683716,
+      "defaultsDiffMs": 2.299999952316284,
+      "liftedMedianMs": 19.200000047683716,
+      "liftedMaxMs": 19.5,
+      "parseMsPerSide": 8.450000047683716,
+      "diffMs": 2.299999952316284
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/node.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 50041,
+        "new": 50554
+      },
+      "tokens": {
+        "old": 7078,
+        "new": 7069
+      },
+      "regions": 6,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 15.350000023841858,
+      "defaultsDiffMs": 0.1500002145767212,
+      "liftedMedianMs": 15.299999952316284,
+      "liftedMaxMs": 15.5,
+      "parseMsPerSide": 7.599999904632568,
+      "diffMs": 0.10000014305114746
+    },
+    {
+      "name": "pr:deps/npm/tap-snapshots/test/lib/commands/sbom.js.test.cjs",
+      "grammar": "javascript",
+      "length": {
+        "old": 46233,
+        "new": 46247
+      },
+      "tokens": {
+        "old": 164,
+        "new": 164
+      },
+      "regions": 2,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 2.5,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 2.5999999046325684,
+      "liftedMaxMs": 3.200000047683716,
+      "parseMsPerSide": 1.25,
+      "diffMs": 0.09999990463256836
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/shrinkwrap.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 40360,
+        "new": 42151
+      },
+      "tokens": {
+        "old": 6256,
+        "new": 6409
+      },
+      "regions": 29,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 14.25,
+      "defaultsDiffMs": 0.9500000476837158,
+      "liftedMedianMs": 13.900000095367432,
+      "liftedMaxMs": 14.100000143051147,
+      "parseMsPerSide": 6.649999976158142,
+      "diffMs": 0.6000001430511475
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/install.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 35945,
+        "new": 40990
+      },
+      "tokens": {
+        "old": 7215,
+        "new": 8134
+      },
+      "regions": 3,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 15,
+      "defaultsDiffMs": 1.4000000953674316,
+      "liftedMedianMs": 15.100000143051147,
+      "liftedMaxMs": 15.200000047683716,
+      "parseMsPerSide": 6.799999952316284,
+      "diffMs": 1.500000238418579
+    },
+    {
+      "name": "pr:deps/npm/tap-snapshots/test/lib/utils/error-message.js.test.cjs",
+      "grammar": "javascript",
+      "length": {
+        "old": 40462,
+        "new": 40460
+      },
+      "tokens": {
+        "old": 848,
+        "new": 848
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 3.0999999046325684,
+      "defaultsDiffMs": 0.09999990463256836,
+      "liftedMedianMs": 3,
+      "liftedMaxMs": 5.799999952316284,
+      "parseMsPerSide": 1.5,
+      "diffMs": 0
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/config/lib/index.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 32085,
+        "new": 36296
+      },
+      "tokens": {
+        "old": 5909,
+        "new": 6235
+      },
+      "regions": 17,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 13,
+      "defaultsDiffMs": 1.2999999523162842,
+      "liftedMedianMs": 13.099999904632568,
+      "liftedMaxMs": 14.399999856948853,
+      "parseMsPerSide": 5.850000023841858,
+      "diffMs": 1.3999998569488525
+    },
+    {
+      "name": "pr:deps/npm/node_modules/tinyglobby/node_modules/picomatch/lib/parse.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 33731,
+        "new": 34668
+      },
+      "tokens": {
+        "old": 7949,
+        "new": 8055
+      },
+      "regions": 6,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 15.200000047683716,
+      "defaultsDiffMs": 0.3000001907348633,
+      "liftedMedianMs": 15,
+      "liftedMaxMs": 15.399999856948853,
+      "parseMsPerSide": 7.449999928474426,
+      "diffMs": 0.10000014305114746
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/approve-scripts.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 30140,
+        "new": 30214
+      },
+      "tokens": {
+        "old": 6255,
+        "new": 6255
+      },
+      "regions": 2,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 11.700000047683716,
+      "defaultsDiffMs": 0.10000014305114746,
+      "liftedMedianMs": 11.799999952316284,
+      "liftedMaxMs": 12.099999904632568,
+      "parseMsPerSide": 5.799999952316284,
+      "diffMs": 0.20000004768371582
+    },
+    {
+      "name": "pr:deps/npm/test/lib/utils/allow-scripts-writer.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 27596,
+        "new": 28871
+      },
+      "tokens": {
+        "old": 5440,
+        "new": 5710
+      },
+      "regions": 5,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 10.700000047683716,
+      "defaultsDiffMs": 0.5999999046325684,
+      "liftedMedianMs": 10.700000047683716,
+      "liftedMaxMs": 10.799999952316284,
+      "parseMsPerSide": 5.050000071525574,
+      "diffMs": 0.5999999046325684
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/profile.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 28372,
+        "new": 28310
+      },
+      "tokens": {
+        "old": 5523,
+        "new": 5511
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 11.049999952316284,
+      "defaultsDiffMs": -0.05000019073486328,
+      "liftedMedianMs": 11,
+      "liftedMaxMs": 11.100000143051147,
+      "parseMsPerSide": 5.550000071525574,
+      "diffMs": -0.10000014305114746
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/view.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 22934,
+        "new": 28081
+      },
+      "tokens": {
+        "old": 5379,
+        "new": 6524
+      },
+      "regions": 10,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 11.450000047683716,
+      "defaultsDiffMs": 1.4500000476837158,
+      "liftedMedianMs": 11.400000095367432,
+      "liftedMaxMs": 12.099999904632568,
+      "parseMsPerSide": 5,
+      "diffMs": 1.4000000953674316
+    },
+    {
+      "name": "pr:deps/npm/test/lib/base-cmd.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 20015,
+        "new": 27163
+      },
+      "tokens": {
+        "old": 3647,
+        "new": 4996
+      },
+      "regions": 7,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 9.200000047683716,
+      "defaultsDiffMs": 2.1000001430511475,
+      "liftedMedianMs": 9,
+      "liftedMaxMs": 9,
+      "parseMsPerSide": 3.549999952316284,
+      "diffMs": 1.9000000953674316
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/diff.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 25515,
+        "new": 25514
+      },
+      "tokens": {
+        "old": 5804,
+        "new": 5804
+      },
+      "regions": 2,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 11,
+      "defaultsDiffMs": 0.09999990463256836,
+      "liftedMedianMs": 11.200000047683716,
+      "liftedMaxMs": 11.399999856948853,
+      "parseMsPerSide": 5.450000047683716,
+      "diffMs": 0.2999999523162842
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/cache.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 25133,
+        "new": 25111
+      },
+      "tokens": {
+        "old": 5655,
+        "new": 5655
+      },
+      "regions": 4,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 10.599999904632568,
+      "defaultsDiffMs": 0.39999985694885254,
+      "liftedMedianMs": 10.299999952316284,
+      "liftedMaxMs": 10.599999904632568,
+      "parseMsPerSide": 5.100000023841858,
+      "diffMs": 0.09999990463256836
+    },
+    {
+      "name": "pr:deps/npm/tap-snapshots/test/lib/commands/ls.js.test.cjs",
+      "grammar": "javascript",
+      "length": {
+        "old": 23970,
+        "new": 24414
+      },
+      "tokens": {
+        "old": 1092,
+        "new": 1120
+      },
+      "regions": 3,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 2.700000047683716,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 2.700000047683716,
+      "liftedMaxMs": 2.799999952316284,
+      "parseMsPerSide": 1.350000023841858,
+      "diffMs": 0
+    },
+    {
+      "name": "pr:deps/npm/test/lib/npm.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 23519,
+        "new": 22400
+      },
+      "tokens": {
+        "old": 5370,
+        "new": 5038
+      },
+      "regions": 3,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 10.100000023841858,
+      "defaultsDiffMs": 0.19999992847442627,
+      "liftedMedianMs": 10,
+      "liftedMaxMs": 11.200000047683716,
+      "parseMsPerSide": 4.950000047683716,
+      "diffMs": 0.09999990463256836
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/config.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 22110,
+        "new": 22096
+      },
+      "tokens": {
+        "old": 5556,
+        "new": 5541
+      },
+      "regions": 18,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 10.050000071525574,
+      "defaultsDiffMs": 0.25000011920928955,
+      "liftedMedianMs": 10,
+      "liftedMaxMs": 10.700000047683716,
+      "parseMsPerSide": 4.899999976158142,
+      "diffMs": 0.20000004768371582
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/ci.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 16147,
+        "new": 21488
+      },
+      "tokens": {
+        "old": 3199,
+        "new": 4260
+      },
+      "regions": 4,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 7.850000023841858,
+      "defaultsDiffMs": 1.6500002145767212,
+      "liftedMedianMs": 7.700000047683716,
+      "liftedMaxMs": 10.099999904632568,
+      "parseMsPerSide": 3.0999999046325684,
+      "diffMs": 1.500000238418579
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/arborist/isolated-reifier.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 20878,
+        "new": 19669
+      },
+      "tokens": {
+        "old": 3607,
+        "new": 3390
+      },
+      "regions": 8,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 7.850000023841858,
+      "defaultsDiffMs": 0.1499999761581421,
+      "liftedMedianMs": 7.700000047683716,
+      "liftedMaxMs": 7.8999998569488525,
+      "parseMsPerSide": 3.850000023841858,
+      "diffMs": 0
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/package-json/lib/normalize.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 20322,
+        "new": 20578
+      },
+      "tokens": {
+        "old": 3869,
+        "new": 3897
+      },
+      "regions": 6,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 7.900000095367432,
+      "defaultsDiffMs": 0.09999990463256836,
+      "liftedMedianMs": 8,
+      "liftedMaxMs": 8.299999952316284,
+      "parseMsPerSide": 3.9000000953674316,
+      "diffMs": 0.19999980926513672
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/place-dep.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 20289,
+        "new": 20540
+      },
+      "tokens": {
+        "old": 2579,
+        "new": 2623
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 6.200000047683716,
+      "defaultsDiffMs": 0.20000004768371582,
+      "liftedMedianMs": 6,
+      "liftedMaxMs": 6.299999952316284,
+      "parseMsPerSide": 3,
+      "diffMs": 0
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/arborist/load-actual.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 17710,
+        "new": 20519
+      },
+      "tokens": {
+        "old": 2436,
+        "new": 2801
+      },
+      "regions": 4,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 6.3999998569488525,
+      "defaultsDiffMs": 0.7999997138977051,
+      "liftedMedianMs": 6.1000001430511475,
+      "liftedMaxMs": 6.299999952316284,
+      "parseMsPerSide": 2.8000000715255737,
+      "diffMs": 0.5
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/doctor.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 20186,
+        "new": 20220
+      },
+      "tokens": {
+        "old": 5626,
+        "new": 5640
+      },
+      "regions": 2,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 10.700000047683716,
+      "defaultsDiffMs": 0.2999999523162842,
+      "liftedMedianMs": 10.700000047683716,
+      "liftedMaxMs": 11.299999952316284,
+      "parseMsPerSide": 5.200000047683716,
+      "diffMs": 0.2999999523162842
+    },
+    {
+      "name": "pr:deps/npm/node_modules/npm-packlist/lib/index.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 16218,
+        "new": 19739
+      },
+      "tokens": {
+        "old": 2230,
+        "new": 2553
+      },
+      "regions": 17,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 6.449999928474426,
+      "defaultsDiffMs": 1.5500000715255737,
+      "liftedMedianMs": 6.299999952316284,
+      "liftedMaxMs": 6.5,
+      "parseMsPerSide": 2.4499999284744263,
+      "diffMs": 1.4000000953674316
+    },
+    {
+      "name": "pr:deps/npm/tap-snapshots/test/lib/commands/view.js.test.cjs",
+      "grammar": "javascript",
+      "length": {
+        "old": 18945,
+        "new": 19397
+      },
+      "tokens": {
+        "old": 408,
+        "new": 408
+      },
+      "regions": 16,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 1.9000000953674316,
+      "defaultsDiffMs": 0.20000004768371582,
+      "liftedMedianMs": 1.8999998569488525,
+      "liftedMaxMs": 2.200000047683716,
+      "parseMsPerSide": 0.8500000238418579,
+      "diffMs": 0.19999980926513672
+    },
+    {
+      "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/node/index.min.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 19329,
+        "new": 19363
+      },
+      "tokens": {
+        "old": 8615,
+        "new": 8644
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 36,
+      "defaultsDiffMs": 19.600000143051147,
+      "liftedMedianMs": 41,
+      "liftedMaxMs": 43.299999952316284,
+      "parseMsPerSide": 8.199999928474426,
+      "diffMs": 24.600000143051147
+    },
+    {
+      "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/browser/index.min.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 19248,
+        "new": 19282
+      },
+      "tokens": {
+        "old": 8593,
+        "new": 8622
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 37.10000014305115,
+      "defaultsDiffMs": 22.200000047683716,
+      "liftedMedianMs": 43.90000009536743,
+      "liftedMaxMs": 44.40000009536743,
+      "parseMsPerSide": 7.450000047683716,
+      "diffMs": 29
+    },
+    {
+      "name": "ladder:typescript:50000",
+      "grammar": "typescript",
+      "length": {
+        "old": 47380,
+        "new": 47620
+      },
+      "tokens": {
+        "old": 6815,
+        "new": 6833
+      },
+      "regions": 24,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 14.150000095367432,
+      "defaultsDiffMs": 0.15000009536743164,
+      "liftedMedianMs": 14.200000047683716,
+      "liftedMaxMs": 14.299999952316284,
+      "parseMsPerSide": 7,
+      "diffMs": 0.20000004768371582
+    },
+    {
+      "name": "ladder:typescript:100000",
+      "grammar": "typescript",
+      "length": {
+        "old": 104236,
+        "new": 104776
+      },
+      "tokens": {
+        "old": 14993,
+        "new": 15039
+      },
+      "regions": 54,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 1.6000001430511475,
+      "defaultsDiffMs": -28.899999856948853,
+      "liftedMedianMs": 30.600000143051147,
+      "liftedMaxMs": 30.799999952316284,
+      "parseMsPerSide": 15.25,
+      "diffMs": 0.10000014305114746
+    },
+    {
+      "name": "ladder:typescript:150000",
+      "grammar": "typescript",
+      "length": {
+        "old": 151616,
+        "new": 152406
+      },
+      "tokens": {
+        "old": 21808,
+        "new": 21875
+      },
+      "regions": 79,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 2.299999952316284,
+      "defaultsDiffMs": -41.700000047683716,
+      "liftedMedianMs": 44.90000009536743,
+      "liftedMaxMs": 44.90000009536743,
+      "parseMsPerSide": 22,
+      "diffMs": 0.9000000953674316
+    },
+    {
+      "name": "ladder:typescript:200000",
+      "grammar": "typescript",
+      "length": {
+        "old": 198996,
+        "new": 200036
+      },
+      "tokens": {
+        "old": 28623,
+        "new": 28710
+      },
+      "regions": 104,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 2.700000047683716,
+      "defaultsDiffMs": -55.5,
+      "liftedMedianMs": 58.60000014305115,
+      "liftedMaxMs": 60,
+      "parseMsPerSide": 29.100000023841858,
+      "diffMs": 0.40000009536743164
+    },
+    {
+      "name": "ladder:typescript:250000",
+      "grammar": "typescript",
+      "length": {
+        "old": 246376,
+        "new": 247666
+      },
+      "tokens": {
+        "old": 35438,
+        "new": 35543
+      },
+      "regions": 129,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 3.299999952316284,
+      "defaultsDiffMs": -68,
+      "liftedMedianMs": 72.5,
+      "liftedMaxMs": 73.29999995231628,
+      "parseMsPerSide": 35.64999997615814,
+      "diffMs": 1.2000000476837158
+    },
+    {
+      "name": "ladder:typescript:300000",
+      "grammar": "typescript",
+      "length": {
+        "old": 303232,
+        "new": 304822
+      },
+      "tokens": {
+        "old": 43616,
+        "new": 43750
+      },
+      "regions": 159,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 4.099999904632568,
+      "defaultsDiffMs": -84.40000009536743,
+      "liftedMedianMs": 90,
+      "liftedMaxMs": 92.40000009536743,
+      "parseMsPerSide": 44.25,
+      "diffMs": 1.5
+    },
+    {
+      "name": "ladder:python:50000",
+      "grammar": "python",
+      "length": {
+        "old": 50016,
+        "new": 50326
+      },
+      "tokens": {
+        "old": 12504,
+        "new": 12535
+      },
+      "regions": 31,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 26.399999976158142,
+      "defaultsDiffMs": 0.49999988079071045,
+      "liftedMedianMs": 26.100000143051147,
+      "liftedMaxMs": 26.40000009536743,
+      "parseMsPerSide": 12.950000047683716,
+      "diffMs": 0.20000004768371582
+    },
+    {
+      "name": "ladder:python:100000",
+      "grammar": "python",
+      "length": {
+        "old": 100000,
+        "new": 100620
+      },
+      "tokens": {
+        "old": 25000,
+        "new": 25062
+      },
+      "regions": 62,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 0.7000000476837158,
+      "defaultsDiffMs": -52.200000047683716,
+      "liftedMedianMs": 54.39999985694885,
+      "liftedMaxMs": 57.10000014305115,
+      "parseMsPerSide": 26.450000047683716,
+      "diffMs": 1.499999761581421
+    },
+    {
+      "name": "ladder:python:150000",
+      "grammar": "python",
+      "length": {
+        "old": 150016,
+        "new": 150946
+      },
+      "tokens": {
+        "old": 37504,
+        "new": 37597
+      },
+      "regions": 93,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 1,
+      "defaultsDiffMs": -77.30000019073486,
+      "liftedMedianMs": 79,
+      "liftedMaxMs": 82.79999995231628,
+      "parseMsPerSide": 39.15000009536743,
+      "diffMs": 0.6999998092651367
+    },
+    {
+      "name": "ladder:python:200000",
+      "grammar": "python",
+      "length": {
+        "old": 200000,
+        "new": 201250
+      },
+      "tokens": {
+        "old": 50000,
+        "new": 50125
+      },
+      "regions": 125,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 1.3000000715255737,
+      "defaultsDiffMs": -103.59999978542328,
+      "liftedMedianMs": 105.5,
+      "liftedMaxMs": 107.79999995231628,
+      "parseMsPerSide": 52.449999928474426,
+      "diffMs": 0.6000001430511475
+    },
+    {
+      "name": "ladder:python:250000",
+      "grammar": "python",
+      "length": {
+        "old": 250016,
+        "new": 251576
+      },
+      "tokens": {
+        "old": 62504,
+        "new": 62660
+      },
+      "regions": 156,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 1.5999999046325684,
+      "defaultsDiffMs": -129.7000002861023,
+      "liftedMedianMs": 132.59999990463257,
+      "liftedMaxMs": 135.70000004768372,
+      "parseMsPerSide": 65.65000009536743,
+      "diffMs": 1.299999713897705
+    },
+    {
+      "name": "ladder:python:300000",
+      "grammar": "python",
+      "length": {
+        "old": 300000,
+        "new": 301870
+      },
+      "tokens": {
+        "old": 75000,
+        "new": 75187
+      },
+      "regions": 187,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 1.899999976158142,
+      "defaultsDiffMs": -156.19999992847443,
+      "liftedMedianMs": 157.79999995231628,
+      "liftedMaxMs": 161.09999990463257,
+      "parseMsPerSide": 79.04999995231628,
+      "diffMs": -0.2999999523162842
+    },
+    {
+      "name": "unrelated:1000",
+      "grammar": "typescript",
+      "length": {
+        "old": 2925,
+        "new": 2221
+      },
+      "tokens": {
+        "old": 1144,
+        "new": 999
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 23.950000047683716,
+      "defaultsDiffMs": 21.75,
+      "liftedMedianMs": 73.79999995231628,
+      "liftedMaxMs": 74.20000004768372,
+      "parseMsPerSide": 1.100000023841858,
+      "diffMs": 71.59999990463257
+    },
+    {
+      "name": "unrelated:2000",
+      "grammar": "typescript",
+      "length": {
+        "old": 6071,
+        "new": 4663
+      },
+      "tokens": {
+        "old": 2288,
+        "new": 1998
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 25.59999990463257,
+      "defaultsDiffMs": 21.399999856948853,
+      "liftedMedianMs": 287.5,
+      "liftedMaxMs": 289.2999999523163,
+      "parseMsPerSide": 2.100000023841858,
+      "diffMs": 283.2999999523163
+    },
+    {
+      "name": "unrelated:3000",
+      "grammar": "typescript",
+      "length": {
+        "old": 9217,
+        "new": 7105
+      },
+      "tokens": {
+        "old": 3432,
+        "new": 2997
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 27.450000047683716,
+      "defaultsDiffMs": 21.25,
+      "liftedMedianMs": 668.9000000953674,
+      "liftedMaxMs": 672.6000001430511,
+      "parseMsPerSide": 3.100000023841858,
+      "diffMs": 662.7000000476837
+    }
+  ],
+  "uptime": "4:21  up 14 days, 20:01, 12 users, load averages: 18.78 12.63 39.49"
+}

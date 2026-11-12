@@ -14,14 +14,25 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type BrowserContext, chromium, firefox, type Page } from "@playwright/test";
-import { withExtension } from "playwright-webextext";
-import { type ChangedRegion, DEFAULT_LIMITS } from "../utils/structural/engine";
+import type { BrowserContext, Page } from "@playwright/test";
+import { DEFAULT_LIMITS } from "../utils/structural/engine";
 import { grammarOf } from "../utils/structural/grammar";
 import { OFFSCREEN_IDLE_MS } from "../utils/structural/offscreen";
 import type { StructuralRequest } from "../utils/structural/request";
-import { buildCopy, scratchCopy } from "./scratch-build";
-import type { BenchMessage, BenchReply, RunResult } from "./structural-host/serve";
+import { buildCopy } from "./scratch-build";
+import {
+  benchCopy,
+  edited,
+  FIREFOX_IDLE_MS,
+  launch,
+  median,
+  probePage,
+  resultOf,
+  runMs,
+  send,
+  sendAll,
+} from "./structural-host/harness";
+import type { RunResult } from "./structural-host/serve";
 
 const browserName = process.argv[2];
 if (browserName !== "chromium" && browserName !== "firefox") {
@@ -30,53 +41,9 @@ if (browserName !== "chromium" && browserName !== "firefox") {
 }
 
 const ROOT = join(import.meta.dirname, "..");
-// Keep in sync with serve.ts's BENCH_PORT and pr-port.ts's PR_DATA_PORT; both modules import
-// wxt/browser, which cannot load outside the extension.
-const BENCH_PORT = "gh-prism:bench";
-const PR_DATA_PORT = "gh-prism:pr-data";
 const MAX_PING_MS = 25;
-// Short enough to wait out, long enough that the gaps between the bench's messages never stop it.
-const FIREFOX_IDLE_MS = 5000;
 // Longer than the idle close, so the document has closed by the time the wait ends.
 const IDLE_WAIT_MS = OFFSCREEN_IDLE_MS + 5_000;
-
-const BACKGROUND = `import { defineBackground } from "wxt/utils/define-background";
-import { serveBench } from "@/bench/structural-host/serve";
-import shipped from "@/utils/shipped-background";
-
-export default defineBackground(() => {
-  shipped.main();
-  serveBench();
-});
-`;
-const RELAY = `import { defineContentScript } from "wxt/utils/define-content-script";
-import { relay } from "@/bench/structural-host/relay";
-
-export default defineContentScript({ matches: ["https://github.com/probe*"], main: relay });
-`;
-
-/** Copies the working tree to `copy` with the bench's background and relay overlaid. */
-function benchCopy(copy: string): void {
-  const shipped = readFileSync(join(ROOT, "entrypoints/background.ts"), "utf8");
-  scratchCopy(copy, {
-    "utils/shipped-background.ts": shipped.replaceAll('"../utils/', '"./'),
-    "entrypoints/background.ts": BACKGROUND,
-    "entrypoints/bench-relay.content.ts": RELAY,
-  });
-}
-
-/** `text` with `" // edited"` appended to each 1-based line in `lines`, and the one-line regions. */
-function edited(text: string, lines: readonly number[]) {
-  const textLines = text.split("\n");
-  for (const line of lines) textLines[line - 1] += " // edited";
-  const regions: ChangedRegion[] = lines.map((line) => ({
-    oldStart: line,
-    oldEnd: line + 1,
-    newStart: line,
-    newEnd: line + 1,
-  }));
-  return { newText: textLines.join("\n"), regions };
-}
 
 function editedRequest(path: string, lines: readonly number[]): StructuralRequest {
   const oldText = readFileSync(join(ROOT, path), "utf8");
@@ -106,83 +73,6 @@ function pythonRequest(): StructuralRequest {
   };
 }
 
-// Installed in the page: sends each message through the relay after its delay, and resolves with
-// every reply and its page-side round trip.
-const PAGE_HELPER = () => {
-  let next = 0;
-  const send = (portName: string, toBg: unknown) =>
-    new Promise((resolve) => {
-      const n = next++;
-      const start = performance.now();
-      const listener = (event: MessageEvent) => {
-        if (event.data?.n !== n || !("fromBg" in event.data)) return;
-        removeEventListener("message", listener);
-        resolve({ fromBg: event.data.fromBg, ms: performance.now() - start });
-      };
-      addEventListener("message", listener);
-      postMessage({ toBg, portName, n }, "*");
-    });
-  const after = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-  Object.assign(window, {
-    benchAll: (list: { portName: string; toBg: unknown; delayMs: number }[]) =>
-      Promise.all(list.map((r) => after(r.delayMs).then(() => send(r.portName, r.toBg)))),
-  });
-};
-
-interface Reply {
-  readonly fromBg: BenchReply | null;
-  readonly ms: number;
-}
-type Message = DistributiveOmit<BenchMessage, "id"> | "ping";
-type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
-
-/**
- * Sends each message after its delay, at once, and resolves with every reply in order. Throws when
- * the background dropped the port without replying (`fromBg` null) or answered with an error.
- */
-async function sendAll(
-  page: Page,
-  list: { message: Message; delayMs?: number }[],
-): Promise<Reply[]> {
-  const replies = (await page.evaluate(
-    (all) => (window as unknown as { benchAll: (l: unknown) => Promise<Reply[]> }).benchAll(all),
-    list.map(({ message, delayMs = 0 }) =>
-      message === "ping"
-        ? { portName: PR_DATA_PORT, toBg: { id: 1 }, delayMs }
-        : { portName: BENCH_PORT, toBg: { id: 1, ...message }, delayMs },
-    ),
-  )) as Reply[];
-  for (const { fromBg } of replies) {
-    if (!fromBg) throw new Error("the background sent no reply");
-    if ("error" in fromBg) throw new Error(`the background failed: ${fromBg.error}`);
-  }
-  return replies;
-}
-
-const resultOf = (reply: Reply | undefined) =>
-  reply?.fromBg && "result" in reply.fromBg ? reply.fromBg.result : undefined;
-
-const send = async <T>(page: Page, message: Message) =>
-  resultOf((await sendAll(page, [{ message }]))[0]) as T;
-
-const median = (values: readonly number[]) => {
-  const sorted = values.toSorted((a, b) => a - b);
-  const mid = sorted.length >> 1;
-  return sorted.length % 2 ? (sorted[mid] ?? 0) : ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2;
-};
-const runMs = (run: RunResult) => run.end - run.start;
-
-async function launch(build: string, profile: string): Promise<BrowserContext> {
-  if (browserName === "firefox")
-    return withExtension(firefox, build).launchPersistentContext(profile, {
-      firefoxUserPrefs: { "extensions.background.idle.timeout": FIREFOX_IDLE_MS },
-    });
-  return chromium.launchPersistentContext(profile, {
-    channel: "chromium",
-    args: [`--disable-extensions-except=${build}`, `--load-extension=${build}`],
-  });
-}
-
 /** Ends the background's life, so the next message starts a fresh one. */
 async function stopBackground(page: Page): Promise<void> {
   if (browserName === "firefox") {
@@ -193,17 +83,6 @@ async function stopBackground(page: Page): Promise<void> {
   await session.send("ServiceWorker.enable");
   await session.send("ServiceWorker.stopAllWorkers");
   await session.detach();
-}
-
-async function waitForRelay(page: Page): Promise<void> {
-  for (let attempt = 0; attempt < 50; attempt++) {
-    const answered = await Promise.race([
-      sendAll(page, [{ message: { op: "pings" } }]).then(() => true),
-      page.waitForTimeout(500).then(() => false),
-    ]).catch(() => false);
-    if (answered) return;
-  }
-  throw new Error("the relay never answered");
 }
 
 /** One run with a ping sent `delayMs` into it, and whether the background handled the ping first. */
@@ -337,18 +216,8 @@ const profile = mkdtempSync(join(tmpdir(), "gh-prism-host-profile-"));
 let context: BrowserContext | undefined;
 try {
   benchCopy(copy);
-  context = await launch(buildCopy(copy, browserName), profile);
-  await context.route("https://github.com/probe*", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "text/html",
-      body: "<!doctype html><title>probe</title>",
-    }),
-  );
-  await context.addInitScript(PAGE_HELPER);
-  const page = await context.newPage();
-  await page.goto("https://github.com/probe");
-  await waitForRelay(page);
+  context = await launch(browserName, buildCopy(copy, browserName), profile);
+  const page = await probePage(context);
 
   const results = await measure(page);
   console.log(JSON.stringify(results, null, 2));

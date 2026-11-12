@@ -18,164 +18,164 @@
   },
   "cold": {
     "ok": true,
-    "runMs": 58.39999985694885,
+    "runMs": 47.09999999962747,
     "pingDelayMs": 5,
-    "pingMs": 3,
+    "pingMs": 1.8999999985098839,
     "pingDuringRun": true
   },
   "secondGrammar": {
     "ok": true,
-    "runMs": 3.1000001430511475
+    "runMs": 2.300000000745058
   },
-  "idlePingMedianMs": 0.25,
+  "idlePingMedianMs": 0.2000000011175871,
   "idlePingsMs": [
-    0.39999985694885254, 0.20000004768371582, 0.2999999523162842, 0.20000004768371582,
-    0.20000004768371582, 0.20000004768371582, 0.20000004768371582, 0.5, 0.40000009536743164,
-    0.2999999523162842
+    0.19999999925494194, 0.09999999962747097, 0.2000000011175871, 0.09999999962747097,
+    0.09999999962747097, 0.8000000007450581, 0.30000000074505806, 0.2000000011175871,
+    0.30000000074505806, 0.2000000011175871
   ],
   "warm": {
-    "medianWarmUpRunMs": 16.299999952316284,
-    "maxPingMs": 1.2000000476837158,
-    "pingsDuringRun": 16,
+    "medianWarmUpRunMs": 12.600000001490116,
+    "maxPingMs": 0.7999999988824129,
+    "pingsDuringRun": 19,
     "runs": [
       {
         "ok": true,
-        "runMs": 15.100000143051147,
-        "pingDelayMs": 15.061976880141492,
-        "pingMs": 0.2999999523162842,
+        "runMs": 12.099999999627471,
+        "pingDelayMs": 9.77679892560883,
+        "pingMs": 0.19999999925494194,
+        "pingDuringRun": true
+      },
+      {
+        "ok": true,
+        "runMs": 11.800000000745058,
+        "pingDelayMs": 3.0573503123546732,
+        "pingMs": 0.2000000011175871,
+        "pingDuringRun": true
+      },
+      {
+        "ok": true,
+        "runMs": 12,
+        "pingDelayMs": 11.652604222071758,
+        "pingMs": 0.2000000011175871,
         "pingDuringRun": false
       },
       {
         "ok": true,
-        "runMs": 15.399999856948853,
-        "pingDelayMs": 5.709948713637044,
-        "pingMs": 0.5,
+        "runMs": 11.699999999254942,
+        "pingDelayMs": 1.0261096184708407,
+        "pingMs": 0.10000000149011612,
         "pingDuringRun": true
       },
       {
         "ok": true,
-        "runMs": 15.299999952316284,
-        "pingDelayMs": 8.850158198495654,
-        "pingMs": 0.39999985694885254,
+        "runMs": 12.099999999627471,
+        "pingDelayMs": 7.286575474282198,
+        "pingMs": 0.40000000037252903,
         "pingDuringRun": true
       },
       {
         "ok": true,
-        "runMs": 15.5,
-        "pingDelayMs": 12.34908198960522,
-        "pingMs": 0.40000009536743164,
-        "pingDuringRun": false
-      },
-      {
-        "ok": true,
-        "runMs": 15.599999904632568,
-        "pingDelayMs": 7.395066522756962,
-        "pingMs": 0.6000001430511475,
+        "runMs": 12.100000001490116,
+        "pingDelayMs": 2.0944529357337984,
+        "pingMs": 0.09999999962747097,
         "pingDuringRun": true
       },
       {
         "ok": true,
-        "runMs": 15.5,
-        "pingDelayMs": 0.528654731277469,
-        "pingMs": 1.1999998092651367,
+        "runMs": 12.099999999627471,
+        "pingDelayMs": 5.256066195718489,
+        "pingMs": 0.2999999988824129,
         "pingDuringRun": true
       },
       {
         "ok": true,
-        "runMs": 15.899999856948853,
-        "pingDelayMs": 11.540790537510167,
-        "pingMs": 0.5,
+        "runMs": 11.900000000372529,
+        "pingDelayMs": 9.387700803574031,
+        "pingMs": 0.2000000011175871,
         "pingDuringRun": true
       },
       {
         "ok": true,
-        "runMs": 16.299999952316284,
-        "pingDelayMs": 0.42712866463704796,
-        "pingMs": 1.0999999046325684,
+        "runMs": 11.700000001117587,
+        "pingDelayMs": 2.2562968012462528,
+        "pingMs": 0.19999999925494194,
         "pingDuringRun": true
       },
       {
         "ok": true,
-        "runMs": 15,
-        "pingDelayMs": 5.579462550859546,
-        "pingMs": 0.5999999046325684,
+        "runMs": 11.799999998882413,
+        "pingDelayMs": 0.10026911570583552,
+        "pingMs": 0.7999999988824129,
         "pingDuringRun": true
       },
       {
         "ok": true,
-        "runMs": 15.700000047683716,
-        "pingDelayMs": 9.974381256347984,
-        "pingMs": 0.5999999046325684,
+        "runMs": 12,
+        "pingDelayMs": 8.146652603596422,
+        "pingMs": 0.09999999962747097,
         "pingDuringRun": true
       },
       {
         "ok": true,
-        "runMs": 15.700000047683716,
-        "pingDelayMs": 6.830540354984622,
-        "pingMs": 0.6000001430511475,
+        "runMs": 11.599999999627471,
+        "pingDelayMs": 2.7458353398795627,
+        "pingMs": 0.19999999925494194,
         "pingDuringRun": true
       },
       {
         "ok": true,
-        "runMs": 15.700000047683716,
-        "pingDelayMs": 7.794648083386753,
-        "pingMs": 0.5999999046325684,
+        "runMs": 11.900000000372529,
+        "pingDelayMs": 4.212723691429886,
+        "pingMs": 0.19999999925494194,
         "pingDuringRun": true
       },
       {
         "ok": true,
-        "runMs": 16.59999990463257,
-        "pingDelayMs": 11.551603289093523,
-        "pingMs": 0.7000000476837158,
+        "runMs": 11.900000000372529,
+        "pingDelayMs": 1.996340999967117,
+        "pingMs": 0.09999999962747097,
         "pingDuringRun": true
       },
       {
         "ok": true,
-        "runMs": 15.5,
-        "pingDelayMs": 1.6310475717765522,
-        "pingMs": 0.2999999523162842,
+        "runMs": 12.199999999254942,
+        "pingDelayMs": 6.34941928330803,
+        "pingMs": 0.2000000011175871,
         "pingDuringRun": true
       },
       {
         "ok": true,
-        "runMs": 15.800000190734863,
-        "pingDelayMs": 1.3768150940562018,
-        "pingMs": 0.2999999523162842,
+        "runMs": 11.699999999254942,
+        "pingDelayMs": 8.098768487486147,
+        "pingMs": 0.599999999627471,
         "pingDuringRun": true
       },
       {
         "ok": true,
-        "runMs": 15.400000095367432,
-        "pingDelayMs": 14.357107230850795,
-        "pingMs": 0.39999985694885254,
-        "pingDuringRun": false
-      },
-      {
-        "ok": true,
-        "runMs": 16.200000047683716,
-        "pingDelayMs": 12.99994745428445,
-        "pingMs": 0.6000001430511475,
+        "runMs": 11.699999999254942,
+        "pingDelayMs": 3.2849426765522347,
+        "pingMs": 0.19999999925494194,
         "pingDuringRun": true
       },
       {
         "ok": true,
-        "runMs": 15.200000047683716,
-        "pingDelayMs": 7.959237762882992,
-        "pingMs": 1.2000000476837158,
+        "runMs": 11.800000000745058,
+        "pingDelayMs": 3.810565232738176,
+        "pingMs": 0.09999999962747097,
         "pingDuringRun": true
       },
       {
         "ok": true,
-        "runMs": 15.699999809265137,
-        "pingDelayMs": 13.402261147923854,
-        "pingMs": 0.5,
-        "pingDuringRun": false
+        "runMs": 11.800000000745058,
+        "pingDelayMs": 5.368559116218096,
+        "pingMs": 0.10000000149011612,
+        "pingDuringRun": true
       },
       {
         "ok": true,
-        "runMs": 15.700000047683716,
-        "pingDelayMs": 7.86035162386374,
-        "pingMs": 0.5999999046325684,
+        "runMs": 11.5,
+        "pingDelayMs": 9.389733191374166,
+        "pingMs": 0.2000000011175871,
         "pingDuringRun": true
       }
     ]
@@ -185,111 +185,111 @@
     "secondRejected": true
   },
   "large": {
-    "lines": 5025,
+    "lines": 5357,
     "results": ["too-large"],
-    "maxPingMs": 3.6000001430511475,
+    "maxPingMs": 3.5,
     "runs": [
       {
         "ok": false,
         "reason": "too-large",
-        "runMs": 37.299999952316284,
-        "pingDelayMs": 112.86342172186905,
-        "pingMs": 0.6000001430511475,
+        "runMs": 3.299999998882413,
+        "pingDelayMs": 125.621443457559,
+        "pingMs": 0.5,
         "pingDuringRun": false
       },
       {
         "ok": false,
         "reason": "too-large",
-        "runMs": 36.5,
-        "pingDelayMs": 3.241319267881065,
-        "pingMs": 0.40000009536743164,
+        "runMs": 3.5,
+        "pingDelayMs": 0.16492964619846667,
+        "pingMs": 3.5,
         "pingDuringRun": true
       },
       {
         "ok": false,
         "reason": "too-large",
-        "runMs": 35.700000047683716,
-        "pingDelayMs": 21.66893659681064,
-        "pingMs": 0.6000001430511475,
+        "runMs": 3.299999998882413,
+        "pingDelayMs": 0.5281910968391428,
+        "pingMs": 2.900000000372529,
         "pingDuringRun": true
       },
       {
         "ok": false,
         "reason": "too-large",
-        "runMs": 36.200000047683716,
-        "pingDelayMs": 4.660303060316553,
-        "pingMs": 0.8999998569488525,
+        "runMs": 2.800000000745058,
+        "pingDelayMs": 2.589057484644734,
+        "pingMs": 0.19999999925494194,
         "pingDuringRun": true
       },
       {
         "ok": false,
         "reason": "too-large",
-        "runMs": 36.299999952316284,
-        "pingDelayMs": 7.940052919910808,
-        "pingMs": 0.5,
+        "runMs": 2.900000000372529,
+        "pingDelayMs": 0.22239649609843049,
+        "pingMs": 2.700000001117587,
         "pingDuringRun": true
       },
       {
         "ok": false,
         "reason": "too-large",
-        "runMs": 36.200000047683716,
-        "pingDelayMs": 11.398051897812712,
-        "pingMs": 0.5999999046325684,
+        "runMs": 2.799999998882413,
+        "pingDelayMs": 2.0035147053445903,
+        "pingMs": 1.799999998882413,
         "pingDuringRun": true
       },
       {
         "ok": false,
         "reason": "too-large",
-        "runMs": 36.40000009536743,
-        "pingDelayMs": 20.636162779931514,
-        "pingMs": 0.6000001430511475,
+        "runMs": 2.800000000745058,
+        "pingDelayMs": 1.2009464286773597,
+        "pingMs": 1.199999999254942,
         "pingDuringRun": true
       },
       {
         "ok": false,
         "reason": "too-large",
-        "runMs": 36.200000047683716,
-        "pingDelayMs": 3.2271679175355796,
-        "pingMs": 0.7000000476837158,
+        "runMs": 2.900000000372529,
+        "pingDelayMs": 0.35131662144536624,
+        "pingMs": 2.600000001490116,
         "pingDuringRun": true
       },
       {
         "ok": false,
         "reason": "too-large",
-        "runMs": 36,
-        "pingDelayMs": 7.864509501010518,
-        "pingMs": 0.5,
+        "runMs": 2.800000000745058,
+        "pingDelayMs": 0.8206866360892201,
+        "pingMs": 2.599999999627471,
         "pingDuringRun": true
       },
       {
         "ok": false,
         "reason": "too-large",
-        "runMs": 35.799999952316284,
-        "pingDelayMs": 0.7671897850076381,
-        "pingMs": 3.6000001430511475,
+        "runMs": 2.900000000372529,
+        "pingDelayMs": 1.7803648615651466,
+        "pingMs": 1.199999999254942,
         "pingDuringRun": true
       },
       {
         "ok": false,
         "reason": "too-large",
-        "runMs": 36.299999952316284,
-        "pingDelayMs": 24.4437502375174,
-        "pingMs": 0.6999998092651367,
+        "runMs": 2.599999999627471,
+        "pingDelayMs": 2.2070175270612493,
+        "pingMs": 1.699999999254942,
         "pingDuringRun": true
       },
       {
         "ok": false,
         "reason": "too-large",
-        "runMs": 36.39999985694885,
-        "pingDelayMs": 30.97101595462846,
-        "pingMs": 0.5,
+        "runMs": 2.700000001117587,
+        "pingDelayMs": 0.41847621196381973,
+        "pingMs": 2.5,
         "pingDuringRun": true
       }
     ]
   },
   "restart": {
     "ok": true,
-    "runMs": 15.899999856948853
+    "runMs": 12
   },
   "afterIdle": {
     "loaded": false

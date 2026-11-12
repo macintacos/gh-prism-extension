@@ -1,3 +1,7 @@
+
+ WARN  The following entrypoints have been skipped:
+- structural-offscreen
+
 browser: firefox 157.0
 default preference off: ok
 off https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split: ok {"added":0,"removed":0,"attributes":0,"notices":0,"sheets":0,"offscreen":0}
@@ -36,4 +40,70 @@ unified: ok {"stored":false,"added":0,"removed":0,"attributes":0,"notices":0,"sh
 unified: preference off
 unified: location.search gained diff=unified: true (?diff=unified)
 split: location.search still holds diff=unified: false (?diff=split)
+control https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split Unified: ok {"shown":"unified","gear":"unified","on":false,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split Structural: ok {"shown":"structural","gear":"split","on":true,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split painted after Structural: (12, 4)
+control https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split reload Structural: ok (structural)
+control https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split Split: ok {"shown":"split","gear":"split","on":false,"posts":0,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split clean after Split: ok {"added":0,"removed":0,"attributes":0,"notices":0,"sheets":0}
+control https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split ArrowDown: ok {"keyOff":"next-row","keyOn":"next-row","keyAfter":"next-row"}
+control https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split follows the gear: ok (unified)
+control https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split Structural: ok {"shown":"structural","gear":"split","on":true,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split Unified: ok {"shown":"unified","gear":"unified","on":false,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split clean after Unified: ok {"added":0,"removed":0,"attributes":0,"notices":0,"sheets":0}
+control https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split reload Unified: ok (unified)
+control https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split Structural: ok {"shown":"structural","gear":"split","on":true,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split Unified: ok {"shown":"unified","gear":"unified","on":false,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split Split: ok {"shown":"split","gear":"split","on":false,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split round trip: ok
+control https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split Unified: ok {"shown":"unified","gear":"unified","on":false,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split Structural: ok {"shown":"structural","gear":"split","on":true,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split painted after Structural: (0, 0)
+control https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split reload Structural: ok (structural)
+control https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split Split: ok {"shown":"split","gear":"split","on":false,"posts":0,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split clean after Split: ok {"added":0,"removed":0,"attributes":0,"notices":0,"sheets":0}
+control https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split ArrowDown: ok {"keyOff":"next-row","keyOn":"next-row","keyAfter":"next-row"}
+control https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split follows the gear: ok (unified)
+control https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split Structural: ok {"shown":"structural","gear":"split","on":true,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split Unified: ok {"shown":"unified","gear":"unified","on":false,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split clean after Unified: ok {"added":0,"removed":0,"attributes":0,"notices":0,"sheets":0}
+control https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split reload Unified: ok (unified)
+control https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split Structural: ok {"shown":"structural","gear":"split","on":true,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split Unified: ok {"shown":"unified","gear":"unified","on":false,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split Split: ok {"shown":"split","gear":"split","on":false,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split round trip: ok
+control https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split Unified: ok {"shown":"unified","gear":"unified","on":false,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split Structural: ok {"shown":"structural","gear":"split","on":true,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split painted after Structural: (1, 2)
+control https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split reload Structural: ok (structural)
+control https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split Split: ok {"shown":"split","gear":"split","on":false,"posts":0,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split clean after Split: ok {"added":0,"removed":0,"attributes":0,"notices":0,"sheets":0}
+control https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split ArrowDown: ok {"keyOff":"next-row","keyOn":"next-row","keyAfter":"next-row"}
+control https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split follows the gear: ok (unified)
+control https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split Structural: ok {"shown":"structural","gear":"split","on":true,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split Unified: ok {"shown":"unified","gear":"unified","on":false,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split clean after Unified: ok {"added":0,"removed":0,"attributes":0,"notices":0,"sheets":0}
+control https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split reload Unified: ok (unified)
+control https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split Structural: ok {"shown":"structural","gear":"split","on":true,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split Unified: ok {"shown":"unified","gear":"unified","on":false,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split Split: ok {"shown":"split","gear":"split","on":false,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split round trip: ok
+control https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split Unified: ok {"shown":"unified","gear":"unified","on":false,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split Structural: ok {"shown":"structural","gear":"split","on":true,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split painted after Structural: (1, 1)
+control https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split reload Structural: ok (structural)
+control https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split Split: ok {"shown":"split","gear":"split","on":false,"posts":0,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split clean after Split: ok {"added":0,"removed":0,"attributes":0,"notices":0,"sheets":0}
+control https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split ArrowDown: ok {"keyOff":"next-row","keyOn":"next-row","keyAfter":"next-row"}
+control https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split follows the gear: ok (unified)
+control https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split Structural: ok {"shown":"structural","gear":"split","on":true,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split Unified: ok {"shown":"unified","gear":"unified","on":false,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split clean after Unified: ok {"added":0,"removed":0,"attributes":0,"notices":0,"sheets":0}
+control https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split reload Unified: ok (unified)
+control https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split Structural: ok {"shown":"structural","gear":"split","on":true,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split Unified: ok {"shown":"unified","gear":"unified","on":false,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split Split: ok {"shown":"split","gear":"split","on":false,"posts":1,"shields":[0,0]}
+control https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split round trip: ok
+control painted from a press: ok
+view control: ok
 layout as found: ok (before: unified, after: unified)

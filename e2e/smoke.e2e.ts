@@ -57,7 +57,7 @@ const LARGE_PR_BODY = PR_BODY.replace(
   .replace(TREE_OPEN, `${TREE_OPEN}${Array.from({ length: 300 }, (_, n) => bulkRow(n)).join("")}`)
   .replace(' aria-current="true"', "");
 // A loaded runner can take longer than expect's 5 s default to read a large pull request's diff.
-const LARGE_PR_READ_TIMEOUT = 15_000;
+const LARGE_PR_READ_TIMEOUT = 30_000;
 // The fixture's last Implementation file in native order.
 const LAST_IMPLEMENTATION_FILE = "src/render.rs";
 const scrollSidebarToBulkRow = (page: Page, n: number): Promise<void> =>
@@ -1031,18 +1031,51 @@ test("clicking a file scrolls its diff into view", async ({ context, page }) => 
   await expect(diff).toBeInViewport();
 });
 
-test("a line link in the URL lands in view once the diffs show", async ({ context, page }) => {
-  const line = "diff-90df21c5f2396574b17d2f1696a2e63cee454ee37910c7b254a81d44449cdaa4R31";
-  await serve(
+for (const structural of [false, true]) {
+  test(`a line link in the URL lands in view once the diffs show${structural ? " with Structural on" : ""}`, async ({
     context,
-    COMMIT_URL,
-    commitBodyWith('<style>td[data-line-anchor$="R30"] { height: 300vh; }</style>'),
+    page,
+  }) => {
+    const line = "diff-90df21c5f2396574b17d2f1696a2e63cee454ee37910c7b254a81d44449cdaa4R31";
+    const body = commitBodyWith('<style>td[data-line-anchor$="R30"] { height: 300vh; }</style>');
+    if (structural) await serveStructuralCommit(context, page, withCommitToolbar(body));
+    else await serve(context, COMMIT_URL, body);
+
+    await page.goto(`${COMMIT_URL}#${line}`);
+
+    if (structural)
+      await expect(segment(page, "Structural")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator(`[data-line-anchor="${line}"]`)).toBeInViewport();
+  });
+}
+
+/**
+ * Serves the commit page `body` with the Layout menu stand-in, then selects Structural on it.
+ * Once the stand-in saves Split, a load draws the table in four columns, as GitHub does.
+ */
+async function serveStructuralCommit(context: BrowserContext, page: Page, body: string) {
+  const { menu, tables } = LAYOUT_PAGES.commit;
+  let saved = "unified";
+  await context.route(
+    (target) => target.pathname === new URL(COMMIT_URL).pathname,
+    (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body:
+          saved === "split"
+            ? body.replace(/(<table [^>]*>)/, "$1<colgroup><col><col><col><col></colgroup>")
+            : body,
+      }),
   );
-
-  await page.goto(`${COMMIT_URL}#${line}`);
-
-  await expect(page.locator(`[data-line-anchor="${line}"]`)).toBeInViewport();
-});
+  await context.route("https://github.com/users/diffview", (route) => {
+    saved = route.request().postData()?.includes("split") ? "split" : "unified";
+    return route.fulfill({ status: 200, body: "" });
+  });
+  await page.addInitScript(installLayoutMenu, { menu, tables });
+  await page.goto(COMMIT_URL);
+  await segment(page, "Structural").click();
+  await expect(segment(page, "Structural")).toHaveAttribute("aria-pressed", "true");
+}
 
 test("a line link stays in view when GitHub renders the page anew after the diffs show", async ({
   context,
@@ -1161,128 +1194,158 @@ test("GitHub's current file off screen is selected and scrolled into view", asyn
   await expect(row).toBeInViewport();
 });
 
-test("the sidebar highlights the files whose diffs are on screen", async ({ context, page }) => {
-  await serve(context, PR_URL, LARGE_PR_BODY);
-  await page.goto(PR_URL);
-  await expect(page.locator('[data-item-path="bulk/"]')).toBeVisible({
-    timeout: LARGE_PR_READ_TIMEOUT,
-  });
-  // One stand-in diff per bulk row; every seventh is taller than the 720 px viewport.
-  await page.evaluate(
-    (ids) => {
-      const list = document.querySelector('[data-testid="progressive-diffs-list"]');
-      if (!list) throw new Error("no diff list");
-      for (let n = 0; n < 300; n++)
-        list.insertAdjacentHTML(
-          "beforeend",
-          `<div style="content-visibility: auto; contain-intrinsic-size: auto ${n % 7 ? 230 : 900}px"><div role="region" id="${ids[n]}" data-n="${n}" style="height: ${n % 7 ? 230 : 900}px"></div></div>`,
-        );
-    },
-    Array.from({ length: 300 }, (_, n) => bulkDiff(n)),
-  );
-  const markedAndInViewPaths = () =>
-    page.evaluate(() => {
-      const rows = [...document.querySelectorAll(".gh-prism-tree")].flatMap((host) => [
-        ...(host.shadowRoot?.querySelectorAll<HTMLElement>('[data-type="item"]') ?? []),
-      ]);
-      const rendered = new Set(rows.map((row) => row.dataset.itemPath));
-      const marked = rows
-        .filter(
-          (row) =>
-            getComputedStyle(
-              row.querySelector(
-                `:scope > [data-item-section="spacing"] > [data-ancestor-path="${row.dataset.itemPath?.replace(/[^/]*$/, "")}"]`,
-              ) ?? row,
-            )
-              .getPropertyValue("--gh-prism-lit")
-              .trim() === "1",
-        )
-        .map((row) => row.dataset.itemPath ?? "");
-      const inView = [...document.querySelectorAll('[role="region"][data-n]')]
-        .filter((region) => {
-          const { top, bottom } = region.getBoundingClientRect();
-          // Inclusive, as IntersectionObserver counts a region whose edge touches the viewport's.
-          return bottom >= 0 && top <= innerHeight;
-        })
-        .map((region) => `bulk/file-${(region as HTMLElement).dataset.n?.padStart(3, "0")}.rs`)
-        // The sidebar renders only the rows near its viewport.
-        .filter((path) => rendered.has(path));
-      return {
-        marked: marked.filter((path) => path.startsWith("bulk/file-")).sort(),
-        inView: inView.sort(),
-      };
+for (const structural of [false, true]) {
+  test(`the sidebar highlights the files whose diffs are on screen${structural ? " with Structural on" : ""}`, async ({
+    context,
+    page,
+  }) => {
+    if (structural) {
+      const { menu, tables } = LAYOUT_PAGES.pr;
+      // Served in Split, so selecting Structural needs no Layout switch: the stand-in's switch
+      // rewrites `?diff=` with no router to catch the tree's hash links, and Firefox then
+      // sometimes loads the page anew on a row click, dropping the stand-in diffs below.
+      await serve(
+        context,
+        PR_URL,
+        withPrToolbar(LARGE_PR_BODY).replace(
+          /(<div role="region" id="diff-ff278[^"]*">)/,
+          `$1${tables.split}`,
+        ),
+      );
+      await page.addInitScript(installLayoutMenu, { menu, tables });
+    } else await serve(context, PR_URL, LARGE_PR_BODY);
+    await page.goto(PR_URL);
+    await expect(page.locator('[data-item-path="bulk/"]')).toBeVisible({
+      timeout: LARGE_PR_READ_TIMEOUT,
     });
-  const expectMarkedInView = () =>
-    expect(async () => {
-      const { marked, inView } = await markedAndInViewPaths();
-      expect(inView.length).toBeGreaterThan(0);
-      expect(marked).toEqual(inView);
-    }).toPass({ timeout: 10_000 });
-  const scrollToDiff = (n: number) =>
-    page.evaluate((n) => {
-      const region = document.querySelector(`[data-n="${n}"]`);
-      if (!region) throw new Error(`no diff ${n}`);
-      // 37 px past the region's top keeps every region edge off the viewport's, where the
-      // rect check and the observer can round differently.
-      window.scrollTo({
-        top: region.getBoundingClientRect().top + scrollY + 37,
-        behavior: "instant",
-      });
-    }, n);
-
-  await scrollSidebarToBulkRow(page, 20);
-  await scrollToDiff(20);
-  await expectMarkedInView();
-
-  // A scroll Playwright makes before clicking moves the tree's own viewport, which
-  // SectionTree.sync snaps back between pointerdown and pointerup, so the click lands nowhere.
-  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
-  await scrollSidebarToBulkRow(page, 250);
-  const row250 = page.locator('[data-item-path="bulk/file-250.rs"]');
-  await expect(row250).toBeInViewport();
-  // Playwright retries, with a scroll, a click on a row the sections' landing reveal still moves,
-  // or one the tree ignores pointer events on just after a scroll.
-  await page
-    .locator(".gh-prism-section")
-    .evaluateAll((sections) =>
-      Promise.all(sections.flatMap((section) => section.getAnimations().map((a) => a.finished))),
+    if (structural) {
+      await segment(page, "Structural").click();
+      await expect(segment(page, "Structural")).toHaveAttribute("aria-pressed", "true");
+      expect(await urlLayout(page)).toBeNull();
+    }
+    // One stand-in diff per bulk row; every seventh is taller than the 720 px viewport.
+    await page.evaluate(
+      (ids) => {
+        const list = document.querySelector('[data-testid="progressive-diffs-list"]');
+        if (!list) throw new Error("no diff list");
+        for (let n = 0; n < 300; n++)
+          list.insertAdjacentHTML(
+            "beforeend",
+            `<div style="content-visibility: auto; contain-intrinsic-size: auto ${n % 7 ? 230 : 900}px"><div role="region" id="${ids[n]}" data-n="${n}" style="height: ${n % 7 ? 230 : 900}px"></div></div>`,
+          );
+      },
+      Array.from({ length: 300 }, (_, n) => bulkDiff(n)),
     );
-  await expect
-    .poll(() => row250.evaluate((el) => getComputedStyle(el).pointerEvents))
-    .not.toBe("none");
-  await row250.click();
-  await expect
-    .poll(() => markedAndInViewPaths().then(({ inView }) => inView))
-    .toContain("bulk/file-250.rs");
-  await expectMarkedInView();
+    const markedAndInViewPaths = () =>
+      page.evaluate(() => {
+        const rows = [...document.querySelectorAll(".gh-prism-tree")].flatMap((host) => [
+          ...(host.shadowRoot?.querySelectorAll<HTMLElement>('[data-type="item"]') ?? []),
+        ]);
+        const rendered = new Set(rows.map((row) => row.dataset.itemPath));
+        const marked = rows
+          .filter(
+            (row) =>
+              getComputedStyle(
+                row.querySelector(
+                  `:scope > [data-item-section="spacing"] > [data-ancestor-path="${row.dataset.itemPath?.replace(/[^/]*$/, "")}"]`,
+                ) ?? row,
+              )
+                .getPropertyValue("--gh-prism-lit")
+                .trim() === "1",
+          )
+          .map((row) => row.dataset.itemPath ?? "");
+        const inView = [...document.querySelectorAll('[role="region"][data-n]')]
+          .filter((region) => {
+            const { top, bottom } = region.getBoundingClientRect();
+            // Inclusive, as IntersectionObserver counts a region whose edge touches the viewport's.
+            return bottom >= 0 && top <= innerHeight;
+          })
+          .map((region) => `bulk/file-${(region as HTMLElement).dataset.n?.padStart(3, "0")}.rs`)
+          // The sidebar renders only the rows near its viewport.
+          .filter((path) => rendered.has(path));
+        return {
+          marked: marked.filter((path) => path.startsWith("bulk/file-")).sort(),
+          inView: inView.sort(),
+        };
+      });
+    const expectMarkedInView = () =>
+      expect(async () => {
+        const { marked, inView } = await markedAndInViewPaths();
+        expect(inView.length).toBeGreaterThan(0);
+        expect(marked).toEqual(inView);
+      }).toPass({ timeout: 10_000 });
+    const scrollToDiff = (n: number) =>
+      page.evaluate((n) => {
+        const region = document.querySelector(`[data-n="${n}"]`);
+        if (!region) throw new Error(`no diff ${n}`);
+        // 37 px past the region's top keeps every region edge off the viewport's, where the
+        // rect check and the observer can round differently.
+        window.scrollTo({
+          top: region.getBoundingClientRect().top + scrollY + 37,
+          behavior: "instant",
+        });
+      }, n);
 
-  await scrollToDiff(100);
-  await expect(page.locator('[data-item-path="bulk/file-100.rs"]')).toHaveCount(0);
-  await scrollSidebarToBulkRow(page, 100);
-  const piece = page.locator(
-    '[data-item-path="bulk/file-100.rs"] > [data-item-section="spacing"] > [data-ancestor-path="bulk/"]',
-  );
-  await expect
-    .poll(() =>
-      piece.evaluate((el) => getComputedStyle(el).getPropertyValue("--gh-prism-lit").trim()),
-    )
-    .toBe("1");
-  const fade = () => piece.evaluate((el) => getComputedStyle(el, "::before").transitionDuration);
-  expect(await fade()).not.toBe("0s");
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  expect(await fade()).toBe("0s");
+    await scrollSidebarToBulkRow(page, 20);
+    await scrollToDiff(20);
+    await expectMarkedInView();
 
-  const resting = page.locator(
-    '[data-item-path="bulk/file-101.rs"] > [data-item-section="spacing"] > [data-ancestor-path="bulk/"]',
-  );
-  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
-  await expect
-    .poll(() =>
-      resting.evaluate((el) => getComputedStyle(el).getPropertyValue("--gh-prism-lit").trim()),
-    )
-    .toBe("");
-  expect(await resting.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
-});
+    // A scroll Playwright makes before clicking moves the tree's own viewport, which
+    // SectionTree.sync snaps back between pointerdown and pointerup, so the click lands nowhere.
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    await scrollSidebarToBulkRow(page, 250);
+    const row250 = page.locator('[data-item-path="bulk/file-250.rs"]');
+    await expect(row250).toBeInViewport();
+    // Playwright retries, with a scroll, a click on a row the sections' landing reveal still moves,
+    // or one the tree ignores pointer events on just after a scroll.
+    await page
+      .locator(".gh-prism-section")
+      .evaluateAll((sections) =>
+        Promise.all(sections.flatMap((section) => section.getAnimations().map((a) => a.finished))),
+      );
+    await expect
+      .poll(() => row250.evaluate((el) => getComputedStyle(el).pointerEvents))
+      .not.toBe("none");
+    await row250.click();
+    await expect
+      .poll(() => markedAndInViewPaths().then(({ inView }) => inView))
+      .toContain("bulk/file-250.rs");
+    await expectMarkedInView();
+
+    await scrollToDiff(100);
+    await expect(page.locator('[data-item-path="bulk/file-100.rs"]')).toHaveCount(0);
+    await scrollSidebarToBulkRow(page, 100);
+    const piece = page.locator(
+      '[data-item-path="bulk/file-100.rs"] > [data-item-section="spacing"] > [data-ancestor-path="bulk/"]',
+    );
+    await expect
+      .poll(() =>
+        piece.evaluate((el) => getComputedStyle(el).getPropertyValue("--gh-prism-lit").trim()),
+      )
+      .toBe("1");
+    const fade = () => piece.evaluate((el) => getComputedStyle(el, "::before").transitionDuration);
+    expect(await fade()).not.toBe("0s");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    expect(await fade()).toBe("0s");
+
+    const resting = page.locator(
+      '[data-item-path="bulk/file-101.rs"] > [data-item-section="spacing"] > [data-ancestor-path="bulk/"]',
+    );
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    await expect
+      .poll(() =>
+        resting.evaluate((el) => getComputedStyle(el).getPropertyValue("--gh-prism-lit").trim()),
+      )
+      .toBe("");
+    expect(await resting.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
+    // No routed file gets a port read, so Structural paints none of them.
+    expect(
+      await page.evaluate(() =>
+        ["gh-prism-added", "gh-prism-removed"].map((name) => CSS.highlights.get(name)?.size ?? 0),
+      ),
+    ).toEqual([0, 0]);
+  });
+}
 
 test("the sidebar dims viewed files and follows GitHub's Viewed toggle", async ({
   context,
@@ -5064,17 +5127,30 @@ const LAYOUT_PAGES = {
 
 /** `kind`'s page with its captured toolbar, gear and all, and one diff table in `layout`. */
 const layoutBody = (kind: DiffKind, layout: Layout) => {
-  const { toolbar, tables } = LAYOUT_PAGES[kind];
+  const { tables } = LAYOUT_PAGES[kind];
   return kind === "pr"
-    ? PR_BODY.replace(/<section class="toolbar__ztHN6">[\s\S]*?<\/section>/, toolbar).replace(
+    ? withPrToolbar(PR_BODY).replace(
         /(<div role="region" id="diff-ff278[^"]*">)/,
         `$1${tables[layout]}`,
       )
-    : COMMIT_BODY.replace(
-        /(<div id="diff-content-parent" tabindex="-1">\s*<div>\s*)<div class="d-flex[^"]*position-sticky[^"]*">[\s\S]*?<\/div>\s*<\/div>/,
-        `$1${toolbar}`,
-      ).replace(/<table[\s\S]*?<\/table>/, tables[layout]);
+    : withCommitToolbar(COMMIT_BODY).replace(/<table[\s\S]*?<\/table>/, tables[layout]);
 };
+
+/** A pull request page `body` with the captured toolbar, gear and all, in place of its own. */
+function withPrToolbar(body: string) {
+  return body.replace(
+    /<section class="toolbar__ztHN6">[\s\S]*?<\/section>/,
+    LAYOUT_PAGES.pr.toolbar,
+  );
+}
+
+/** A commit page `body` with the captured toolbar, gear and all, in place of its own. */
+function withCommitToolbar(body: string) {
+  return body.replace(
+    /(<div id="diff-content-parent" tabindex="-1">\s*<div>\s*)<div class="d-flex[^"]*position-sticky[^"]*">[\s\S]*?<\/div>\s*<\/div>/,
+    `$1${LAYOUT_PAGES.commit.toolbar}`,
+  );
+}
 
 /**
  * Serves `kind`'s page with a gear whose stand-in Layout menu swaps the tables and posts
@@ -5152,6 +5228,8 @@ for (const kind of ["pr", "commit"] as const) {
       expect(await urlLayout(page)).toBe(layout);
     }
     expect(posts).toEqual(["diff=split", "diff=unified"]);
+    await expect(segment(page, "Structural")).toHaveAccessibleName("Structural Beta");
+    await expect(segment(page, "Structural").getByText("Beta", { exact: true })).toBeVisible();
   });
 
   test(`the diff view control keeps its choice across a reload on ${where}`, async ({
@@ -5177,6 +5255,8 @@ for (const kind of ["pr", "commit"] as const) {
       await serveLayoutPage(context, page, kind);
       await segment(page, "Structural").click();
       await expect(segment(page, "Structural")).toHaveAttribute("aria-pressed", "true");
+      await expect.poll(async () => (await structuralPaint(page)).highlights).toHaveLength(2);
+      const first = await structuralPaint(page);
 
       await segment(page, leave).click();
 
@@ -5187,6 +5267,10 @@ for (const kind of ["pr", "commit"] as const) {
         notices: 0,
         sheets: 0,
       });
+
+      await segment(page, "Structural").click();
+
+      await expect.poll(() => structuralPaint(page)).toEqual(first);
     });
   }
 

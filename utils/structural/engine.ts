@@ -5,7 +5,7 @@ import type { Grammar } from "./grammar";
 import { keyedByIndentation, leafTokens, lineStarts, type Token } from "./tokens";
 
 /** Why the engine returned no changes. */
-export type EngineRefusal = "unsupported" | "too-large" | "failed";
+export type EngineRefusal = "unsupported" | "too-large" | "too-slow" | "failed";
 
 /** The engine's answer for one file: its changes, or a refusal. Never partial. */
 export type EngineResult =
@@ -67,8 +67,9 @@ export interface EngineInput {
 
 /**
  * The tokens each version of a file changed, or why they can't be had: `unsupported` without a
- * grammar, `too-large` past a limit, `failed` when either text does not parse. Rejects with
- * `signal.reason` if `signal` has aborted at the start or after either parse.
+ * grammar, `too-large` past a size limit, `too-slow` when a parse or the diff passes its deadline,
+ * `failed` when either text does not parse. Rejects with `signal.reason` if `signal` has aborted
+ * at the start or after either parse.
  */
 export async function structuralChanges(input: EngineInput): Promise<EngineResult> {
   const { oldText, newText, language, regions, limits, signal, now, pause } = input;
@@ -89,7 +90,7 @@ export async function structuralChanges(input: EngineInput): Promise<EngineResul
   const oldSource = sourceOf(oldText, oldTokens);
   const newSource = sourceOf(newText, newTokens);
   const changed = changedTokens(regions, oldSource, newSource, limits, now);
-  if (changed === undefined) return refuse("too-large");
+  if (typeof changed === "string") return refuse(changed);
 
   return {
     ok: true,
@@ -110,7 +111,7 @@ function tokensOf(
   parser.reset();
   const deadline = now() + limits.maxParseMs;
   const tree = parser.parse(text, null, { progressCallback: () => now() > deadline });
-  if (tree === null) return "too-large";
+  if (tree === null) return "too-slow";
 
   try {
     if (tree.rootNode.hasError) return "failed";
@@ -143,24 +144,24 @@ interface ChangedTokens {
   readonly new: readonly Token[];
 }
 
-/** The tokens one Myers diff per region finds changed; `undefined` past the diff caps. */
+/** The tokens one Myers diff per region finds changed, or why the diff stage gave up. */
 function changedTokens(
   regions: readonly ChangedRegion[],
   oldSource: Source,
   newSource: Source,
   limits: EngineLimits,
   now: () => number,
-): ChangedTokens | undefined {
+): ChangedTokens | "too-large" | "too-slow" {
   const deadline = now() + limits.maxDiffMs;
   const parts: ChangedTokens[] = [];
   for (const window of diffWindows(regions, oldSource, newSource)) {
-    if (now() > deadline) return undefined;
+    if (now() > deadline) return "too-slow";
     const part = windowChanges(
       oldSource.tokens.slice(window.oldFrom, window.oldTo),
       newSource.tokens.slice(window.newFrom, window.newTo),
       limits.maxEditLength,
     );
-    if (part === undefined) return undefined;
+    if (part === undefined) return "too-large";
     parts.push(part);
   }
 

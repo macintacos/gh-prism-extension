@@ -172,6 +172,34 @@ describe("followOnScreen", () => {
     expect(FakeObserver.latest.targets).toEqual(new Set(regions));
   });
 
+  it("keeps its current observer reporting when building the next one throws", () => {
+    const first = FakeObserver.latest;
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor() {
+          throw new SyntaxError("bad rootMargin");
+        }
+      },
+    );
+    const header = document.createElement("div");
+    header.className = "diffHeaderWrapper__abc";
+    regions[0]?.prepend(header);
+    header.style.top = "40px";
+
+    expect(() => window.dispatchEvent(new Event("resize"))).toThrow(SyntaxError);
+    first.fire([[regions[0] as Element, true]]);
+
+    expect(first.disconnected).toBe(false);
+    expect(shown()).toEqual(new Set(["src/engine.rs"]));
+
+    vi.stubGlobal("IntersectionObserver", FakeObserver);
+    window.dispatchEvent(new Event("resize"));
+
+    expect(FakeObserver.latest).not.toBe(first);
+    expect(FakeObserver.latest.options.rootMargin).toBe("-40px 0px 0px 0px");
+  });
+
   it("insets by the covered band once a header mounts after the start", async () => {
     expect(FakeObserver.latest.options.rootMargin).toBe("-0px 0px 0px 0px");
     const header = document.createElement("div");

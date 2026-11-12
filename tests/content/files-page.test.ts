@@ -1351,6 +1351,16 @@ describe("coveredTop", () => {
     expect(coveredTop(foundPage())).toBe(66);
   });
 
+  it("is 0 when the file header's top is negative", () => {
+    loadFixture();
+    const header = document.createElement("div");
+    header.className = "diffHeaderWrapper__abc";
+    header.style.top = "-597px";
+    byId(ENGINE_DIFF).prepend(header);
+
+    expect(coveredTop(foundPage())).toBe(0);
+  });
+
   it("is 0 with no file header mounted", () => {
     loadFixture();
     for (const header of document.querySelectorAll('[class*="diffHeaderWrapper__"]'))

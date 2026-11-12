@@ -316,6 +316,17 @@ describe("showDiffViewControl", () => {
     expect(pressed()).toEqual([shown]);
   });
 
+  it("tags the Structural segment Beta, in its name and on screen", () => {
+    const page = pageOf("pr", "split");
+
+    show(page, choiceOf(false).choice);
+
+    expect(segment("structural")?.textContent).toBe("Structural Beta");
+    expect(
+      segment("structural")?.querySelector(".gh-prism-diff-view-tag")?.textContent?.trim(),
+    ).toBe("Beta");
+  });
+
   it("presses no segment while the layout can't be told", () => {
     const page = pageOf("pr", "split");
     for (const table of page.diffs.querySelectorAll("table")) table.remove();

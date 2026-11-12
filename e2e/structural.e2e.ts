@@ -406,6 +406,13 @@ test("outlines a moved line's code cells dashed, and keeps the outline on a sele
   });
   for (const cell of codeCells) expect((await outline(cell)).outlineStyle).toBe("dashed");
 
+  await newCode.evaluate((td) => {
+    td.tabIndex = -1;
+    td.focus();
+  });
+  expect((await outline(newCode)).outlineStyle).toBe("dashed");
+  await newCode.blur();
+
   await page.evaluate(() => window.structural.stop());
   for (const cell of codeCells) expect((await outline(cell)).outlineStyle).toBe("none");
   await expect(page.locator(MARKED)).toHaveCount(0);

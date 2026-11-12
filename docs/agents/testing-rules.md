@@ -238,6 +238,25 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   the top, shifting the diff view control 71px, so a `mouse.click` at a `boundingBox()`
   read before lands on the next segment. `locator.click()` waits for the box to hold still
   and checks the target is under the pointer.
+- **Compare two live loads' markup only after masking what GitHub generates per load and
+  per pointer.** React ids (`_r_t9_`, `id`, `aria-*` references) differ between loads, and
+  GitHub adds `style="anchor-name: …"` to an overlay's button only once the pointer has
+  been near it.
+  [`bench/structural-parity-live.ts`](../../bench/structural-parity-live.ts)'s `signature`
+  masks both, and waits for gh-prism's "Sorting files into sections" to leave a large pull
+  request before it reads the sidebar.
+- **Find GitHub's live review controls by what they are, not by guessed names**
+  (2026-11-11). "Write a reply" is `aria-hidden`, so match it by text; a suggestion comes
+  from the file header's line menu ("Suggest change on line R<n>"), which acts on the
+  selected line; a commit's hovered line offers `button[aria-label="Add comment"]` where a
+  pull request's offers `button[data-add-comment-button]`; and the Submit review dialog
+  has no discard, so a bench discards its pending review with `gh api -X DELETE`.
+- **Reach a file on a huge pull request by scrolling from the top, not by its hash, and
+  judge a reveal by the revealed file's own region.** In Firefox, nodejs/node#66212 never
+  mounts a file's region from `#diff-<sha>`, even with no extension loaded. A sidebar
+  reveal on a profile's first load of a page can come to rest up to 150 px lower, in trunk
+  too, so "the file below the sticky headers" names the neighbour. Wait until the clicked
+  file's region stops moving, then check that it is in the viewport's top half.
 - **Give an e2e page a gear and a Layout menu by splicing a captured toolbar and adding
   `installLayoutMenu` with `page.addInitScript`.** The page fixtures have no gear, so
   [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `layoutBody` swaps in

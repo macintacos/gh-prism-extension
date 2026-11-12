@@ -1,0 +1,1766 @@
+{
+  "browser": "firefox",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:157.0) Gecko/20100101 Firefox/157.0",
+  "limits": {
+    "maxTextLength": 100000,
+    "maxParseMs": 100,
+    "maxTokens": 20000,
+    "maxEditLength": 750,
+    "maxDiffMs": 50
+  },
+  "tooSlowWithinCaps": [],
+  "heap": {
+    "peakHeap": "not measured"
+  },
+  "samples": [
+    {
+      "name": "fixture:python/rename.py.txt",
+      "grammar": "python",
+      "length": {
+        "old": 36,
+        "new": 34
+      },
+      "tokens": {
+        "old": 9,
+        "new": 9
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 16,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 17,
+      "parseMsPerSide": 8,
+      "diffMs": 0
+    },
+    {
+      "name": "fixture:python/reindent.py.txt",
+      "grammar": "python",
+      "length": {
+        "old": 87,
+        "new": 97
+      },
+      "tokens": {
+        "old": 19,
+        "new": 19
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 16,
+      "defaultsDiffMs": 1,
+      "liftedMedianMs": 15,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 7.5,
+      "diffMs": 0
+    },
+    {
+      "name": "fixture:python/rewrap.py.txt",
+      "grammar": "python",
+      "length": {
+        "old": 38,
+        "new": 52
+      },
+      "tokens": {
+        "old": 10,
+        "new": 10
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 16,
+      "defaultsDiffMs": 1,
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 7.5,
+      "diffMs": 1
+    },
+    {
+      "name": "fixture:python/parse-error.py.txt",
+      "grammar": "python",
+      "length": {
+        "old": 18,
+        "new": 17
+      },
+      "tokens": {
+        "old": 6,
+        "new": 5
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "failed": 20
+      },
+      "defaultsMedianMs": 10,
+      "defaultsDiffMs": -6,
+      "liftedMedianMs": 10,
+      "liftedMaxMs": 11,
+      "parseMsPerSide": 8,
+      "diffMs": -6
+    },
+    {
+      "name": "fixture:python/added-argument.py.txt",
+      "grammar": "python",
+      "length": {
+        "old": 32,
+        "new": 39
+      },
+      "tokens": {
+        "old": 8,
+        "new": 10
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 16,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 8,
+      "diffMs": 0
+    },
+    {
+      "name": "fixture:python/moved-out-of-block.py.txt",
+      "grammar": "python",
+      "length": {
+        "old": 44,
+        "new": 40
+      },
+      "tokens": {
+        "old": 15,
+        "new": 15
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 16,
+      "defaultsDiffMs": 1,
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 7.5,
+      "diffMs": 1
+    },
+    {
+      "name": "fixture:tsx/reindent.tsx.txt",
+      "grammar": "tsx",
+      "length": {
+        "old": 185,
+        "new": 217
+      },
+      "tokens": {
+        "old": 60,
+        "new": 60
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 16,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 8,
+      "diffMs": 0
+    },
+    {
+      "name": "fixture:tsx/added-argument.tsx.txt",
+      "grammar": "tsx",
+      "length": {
+        "old": 39,
+        "new": 46
+      },
+      "tokens": {
+        "old": 10,
+        "new": 12
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 15,
+      "defaultsDiffMs": -1,
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 8,
+      "diffMs": 0
+    },
+    {
+      "name": "fixture:tsx/rewrap.tsx.txt",
+      "grammar": "tsx",
+      "length": {
+        "old": 123,
+        "new": 131
+      },
+      "tokens": {
+        "old": 30,
+        "new": 30
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 16,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 17,
+      "parseMsPerSide": 8,
+      "diffMs": 0
+    },
+    {
+      "name": "fixture:tsx/rename.tsx.txt",
+      "grammar": "tsx",
+      "length": {
+        "old": 44,
+        "new": 40
+      },
+      "tokens": {
+        "old": 12,
+        "new": 12
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 15,
+      "defaultsDiffMs": -1,
+      "liftedMedianMs": 15,
+      "liftedMaxMs": 17,
+      "parseMsPerSide": 8,
+      "diffMs": -1
+    },
+    {
+      "name": "fixture:tsx/parse-error.tsx.txt",
+      "grammar": "tsx",
+      "length": {
+        "old": 24,
+        "new": 22
+      },
+      "tokens": {
+        "old": 10,
+        "new": 9
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "failed": 20
+      },
+      "defaultsMedianMs": 11,
+      "defaultsDiffMs": -4,
+      "liftedMedianMs": 10,
+      "liftedMaxMs": 11,
+      "parseMsPerSide": 7.5,
+      "diffMs": -5
+    },
+    {
+      "name": "fixture:typescript/rename.ts.txt",
+      "grammar": "typescript",
+      "length": {
+        "old": 44,
+        "new": 40
+      },
+      "tokens": {
+        "old": 12,
+        "new": 12
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 16,
+      "defaultsDiffMs": 1,
+      "liftedMedianMs": 15,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 7.5,
+      "diffMs": 0
+    },
+    {
+      "name": "fixture:typescript/rewrap.ts.txt",
+      "grammar": "typescript",
+      "length": {
+        "old": 123,
+        "new": 131
+      },
+      "tokens": {
+        "old": 30,
+        "new": 30
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 16,
+      "defaultsDiffMs": 1,
+      "liftedMedianMs": 15,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 7.5,
+      "diffMs": 0
+    },
+    {
+      "name": "fixture:typescript/reindent.ts.txt",
+      "grammar": "typescript",
+      "length": {
+        "old": 131,
+        "new": 143
+      },
+      "tokens": {
+        "old": 35,
+        "new": 35
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 15,
+      "defaultsDiffMs": -1,
+      "liftedMedianMs": 15,
+      "liftedMaxMs": 15,
+      "parseMsPerSide": 8,
+      "diffMs": -1
+    },
+    {
+      "name": "fixture:typescript/added-argument.ts.txt",
+      "grammar": "typescript",
+      "length": {
+        "old": 39,
+        "new": 46
+      },
+      "tokens": {
+        "old": 10,
+        "new": 12
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 15,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 15,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 7.5,
+      "diffMs": 0
+    },
+    {
+      "name": "fixture:typescript/parse-error.ts.txt",
+      "grammar": "typescript",
+      "length": {
+        "old": 24,
+        "new": 22
+      },
+      "tokens": {
+        "old": 10,
+        "new": 9
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "failed": 20
+      },
+      "defaultsMedianMs": 10.5,
+      "defaultsDiffMs": -4.5,
+      "liftedMedianMs": 10,
+      "liftedMaxMs": 11,
+      "parseMsPerSide": 7.5,
+      "diffMs": -5
+    },
+    {
+      "name": "fixture:javascript/added-argument.js.txt",
+      "grammar": "javascript",
+      "length": {
+        "old": 39,
+        "new": 46
+      },
+      "tokens": {
+        "old": 10,
+        "new": 12
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 16,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 15,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 8,
+      "diffMs": -1
+    },
+    {
+      "name": "fixture:javascript/parse-error.js.txt",
+      "grammar": "javascript",
+      "length": {
+        "old": 24,
+        "new": 22
+      },
+      "tokens": {
+        "old": 10,
+        "new": 9
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "failed": 20
+      },
+      "defaultsMedianMs": 10.5,
+      "defaultsDiffMs": -5.5,
+      "liftedMedianMs": 11,
+      "liftedMaxMs": 14,
+      "parseMsPerSide": 8,
+      "diffMs": -5
+    },
+    {
+      "name": "fixture:javascript/reindent.js.txt",
+      "grammar": "javascript",
+      "length": {
+        "old": 113,
+        "new": 125
+      },
+      "tokens": {
+        "old": 29,
+        "new": 29
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 16,
+      "defaultsDiffMs": 1,
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 7.5,
+      "diffMs": 1
+    },
+    {
+      "name": "fixture:javascript/rewrap.js.txt",
+      "grammar": "javascript",
+      "length": {
+        "old": 90,
+        "new": 98
+      },
+      "tokens": {
+        "old": 22,
+        "new": 22
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 15.5,
+      "defaultsDiffMs": 0.5,
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 7.5,
+      "diffMs": 1
+    },
+    {
+      "name": "fixture:javascript/rename.js.txt",
+      "grammar": "javascript",
+      "length": {
+        "old": 44,
+        "new": 40
+      },
+      "tokens": {
+        "old": 12,
+        "new": 12
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 15,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 16,
+      "liftedMaxMs": 16,
+      "parseMsPerSide": 7.5,
+      "diffMs": 1
+    },
+    {
+      "name": "pr:deps/npm/tap-snapshots/test/lib/docs.js.test.cjs",
+      "grammar": "javascript",
+      "length": {
+        "old": 166092,
+        "new": 170547
+      },
+      "tokens": {
+        "old": 7140,
+        "new": 7280
+      },
+      "regions": 63,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -25,
+      "liftedMedianMs": 31,
+      "liftedMaxMs": 36,
+      "parseMsPerSide": 15,
+      "diffMs": 1
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/ls.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 147109,
+        "new": 151482
+      },
+      "tokens": {
+        "old": 26130,
+        "new": 27286
+      },
+      "regions": 6,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -57,
+      "liftedMedianMs": 64,
+      "liftedMaxMs": 72,
+      "parseMsPerSide": 31,
+      "diffMs": 2
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/config/lib/definitions/definitions.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 91718,
+        "new": 97679
+      },
+      "tokens": {
+        "old": 11427,
+        "new": 11915
+      },
+      "regions": 26,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 36,
+      "defaultsDiffMs": 1,
+      "liftedMedianMs": 36,
+      "liftedMaxMs": 37,
+      "parseMsPerSide": 17.5,
+      "diffMs": 1
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/arborist/reify.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 79587,
+        "new": 80584
+      },
+      "tokens": {
+        "old": 10442,
+        "new": 10511
+      },
+      "regions": 14,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 38,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 38,
+      "liftedMaxMs": 39,
+      "parseMsPerSide": 19,
+      "diffMs": 0
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/audit.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 73749,
+        "new": 74114
+      },
+      "tokens": {
+        "old": 14111,
+        "new": 14164
+      },
+      "regions": 10,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 42,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 42,
+      "liftedMaxMs": 44,
+      "parseMsPerSide": 21,
+      "diffMs": 0
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/arborist/build-ideal-tree.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 64691,
+        "new": 72757
+      },
+      "tokens": {
+        "old": 8168,
+        "new": 9030
+      },
+      "regions": 17,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 34,
+      "defaultsDiffMs": 2,
+      "liftedMedianMs": 34,
+      "liftedMaxMs": 34,
+      "parseMsPerSide": 16,
+      "diffMs": 2
+    },
+    {
+      "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/browser/index.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 63038,
+        "new": 63323
+      },
+      "tokens": {
+        "old": 8999,
+        "new": 9034
+      },
+      "regions": 7,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 34,
+      "defaultsDiffMs": -1,
+      "liftedMedianMs": 33,
+      "liftedMaxMs": 34,
+      "parseMsPerSide": 17.5,
+      "diffMs": -2
+    },
+    {
+      "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/index.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 63038,
+        "new": 63323
+      },
+      "tokens": {
+        "old": 8999,
+        "new": 9034
+      },
+      "regions": 7,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 34,
+      "defaultsDiffMs": 1,
+      "liftedMedianMs": 34,
+      "liftedMaxMs": 39,
+      "parseMsPerSide": 16.5,
+      "diffMs": 1
+    },
+    {
+      "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/node/index.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 63038,
+        "new": 63323
+      },
+      "tokens": {
+        "old": 8999,
+        "new": 9034
+      },
+      "regions": 7,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 33,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 34,
+      "liftedMaxMs": 34,
+      "parseMsPerSide": 16.5,
+      "diffMs": 1
+    },
+    {
+      "name": "pr:deps/npm/node_modules/lru-cache/dist/esm/browser/index.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 62344,
+        "new": 62629
+      },
+      "tokens": {
+        "old": 8920,
+        "new": 8955
+      },
+      "regions": 7,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 33,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 33,
+      "liftedMaxMs": 33,
+      "parseMsPerSide": 16.5,
+      "diffMs": 0
+    },
+    {
+      "name": "pr:deps/npm/node_modules/lru-cache/dist/esm/index.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 62344,
+        "new": 62629
+      },
+      "tokens": {
+        "old": 8920,
+        "new": 8955
+      },
+      "regions": 7,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 33,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 33,
+      "liftedMaxMs": 33,
+      "parseMsPerSide": 16.5,
+      "diffMs": 0
+    },
+    {
+      "name": "pr:deps/npm/node_modules/lru-cache/dist/esm/node/index.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 62344,
+        "new": 62629
+      },
+      "tokens": {
+        "old": 8920,
+        "new": 8955
+      },
+      "regions": 7,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 33,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 33,
+      "liftedMaxMs": 33,
+      "parseMsPerSide": 16.5,
+      "diffMs": 0
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/publish.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 47341,
+        "new": 57228
+      },
+      "tokens": {
+        "old": 9229,
+        "new": 10734
+      },
+      "regions": 5,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 34,
+      "defaultsDiffMs": 2,
+      "liftedMedianMs": 34,
+      "liftedMaxMs": 35,
+      "parseMsPerSide": 16,
+      "diffMs": 2
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/node.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 50041,
+        "new": 50554
+      },
+      "tokens": {
+        "old": 7078,
+        "new": 7069
+      },
+      "regions": 6,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 30,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 30,
+      "liftedMaxMs": 33,
+      "parseMsPerSide": 15,
+      "diffMs": 0
+    },
+    {
+      "name": "pr:deps/npm/tap-snapshots/test/lib/commands/sbom.js.test.cjs",
+      "grammar": "javascript",
+      "length": {
+        "old": 46233,
+        "new": 46247
+      },
+      "tokens": {
+        "old": 164,
+        "new": 164
+      },
+      "regions": 2,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 19,
+      "defaultsDiffMs": -2,
+      "liftedMedianMs": 21,
+      "liftedMaxMs": 21,
+      "parseMsPerSide": 10.5,
+      "diffMs": 0
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/shrinkwrap.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 40360,
+        "new": 42151
+      },
+      "tokens": {
+        "old": 6256,
+        "new": 6409
+      },
+      "regions": 29,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 30.5,
+      "defaultsDiffMs": 1.5,
+      "liftedMedianMs": 30,
+      "liftedMaxMs": 31,
+      "parseMsPerSide": 14.5,
+      "diffMs": 1
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/install.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 35945,
+        "new": 40990
+      },
+      "tokens": {
+        "old": 7215,
+        "new": 8134
+      },
+      "regions": 3,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 29,
+      "defaultsDiffMs": 2,
+      "liftedMedianMs": 30,
+      "liftedMaxMs": 30,
+      "parseMsPerSide": 13.5,
+      "diffMs": 3
+    },
+    {
+      "name": "pr:deps/npm/tap-snapshots/test/lib/utils/error-message.js.test.cjs",
+      "grammar": "javascript",
+      "length": {
+        "old": 40462,
+        "new": 40460
+      },
+      "tokens": {
+        "old": 848,
+        "new": 848
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 20,
+      "defaultsDiffMs": -5,
+      "liftedMedianMs": 26,
+      "liftedMaxMs": 26,
+      "parseMsPerSide": 12.5,
+      "diffMs": 1
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/config/lib/index.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 32085,
+        "new": 36296
+      },
+      "tokens": {
+        "old": 5909,
+        "new": 6235
+      },
+      "regions": 17,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 29,
+      "defaultsDiffMs": 2,
+      "liftedMedianMs": 29,
+      "liftedMaxMs": 30,
+      "parseMsPerSide": 13.5,
+      "diffMs": 2
+    },
+    {
+      "name": "pr:deps/npm/node_modules/tinyglobby/node_modules/picomatch/lib/parse.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 33731,
+        "new": 34668
+      },
+      "tokens": {
+        "old": 7949,
+        "new": 8055
+      },
+      "regions": 6,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 31,
+      "defaultsDiffMs": 1,
+      "liftedMedianMs": 31,
+      "liftedMaxMs": 31,
+      "parseMsPerSide": 15,
+      "diffMs": 1
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/approve-scripts.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 30140,
+        "new": 30214
+      },
+      "tokens": {
+        "old": 6255,
+        "new": 6255
+      },
+      "regions": 2,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 28,
+      "defaultsDiffMs": -2,
+      "liftedMedianMs": 29,
+      "liftedMaxMs": 30,
+      "parseMsPerSide": 15,
+      "diffMs": -1
+    },
+    {
+      "name": "pr:deps/npm/test/lib/utils/allow-scripts-writer.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 27596,
+        "new": 28871
+      },
+      "tokens": {
+        "old": 5440,
+        "new": 5710
+      },
+      "regions": 5,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 28,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 28,
+      "liftedMaxMs": 29,
+      "parseMsPerSide": 14,
+      "diffMs": 0
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/profile.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 28372,
+        "new": 28310
+      },
+      "tokens": {
+        "old": 5523,
+        "new": 5511
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 28,
+      "defaultsDiffMs": -1,
+      "liftedMedianMs": 29,
+      "liftedMaxMs": 30,
+      "parseMsPerSide": 14.5,
+      "diffMs": 0
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/view.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 22934,
+        "new": 28081
+      },
+      "tokens": {
+        "old": 5379,
+        "new": 6524
+      },
+      "regions": 10,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 28,
+      "defaultsDiffMs": 1,
+      "liftedMedianMs": 28,
+      "liftedMaxMs": 28,
+      "parseMsPerSide": 13.5,
+      "diffMs": 1
+    },
+    {
+      "name": "pr:deps/npm/test/lib/base-cmd.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 20015,
+        "new": 27163
+      },
+      "tokens": {
+        "old": 3647,
+        "new": 4996
+      },
+      "regions": 7,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 26,
+      "defaultsDiffMs": -2,
+      "liftedMedianMs": 29,
+      "liftedMaxMs": 29,
+      "parseMsPerSide": 14,
+      "diffMs": 1
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/diff.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 25515,
+        "new": 25514
+      },
+      "tokens": {
+        "old": 5804,
+        "new": 5804
+      },
+      "regions": 2,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 29,
+      "defaultsDiffMs": 1,
+      "liftedMedianMs": 29,
+      "liftedMaxMs": 29,
+      "parseMsPerSide": 14,
+      "diffMs": 1
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/cache.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 25133,
+        "new": 25111
+      },
+      "tokens": {
+        "old": 5655,
+        "new": 5655
+      },
+      "regions": 4,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 28,
+      "defaultsDiffMs": -2,
+      "liftedMedianMs": 29,
+      "liftedMaxMs": 30,
+      "parseMsPerSide": 15,
+      "diffMs": -1
+    },
+    {
+      "name": "pr:deps/npm/tap-snapshots/test/lib/commands/ls.js.test.cjs",
+      "grammar": "javascript",
+      "length": {
+        "old": 23970,
+        "new": 24414
+      },
+      "tokens": {
+        "old": 1092,
+        "new": 1120
+      },
+      "regions": 3,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 19.5,
+      "defaultsDiffMs": -0.5,
+      "liftedMedianMs": 25,
+      "liftedMaxMs": 26,
+      "parseMsPerSide": 10,
+      "diffMs": 5
+    },
+    {
+      "name": "pr:deps/npm/test/lib/npm.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 23519,
+        "new": 22400
+      },
+      "tokens": {
+        "old": 5370,
+        "new": 5038
+      },
+      "regions": 3,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 29.5,
+      "defaultsDiffMs": -0.5,
+      "liftedMedianMs": 31,
+      "liftedMaxMs": 32,
+      "parseMsPerSide": 15,
+      "diffMs": 1
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/config.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 22110,
+        "new": 22096
+      },
+      "tokens": {
+        "old": 5556,
+        "new": 5541
+      },
+      "regions": 18,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 27.5,
+      "defaultsDiffMs": -1.5,
+      "liftedMedianMs": 29,
+      "liftedMaxMs": 30,
+      "parseMsPerSide": 14.5,
+      "diffMs": 0
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/ci.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 16147,
+        "new": 21488
+      },
+      "tokens": {
+        "old": 3199,
+        "new": 4260
+      },
+      "regions": 4,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 25,
+      "defaultsDiffMs": -3,
+      "liftedMedianMs": 30,
+      "liftedMaxMs": 31,
+      "parseMsPerSide": 14,
+      "diffMs": 2
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/arborist/isolated-reifier.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 20878,
+        "new": 19669
+      },
+      "tokens": {
+        "old": 3607,
+        "new": 3390
+      },
+      "regions": 8,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 28,
+      "defaultsDiffMs": 1,
+      "liftedMedianMs": 28,
+      "liftedMaxMs": 33,
+      "parseMsPerSide": 13.5,
+      "diffMs": 1
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/package-json/lib/normalize.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 20322,
+        "new": 20578
+      },
+      "tokens": {
+        "old": 3869,
+        "new": 3897
+      },
+      "regions": 6,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 27,
+      "defaultsDiffMs": -2,
+      "liftedMedianMs": 29,
+      "liftedMaxMs": 30,
+      "parseMsPerSide": 14.5,
+      "diffMs": 0
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/place-dep.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 20289,
+        "new": 20540
+      },
+      "tokens": {
+        "old": 2579,
+        "new": 2623
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 26,
+      "defaultsDiffMs": -1,
+      "liftedMedianMs": 26,
+      "liftedMaxMs": 27,
+      "parseMsPerSide": 13.5,
+      "diffMs": -1
+    },
+    {
+      "name": "pr:deps/npm/node_modules/@npmcli/arborist/lib/arborist/load-actual.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 17710,
+        "new": 20519
+      },
+      "tokens": {
+        "old": 2436,
+        "new": 2801
+      },
+      "regions": 4,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 27.5,
+      "defaultsDiffMs": 6.5,
+      "liftedMedianMs": 22,
+      "liftedMaxMs": 23,
+      "parseMsPerSide": 10.5,
+      "diffMs": 1
+    },
+    {
+      "name": "pr:deps/npm/test/lib/commands/doctor.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 20186,
+        "new": 20220
+      },
+      "tokens": {
+        "old": 5626,
+        "new": 5640
+      },
+      "regions": 2,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 28,
+      "defaultsDiffMs": -1,
+      "liftedMedianMs": 29,
+      "liftedMaxMs": 30,
+      "parseMsPerSide": 14.5,
+      "diffMs": 0
+    },
+    {
+      "name": "pr:deps/npm/node_modules/npm-packlist/lib/index.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 16218,
+        "new": 19739
+      },
+      "tokens": {
+        "old": 2230,
+        "new": 2553
+      },
+      "regions": 17,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 27,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 29,
+      "liftedMaxMs": 30,
+      "parseMsPerSide": 13.5,
+      "diffMs": 2
+    },
+    {
+      "name": "pr:deps/npm/tap-snapshots/test/lib/commands/view.js.test.cjs",
+      "grammar": "javascript",
+      "length": {
+        "old": 18945,
+        "new": 19397
+      },
+      "tokens": {
+        "old": 408,
+        "new": 408
+      },
+      "regions": 16,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 20,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 20,
+      "liftedMaxMs": 21,
+      "parseMsPerSide": 10,
+      "diffMs": 0
+    },
+    {
+      "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/node/index.min.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 19329,
+        "new": 19363
+      },
+      "tokens": {
+        "old": 8615,
+        "new": 8644
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 62,
+      "defaultsDiffMs": 31,
+      "liftedMedianMs": 69,
+      "liftedMaxMs": 70,
+      "parseMsPerSide": 15.5,
+      "diffMs": 38
+    },
+    {
+      "name": "pr:deps/npm/node_modules/lru-cache/dist/commonjs/browser/index.min.js",
+      "grammar": "javascript",
+      "length": {
+        "old": 19248,
+        "new": 19282
+      },
+      "tokens": {
+        "old": 8593,
+        "new": 8622
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 63,
+      "defaultsDiffMs": 32,
+      "liftedMedianMs": 71,
+      "liftedMaxMs": 74,
+      "parseMsPerSide": 15.5,
+      "diffMs": 40
+    },
+    {
+      "name": "ladder:typescript:50000",
+      "grammar": "typescript",
+      "length": {
+        "old": 47380,
+        "new": 47620
+      },
+      "tokens": {
+        "old": 6815,
+        "new": 6833
+      },
+      "regions": 24,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 29,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 30,
+      "liftedMaxMs": 31,
+      "parseMsPerSide": 14.5,
+      "diffMs": 1
+    },
+    {
+      "name": "ladder:typescript:100000",
+      "grammar": "typescript",
+      "length": {
+        "old": 104236,
+        "new": 104776
+      },
+      "tokens": {
+        "old": 14993,
+        "new": 15039
+      },
+      "regions": 54,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -41,
+      "liftedMedianMs": 47,
+      "liftedMaxMs": 51,
+      "parseMsPerSide": 23,
+      "diffMs": 1
+    },
+    {
+      "name": "ladder:typescript:150000",
+      "grammar": "typescript",
+      "length": {
+        "old": 151616,
+        "new": 152406
+      },
+      "tokens": {
+        "old": 21808,
+        "new": 21875
+      },
+      "regions": 79,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -56,
+      "liftedMedianMs": 62,
+      "liftedMaxMs": 63,
+      "parseMsPerSide": 30.5,
+      "diffMs": 1
+    },
+    {
+      "name": "ladder:typescript:200000",
+      "grammar": "typescript",
+      "length": {
+        "old": 198996,
+        "new": 200036
+      },
+      "tokens": {
+        "old": 28623,
+        "new": 28710
+      },
+      "regions": 104,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -68,
+      "liftedMedianMs": 76,
+      "liftedMaxMs": 84,
+      "parseMsPerSide": 36.5,
+      "diffMs": 3
+    },
+    {
+      "name": "ladder:typescript:250000",
+      "grammar": "typescript",
+      "length": {
+        "old": 246376,
+        "new": 247666
+      },
+      "tokens": {
+        "old": 35438,
+        "new": 35543
+      },
+      "regions": 129,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -84,
+      "liftedMedianMs": 90,
+      "liftedMaxMs": 96,
+      "parseMsPerSide": 44.5,
+      "diffMs": 1
+    },
+    {
+      "name": "ladder:typescript:300000",
+      "grammar": "typescript",
+      "length": {
+        "old": 303232,
+        "new": 304822
+      },
+      "tokens": {
+        "old": 43616,
+        "new": 43750
+      },
+      "regions": 159,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -103,
+      "liftedMedianMs": 111,
+      "liftedMaxMs": 112,
+      "parseMsPerSide": 54,
+      "diffMs": 3
+    },
+    {
+      "name": "ladder:python:50000",
+      "grammar": "python",
+      "length": {
+        "old": 50016,
+        "new": 50326
+      },
+      "tokens": {
+        "old": 12504,
+        "new": 12535
+      },
+      "regions": 31,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "ok": 20
+      },
+      "defaultsMedianMs": 41,
+      "defaultsDiffMs": 0,
+      "liftedMedianMs": 41,
+      "liftedMaxMs": 42,
+      "parseMsPerSide": 20.5,
+      "diffMs": 0
+    },
+    {
+      "name": "ladder:python:100000",
+      "grammar": "python",
+      "length": {
+        "old": 100000,
+        "new": 100620
+      },
+      "tokens": {
+        "old": 25000,
+        "new": 25062
+      },
+      "regions": 62,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -62,
+      "liftedMedianMs": 67,
+      "liftedMaxMs": 73,
+      "parseMsPerSide": 33.5,
+      "diffMs": 0
+    },
+    {
+      "name": "ladder:python:150000",
+      "grammar": "python",
+      "length": {
+        "old": 150016,
+        "new": 150946
+      },
+      "tokens": {
+        "old": 37504,
+        "new": 37597
+      },
+      "regions": 93,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -89,
+      "liftedMedianMs": 99,
+      "liftedMaxMs": 106,
+      "parseMsPerSide": 47,
+      "diffMs": 5
+    },
+    {
+      "name": "ladder:python:200000",
+      "grammar": "python",
+      "length": {
+        "old": 200000,
+        "new": 201250
+      },
+      "tokens": {
+        "old": 50000,
+        "new": 50125
+      },
+      "regions": 125,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -125,
+      "liftedMedianMs": 122,
+      "liftedMaxMs": 126,
+      "parseMsPerSide": 65,
+      "diffMs": -8
+    },
+    {
+      "name": "ladder:python:250000",
+      "grammar": "python",
+      "length": {
+        "old": 250016,
+        "new": 251576
+      },
+      "tokens": {
+        "old": 62504,
+        "new": 62660
+      },
+      "regions": 156,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -146,
+      "liftedMedianMs": 155,
+      "liftedMaxMs": 168,
+      "parseMsPerSide": 75.5,
+      "diffMs": 4
+    },
+    {
+      "name": "ladder:python:300000",
+      "grammar": "python",
+      "length": {
+        "old": 300000,
+        "new": 301870
+      },
+      "tokens": {
+        "old": 75000,
+        "new": 75187
+      },
+      "regions": 187,
+      "withinSizeCaps": false,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 5,
+      "defaultsDiffMs": -168,
+      "liftedMedianMs": 182,
+      "liftedMaxMs": 202,
+      "parseMsPerSide": 86.5,
+      "diffMs": 9
+    },
+    {
+      "name": "unrelated:1000",
+      "grammar": "typescript",
+      "length": {
+        "old": 2925,
+        "new": 2221
+      },
+      "tokens": {
+        "old": 1144,
+        "new": 999
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 48,
+      "defaultsDiffMs": 30,
+      "liftedMedianMs": 123,
+      "liftedMaxMs": 127,
+      "parseMsPerSide": 9,
+      "diffMs": 105
+    },
+    {
+      "name": "unrelated:2000",
+      "grammar": "typescript",
+      "length": {
+        "old": 6071,
+        "new": 4663
+      },
+      "tokens": {
+        "old": 2288,
+        "new": 1998
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 50,
+      "defaultsDiffMs": 31,
+      "liftedMedianMs": 436,
+      "liftedMaxMs": 439,
+      "parseMsPerSide": 9.5,
+      "diffMs": 417
+    },
+    {
+      "name": "unrelated:3000",
+      "grammar": "typescript",
+      "length": {
+        "old": 9217,
+        "new": 7105
+      },
+      "tokens": {
+        "old": 3432,
+        "new": 2997
+      },
+      "regions": 1,
+      "withinSizeCaps": true,
+      "outcomes": {
+        "too-large": 20
+      },
+      "defaultsMedianMs": 53,
+      "defaultsDiffMs": 31,
+      "liftedMedianMs": 933,
+      "liftedMaxMs": 955,
+      "parseMsPerSide": 11,
+      "diffMs": 911
+    }
+  ],
+  "uptime": "16:57  up  2:54, 18 users, load averages: 2.47 5.96 4.77"
+}

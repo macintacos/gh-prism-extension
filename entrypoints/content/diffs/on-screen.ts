@@ -70,9 +70,10 @@ export function followOnScreen(
       else onScreen.delete(target);
     showIfChanged();
   };
-  const build = () => {
+  const build = (inset: number) => {
+    const next = new IntersectionObserver(intersect, { rootMargin: `-${inset}px 0px 0px 0px` });
     observer?.disconnect();
-    observer = new IntersectionObserver(intersect, { rootMargin: `-${top}px 0px 0px 0px` });
+    observer = next;
     for (const region of anchorsByRegion.keys()) observer.observe(region);
   };
   // Unobserves regions that left, so the observer holds no detached node, and drops them from
@@ -91,11 +92,11 @@ export function followOnScreen(
   const followCoveredTop = () => {
     const next = coveredTop(page);
     if (next === top) return;
+    build(next);
     top = next;
-    build();
   };
 
-  build();
+  build(top);
   rescan();
 
   observeDiffs(
