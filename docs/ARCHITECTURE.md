@@ -114,10 +114,11 @@ argument, or an argument added to an unchanged call.
 [`utils/structural/units.ts`](../utils/structural/units.ts) reads each parse for its
 units: the syntax nodes that have their lines to themselves. After the diff, the engine
 takes each unit changed whole whose parent node was not, and sets its tokens aside as a
-block that left or arrived. Every other changed token changed inside a unit that remains,
-and the engine lists those tokens' lines in `StructuralChanges.inside`. `structuralFile`
-copies the list onto each line's annotation as `inside`. A `.txt` file has no units and no
-list.
+block that left or arrived. A region whose diff passes `maxEditLength` is changed whole on
+both sides, and the engine sets its tokens aside the same way. Every other changed token
+changed inside a unit that remains, and the engine lists those tokens' lines in
+`StructuralChanges.inside`. `structuralFile` copies the list onto each line's annotation
+as `inside`. A `.txt` file has no units and no list.
 
 The content script in [`entrypoints/content/index.ts`](../entrypoints/content/index.ts)
 runs on every github.com page at `document_start`, so its watcher is in place before

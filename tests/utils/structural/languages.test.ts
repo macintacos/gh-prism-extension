@@ -562,4 +562,12 @@ describe("structuralChanges in each language", () => {
       });
     },
   );
+
+  it("refuses a Markdown file with a table that does not parse", async () => {
+    const text = (word: string) => `| a |\n|--\n\nsome ${word} here\n`;
+
+    const result = changedTexts("a.md", text("old"), text("new"));
+
+    await expect(result).rejects.toThrow("a.md refused: failed");
+  });
 });
