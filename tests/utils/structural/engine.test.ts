@@ -235,14 +235,13 @@ describe("structuralChanges", () => {
       });
     });
 
-    it("refuses two unrelated long texts", async () => {
+    it("marks every word of two unrelated long texts", async () => {
       const words = (prefix: string) =>
         Array.from({ length: 5_000 }, (_, i) => `${prefix}${i}`).join(" ");
 
-      expect(await run(PLAIN_TEXT, `${words("a")}\n`, `${words("b")}\n`)).toEqual({
-        ok: false,
-        reason: "too-large",
-      });
+      const result = await changedTexts(PLAIN_TEXT, `${words("a")}\n`, `${words("b")}\n`);
+
+      expect([result.old.length, result.new.length]).toEqual([5_000, 5_000]);
     });
   });
 
@@ -486,12 +485,26 @@ describe("structuralChanges", () => {
     expect(result).toEqual({ ok: false, reason: "too-large" });
   });
 
-  it.each([{ maxTokens: 3 }, { maxEditLength: 1 }])("refuses past %o", async (limits) => {
+  it("refuses past maxTokens", async () => {
     const { oldText, newText } = readPair("typescript", "rename");
 
-    expect(await run("typescript", oldText, newText, { limits })).toEqual({
+    expect(await run("typescript", oldText, newText, { limits: { maxTokens: 3 } })).toEqual({
       ok: false,
       reason: "too-large",
+    });
+  });
+
+  it("marks a region rewritten past maxEditLength whole, and compares the others", async () => {
+    const oldText = "a(1);\nkeep();\nf(x);\n";
+    const newText = "a(2);\nkeep();\ng(y, z);\n";
+
+    const result = await changedTexts("typescript", oldText, newText, {
+      limits: { maxEditLength: 3 },
+    });
+
+    expect(result).toEqual({
+      old: ["1", "f", "(", "x", ")", ";"],
+      new: ["2", "g", "(", "y", ",", "z", ")", ";"],
     });
   });
 

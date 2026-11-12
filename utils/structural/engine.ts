@@ -41,7 +41,7 @@ export interface EngineLimits {
   readonly maxParseMs: number;
   /** Per side. */
   readonly maxTokens: number;
-  /** Edits one region's diff may reach. */
+  /** Edits one region's diff may reach; a region past it is changed whole. */
   readonly maxEditLength: number;
   /** Milliseconds across all regions, checked between them. */
   readonly maxDiffMs: number;
@@ -169,25 +169,25 @@ interface ChangedTokens {
   readonly new: readonly Token[];
 }
 
-/** The tokens one Myers diff per region finds changed, or why the diff stage gave up. */
+/** The tokens one Myers diff per region finds changed, or `too-slow` past the diff's deadline. */
 function changedTokens(
   regions: readonly ChangedRegion[],
   oldSource: Source,
   newSource: Source,
   limits: EngineLimits,
   now: () => number,
-): ChangedTokens | "too-large" | "too-slow" {
+): ChangedTokens | "too-slow" {
   const deadline = now() + limits.maxDiffMs;
   const parts: ChangedTokens[] = [];
   for (const window of diffWindows(regions, oldSource, newSource)) {
     if (now() > deadline) return "too-slow";
-    const part = windowChanges(
-      sideOf(oldSource, window.oldFrom, window.oldTo),
-      sideOf(newSource, window.newFrom, window.newTo),
-      limits.maxEditLength,
+    parts.push(
+      windowChanges(
+        sideOf(oldSource, window.oldFrom, window.oldTo),
+        sideOf(newSource, window.newFrom, window.newTo),
+        limits.maxEditLength,
+      ),
     );
-    if (part === undefined) return "too-large";
-    parts.push(part);
   }
 
   return { old: parts.flatMap((part) => part.old), new: parts.flatMap((part) => part.new) };
@@ -288,16 +288,16 @@ function diffWindows(
 }
 
 /**
- * The tokens one window changed, `undefined` past `maxEditLength`: those the diff leaves
- * unmatched, and those it matches only by chance. A side with no tokens leaves the other changed
- * whole. The diff runs in a canonical order of the two key lists, because Myers breaks ties by
- * direction and swapping old and new must only swap the sides.
+ * The tokens one window changed: those the diff leaves unmatched, and those it matches only by
+ * chance. Past `maxEditLength` that is every token of both sides, as a side with no tokens leaves
+ * the other changed whole. The diff runs in a canonical order of the two key lists, because Myers
+ * breaks ties by direction and swapping old and new must only swap the sides.
  */
 function windowChanges(
   oldSide: WindowSide,
   newSide: WindowSide,
   maxEditLength: number,
-): ChangedTokens | undefined {
+): ChangedTokens {
   if (oldSide.tokens.length === 0 || newSide.tokens.length === 0)
     return { old: oldSide.tokens, new: newSide.tokens };
 
@@ -315,7 +315,7 @@ function windowChanges(
       ] as const);
 
   const parts = diffArrays(firstKeys, secondKeys, { maxEditLength });
-  if (parts === undefined) return undefined;
+  if (parts === undefined) return { old: oldSide.tokens, new: newSide.tokens };
 
   const matches = withoutChanceMatches(matchesOf(parts), first, second);
   const matched = new Set(matches);
