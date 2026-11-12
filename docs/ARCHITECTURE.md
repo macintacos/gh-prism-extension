@@ -904,9 +904,10 @@ until the user scrolls, clicks, or types, or 5 s pass.
 paints structural mode onto GitHub's own mounted diff rows. A quiet row is one GitHub
 shows as added or deleted in which structural mode finds no changed token, such as a
 reindented line; [`CONTEXT.md`](../CONTEXT.md) defines both terms. It marks each changed
-token and each quiet row, and moves, inserts, or re-renders no GitHub node. Nothing
-constructs it unless `showVisit` is given `structural`, and no caller gives it yet, so the
-shipped default path mounts no `<style>`, registers no highlight, and adds no observer.
+token, each quiet row, and each moved line, and moves, inserts, or re-renders no GitHub
+node. Nothing constructs it unless `showVisit` is given `structural`, and no caller gives
+it yet, so the shipped default path mounts no `<style>`, registers no highlight, and adds
+no observer.
 
 The painter takes a `StructuralPainting`. Its `annotationsOf(path)` returns a file's
 `StructuralFile` from [`utils/structural/changes.ts`](../utils/structural/changes.ts): the
@@ -921,6 +922,11 @@ and whenever it changes.
 - **A quiet row** carries `data-gh-prism-quiet` with the quiet side: `old`, `new`, or both
   sides, space-separated, and a painted table carries `data-gh-prism-structural`. The
   sheet keys on both.
+- **A moved line** gives its row `data-gh-prism-moved`, with the same `old` / `new`
+  encoding, and the sheet outlines that side's code cell. `movedLines` in
+  [`utils/structural/moved.ts`](../utils/structural/moved.ts) pairs the lines from the
+  file's own text, so a moved line's partner may sit in a hunk the page does not mount. A
+  quiet line never pairs, so one row can be quiet on one side and moved on the other.
 - **One pass per animation frame.** The `sections` hook and every `observeDiffs` report
   schedule a frame, and a pending frame is reused. The pass first reads every table, then
   writes, so its reads (`querySelectorAll`, `dataset`, `textContent`) never force a layout
@@ -934,9 +940,9 @@ and whenever it changes.
   a kept text element, under a cell that holds no range (a quiet cell, or any cell of a
   mismatched table), goes unnoticed until one of those three changes.
 - **A mismatch skips the whole file.** Every mounted changed cell needs an annotation and
-  text equal to the expected line. If one fails, the table gets no highlight, no quiet
-  row, and no table attribute, and the file reports `mismatch`. Annotations for lines the
-  page does not mount, as with Hide whitespace (`?w=1`), are fine.
+  text equal to the expected line. If one fails, the table gets no highlight, no quiet row
+  or moved line, and no table attribute, and the file reports `mismatch`. Annotations for
+  lines the page does not mount, as with Hide whitespace (`?w=1`), are fine.
 - **Split only, per table.** The painter reads each table's own layout from `diffTables`
   and paints it only when split, so it skips a unified page and a one-sided file's
   three-column table.
@@ -947,8 +953,9 @@ and whenever it changes.
   pass and repaints a table whose `StructuralFile` changed. Nothing pushes a pass when a
   file's annotations arrive.
 
-On abort the painter cancels its frame, deletes both highlights, removes both attributes,
-and removes its `<style>`.
+On abort the painter cancels its frame, deletes both highlights, removes
+`data-gh-prism-structural`, `data-gh-prism-quiet`, and `data-gh-prism-moved`, and removes
+its `<style>`.
 
 On [cli/cli#14805 in Split](https://github.com/cli/cli/pull/14805/changes?diff=split) on
 2026-11-10, in Chromium and Firefox alike, the painter held 260 ranges (46 added, 214
@@ -992,7 +999,7 @@ utils/
     conversation-frame.ts  the per-tab session rule that lets only the Conversation panel frame a PR's Conversation tab, and the panel's request for it
   intent/                reading, caching, and landing intent
   hunk-rules/            the docstring and inline-test rules, and the generator-marker scan
-  structural/            rebuilding a changed file's old text from its patch; the tree-sitter token-diff engine and its grammar table; mapping an engine's structural changes onto diff lines; the request shape a message carries, the runner that compiles the packaged WebAssembly, the one-at-a-time host, the engine-script loader, and the list of packaged files
+  structural/            rebuilding a changed file's old text from its patch; the tree-sitter token-diff engine and its grammar table; mapping an engine's structural changes onto diff lines; pairing a file's moved lines; the request shape a message carries, the runner that compiles the packaged WebAssembly, the one-at-a-time host, the engine-script loader, and the list of packaged files
   sections.ts            path rules for the five sections
   prefs.ts               saved preferences
   whats-new.ts           when the what's-new block shows

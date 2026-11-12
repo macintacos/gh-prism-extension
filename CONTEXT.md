@@ -197,6 +197,12 @@ two-column layout; semantic diff; syntactic diff; difftastic mode
 no changed token, as in a line that was only reindented or reformatted. Structural mode
 dims it. _Avoid_: dimmed row, unchanged row, whitespace-only row
 
+**Moved line**: A changed line whose trimmed text is the same as a line on the other side
+of the same file. Repeated text pairs off one removed copy to one added copy, in line
+order. Structural mode marks both with a dashed outline. A line on a quiet row's quiet
+side is never a moved line. _Avoid_: relocated line; move (the sidebar's word for a file
+that changes section)
+
 **Engine**: What compares a changed file's old and new tokens for structural mode and
 reports each version's changed tokens, or why it can't: no grammar for the file, a file
 past its limits, or text that does not parse. _Avoid_: differ, parser
