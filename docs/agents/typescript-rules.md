@@ -36,6 +36,13 @@ imports a sheet or writes `tw:` classes are in [`styling-rules.md`](styling-rule
 - **Give a dedicated Worker script no `browser.*` and no `wxt/browser` import.** A Worker
   has no extension API, so it derives a packaged file's URL from `self.location`, as
   [`structural-engine.ts`](../../entrypoints/structural-engine.ts) does.
+- **Give an HTML entrypoint's `<script>` the `wxt-ignore` attribute.** Without it, a dev
+  build points the script at the dev server, and the page runs nothing once that server
+  stops, while the dev Chrome and its registered content scripts live on. The offscreen
+  document then answered no request, and every file the engine compares showed the
+  `failed` notice.
+  [`tests/structural-offscreen-page.test.ts`](../../tests/structural-offscreen-page.test.ts)
+  runs WXT's dev rewrite over the page.
 
 ## Firefox
 
