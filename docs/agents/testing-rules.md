@@ -155,6 +155,10 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   landing lands on whatever moved under the pointer.
   [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "the side switch docks the sidebar on the
   other side and remembers it" waits for `data-gh-prism-diffs` to leave `covered` first.
+- **Let the sections land before a test measures the diffs' toolbar on a commit.** The
+  fixture's sidebar stacks above the toolbar, and a commit's sections land after its
+  `.diff` read returns, well after the toolbar's controls mount. Wait for the sections'
+  `navigation` to drop `aria-busy` before the first measurement.
 - **Read the page in a route handler only for the request the test measures.** The page
   can send another request as the test's last step settles, whose handler then runs after
   the test has closed the page, and a page read there fails the test. A handler that only
@@ -224,7 +228,24 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   `bun bench/structural-mode-live.ts <chromium|firefox> <storage-state path> [url…]`
   ([`bench/structural-mode-live.ts`](../../bench/structural-mode-live.ts)). It changes the
   account's saved Layout and restores it;
-  `bun bench/structural-mode-live/restore-check.ts` proves that restore offline.
+  `bun bench/structural-mode-live/restore-check.ts` proves that restore offline. Its
+  fourth pass drives the diff view control on each URL: each press checked against the
+  gear's Layout, the stored mode, and the count of `POST /users/diffview`, a clean page
+  after leaving Structural, the choice kept across a reload, the control following a
+  Layout chosen from the gear, and ArrowDown in the diffs unchanged by the mode.
+- **Click a live control through its locator, never at coordinates read earlier.**
+  GitHub's toolbar moves: a commit's drops its "Top" button about 50 ms after a scroll to
+  the top, shifting the diff view control 71px, so a `mouse.click` at a `boundingBox()`
+  read before lands on the next segment. `locator.click()` waits for the box to hold still
+  and checks the target is under the pointer.
+- **Give an e2e page a gear and a Layout menu by splicing a captured toolbar and adding
+  `installLayoutMenu` with `page.addInitScript`.** The page fixtures have no gear, so
+  [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `layoutBody` swaps in
+  `files-page-toolbar.html` or `commit-page-toolbar.html` and one diff table, and
+  [`tests/fixtures/layout-menu.ts`](../../tests/fixtures/layout-menu.ts) plays GitHub's
+  menu from `layout-menu-pr.html` or `layout-menu-commit.html`. A pull request's
+  three-column table counts as Unified only when it changes both sides, so the pull
+  request pages use `files-page-diff-rename.html` for Unified.
 - **Keep a live check's screenshots outside `test-results/`.** Playwright empties it at
   the start of every run.
 - **Keep each end-to-end test independent of the others.** `playwright.config.ts` sets

@@ -21,7 +21,7 @@ import type { IntentProgress, IntentResult, PendingIntent } from "@/utils/intent
 import { followFileKeys } from "../diffs/file-keys";
 import { followOnScreen } from "../diffs/on-screen";
 import { showDiffOrder } from "../diffs/order";
-import { type StructuralMode, showStructural } from "../diffs/structural-mode";
+import { type StructuralMode, startableStructural } from "../diffs/structural-mode";
 import { followViewed, type VisitViewed } from "../diffs/viewed";
 import {
   anchorOf,
@@ -214,7 +214,8 @@ const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
  * members list them. `whatsNew`, when given, opens the sidebar with its block. `filter`, when
  * given, makes each code owner's name in the sidebar's popovers and dialogs filter by that owner.
  * `landHash`, the visit's, lands the URL's hash once the diffs are revealed. `structural`, when
- * given, shows Structural mode on the diffs, requesting the files on screen.
+ * given, shows Structural mode on the diffs, requesting the files on screen; the returned
+ * `startStructural` shows a mode later, ignored while a started mode is still live.
  */
 export function showVisit(
   page: FilesPage,
@@ -248,13 +249,14 @@ export function showVisit(
     landHash: () => void;
     structural?: StructuralMode;
   },
-): void {
+): { startStructural: (mode: StructuralMode) => void } {
   const sidebar = showSections(page, signal, { teamMembers, teamAvatar, teamRoster, filter });
   void codeOwners?.then((read) => {
     if (read && !signal.aborted) sidebar.owners(read);
   });
   if (whatsNew) sidebar.root.prepend(whatsNewBlock(page.sidebar.ownerDocument, whatsNew));
-  const structuralView = structural && showStructural(page, signal, structural);
+  const structuralView = startableStructural(page, signal);
+  if (structural) structuralView.start(structural);
   const views: LandingView[] = [
     sidebar,
     showDiffOrder(page, signal, { landHash }),
@@ -262,23 +264,22 @@ export function showVisit(
     showDiffstat(headerOf(page), { ...diffstat, signal }),
     followOnScreen(
       page,
-      structuralView
-        ? (paths) => {
-            sidebar.onScreen(paths);
-            structuralView.onScreen(paths);
-          }
-        : sidebar.onScreen,
+      (paths) => {
+        sidebar.onScreen(paths);
+        structuralView.onScreen(paths);
+      },
       signal,
     ),
     followViewed(page, viewed, sidebar.viewed, signal),
+    structuralView,
   ];
-  if (structuralView) views.push(structuralView);
   const keep =
     owner === undefined || codeOwners === undefined
       ? undefined
       : filterOf(owner, codeOwners, prReviewers, teamMembers);
   // The sidebar draws inside the tree's container, so its own changes must not re-list.
   land(page, intent, views, { signal, ignore: sidebar.root, keep });
+  return { startStructural: structuralView.start };
 }
 
 const READ_TIMEOUT_MS = 10_000;

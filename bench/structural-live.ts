@@ -20,6 +20,7 @@ import { parseArgs } from "node:util";
 import { inflateSync } from "node:zlib";
 import { chromium, firefox, type Locator, type Page } from "@playwright/test";
 import type { StructuralHarness } from "../e2e/structural-page";
+import { STRUCTURAL_ATTRS } from "../entrypoints/content/diffs/structural-attrs";
 import type { StructuralFile } from "../utils/structural/changes";
 import { bundle } from "./bundle";
 
@@ -313,11 +314,13 @@ async function multiLine(
 
 /** Checks the painter left no highlight and no attribute behind. */
 async function checkStopped(page: Page): Promise<void> {
-  const left = await page.evaluate(() => ({
-    highlights: CSS.highlights.size,
-    attributes: document.querySelectorAll("[data-gh-prism-structural], [data-gh-prism-quiet]")
-      .length,
-  }));
+  const left = await page.evaluate(
+    (markedSelector) => ({
+      highlights: CSS.highlights.size,
+      attributes: document.querySelectorAll(markedSelector).length,
+    }),
+    STRUCTURAL_ATTRS.map((name) => `[${name}]`).join(", "),
+  );
   check("11 abort", left.highlights === 0 && left.attributes === 0, JSON.stringify(left));
 }
 

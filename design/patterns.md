@@ -149,14 +149,15 @@ these marks.
 
 A tooltip copies Primer's. It is an `::after` on the control that shows the control's
 `aria-label`, on `--tooltip-bgColor`, at the small body size, and it fades in over 120 ms
-on hover and focus. It opens toward the inside of the sidebar or the page, so it never
-clips at an edge. `sidebar/side.css`, `sidebar/report.css`, `commit/step-links.css`,
-`commit/message-view.css`, `conversation/panel.css`, `ui/mark.css`, and `ui/pr-owners.css`
-hold the seven in use. The code owners button beside a Reviewers heading sits near the
-sidebar's inline end, so `conversation/reviewer-files.css` overrides `ui/pr-owners.css`'s
-tooltip for it to open leftward from the button's end. Only the mark's opens on hover
-alone, since the mark takes no focus. Inside the header counter's tooltips, which take no
-pointer, the mark's own tooltip never opens.
+on hover and focus. The diff view control's Structural segment shows its
+`aria-description` instead. It opens toward the inside of the sidebar or the page, so it
+never clips at an edge. `sidebar/side.css`, `sidebar/report.css`, `commit/step-links.css`,
+`commit/message-view.css`, `conversation/panel.css`, `ui/mark.css`, `ui/pr-owners.css`,
+and `diffs/view-control.css` hold the eight in use. The code owners button beside a
+Reviewers heading sits near the sidebar's inline end, so `conversation/reviewer-files.css`
+overrides `ui/pr-owners.css`'s tooltip for it to open leftward from the button's end. Only
+the mark's opens on hover alone, since the mark takes no focus. Inside the header
+counter's tooltips, which take no pointer, the mark's own tooltip never opens.
 
 The owner filter icons' tooltips (§ Owner identities) look the same but sit in the top
 layer, because their surfaces scroll, and an `::after` there would widen the scroller's
@@ -256,6 +257,31 @@ chevron sits at the group's outer edge, in `--fgColor-muted`. Their tooltip name
 commit each goes to, which the label doesn't. A link with nowhere to go keeps its place as
 Primer's disabled default Button, and its tooltip says why. `commit/step-links.ts` and
 `commit/step-links.css` build them.
+
+A choice among three views takes Primer's segmented control. The diff view control sits
+immediately before GitHub's diff settings gear and picks Unified, Split, or Structural:
+three `aria-pressed` buttons in a list named "Diff view", each a Tab stop with no key of
+its own. The track is 28px high, on `--controlTrack-bgColor-rest` in a 1px
+`--controlTrack-borderColor-rest` border. The pressed segment is a knob on
+`--controlKnob-bgColor-rest` with a semibold label and a 1px
+`--borderColor-neutral-emphasis` edge, so weight and edge carry the state without colour.
+Each label reserves its semibold width, so pressing shifts nothing. The pressed segment
+follows the layout the tables show, never a stored copy, and none is pressed while the
+layout can't be told. Structural carries the Beta tag (§ Tags) and the only tooltip. On a
+pull request filtered to one commit, Structural is `aria-disabled`, in
+`--control-fgColor-disabled`, and its tooltip says why. The control hides while GitHub's
+toolbar has no room for it, because that toolbar never wraps. `diffs/view-control.ts` and
+`diffs/view-control.css` build it.
+
+## Tags
+
+A tag is a short word that qualifies the thing beside it, such as "No reviewer" or "Beta".
+It is muted text at the body-small size and medium weight inside a 1px
+`--borderColor-default` pill, with 6px inline padding and a `2em` radius. It stays
+neutral, because colour is spent elsewhere, and its text starts with a space so the name
+of the control or heading it sits in reads as words. The pill's edge is decoration below
+the 3:1 floor; the tag's text carries it. `sidebar/owners-popover.ts` builds "No
+reviewer", and `diffs/view-control.ts` builds "Beta" inside the Structural segment.
 
 ## Conventional commit titles
 
@@ -634,9 +660,7 @@ marks join the owner headings, and `sidebar/owners-popover.ts` builds both:
   and the reviewers' names when they review for the team. It never says "Reviewed",
   because a request may still be pending.
 - **The "No reviewer" tag:** after a group none of whose owners a PR reviewer reviews for,
-  in muted text at the body-small size and medium weight inside a 1px
-  `--borderColor-default` pill, with the 6px padding and `2em` radius of a sidebar
-  section's file counter. A one-line call-out with a muted alert icon above the groups
+  a tag as § Tags describes. A one-line call-out with a muted alert icon above the groups
   counts those files.
 
 Each team's filter icon shows only that team's files, as § Owner identities says. A team

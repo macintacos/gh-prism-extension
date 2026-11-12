@@ -9,7 +9,8 @@
  * lists and its comments' authors on Conversation and Files changed, measures and follows GitHub's
  * right-hand panel beside a pull request's Files changed, copies that menu's group, divider, and
  * item for gh-prism's entries, collects a mounted diff's changed cells, reads and follows the diff
- * layout, and finds the layout gear, so the selectors stay in this seam; it builds no UI of its own
+ * layout and the layout it shows for certain, and finds the layout gear and its open menu's Layout
+ * items, so the selectors stay in this seam; it builds no UI of its own
  * and imports nothing from WXT. The pull request selectors come from EXC-1662's survey.
  */
 
@@ -806,6 +807,28 @@ export function findLayoutGear(page: FilesPage): HTMLButtonElement | undefined {
   );
 }
 
+/** GitHub's open diff settings menu: its list and its two Layout items. */
+export interface LayoutMenu {
+  /** The menu's `ul[role="menu"]`. */
+  readonly list: Element;
+  readonly unified: HTMLElement;
+  readonly split: HTMLElement;
+}
+
+/** The open diff settings menu in `doc`, or `undefined` while it's closed or lacks either Layout item. */
+export function findLayoutMenu(doc: Document): LayoutMenu | undefined {
+  // No other GitHub menu holds both items, so the menu needs no tie back to the gear.
+  for (const list of doc.querySelectorAll('#__primerPortalRoot__ ul[role="menu"]')) {
+    const items = [...list.querySelectorAll<HTMLElement>('[role="menuitemradio"]')];
+    const labelled = (text: string) =>
+      items.find((item) => item.querySelector(ITEM_LABEL)?.textContent?.trim() === text);
+    const unified = labelled("Unified");
+    const split = labelled("Split");
+    if (unified && split) return { list, unified, split };
+  }
+  return undefined;
+}
+
 /** What GitHub calls a pull request's own page: its overview, or the classic Conversation tab. */
 export type PrPageName = "Overview" | "Conversation";
 
@@ -1048,13 +1071,42 @@ export function showsUnified(
 ): boolean {
   const tables = diffTables(diffs);
   if (tables.length === 0 || tables.some(({ layout }) => layout === "split")) return false;
+  return tablesShowUnified(tables, commit) || new URLSearchParams(search).get("diff") === "unified";
+}
 
-  // A pull request draws a one-sided file with three columns in Split too; a two-sided one cannot.
+// A changed cell's code on one side; a line anchor's side letter is its only L or R, the digest
+// being lowercase hex.
+const changedOn = (letter: "L" | "R") =>
+  `td.diff-text-cell[data-line-anchor*="${letter}"] > code.diff-text:is(.addition, .deletion) > .diff-text-inner`;
+const CHANGED_OLD = changedOn("L");
+const CHANGED_NEW = changedOn("R");
+
+/**
+ * Whether `tables`, none of them split, alone prove Unified: on a commit's page, or when a table
+ * changes both sides. A pull request draws a one-sided file with three columns in Split too.
+ */
+function tablesShowUnified(tables: readonly DiffTable[], commit: boolean): boolean {
   return (
     commit ||
-    new URLSearchParams(search).get("diff") === "unified" ||
-    tables.some(({ table }) => new Set(changedCells(table).map(({ side }) => side)).size === 2)
+    tables.some(
+      ({ table }) =>
+        table.querySelector(CHANGED_OLD) !== null && table.querySelector(CHANGED_NEW) !== null,
+    )
   );
+}
+
+/**
+ * The layout the mounted diffs show for certain, never read from the URL: Split when any table has
+ * four columns, Unified on a commit's page or when a pull request's three-column table changes
+ * both sides, else `undefined`.
+ */
+export function certainLayout(
+  diffs: ParentNode,
+  { commit }: { commit: boolean },
+): DiffLayout | undefined {
+  const tables = diffTables(diffs);
+  if (tables.some(({ layout }) => layout === "split")) return "split";
+  return tables.length && tablesShowUnified(tables, commit) ? "unified" : undefined;
 }
 
 /** A mounted diff table: its file's anchor and the layout it is drawn in. */

@@ -38,6 +38,7 @@ Appearance is "Sync with system" with Light default and Dark default. Compress t
 | `lines-changed` | the Conversation tab of that pull request |
 | `conversation` | Files changed of that pull request with the Conversation panel pinned, cropped from the window's top so the panel's header shows |
 | `code-owners` | pull request #1 in `excessive-dev/gh-prism-codeowners-sandbox` |
+| `structural` | Files changed of `macintacos/gh-prism-sandbox` pull request #4 with Structural pressed, cropped to the toolbar and the first painted file. Not #3: its Rust files get no structural paint |
 | `commit` | this repository's commit `f98efef`: the sandbox's commits have one-line messages, and a message with no body renders no column |
 
 Keep contributor detail out of it. Setup and tasks belong in `CONTRIBUTING.md` and

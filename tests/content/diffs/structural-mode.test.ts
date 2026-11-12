@@ -8,6 +8,7 @@ import type {
 import {
   type StructuralMode,
   showStructural,
+  startableStructural,
   structuralChoiceOf,
 } from "../../../entrypoints/content/diffs/structural-mode";
 import {
@@ -296,5 +297,98 @@ describe("showStructural", () => {
     expect(stub.highlights.size).toBe(0);
     expect(document.head.querySelector("style")).toBeNull();
     expect(fake.requested).toEqual([]);
+  });
+});
+
+describe("startableStructural", () => {
+  let stub: ReturnType<typeof stubHighlights>;
+  let visit: AbortController;
+  let fake: ReturnType<typeof fakeFiles>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    stub = stubHighlights();
+    visit = new AbortController();
+    fake = fakeFiles();
+  });
+
+  afterEach(() => {
+    visit.abort();
+    stub.restore();
+    vi.useRealTimers();
+  });
+
+  const modeOf = (until: AbortController, unifiedSeen = () => until.abort()): StructuralMode => ({
+    files: fake.files,
+    until: until.signal,
+    commit: false,
+    search: () => "",
+    unifiedSeen,
+  });
+
+  it("mounts, registers, and requests nothing until it is started", async () => {
+    const diffs = mountDiffs(prSplit);
+    const view = startableStructural({ diffs }, visit.signal);
+
+    view.sections?.(sectionsOf(diffs), new Set());
+    view.onScreen(new Set(["a.ts"]));
+    await flush();
+
+    expect(stub.highlights.size).toBe(0);
+    expect(document.head.querySelector("style")).toBeNull();
+    expect(fake.requested).toEqual([]);
+  });
+
+  it("requests the on-screen paths and paints from the sections it was given before starting", async () => {
+    const diffs = mountDiffs(prSplit);
+    const view = startableStructural({ diffs }, visit.signal);
+    view.sections?.(sectionsOf(diffs), new Set());
+    view.onScreen(new Set(["a.ts"]));
+    const table = tables(diffs)[0];
+    if (!table) throw new Error("no table");
+
+    view.start(modeOf(new AbortController()));
+    fake.settle(anchorOfTable(table), fileOf(table));
+    await flush();
+
+    expect(fake.requested).toEqual(["a.ts"]);
+    expect((stub.highlights.get(ADDED_HIGHLIGHT) as HighlightStub).size).toBeGreaterThan(0);
+  });
+
+  it("ignores a second start while the first mode is live", () => {
+    const view = startableStructural({ diffs: mountDiffs(prSplit) }, visit.signal);
+    view.onScreen(new Set(["a.ts"]));
+
+    view.start(modeOf(new AbortController()));
+    view.start(modeOf(new AbortController()));
+
+    expect(fake.requested).toEqual(["a.ts"]);
+  });
+
+  it("shows a new mode started after the first one ended", () => {
+    const view = startableStructural({ diffs: mountDiffs(prSplit) }, visit.signal);
+    view.onScreen(new Set(["a.ts"]));
+    const first = new AbortController();
+
+    view.start(modeOf(first));
+    first.abort();
+    view.start(modeOf(new AbortController()));
+
+    expect(fake.requested).toEqual(["a.ts", "a.ts"]);
+  });
+
+  it("reports Unified and mounts nothing when started on a page in Unified", async () => {
+    const diffs = mountDiffs(prRename);
+    const view = startableStructural({ diffs }, visit.signal);
+    view.sections?.(sectionsOf(diffs), new Set());
+    const until = new AbortController();
+    const unifiedSeen = vi.fn(() => until.abort());
+
+    view.start(modeOf(until, unifiedSeen));
+    await flush();
+
+    expect(unifiedSeen).toHaveBeenCalledTimes(1);
+    expect(stub.highlights.size).toBe(0);
+    expect(document.head.querySelector("style")).toBeNull();
   });
 });

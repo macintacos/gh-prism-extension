@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import {
+  certainLayout,
   changedCells,
   currentLayout,
   type DiffLayout,
@@ -127,6 +128,37 @@ describe("currentLayout", () => {
     document.body.innerHTML = "";
 
     expect(currentLayout(document)).toBeUndefined();
+  });
+});
+
+describe("certainLayout", () => {
+  /** `files-page-diff-rename` with its old-side changed rows removed, leaving an all-additions file. */
+  const allAdditions = (): string => {
+    document.body.innerHTML = prRename;
+    for (const { side, row } of changedCells(document)) if (side === "old") row.remove();
+    return document.body.innerHTML;
+  };
+
+  it.each([
+    { name: "a split table", html: () => prSplit, commit: false, layout: "split" },
+    { name: "a commit's table", html: () => commitUnified, commit: true, layout: "unified" },
+    {
+      name: "a two-sided pull request table",
+      html: () => prRename,
+      commit: false,
+      layout: "unified",
+    },
+    { name: "no table", html: () => "", commit: false, layout: undefined },
+    {
+      name: "a one-sided pull request table",
+      html: allAdditions,
+      commit: false,
+      layout: undefined,
+    },
+  ])("reads $name as $layout", ({ html, commit, layout }) => {
+    document.body.innerHTML = html();
+
+    expect(certainLayout(document, { commit })).toBe(layout);
   });
 });
 

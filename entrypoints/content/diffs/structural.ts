@@ -11,6 +11,7 @@ import type { LandingView } from "../visit/land";
 import { pathsByAnchor } from "./on-screen";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./structural.css?inline";
+import { MOVED_ATTR, QUIET_ATTR, TABLE_ATTR } from "./structural-attrs";
 
 /** How a mounted file fared: painted, or skipped whole because a mounted cell's text or annotation disagrees with the file. */
 export type PaintOutcome = "painted" | "mismatch";
@@ -33,10 +34,6 @@ export interface StructuralPainting {
 // Keep in sync with structural.css's ::highlight() names and attribute selectors.
 export const ADDED_HIGHLIGHT = "gh-prism-added";
 export const REMOVED_HIGHLIGHT = "gh-prism-removed";
-
-const TABLE_ATTR = "data-gh-prism-structural";
-const QUIET_ATTR = "data-gh-prism-quiet";
-const MOVED_ATTR = "data-gh-prism-moved";
 
 /** What one table holds: the file it was painted from, its cells' text roots, its ranges, and its quiet and moved rows. */
 interface Painted {

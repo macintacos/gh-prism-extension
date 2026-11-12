@@ -11,7 +11,12 @@ import {
   conversationPanel,
 } from "../../entrypoints/content/conversation/panel";
 import { showReviewerFiles } from "../../entrypoints/content/conversation/reviewer-files";
-import { findFilesCommentAuthors } from "../../entrypoints/content/files-page";
+import {
+  findFilesCommentAuthors,
+  findFilesPage,
+  findFilesToolbar,
+  findLayoutGear,
+} from "../../entrypoints/content/files-page";
 import { showOwnerSection } from "../../entrypoints/content/sidebar/owner-section";
 import { dockSidebar, type Side } from "../../entrypoints/content/sidebar/side";
 import { showHeaderTab, showVisit } from "../../entrypoints/content/visit/land";
@@ -25,6 +30,7 @@ import { readNextCommit } from "../../utils/github/next-commit";
 import { connectPrData, type PrDataClient } from "../../utils/github/pr-port";
 import { intentFor } from "../../utils/intent/read";
 import { type CommitMessageView, type DiffstatView, whatsNewSeen } from "../../utils/prefs";
+import commitToolbar from "../fixtures/commit-page-toolbar.html?raw";
 import { routedFetch } from "../fixtures/fetch";
 import {
   byId,
@@ -37,6 +43,11 @@ import {
   loadViewedFixture,
   VIEWED_APP_TOML,
 } from "../fixtures/files-page";
+import prRename from "../fixtures/files-page-diff-rename.html?raw";
+import prSplit from "../fixtures/files-page-diff-split.html?raw";
+import prToolbar from "../fixtures/files-page-toolbar.html?raw";
+import { installLayoutMenu } from "../fixtures/layout-menu";
+import prLayoutMenu from "../fixtures/layout-menu-pr.html?raw";
 import { setViewport } from "../fixtures/viewport";
 
 // Only leaves are faked: intentFor needs a port fakeBrowser lacks; the views' DOM has own tests.
@@ -56,7 +67,10 @@ vi.mock(import("../../entrypoints/content/conversation/reviewer-files"), async (
 });
 vi.mock(import("../../entrypoints/content/visit/land"), async (importOriginal) => ({
   ...(await importOriginal()),
-  showVisit: vi.fn((_page, _signal, { intent }) => void intent(() => {})),
+  showVisit: vi.fn((_page, _signal, { intent }) => {
+    void intent(() => {});
+    return { startStructural: () => {} };
+  }),
   showHeaderTab: vi.fn((_page, _signal, { intent }) => void intent(() => {})),
 }));
 vi.mock(import("../../entrypoints/content/commit/message-view"), async (importOriginal) => ({
@@ -213,6 +227,7 @@ describe("content script", () => {
       const views: DiffstatView[] = [];
       vi.mocked(showVisit).mockImplementationOnce((_page, _signal, { diffstat }) => {
         views.push(diffstat.choice.view);
+        return { startStructural: () => {} };
       });
 
       await run();
@@ -437,6 +452,108 @@ describe("content script", () => {
       await run();
 
       expect(structuralOf(0)).toBeUndefined();
+    });
+
+    describe("diff view control", () => {
+      const segment = (name: string) =>
+        document.querySelector<HTMLButtonElement>(`.gh-prism-diff-view [data-view="${name}"]`);
+      const startStructural = vi.fn();
+
+      /** Gives the loaded page `toolbar`, a table drawn as `table`, and GitHub's menu. */
+      function withToolbar(toolbar: string, table: string, tables: typeof prTables) {
+        const page = findFilesPage(document);
+        const row = page && findFilesToolbar(page);
+        if (!page || !row) throw new Error("fixture has no toolbar");
+        row.outerHTML = toolbar;
+        findLayoutGear(page)?.setAttribute("aria-expanded", "false");
+        const region = document.createElement("div");
+        region.innerHTML = table;
+        page.diffs.append(region);
+        installLayoutMenu({ menu: prLayoutMenu, tables, signal: controller.signal });
+      }
+      const prTables = { unified: prRename, split: prSplit };
+
+      beforeEach(() => {
+        vi.mocked(showVisit).mockImplementation((_page, _signal, { intent }) => {
+          void intent(() => {});
+          return { startStructural };
+        });
+      });
+
+      it.each([
+        { name: "a pull request", url: PR, load: loadFixture, toolbar: prToolbar },
+        {
+          name: "a commit",
+          url: "/o/r/commit/dd95cdc",
+          load: loadCommitFixture,
+          toolbar: commitToolbar,
+        },
+      ])("mounts on $name's page with a gear", async ({ url, load, toolbar }) => {
+        history.replaceState(null, "", url);
+        load();
+        withToolbar(toolbar, prSplit, prTables);
+
+        await run();
+
+        expect(document.querySelector(".gh-prism-diff-view")).not.toBeNull();
+      });
+
+      it("turns the mode on from Structural, saving it and starting the page's mode", async () => {
+        withToolbar(prToolbar, prSplit, prTables);
+        await run();
+
+        segment("structural")?.click();
+        await vi.advanceTimersByTimeAsync(100);
+
+        expect(startStructural).toHaveBeenCalledWith(
+          expect.objectContaining({ until: expect.any(AbortSignal) }),
+        );
+        await vi.waitFor(async () =>
+          expect(await fakeBrowser.storage.sync.get("structuralMode")).toEqual({
+            structuralMode: true,
+          }),
+        );
+      });
+
+      it("turns the mode off from Unified, saving it and ending the page's mode", async () => {
+        await fakeBrowser.storage.sync.set({ structuralMode: true });
+        withToolbar(prToolbar, prSplit, prTables);
+        await run();
+        const mode = structuralOf(0);
+
+        segment("unified")?.click();
+        await vi.advanceTimersByTimeAsync(100);
+
+        expect(mode?.until.aborted).toBe(true);
+        await vi.waitFor(async () =>
+          expect(await fakeBrowser.storage.sync.get("structuralMode")).toEqual({
+            structuralMode: false,
+          }),
+        );
+      });
+
+      it("writes nothing to storage for Unified and Split with the mode off", async () => {
+        withToolbar(prToolbar, prSplit, prTables);
+        await run();
+        const write = vi.spyOn(fakeBrowser.storage.sync, "set");
+
+        segment("unified")?.click();
+        await vi.advanceTimersByTimeAsync(100);
+        segment("split")?.click();
+        await vi.advanceTimersByTimeAsync(100);
+
+        expect(segment("split")?.getAttribute("aria-pressed")).toBe("true");
+        expect(write).not.toHaveBeenCalled();
+      });
+
+      it("disables Structural on a commit-filtered pull request page", async () => {
+        history.replaceState(null, "", `${PR}/dd95cdc`);
+        withToolbar(prToolbar, prSplit, prTables);
+
+        await run();
+
+        expect(segment("structural")?.getAttribute("aria-disabled")).toBe("true");
+      });
     });
 
     it("gives no page of an off visit Structural mode", async () => {

@@ -53,6 +53,43 @@ export function structuralChoiceOf(on: boolean, save: (on: boolean) => void): St
 /** Structural mode's view on a page, plus the tap `showVisit` feeds the on-screen paths into. */
 export type StructuralView = LandingView & { onScreen(paths: ReadonlySet<string>): void };
 
+/** A page's Structural view that shows nothing until it is started. */
+export type StartableStructural = StructuralView & {
+  /** Shows `mode` on the page, replaying the latest on-screen paths and sections. Ignored while a started mode is still live. */
+  start(mode: StructuralMode): void;
+};
+
+/**
+ * A Structural view of `page` that holds only the latest on-screen paths and sections until
+ * started, then shows each started mode through `showStructural` until `signal` aborts.
+ */
+export function startableStructural(
+  page: Pick<FilesPage, "diffs">,
+  signal: AbortSignal,
+): StartableStructural {
+  let started: { view: StructuralView; until: AbortSignal } | undefined;
+  let lastOnScreen: ReadonlySet<string> | undefined;
+  let lastSections: [readonly FileSection[], ReadonlySet<string>] | undefined;
+
+  return {
+    onScreen(paths) {
+      lastOnScreen = paths;
+      started?.view.onScreen(paths);
+    },
+    sections(...args) {
+      lastSections = args;
+      started?.view.sections?.(...args);
+    },
+    start(mode) {
+      if (started && !started.until.aborted) return;
+      const view = showStructural(page, signal, mode);
+      started = { view, until: mode.until };
+      if (lastSections) view.sections?.(...lastSections);
+      if (lastOnScreen) view.onScreen(lastOnScreen);
+    },
+  };
+}
+
 /**
  * Shows Structural mode on `page` until `signal` or `mode.until` aborts: requests the on-screen
  * files while the diffs read Split, paints each answer as it settles, and shows each file's notice

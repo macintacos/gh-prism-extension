@@ -534,6 +534,50 @@ on a private one.
   `#diff_file_tree > .d-md-none` sits outside that row. The gear carries
   `aria-haspopup="true"` and `aria-expanded` `"false"` or `"true"`, and no `aria-controls`
   (Chromium 157, signed in, 2026-11-10).
+- **Expect a gear clicked before the page hydrates to open nothing.** It mounts no menu
+  and stays `aria-expanded="false"`, so a missing menu is no sign GitHub changed it
+  (Chromium, signed in, 2026-11-11).
+- **Expect a commit's toolbar to move under a held pointer.** One frame after hydration it
+  moves 308px right (the gear from x=361 to x=669), so a press held across hydration
+  releases elsewhere. Its "Top" button, 63px plus an 8px gap before the search box, shows
+  only while the page is scrolled; about 50 to 65 ms after a scroll to the top GitHub
+  removes it and everything after it moves 71px. Click a toolbar node through a live
+  locator, never at coordinates read before (Chromium, signed in, 2026-11-11).
+- **Drive the menu from script within one task.** A synthetic `gear.click()` opens it on
+  both page kinds, and its two Layout `menuitemradio` items exist after one
+  `await Promise.resolve()`, at `opacity: 0`; `findLayoutMenu` in `files-page.ts` finds
+  them by their labels. Clicking an item then switches the tables' `colgroup` and unmounts
+  the menu: about 11 to 14 ms after the click on commit `8d807ee` (Chromium 157, signed
+  in, 2026-11-10).
+- **Confirm a Layout choice from `?diff=` and the tables, not the item.** A clicked item
+  never read `aria-checked="true"` before the menu unmounted, in every switch on both page
+  kinds. `certainLayout` in `files-page.ts` reads the layout the tables show for certain.
+- **Expect every item click to `POST /users/diffview`,** the already-checked item
+  included, with a body of `{"diff":"split"}` or `{"diff":"unified"}`. Two choices about
+  30 ms apart send two concurrent posts, and the server can save the earlier one: Split
+  then Unified on commit `8d807ee` left Split saved (Chromium 157, signed in, 2026-11-10).
+  So never click an item for the layout already shown, and don't choose twice in a row.
+- **Close the menu from script with a second `gear.click()` or an `Escape` `keydown`
+  dispatched on the menu.** Both close it on both page kinds without choosing anything and
+  send no `/users/diffview`. Primer returns focus to the gear whenever the menu closes,
+  whatever held it before (Chromium 157, signed in, 2026-11-10).
+- **Expect the gear inside a `container-show-on-sm` wrapper on a pull request,** within
+  the toolbar's end `Stack`, and inside the `width-full` group after "Search within code"
+  on a commit. A node inserted with `gear.before(node)` survived a menu open, a Layout
+  choice, the tree toggle, and scrolling, with no React error (Chromium 155 and Firefox
+  156, 2026-11-10). Hydration still re-mounts such a node once as the page first settles,
+  which can land between a `pointerdown` and its `pointerup`, so the press's `click` never
+  fires (Chromium 157, signed in, 2026-11-10). At 500px wide on a pull request the wrapper
+  hides the gear and such a node with it (`offsetParent === null`), and "More options"
+  shows instead (Chromium 157, signed in, 2026-11-10).
+- **Expect the toolbar never to wrap.** An extra child that doesn't fit overflows the page
+  sideways rather than starting a second row, so a node added to it must hide itself when
+  the row has no room (Chromium 157, signed in, 2026-11-10).
+- **Expect a pull request's toolbar outside `page.diffs` and a commit's inside it.** An
+  observer on the diffs sees a commit's toolbar re-render but not a pull request's, so a
+  node in the toolbar watches the toolbar itself (Chromium 157, signed in, 2026-11-10).
+- **Test the menu against the captured menus:** `tests/fixtures/layout-menu-pr.html` and
+  `tests/fixtures/layout-menu-commit.html`, each opened from the gear with Unified saved.
 - **Test the gear against the captured toolbars:**
   `tests/fixtures/files-page-toolbar.html` (a pull request's, menu open) and
   `tests/fixtures/commit-page-toolbar.html`. Each fixture's header comment names its
@@ -554,6 +598,29 @@ on a private one.
   for deleted files, use [cli/cli PR #14872](https://github.com/cli/cli/pull/14872) and
   [cli/cli@b564a77225](https://github.com/cli/cli/commit/b564a77225) after clicking Load
   Diff.
+
+  In the console, bind `gear` to the element `findLayoutGear` returns, `toolbar` to the
+  one `findFilesToolbar` returns, and `diffs` to the diff list a `FilesPage`'s `diffs`
+  holds. Then, on both page kinds:
+
+  1. Run `gear.click()`, then `await Promise.resolve()`, and count the Layout
+     `menuitemradio` items.
+  2. Click one item and read its `aria-checked` until the menu unmounts.
+  3. With the Network panel open, click each item, the checked one too, and read each
+     `/users/diffview` request body.
+  4. Close the menu with a second `gear.click()`, then with an `Escape` `keydown` on the
+     menu, and read `document.activeElement` each time.
+  5. Read `toolbar.contains(gear)` and `diffs.contains(toolbar)`.
+  6. Add a wide child before the gear and see the row overflow rather than wrap.
+  7. On a pull request, narrow the window to 500px and read the gear's `offsetParent`.
+  8. Insert a node before the gear as the page loads, and watch it with a
+     `MutationObserver` until the page settles.
+  9. With GitHub's scripts delayed 3 s, click the gear before the page hydrates, then read
+     its `aria-expanded` and look for a Layout menu a second later.
+  10. On the commit, read the gear's `getBoundingClientRect().x` every frame across
+      hydration.
+  11. On the commit, scroll down, read the "Top" button's width and the gear's x, scroll
+      to the top, and read both every frame for 100 ms.
 
 ## The file card
 
