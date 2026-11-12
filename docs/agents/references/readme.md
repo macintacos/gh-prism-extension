@@ -29,7 +29,9 @@ Each picture is a `<picture>` whose `<source media="(prefers-color-scheme: dark)
 `docs/images/<surface>-dark.png` and whose `<img>` names `<surface>-light.png`, with
 `width` half the PNG's pixel width. Capture both at 2× device pixels with the same crop,
 below GitHub's global header, by emulating the colour scheme while the account's
-Appearance is "Sync with system" with Light default and Dark default. Compress them with
+Appearance is "Sync with system" with Light default and Dark default. When the account
+hides whitespace changes, add `w=0` to a pull request's URL: GitHub's "Hide whitespace"
+chip takes the toolbar room the diff view control needs at this width. Compress them with
 `mise x oxipng@latest -- oxipng -o max --strip safe`.
 
 | Surface | Source |
