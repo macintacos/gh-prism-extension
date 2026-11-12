@@ -113,6 +113,11 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
 - **Round a measured distance to 0.01 px before comparing it exactly.** Firefox reports
   box coordinates as float32, so an 8 px gap between two boxes can come back as 7.99999
   px. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s `toHundredths` does it.
+- **Compare install warnings with `chrome.management.getPermissionWarningsByManifest` from
+  the service worker.** It needs no `management` permission, so
+  [`bench/structural-host/serve.ts`](../../bench/structural-host/serve.ts)'s `warnings` op
+  checks a permission's warning in the built extension. In Chromium 156 the `offscreen`
+  permission added none (2026-11-10).
 - **Never let a `bench/` file match a test glob** (`*.{test,spec}.*` or `*.e2e.ts`). The
   benchmark stays out of Vitest, Playwright, and CI.
 - **Give a large fixture's first wait `LARGE_PR_READ_TIMEOUT`.** The extension reads the

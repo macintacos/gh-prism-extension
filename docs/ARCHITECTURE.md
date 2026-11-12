@@ -4,13 +4,14 @@
 it.*
 
 gh-prism is a Chrome and Firefox extension built with WXT, a framework for browser
-extensions. It has two parts: a background script that fetches pull request data and lets
-the Conversation panel frame a pull request's Conversation tab, and content scripts. One
-content script reshapes GitHub's Files view and reads a pull request's code owners and
-reviewers itself; the other dresses the Conversation panel's frame. The background runs as
-a service worker in Chrome and as an event page in Firefox. Each section below names the
-module behind its claims, so you can read the code next. Terms such as visit, page,
-intent, and landing are defined in
+extensions. It has two parts, and a third in Chrome: a background script that fetches pull
+request data and lets the Conversation panel frame a pull request's Conversation tab,
+content scripts, and, in Chrome, an offscreen document that hosts the structural engine's
+Worker. One content script reshapes GitHub's Files view and reads a pull request's code
+owners and reviewers itself; the other dresses the Conversation panel's frame. The
+background runs as a service worker in Chrome and as an event page in Firefox. Each
+section below names the module behind its claims, so you can read the code next. Terms
+such as visit, page, intent, and landing are defined in
 [`CONTEXT.md`](../CONTEXT.md).
 
 ## Overview
@@ -31,26 +32,42 @@ and a leftover rule still matches only that tab's marked URL. It also clears the
 cache whenever the extension is installed, updated, or reloaded in development, and on a
 fresh install it marks the installed version's what's-new notes dismissed.
 
-The structural diff engine is a separate script,
-[`entrypoints/structural-engine.ts`](../entrypoints/structural-engine.ts), that the
-background loads only when structural mode first asks for a diff
-([`utils/structural/engine-script.ts`](../utils/structural/engine-script.ts)). It is
-separate because the background builds as one file, so bundling the engine into it would
-parse the engine at every start. So only the engine script may import `runner.ts`, and
-modules the background reaches import the engine and the runner as types only, which
+The structural diff engine runs in a dedicated Worker, off the background's thread, so a
+long parse never delays port traffic. The Worker's script is
+[`entrypoints/structural-engine.ts`](../entrypoints/structural-engine.ts); it is a
+separate file because the background builds as one file, so bundling the engine into it
+would parse the engine at every start. So only the engine script may import `runner.ts`,
+and modules the background reaches import the engine and the runner as types only, which
 [`tests/utils/structural/bundle-boundary.test.ts`](../tests/utils/structural/bundle-boundary.test.ts)
-checks. Firefox's background page appends it as a script element; Chrome's service worker
-loads it with `importScripts`, which Chrome allows only for a script the worker imported
-while installing, so the worker imports it once then.
-[`utils/structural/runner.ts`](../utils/structural/runner.ts) compiles the tree-sitter
-runtime and each grammar on first use, only from the packaged `structural/*.wasm` files,
-which is why the manifest's `extension_pages` policy carries `'wasm-unsafe-eval'`.
-[`utils/structural/host.ts`](../utils/structural/host.ts) runs one request at a time and
-yields before each, so intent reads queued on the port are answered first, and drops a
-queued request whose port closed. Each browser's yield was chosen by measurement, and
-[`bench/structural-host.ts`](../bench/structural-host.ts) checks it. Nothing is evicted or
-persisted: the background's idle shutdown discards the engine and its grammars, and the
-next request rebuilds them. Nothing in the shipped build calls the host yet.
+checks.
+
+[`utils/structural/engine-thread.ts`](../utils/structural/engine-thread.ts) gives the host
+an `EngineRun` that starts nothing until the first request. Firefox's event page owns the
+Worker itself, through
+[`utils/structural/engine-worker.ts`](../utils/structural/engine-worker.ts). Chrome's
+service worker cannot construct a Worker, so, on the first request, it creates an
+offscreen document,
+[`entrypoints/structural-offscreen/`](../entrypoints/structural-offscreen/main.ts), which
+owns the Worker; that makes the offscreen document a third part, in Chrome only, and is
+why Chrome's manifest asks for the `offscreen` permission. The service worker relays each
+request with `runtime.sendMessage`
+([`utils/structural/offscreen.ts`](../utils/structural/offscreen.ts)) rather than a port,
+whose `runtime.onConnect` listener the service worker would register at every start; the
+message's response carries the result, so the service worker needs no listener. The
+service worker checks that the document exists before every request, because the document
+closes itself after 30 seconds without one. Overlapping requests share one existence check
+and creation, and a request that finds the document just closed is retried once.
+
+[`utils/structural/runner.ts`](../utils/structural/runner.ts)
+compiles the tree-sitter runtime and each grammar on first use, only from the packaged
+`structural/*.wasm` files, which is why the manifest's `extension_pages` policy carries
+`'wasm-unsafe-eval'`. [`utils/structural/host.ts`](../utils/structural/host.ts) runs one
+request at a time and drops a queued request whose port closed; its yield before each
+request still lets queued intent reads go first, but no longer guards against engine work,
+which now runs on the Worker's thread. Nothing is evicted or persisted: in Firefox an idle
+event page discards its Worker, and in Chrome the idle offscreen document closes and takes
+its Worker with it, so the engine and its grammars go, and the next request rebuilds them.
+Nothing in the shipped build calls the host yet.
 
 The content script in [`entrypoints/content/index.ts`](../entrypoints/content/index.ts)
 runs on every github.com page at `document_start`, so its watcher is in place before
@@ -990,8 +1007,9 @@ these surfaces' sheets `@import`s the mark's partial, `ui/mark.css`.
 
 ```text
 entrypoints/
-  background.ts          service worker: PR data port, the Conversation panel's framing rule, cache clearing and what's-new mark on install; in Chrome, the install-time import of the structural engine script
-  structural-engine.ts   the structural engine script the background loads on first use
+  background.ts          service worker: PR data port, the Conversation panel's framing rule, cache clearing and what's-new mark on install
+  structural-engine.ts   the structural engine's dedicated Worker script
+  structural-offscreen/  Chrome only: the offscreen document that owns the engine's Worker and answers the service worker's relayed requests
   conversation-frame.content.ts  content script in the Conversation panel's frame
   content/
     index.ts             content script entry: wires the watchers, intent, and views
@@ -1009,7 +1027,7 @@ utils/
     conversation-frame.ts  the per-tab session rule that lets only the Conversation panel frame a PR's Conversation tab, and the panel's request for it
   intent/                reading, caching, and landing intent
   hunk-rules/            the docstring and inline-test rules, and the generator-marker scan; a head is line-scanned, or built from a head outline when one is given
-  structural/            rebuilding a changed file's old text from its patch; the tree-sitter token-diff engine and its grammar table; outlining a head file's multi-line comments, strings, and test blocks from a parse; mapping an engine's structural changes onto diff lines; pairing a file's moved lines; the request shape a message carries, the runner that compiles the packaged WebAssembly, the one-at-a-time host, the engine-script loader, and the list of packaged files
+  structural/            rebuilding a changed file's old text from its patch; the tree-sitter token-diff engine and its grammar table; outlining a head file's multi-line comments, strings, and test blocks from a parse; mapping an engine's structural changes onto diff lines; pairing a file's moved lines; the request shape a message carries, the runner that compiles the packaged WebAssembly, the one-at-a-time host, the engine Worker's message channel, Chrome's offscreen relay, the engine-thread loader, and the list of packaged files
   sections.ts            path rules for the five sections
   prefs.ts               saved preferences
   whats-new.ts           when the what's-new block shows

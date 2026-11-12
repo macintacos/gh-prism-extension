@@ -19,6 +19,18 @@ const TYPE_ONLY: readonly (readonly [file: string, modules: readonly string[]])[
   ["utils/intent/read.ts", ENGINE_FROM_CONTENT_SIDE],
   ["utils/structural/host.ts", ["./engine", "./runner", "./tokens", "web-tree-sitter"]],
   ["utils/structural/engine-script.ts", ["./engine", "./runner", "./tokens", "web-tree-sitter"]],
+  ["utils/structural/engine-worker.ts", ["./engine", "./runner", "./tokens", "web-tree-sitter"]],
+  ["utils/structural/offscreen.ts", ["./engine", "./runner", "./tokens", "web-tree-sitter"]],
+  ["utils/structural/engine-thread.ts", ["./engine", "./runner", "./tokens", "web-tree-sitter"]],
+  [
+    "entrypoints/structural-offscreen/main.ts",
+    [
+      "../../utils/structural/engine",
+      "../../utils/structural/runner",
+      "../../utils/structural/tokens",
+      "web-tree-sitter",
+    ],
+  ],
   [
     "entrypoints/background.ts",
     [

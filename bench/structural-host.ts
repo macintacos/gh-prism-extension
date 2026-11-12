@@ -27,6 +27,7 @@ import { type BrowserContext, chromium, firefox, type Page } from "@playwright/t
 import { withExtension } from "playwright-webextext";
 import { type ChangedRegion, DEFAULT_LIMITS } from "../utils/structural/engine";
 import { grammarOf } from "../utils/structural/grammar";
+import { OFFSCREEN_IDLE_MS } from "../utils/structural/offscreen";
 import type { StructuralRequest } from "../utils/structural/request";
 import type { BenchMessage, BenchReply, RunResult } from "./structural-host/serve";
 
@@ -41,9 +42,11 @@ const ROOT = join(import.meta.dirname, "..");
 // wxt/browser, which cannot load outside the extension.
 const BENCH_PORT = "gh-prism:bench";
 const PR_DATA_PORT = "gh-prism:pr-data";
-const MAX_WARM_PING_MS = 100;
+const MAX_PING_MS = 25;
 // Short enough to wait out, long enough that the gaps between the bench's messages never stop it.
 const FIREFOX_IDLE_MS = 5000;
+// Longer than the idle close, so the document has closed by the time the wait ends.
+const IDLE_WAIT_MS = OFFSCREEN_IDLE_MS + 5_000;
 
 const BACKGROUND = `import { defineBackground } from "wxt/utils/define-background";
 import { serveBench } from "@/bench/structural-host/serve";
@@ -289,7 +292,21 @@ async function measure(page: Page) {
     largeRuns.push(await runWithPing(page, large, Math.random() * lastRunMs));
   }
 
+  await stopBackground(page);
+  const restart = await send<RunResult>(page, { op: "run", request: reference });
+
+  await page.waitForTimeout(IDLE_WAIT_MS);
+  const afterIdle = await send<{ loaded: boolean }>(page, { op: "state" });
+
+  const warnings =
+    browserName === "chromium"
+      ? await send<{ loaded: string[]; withoutOffscreen: string[] } | null>(page, {
+          op: "warnings",
+        })
+      : null;
+
   const maxWarmPingMs = Math.max(...warm.map((w) => w.pingMs));
+  const maxLargePingMs = Math.max(...largeRuns.map((r) => r.pingMs));
   const warmPingsDuringRun = warm.filter((w) => w.pingDuringRun).length;
   const criteria = {
     lazy: !lazy.loaded,
@@ -297,8 +314,13 @@ async function measure(page: Page) {
     secondGrammar: secondGrammar.ok,
     dropped: dropped.firstOk && dropped.secondRejected,
     warmOk: warm.every((w) => w.ok),
-    warmPingWithinBound: maxWarmPingMs <= MAX_WARM_PING_MS,
+    pingWithinBound: Math.max(maxWarmPingMs, maxLargePingMs) <= MAX_PING_MS,
     warmPingsDuringRun: warmPingsDuringRun >= warm.length / 2,
+    restartOk: restart.ok,
+    idleDiscards: !afterIdle.loaded,
+    ...(warnings && {
+      noNewWarning: JSON.stringify(warnings.loaded) === JSON.stringify(warnings.withoutOffscreen),
+    }),
   };
   return {
     browser: browserName,
@@ -323,9 +345,12 @@ async function measure(page: Page) {
     large: {
       lines: smokeLines,
       results: [...new Set(largeRuns.map((r) => (r.ok ? "ok" : r.reason)))],
-      maxPingMs: Math.max(...largeRuns.map((r) => r.pingMs)),
+      maxPingMs: maxLargePingMs,
       runs: largeRuns,
     },
+    restart: { ok: restart.ok, reason: restart.reason, runMs: runMs(restart) },
+    afterIdle,
+    warnings,
   };
 }
 

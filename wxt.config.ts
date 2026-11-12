@@ -40,7 +40,12 @@ export default defineConfig({
     // declarativeNetRequestWithHostAccess lifts GitHub's framing refusal for the Conversation
     // panel's frame only; unlike declarativeNetRequest it adds no install warning, so an update
     // doesn't disable gh-prism.
-    permissions: ["storage", "declarativeNetRequestWithHostAccess"],
+    permissions: [
+      "storage",
+      "declarativeNetRequestWithHostAccess",
+      // Chrome's service worker cannot construct a Worker, so an offscreen document hosts the engine's; it adds no install warning either.
+      ...(browser === "firefox" ? [] : ["offscreen"]),
+    ],
     // github.com's .diff and raw/ URLs redirect to these two githubusercontent hosts.
     host_permissions: [
       "https://github.com/*",

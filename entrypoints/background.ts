@@ -6,18 +6,14 @@ import { PR_DATA_PORT, servePrDataPort } from "../utils/github/pr-port";
 import { createPrDataSource } from "../utils/github/pr-source";
 import { forgetIntents } from "../utils/intent/cache";
 import { RETIRED_HIDDEN_COMMITS, whatsNewSeen } from "../utils/prefs";
-import { precacheEngineScript } from "../utils/structural/engine-script";
 import { dismissWhatsNew } from "../utils/whats-new";
 
 /**
  * Serves pull request data to content scripts, lets a tab's Conversation panel frame its pull
  * request's Conversation tab, clears the intent cache and retired storage keys on install, and
- * marks a fresh install's what's-new notes dismissed. In Chrome it also imports the structural
- * engine's script while installing, so a later worker life can load it on demand.
+ * marks a fresh install's what's-new notes dismissed.
  */
 export default defineBackground(() => {
-  precacheEngineScript();
-
   // Intents clear on installs, updates, and dev reloads alike: a new build may place files
   // differently. Only a fresh install marks the notes, so an update still shows them.
   browser.runtime.onInstalled.addListener(({ reason }) => {
