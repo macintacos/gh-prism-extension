@@ -22,6 +22,7 @@ import {
 } from "../../utils/github/code-owners";
 import { readFilesRoute } from "../../utils/github/files-route";
 import { readNextCommit } from "../../utils/github/next-commit";
+import { connectPrData, type PrDataClient } from "../../utils/github/pr-port";
 import { intentFor } from "../../utils/intent/read";
 import { type CommitMessageView, type DiffstatView, whatsNewSeen } from "../../utils/prefs";
 import { routedFetch } from "../fixtures/fetch";
@@ -83,6 +84,19 @@ vi.mock(import("../../entrypoints/content/conversation/panel"), async (importOri
   ...(await importOriginal()),
   conversationPanel: vi.fn(),
 }));
+vi.mock(import("../../utils/github/pr-port"), async (importOriginal) => ({
+  ...(await importOriginal()),
+  connectPrData: vi.fn(),
+}));
+
+/** A port client whose reads never settle. */
+const fakeClient = (): PrDataClient => ({
+  files: () => new Promise(() => {}),
+  fileContent: () => new Promise(() => {}),
+  filePrefix: () => new Promise(() => {}),
+  structural: () => new Promise(() => {}),
+  close: vi.fn(),
+});
 
 const PR = "/o/r/pull/1/changes";
 let controller: AbortController;
@@ -339,6 +353,99 @@ describe("content script", () => {
 
     expect(showVisit).toHaveBeenCalledTimes(2);
     expect(vi.mocked(showVisit).mock.calls.at(-1)?.[2].diffstat.choice.view).toBe("total");
+  });
+
+  describe("Structural mode", () => {
+    const structuralOf = (call: number) => vi.mocked(showVisit).mock.calls.at(call)?.[2].structural;
+    const rerender = async () => {
+      const sidebar = byId("pr-file-tree");
+      sidebar.replaceWith(sidebar.cloneNode(true));
+      await afterMutations();
+    };
+
+    beforeEach(() => {
+      vi.mocked(connectPrData).mockImplementation(fakeClient);
+    });
+
+    it.each<{ saved?: unknown; on: boolean }>([
+      { on: false },
+      { saved: false, on: false },
+      { saved: "true", on: false },
+      { saved: 1, on: false },
+      { saved: true, on: true },
+    ])("shows Structural mode: $on (saved: $saved)", async ({ saved, on }) => {
+      // Raw key on purpose, so the test outlives a move to typed storage items.
+      if (saved !== undefined) await fakeBrowser.storage.sync.set({ structuralMode: saved });
+
+      await run();
+
+      expect(structuralOf(0) !== undefined).toBe(on);
+      expect(connectPrData).not.toHaveBeenCalled();
+    });
+
+    it("opens off when reading the saved choice fails", async () => {
+      await fakeBrowser.storage.sync.set({ structuralMode: true });
+      vi.spyOn(fakeBrowser.storage.sync, "get").mockRejectedValue(new Error("invalidated"));
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
+      await run();
+
+      expect(structuralOf(0)).toBeUndefined();
+    });
+
+    it("asks a visit's own port for on-screen files, closed on the next visit", async () => {
+      await fakeBrowser.storage.sync.set({ structuralMode: true });
+      await run();
+      const first = structuralOf(0);
+
+      first?.files.request(["a.ts"]);
+      const firstAsked = vi.mocked(connectPrData).mock.calls.slice();
+      history.pushState(null, "", "/o/r/pull/2/changes");
+      document.dispatchEvent(new Event("soft-nav:end"));
+      await afterMutations();
+      const next = structuralOf(-1);
+      next?.files.request(["a.ts"]);
+
+      expect(firstAsked).toEqual([[readFilesRoute(PR)?.diff]]);
+      const client = vi.mocked(connectPrData).mock.results[0]?.value as PrDataClient;
+      expect(client.close).toHaveBeenCalledOnce();
+      expect(next?.files).not.toBe(first?.files);
+      expect(connectPrData).toHaveBeenCalledTimes(2);
+    });
+
+    it("turns off and saves off once Unified is seen", async () => {
+      await fakeBrowser.storage.sync.set({ structuralMode: true });
+      await run();
+      const mode = structuralOf(0);
+
+      mode?.unifiedSeen();
+      await rerender();
+
+      expect(mode?.until.aborted).toBe(true);
+      expect(structuralOf(-1)).toBeUndefined();
+      await vi.waitFor(async () =>
+        expect(await fakeBrowser.storage.sync.get("structuralMode")).toEqual({
+          structuralMode: false,
+        }),
+      );
+    });
+
+    it("gives a commit-filtered pull request page no Structural mode", async () => {
+      await fakeBrowser.storage.sync.set({ structuralMode: true });
+      history.replaceState(null, "", `${PR}/dd95cdc`);
+
+      await run();
+
+      expect(structuralOf(0)).toBeUndefined();
+    });
+
+    it("gives no page of an off visit Structural mode", async () => {
+      await run();
+      await rerender();
+
+      expect(showVisit).toHaveBeenCalledTimes(2);
+      expect(structuralOf(-1)).toBeUndefined();
+    });
   });
 
   it("mounts every page of a visit on one shared diff read", async () => {

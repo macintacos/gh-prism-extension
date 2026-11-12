@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ADDED_HIGHLIGHT, REMOVED_HIGHLIGHT } from "../../../entrypoints/content/diffs/structural";
+import type { StructuralMode } from "../../../entrypoints/content/diffs/structural-mode";
 import {
   anchorOf,
   type FilesPage,
@@ -32,10 +33,13 @@ import {
 import {
   byId,
   closeOverlay,
+  diffList,
+  linkTo,
   loadFixture,
   loadHeaderFixture,
   openOverlay,
 } from "../../fixtures/files-page";
+import prSplit from "../../fixtures/files-page-diff-split.html?raw";
 import { stubHighlights } from "../../fixtures/highlights";
 import { landedWith, pendingIntent, whole } from "../../fixtures/intent";
 import {
@@ -347,6 +351,19 @@ describe("intent shared by each view of one visit", () => {
 describe("structural mode on a visit", () => {
   const { remountWith, abort } = mountsVisit();
   let stub: ReturnType<typeof stubHighlights>;
+  const structuralMode = (): StructuralMode => ({
+    files: {
+      request: () => {},
+      answerOf: () => undefined,
+      onAnswer: () => {},
+      report: () => {},
+      outcomeOf: () => undefined,
+    },
+    until: new AbortController().signal,
+    commit: false,
+    search: () => "",
+    unifiedSeen: () => {},
+  });
   const structuralMarks = () =>
     document.querySelectorAll("[data-gh-prism-structural], [data-gh-prism-quiet]");
 
@@ -357,6 +374,7 @@ describe("structural mode on a visit", () => {
   afterEach(() => {
     abort();
     stub.restore();
+    vi.unstubAllGlobals();
   });
 
   it("paints nothing when the visit is not given structural mode", async () => {
@@ -368,12 +386,48 @@ describe("structural mode on a visit", () => {
   });
 
   it("registers both highlights when the visit is given structural mode", async () => {
-    remountWith(() => Promise.resolve(result), undefined, {
-      structural: { annotationsOf: () => undefined, report: () => {} },
-    });
+    remountWith(() => Promise.resolve(result), undefined, { structural: structuralMode() });
     await afterDebounce();
 
     expect([...stub.highlights.keys()]).toEqual([ADDED_HIGHLIGHT, REMOVED_HIGHLIGHT]);
+  });
+
+  it("marks the on-screen files in the sidebar and asks Structural mode for them", async () => {
+    let fire: IntersectionObserverCallback = () => {};
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor(callback: IntersectionObserverCallback) {
+          fire = callback;
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const region = Object.assign(document.createElement("div"), {
+      id: anchorOf(linkTo("src/lib.rs")),
+    });
+    region.setAttribute("role", "region");
+    region.innerHTML = prSplit;
+    const entry = document.createElement("div");
+    entry.append(region);
+    diffList().append(entry);
+    const request = vi.fn<(paths: Iterable<string>) => void>();
+    const structural = structuralMode();
+
+    remountWith(() => Promise.resolve(result), undefined, {
+      structural: { ...structural, files: { ...structural.files, request } },
+    });
+    await afterDebounce();
+    fire(
+      [{ target: region, isIntersecting: true } as unknown as IntersectionObserverEntry],
+      {} as IntersectionObserver,
+    );
+
+    const docs = document.querySelector('.gh-prism-section[data-section="docs"]');
+    expect(docs?.hasAttribute("data-on-screen")).toBe(true);
+    expect(request).toHaveBeenLastCalledWith(new Set(["src/lib.rs"]));
   });
 });
 

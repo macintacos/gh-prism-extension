@@ -189,9 +189,10 @@ badge. _Avoid_: tag; pill, which names the diffstat's per-section labels
 ### Structural diffs
 
 **Structural mode**: gh-prism's optional diff mode that compares a changed file's old and
-new tokens and marks, on GitHub's own diff rows, only the tokens that changed. It is off
-until the reviewer picks Structural. _Avoid_: split, which is a placement and GitHub's
-two-column layout; semantic diff; syntactic diff; difftastic mode
+new tokens and marks, on GitHub's own diff rows, only the tokens that changed. It is a
+saved choice, off until the reviewer picks Structural; it applies in GitHub's Split layout
+and turns off when GitHub's Unified layout is seen. _Avoid_: split, which is a placement
+and GitHub's two-column layout; semantic diff; syntactic diff; difftastic mode
 
 **Quiet row**: A diff row GitHub shows as added or deleted in which structural mode finds
 no changed token, as in a line that was only reindented or reformatted. Structural mode

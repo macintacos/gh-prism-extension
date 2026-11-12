@@ -219,7 +219,12 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   [`bench/bundle.ts`](../../bench/bundle.ts) bundles the module with a harness, and the
   test runs it in the page's main world:
   [`e2e/structural.e2e.ts`](../../e2e/structural.e2e.ts) on fixtures, and
-  [`bench/structural-live.ts`](../../bench/structural-live.ts) on live GitHub.
+  [`bench/structural-live.ts`](../../bench/structural-live.ts) on live GitHub. Check the
+  built extension's Structural mode live with
+  `bun bench/structural-mode-live.ts <chromium|firefox> <storage-state path> [url…]`
+  ([`bench/structural-mode-live.ts`](../../bench/structural-mode-live.ts)). It changes the
+  account's saved Layout and restores it;
+  `bun bench/structural-mode-live/restore-check.ts` proves that restore offline.
 - **Keep a live check's screenshots outside `test-results/`.** Playwright empties it at
   the start of every run.
 - **Keep each end-to-end test independent of the others.** `playwright.config.ts` sets

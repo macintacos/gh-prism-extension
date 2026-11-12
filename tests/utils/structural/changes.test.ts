@@ -4,6 +4,7 @@ import {
   annotateLines,
   type LineAnnotations,
   type StructuralChanges,
+  structuralFile,
 } from "../../../utils/structural/changes";
 import { lines } from "../../fixtures/head-scan";
 
@@ -144,5 +145,51 @@ describe("annotateLines", () => {
     const annotations = annotateLines({ old: [], new: [] }, hunks);
 
     expect(annotations).toBeUndefined();
+  });
+});
+
+describe("structuralFile", () => {
+  it("gives the text of each changed line and none for context lines", () => {
+    const file = structuralFile({ old: [], new: [] }, parsePrHunks(RENAME));
+
+    expect(file?.text).toEqual({ old: { 2: "  return count;" }, new: { 2: "  return total;" } });
+  });
+
+  it("numbers each hunk's text from its own header", () => {
+    const hunks = parsePrHunks(
+      lines("@@ -1,2 +1,2 @@", " a", "-b", "+B", "@@ -20,2 +30,3 @@", " t", "-u", "+U", "+v"),
+    );
+
+    const file = structuralFile({ old: [], new: [] }, hunks);
+
+    expect(file?.text).toEqual({ old: { 2: "b", 21: "u" }, new: { 2: "B", 31: "U", 32: "v" } });
+  });
+
+  it("keeps the whole text of a final line with no newline", () => {
+    const hunks = parsePrHunks(
+      lines("@@ -1,1 +1,1 @@", "-old", "+new", "\\ No newline at end of file"),
+    );
+
+    const file = structuralFile({ old: [], new: [] }, hunks);
+
+    expect(file?.text).toEqual({ old: { 1: "old" }, new: { 1: "new" } });
+  });
+
+  it("gives undefined for an unreadable hunk", () => {
+    const hunks = parsePrHunks(lines("@@ -1,1 +1,1 @@", "?x"));
+
+    expect(structuralFile({ old: [], new: [] }, hunks)).toBeUndefined();
+  });
+
+  it("annotates the lines as annotateLines does", () => {
+    const changes = {
+      old: [{ line: 2, startCol: 9, endCol: 14 }],
+      new: [{ line: 2, startCol: 9, endCol: 14 }],
+    };
+    const hunks = parsePrHunks(RENAME);
+
+    const file = structuralFile(changes, hunks);
+
+    expect(file?.annotations).toEqual(annotateLines(changes, hunks));
   });
 });

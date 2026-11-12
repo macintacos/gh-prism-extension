@@ -54,35 +54,56 @@ export interface StructuralFile {
   readonly text: { readonly old: TextByLine; readonly new: TextByLine };
 }
 
-/**
- * Annotations for the `+` and `-` lines of `hunks`. A span on any other line is dropped: context
- * text is the same on both sides, so a token reported there is the engine's mismatch, not a
- * change. Columns are passed through unchecked: `changes` must come from the texts these hunks
- * describe. `undefined` when a hunk's body cannot be read.
- */
+/** {@link structuralFile}'s annotations alone. */
 export function annotateLines(
   changes: StructuralChanges,
   hunks: readonly PrHunk[],
 ): LineAnnotations | undefined {
+  return structuralFile(changes, hunks)?.annotations;
+}
+
+/**
+ * Annotations for the `+` and `-` lines of `hunks`, with each annotated line's text from `hunks`,
+ * without its line terminator. A span on any other line is dropped: context text is the same on
+ * both sides, so a token reported there is the engine's mismatch, not a change. Columns are passed
+ * through unchecked: `changes` must come from the texts these hunks describe. `undefined` when a
+ * hunk's body cannot be read.
+ */
+export function structuralFile(
+  changes: StructuralChanges,
+  hunks: readonly PrHunk[],
+): StructuralFile | undefined {
   const oldRanges = rangesByLine(changes.old);
   const newRanges = rangesByLine(changes.new);
   const oldAnnotations: Record<number, LineAnnotation> = {};
   const newAnnotations: Record<number, LineAnnotation> = {};
+  const oldText: Record<number, string> = {};
+  const newText: Record<number, string> = {};
 
   for (const hunk of hunks) {
     const ops = hunkOps(hunk.lines);
     if (ops === undefined) return undefined;
     let oldLine = hunk.oldStart;
     let newLine = hunk.newStart;
-    for (const { kind } of ops) {
-      if (kind === "-") oldAnnotations[oldLine] = annotationOf(oldRanges.get(oldLine));
-      if (kind === "+") newAnnotations[newLine] = annotationOf(newRanges.get(newLine));
+    for (const { kind, text } of ops) {
+      const lineText = text.endsWith("\n") ? text.slice(0, -1) : text;
+      if (kind === "-") {
+        oldAnnotations[oldLine] = annotationOf(oldRanges.get(oldLine));
+        oldText[oldLine] = lineText;
+      }
+      if (kind === "+") {
+        newAnnotations[newLine] = annotationOf(newRanges.get(newLine));
+        newText[newLine] = lineText;
+      }
       if (kind !== "+") oldLine++;
       if (kind !== "-") newLine++;
     }
   }
 
-  return { old: oldAnnotations, new: newAnnotations };
+  return {
+    annotations: { old: oldAnnotations, new: newAnnotations },
+    text: { old: oldText, new: newText },
+  };
 }
 
 /** `spans` grouped by line, each line's ranges in column order. */

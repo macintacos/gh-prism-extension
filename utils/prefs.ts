@@ -78,6 +78,14 @@ export const commitMessageHidden = storage.defineItem<boolean>("sync:commitMessa
   fallback: false,
 });
 
+/**
+ * Whether the user last left Structural mode on; Chrome sync carries it to their other computers
+ * when on.
+ */
+export const structuralMode = storage.defineItem<boolean>("sync:structuralMode", {
+  fallback: false,
+});
+
 /** A retired key a released version wrote: the commits whose message the user hid, one by one. */
 export const RETIRED_HIDDEN_COMMITS = "local:hiddenCommitMessages";
 

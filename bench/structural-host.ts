@@ -11,24 +11,16 @@
  * and exits 1 when a pass criterion fails.
  */
 
-import { execFileSync } from "node:child_process";
-import {
-  copyFileSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { type BrowserContext, chromium, firefox, type Page } from "@playwright/test";
 import { withExtension } from "playwright-webextext";
 import { type ChangedRegion, DEFAULT_LIMITS } from "../utils/structural/engine";
 import { grammarOf } from "../utils/structural/grammar";
 import { OFFSCREEN_IDLE_MS } from "../utils/structural/offscreen";
 import type { StructuralRequest } from "../utils/structural/request";
+import { buildCopy, scratchCopy } from "./scratch-build";
 import type { BenchMessage, BenchReply, RunResult } from "./structural-host/serve";
 
 const browserName = process.argv[2];
@@ -64,27 +56,13 @@ export default defineContentScript({ matches: ["https://github.com/probe*"], mai
 `;
 
 /** Copies the working tree to `copy` with the bench's background and relay overlaid. */
-function scratchCopy(copy: string): void {
-  const paths = execFileSync(
-    "git",
-    ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
-    {
-      cwd: ROOT,
-      encoding: "utf8",
-    },
-  )
-    .split("\0")
-    .filter(Boolean);
-  for (const path of paths) {
-    mkdirSync(dirname(join(copy, path)), { recursive: true });
-    copyFileSync(join(ROOT, path), join(copy, path));
-  }
-  symlinkSync(join(ROOT, "node_modules"), join(copy, "node_modules"));
-
-  const shipped = readFileSync(join(copy, "entrypoints/background.ts"), "utf8");
-  writeFileSync(join(copy, "utils/shipped-background.ts"), shipped.replaceAll('"../utils/', '"./'));
-  writeFileSync(join(copy, "entrypoints/background.ts"), BACKGROUND);
-  writeFileSync(join(copy, "entrypoints/bench-relay.content.ts"), RELAY);
+function benchCopy(copy: string): void {
+  const shipped = readFileSync(join(ROOT, "entrypoints/background.ts"), "utf8");
+  scratchCopy(copy, {
+    "utils/shipped-background.ts": shipped.replaceAll('"../utils/', '"./'),
+    "entrypoints/background.ts": BACKGROUND,
+    "entrypoints/bench-relay.content.ts": RELAY,
+  });
 }
 
 /** `text` with `" // edited"` appended to each 1-based line in `lines`, and the one-line regions. */
@@ -358,19 +336,8 @@ const copy = mkdtempSync(join(tmpdir(), "gh-prism-host-copy-"));
 const profile = mkdtempSync(join(tmpdir(), "gh-prism-host-profile-"));
 let context: BrowserContext | undefined;
 try {
-  scratchCopy(copy);
-  execFileSync(
-    "bunx",
-    ["--no-install", "wxt", "build", "-b", browserName === "firefox" ? "firefox" : "chrome"],
-    {
-      cwd: copy,
-      stdio: ["ignore", "ignore", "inherit"],
-    },
-  );
-  context = await launch(
-    join(copy, ".output", browserName === "firefox" ? "firefox-mv3" : "chrome-mv3"),
-    profile,
-  );
+  benchCopy(copy);
+  context = await launch(buildCopy(copy, browserName), profile);
   await context.route("https://github.com/probe*", (route) =>
     route.fulfill({
       status: 200,

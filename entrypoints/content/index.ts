@@ -12,7 +12,7 @@ import {
 import { allowConversationFrame } from "@/utils/github/conversation-frame";
 import { ownerFilterLink, ownerOf } from "@/utils/github/files-route";
 import { type NextCommit, readNextCommit } from "@/utils/github/next-commit";
-import { connectPrData } from "@/utils/github/pr-port";
+import { connectPrData, type PrDataClient } from "@/utils/github/pr-port";
 import {
   type CommitHead,
   prKeyOf,
@@ -40,6 +40,7 @@ import {
   type DiffstatView,
   diffstatView,
   sidebarSide,
+  structuralMode,
   whatsNewSeen,
 } from "@/utils/prefs";
 import {
@@ -63,6 +64,12 @@ import {
 } from "./conversation/panel";
 import { showReviewerFiles } from "./conversation/reviewer-files";
 import { hashLanding } from "./diffs/reveal";
+import { structuralFiles } from "./diffs/structural-files";
+import {
+  type StructuralChoice,
+  type StructuralMode,
+  structuralChoiceOf,
+} from "./diffs/structural-mode";
 import { visitViewed } from "./diffs/viewed";
 import { findCommentAuthors, findFilesCommentAuthors, followRightPanel } from "./files-page";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
@@ -113,6 +120,7 @@ export default defineContentScript({
       savedOpen,
       savedConversationWidth,
       dismissed,
+      savedStructural,
       whatsNewForPage,
     ] = await Promise.all([
       readSavedSide(),
@@ -124,6 +132,7 @@ export default defineContentScript({
       readSavedOpen(),
       readSavedConversationWidth(),
       readNoticeDismissed(),
+      readSavedStructural(),
       release && followWhatsNew(release, ctx),
     ]);
     const side = sideChoiceOf(savedSide);
@@ -136,6 +145,8 @@ export default defineContentScript({
       choice: diffstatChoiceOf(savedDiffstat),
       save: saveDiffstat,
     } satisfies DiffstatOptions;
+    // Shared by every visit, so Unified seen on one keeps the next one off.
+    const structural = structuralChoiceOf(savedStructural === true, saveStructural);
     const notice: NoticeChoice = { dismissed };
     const conversation = conversationChoiceOf(
       { pinned: savedPinned, open: savedOpen, width: savedConversationWidth },
@@ -224,6 +235,20 @@ export default defineContentScript({
               : undefined;
           const prOwnersGuard = panel && prOwnersPressGuard(document, visit);
           const landHash = hashLanding(document, visit);
+          // Built on a page's first use while on, and again if the mode is turned back on in this
+          // visit; never while off.
+          let mode: StructuralMode | undefined;
+          const structuralFor = () => {
+            if (!structural.on || route.commitFiltered) return undefined;
+            if (!mode || mode.until.aborted) {
+              mode = structuralModeOf(structural, {
+                connect: () => sources.connect(route.diff),
+                commit: route.diff.kind === "commit",
+                visit,
+              });
+            }
+            return mode;
+          };
           return (page, signal) => {
             const owner = route.diff.kind === "pr" ? ownerOf(location.search) : undefined;
             showReportLink(page, signal, reportOptions);
@@ -241,6 +266,7 @@ export default defineContentScript({
               filter,
               whatsNew: whatsNewForPage?.(),
               landHash,
+              structural: structuralFor(),
             });
             showCommitMessage(page, signal, {
               afterSections: afterLanding(intent),
@@ -526,6 +552,38 @@ const saveMessageHidden = (hidden: boolean) =>
     .catch((error: unknown) =>
       console.error("gh-prism: saving whether the commit message is hidden failed", error),
     );
+
+/** Whether Structural mode was left on, unchecked, or off when storage won't read. */
+const readSavedStructural = (): Promise<unknown> =>
+  structuralMode.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading whether Structural mode is on failed", error);
+    return structuralMode.fallback;
+  });
+
+const saveStructural = (on: boolean) =>
+  structuralMode
+    .setValue(on)
+    .catch((error: unknown) =>
+      console.error("gh-prism: saving whether Structural mode is on failed", error),
+    );
+
+/**
+ * A visit's Structural mode, asking `connect`'s port for its files, until `visit` ends or GitHub's
+ * Unified layout turns `structural` off.
+ */
+function structuralModeOf(
+  structural: StructuralChoice,
+  { connect, commit, visit }: { connect: () => PrDataClient; commit: boolean; visit: AbortSignal },
+): StructuralMode {
+  const until = AbortSignal.any([visit, structural.whileOn]);
+  return {
+    files: structuralFiles(connect, until),
+    until,
+    commit,
+    search: () => location.search,
+    unifiedSeen: () => structural.set(false),
+  };
+}
 
 /** Whether the user dismissed the classic page's notice; not, when storage won't read. */
 const readNoticeDismissed = (): Promise<boolean> =>

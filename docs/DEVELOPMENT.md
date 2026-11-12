@@ -120,13 +120,29 @@ the built extension: that the engine loads only on first use, a cold and a warm 
 long a PR data port message waits while a run is in flight (at most 25 ms), that a run
 succeeds after the background restarts, and that the engine's context is gone after 35
 idle seconds. In Chromium it also checks that the `offscreen` permission adds no install
-warning. It builds a scratch copy of the working tree with a test-only background addition
-and a relay content script, prints one JSON object, and exits 1 when a check fails. Like
-the rest of `bench/`, it stays out of CI. `bench/structural-host/results/*.json` hold one
-run per browser, written by
+warning. It builds a scratch copy of the working tree with `bench/scratch-build.ts`,
+adding a test-only background addition and a relay content script, prints one JSON object,
+and exits 1 when a check fails. Like the rest of `bench/`, it stays out of CI.
+`bench/structural-host/results/*.json` hold one run per browser, written by
 `bun bench/structural-host.ts chromium > bench/structural-host/results/chromium.json` (and
 likewise for `firefox`); they are a dated record, not a baseline anything compares
 against.
+
+`bun bench/structural-mode-live.ts <chromium|firefox> <storage-state path> [url…]` checks
+Structural mode in the built extension on live GitHub. It needs a signed-in Playwright
+`storageState` file; the default URLs are sandbox PRs #3 and #4 and two sandbox commits,
+all in Split. It builds a scratch copy with `bench/scratch-build.ts`, adding a bench-only
+content script that sets and reads the preference and asks the port for a file's answer.
+It runs three passes: with the preference off, no URL shows any structural trace; with it
+on, each on-screen file is painted or skipped for a reason; and choosing Unified from the
+gear turns the preference off. That last pass changes the signed-in account's saved
+Layout, then chooses the original again before the run ends, on failure too;
+`bun bench/structural-mode-live/restore-check.ts` proves that restore offline. It prints
+one line per check, ends the second pass with `mismatch: <n> of <m>`, and exits 1 when a
+check fails. `bench/structural-mode-live/results/*.txt` hold one run per browser, written
+by
+`bun bench/structural-mode-live.ts chromium <path> > bench/structural-mode-live/results/chromium.txt`
+(and likewise for `firefox`); they are a dated record, not a baseline.
 
 ## Sandbox repositories
 

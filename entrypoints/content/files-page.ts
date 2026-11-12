@@ -1037,6 +1037,26 @@ export function currentLayout(diffs: ParentNode): DiffLayout | undefined {
   return tables.length ? "unified" : undefined;
 }
 
+/**
+ * Whether the diffs under `diffs` are drawn in GitHub's Unified layout for certain. `false` covers
+ * Split and every case the tables cannot settle. `search` is the page's `location.search`;
+ * `commit` says the page is a commit's.
+ */
+export function showsUnified(
+  diffs: ParentNode,
+  { commit, search }: { commit: boolean; search: string },
+): boolean {
+  const tables = diffTables(diffs);
+  if (tables.length === 0 || tables.some(({ layout }) => layout === "split")) return false;
+
+  // A pull request draws a one-sided file with three columns in Split too; a two-sided one cannot.
+  return (
+    commit ||
+    new URLSearchParams(search).get("diff") === "unified" ||
+    tables.some(({ table }) => new Set(changedCells(table).map(({ side }) => side)).size === 2)
+  );
+}
+
 /** A mounted diff table: its file's anchor and the layout it is drawn in. */
 export interface DiffTable {
   readonly table: HTMLTableElement;
