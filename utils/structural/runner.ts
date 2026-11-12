@@ -3,6 +3,7 @@ import { Language, Parser } from "web-tree-sitter";
 import { type LoadedGrammar, structuralChanges } from "./engine";
 import type { GrammarId } from "./grammar";
 import { GRAMMAR_WASM, RUNTIME_WASM } from "./packaged";
+import type { PlainText } from "./plain-text";
 import type { EngineRun } from "./request";
 import { retriedOnFailure } from "./retried";
 
@@ -39,12 +40,15 @@ export function engineRunner(deps: RunnerDeps): EngineRun {
   return async ({ oldText, newText, grammar, regions, limits }, signal) => {
     signal.throwIfAborted();
 
-    let language: LoadedGrammar | undefined;
-    try {
-      language = grammar && { grammar, parser: await parserFor(grammar.id) };
-    } catch (error) {
-      console.warn(`gh-prism: couldn't load the ${grammar?.id} grammar`, error);
-      return { ok: false, reason: "failed" };
+    let language: LoadedGrammar | PlainText | undefined;
+    if (typeof grammar !== "object") language = grammar;
+    else {
+      try {
+        language = { grammar, parser: await parserFor(grammar.id) };
+      } catch (error) {
+        console.warn(`gh-prism: couldn't load the ${grammar.id} grammar`, error);
+        return { ok: false, reason: "failed" };
+      }
     }
 
     return structuralChanges({

@@ -2,6 +2,7 @@ import { type ChangeObject, diffArrays } from "diff";
 import type { Parser } from "web-tree-sitter";
 import type { StructuralChanges, TokenSpan } from "./changes";
 import type { Grammar } from "./grammar";
+import { PLAIN_TEXT, type PlainText, plainTextTokens } from "./plain-text";
 import { keyedByIndentation, leafTokens, lineStarts, type Token } from "./tokens";
 
 /** Why the engine returned no changes. */
@@ -50,8 +51,8 @@ export { DEFAULT_LIMITS } from "./limits";
 export interface EngineInput {
   readonly oldText: string;
   readonly newText: string;
-  /** `undefined` when `grammarOf` found no grammar for the file. */
-  readonly language: LoadedGrammar | undefined;
+  /** `undefined` when the file is not plain text and `grammarOf` found no grammar for it. */
+  readonly language: LoadedGrammar | PlainText | undefined;
   /**
    * The file's changed runs in order, in 1-based lines of these exact texts, split on `\n` only;
    * tokens outside them are taken as unchanged.
@@ -67,7 +68,7 @@ export interface EngineInput {
 
 /**
  * The tokens each version of a file changed, or why they can't be had: `unsupported` without a
- * grammar, `too-large` past a size limit, `too-slow` when a parse or the diff passes its deadline,
+ * language, `too-large` past a size limit, `too-slow` when a parse or the diff passes its deadline,
  * `failed` when either text does not parse. Rejects with `signal.reason` if `signal` has aborted
  * at the start or after either parse.
  */
@@ -103,10 +104,13 @@ const refuse = (reason: EngineRefusal): EngineResult => ({ ok: false, reason });
 /** `text`'s diff tokens, or why it has none. */
 function tokensOf(
   text: string,
-  { grammar, parser }: LoadedGrammar,
+  language: LoadedGrammar | PlainText,
   limits: EngineLimits,
   now: () => number,
 ): Token[] | EngineRefusal {
+  if (language === PLAIN_TEXT) return plainTextTokens(text, limits.maxTokens) ?? "too-large";
+
+  const { grammar, parser } = language;
   // A parse cancelled earlier would otherwise resume on this text.
   parser.reset();
   const deadline = now() + limits.maxParseMs;

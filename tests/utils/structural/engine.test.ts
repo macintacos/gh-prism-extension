@@ -9,6 +9,7 @@ import {
   structuralChanges,
 } from "../../../utils/structural/engine";
 import type { GrammarId } from "../../../utils/structural/grammar";
+import { PLAIN_TEXT } from "../../../utils/structural/plain-text";
 import {
   inputFor,
   parserFor,
@@ -33,7 +34,7 @@ type Overrides = Partial<Omit<EngineInput, "limits">> & {
 
 /** The engine's result for `oldText` against `newText`, with `regionsOf` them unless overridden. */
 async function run(
-  id: GrammarId,
+  id: GrammarId | typeof PLAIN_TEXT,
   oldText: string,
   newText: string,
   { limits, ...overrides }: Overrides = {},
@@ -42,7 +43,7 @@ async function run(
     inputFor({
       oldText,
       newText,
-      language: languageOf(id),
+      language: id === PLAIN_TEXT ? PLAIN_TEXT : languageOf(id),
       regions: regionsOf(oldText, newText),
       limits: { ...DEFAULT_LIMITS, ...limits },
       ...overrides,
@@ -70,7 +71,7 @@ function changesOf(result: EngineResult): StructuralChanges {
 }
 
 async function changedTexts(
-  id: GrammarId,
+  id: GrammarId | typeof PLAIN_TEXT,
   oldText: string,
   newText: string,
   overrides?: Overrides,
@@ -87,6 +88,23 @@ const wholeFile = (text: string): ChangedRegion[] => {
 const PAIRS = GRAMMARS.flatMap((id) =>
   ["reindent", "rewrap", "rename", "added-argument"].map((name) => [id, name] as const),
 ).concat([["python", "moved-out-of-block"]]);
+
+/** `lines` as one comment per grammar and style, above a statement every grammar parses. */
+type CommentOf = (lines: readonly string[]) => string;
+const COMMENTS = GRAMMARS.flatMap((id): (readonly [GrammarId, string, CommentOf])[] => {
+  const line =
+    (marker: string): CommentOf =>
+    (lines) =>
+      `${lines.map((text) => `${marker} ${text}\n`).join("")}f()\n`;
+  const block: CommentOf = (lines) =>
+    `/**\n${lines.map((text) => ` * ${text}\n`).join("")} */\nf()\n`;
+  return id === "python"
+    ? [[id, "#", line("#")]]
+    : [
+        [id, "//", line("//")],
+        [id, "/**", block],
+      ];
+});
 
 /** A clock that adds 1 per call, and how often it was read. */
 function countingClock() {
@@ -118,6 +136,109 @@ describe("structuralChanges", () => {
     const { oldText, newText } = readPair(id, "added-argument");
 
     expect(await changedTexts(id, oldText, newText)).toEqual({ old: [], new: [",", "third"] });
+  });
+
+  it.each(COMMENTS)(
+    "marks only the reworded words of a %s %s comment",
+    async (id, _style, comment) => {
+      const oldText = comment(["Copies the menu's group and", "its divider."]);
+      const newText = comment(["Copies the menu's group, its", "divider and item."]);
+
+      expect(await changedTexts(id, oldText, newText)).toEqual({
+        old: ["and"],
+        new: [",", "and", "item"],
+      });
+    },
+  );
+
+  it.each(COMMENTS)(
+    "finds no change in a re-wrapped %s %s comment",
+    async (id, _style, comment) => {
+      const oldText = comment(["Copies the menu's group and", "its divider."]);
+      const newText = comment(["Copies the menu's", "group and its", "divider."]);
+
+      expect(await changedTexts(id, oldText, newText)).toEqual({ old: [], new: [] });
+    },
+  );
+
+  it.each([
+    ["alone", "// f();\n", "f();\n", ["//", "f", "(", ")", ";"]],
+    ["after another comment", "// a\n// f();\n", "// a\nf();\n", ["f", "(", ")", ";"]],
+  ])("marks code uncommented %s", async (_name, oldText, newText, old) => {
+    expect(await changedTexts("typescript", oldText, newText)).toEqual({
+      old,
+      new: ["f", "(", ")", ";"],
+    });
+  });
+
+  it.each([
+    ["typescript", 'const s = "the quick fox";\n', 'const s = "the slow fox";\n'],
+    ["javascript", "const s = `the quick\n  fox`;\n", "const s = `the slow\n  fox`;\n"],
+    [
+      "python",
+      'def f():\n    """The quick\n    fox."""\n',
+      'def f():\n    """The slow\n    fox."""\n',
+    ],
+    ["tsx", "x = <p>the quick fox</p>;\n", "x = <p>the slow fox</p>;\n"],
+  ] as const)(
+    "marks only the reworded word of a %s string or text",
+    async (id, oldText, newText) => {
+      expect(await changedTexts(id, oldText, newText)).toEqual({ old: ["quick"], new: ["slow"] });
+    },
+  );
+
+  it("marks the word after a spacing change inside a string", async () => {
+    const oldText = 'const s = "a b";\n';
+    const newText = 'const s = "a  b";\n';
+
+    expect(await changedTexts("typescript", oldText, newText)).toEqual({ old: ["b"], new: ["b"] });
+  });
+
+  describe("plain text", () => {
+    it("marks only the reworded words", async () => {
+      const oldText = "Title\n\nCopies the menu's group and\nits divider.\n";
+      const newText = "Title\n\nCopies the menu's group, its\ndivider and item.\n";
+
+      expect(await changedTexts(PLAIN_TEXT, oldText, newText)).toEqual({
+        old: ["and"],
+        new: [",", "and", "item"],
+      });
+    });
+
+    it("finds no change in a re-wrapped paragraph", async () => {
+      const oldText = "Copies the menu's group and\nits divider.\n";
+      const newText = "Copies the menu's\n  group and its\ndivider.\n";
+
+      expect(await changedTexts(PLAIN_TEXT, oldText, newText)).toEqual({ old: [], new: [] });
+    });
+
+    it("refuses a text of more words than maxTokens", async () => {
+      const text = "w ".repeat(DEFAULT_LIMITS.maxTokens + 1);
+
+      expect(await run(PLAIN_TEXT, text, `${text}more\n`)).toEqual({
+        ok: false,
+        reason: "too-large",
+      });
+    });
+
+    it("refuses two unrelated long texts", async () => {
+      const words = (prefix: string) =>
+        Array.from({ length: 5_000 }, (_, i) => `${prefix}${i}`).join(" ");
+
+      expect(await run(PLAIN_TEXT, `${words("a")}\n`, `${words("b")}\n`)).toEqual({
+        ok: false,
+        reason: "too-large",
+      });
+    });
+  });
+
+  it("refuses a comment of more words than maxTokens", async () => {
+    const comment = (last: string) => `/* ${"w ".repeat(DEFAULT_LIMITS.maxTokens)}${last} */\n`;
+
+    expect(await run("typescript", comment("old"), comment("new"))).toEqual({
+      ok: false,
+      reason: "too-large",
+    });
   });
 
   it("marks a Python statement moved out of its block", async () => {
@@ -185,13 +306,13 @@ describe("structuralChanges", () => {
   it.each([
     {
       name: "merges two regions sharing a token",
-      oldText: "const s = `a\nb\nc\nd`;\n",
-      newText: "const s = `a\nB\nc\nD`;\n",
+      oldText: "const s = ` \n  \n \n  \n `;\n",
+      newText: "const s = ` \n   \n \n   \n `;\n",
       regions: [
         { oldStart: 2, oldEnd: 3, newStart: 2, newEnd: 3 },
         { oldStart: 4, oldEnd: 5, newStart: 4, newEnd: 5 },
       ],
-      expected: { old: ["a", "b", "c", "d"], new: ["a", "B", "c", "D"] },
+      expected: { old: [" ", "  ", " ", "  ", " "], new: [" ", "   ", " ", "   ", " "] },
     },
     {
       name: "widens the first region to a mismatch before it",
@@ -335,8 +456,8 @@ describe("structuralChanges", () => {
   });
 
   it("splits a changed token spanning lines into one span per line", async () => {
-    const oldText = "const s = `a\nb`;\n";
-    const newText = "const s = `a\nc`;\n";
+    const oldText = "const s = ` \n  `;\n";
+    const newText = "const s = `  \n  `;\n";
 
     const changes = changesOf(await run("typescript", oldText, newText));
 
