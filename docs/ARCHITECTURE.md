@@ -78,47 +78,48 @@ sends only while Structural mode is on.
 [`utils/structural/tokens.ts`](../utils/structural/tokens.ts) turns each parse into the
 tokens the engine compares: one per leaf, and one per word of running text, split by
 [`utils/structural/words.ts`](../utils/structural/words.ts). Running text is a comment, a
-string's text, JSX or HTML text, a YAML scalar, and every kind of Markdown text. A
-re-wrapped comment or a reflowed Markdown paragraph therefore changes no token. Markdown's
-text is its prose, a table cell, an HTML block, the parts of a link reference definition,
-a fenced or indented code block, and front matter. All of it ignores spacing, so a table
-padded wider keeps its words, and the dashes of a table's delimiter row are no tokens at
-all. A line of code or front matter keeps its depth on its first word, so re-indenting it
-is a change. A grammar joins by naming its node kinds in two tables at the top of
-`tokens.ts`: its comment kinds in `COMMENT_TYPES`, and its other text kinds in
-`TEXT_SPACING`, each with how its spacing counts. The `*` that leads a block comment's
-later line, and the marker of a line comment that continues another, are layout tokens.
-The engine's diff skips them. The engine reports one as changed only when the rest of its
-line changed, so a new comment's lines reach the painter changed in full. A parse with
-errors still gives every non-blank character a token, so the engine compares it like any
-other: a grammar that trails its language, as tree-sitter-go does on Go 1.26's
-`new(expression)`, costs no file its structural diff. Python, Markdown, and YAML are the
-exception. Their tokens carry a line's depth, which `keyedByIndentation` reads from the
-tree's brackets, so the engine answers `unparsed` for a parse with errors there. A `.txt`
-file has no grammar and no parse:
+string's text, JSX or HTML text, a YAML scalar, and all Markdown text, so a re-wrapped
+comment or a reflowed Markdown paragraph changes no token. Markdown's text is its prose, a
+table cell, an HTML block, a link reference definition's parts, a fenced or indented code
+block, and front matter. All of it ignores spacing, so a padded table keeps its words, and
+a delimiter row's dashes are no tokens. A line of code or front matter keeps its depth on
+its first word, so re-indenting it is a change. A grammar joins by naming its node kinds
+in two tables atop `tokens.ts`: comment kinds in `COMMENT_TYPES`, and other text kinds in
+`TEXT_SPACING` with how their spacing counts. The `*` that leads a block comment's later
+line, and the marker of a line comment that continues another, are layout tokens. The diff
+skips them, and the engine reports one as changed only when the rest of its line did, so a
+new comment's lines reach the painter changed in full. A parse with errors still gives
+every non-blank character a token and is compared like any other: a grammar that trails
+its language, as tree-sitter-go does on Go 1.26's `new(expression)`, costs no file its
+structural diff. Python, Markdown, and YAML are the exception: their tokens carry a line's
+depth, which `keyedByIndentation` reads from the tree's brackets, so a parse with errors
+there answers `unparsed`. A `.txt` file has no grammar and no parse:
 [`utils/structural/plain-text.ts`](../utils/structural/plain-text.ts) names it, and the
 engine compares its words alone.
 
-A diff of unrelated code still pairs some tokens, such as a `}`, a comma, or a shared
-name, and each pairing would leave a hole in a line's mark.
-[`utils/structural/chance.ts`](../utils/structural/chance.ts) drops those pairings from
-each region's diff, so a block replaced by unrelated code reaches the painter changed in
-full. It calls a line replaced when the diff leaves it less than half its tokens, or half
-of them when it is all punctuation. A line that is not replaced and keeps a word vouches
-for its pairings. A run of paired tokens is dropped when, on a replaced line of either
-side, changed runs at least as long as it sit before and after it, unless its line on the
-other side vouches for it. Any pairing left between two replaced lines is dropped too. A
-line that keeps half its tokens therefore keeps its marks: a renamed name, a changed
-argument, or an argument added to an unchanged call.
+[`utils/structural/named-values.ts`](../utils/structural/named-values.ts) runs before a
+region's diff. It pairs a statement that holds a value with the other side's statement
+that holds a name in its place, when an earlier statement there holds both: a value
+extracted into a name, or a name inlined. The pair changes only the value and the name,
+and each stretch between pairs is diffed alone.
+
+A diff of unrelated code still pairs some tokens, such as a `}` or a shared name, each a
+hole in a line's mark. [`utils/structural/chance.ts`](../utils/structural/chance.ts) drops
+them, so a block replaced by unrelated code reaches the painter changed in full. A line is
+replaced when the diff leaves it less than half its tokens, or half when it is all
+punctuation. A line not replaced that keeps a word vouches for its pairings. A run of
+paired tokens is dropped when, on a replaced line of either side, changed runs at least as
+long as it sit before and after it, unless its line on the other side vouches for it. Any
+pairing left between two replaced lines is dropped too.
 
 [`utils/structural/units.ts`](../utils/structural/units.ts) reads each parse for its
 units: the syntax nodes that have their lines to themselves. After the diff, the engine
-takes each unit changed whole whose parent node was not, and sets its tokens aside as a
-block that left or arrived. A region whose diff passes `maxEditLength` is changed whole on
-both sides, and the engine sets its tokens aside the same way. Every other changed token
-changed inside a unit that remains, and the engine lists those tokens' lines in
-`StructuralChanges.inside`. `structuralFile` copies the list onto each line's annotation
-as `inside`. A `.txt` file has no units and no list.
+sets aside the tokens of each unit changed whole whose parent node was not, as a block
+that left or arrived, and those of a region whose diff passes `maxEditLength`, which is
+changed whole on both sides. Every other changed token changed inside a unit that remains,
+and the engine lists those tokens' lines in `StructuralChanges.inside`. `structuralFile`
+copies the list onto each line's annotation as `inside`. A `.txt` file has no units and no
+list.
 
 The content script in [`entrypoints/content/index.ts`](../entrypoints/content/index.ts)
 runs on every github.com page at `document_start`, so its watcher is in place before
@@ -1190,7 +1191,7 @@ utils/
     conversation-frame.ts  the per-tab session rule that lets only the Conversation panel frame a PR's Conversation tab, and the panel's request for it
   intent/                reading, caching, and landing intent
   hunk-rules/            the docstring and inline-test rules, and the generator-marker scan; a head is line-scanned, or built from a head outline when one is given
-  structural/            rebuilding a changed file's old text from its patch; the tree-sitter token-diff engine, its grammar table, and the rule that drops a diff's chance pairings; outlining a head file's multi-line comments, strings, and test blocks from a parse; mapping an engine's structural changes onto diff lines; the request shape a message carries, the runner that compiles the packaged WebAssembly, the one-at-a-time host, the engine Worker's message channel, Chrome's offscreen relay, the engine thread the host runs requests on, and the list of packaged files; building and caching a file's structural changes for the port; reading changed regions from hunks; the engine's default limits
+  structural/            rebuilding a changed file's old text from its patch; the tree-sitter token-diff engine, its grammar table, and the rules that pair a named value and drop a diff's chance pairings; outlining a head file's multi-line comments, strings, and test blocks from a parse; mapping an engine's structural changes onto diff lines; the request shape a message carries, the runner that compiles the packaged WebAssembly, the one-at-a-time host, the engine Worker's message channel, Chrome's offscreen relay, the engine thread the host runs requests on, and the list of packaged files; building and caching a file's structural changes for the port; reading changed regions from hunks; the engine's default limits
   sections.ts            path rules for the five sections
   prefs.ts               saved preferences
   whats-new.ts           when the what's-new block shows
