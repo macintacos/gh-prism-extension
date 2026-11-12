@@ -1224,6 +1224,23 @@ export function coveredTop(page: FilesPage): number {
   return Math.max(0, parseFloat(getComputedStyle(header).top) || 0);
 }
 
+/** The sticky header of the file whose card holds `node`, or `null` where there is none. */
+export const stickyHeaderOf = (node: Element): Element | null =>
+  node.closest('[role="region"]')?.querySelector(STICKY_HEADER) ?? null;
+
+/**
+ * The px from the viewport's top at which GitHub sticks the file headers under `diffs`, or
+ * `undefined` while none of them is sticky. A pull request's header is `position: relative` at
+ * `top: 0` until GitHub turns its entry's stickiness on, near the viewport.
+ */
+export function stuckHeaderTop(diffs: ParentNode): number | undefined {
+  for (const header of diffs.querySelectorAll(STICKY_HEADER)) {
+    const { position, top } = getComputedStyle(header);
+    if (position === "sticky" && top.endsWith("px")) return parseFloat(top);
+  }
+  return undefined;
+}
+
 /**
  * Calls `onChange` on a window resize or a change to `doc.body`'s `style`, where GitHub writes
  * `--base-sticky-header-height`, until `signal` aborts.

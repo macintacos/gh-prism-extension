@@ -49,6 +49,8 @@ import {
   reviewerShieldOf,
   shieldOwner,
   showsViewed,
+  stickyHeaderOf,
+  stuckHeaderTop,
   treeToggleButtonOf,
   viewedOffered,
   viewedToggleOf,
@@ -1430,6 +1432,49 @@ describe("coveredTop", () => {
       header.remove();
 
     expect(coveredTop(foundPage())).toBe(0);
+  });
+});
+
+/** Two file regions under one diffs container, each a header and a card, as GitHub mounts them. */
+function mountHeaders(...headerStyles: string[]): HTMLElement {
+  const diffs = document.createElement("div");
+  diffs.innerHTML = headerStyles
+    .map(
+      (style) =>
+        `<div role="region"><div class="diffHeaderWrapper__abc" style="${style}"></div><div class="card"><table></table></div></div>`,
+    )
+    .join("");
+  document.body.replaceChildren(diffs);
+  return diffs;
+}
+
+describe("stuckHeaderTop", () => {
+  it("is the top of a header GitHub has made sticky, past one it has not", () => {
+    const diffs = mountHeaders("position: relative; top: 0px", "position: sticky; top: 108px");
+
+    expect(stuckHeaderTop(diffs)).toBe(108);
+  });
+
+  it("is undefined while no header is sticky", () => {
+    const diffs = mountHeaders("position: relative; top: 0px");
+
+    expect(stuckHeaderTop(diffs)).toBeUndefined();
+  });
+});
+
+describe("stickyHeaderOf", () => {
+  it("is the header of the file whose card holds the node", () => {
+    const diffs = mountHeaders("", "");
+    const [, second] = diffs.querySelectorAll("table");
+    if (!second) throw new Error("no second table");
+
+    expect(stickyHeaderOf(second)).toBe(diffs.querySelectorAll(".diffHeaderWrapper__abc")[1]);
+  });
+
+  it("is null outside a file", () => {
+    mountHeaders("");
+
+    expect(stickyHeaderOf(document.body)).toBeNull();
   });
 });
 

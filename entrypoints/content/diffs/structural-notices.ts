@@ -1,5 +1,11 @@
 import type { StructuralProblem } from "@/utils/structural/file-changes";
-import { diffTables, observeDiffs } from "../files-page";
+import {
+  diffTables,
+  observeCoveredTop,
+  observeDiffs,
+  stickyHeaderOf,
+  stuckHeaderTop,
+} from "../files-page";
 import { el } from "../ui/dom";
 import { LOADING_DELAY_MS } from "../ui/loading-view";
 import type { LandingView } from "../visit/land";
@@ -155,12 +161,40 @@ export function showStructuralNotices(
     notice.setAttribute(KIND_ATTR, show);
     return notice;
   };
+  // What a stuck notice's `top` adds up from: where GitHub sticks the file headers, and each
+  // noticed file's header height as `headers` last reported it.
+  let stuckAt: number | undefined;
+  const heights = new WeakMap<Element, number>();
+  // Writes only, so a pass that calls it forces no layout.
+  const stick = () => {
+    if (stuckAt === undefined) return;
+    for (const notice of diffs.querySelectorAll<HTMLElement>(`.${NOTICE_CLASS}`)) {
+      const header = stickyHeaderOf(notice);
+      const height = header ? heights.get(header) : undefined;
+      if (height !== undefined) notice.style.top = `${stuckAt + height}px`;
+    }
+  };
+  const measure = () => {
+    stuckAt = stuckHeaderTop(diffs) ?? stuckAt;
+    stick();
+  };
+  // Reports each header once it is first rendered, then whenever its box changes.
+  const headers = new win.ResizeObserver((entries) => {
+    for (const { target, borderBoxSize } of entries)
+      heights.set(target, borderBoxSize[0]?.blockSize ?? 0);
+    measure();
+  });
   const apply = ({ wants, ours }: Pass) => {
     const kept = new Set<Element>();
     for (const { table, path, show, current } of wants) {
       if (shows(current, show)) {
         if (current) kept.add(current);
-      } else if (show !== undefined) table.before(nodeFor(show, path));
+        continue;
+      }
+      if (show === undefined) continue;
+      table.before(nodeFor(show, path));
+      const header = show === "loading" ? null : stickyHeaderOf(table);
+      if (header) headers.observe(header);
     }
     for (const node of ours) if (!kept.has(node)) node.remove();
   };
@@ -186,6 +220,10 @@ export function showStructuralNotices(
   const pass = () => {
     const reads = collect();
     apply(reads);
+    // A new notice under a header already measured sticks here. Until a header has been found
+    // sticky, each pass looks again: nothing reports GitHub turning a header's stickiness on.
+    if (stuckAt === undefined) measure();
+    else stick();
     trackHolds(reads);
   };
   const schedule = () => {
@@ -198,7 +236,9 @@ export function showStructuralNotices(
 
   doc.head.append(style);
   observeDiffs(diffs, schedule, { signal });
+  observeCoveredTop(doc, measure, { signal });
   signal.addEventListener("abort", () => {
+    headers.disconnect();
     if (frame !== undefined) win.cancelAnimationFrame(frame);
     for (const hold of holds.values()) if (hold !== true) win.clearTimeout(hold);
     holds.clear();
