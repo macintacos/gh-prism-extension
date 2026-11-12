@@ -6,6 +6,85 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-11: The Structural segment leads with gh-prism's prism
+
+- **Asked for:** the maintainer asked for "a little prism icon to the left of the word
+  'Structural'" in the diff view control, which highlights while the pointer is anywhere
+  on the segment, "like it does in other areas of the UI". They named no surface.
+- **Compared:**
+  - for the highlight, the mark's pulse through the section hues, or the step from muted
+    to the default text colour that the classic page's "Why is gh-prism off?" button gives
+    its glyph;
+  - for the glyph's size, 16px or the label's 12px;
+  - for the pressed segment at rest, the muted glyph or the label's colour;
+  - for a hovered pressed segment, the pulse or a still glyph;
+  - for keyboard focus, the pulse or nothing;
+  - for an unavailable segment, the pulse or a still glyph;
+  - for assistive technology, a named image as the mark is, or decoration.
+- **Won:** the mark's glyph at 16px before the label, on Structural alone, hidden from
+  assistive technology, so the segment's name stays "Structural Beta".
+  - At rest the glyph is `--fgColor-muted`.
+  - While the segment is hovered or shows keyboard focus, pressed or not, the glyph runs
+    the mark's own hover from the mark's own sheet: the same cross-fade to a coloured
+    copy, which pulses through the same hues and fades between full and 70% opacity on the
+    same timing.
+  - At rest, a pressed segment's glyph takes the label's colour.
+  - An unavailable segment's glyph takes the label's disabled colour and stays still.
+  - Under reduced motion, hover and focus swap at once to the mark's still
+    `--fgColor-accent` copy.
+  - Under forced colours there is no pulse, and the glyph is `ButtonText`, as the label
+    is.
+- **Why:**
+  - **Highlight:** the pulse is what a reviewer has seen gh-prism's prism do on every
+    panel and dialog, so the same glyph doing it here reads as the same thing. The classic
+    button's step is that button's own text colour, not a treatment of the prism.
+  - **Size:** the glyph is drawn for 16px, and its 1.5px bars blur at 12px. Primer sets a
+    16px icon beside body-small text in its small Button, as the classic page's button
+    does.
+  - **Pressed:** the pressed segment is the control's one emphasis, so its icon rises with
+    its semibold label. The step changes lightness, not hue, so the state still doesn't
+    depend on colour: weight and edge carry it.
+  - **Hovered while pressed:** the pulse says whose view this is, not that a press will do
+    something, and the segment's tooltip shows there too.
+  - **Focus:** `design/brief.md` gives focus the same detail as hover. The mark itself is
+    hover-only because it takes no focus, and the segment does.
+  - **Unavailable:** a lit icon would invite a press that does nothing.
+  - **Decoration:** the label already names the view. The mark's name, "Added by
+    gh-prism", would prefix the segment's name.
+- **Measured** 2026-11-11, signed in, on sandbox PR #3 and commit `8d807ee`, in Chromium
+  157 and Firefox 157, against `design/brief.md`'s 3:1 floor for an icon. The two browsers
+  computed the same colours:
+
+  | Glyph | On | Light | Dark |
+  | --- | --- | --- | --- |
+  | resting, `--fgColor-muted` | the track | 5.06:1 | 7.05:1 |
+  | resting, the label's colour | the pressed knob | 15.80:1 | 12.90:1 |
+  | the four hues at full opacity | the hovered track | 3.87:1 to 4.13:1 | 3.89:1 to 5.19:1 |
+  | the four hues at full opacity | the pressed knob | 4.87:1 to 5.19:1 | 4.17:1 to 5.56:1 |
+
+  - The segment is 142px wide, where it was 122px, and still 26px high in a 28px track.
+  - On a pull request, wherever the toolbar's row has slack, GitHub's buttons hold their
+    places, and the name and the Viewed counter sit 20px further left.
+  - On a pull request the control gives up its room 10px to 20px sooner, measured in 10px
+    steps:
+    - in Chromium the name shows from 890px, where it showed from 870px, and the control
+      from 830px, where it showed from 820px;
+    - in Firefox the name shows from 910px, where it showed from 890px, and the control
+      from 860px, where it showed from 840px.
+  - Just above each of those widths the row is at its tightest, and the gear sits up to
+    20px further right.
+  - The toolbar overflows at no width from 500px to 1600px with the control shown.
+  - On a commit, the name still goes below 1100px and the control below 768px. From 768px
+    to 1000px the search box is 20px narrower, 287px at 768px. From 1090px up the gear
+    sits 20px further right.
+- **Accepted:**
+  - At the pulse's dimmest point, 70% opacity, a hue is 2.48:1 to 3.47:1, below the icon
+    floor for part of the loop, as the mark's pulse is on its other surfaces. The icon is
+    decoration, and the label beside it holds the text floor.
+  - The disabled glyph is below 3:1, as the disabled label is.
+  - Forced colours were checked in Chromium's emulation only, and themes by switching
+    `data-color-mode`.
+
 ## 2026-11-11: Structural mode marks a line changed in full inside a unit that remains
 
 This replaces the pick of the 2026-11-11 "Structural mode steps down the tint of a line
