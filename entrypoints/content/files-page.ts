@@ -829,6 +829,38 @@ export function findLayoutMenu(doc: Document): LayoutMenu | undefined {
   return undefined;
 }
 
+/** What an open diff settings menu draws only to offer its Layout choice. */
+export interface LayoutGroup {
+  /**
+   * The group, the divider after it, and its two items. The items are listed themselves because
+   * Primer's arrow keys skip an item only once it carries `hidden` or `disabled` itself.
+   */
+  readonly parts: readonly Element[];
+  /** The menu's first item outside the group. */
+  readonly firstOther: HTMLElement;
+}
+
+const ACTION_GROUP = '[data-component="ActionList.Group"]';
+const ACTION_DIVIDER = '[data-component="ActionList.Divider"]';
+
+/**
+ * `menu`'s Layout group, or `undefined` unless it is the menu's first group, holds Unified and
+ * Split alone, and is followed by a divider and at least one other item.
+ */
+export function findLayoutGroup(menu: LayoutMenu): LayoutGroup | undefined {
+  const group = menu.unified.closest(ACTION_GROUP);
+  if (!group || group !== menu.list.firstElementChild || !group.contains(menu.split))
+    return undefined;
+
+  const items = [...menu.list.querySelectorAll<HTMLElement>('[role^="menuitem"]')];
+  const firstOther = items.find((item) => !group.contains(item));
+  const divider = group.nextElementSibling;
+  if (!firstOther || !divider?.matches(ACTION_DIVIDER)) return undefined;
+  if (items.filter((item) => group.contains(item)).length !== 2) return undefined;
+
+  return { parts: [group, divider, menu.unified, menu.split], firstOther };
+}
+
 /** What GitHub calls a pull request's own page: its overview, or the classic Conversation tab. */
 export type PrPageName = "Overview" | "Conversation";
 

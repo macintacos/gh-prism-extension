@@ -79,6 +79,7 @@ describe("showDiffViewControl", () => {
   let guard: PressGuard;
   const flush = () => vi.advanceTimersByTimeAsync(100);
   const control = () => document.querySelector<HTMLElement>(".gh-prism-diff-view");
+  const label = () => document.querySelector<HTMLElement>(".gh-prism-diff-view-name");
   const segment = (view: DiffView) =>
     document.querySelector<HTMLButtonElement>(`.gh-prism-diff-view [data-view="${view}"]`);
   const pressed = () =>
@@ -209,6 +210,16 @@ describe("showDiffViewControl", () => {
     expect(control()?.getAttribute("aria-label")).toBe("Diff view");
   });
 
+  it("shows its name before the segments, read to assistive technology off the list alone", () => {
+    const page = pageOf("pr", "split");
+
+    show(page, choiceOf(false).choice);
+
+    expect(control()?.previousElementSibling).toBe(label());
+    expect(label()?.textContent).toBe(control()?.getAttribute("aria-label"));
+    expect(label()?.getAttribute("aria-hidden")).toBe("true");
+  });
+
   it.each(["pr", "commit"] as const)("mounts once a %s gear appears", async (kind) => {
     const page = pageOf(kind, "split");
     const gear = findLayoutGear(page);
@@ -236,6 +247,7 @@ describe("showDiffViewControl", () => {
     await flush();
 
     expect(document.querySelectorAll(".gh-prism-diff-view")).toHaveLength(1);
+    expect(document.querySelectorAll(".gh-prism-diff-view-name")).toHaveLength(1);
     expect(control()?.nextElementSibling).toBe(replacement);
   });
 
@@ -281,6 +293,45 @@ describe("showDiffViewControl", () => {
     expect(control()?.hidden).toBe(false);
   });
 
+  it("drops its name before itself as the toolbar's room runs short", () => {
+    let resized: (() => void) | undefined;
+    // happy-dom's ResizeObserver never fires, so the test calls its callback.
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(callback: () => void) {
+          resized = callback;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    const page = pageOf("pr", "split");
+    const toolbar = findFilesToolbar(page);
+    if (!toolbar) throw new Error("fixture has no toolbar");
+    let room = 660;
+    Object.defineProperty(toolbar, "clientWidth", { get: () => room });
+    Object.defineProperty(toolbar, "scrollWidth", {
+      get: () => Math.max(room, 500 + (control()?.hidden ? 0 : 150) + (label()?.hidden ? 0 : 60)),
+    });
+
+    show(page, choiceOf(false).choice);
+    const tight = { name: label()?.hidden, control: control()?.hidden };
+    room = 720;
+    resized?.();
+    const roomy = { name: label()?.hidden, control: control()?.hidden };
+    room = 600;
+    resized?.();
+
+    vi.unstubAllGlobals();
+    expect(tight).toEqual({ name: true, control: false });
+    expect(roomy).toEqual({ name: false, control: false });
+    expect({ name: label()?.hidden, control: control()?.hidden }).toEqual({
+      name: true,
+      control: true,
+    });
+  });
+
   it("stays shown in a toolbar that overflows as far without it", () => {
     const page = pageOf("pr", "split");
     const toolbar = findFilesToolbar(page);
@@ -300,7 +351,161 @@ describe("showDiffViewControl", () => {
     controller.abort();
 
     expect(control()).toBeNull();
+    expect(label()).toBeNull();
     expect(document.head.querySelector("style")).toBeNull();
+  });
+
+  describe("GitHub's own Layout group", () => {
+    const openGear = async (page: FilesPage) => {
+      findLayoutGear(page)?.click();
+      await flush();
+    };
+    const shownItems = () =>
+      [...document.querySelectorAll<HTMLElement>('#__primerPortalRoot__ [role^="menuitem"]')]
+        .filter((item) => !item.closest("[hidden]"))
+        .map((item) => item.querySelector('[data-component="ActionList.Item.Label"]')?.textContent);
+    const shownDividers = () =>
+      [
+        ...document.querySelectorAll(
+          '#__primerPortalRoot__ [data-component="ActionList.Divider"]:not([hidden])',
+        ),
+      ].length;
+    const ALL = {
+      pr: ["Unified", "Split", "Whitespace changes", "Minimize comments", "Compact line height"],
+      commit: ["Unified", "Split", "Minimize comments", "Hide whitespace", "Compact line height"],
+    };
+
+    it.each(["pr", "commit"] as const)(
+      "leaves a %s gear's menu without its Layout group and the divider under it",
+      async (kind) => {
+        const page = pageOf(kind, "split");
+        show(page, choiceOf(false).choice, { commit: kind === "commit" });
+
+        await openGear(page);
+
+        expect(shownItems()).toEqual(ALL[kind].slice(2));
+        expect(shownDividers()).toBe(kind === "pr" ? 2 : 1);
+      },
+    );
+
+    it("hides each Layout item itself, so Primer's arrow keys skip it", async () => {
+      const page = pageOf("pr", "split");
+      show(page, choiceOf(false).choice);
+
+      await openGear(page);
+
+      const menu = findLayoutMenu(document);
+      expect([menu?.unified.hidden, menu?.split.hidden]).toEqual([true, true]);
+    });
+
+    it("moves the focus GitHub put on a Layout item to the menu's first item left", async () => {
+      const page = pageOf("pr", "split");
+      show(page, choiceOf(false).choice);
+
+      await openGear(page);
+
+      expect(document.activeElement?.textContent).toContain("Whitespace changes");
+    });
+
+    it("leaves focus where it is when no Layout item holds it", async () => {
+      const page = pageOf("pr", "split");
+      show(page, choiceOf(false).choice);
+      findLayoutGear(page)?.click();
+      await Promise.resolve();
+      segment("split")?.focus();
+
+      await flush();
+
+      expect(shownItems()).toEqual(ALL.pr.slice(2));
+      expect(document.activeElement).toBe(segment("split"));
+    });
+
+    it("hides it again each time the menu opens", async () => {
+      const page = pageOf("pr", "split");
+      show(page, choiceOf(false).choice);
+      await openGear(page);
+      await openGear(page);
+
+      await openGear(page);
+
+      expect(shownItems()).toEqual(ALL.pr.slice(2));
+    });
+
+    it("hides it in the menu of a gear GitHub replaces", async () => {
+      const page = pageOf("pr", "split");
+      show(page, choiceOf(false).choice);
+      const gear = findLayoutGear(page);
+      gear?.replaceWith(gear.cloneNode(true));
+      await flush();
+
+      await openGear(page);
+
+      expect(shownItems()).toEqual(ALL.pr.slice(2));
+    });
+
+    it("still chooses a layout through the menu on a press", async () => {
+      const page = pageOf("pr", "split");
+      const log: string[] = [];
+      recordItemClicks(log);
+      show(page, choiceOf(false, log).choice);
+      await openGear(page);
+      await openGear(page);
+
+      segment("unified")?.click();
+      await flush();
+
+      expect(log).toEqual(["choose unified"]);
+      expect(pressed()).toEqual(["unified"]);
+    });
+
+    it("leaves the menu as GitHub drew it while the control is hidden for want of room", async () => {
+      const page = pageOf("pr", "split");
+      const toolbar = findFilesToolbar(page);
+      if (!toolbar) throw new Error("fixture has no toolbar");
+      Object.defineProperty(toolbar, "clientWidth", { get: () => 600 });
+      Object.defineProperty(toolbar, "scrollWidth", {
+        get: () => (control()?.hidden ? 600 : 700),
+      });
+      show(page, choiceOf(false).choice);
+
+      await openGear(page);
+
+      expect(control()?.hidden).toBe(true);
+      expect(shownItems()).toEqual(ALL.pr);
+      expect(shownDividers()).toBe(3);
+    });
+
+    it("leaves the menu as GitHub drew it when the Layout group holds another item", async () => {
+      const page = pageOf("pr", "split");
+      show(page, choiceOf(false).choice);
+      findLayoutGear(page)?.click();
+      await Promise.resolve();
+      const split = findLayoutMenu(document)?.split;
+      const extra = split?.cloneNode(true) as Element;
+      const extraLabel = extra.querySelector('[data-component="ActionList.Item.Label"]');
+      if (extraLabel) extraLabel.textContent = "Stacked";
+      split?.after(extra);
+
+      await flush();
+
+      expect(shownItems()).toEqual(["Unified", "Split", "Stacked", ...ALL.pr.slice(2)]);
+    });
+
+    it("leaves the menu as GitHub drew it once the control is gone", async () => {
+      const page = pageOf("pr", "split");
+      show(page, choiceOf(false).choice);
+      controller.abort();
+      controller = new AbortController();
+      installLayoutMenu({
+        menu: prMenu,
+        tables: { unified: prUnified, split: prSplit },
+        signal: controller.signal,
+      });
+
+      await openGear(page);
+
+      expect(shownItems()).toEqual(ALL.pr);
+    });
   });
 
   it.each<{ kind: "pr" | "commit"; layout: DiffLayout; on: boolean; shown: DiffView }>([

@@ -1,6 +1,7 @@
 /**
  * Plays GitHub's Layout menu on a fixture page: a gear click mounts `menu` under
- * `#__primerPortalRoot__` after a microtask, its checked item the layout on screen; an item click posts `/users/diffview`, swaps each diff
+ * `#__primerPortalRoot__` after a microtask, its checked item the layout on screen and its first
+ * item focused; an item click posts `/users/diffview`, swaps each diff
  * table for its `tables[layout]` copy, replaces `?diff=`, and unmounts the menu, focusing the gear.
  * `omit` leaves one Layout item out. It plays until `signal` aborts, or for the page's life.
  *
@@ -64,6 +65,8 @@ export function installLayoutMenu(options: {
     }
     portal.append(list);
     gear.setAttribute("aria-expanded", "true");
+    // GitHub's menu opens with focus on its first item.
+    list.querySelector<HTMLElement>('[role^="menuitem"]')?.focus();
     openMenu = { list, gear };
   };
 

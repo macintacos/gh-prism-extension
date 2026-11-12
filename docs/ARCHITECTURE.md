@@ -987,20 +987,25 @@ re-renders on each `observeDiffs` report and when `whileOn` aborts. A press firs
 GitHub's own Layout menu when the layout must change (`chooseLayout`: a synthetic gear
 click, then the Unified or Split item); for Structural it then waits until `showsUnified`
 reads false, and only then sets the mode. Pressing Unified or Split with the mode off
-writes nothing to storage. When the gear opens no menu within a second, as before GitHub
-hydrates the page, the press chooses nothing and the control stays for another press. When
-a menu opens without the wanted Layout item, the control closes the menu, leaves the mode
-alone, and removes itself for the rest of the page. When the item already reads checked,
-it closes the menu without clicking. A press stops after any wait once its page aborts.
-GitHub's toolbar never wraps, so the control hides while the toolbar has no room for it.
-It measures that on mount, on a toolbar resize, and on a child-list change in a pull
-request's toolbar, which sits outside the diffs. It moves its resize observer, and on a
-pull request its child-list observer, to a replacement toolbar. Hydration can re-mount the
-control between `pointerdown` and `pointerup`, so no click fires: `pressGuard` in
-[`ui/press-guard.ts`](../entrypoints/content/ui/press-guard.ts), built once per visit by
-`index.ts`, keeps the press and runs it on a release over the re-mounted segment of the
-same view once the original has left the page; a release or cancel anywhere else forgets
-it. A commit-filtered pull request page shows Structural disabled.
+writes nothing to storage. The control shows its name, "Diff view", before its segments,
+and drops the name before it hides itself when the toolbar runs short of room. While the
+control is drawn, it watches the gear's `aria-expanded` and hides the Layout group of each
+menu the gear opens. `findLayoutGroup` in `files-page.ts` finds the group. A menu whose
+group it can't identify stays as GitHub drew it. When the gear opens no menu within a
+second, as before GitHub hydrates the page, the press chooses nothing and the control
+stays for another press. When a menu opens without the wanted Layout item, the control
+closes the menu, leaves the mode alone, and removes itself for the rest of the page. When
+the item already reads checked, it closes the menu without clicking. A press stops after
+any wait once its page aborts. GitHub's toolbar never wraps, so the control hides while
+the toolbar has no room for it. It measures that on mount, on a toolbar resize, and on a
+child-list change in a pull request's toolbar, which sits outside the diffs. It moves its
+resize observer, and on a pull request its child-list observer, to a replacement toolbar.
+Hydration can re-mount the control between `pointerdown` and `pointerup`, so no click
+fires: `pressGuard` in [`ui/press-guard.ts`](../entrypoints/content/ui/press-guard.ts),
+built once per visit by `index.ts`, keeps the press and runs it on a release over the
+re-mounted segment of the same view once the original has left the page; a release or
+cancel anywhere else forgets it. A commit-filtered pull request page shows Structural
+disabled.
 
 The painter takes a `StructuralPainting`. Its `annotationsOf(path)` returns a file's
 `StructuralFile` from [`utils/structural/changes.ts`](../utils/structural/changes.ts): the
@@ -1064,16 +1069,19 @@ mask, and removes its `<style>`.
 the same signal as the painter, so they too run only while the mode is on. While the diffs
 read Split, each mounted file whose request failed for any reason but `not-applicable`
 (the answer for binary, added, deleted, and pure-rename files), or whose table the painter
-reported as `mismatch`, gets a one-sentence notice. A file whose request is still pending,
-which `StructuralFiles`' `pending(path)` reports, gets a loading line once it has been
-pending 150 ms (`LOADING_DELAY_MS`), so a faster run shows nothing. Only a file whose own
-table is drawn in Split gets the line, since the painter paints no other. Both are
-gh-prism's own nodes, inserted directly before the file's `table[data-diff-anchor]`;
-GitHub's nodes are left as they are. A pass reads every table before writing, and leaves a
-node that is already right untouched. It removes every node of its own that no mounted
-table claims, which sweeps a notice left in the card after a switch to GitHub's rich diff.
-On abort the notices clear their timers and frame, and remove every node by class and the
-`<style>` built from
+reported as `mismatch`, gets a one-sentence notice. The `unsupported` notice ends in a
+link to the language request form
+([`.github/ISSUE_TEMPLATE/language_request.yml`](../.github/ISSUE_TEMPLATE/language_request.yml)),
+which `languageRequestUrl` prefills with the file's extension and nothing else of its
+path. A file whose request is still pending, which `StructuralFiles`' `pending(path)`
+reports, gets a loading line once it has been pending 150 ms (`LOADING_DELAY_MS`), so a
+faster run shows nothing. Only a file whose own table is drawn in Split gets the line,
+since the painter paints no other. Both are gh-prism's own nodes, inserted directly before
+the file's `table[data-diff-anchor]`; GitHub's nodes are left as they are. A pass reads
+every table before writing, and leaves a node that is already right untouched. It removes
+every node of its own that no mounted table claims, which sweeps a notice left in the card
+after a switch to GitHub's rich diff. On abort the notices clear their timers and frame,
+and remove every node by class and the `<style>` built from
 [`diffs/structural-notices.css`](../entrypoints/content/diffs/structural-notices.css).
 
 On [cli/cli#14805 in Split](https://github.com/cli/cli/pull/14805/changes?diff=split) on

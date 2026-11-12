@@ -1,7 +1,8 @@
 /**
  * The Unified, Split, and Structural control beside GitHub's diff settings gear. Unified and Split
  * drive GitHub's own Layout menu, so GitHub keeps remembering the layout; Structural puts GitHub
- * on Split and turns the saved Structural mode on.
+ * on Split and turns the saved Structural mode on. While the control shows, the gear's menu loses
+ * its own Layout group, which would only repeat it.
  */
 
 import {
@@ -10,6 +11,7 @@ import {
   type FilesPage,
   findFilesToolbar,
   findLayoutGear,
+  findLayoutGroup,
   findLayoutMenu,
   observeDiffs,
   showsUnified,
@@ -142,11 +144,15 @@ function segmentOf(doc: Document, view: DiffView, label: string): HTMLButtonElem
 }
 
 interface DiffViewControl {
+  /** The control's name on screen, before the list. */
+  readonly name: HTMLSpanElement;
   readonly list: HTMLUListElement;
   readonly segments: Readonly<Record<DiffView, HTMLButtonElement>>;
 }
 
-/** The control's list of three segments, Structural disabled unless `offersStructural`. */
+const NAME = "Diff view";
+
+/** The control's name and its list of three segments, Structural disabled unless `offersStructural`. */
 function controlOf(doc: Document, offersStructural: boolean): DiffViewControl {
   const segments = {
     unified: segmentOf(doc, "unified", "Unified"),
@@ -165,15 +171,30 @@ function controlOf(doc: Document, offersStructural: boolean): DiffViewControl {
     "gh-prism-diff-view tw:items-stretch tw:shrink-0 tw:h-[var(--control-small-size)] tw:m-0 tw:p-0 tw:list-none tw:border tw:border-[var(--controlTrack-borderColor-rest)] tw:rounded-medium tw:bg-[var(--controlTrack-bgColor-rest)]",
     ...VIEWS.map((view) => el(doc, "li", "gh-prism-diff-view-item tw:flex", segments[view])),
   );
-  list.setAttribute("aria-label", "Diff view");
-  return { list, segments };
+  list.setAttribute("aria-label", NAME);
+
+  const name = el(
+    doc,
+    "span",
+    "gh-prism-diff-view-name tw:shrink-0 tw:self-center tw:text-body-small tw:text-fg-muted tw:whitespace-nowrap",
+    NAME,
+  );
+  // The list's own name says it; read here too, it would be announced twice.
+  name.setAttribute("aria-hidden", "true");
+  return { name, list, segments };
 }
+
+/** Whether `control`'s list is drawn: not hidden for want of room, nor by its sheet. */
+const isDrawn = (control: DiffViewControl, win: Window): boolean =>
+  !control.list.hidden && win.getComputedStyle(control.list).display !== "none";
 
 /**
  * The Unified, Split, and Structural control before `page`'s layout gear, re-mounted when GitHub
- * re-renders the toolbar, until `signal` aborts. Shows nothing while the gear is missing, hides
- * while the toolbar has no room for it, and is removed for the rest of the page once GitHub's menu
- * opens without the wanted Layout item. A press whose gear opens no menu chooses nothing.
+ * re-renders the toolbar, until `signal` aborts. Shows nothing while the gear is missing, drops its
+ * name and then hides while the toolbar has no room for it, and is removed for the rest of the page
+ * once GitHub's menu opens without the wanted Layout item. A press whose gear opens no menu chooses
+ * nothing. While the control is drawn, a menu opened at the gear hides its Layout group; a menu
+ * whose group can't be told for certain stays as GitHub drew it.
  */
 export function showDiffViewControl(
   page: FilesPage,
@@ -224,10 +245,15 @@ export function showDiffViewControl(
     );
   };
 
-  const giveUp = () => {
-    gaveUp = true;
+  const unmount = () => {
+    control?.name.remove();
     control?.list.remove();
     control = undefined;
+  };
+
+  const giveUp = () => {
+    gaveUp = true;
+    unmount();
   };
 
   const press = async (view: DiffView) => {
@@ -261,15 +287,42 @@ export function showDiffViewControl(
     const toolbar = findFilesToolbar(page);
     if (!control || !toolbar) return;
     // Hidden only if it adds overflow: the toolbar's room is measured without it, then with it.
+    control.name.hidden = true;
     control.list.hidden = true;
     const room = Math.max(toolbar.clientWidth, toolbar.scrollWidth);
     control.list.hidden = false;
     control.list.hidden = toolbar.scrollWidth > room;
+    if (control.list.hidden) return;
+    control.name.hidden = false;
+    control.name.hidden = toolbar.scrollWidth > room;
+  };
+
+  // The control drives the menu's Layout items itself, so a press leaves the menu as it is.
+  const hideLayoutGroup = () => {
+    const win = doc.defaultView;
+    if (pressing || !control || !win || !isDrawn(control, win)) return;
+    const menu = findLayoutMenu(doc);
+    const group = menu && findLayoutGroup(menu);
+    if (!group) return;
+
+    // GitHub opens the menu with focus on its first item, which hiding would drop to the page.
+    const heldFocus = group.parts.some((part) => part.contains(doc.activeElement));
+    for (const part of group.parts) part.setAttribute("hidden", "");
+    if (heldFocus) group.firstOther.focus();
+  };
+  const gearOpens = new MutationObserver(hideLayoutGroup);
+  let watchedGear: Element | undefined;
+  const watchGear = (gear: Element | undefined) => {
+    if (gear === watchedGear) return;
+    watchedGear = gear;
+    gearOpens.disconnect();
+    if (gear) gearOpens.observe(gear, { attributeFilter: ["aria-expanded"] });
   };
 
   const mount = (gear: Element) => {
     // A DOM clone of the toolbar, such as a restored snapshot, can carry an earlier control.
-    for (const stale of doc.querySelectorAll(".gh-prism-diff-view")) stale.remove();
+    for (const stale of doc.querySelectorAll(".gh-prism-diff-view, .gh-prism-diff-view-name"))
+      stale.remove();
     control = controlOf(doc, offersStructural);
     pressedView = null;
     for (const view of VIEWS) {
@@ -277,20 +330,21 @@ export function showDiffViewControl(
       segment.addEventListener("click", () => void press(view));
       guard(segment, view, () => void press(view));
     }
-    gear.before(control.list);
+    gear.before(control.name, control.list);
     fitToToolbar();
   };
 
   const follow = () => {
     watchToolbar();
     const gear = findLayoutGear(page);
+    watchGear(gaveUp ? undefined : gear);
     if (gaveUp) return;
-    if (!gear) {
-      control?.list.remove();
-      control = undefined;
-      return;
-    }
-    if (control?.list.nextElementSibling !== gear) mount(gear);
+    if (!gear) return unmount();
+    if (
+      control?.list.nextElementSibling !== gear ||
+      control.name.nextElementSibling !== control.list
+    )
+      mount(gear);
     render();
   };
 
@@ -320,8 +374,9 @@ export function showDiffViewControl(
   doc.head.append(style);
   signal.addEventListener("abort", () => {
     style.remove();
-    control?.list.remove();
+    unmount();
     resizes.disconnect();
+    gearOpens.disconnect();
   });
 
   observeDiffs(page.diffs, follow, { signal });

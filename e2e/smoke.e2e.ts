@@ -5282,11 +5282,53 @@ for (const kind of ["pr", "commit"] as const) {
     await expect(segment(page, "Unified")).toHaveAttribute("aria-pressed", "true");
 
     await layoutGear(page).evaluate((gear: HTMLElement) => gear.click());
+    // Hidden beside the control, so found and clicked as markup, the way the control's press does.
     await page
-      .getByRole("menuitemradio", { name: /^Split/ })
+      .getByRole("menuitemradio", { name: /^Split/, includeHidden: true })
       .evaluate((item: HTMLElement) => item.click());
 
     await expect(segment(page, "Split")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test(`the diff view control shows its name before its segments, named once for assistive technology, on ${where}`, async ({
+    context,
+    page,
+  }) => {
+    await serveLayoutPage(context, page, kind);
+    await expect(segment(page, "Unified")).toHaveAttribute("aria-pressed", "true");
+
+    const name = page.locator(".gh-prism-diff-view-name");
+
+    await expect(name).toBeVisible();
+    await expect(diffView(page)).toHaveAccessibleName((await name.textContent()) ?? "");
+    await expect(page.getByText("Diff view", { exact: true })).toHaveCount(1);
+    await expect(name).toHaveAttribute("aria-hidden", "true");
+    expect(
+      await name.evaluate(
+        (node) => node.nextElementSibling === document.querySelector(".gh-prism-diff-view"),
+      ),
+    ).toBe(true);
+  });
+
+  test(`the gear's menu opens without its Layout group beside the diff view control on ${where}`, async ({
+    context,
+    page,
+  }) => {
+    await serveLayoutPage(context, page, kind);
+    await expect(segment(page, "Unified")).toHaveAttribute("aria-pressed", "true");
+
+    await layoutGear(page).evaluate((gear: HTMLElement) => gear.click());
+
+    const menu = page.getByRole("menu");
+    await expect(
+      menu.getByRole("menuitemcheckbox", { name: /^Compact line height/ }),
+    ).toBeVisible();
+    await expect(menu.getByRole("menuitemradio")).toHaveCount(0);
+    await expect(menu.getByText("Layout", { exact: true })).toBeHidden();
+    await expect(
+      menu.locator('[role^="menuitem"]:not([hidden])').first(),
+      "focus moves off the hidden Layout item",
+    ).toBeFocused();
   });
 
   test(`the diff view control is absent without the gear on ${where}`, async ({

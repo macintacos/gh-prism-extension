@@ -25,6 +25,7 @@ import {
   findFilterOptions,
   findHeaderPage,
   findLayoutGear,
+  findLayoutGroup,
   findLayoutMenu,
   findOverlay,
   findReviewersHeadings,
@@ -589,6 +590,68 @@ describe("findLayoutMenu", () => {
     itemLabelled("Split")?.remove();
 
     expect(findLayoutMenu(document)).toBeUndefined();
+  });
+});
+
+describe("findLayoutGroup", () => {
+  const openLayoutMenu = (html: string) => {
+    document.body.innerHTML = `<div id="__primerPortalRoot__">${html}</div>`;
+    const menu = findLayoutMenu(document);
+    if (!menu) throw new Error("fixture has no Layout menu");
+    return menu;
+  };
+  const groupOf = (item: Element) => item.closest('[data-component="ActionList.Group"]');
+
+  it.each([
+    { name: "a pull request's", html: prLayoutMenu, next: "Whitespace changes" },
+    { name: "a commit's", html: commitLayoutMenu, next: "Minimize comments" },
+  ])("finds the Layout group's parts and the item after them in $name menu", ({ html, next }) => {
+    const menu = openLayoutMenu(html);
+
+    const found = findLayoutGroup(menu);
+
+    const group = groupOf(menu.unified);
+    expect(found?.parts).toEqual([group, group?.nextElementSibling, menu.unified, menu.split]);
+    expect(group?.nextElementSibling?.getAttribute("data-component")).toBe("ActionList.Divider");
+    expect(
+      found?.firstOther.querySelector("[data-component='ActionList.Item.Label']")?.textContent,
+    ).toBe(next);
+  });
+
+  it("is undefined when the group holds an item besides Unified and Split", () => {
+    const menu = openLayoutMenu(prLayoutMenu);
+    menu.split.after(menu.split.cloneNode(true));
+
+    expect(findLayoutGroup(menu)).toBeUndefined();
+  });
+
+  it("is undefined when no divider follows the group", () => {
+    const menu = openLayoutMenu(prLayoutMenu);
+    groupOf(menu.unified)?.nextElementSibling?.remove();
+
+    expect(findLayoutGroup(menu)).toBeUndefined();
+  });
+
+  it("is undefined when the group is not the menu's first", () => {
+    const menu = openLayoutMenu(prLayoutMenu);
+    menu.list.prepend(menu.list.lastElementChild as Element);
+
+    expect(findLayoutGroup(menu)).toBeUndefined();
+  });
+
+  it("is undefined when the two items sit in different groups", () => {
+    const menu = openLayoutMenu(prLayoutMenu);
+    menu.list.lastElementChild?.querySelector("ul")?.append(menu.split);
+
+    expect(findLayoutGroup(menu)).toBeUndefined();
+  });
+
+  it("is undefined when the menu holds no item outside the group", () => {
+    const menu = openLayoutMenu(prLayoutMenu);
+    for (const item of menu.list.querySelectorAll('[role^="menuitem"]'))
+      if (item !== menu.unified && item !== menu.split) item.remove();
+
+    expect(findLayoutGroup(menu)).toBeUndefined();
   });
 });
 
