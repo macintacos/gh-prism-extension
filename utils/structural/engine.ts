@@ -103,8 +103,14 @@ export async function structuralChanges(input: EngineInput): Promise<EngineResul
   if (!oldParsed.units || !newParsed.units) return { ok: true, changes };
 
   const inside = {
-    old: linesInside(oldSource, changed.old, oldParsed.units),
-    new: linesInside(newSource, changed.new, newParsed.units),
+    old: linesInside(oldSource, oldParsed.units, {
+      changed: changed.old,
+      rewritten: changed.rewritten.old,
+    }),
+    new: linesInside(newSource, newParsed.units, {
+      changed: changed.new,
+      rewritten: changed.rewritten.new,
+    }),
   };
   return { ok: true, changes: { ...changes, inside } };
 }
@@ -186,6 +192,21 @@ interface ChangedTokens {
   readonly new: readonly Token[];
 }
 
+/** A window's changed tokens, `rewritten` when its diff passed the edit limit. */
+interface WindowChanges extends ChangedTokens {
+  readonly rewritten?: true;
+}
+
+/** Every region's changed tokens, and those among them of the regions rewritten past the edit limit. */
+interface RegionChanges extends ChangedTokens {
+  readonly rewritten: ChangedTokens;
+}
+
+const joined = (parts: readonly ChangedTokens[]): ChangedTokens => ({
+  old: parts.flatMap((part) => part.old),
+  new: parts.flatMap((part) => part.new),
+});
+
 /** The tokens one Myers diff per region finds changed, or `too-slow` past the diff's deadline. */
 function changedTokens(
   regions: readonly ChangedRegion[],
@@ -193,9 +214,9 @@ function changedTokens(
   newSource: Source,
   limits: EngineLimits,
   now: () => number,
-): ChangedTokens | "too-slow" {
+): RegionChanges | "too-slow" {
   const deadline = now() + limits.maxDiffMs;
-  const parts: ChangedTokens[] = [];
+  const parts: WindowChanges[] = [];
   for (const window of diffWindows(regions, oldSource, newSource)) {
     if (now() > deadline) return "too-slow";
     parts.push(
@@ -207,7 +228,7 @@ function changedTokens(
     );
   }
 
-  return { old: parts.flatMap((part) => part.old), new: parts.flatMap((part) => part.new) };
+  return { ...joined(parts), rewritten: joined(parts.filter((part) => part.rewritten)) };
 }
 
 /** One version's tokens in a window. */
@@ -314,7 +335,7 @@ function windowChanges(
   oldSide: WindowSide,
   newSide: WindowSide,
   maxEditLength: number,
-): ChangedTokens {
+): WindowChanges {
   if (oldSide.tokens.length === 0 || newSide.tokens.length === 0)
     return { old: oldSide.tokens, new: newSide.tokens };
 
@@ -332,7 +353,7 @@ function windowChanges(
       ] as const);
 
   const parts = diffArrays(firstKeys, secondKeys, { maxEditLength });
-  if (parts === undefined) return { old: oldSide.tokens, new: newSide.tokens };
+  if (parts === undefined) return { old: oldSide.tokens, new: newSide.tokens, rewritten: true };
 
   const matches = withoutChanceMatches(matchesOf(parts), first, second);
   const matched = new Set(matches);
@@ -408,9 +429,17 @@ function spansOf({ text, starts }: Source, tokens: readonly Token[]): TokenSpan[
 
 /**
  * The 1-based lines, in order, of each of `changed` that left or arrived inside a unit that
- * remains: every token but those of a unit changed whole whose parent was not.
+ * remains: every token but those of a unit changed whole whose parent was not, and those of a
+ * region rewritten past the edit limit, which left or arrived as a block too.
  */
-function linesInside(source: Source, changed: readonly Token[], units: readonly Unit[]): number[] {
+function linesInside(
+  source: Source,
+  units: readonly Unit[],
+  {
+    changed,
+    rewritten,
+  }: { readonly changed: readonly Token[]; readonly rewritten: readonly Token[] },
+): number[] {
   const { tokens } = source;
   const isChanged = new Set(changed);
   const changedBefore = [0];
@@ -420,7 +449,7 @@ function linesInside(source: Source, changed: readonly Token[], units: readonly 
   const changedWhole = ({ from, to }: { from: number; to: number }) =>
     from < to && (changedBefore[to] ?? 0) - (changedBefore[from] ?? 0) === to - from;
 
-  const wentWhole = new Set<Token>();
+  const wentWhole = new Set(rewritten);
   for (const unit of units) {
     const own = range(unit.start, unit.end);
     if (!changedWhole(own) || changedWhole(range(unit.parentStart, unit.parentEnd))) continue;

@@ -680,6 +680,17 @@ describe("structuralChanges, lines inside a unit that remains", () => {
     expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [], new: [] });
   });
 
+  it("names no line of an entry removed from between two entries like it", async () => {
+    const entry = (id: string) => `  {\n    id: "${id}",\n    run: () => go("${id}"),\n  },\n`;
+    const oldText = `const l = [\n${entry("a")}${entry("b")}${entry("c")}];\n`;
+    const newText = `const l = [\n${entry("a")}${entry("c")}];\n`;
+    const regions = [{ oldStart: 6, oldEnd: 10, newStart: 6, newEnd: 6 }];
+
+    const result = await run("typescript", oldText, newText, { regions });
+
+    expect(changesOf(result).inside).toEqual({ old: [], new: [] });
+  });
+
   it("names no line of a method deleted from a class", async () => {
     const oldText =
       "class A {\n  one() {\n    return 1;\n  }\n\n  two() {\n    return 2;\n  }\n}\n";
@@ -727,6 +738,18 @@ describe("structuralChanges, lines inside a unit that remains", () => {
     const newText = "/**\n * Keeps this.\n * Says something else entirely.\n */\nf();\n";
 
     expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [3], new: [3] });
+  });
+
+  it("names no line of a region rewritten past maxEditLength, whose function keeps its closing brace", async () => {
+    const oldText = "const keep = 1;\nfunction f() {\n  a(1);\n  b(2);\n}\n";
+    const newText = "const keep = 1;\nclass G {\n  m() {}\n}\n";
+
+    const result = await run("typescript", oldText, newText, { limits: { maxEditLength: 3 } });
+
+    const changes = changesOf(result);
+    expect(unmarked(oldText, changes.old, 2, 4)).toEqual(["", "", ""]);
+    expect(unmarked(newText, changes.new, 2, 3)).toEqual(["", ""]);
+    expect(changes.inside).toEqual({ old: [], new: [] });
   });
 
   it("names no line of plain text, which has no units", async () => {
