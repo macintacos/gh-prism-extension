@@ -25,6 +25,23 @@ export const NOTICE_COPY: Record<NoticeKind, string> = {
     "Structural mode is in beta and its reading of this file doesn't match the page, so this is GitHub's diff; reload to try again.",
 };
 
+// A dot after a name character, then a short plain suffix: a dotfile's name or a suffix holding
+// anything else could be private, and the form is public.
+const EXTENSION = /[^/.](\.[A-Za-z0-9_+-]{1,16})$/;
+
+/**
+ * The form that asks for Structural mode to cover a language, prefilled with `path`'s extension
+ * alone, never its name or folders. Template file and field id must match
+ * .github/ISSUE_TEMPLATE/language_request.yml.
+ */
+export function languageRequestUrl(path: string): string {
+  const url = new URL("https://github.com/macintacos/gh-prism-extension/issues/new");
+  url.searchParams.set("template", "language_request.yml");
+  const extension = EXTENSION.exec(path)?.[1];
+  if (extension) url.searchParams.set("extensions", extension);
+  return url.href;
+}
+
 /** What a mounted file shows beside its diff: a pending request, a notice, or nothing. */
 export type FileState = "pending" | NoticeKind | undefined;
 
@@ -49,6 +66,7 @@ export type StructuralNotices = LandingView & { refresh(): void };
 /** What one mounted table wants before it, and the node of ours already there. */
 interface Want {
   readonly table: HTMLTableElement;
+  readonly path: string;
   readonly show: NoticeKind | "loading" | undefined;
   readonly current: Element | undefined;
 }
@@ -101,7 +119,7 @@ export function showStructuralNotices(
       const show = state === "pending" ? (overdue ? "loading" : undefined) : state;
       const before = table.previousElementSibling ?? undefined;
       const current = before?.matches(`.${NOTICE_CLASS}, .${LOADING_CLASS}`) ? before : undefined;
-      wants.push({ table, show, current });
+      wants.push({ table, path, show, current });
     }
     return {
       wants,
@@ -109,7 +127,19 @@ export function showStructuralNotices(
       ours: [...diffs.querySelectorAll(`.${NOTICE_CLASS}, .${LOADING_CLASS}`)],
     };
   };
-  const nodeFor = (show: NoticeKind | "loading"): Element => {
+  const requestLink = (path: string): HTMLAnchorElement => {
+    const link = el(
+      doc,
+      "a",
+      "gh-prism-structural-request tw:text-[color:var(--fgColor-accent)] tw:underline tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:outline-offset-1 tw:rounded-[2px]",
+      "Request this language",
+    );
+    link.href = languageRequestUrl(path);
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    return link;
+  };
+  const nodeFor = (show: NoticeKind | "loading", path: string): Element => {
     if (show === "loading") {
       const line = el(doc, "div", LOADING_CLASS);
       line.setAttribute("aria-hidden", "true");
@@ -121,15 +151,16 @@ export function showStructuralNotices(
       "gh-prism-structural-notice tw:m-0 tw:py-1 tw:ps-10 tw:pe-4 tw:text-body-small tw:leading-body-small tw:text-fg-muted",
       NOTICE_COPY[show],
     );
+    if (show === "unsupported") notice.append(" ", requestLink(path));
     notice.setAttribute(KIND_ATTR, show);
     return notice;
   };
   const apply = ({ wants, ours }: Pass) => {
     const kept = new Set<Element>();
-    for (const { table, show, current } of wants) {
+    for (const { table, path, show, current } of wants) {
       if (shows(current, show)) {
         if (current) kept.add(current);
-      } else if (show !== undefined) table.before(nodeFor(show));
+      } else if (show !== undefined) table.before(nodeFor(show, path));
     }
     for (const node of ours) if (!kept.has(node)) node.remove();
   };

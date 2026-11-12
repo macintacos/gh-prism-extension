@@ -4,6 +4,7 @@ import type { StructuralAnswer } from "../../../entrypoints/content/diffs/struct
 import {
   type FileState,
   LOADING_CLASS,
+  languageRequestUrl,
   NOTICE_CLASS,
   NOTICE_COPY,
   type NoticeKind,
@@ -59,6 +60,30 @@ describe("NOTICE_COPY", () => {
   });
 });
 
+describe("languageRequestUrl", () => {
+  const FORM =
+    "https://github.com/macintacos/gh-prism-extension/issues/new?template=language_request.yml";
+
+  it.each([
+    { path: "src/main.zig", url: `${FORM}&extensions=.zig` },
+    { path: "a.b/Parser.test.KT", url: `${FORM}&extensions=.KT` },
+    { path: "lib/vec.c++", url: `${FORM}&extensions=.c%2B%2B` },
+  ])("prefills only the extension of $path", ({ path, url }) => {
+    expect(languageRequestUrl(path)).toBe(url);
+  });
+
+  it.each([
+    "Makefile",
+    "infra.v2/Dockerfile",
+    "config/.env",
+    "notes/plan.secret project",
+    "a/trailing.",
+    `a/b.${"x".repeat(17)}`,
+  ])("prefills nothing for %s, which has no plain extension", (path) => {
+    expect(languageRequestUrl(path)).toBe(FORM);
+  });
+});
+
 describe("showStructuralNotices", () => {
   let controller: AbortController;
   let states: Map<string, FileState>;
@@ -92,7 +117,7 @@ describe("showStructuralNotices", () => {
     const diffs = mountDiffs(prSplit);
     const table = tableAt(diffs);
     const rows = [...table.rows];
-    states.set(anchorOfTable(table), "unsupported");
+    states.set(anchorOfTable(table), "too-large");
 
     await show(diffs);
 
@@ -100,12 +125,51 @@ describe("showStructuralNotices", () => {
     const notice = table.previousElementSibling;
     expect(notice?.tagName).toBe("P");
     expect(notice?.classList.contains(NOTICE_CLASS)).toBe(true);
-    expect(notice?.textContent).toBe(NOTICE_COPY.unsupported);
+    expect(notice?.textContent).toBe(NOTICE_COPY["too-large"]);
     expect(notice?.hasAttribute("role")).toBe(false);
     expect(notice?.hasAttribute("aria-live")).toBe(false);
     expect(tableAt(diffs)).toBe(table);
     expect([...table.rows]).toEqual(rows);
   });
+
+  it("follows an unsupported file's sentence with a link that asks for its language in a new tab", async () => {
+    const diffs = mountDiffs(prSplit);
+    const table = tableAt(diffs);
+    const sections = sectionsOf(diffs).map((section) => ({
+      ...section,
+      entries: section.entries.map((entry) => ({
+        ...entry,
+        file: { ...entry.file, path: "src/shader.zig" },
+      })),
+    }));
+    states.set("src/shader.zig", "unsupported");
+
+    const notices = showStructuralNotices(diffs, controller.signal, (path) => states.get(path));
+    notices.sections?.(sections, new Set());
+    await flush();
+
+    const notice = table.previousElementSibling;
+    const link = notice?.querySelector("a");
+    expect(notice?.firstChild?.textContent).toBe(NOTICE_COPY.unsupported);
+    expect(notice?.textContent).toBe(`${NOTICE_COPY.unsupported} ${link?.textContent}`);
+    expect(link?.href).toBe(
+      "https://github.com/macintacos/gh-prism-extension/issues/new?template=language_request.yml&extensions=.zig",
+    );
+    expect(link?.target).toBe("_blank");
+    expect(link?.rel.split(" ")).toContain("noreferrer");
+  });
+
+  it.each<NoticeKind>(["too-large", "rate-limited", "no-access", "failed", "mismatch"])(
+    "gives a %s notice no link",
+    async (kind) => {
+      const diffs = mountDiffs(prSplit);
+      states.set(anchorOfTable(tableAt(diffs)), kind);
+
+      await show(diffs);
+
+      expect(tableAt(diffs).previousElementSibling?.querySelector("a")).toBeNull();
+    },
+  );
 
   it("mutates nothing on a pass with nothing changed", async () => {
     const diffs = mountDiffs(prSplit);

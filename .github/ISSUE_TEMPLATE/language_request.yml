@@ -1,0 +1,29 @@
+# entrypoints/content/diffs/structural-notices.ts opens this form by file name and prefills
+# extensions by id.
+name: Request a language for Structural mode
+description: Structural mode showed GitHub's diff because it doesn't cover a file's language yet.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This issue is public.** Don't paste file names, paths, or code from a private repository.
+  - type: input
+    id: language
+    attributes:
+      label: Language
+      description: The language's name, such as Zig or Elixir.
+    validations:
+      required: true
+  - type: input
+    id: extensions
+    attributes:
+      label: File extensions
+      description: The extensions its files use, separated by spaces, such as `.ex .exs`.
+    validations:
+      required: true
+  - type: input
+    id: example
+    attributes:
+      label: Public example
+      description: A link to a public pull request, commit, or file in this language, if you have one.

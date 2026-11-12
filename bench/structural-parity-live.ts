@@ -74,9 +74,11 @@ const PR4_LEDGER = anchorOf("app/ledger.py");
 const PR3_README = anchorOf("README.md");
 const MARKED = STRUCTURAL_ATTRS.map((name) => `[${name}]`).join(", ");
 
-// Keep in sync with structural-notices.ts's NOTICE_COPY, which imports a stylesheet Bun can't load.
+// Keep in sync with structural-notices.ts's NOTICE_COPY, which imports a stylesheet Bun can't load;
+// unsupported ends in its link's words.
 const NOTICE_COPY = {
-  unsupported: "Structural mode doesn't cover this file's language yet, so this is GitHub's diff.",
+  unsupported:
+    "Structural mode doesn't cover this file's language yet, so this is GitHub's diff. Request this language",
   "too-large": "This file is too large for Structural mode, so this is GitHub's diff.",
   mismatch:
     "Structural mode is in beta and its reading of this file doesn't match the page, so this is GitHub's diff; reload to try again.",
