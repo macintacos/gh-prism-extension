@@ -40,8 +40,10 @@ export interface EngineLimits {
   readonly maxTextLength: number;
   /** Milliseconds, per side's parse. */
   readonly maxParseMs: number;
-  /** Per side. */
+  /** Per side, of the whole text. */
   readonly maxTokens: number;
+  /** Per side, across all regions. */
+  readonly maxChangedTokens: number;
   /** Edits one region's diff may reach; a region past it is changed whole. */
   readonly maxEditLength: number;
   /** Milliseconds across all regions, checked between them. */
@@ -70,10 +72,10 @@ export interface EngineInput {
 
 /**
  * The tokens each version of a file changed, or why they can't be had: `unsupported` without a
- * language, `too-large` past a size limit, `too-slow` when a parse or the diff passes its deadline,
- * `unparsed` when either text of an indentation-sensitive language parses with errors. Any other
- * language's text is compared with its errors. Rejects with `signal.reason` if `signal` has
- * aborted at the start or after either parse.
+ * language, `too-large` past a limit on size or on changed tokens, `too-slow` when a parse or the
+ * diff passes its deadline, `unparsed` when either text of an indentation-sensitive language
+ * parses with errors. Any other language's text is compared with its errors. Rejects with
+ * `signal.reason` if `signal` has aborted at the start or after either parse.
  */
 export async function structuralChanges(input: EngineInput): Promise<EngineResult> {
   const { oldText, newText, language, regions, limits, signal, now, pause } = input;
@@ -95,6 +97,8 @@ export async function structuralChanges(input: EngineInput): Promise<EngineResul
   const newSource = sourceOf(newText, newParsed.tokens);
   const changed = changedTokens(regions, oldSource, newSource, limits, now);
   if (typeof changed === "string") return refuse(changed);
+  if (Math.max(changed.old.length, changed.new.length) > limits.maxChangedTokens)
+    return refuse("too-large");
 
   const changes = {
     old: spansOf(oldSource, withLayout(oldSource, changed.old)),

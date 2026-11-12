@@ -52,6 +52,7 @@ const LIFTED: EngineLimits = {
   maxTextLength: Number.MAX_SAFE_INTEGER,
   maxParseMs: Number.MAX_SAFE_INTEGER,
   maxTokens: Number.MAX_SAFE_INTEGER,
+  maxChangedTokens: Number.MAX_SAFE_INTEGER,
   maxEditLength: Number.MAX_SAFE_INTEGER,
   maxDiffMs: Number.MAX_SAFE_INTEGER,
 };

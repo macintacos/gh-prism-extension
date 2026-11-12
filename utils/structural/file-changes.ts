@@ -38,7 +38,7 @@ export type FileChanges = (
 
 /**
  * The most token spans the cache keeps across all files: about five files at the engine's worst
- * case, `maxTokens` tokens changed a side.
+ * case, `maxChangedTokens` tokens changed a side.
  */
 export const CACHED_SPANS = 200_000;
 
