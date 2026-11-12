@@ -216,7 +216,7 @@ delete the old key.
 
 ## Patched dependencies
 
-Four dependencies carry local patches in [`patches/`](../patches/), which Bun applies on
+Five dependencies carry local patches in [`patches/`](../patches/), which Bun applies on
 install through `patchedDependencies` in [`package.json`](../package.json):
 
 - `@pierre/trees` adds a row decoration's title to the row's accessible label, and renders
@@ -243,6 +243,12 @@ install through `patchedDependencies` in [`package.json`](../package.json):
   `tests/patches.test.ts` passes and that `mise run lint-firefox` reports no
   `Unsafe assignment to innerHTML` warning. Drop the patch once nothing in the bundle
   imports Preact.
+- `web-tree-sitter` replaces its loader's two `eval` calls with a throw. They run only for
+  a grammar that exports `EM_ASM` or `EM_JS` code, which none of the grammars gh-prism
+  ships does, and AMO's linter flags them (`DANGEROUS_EVAL`) whether or not they run.
+  After upgrading the package or a grammar, or regenerating the patch, check that
+  `tests/patches.test.ts` passes and that `mise run lint-firefox` reports no
+  `DANGEROUS_EVAL` warning. Drop the patch once the package stops calling `eval`.
 - `wxt` escapes the entrypoint path in a regular expression, so a checkout whose path
   holds a character such as `+` still builds.
 

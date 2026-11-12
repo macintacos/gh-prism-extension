@@ -1,0 +1,3 @@
+export function describe(name: string, count: number, verbose: boolean): string {
+  return format(name, count, verbose);
+}

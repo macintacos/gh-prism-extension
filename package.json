@@ -32,14 +32,20 @@
   },
   "dependencies": {
     "@pierre/trees": "^1.0.0-beta.6",
+    "diff": "9.0.0",
     "mdast-util-from-markdown": "^2.1.0",
     "mdast-util-gfm": "^3.1.0",
-    "micromark-extension-gfm": "^3.0.0"
+    "micromark-extension-gfm": "^3.0.0",
+    "tree-sitter-javascript": "0.25.0",
+    "tree-sitter-python": "0.25.0",
+    "tree-sitter-typescript": "0.23.2",
+    "web-tree-sitter": "0.27.2"
   },
   "patchedDependencies": {
     "@pierre/trees@1.0.0-beta.6": "patches/@pierre%2Ftrees@1.0.0-beta.6.patch",
     "mdast-util-from-markdown@2.1.0": "patches/mdast-util-from-markdown@2.1.0.patch",
     "preact@11.0.0-beta.0": "patches/preact@11.0.0-beta.0.patch",
+    "web-tree-sitter@0.27.2": "patches/web-tree-sitter@0.27.2.patch",
     "wxt@0.21.4": "patches/wxt@0.21.4.patch"
   }
 }

@@ -25,4 +25,10 @@ describe("patches", () => {
 
     expect(passing).toEqual([]);
   });
+
+  it("bundles a web-tree-sitter whose loader never calls eval", () => {
+    const loader = fileURLToPath(import.meta.resolve("web-tree-sitter"));
+
+    expect(readFileSync(loader, "utf8")).not.toMatch(/\beval\(/);
+  });
 });

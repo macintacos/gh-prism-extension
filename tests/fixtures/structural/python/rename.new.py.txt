@@ -1,0 +1,2 @@
+sum_ = price * count
+report(sum_)

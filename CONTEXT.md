@@ -197,6 +197,10 @@ two-column layout; semantic diff; syntactic diff; difftastic mode
 no changed token, as in a line that was only reindented or reformatted. Structural mode
 dims it. _Avoid_: dimmed row, unchanged row, whitespace-only row
 
+**Engine**: What compares a changed file's old and new tokens for structural mode and
+reports each version's changed tokens, or why it can't: no grammar for the file, a file
+past its limits, or text that does not parse. _Avoid_: differ, parser
+
 ### The Conversation panel
 
 **Conversation panel**: A panel on the left edge of a pull request's Files changed tab

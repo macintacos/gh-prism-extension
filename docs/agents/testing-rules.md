@@ -90,6 +90,11 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   block into one paragraph per setup step.** Tests follow the same
   [paragraphing as source](typescript-rules.md#function-bodies), so a reader finds each
   step at a glance.
+- **Give a source-code fixture a `.txt` suffix.** Biome formats and lints every `.ts`,
+  `.tsx`, and `.js` file and `tsc` type-checks every `.ts` and `.tsx`, so a fixture that
+  must keep odd indentation or must not parse would be rewritten or would fail the hooks;
+  `tests/fixtures/structural/` names its pairs `<case>.old.<ext>.txt` and
+  `<case>.new.<ext>.txt`.
 
 ## End-to-end and bench
 

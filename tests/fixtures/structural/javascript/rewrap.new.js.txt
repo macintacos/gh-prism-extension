@@ -1,0 +1,7 @@
+export function describe(
+  name,
+  count,
+  verbose
+) {
+  return format(name, count, verbose);
+}
