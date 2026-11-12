@@ -4,17 +4,17 @@ import type { ConfigEnv, ResolvedPublicFile, Wxt, WxtHooks } from "wxt";
 import { GRAMMAR_WASM, RUNTIME_WASM, WASM_DIR } from "../utils/structural/packaged";
 import config from "../wxt.config";
 
-const envFor = (browser: string): ConfigEnv => ({
+const envFor = (browser: string, command: ConfigEnv["command"] = "build"): ConfigEnv => ({
   browser,
   manifestVersion: 3,
-  command: "build",
-  mode: "production",
+  command,
+  mode: command === "build" ? "production" : "development",
 });
 
-const manifestFor = async (browser: string) => {
+const manifestFor = async (browser: string, command?: ConfigEnv["command"]) => {
   const manifest = config.manifest;
   if (typeof manifest !== "function") throw new Error("manifest must be a function of ConfigEnv");
-  return manifest(envFor(browser));
+  return manifest(envFor(browser, command));
 };
 
 const viteConfigFor = async (browser: string) => {
@@ -79,6 +79,15 @@ describe("wxt.config", () => {
     });
     expect(firefox.content_security_policy).toEqual({
       extension_pages: "script-src 'self' 'wasm-unsafe-eval'; upgrade-insecure-requests;",
+    });
+  });
+
+  // WXT's dev background reaches the dev server over ws://localhost, which the directive would turn into wss://.
+  it("leaves the Firefox dev build's dev-server socket unencrypted", async () => {
+    const firefox = await manifestFor("firefox", "serve");
+
+    expect(firefox.content_security_policy).toEqual({
+      extension_pages: "script-src 'self' 'wasm-unsafe-eval';",
     });
   });
 

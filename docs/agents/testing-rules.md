@@ -371,3 +371,11 @@ To check behavior live, build the extension and drive Playwright's bundled Chrom
   2026-11-10. A config whose `browser.launchOptions.executablePath` names the build under
   `firefox-*/` in Playwright's browser cache (`~/Library/Caches/ms-playwright/` on macOS)
   works; never install a browser for a check.
+- **To check the dev build, run its server with launching off and load `.output/*-dev`
+  yourself.** A `web-ext.config.ts` with `disabled: true` stops `wxt` opening a browser,
+  so a second session never touches the dev profiles. The dev manifest declares no content
+  script: its background registers them once it hears the dev server on its
+  `ws://localhost` socket, so stock GitHub in a dev build means that socket never opened.
+  In Chromium, read the service worker's `[wxt]` console lines. playwright-webextext
+  throws on a manifest with no `content_scripts`, so for Firefox load a copy whose
+  manifest adds one that matches `https://github.com/*` and runs an empty file.
