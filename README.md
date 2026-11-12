@@ -168,7 +168,7 @@ a commit's page, picks how the diffs are drawn: **Unified**, **Split**, or **Str
 - Structural draws GitHub's Split layout and highlights the code that changed. A line
   changed in full shows only GitHub's line colour, with no highlight, and lines whose
   change only reformats them take a lighter tint. In a comment, a string, HTML or JSX
-  text, a YAML value, Markdown prose, or a `.txt` file, it highlights the words that
+  text, a YAML value, a Markdown file, or a `.txt` file, it highlights the words that
   changed.
 - It keeps GitHub's pairing of old and new lines, and doesn't mark code that moved.
 - It works on Bash, C, C++, C#, CSS, Go, HTML, Java, JavaScript, JSON, Kotlin, Lua,
