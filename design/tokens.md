@@ -44,8 +44,8 @@ the word-mark colour mixed into GitHub's line tint. Under `prefers-contrast: mor
 strength is 100%. A mark's padding and corner radius are `PAD` and `RADIUS` in
 [`entrypoints/content/diffs/structural-marks.ts`](../entrypoints/content/diffs/structural-marks.ts).
 A quiet row's strength is `--gh-prism-quiet-tint`, the share of GitHub's own line tint
-mixed into `--bgColor-default`. A line changed in part takes the same tint. The 2px
-loading line on a pending file's diff is `--fgColor-muted` too, in
+mixed into `--bgColor-default`. A marked line takes the same tint. The 2px loading line on
+a pending file's diff is `--fgColor-muted` too, in
 [`entrypoints/content/diffs/structural-notices.css`](../entrypoints/content/diffs/structural-notices.css).
 
 The spectrum is `SECTION_SPECTRUM` in `ui/section-catalog.ts`: a left-to-right band of

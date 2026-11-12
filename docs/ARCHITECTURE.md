@@ -111,6 +111,14 @@ other side vouches for it. Any pairing left between two replaced lines is droppe
 line that keeps half its tokens therefore keeps its marks: a renamed name, a changed
 argument, or an argument added to an unchanged call.
 
+[`utils/structural/units.ts`](../utils/structural/units.ts) reads each parse for its
+units: the syntax nodes that have their lines to themselves. After the diff, the engine
+takes each unit changed whole whose parent node was not, and sets its tokens aside as a
+block that left or arrived. Every other changed token changed inside a unit that remains,
+and the engine lists those tokens' lines in `StructuralChanges.inside`. `structuralFile`
+copies the list onto each line's annotation as `inside`. A `.txt` file has no units and no
+list.
+
 The content script in [`entrypoints/content/index.ts`](../entrypoints/content/index.ts)
 runs on every github.com page at `document_start`, so its watcher is in place before
 GitHub first renders the page. It cannot match only Files view URLs, because of GitHub's
@@ -1044,8 +1052,9 @@ and whenever it changes.
 
 - **Marks** show a line's changed tokens. `markRanges` in
   [`diffs/structural-marks.ts`](../entrypoints/content/diffs/structural-marks.ts) joins
-  the tokens that have only whitespace between them, and gives a line changed in full no
-  mark, so GitHub's line tint alone shows it. Each mark is a `Range`.
+  the tokens that have only whitespace between them. A line changed in full gets one mark
+  over its text when its annotation says `inside`, and otherwise no mark, so GitHub's line
+  tint alone shows it. Each mark is a `Range`.
 - **A mask draws each mark.** A marked line's `.diff-text-inner` carries
   `data-gh-prism-marks` and a `--gh-prism-marks` custom property: an SVG of padded,
   rounded rectangles that `maskOf` builds. The sheet,
@@ -1063,9 +1072,10 @@ and whenever it changes.
 - **A quiet row** carries `data-gh-prism-quiet` with the quiet side: `old`, `new`, or both
   sides, space-separated, and a painted table carries `data-gh-prism-structural`. The
   sheet keys on both.
-- **A row whose line changed in part** carries `data-gh-prism-part` with that side, in the
-  same form. The sheet steps its tint down as it does a quiet row's. A line changed in
-  full carries no attribute and no mark, and keeps GitHub's tint at full strength.
+- **A row with a marked line** carries `data-gh-prism-part` with that side, in the same
+  form, whether the line changed in part or in full. The sheet steps its tint down as it
+  does a quiet row's. A line changed in full with no mark carries no attribute, and keeps
+  GitHub's tint at full strength.
 - **A word GitHub's own diff picked keeps its syntax colour.** GitHub gives its `.x` spans
   a background and the line's plain colour. In a painted table the sheet clears the
   background and sets each span's colour back to its syntax class's.
