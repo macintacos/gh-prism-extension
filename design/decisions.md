@@ -6,6 +6,85 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-11: Structural mode's marks are rounded, joined, and not underlined
+
+This replaces the 2026-11-10 "Structural mode's moved lines" entry below, and the
+changed-token half of the 2026-11-10 "Structural mode's changed tokens and quiet rows"
+entry.
+
+- **Asked:** the maintainer, after using the mode: the separate highlights per token look
+  "noisy / choppy", and several changed lines in a row should read as "a single contiguous
+  block"; "I'm not a huge fan of the underlining"; the dotted boxes are "not clear"; and
+  the backgrounds "feel a tiny bit cramped, and a bit harsh", wanting a little padding and
+  rounded corners that don't disturb the layout.
+- **Compared:**
+  - for joining, changed tokens joined across whitespace only, across unchanged
+    punctuation too, or out to the line's indentation;
+  - for a line changed in full, one brighter block around the run of lines, or no mark at
+    all;
+  - for the paint, `::highlight()`, a `<span>` around each token, an element laid over the
+    table, or a masked `::before` behind the line's text;
+  - for the moved-line outline, a quieter mark that explains itself on hover and focus, or
+    no mark;
+  - for the underline's job, a 1px ring around each mark, or nothing in its place.
+- **Won:**
+  - Changed tokens with only whitespace between them share one mark.
+  - A line changed in full has no mark, so a run of such lines is GitHub's own line tint,
+    unbroken.
+  - A mark reaches 2px past its text on every side, with a 3px corner, in GitHub's
+    word-mark colour mixed 85% into the line tint. A masked `::before` on the line's
+    `.diff-text-inner` draws it.
+  - The underline and the moved-line outline are gone, with nothing in their place.
+  - A selected line keeps its marks.
+- **Why:**
+  - **Joining:** whitespace is not a token, so joining across it claims nothing the engine
+    didn't report. A mark over unchanged punctuation or indentation would show a change
+    that didn't happen.
+  - **Whole lines:** when every token on a line is marked, the marks say nothing the line
+    tint doesn't. Dropping them leaves three steps a reader can rank: a quiet row, a
+    changed line, and a mark inside a changed line. GitHub draws a wholly added or removed
+    line the same way.
+  - **Paint:** `::highlight()` takes a background colour but no padding and no radius. A
+    `<span>` would change markup React owns. An element over the table would tint the
+    text. The `::before` sits behind the text, adds no node, and takes no space.
+  - **Size:** the code's line is 20px tall and its text 12px or 13px, so 2px above and
+    below leaves marks on neighbouring lines at least 3px apart. 3px is Primer's small
+    radius, `--borderRadius-small`.
+  - **Moved lines:** the outline showed on lines such as `);` and `}`, where it says only
+    that the same text is on both sides. A mark that needs a hover to explain itself would
+    add a focus stop inside GitHub's grid for a signal that is often wrong.
+  - **Underline:** it told a changed token from an unchanged one by shape. The mark's
+    rounded box is that shape now. Which side changed is told by the column and by
+    GitHub's `+` or `-`. A ring would bring back the noise the maintainer asked to remove.
+  - **Selected lines:** GitHub keeps its own word marks on a selected line.
+- **Measured** 2026-11-11, signed in, Chromium 156, on sandbox PR #4 and gh-prism pull
+  requests #117 and #122, light then dark:
+  - the lowest contrast of any text on a marked line, against the mark and then against
+    GitHub's own word-mark colour:
+
+    | Line    | Theme | On the mark | On GitHub's word mark |
+    | ------- | ----- | ----------- | --------------------- |
+    | Added   | light | 4.12:1      | 4.00:1                |
+    | Added   | dark  | 3.12:1      | 2.94:1                |
+    | Removed | light | 3.92:1      | 3.81:1                |
+    | Removed | dark  | 3.99:1      | 3.71:1                |
+
+  - a mark against its line tint: 1.17:1 light and 1.74:1 dark on an added line, and
+    1.19:1 light and 1.71:1 dark on a removed line;
+  - with the mode on and off, every row and every text fragment sat at the same place in
+    its table: 2,227 rows and 39,867 text boxes, 826 of the lines wrapped.
+- **Accepted:**
+  - The lowest text contrast on a mark is below 4.5:1, as it is on GitHub's own word
+    marks, where the same syntax colours sit on a stronger colour. A mark raises that
+    contrast a little and never lowers it; gh-prism doesn't recolour GitHub's text.
+  - A mark against its line tint is below the 3:1 floor for a non-text mark, as GitHub's
+    own word marks are. `prefers-contrast: more` brings the mark to GitHub's full
+    word-mark colour, and `forced-colors: active` paints the changed text in the system's
+    `Mark` colours.
+  - A mark that starts at a line's first column has no padding on that side, because
+    `.diff-text-inner` clips there.
+- **Skipped:** marking code that moved, and a ring under `prefers-contrast: more`.
+
 ## 2026-11-10: A Unified, Split, and Structural control beside the diff settings gear
 
 - **Compared:**

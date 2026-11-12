@@ -14,15 +14,14 @@ import {
 } from "../../../entrypoints/content/files-page";
 import type { LineAnnotation, StructuralFile } from "../../../utils/structural/changes";
 import commitSplit from "../../fixtures/commit-page-diff-split.html?raw";
-import commitWhitespaceSplit from "../../fixtures/commit-page-diff-whitespace-split.html?raw";
 import { anchorOfTable, mountDiffs, sectionsOf, tableAt, tables } from "../../fixtures/diff-tables";
 import prRename from "../../fixtures/files-page-diff-rename.html?raw";
 import prSplit from "../../fixtures/files-page-diff-split.html?raw";
 import prUnified from "../../fixtures/files-page-diff-unified.html?raw";
 import { HighlightStub, stubHighlights } from "../../fixtures/highlights";
+import { stubResizeObserver } from "../../fixtures/resize-observer";
 
 const QUIET: LineAnnotation = { quiet: true };
-const CHANGED: LineAnnotation = { quiet: false, ranges: [] };
 const PAINTED = STRUCTURAL_ATTRS.map((name) => `[${name}]`).join(", ");
 
 /** A file whose text is the table's own and whose lines `annotate` annotates, quiet by default. */
@@ -46,15 +45,6 @@ const cellAt = (table: HTMLTableElement, side: DiffSide, line: number): ChangedC
   return cell;
 };
 
-/** Mounts `commitSplit` with its new line 137 a copy of its old line 137, indented two spaces. */
-function mountMoved(): HTMLElement {
-  const diffs = mountDiffs(commitSplit);
-  const table = tableAt(diffs);
-  const moved = `  ${cellAt(table, "old", 137).textRoot.textContent ?? ""}`;
-  cellAt(table, "new", 137).textRoot.textContent = moved;
-  return diffs;
-}
-
 const sameLine = (a: ChangedCell, b: ChangedCell) => a.side === b.side && a.line === b.line;
 
 /** A range over the first occurrence of `token` in `cell`'s text. */
@@ -76,6 +66,26 @@ const rangesIn = (name: string): Range[] =>
   );
 const textsIn = (name: string) => rangesIn(name).map(String);
 const allRanges = () => [...rangesIn(ADDED_HIGHLIGHT), ...rangesIn(REMOVED_HIGHLIGHT)];
+
+/** The ranges of `tokens` in `cell`'s text, each found after the one before it. */
+const overEach = (cell: ChangedCell, ...tokens: string[]): LineAnnotation => {
+  const text = cell.textRoot.textContent ?? "";
+  let from = 0;
+  const ranges = tokens.map((token) => {
+    const startCol = text.indexOf(token, from);
+    if (startCol < 0) throw new Error(`no ${token}`);
+    from = startCol + token.length;
+    return { startCol, endCol: from };
+  });
+  return { quiet: false, ranges };
+};
+
+const MARKED = "[data-gh-prism-marks]";
+const maskOn = (root: Element) =>
+  root instanceof HTMLElement ? root.style.getPropertyValue("--gh-prism-marks") : "";
+
+/** How many rects the mask on `root` draws. */
+const rectsOn = (root: Element) => decodeURIComponent(maskOn(root)).split("<rect ").length - 1;
 
 const flush = () => vi.advanceTimersByTimeAsync(100);
 
@@ -105,20 +115,30 @@ describe("paintStructural", () => {
     return diffs;
   };
 
-  /** Paints `commitSplit` with its new line 137 a moved copy of its old line 137. */
-  const paintMoved = async (annotate: (cell: ChangedCell) => LineAnnotation) => {
-    const diffs = mountMoved();
+  let restoreHighlights: () => void;
+  let sizes: ReturnType<typeof stubResizeObserver>;
+
+  /** Paints `prSplit` with `annotation` on its new line 22, `        self.limit = limit;`, and the rest quiet. */
+  const paintLine22 = async (annotation: (cell: ChangedCell) => LineAnnotation) => {
+    const diffs = mountDiffs(prSplit);
     const table = tableAt(diffs);
-    files.set(anchorOfTable(table), fileOf(table, annotate));
+    const line22 = cellAt(table, "new", 22);
+    files.set(
+      anchorOfTable(table),
+      fileOf(table, (cell) => (sameLine(cell, line22) ? annotation(cell) : QUIET)),
+    );
     paint(diffs);
     await flush();
-    return diffs;
+    return { diffs, table, line22 };
   };
-
-  let restoreHighlights: () => void;
 
   beforeEach(() => {
     restoreHighlights = stubHighlights().restore;
+    sizes = stubResizeObserver();
+    // happy-dom lays nothing out: every range gets one 30px-wide rect on a 20px line.
+    vi.spyOn(Range.prototype, "getClientRects").mockReturnValue([
+      { left: 40, top: 4, right: 70, bottom: 16 },
+    ] as unknown as DOMRectList);
     vi.useFakeTimers();
     controller = new AbortController();
     report = vi.fn();
@@ -130,6 +150,7 @@ describe("paintStructural", () => {
     vi.runOnlyPendingTimers();
     vi.useRealTimers();
     vi.restoreAllMocks();
+    sizes.restore();
     restoreHighlights();
   });
 
@@ -220,82 +241,104 @@ describe("paintStructural", () => {
     expect(row?.getAttribute("data-gh-prism-quiet")).toBe("old new");
   });
 
-  it("marks a moved line's row with its sides", async () => {
-    const diffs = await paintMoved(() => CHANGED);
+  it("paints tokens a space apart as one range", async () => {
+    await paintLine22((cell) => overEach(cell, "self", ".", "limit", "="));
 
-    const row = cellAt(tableAt(diffs), "old", 137).textRoot.closest("tr");
-    expect(row?.getAttribute("data-gh-prism-moved")).toBe("old new");
+    expect(textsIn(ADDED_HIGHLIGHT)).toEqual(["self.limit ="]);
   });
 
-  it("marks one side of a row moved while its other side stays quiet", async () => {
-    const diffs = mountDiffs(commitWhitespaceSplit);
-    const table = tableAt(diffs);
-    const oldLine = cellAt(table, "old", 144);
-    const partner = cellAt(table, "new", 145);
-    partner.textRoot.textContent = oldLine.textRoot.textContent;
-    files.set(
-      anchorOfTable(table),
-      fileOf(table, (cell) => (cell.side === "new" && cell.line === 144 ? QUIET : CHANGED)),
+  it("paints no token on a line changed in full, and leaves its row's tint alone", async () => {
+    const { diffs, line22 } = await paintLine22((cell) =>
+      overEach(cell, "self", ".", "limit", "=", "limit", ";"),
     );
-    paint(diffs);
-    await flush();
+    sizes.deliver();
 
-    expect(oldLine.row.getAttribute("data-gh-prism-quiet")).toBe("new");
-    expect(oldLine.row.getAttribute("data-gh-prism-moved")).toBe("old");
-    expect(partner.row.getAttribute("data-gh-prism-moved")).toBe("new");
+    expect(allRanges()).toEqual([]);
+    expect(diffs.querySelector(MARKED)).toBeNull();
+    expect(line22.row.hasAttribute("data-gh-prism-quiet")).toBe(false);
   });
 
-  it("marks no quiet line moved", async () => {
-    const diffs = await paintMoved(() => QUIET);
+  it("draws a mark behind each range once its text is measured", async () => {
+    const { diffs, line22 } = await paintLine22((cell) => overEach(cell, "self", "limit", ";"));
+    expect(diffs.querySelector(MARKED)).toBeNull();
 
-    expect(diffs.querySelector("[data-gh-prism-moved]")).toBeNull();
-  });
+    sizes.deliver();
 
-  it("gives a mismatched table no moved mark", async () => {
-    const diffs = mountMoved();
-    const table = tableAt(diffs);
-    files.set(
-      anchorOfTable(table),
-      fileOf(table, () => CHANGED),
+    expect([...diffs.querySelectorAll(MARKED)]).toEqual([line22.textRoot]);
+    expect(decodeURIComponent(maskOn(line22.textRoot))).toContain(
+      "<rect x='38' y='2' width='34' height='16' rx='3'/>",
     );
-    cellAt(table, "old", 137).textRoot.textContent = "other";
-
-    paint(diffs);
-    await flush();
-
-    expect(diffs.querySelector("[data-gh-prism-moved]")).toBeNull();
+    expect(rectsOn(line22.textRoot)).toBe(3);
   });
 
-  it("repaints from a new file object without rewriting an unchanged moved row", async () => {
-    const diffs = await paintMoved(() => CHANGED);
-    const table = tableAt(diffs);
-    const setAttribute = vi.spyOn(Element.prototype, "setAttribute");
+  it("draws a mark anew when its text changes size", async () => {
+    const { line22 } = await paintLine22((cell) => overEach(cell, "self"));
+    sizes.deliver();
+    const before = maskOn(line22.textRoot);
+    vi.spyOn(Range.prototype, "getClientRects").mockReturnValue([
+      { left: 0, top: 24, right: 30, bottom: 36 },
+    ] as unknown as DOMRectList);
 
-    files.set(
-      anchorOfTable(table),
-      fileOf(table, () => CHANGED),
-    );
+    sizes.resizeAll();
+
+    expect(maskOn(line22.textRoot)).not.toBe(before);
+    expect(decodeURIComponent(maskOn(line22.textRoot))).toContain("y='22'");
+  });
+
+  it("measures every mark before it writes one", async () => {
+    await paintFixtures((cell) => opening(cell), prSplit, commitSplit);
+    const read = vi.spyOn(Range.prototype, "getClientRects");
+    const writes = [
+      vi.spyOn(Element.prototype, "setAttribute"),
+      vi.spyOn(CSSStyleDeclaration.prototype, "setProperty"),
+    ];
+
+    sizes.deliver();
+
+    const firstWrite = Math.min(...writes.flatMap((spy) => spy.mock.invocationCallOrder));
+    expect(read.mock.calls.length).toBeGreaterThan(1);
+    expect(Math.max(...read.mock.invocationCallOrder)).toBeLessThan(firstWrite);
+  });
+
+  it("takes a line's mark off when a new file object leaves it none", async () => {
+    const { diffs, table, line22 } = await paintLine22((cell) => overEach(cell, "self"));
+    sizes.deliver();
+
+    files.set(anchorOfTable(table), fileOf(table));
     diffs.append(document.createElement("div"));
     await flush();
+    sizes.resizeAll();
 
-    const movedWrites = setAttribute.mock.calls.filter(([name]) => name === "data-gh-prism-moved");
-    expect(movedWrites).toEqual([]);
-    expect(diffs.querySelector("[data-gh-prism-moved]")).not.toBeNull();
+    expect(diffs.querySelector(MARKED)).toBeNull();
+    expect(maskOn(line22.textRoot)).toBe("");
   });
 
-  it("takes the mark off when a new file object no longer pairs the line", async () => {
-    const diffs = await paintMoved(() => CHANGED);
-    const table = tableAt(diffs);
-    const old137 = cellAt(table, "old", 137);
+  it("draws a replaced table's marks on its new cells", async () => {
+    const { diffs, table } = await paintLine22((cell) => overEach(cell, "self"));
+    sizes.deliver();
+    const replacement = table.cloneNode(true);
+    if (!(replacement instanceof HTMLTableElement)) throw new Error("not a table");
+    for (const root of replacement.querySelectorAll<HTMLElement>(MARKED)) {
+      root.removeAttribute("data-gh-prism-marks");
+      root.style.removeProperty("--gh-prism-marks");
+    }
 
-    files.set(
-      anchorOfTable(table),
-      fileOf(table, (cell) => (sameLine(cell, old137) ? QUIET : CHANGED)),
-    );
-    diffs.append(document.createElement("div"));
+    table.replaceWith(replacement);
     await flush();
+    sizes.deliver();
 
-    expect(old137.textRoot.closest("tr")?.hasAttribute("data-gh-prism-moved")).toBe(false);
+    expect([...diffs.querySelectorAll(MARKED)]).toEqual([cellAt(replacement, "new", 22).textRoot]);
+  });
+
+  it("takes every mark back on abort and draws none after", async () => {
+    const { diffs, line22 } = await paintLine22((cell) => overEach(cell, "self"));
+    sizes.deliver();
+
+    controller.abort();
+    sizes.resizeAll();
+
+    expect(diffs.querySelector(MARKED)).toBeNull();
+    expect(maskOn(line22.textRoot)).toBe("");
   });
 
   it("paints nothing before the sections list the files", async () => {
@@ -499,29 +542,6 @@ describe("paintStructural", () => {
 
     expect(allRanges()).toHaveLength(count);
     for (const range of allRanges()) expect(range.collapsed).toBe(false);
-  });
-
-  it("drops empty, inverted, and overrunning ranges and keeps overlapping ones", async () => {
-    const diffs = mountDiffs(prSplit);
-    const table = tableAt(diffs);
-    const line21 = cellAt(table, "new", 21);
-    const length = (line21.textRoot.textContent ?? "").length;
-    const ranges = [
-      { startCol: 1, endCol: 1 },
-      { startCol: 2, endCol: 1 },
-      { startCol: 0, endCol: length + 5 },
-      { startCol: 0, endCol: 2 },
-      { startCol: 1, endCol: 3 },
-    ];
-    files.set(
-      anchorOfTable(table),
-      fileOf(table, (cell) => (sameLine(cell, line21) ? { quiet: false, ranges } : QUIET)),
-    );
-
-    paint(diffs);
-    await flush();
-
-    expect(rangesIn(ADDED_HIGHLIGHT)).toHaveLength(2);
   });
 
   it("takes every write back on abort and paints no more", async () => {

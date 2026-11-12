@@ -198,11 +198,10 @@ and GitHub's two-column layout; semantic diff; syntactic diff; difftastic mode
 no changed token, as in a line that was only reindented or reformatted. Structural mode
 dims it. _Avoid_: dimmed row, unchanged row, whitespace-only row
 
-**Moved line**: A changed line whose trimmed text is the same as a line on the other side
-of the same file. Repeated text pairs off one removed copy to one added copy, in line
-order. Structural mode marks both with a dashed outline. A line on a quiet row's quiet
-side is never a moved line. _Avoid_: relocated line; move (the sidebar's word for a file
-that changes section)
+**Mark**: The rounded highlight structural mode draws behind changed tokens on a line
+changed in part. Changed tokens with only whitespace between them share one mark. A line
+changed in full has no mark: GitHub's line tint already says so. _Avoid_: chip, pill, word
+mark (GitHub's own highlight)
 
 **Diff view control**: gh-prism's Unified, Split, and Structural control beside GitHub's
 diff settings gear. It picks GitHub's layout, Unified or Split, or Structural mode;

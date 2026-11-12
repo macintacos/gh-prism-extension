@@ -9,6 +9,7 @@ import {
   paintStructural,
   REMOVED_HIGHLIGHT,
 } from "../entrypoints/content/diffs/structural";
+import { MARKS_ATTR } from "../entrypoints/content/diffs/structural-attrs";
 import { changedCells, diffTables } from "../entrypoints/content/files-page";
 import type { FileSection } from "../entrypoints/content/visit/land";
 import type { LineAnnotation, StructuralFile } from "../utils/structural/changes";
@@ -34,6 +35,11 @@ export interface StructuralHarness {
    * `.diff-text-inner`), and each range's text.
    */
   ranges(): { added: number; removed: number; stale: number; texts: string[] };
+  /**
+   * Each marked line, in document order: the boxes its mask draws and its ranges' own boxes, both as
+   * `[x, y, width, height]` from the line's text root, in hundredths of a pixel.
+   */
+  drawn(): { boxes: number[][]; texts: number[][] }[];
   /** Remembers the Range objects registered now, for `kept()`. */
   mark(): void;
   /** How many of the Ranges `mark()` remembered are still registered. */
@@ -82,6 +88,29 @@ function isStale(range: AbstractRange): boolean {
 
 const highlighted = (name: string): AbstractRange[] => [...(CSS.highlights.get(name) ?? [])];
 
+const hundredths = (values: readonly number[]) => values.map((value) => Math.round(value * 100));
+
+/** The boxes the mask on `root` draws. */
+function maskBoxes(root: HTMLElement): number[][] {
+  const svg = decodeURIComponent(root.style.getPropertyValue("--gh-prism-marks"));
+  return [...svg.matchAll(/<rect x='(.+?)' y='(.+?)' width='(.+?)' height='(.+?)'/g)].map((match) =>
+    hundredths(match.slice(1).map(Number)),
+  );
+}
+
+/** The bounding boxes of the registered ranges inside `root`, from its top left corner. */
+function textBoxes(root: HTMLElement): number[][] {
+  const origin = root.getBoundingClientRect();
+  return [...highlighted(ADDED_HIGHLIGHT), ...highlighted(REMOVED_HIGHLIGHT)]
+    .filter(
+      (range): range is Range => range instanceof Range && root.contains(range.startContainer),
+    )
+    .map((range) => range.getBoundingClientRect())
+    .map((box) =>
+      hundredths([box.left - origin.left, box.top - origin.top, box.width, box.height]),
+    );
+}
+
 let controller = new AbortController();
 let reported: Record<string, PaintOutcome> = {};
 let marked = new Set<AbstractRange>();
@@ -118,6 +147,11 @@ window.structural = {
       texts: all.map((range) => (range instanceof Range ? range.toString() : "")),
     };
   },
+  drawn: () =>
+    [...document.querySelectorAll<HTMLElement>(`[${MARKS_ATTR}]`)].map((root) => ({
+      boxes: maskBoxes(root),
+      texts: textBoxes(root),
+    })),
   mark() {
     marked = new Set([...highlighted(ADDED_HIGHLIGHT), ...highlighted(REMOVED_HIGHLIGHT)]);
   },

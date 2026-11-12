@@ -88,6 +88,15 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   so a range over removed text nodes never collapses; prove that in a browser.
   [`structural.test.ts`](../../tests/content/diffs/structural.test.ts) stubs and restores
   `CSS` this way.
+- **Stub `ResizeObserver` and `Range.prototype.getClientRects` before a test reads what a
+  `ResizeObserver` callback measures.** happy-dom's `ResizeObserver` never calls back, and
+  it lays nothing out, so every rect is empty.
+  [`tests/fixtures/resize-observer.ts`](../../tests/fixtures/resize-observer.ts) installs
+  an observer the test delivers by hand, and
+  [`structural.test.ts`](../../tests/content/diffs/structural.test.ts) gives every range
+  one fixed rect. Prove the real geometry in a browser, as
+  [`e2e/structural.e2e.ts`](../../e2e/structural.e2e.ts)'s "draws a mark 2px past its
+  token on every side…" does.
 - **Stub an iframe's `contentWindow`.** happy-dom's `disableIframePageLoading` means an
   iframe never gets one.
 

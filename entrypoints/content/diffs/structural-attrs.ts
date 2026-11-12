@@ -5,7 +5,7 @@
 
 export const TABLE_ATTR = "data-gh-prism-structural";
 export const QUIET_ATTR = "data-gh-prism-quiet";
-export const MOVED_ATTR = "data-gh-prism-moved";
+export const MARKS_ATTR = "data-gh-prism-marks";
 
 /** Every attribute the painter writes. */
-export const STRUCTURAL_ATTRS = [TABLE_ATTR, QUIET_ATTR, MOVED_ATTR] as const;
+export const STRUCTURAL_ATTRS = [TABLE_ATTR, QUIET_ATTR, MARKS_ATTR] as const;

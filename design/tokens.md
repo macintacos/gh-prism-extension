@@ -38,12 +38,14 @@ mixed so the box holds 3:1 against every row background.
 
 Structural mode's colours are in
 [`entrypoints/content/diffs/structural.css`](../entrypoints/content/diffs/structural.css).
-A changed token takes GitHub's word-mark backgrounds, `--diffBlob-additionWord-bgColor`
-and `--diffBlob-deletionWord-bgColor`, and an underline in `--fgColor-success` when added
-or `--display-red-fgColor` when removed. A quiet row's strength is
-`--gh-prism-quiet-tint`, the share of GitHub's own line tint mixed into
-`--bgColor-default`. A moved line's code cell takes a dashed outline in `--fgColor-muted`.
-The 2px loading line on a pending file's diff is `--fgColor-muted` too, in
+A mark takes GitHub's word-mark backgrounds, `--diffBlob-additionWord-bgColor` and
+`--diffBlob-deletionWord-bgColor`, softened by `--gh-prism-mark-strength`, the share of
+the word-mark colour mixed into GitHub's line tint. Under `prefers-contrast: more` the
+strength is 100%. A mark's padding and corner radius are `PAD` and `RADIUS` in
+[`entrypoints/content/diffs/structural-marks.ts`](../entrypoints/content/diffs/structural-marks.ts).
+A quiet row's strength is `--gh-prism-quiet-tint`, the share of GitHub's own line tint
+mixed into `--bgColor-default`. The 2px loading line on a pending file's diff is
+`--fgColor-muted` too, in
 [`entrypoints/content/diffs/structural-notices.css`](../entrypoints/content/diffs/structural-notices.css).
 
 The spectrum is `SECTION_SPECTRUM` in `ui/section-catalog.ts`: a left-to-right band of

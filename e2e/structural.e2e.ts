@@ -307,7 +307,7 @@ const TOKENS = `<style>
   #swatch { position: fixed; left: 0; bottom: 0; width: 8px; height: 8px; background: rgb(255, 230, 120); }
 </style><div id="swatch"></div>`;
 
-test("paints a changed token, tints a quiet row, and leaves a selected row GitHub's", async ({
+test("marks a changed token, tints a quiet row, and keeps the mark on a selected row", async ({
   page,
   bundle,
 }) => {
@@ -352,69 +352,134 @@ test("paints a changed token, tints a quiet row, and leaves a selected row GitHu
   const pixel = (x: number, y: number) => page.screenshot({ clip: { x, y, width: 1, height: 1 } });
   const viewport = page.viewportSize();
   if (!viewport) throw new Error("no viewport");
-  expect((await pixel(token.x, token.y)).equals(await pixel(1, viewport.height - 2))).toBe(true);
+  expect((await pixel(token.x, token.y)).equals(await pixel(1, viewport.height - 2))).toBe(false);
   for (const cell of quietCells) expect(await background(cell)).toBe("rgb(255, 230, 120)");
 });
 
-test("outlines a moved line's code cells dashed, and keeps the outline on a selected row", async ({
+// GitHub's wrapping, which a routed fixture doesn't load, in a table narrow enough to wrap the
+// commit's one changed line.
+const WRAPPING = `${TOKENS}<style>
+  table { table-layout: fixed; width: 900px; font: 12px/20px monospace; }
+  td.diff-text-cell { padding: 0 24px 0 20px; }
+  .diff-text-inner { display: block; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>`;
+
+/** Starts the painter with one range on the commit's old line 137, over `token`. */
+const startOver = (page: Page, token: string) =>
+  page.evaluate(
+    ({ anchor, token }) => {
+      const files = window.structural.synthesize();
+      const file = files[anchor];
+      const startCol = file?.text.old[137]?.indexOf(token) ?? -1;
+      if (!file || startCol < 0) throw new Error("no token");
+      const ranges = [{ startCol, endCol: startCol + token.length }];
+      files[anchor] = {
+        ...file,
+        annotations: { old: { 137: { quiet: false, ranges } }, new: { 137: { quiet: true } } },
+      };
+      window.structural.start(files);
+    },
+    { anchor: COMMIT_ANCHOR, token },
+  );
+
+const padded = ([x = 0, y = 0, width = 0, height = 0]: number[]) => [
+  x - 200,
+  y - 200,
+  width + 400,
+  height + 400,
+];
+
+test("draws a mark 2px past its token on every side, with its corners rounded off", async ({
+  page,
+  bundle,
+}) => {
+  await mount(page, bundle, [COMMIT_SPLIT], WRAPPING);
+
+  await startOver(page, "RenderLinesResponse");
+  await repaint(page);
+
+  const [line, ...rest] = await page.evaluate(() => window.structural.drawn());
+  expect(rest).toEqual([]);
+  expect(line?.texts).toHaveLength(1);
+  expect(line?.boxes).toEqual(line?.texts.map(padded));
+  const root = page.locator("[data-gh-prism-marks]");
+  const origin = await root.boundingBox();
+  const [x = 0, y = 0, width = 0] = (line?.boxes[0] ?? []).map((value) => value / 100);
+  if (!origin) throw new Error("no marked line");
+  const pixel = async (dx: number, dy: number) =>
+    [
+      ...(await page.screenshot({
+        clip: { x: origin.x + x + dx, y: origin.y + y + dy, width: 1, height: 1 },
+      })),
+    ].join();
+  const lineTint = await pixel(-3, 8);
+  expect(await pixel(1, 8)).not.toBe(lineTint);
+  expect(await pixel(width - 1, 8)).not.toBe(lineTint);
+  expect(await pixel(0, 0)).toBe(lineTint);
+});
+
+test("draws a mark again where its token lands when a narrower table wraps the line", async ({
+  page,
+  bundle,
+}) => {
+  await mount(page, bundle, [COMMIT_SPLIT], WRAPPING);
+  await page.addStyleTag({ content: "table { width: 1400px !important; }" });
+  await startOver(page, "keyof");
+  await repaint(page);
+  const [wide] = await page.evaluate(() => window.structural.drawn());
+
+  await page.addStyleTag({ content: "table { width: 600px !important; }" });
+  await repaint(page);
+
+  const [narrow] = await page.evaluate(() => window.structural.drawn());
+  expect(narrow?.texts).not.toEqual(wide?.texts);
+  expect(narrow?.boxes).toEqual(narrow?.texts.map(padded));
+});
+
+/** Every row's box and every changed line's text boxes, one per rendered fragment. */
+const layoutOf = (page: Page) =>
+  page.evaluate(() => {
+    const box = ({ x, y, width, height }: DOMRect) =>
+      [x, y, width, height].map((value) => Math.round(value * 100));
+    const range = document.createRange();
+    return {
+      rows: [...document.querySelectorAll("tr")].map((row) => box(row.getBoundingClientRect())),
+      text: [...document.querySelectorAll("code.diff-text .diff-text-inner")].map((root) => {
+        range.selectNodeContents(root);
+        return [...range.getClientRects()].map(box);
+      }),
+    };
+  });
+
+test("painting moves no row and no text, on wrapped lines too", async ({ page, bundle }) => {
+  await mount(page, bundle, [PR_SPLIT, COMMIT_SPLIT], WRAPPING);
+  await page.addStyleTag({ content: "table { width: 600px !important; }" });
+  const before = await layoutOf(page);
+  expect(before.rows.some(([, , , height = 0]) => height > 2000)).toBe(true);
+
+  await startOver(page, "keyof RenderLinesResponses");
+  await repaint(page);
+
+  await expect(page.locator("[data-gh-prism-marks]")).not.toHaveCount(0);
+  await expect(page.locator("tr[data-gh-prism-quiet]")).not.toHaveCount(0);
+  expect(await layoutOf(page)).toEqual(before);
+});
+
+test("marks a changed token in the system's colours under forced colours", async ({
   page,
   bundle,
 }) => {
   await mount(page, bundle, [COMMIT_SPLIT], TOKENS);
-  const row = page.locator(`tr:has(td[data-line-anchor="${COMMIT_ANCHOR}L137"])`);
-  const oldCode = row.locator("td").nth(1);
-  const newCode = row.locator("td").nth(3);
-  const codeCells = [oldCode, newCode];
-  const outline = (cell: typeof oldCode) =>
-    cell.evaluate((td) => {
-      const { outlineStyle, outlineColor } = getComputedStyle(td);
-      return { outlineStyle, outlineColor };
-    });
-
-  await row.evaluate((tr, anchor) => {
-    const [, oldCode, , newCode] = tr.querySelectorAll(":scope > td");
-    const oldText = oldCode?.querySelector(".diff-text-inner");
-    const newText = newCode?.querySelector(".diff-text-inner");
-    if (!oldText || !newText) throw new Error("no code text");
-    newText.textContent = `  ${oldText.textContent ?? ""}`;
-
-    const files = window.structural.synthesize();
-    const file = files[anchor];
-    if (!file) throw new Error("no file");
-    const changed = { quiet: false, ranges: [] };
-    files[anchor] = {
-      ...file,
-      annotations: {
-        old: { ...file.annotations.old, 137: changed },
-        new: { ...file.annotations.new, 137: changed },
-      },
-    };
-    window.structural.start(files);
-  }, COMMIT_ANCHOR);
+  await page.emulateMedia({ forcedColors: "active" });
+  const tokenCell = page
+    .locator(`tr:has(td[data-line-anchor="${COMMIT_ANCHOR}L137"])`)
+    .locator("td")
+    .nth(1);
+  await startOver(page, "RenderLinesResponse");
   await repaint(page);
+  const marked = await tokenCell.screenshot();
 
-  await expect(row).toHaveAttribute("data-gh-prism-moved", "old new");
-  for (const cell of codeCells)
-    expect(await outline(cell)).toEqual({
-      outlineStyle: "dashed",
-      outlineColor: "rgb(90, 90, 90)",
-    });
-  const marked = await oldCode.screenshot();
-
-  await row.evaluate((tr) => {
-    for (const td of tr.querySelectorAll("td")) td.dataset.selected = "true";
-  });
-  for (const cell of codeCells) expect((await outline(cell)).outlineStyle).toBe("dashed");
-
-  await newCode.evaluate((td) => {
-    td.tabIndex = -1;
-    td.focus();
-  });
-  expect((await outline(newCode)).outlineStyle).toBe("dashed");
-  await newCode.blur();
-
-  await page.evaluate(() => window.structural.stop());
-  for (const cell of codeCells) expect((await outline(cell)).outlineStyle).toBe("none");
-  await expect(page.locator(MARKED)).toHaveCount(0);
-  expect((await oldCode.screenshot()).equals(marked)).toBe(false);
+  // Without its ranges, the cell shows whatever else forced colours leave of the paint.
+  await page.evaluate(() => CSS.highlights.clear());
+  expect((await tokenCell.screenshot()).equals(marked)).toBe(false);
 });

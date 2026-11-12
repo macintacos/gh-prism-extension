@@ -1,5 +1,4 @@
 import type { ColumnRange, StructuralFile } from "@/utils/structural/changes";
-import { movedLines } from "@/utils/structural/moved";
 import {
   type ChangedCell,
   changedCells,
@@ -11,7 +10,8 @@ import type { LandingView } from "../visit/land";
 import { pathsByAnchor } from "./on-screen";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./structural.css?inline";
-import { MOVED_ATTR, QUIET_ATTR, TABLE_ATTR } from "./structural-attrs";
+import { MARKS_ATTR, QUIET_ATTR, TABLE_ATTR } from "./structural-attrs";
+import { type Box, lineBoxes, markRanges, maskOf } from "./structural-marks";
 
 /** How a mounted file fared: painted, or skipped whole because a mounted cell's text or annotation disagrees with the file. */
 export type PaintOutcome = "painted" | "mismatch";
@@ -31,17 +31,21 @@ export interface StructuralPainting {
   report(path: string, outcome: PaintOutcome): void;
 }
 
-// Keep in sync with structural.css's ::highlight() names and attribute selectors.
+// Keep in sync with structural.css's ::highlight() names, attribute selectors, and mask variable.
 export const ADDED_HIGHLIGHT = "gh-prism-added";
 export const REMOVED_HIGHLIGHT = "gh-prism-removed";
+const MASK_PROPERTY = "--gh-prism-marks";
 
-/** What one table holds: the file it was painted from, its cells' text roots, its ranges, and its quiet and moved rows. */
+/** Each marked cell's text root and the ranges its marks cover. */
+type Marks = ReadonlyMap<HTMLElement, readonly Range[]>;
+
+/** What one table holds: the file it was painted from, its cells' text roots, its ranges, its quiet rows, and its marks. */
 interface Painted {
   readonly file: StructuralFile;
   readonly roots: readonly Element[];
   readonly ranges: readonly Range[];
   readonly quiet: ReadonlyMap<Element, string>;
-  readonly moved: ReadonlyMap<Element, string>;
+  readonly marks: Marks;
 }
 
 /** The writes one table needs, read in full before any is made. */
@@ -53,8 +57,8 @@ interface Plan {
   readonly removed: readonly Range[];
   /** The quiet rows the table held before this plan. */
   readonly quietBefore: ReadonlyMap<Element, string>;
-  /** The moved rows the table held before this plan. */
-  readonly movedBefore: ReadonlyMap<Element, string>;
+  /** The marks the table held before this plan. */
+  readonly marksBefore: Marks;
   readonly painted: Painted;
 }
 
@@ -105,6 +109,24 @@ function rangeOf(textRoot: Element, { startCol, endCol }: ColumnRange): Range | 
   return undefined;
 }
 
+/** The boxes of `ranges`' text, one per visual line of each, from `root`'s top left corner. */
+function boxesOf(root: Element, ranges: readonly Range[]): Box[] {
+  const origin = root.getBoundingClientRect();
+  return ranges.flatMap((range) => lineBoxes(origin, range.getClientRects()));
+}
+
+/** Draws `mask` behind `root`'s text, or takes its marks off for `undefined`. */
+function writeMask(root: HTMLElement, mask: string | undefined): void {
+  if (mask === undefined) {
+    if (root.hasAttribute(MARKS_ATTR)) root.removeAttribute(MARKS_ATTR);
+    root.style.removeProperty(MASK_PROPERTY);
+    return;
+  }
+
+  if (!root.hasAttribute(MARKS_ATTR)) root.setAttribute(MARKS_ATTR, "");
+  root.style.setProperty(MASK_PROPERTY, mask);
+}
+
 /** Whether `cells` are the very text roots `painted` was painted on, from `file`, with no range gone stale. */
 function isFresh(
   painted: Painted | undefined,
@@ -129,17 +151,17 @@ function planTable(
 ): Plan {
   const roots = cells.map(({ textRoot }) => textRoot);
   const quietBefore = before?.quiet ?? new Map<Element, string>();
-  const movedBefore = before?.moved ?? new Map<Element, string>();
-  const movedInFile = movedLines(file);
+  const marksBefore = before?.marks ?? new Map<HTMLElement, readonly Range[]>();
   const added: Range[] = [];
   const removed: Range[] = [];
   const quiet = new Map<Element, string>();
-  const moved = new Map<Element, string>();
+  const marks = new Map<HTMLElement, readonly Range[]>();
 
   for (const { side, line, textRoot, row } of cells) {
     const annotation = file.annotations[side][line];
-    if (!annotation || textRoot.textContent !== file.text[side][line]) {
-      const painted = { file, roots, ranges: [], quiet: new Map(), moved: new Map() };
+    const text = file.text[side][line];
+    if (!annotation || text === undefined || textRoot.textContent !== text) {
+      const painted = { file, roots, ranges: [], quiet: new Map(), marks: new Map() };
       return {
         table,
         path,
@@ -147,7 +169,7 @@ function planTable(
         added: [],
         removed: [],
         quietBefore,
-        movedBefore,
+        marksBefore,
         painted,
       };
     }
@@ -157,13 +179,15 @@ function planTable(
       continue;
     }
 
-    if (movedInFile[side].has(line)) markSide(moved, row, side);
-    const ranges = annotation.ranges.flatMap((columns) => rangeOf(textRoot, columns) ?? []);
+    const ranges = markRanges(text, annotation.ranges).flatMap(
+      (columns) => rangeOf(textRoot, columns) ?? [],
+    );
     (side === "old" ? removed : added).push(...ranges);
+    if (ranges.length > 0 && textRoot instanceof HTMLElement) marks.set(textRoot, ranges);
   }
 
-  const painted = { file, roots, ranges: [...added, ...removed], quiet, moved };
-  return { table, path, outcome: "painted", added, removed, quietBefore, movedBefore, painted };
+  const painted = { file, roots, ranges: [...added, ...removed], quiet, marks };
+  return { table, path, outcome: "painted", added, removed, quietBefore, marksBefore, painted };
 }
 
 /**
@@ -185,6 +209,18 @@ export function paintStructural(
   const removedHighlight = new win.Highlight();
   const style = Object.assign(doc.createElement("style"), { textContent: css });
   const painted = new Map<HTMLTableElement, Painted>();
+  const measured = new Map<Element, readonly Range[]>();
+  // A ResizeObserver reports after layout, so measuring a mark there forces none, and it reports
+  // again when a resize wraps the text another way.
+  const sizes = new win.ResizeObserver((entries) => {
+    const masks = entries.flatMap(({ target }) => {
+      const ranges = measured.get(target);
+      return ranges && target instanceof HTMLElement
+        ? [[target, maskOf(boxesOf(target, ranges))] as const]
+        : [];
+    });
+    for (const [root, mask] of masks) writeMask(root, mask);
+  });
   const reported = new Map<string, PaintOutcome>();
   let paths: ReadonlyMap<string, string> = new Map();
   let frame: number | undefined;
@@ -212,10 +248,20 @@ export function paintStructural(
     painted.delete(table);
     return entry;
   };
+  const measure = (root: HTMLElement, ranges: readonly Range[]) => {
+    measured.set(root, ranges);
+    // Observed anew, so the observer reports it even at its old size.
+    sizes.unobserve(root);
+    sizes.observe(root);
+  };
+  const clearMarks = (root: HTMLElement) => {
+    measured.delete(root);
+    sizes.unobserve(root);
+    writeMask(root, undefined);
+  };
   const unmark = (table: HTMLTableElement, entry: Painted | undefined) => {
     table.removeAttribute(TABLE_ATTR);
     for (const row of entry?.quiet.keys() ?? []) row.removeAttribute(QUIET_ATTR);
-    for (const row of entry?.moved.keys() ?? []) row.removeAttribute(MOVED_ATTR);
   };
   const paint = ({
     table,
@@ -223,7 +269,7 @@ export function paintStructural(
     added,
     removed,
     quietBefore,
-    movedBefore,
+    marksBefore,
     painted: entry,
   }: Plan) => {
     for (const range of added) addedHighlight.add(range);
@@ -234,7 +280,9 @@ export function paintStructural(
       table.setAttribute(TABLE_ATTR, "");
 
     writeRows(QUIET_ATTR, quietBefore, entry.quiet);
-    writeRows(MOVED_ATTR, movedBefore, entry.moved);
+
+    for (const root of marksBefore.keys()) if (!entry.marks.has(root)) clearMarks(root);
+    for (const [root, ranges] of entry.marks) measure(root, ranges);
 
     painted.set(table, entry);
   };
@@ -242,7 +290,9 @@ export function paintStructural(
     const planned = new Set(plans.map(({ table }) => table));
     for (const table of stale) {
       const entry = dropRanges(table);
-      if (!planned.has(table) && table.isConnected) unmark(table, entry);
+      if (planned.has(table)) continue;
+      for (const root of entry?.marks.keys() ?? []) clearMarks(root);
+      if (table.isConnected) unmark(table, entry);
     }
     for (const plan of plans) paint(plan);
   };
@@ -276,14 +326,15 @@ export function paintStructural(
 
     win.CSS.highlights.delete(ADDED_HIGHLIGHT);
     win.CSS.highlights.delete(REMOVED_HIGHLIGHT);
+    sizes.disconnect();
 
     // Sweeps the DOM, not `painted`: it also catches marks on a table GitHub moved since its pass.
-    for (const element of diffs.querySelectorAll(
-      `[${TABLE_ATTR}], [${QUIET_ATTR}], [${MOVED_ATTR}]`,
+    for (const element of diffs.querySelectorAll<HTMLElement>(
+      `[${TABLE_ATTR}], [${QUIET_ATTR}], [${MARKS_ATTR}]`,
     )) {
       element.removeAttribute(TABLE_ATTR);
       element.removeAttribute(QUIET_ATTR);
-      element.removeAttribute(MOVED_ATTR);
+      writeMask(element, undefined);
     }
 
     style.remove();
