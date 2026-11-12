@@ -269,16 +269,21 @@ pressed segment is a knob on `--controlKnob-bgColor-rest` with a semibold label 
 `--borderColor-neutral-emphasis` edge, so weight and edge carry the state without colour.
 Each label reserves its semibold width, so pressing shifts nothing. The pressed segment
 follows the layout the tables show, never a stored copy, and none is pressed while the
-layout can't be told. Structural carries the Beta tag (§ Tags) and the only tooltip. On a
-pull request filtered to one commit, Structural is `aria-disabled`, in
-`--control-fgColor-disabled`, and its tooltip says why. The control gives up its room in
-two steps, because GitHub's toolbar never wraps: first the name goes, then the control
-hides. On a pull request each step happens when the toolbar would overflow. On a commit,
-fixed widths set both steps: the name goes below 1100px, before it would shrink GitHub's
-search box, and the control below 768px. While the control shows, GitHub's diff settings
-menu opens without its Layout group, which would only repeat the control; the menu stays
-whole whenever the control is hidden. `diffs/view-control.ts` and `diffs/view-control.css`
-build it.
+layout can't be told. Structural carries the Beta tag (§ Tags) and the only tooltip. It
+alone is gh-prism's view, so it alone leads with the mark's glyph (§ The mark), at 16px
+and hidden from assistive technology. The glyph is `--fgColor-muted` at rest and the
+label's colour while the segment is pressed. Hovering the segment, or giving it keyboard
+focus, runs the mark's pulse on the glyph, pressed or not. Under reduced motion the glyph
+swaps at once to the mark's still accent copy, and under forced colours it is `ButtonText`
+and still. On a pull request filtered to one commit, Structural is `aria-disabled`, in
+`--control-fgColor-disabled`, and its tooltip says why; its glyph takes that colour and
+stays still. The control gives up its room in two steps, because GitHub's toolbar never
+wraps: first the name goes, then the control hides. On a pull request each step happens
+when the toolbar would overflow. On a commit, fixed widths set both steps: the name goes
+below 1100px, before it would shrink GitHub's search box, and the control below 768px.
+While the control shows, GitHub's diff settings menu opens without its Layout group, which
+would only repeat the control; the menu stays whole whenever the control is hidden.
+`diffs/view-control.ts` and `diffs/view-control.css` build it.
 
 ## Tags
 
@@ -570,6 +575,12 @@ The commit's Older and Newer links, the Reviewers shields themselves, and every 
 control carry none. On a control that small, a mark would crowd the content it labels and
 repeat down the page. A future surface gets a mark only if it is a panel, dialog, popup,
 or tooltip of gh-prism's own, decided case by case against this entry.
+
+Two controls hold the mark's glyph as their icon, which is not a mark: it has no name and
+no tooltip, and says only that the control is gh-prism's. The classic page's "Why is
+gh-prism off?" button holds the bare glyph in its text colour. The diff view control's
+Structural segment holds the glyph and the coloured copy that pulses, and hovering or
+keyboard-focusing the segment runs the pulse (§ Switches).
 
 At rest the mark is `--fgColor-muted`. Hovering cross-fades it to a coloured copy of the
 glyph on `tokens.md`'s "State, opening" row. While the pointer stays, the copy pulses on

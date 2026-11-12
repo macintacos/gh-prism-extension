@@ -17,6 +17,7 @@ import {
   showsUnified,
 } from "../files-page";
 import { el } from "../ui/dom";
+import { prismGlyph } from "../ui/mark";
 import type { PressGuard } from "../ui/press-guard";
 import type { StructuralChoice } from "./structural-mode";
 // ?inline, not a plain import: a plain import ships the sheet in the manifest, styling every
@@ -123,14 +124,34 @@ const UNOFFERED_TIP = "Structural isn't available while viewing one commit of a 
 const SEGMENT =
   "gh-prism-diff-view-segment tw:relative tw:inline-flex tw:items-center tw:gap-1 tw:h-full tw:px-2 tw:border tw:border-transparent tw:rounded-medium tw:bg-transparent tw:text-body-small tw:text-fg-default tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:-outline-offset-2 tw:focus-visible:outline-focus-outline";
 
-/** One segment: its label, reserving its semibold width, and Structural's Beta tag. */
+/**
+ * The mark's glyph and pulse copy as a segment's icon, unnamed; `view-control.css` lights it from
+ * the segment.
+ */
+function prismIcon(doc: Document): HTMLSpanElement {
+  const icon = el(
+    doc,
+    "span",
+    "gh-prism-mark",
+    prismGlyph(doc, {}),
+    el(doc, "span", "gh-prism-mark-pulse", prismGlyph(doc, {})),
+  );
+  icon.setAttribute("aria-hidden", "true");
+  return icon;
+}
+
+/**
+ * One segment: its label, reserving its semibold width, and on Structural, gh-prism's own view,
+ * the prism before it and the Beta tag after.
+ */
 function segmentOf(doc: Document, view: DiffView, label: string): HTMLButtonElement {
   const text = el(doc, "span", "gh-prism-diff-view-label", label);
   text.dataset.text = label;
   const button = el(doc, "button", SEGMENT, text);
   button.type = "button";
   button.dataset.view = view;
-  if (view === "structural")
+  if (view === "structural") {
+    button.prepend(prismIcon(doc));
     button.append(
       el(
         doc,
@@ -140,6 +161,7 @@ function segmentOf(doc: Document, view: DiffView, label: string): HTMLButtonElem
         " Beta",
       ),
     );
+  }
   return button;
 }
 

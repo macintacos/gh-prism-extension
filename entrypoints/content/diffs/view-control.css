@@ -3,6 +3,7 @@
    sits in.
    #diff-content-parent: a commit's diffs, whose toolbar the control hides from on a narrow window. */
 @import "../ui/tailwind.css" prefix(tw);
+@import "../ui/mark.css";
 @source "./view-control.ts";
 
 /* An 8px gap to the gear and from the name; a commit's group already has its own gap. */
@@ -44,6 +45,56 @@
 .gh-prism-diff-view-segment[aria-disabled="true"] {
   color: var(--control-fgColor-disabled);
   cursor: not-allowed;
+}
+
+/* Structural's prism is the mark's glyph, lit by the segment: taking no pointer, it never runs the
+   mark's own hover or tooltip. */
+.gh-prism-diff-view-segment .gh-prism-mark {
+  pointer-events: none;
+}
+
+.gh-prism-diff-view-segment:is([aria-pressed="true"], [aria-disabled="true"]) .gh-prism-mark {
+  color: inherit;
+}
+
+/* Keep in sync with mark.css's :hover rules. */
+.gh-prism-diff-view-segment:is(:hover, :focus-visible):not([aria-disabled="true"])
+  .gh-prism-mark
+  > svg {
+  opacity: 0;
+}
+
+.gh-prism-diff-view-segment:is(:hover, :focus-visible):not([aria-disabled="true"])
+  .gh-prism-mark
+  > svg,
+.gh-prism-diff-view-segment:is(:hover, :focus-visible):not([aria-disabled="true"])
+  .gh-prism-mark-pulse {
+  transition-duration: 240ms;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.gh-prism-diff-view-segment:is(:hover, :focus-visible):not([aria-disabled="true"])
+  .gh-prism-mark-pulse {
+  opacity: 1;
+}
+
+.gh-prism-diff-view-segment:is(:hover, :focus-visible):not([aria-disabled="true"])
+  .gh-prism-mark-pulse
+  > svg {
+  animation-play-state: running;
+}
+
+/* The pulse is gone here, so the glyph stays, in the label's system colour. */
+@media (forced-colors: active) {
+  .gh-prism-diff-view-segment .gh-prism-mark {
+    color: ButtonText;
+  }
+
+  .gh-prism-diff-view-segment:is(:hover, :focus-visible):not([aria-disabled="true"])
+    .gh-prism-mark
+    > svg {
+    opacity: 1;
+  }
 }
 
 /* Primer's hidden bold copy: each label holds its semibold width, so pressing shifts nothing. */
