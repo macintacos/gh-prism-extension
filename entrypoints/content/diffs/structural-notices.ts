@@ -61,7 +61,7 @@ export function noticeOf(
 }
 
 // Keep in sync with structural-notices.css's selector, the notice's class string below, and the
-// copies in e2e/smoke.e2e.ts and bench/structural-mode-live.ts.
+// copies in e2e/smoke.e2e.ts, e2e/structural-notices.e2e.ts, and bench/structural-mode-live.ts.
 export const NOTICE_CLASS = "gh-prism-structural-notice";
 export const LOADING_CLASS = "gh-prism-structural-loading";
 export const KIND_ATTR = "data-gh-prism-structural-notice";

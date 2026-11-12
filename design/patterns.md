@@ -608,7 +608,9 @@ the reviewer can change it, how. `sidebar/sections-view.ts` holds them.
 
 Structural mode's per-file notice is the second user. When the mode can't show a file in
 Split, a sentence directly before the file's diff table, under its file header, says why
-and that this is GitHub's diff. Its text starts in line with the header's path. It is not
+and that this is GitHub's diff. Its text starts in line with the header's path. While the
+file's diff scrolls, the notice stays stuck under the file's sticky header, on the page's
+`--bgColor-default` with a 1px `--borderColor-default` hairline beneath it. It is not
 announced, because a pull request in an unsupported language shows the same sentence on
 every file; a screen reader reads it in place, between the header's controls and the diff.
 The sentence for a language Structural mode doesn't cover ends in a link, "Request this
