@@ -25,11 +25,37 @@ export interface Token {
  */
 const COMMENT_TYPES = new Set(["comment", "line_comment", "block_comment", "multiline_comment"]);
 
-/** Markdown's running text, whose punctuation the grammar makes children. */
-const PROSE = "inline";
+/** Markdown's code and front matter: read by word, each line's first word carrying its depth. */
+const MARKDOWN_VERBATIM = [
+  "code_fence_content",
+  "indented_code_block",
+  "minus_metadata",
+  "plus_metadata",
+];
 
-/** A YAML plain scalar. A mapping's key is one, so its first word carries its line's depth. */
+/**
+ * Markdown's text: prose, a table cell, an HTML block, a link reference definition's parts, and
+ * {@link MARKDOWN_VERBATIM}. The grammar makes its punctuation and its continuation lines' quote
+ * markers and indents children.
+ */
+const MARKDOWN_TEXT = new Set([
+  "inline",
+  "pipe_table_cell",
+  "html_block",
+  "link_label",
+  "link_destination",
+  "link_title",
+  ...MARKDOWN_VERBATIM,
+]);
+
+/** A Markdown table's delimiter cell, whose dashes only pad it. */
+const TABLE_DELIMITER = "pipe_table_delimiter_cell";
+
+/** A YAML plain scalar, which a mapping's key is. */
 const PLAIN_SCALAR = "string_scalar";
+
+/** Words that carry their line's depth when they open it. */
+const DEPTH_WORDS = new Set([PLAIN_SCALAR, ...MARKDOWN_VERBATIM]);
 
 /** Each of `types` with `spacing`. */
 const spaced = (spacing: Spacing, types: readonly string[]) =>
@@ -41,7 +67,8 @@ const spaced = (spacing: Spacing, types: readonly string[]) =>
  * here.
  */
 const TEXT_SPACING = new Map<string, Spacing>([
-  [PROSE, "ignored"],
+  // A table padded wider, re-indented HTML, and code respaced inside a line keep their words.
+  ...spaced("ignored", [...MARKDOWN_TEXT]),
   // A re-indented block keeps its words; only a gap gained or lost is a change.
   ...spaced("collapsed", ["jsx_text", "text", "raw_text", "block_scalar"]),
   ...spaced("exact", ["string_fragment", "string_content", "multiline_string_fragment"]),
@@ -106,10 +133,13 @@ export function leafTokens(tree: Tree, text: string, maxTokens: number): Token[]
         parents.push({ end, type });
         continue;
       }
-      // A continuation line's quote marker or indent inside prose is layout, as a comment's `*` is.
-      const inProse = parentType === PROSE;
-      const skipped = end === start || (inProse && type === "block_continuation");
-      if (!skipped && !push(start, end, inProse ? PROSE : type)) return undefined;
+      // A continuation line's quote marker or indent inside text is layout, as a comment's `*` is.
+      const textType = MARKDOWN_TEXT.has(parentType ?? "") ? parentType : undefined;
+      const skipped =
+        end === start ||
+        (textType !== undefined && type === "block_continuation") ||
+        (parentType === TABLE_DELIMITER && type === "-");
+      if (!skipped && !push(start, end, textType ?? type)) return undefined;
       covered = Math.max(covered, end);
       while (!cursor.gotoNextSibling()) {
         if (!cursor.gotoParent()) return tokens;
@@ -180,7 +210,7 @@ export function keyedByIndentation(tokens: readonly Token[], text: string): Toke
     const previousLine = line;
     while ((starts[line + 1] ?? Infinity) <= token.start) line++;
     const lineStart = starts[line] ?? 0;
-    const opensLine = token.type === PLAIN_SCALAR || !isWord(token.type);
+    const opensLine = DEPTH_WORDS.has(token.type) || !isWord(token.type);
     const startsLogicalLine = line !== previousLine && bracketDepth === 0 && opensLine;
     const keyed = startsLogicalLine ? withDepth(token, text, lineStart, widths) : token;
     bracketDepth += BRACKET_DEPTH[token.type] ?? 0;

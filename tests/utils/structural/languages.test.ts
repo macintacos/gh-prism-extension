@@ -387,6 +387,121 @@ describe("structuralChanges in each language", () => {
     expect(await changedTexts("a.md", oldText, newText)).toEqual(NO_CHANGE);
   });
 
+  it("marks only the words a long line of a Markdown fenced block gained and lost", async () => {
+    const line = (tail: string) =>
+      `\`\`\`text\n  structural/            the engine Worker's message channel, Chrome's offscreen relay, ${tail}\n\`\`\`\n`;
+    const oldText = line("the engine-thread loader, and the list of packaged files");
+    const newText = line(
+      "the engine thread the host runs requests on, and the list of packaged files; reading changed regions from hunks",
+    );
+
+    expect(await changedTexts("a.md", oldText, newText)).toEqual({
+      old: ["-", "loader"],
+      new: [
+        ...["the", "host", "runs", "requests", "on"],
+        ...[";", "reading", "changed", "regions", "from", "hunks"],
+      ],
+    });
+  });
+
+  it.each([
+    {
+      where: "fenced code block",
+      of: (text: string) => `\`\`\`ts\nconst a = f(${text});\n\`\`\`\n`,
+    },
+    {
+      where: "fenced block in a list item",
+      of: (text: string) => `- item\n\n  ~~~\n  ${text}\n  ~~~\n`,
+    },
+    { where: "indented code block", of: (text: string) => `Text.\n\n    ${text}\n    last\n` },
+    { where: "table cell", of: (text: string) => `| a | b |\n|---|---|\n| x | ${text} |\n` },
+    { where: "table header", of: (text: string) => `| a | ${text} |\n|---|---|\n| x | y |\n` },
+    {
+      where: "HTML block",
+      of: (text: string) => `<div align="center">\n  <b>${text}</b>\n</div>\n`,
+    },
+    { where: "HTML comment", of: (text: string) => `<!-- note\n${text} -->\n\nText.\n` },
+    { where: "link reference title", of: (text: string) => `[ref]: https://a.example "${text}"\n` },
+    {
+      where: "front matter",
+      of: (text: string) => `---\ntitle: ${text}\ntags: [a]\n---\n\nText.\n`,
+    },
+    { where: "TOML front matter", of: (text: string) => `+++\ntitle = "${text}"\n+++\n\nText.\n` },
+    { where: "link text", of: (text: string) => `See [${text}](https://a.example) here.\n` },
+    { where: "emphasis", of: (text: string) => `Some *${text}* and **${text}** here.\n` },
+    { where: "inline code", of: (text: string) => `Run \`${text}\` first.\n` },
+    { where: "inline HTML", of: (text: string) => `Some <kbd>${text}</kbd> here.\n` },
+  ])("marks only the reworded word of a Markdown $where", async ({ of }) => {
+    const oldText = of("one two three");
+    const newText = of("one four three");
+
+    const changed = await changedTexts("a.md", oldText, newText);
+
+    expect(new Set(changed.old)).toEqual(new Set(["two"]));
+    expect(new Set(changed.new)).toEqual(new Set(["four"]));
+  });
+
+  it.each([
+    {
+      where: "link target",
+      oldText: "See [the docs](https://a.example/guide/setup-old.html).\n",
+      newText: "See [the docs](https://a.example/guide/setup-new.html).\n",
+    },
+    {
+      where: "link reference target",
+      oldText: "[docs]: https://a.example/guide/setup-old.html\n",
+      newText: "[docs]: https://a.example/guide/setup-new.html\n",
+    },
+  ])("marks only the changed part of a Markdown $where", async ({ oldText, newText }) => {
+    expect(await changedTexts("a.md", oldText, newText)).toEqual({ old: ["old"], new: ["new"] });
+  });
+
+  it("marks only the new cell of a Markdown table padded wider for it", async () => {
+    const oldText = "| Name | Use   |\n|------|-------|\n| a    | first |\n";
+    const newText =
+      "| Name      | Use   |\n|-----------|-------|\n| a         | first |\n| long name | other |\n";
+
+    expect(await changedTexts("a.md", oldText, newText)).toEqual({
+      old: [],
+      new: ["|", "long", "name", "|", "other", "|"],
+    });
+  });
+
+  it("marks a Markdown table column's changed alignment", async () => {
+    const oldText = "| a | b |\n|---|---|\n| x | y |\n";
+    const newText = "| a | b |\n|---|:-:|\n| x | y |\n";
+
+    expect(await changedTexts("a.md", oldText, newText)).toEqual({ old: [], new: [":", ":"] });
+  });
+
+  it.each([
+    { where: "fenced code", of: (code: string) => `\`\`\`py\n${code}\`\`\`\n` },
+    { where: "indented code", of: (code: string) => `Text.\n\n${code.replace(/^/gm, "    ")}` },
+    { where: "front matter", of: (code: string) => `---\n${code}---\n\nText.\n` },
+  ])("marks a line of Markdown $where moved under the line before it", async ({ of }) => {
+    const oldText = of("a:\n  b\nc\n");
+    const newText = of("a:\n  b\n  c\n");
+
+    expect(await changedTexts("a.md", oldText, newText)).toEqual({ old: ["c"], new: ["c"] });
+  });
+
+  it("finds no change in Markdown fenced code respaced inside its lines", async () => {
+    const oldText = "```\nf(a,b)  # note\n  g( c )\n```\n";
+    const newText = "```\nf(a, b) # note\n  g(c)\n```\n";
+
+    expect(await changedTexts("a.md", oldText, newText)).toEqual(NO_CHANGE);
+  });
+
+  it("reads a Markdown list's depth after an unclosed bracket in a fenced block", async () => {
+    const oldText = "```\nf(\n```\n\n- one\n  - two\n  - three\n";
+    const newText = "```\nf(\n```\n\n- one\n  - two\n- three\n";
+
+    expect(await changedTexts("a.md", oldText, newText)).toEqual({
+      old: ["  ", "- "],
+      new: ["- "],
+    });
+  });
+
   it("finds no change in a YAML block scalar indented deeper", async () => {
     const oldText = "a:\n  b: |\n    one two\n    three\n";
     const newText = "a:\n    b: |\n        one two\n        three\n";
