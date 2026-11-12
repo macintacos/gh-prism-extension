@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "wxt";
-import { WASM_DIR, WASM_SOURCES } from "./utils/structural/packaged";
+import { packagedWasmPaths } from "./scripts/tasks/grammars";
+import { WASM_DIR } from "./utils/structural/packaged";
 
 // Outside the repo so the GitHub login survives `wxt clean` and is shared by every worktree, so only one
 // `mise run dev` can hold each at a time. Keep in sync with .mise/tasks/dev, which closes a browser already
@@ -26,11 +27,8 @@ export default defineConfig({
         mkdirSync(profile, { recursive: true, mode: 0o700 });
     },
     "build:publicAssets": (_wxt, files) => {
-      for (const [pkg, file] of WASM_SOURCES)
-        files.push({
-          absoluteSrc: fileURLToPath(import.meta.resolve(`${pkg}/${file}`)),
-          relativeDest: `${WASM_DIR}/${file}`,
-        });
+      for (const [file, absoluteSrc] of packagedWasmPaths())
+        files.push({ absoluteSrc, relativeDest: `${WASM_DIR}/${file}` });
     },
   },
   manifest: ({ browser }) => ({

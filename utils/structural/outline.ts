@@ -42,11 +42,12 @@ export interface OutlineInput {
 
 /**
  * `text`'s multi-line comments and strings and its test blocks, or why it has none:
- * `unsupported` without a grammar, `too-large` past a limit, `too-slow` when the parse passes its
- * deadline, `failed` when it does not parse.
+ * `unsupported` without a grammar or for one with no reader, `too-large` past a limit, `too-slow`
+ * when the parse passes its deadline, `failed` when it does not parse.
  */
 export function headOutline({ text, language, limits, now }: OutlineInput): OutlineResult {
-  if (language === undefined) return refuse("unsupported");
+  const reader = language && READERS[language.grammar.id];
+  if (language === undefined || reader === undefined) return refuse("unsupported");
   if (text.length > limits.maxTextLength) return refuse("too-large");
 
   // A parse cancelled earlier would otherwise resume on this text.
@@ -57,7 +58,7 @@ export function headOutline({ text, language, limits, now }: OutlineInput): Outl
 
   try {
     if (tree.rootNode.hasError) return refuse("failed");
-    return { ok: true, outline: outlineOf(tree, READERS[language.grammar.id]) };
+    return { ok: true, outline: outlineOf(tree, reader) };
   } finally {
     tree.delete();
   }
@@ -204,7 +205,7 @@ function isPythonTest(node: Node): boolean {
 }
 
 const SCRIPT: Reader = { spanOf: scriptSpanOf, testOf: scriptTestOf };
-const READERS: Readonly<Record<GrammarId, Reader>> = {
+const READERS: Readonly<Partial<Record<GrammarId, Reader>>> = {
   typescript: SCRIPT,
   tsx: SCRIPT,
   javascript: SCRIPT,

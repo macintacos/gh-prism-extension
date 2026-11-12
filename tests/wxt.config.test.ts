@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { ConfigEnv, ResolvedPublicFile, Wxt, WxtHooks } from "wxt";
-import { WASM_DIR, WASM_SOURCES } from "../utils/structural/packaged";
+import { GRAMMAR_WASM, RUNTIME_WASM, WASM_DIR } from "../utils/structural/packaged";
 import config from "../wxt.config";
 
 const envFor = (browser: string): ConfigEnv => ({
@@ -107,8 +107,8 @@ describe("wxt.config", () => {
 
     await hook({} as Wxt, files);
 
-    expect(files.map((file) => file.relativeDest)).toEqual(
-      WASM_SOURCES.map(([, file]) => `${WASM_DIR}/${file}`),
+    expect(files.map((file) => file.relativeDest).sort()).toEqual(
+      [RUNTIME_WASM, ...Object.values(GRAMMAR_WASM)].map((file) => `${WASM_DIR}/${file}`).sort(),
     );
     for (const file of files)
       expect(existsSync("absoluteSrc" in file ? file.absoluteSrc : "")).toBe(true);

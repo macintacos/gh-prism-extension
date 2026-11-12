@@ -27,7 +27,7 @@ import { extensionOf, type ScannedHead } from "./head-scan";
 // `it`/`test`/`describe` opens a block; an attribute on the `mod tests` line itself is not
 // recognised. A head built from a tree-sitter parse carries its own test blocks, which replace the
 // finders' guesses; with either, a docstring directly above a Python test widens into it. Upgrade
-// path for Rust: a grammar for it beside the others.
+// path for Rust: a reader for its grammar in structural/outline.ts.
 
 /**
  * Whether the rule can judge a file: a text Rust, Python or TypeScript file the path rules put in

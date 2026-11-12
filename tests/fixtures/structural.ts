@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { diffLines } from "diff";
 import { Language, Parser } from "web-tree-sitter";
+import { packagedWasmPaths } from "../../scripts/tasks/grammars";
 import type { TokenSpan } from "../../utils/structural/changes";
 import {
   type ChangedRegion,
@@ -9,25 +9,21 @@ import {
   type EngineInput,
 } from "../../utils/structural/engine";
 import type { GrammarId } from "../../utils/structural/grammar";
+import { GRAMMAR_WASM } from "../../utils/structural/packaged";
 
-const require = createRequire(import.meta.url);
-const WASM: Record<GrammarId, string> = {
-  typescript: "tree-sitter-typescript/tree-sitter-typescript.wasm",
-  tsx: "tree-sitter-typescript/tree-sitter-tsx.wasm",
-  javascript: "tree-sitter-javascript/tree-sitter-javascript.wasm",
-  python: "tree-sitter-python/tree-sitter-python.wasm",
-};
+const WASM_PATHS = new Map(packagedWasmPaths());
 
 await Parser.init();
 
-/** A parser loaded with `id`'s grammar from `node_modules`. */
+/** A parser loaded with `id`'s packaged grammar. */
 export async function parserFor(id: GrammarId): Promise<Parser> {
   const parser = new Parser();
-  parser.setLanguage(await Language.load(require.resolve(WASM[id])));
+  parser.setLanguage(await Language.load(WASM_PATHS.get(GRAMMAR_WASM[id]) ?? ""));
   return parser;
 }
 
-const EXTENSION: Record<GrammarId, string> = {
+/** Each grammar with fixture pairs under `structural/`, and its extension there. */
+const EXTENSION: Partial<Record<GrammarId, string>> = {
   typescript: "ts",
   tsx: "tsx",
   javascript: "js",
