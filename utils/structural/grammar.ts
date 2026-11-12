@@ -1,6 +1,6 @@
 import { extensionOf } from "../hunk-rules/head-scan";
 
-/** Names a tree-sitter grammar; the host maps each to its `.wasm`. */
+/** Names a tree-sitter grammar; `packaged.ts` maps each to its `.wasm`. */
 export type GrammarId = "typescript" | "tsx" | "javascript" | "python";
 
 /** A language the structural engine can parse. */

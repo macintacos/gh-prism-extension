@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "wxt";
+import { WASM_DIR, WASM_SOURCES } from "./utils/structural/packaged";
 
 // Outside the repo so the GitHub login survives `wxt clean` and is shared by every worktree, so only one
 // `mise run dev` can hold each at a time. Keep in sync with .mise/tasks/dev, which closes a browser already
@@ -24,6 +25,13 @@ export default defineConfig({
       for (const profile of [chromeProfile, firefoxProfile])
         mkdirSync(profile, { recursive: true, mode: 0o700 });
     },
+    "build:publicAssets": (_wxt, files) => {
+      for (const [pkg, file] of WASM_SOURCES)
+        files.push({
+          absoluteSrc: fileURLToPath(import.meta.resolve(`${pkg}/${file}`)),
+          relativeDest: `${WASM_DIR}/${file}`,
+        });
+    },
   },
   manifest: ({ browser }) => ({
     // The Chrome Web Store's title, which its search weighs. The release zip keeps package.json's name.
@@ -39,6 +47,13 @@ export default defineConfig({
       "https://patch-diff.githubusercontent.com/*",
       "https://raw.githubusercontent.com/*",
     ],
+    // Only lets the structural engine compile WebAssembly: each is that browser's MV3 default plus 'wasm-unsafe-eval'.
+    content_security_policy: {
+      extension_pages:
+        browser === "firefox"
+          ? "script-src 'self' 'wasm-unsafe-eval'; upgrade-insecure-requests;"
+          : "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
+    },
     ...(browser === "firefox"
       ? {
           browser_specific_settings: {

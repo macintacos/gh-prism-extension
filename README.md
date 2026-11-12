@@ -205,7 +205,25 @@ To rebuild a release from its sources zip, unzip it, then run
 `.output/firefox-mv3`. A release build also sets `WXT_RELEASE_NOTES` to that version's
 GitHub Release notes, which only fill the sidebar's What's new in
 `content-scripts/content.js`. To match a release byte for byte, build with
-`WXT_RELEASE_NOTES` set to that version's GitHub Release notes.
+`WXT_RELEASE_NOTES` set to that version's GitHub Release notes. The rebuild also
+reproduces the structural engine's WebAssembly: the five `.wasm` files under
+`.output/firefox-mv3/structural/` are copied unmodified from the npm packages `bun.lock`
+pins, `web-tree-sitter` and the `tree-sitter-typescript`, `tree-sitter-javascript`, and
+`tree-sitter-python` grammars. No binary is committed.
+
+Upgrading the engine:
+
+1. Upgrade `web-tree-sitter` and the grammar packages together, to exact versions, because
+   a grammar's ABI must be one the runtime loads. The engine suite parses with all four,
+   so `mise run test structural` fails on a mismatch.
+2. Regenerate or drop `patches/web-tree-sitter@<version>.patch`, per
+   [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) § Patched dependencies.
+3. Update [`public/third-party-notices.txt`](public/third-party-notices.txt).
+4. Run `mise run lint-firefox` and expect no warnings.
+5. Build the Firefox sources zip and run the sources check: `bunx wxt zip -b firefox`,
+   then `bun scripts/tasks/cli.ts check-sources`. It rebuilds from the zip and fails on
+   any difference, the `.wasm` files included.
+6. Check both zips stay under 1,000,000 bytes.
 
 ## Permissions
 
@@ -279,4 +297,7 @@ how gh-prism works.
 
 ## License
 
-gh-prism is released under the [MIT License](LICENSE).
+gh-prism is released under the [MIT License](LICENSE). The extension bundles third-party
+software for structural diffing under its own licences, listed in
+[`public/third-party-notices.txt`](public/third-party-notices.txt), which ships in the
+extension.

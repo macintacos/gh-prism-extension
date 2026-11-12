@@ -20,9 +20,16 @@ const fakePort = (name: string) => ({
 describe("background", () => {
   let serve: Serve;
   let updateSessionRules: MockInstance;
+  let onConnect: MockInstance;
+  const addEventListener = vi.fn();
+  const importScripts = vi.fn();
 
   beforeEach(() => {
     fakeBrowser.reset();
+    addEventListener.mockClear();
+    importScripts.mockClear();
+    vi.stubGlobal("addEventListener", addEventListener);
+    vi.stubGlobal("importScripts", importScripts);
     // fakeBrowser leaves runtime.getManifest unmocked.
     vi.spyOn(fakeBrowser.runtime, "getManifest").mockReturnValue({
       manifest_version: 3,
@@ -30,9 +37,11 @@ describe("background", () => {
       version: "0.4.0",
     });
     // fakeBrowser leaves runtime.onConnect unimplemented: its addListener throws.
-    vi.spyOn(fakeBrowser.runtime.onConnect, "addListener").mockImplementation((listener) => {
-      serve = listener as Serve;
-    });
+    onConnect = vi
+      .spyOn(fakeBrowser.runtime.onConnect, "addListener")
+      .mockImplementation((listener) => {
+        serve = listener as Serve;
+      });
     // fakeBrowser leaves declarativeNetRequest unmocked.
     updateSessionRules = vi
       .spyOn(fakeBrowser.declarativeNetRequest, "updateSessionRules")
@@ -40,7 +49,29 @@ describe("background", () => {
     background.main();
   });
 
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("imports the structural engine's script while a Chrome worker installs", () => {
+    expect(addEventListener).toHaveBeenCalledExactlyOnceWith("install", expect.any(Function));
+  });
+
+  it("registers no install listener in Firefox", () => {
+    vi.stubEnv("BROWSER", "firefox");
+    addEventListener.mockClear();
+
+    background.main();
+
+    expect(addEventListener).not.toHaveBeenCalled();
+  });
+
+  it("loads no structural engine and serves ports through one listener", () => {
+    expect(importScripts).not.toHaveBeenCalled();
+    expect(onConnect).toHaveBeenCalledOnce();
+  });
 
   // Chrome refires onInstalled with reason "update" on a dev reload.
   it.each([{ reason: "install" }, { reason: "update", previousVersion: "0.0.0" }] as const)(
