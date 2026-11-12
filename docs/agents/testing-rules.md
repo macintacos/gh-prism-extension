@@ -231,11 +231,14 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   through the built extension.** No spec can reach a content script's parameters.
   [`bench/bundle.ts`](../../bench/bundle.ts) bundles the module with a harness, and the
   test runs it in the page's main world:
-  [`e2e/structural.e2e.ts`](../../e2e/structural.e2e.ts) on fixtures, and
+  [`e2e/structural.e2e.ts`](../../e2e/structural.e2e.ts) and
+  [`e2e/structural-notices.e2e.ts`](../../e2e/structural-notices.e2e.ts) on fixtures, and
   [`bench/structural-live.ts`](../../bench/structural-live.ts) on live GitHub. Check the
   built extension's Structural mode live with
   `bun bench/structural-mode-live.ts <chromium|firefox> <storage-state path> [url…]`
-  ([`bench/structural-mode-live.ts`](../../bench/structural-mode-live.ts)). It changes the
+  ([`bench/structural-mode-live.ts`](../../bench/structural-mode-live.ts)).
+  `structural-notices.e2e.ts` wraps each table fixture in GitHub's entry, region, sticky
+  header, and card, which the table fixtures leave out. The live check changes the
   account's saved Layout and restores it;
   `bun bench/structural-mode-live/restore-check.ts` proves that restore offline. Its
   fourth pass drives the diff view control on each URL: each press checked against the

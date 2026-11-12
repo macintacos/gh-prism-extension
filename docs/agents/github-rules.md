@@ -724,6 +724,31 @@ on a private one.
   `diffHeaderWrapperWithMiniHeaderAndToolbar__` out.
 - **Expect a pull request's `top` to follow `--base-sticky-header-height`,** which GitHub
   writes on `body`'s `style`, so watch that attribute and window resizes for changes.
+- **Read that `top` only from a header whose computed `position` is `sticky`.** On a pull
+  request, GitHub's sheet makes a header `position: relative; top: 0` until the file's
+  `diffEntry__` wrapper carries `data-sticky-enabled`, which GitHub sets on the entries
+  near the viewport. Of 7 mounted headers on apple/swift-argument-parser#952, 2 were
+  sticky at `108px` and 5 relative at `0px`. A commit's headers are all sticky.
+  `stuckHeaderTop` in `files-page.ts` skips the relative ones; `coveredTop` reads the
+  first header whatever its position.
+- **Don't copy the header's `top` formula.** It is
+  `calc(var(--base-sticky-header-height, 0px) + var(--header-height, 58px) + var(--header-sticky-offset, 0px) + var(--toolbar-offset, 0px))`,
+  with `--header-height-mobile` in place of `--header-height` and no `--toolbar-offset` at
+  1011px wide and below. A pull request sets `--header-height` and `--toolbar-offset` on
+  `[class*="PageLayout-ContentWrapper"]` and `--header-sticky-offset` inline on the header
+  itself, so a node outside the header can't inherit the last. The computed `top` was
+  108px on a pull request and 66px on a commit at 1280px wide, and 107px and 58px at
+  1000px.
+- **Measure a header's height; don't assume it.** A pull request's header was 42px high
+  and a commit's 46px, at 1280px, 1000px, and 600px wide.
+- **Stack a node of gh-prism's own in the file card with a `z-index` from 1 to 4.** The
+  file's region, `[role="region"]`, is a stacking context (`contain: layout paint`). In it
+  the header wrapper has `z-index: 5`, and the table's cells are `position: relative` with
+  no `z-index`. The region also clips whatever leaves its box.
+- **Expect a `position: sticky` node in the file card to stick to the window.** The card
+  and every ancestor up to `body` compute `overflow: visible`, at 1280px, 1000px, and
+  600px wide. Nothing in the card scrolls sideways either: the table is
+  `table-layout: fixed` at the card's width and wraps long lines.
 - **Don't measure the sticky bar itself.** The commit page's bar has no stable hook, and
   the pull request's is `height: 0` until stuck.
 - **Expect a pull request's collapsed sticky header to be a `--base-size-48` row over a
@@ -736,13 +761,17 @@ on a private one.
   #10 on 2026-11-10.
 - **Re-check:** on a public commit page, read the file header's computed `top` and compare
   it with the sticky bar's height, at both sides of the 1011px breakpoint. On a signed-in
-  pull request, watch `body`'s `style` for `--base-sticky-header-height` while crossing
-  1011px, and compare it with a file header's computed `top`. Scroll that pull request
-  until its page header collapses into the sticky header, and read the rules for
-  `miniHeaderInner__` and `StickyHeaderSlotBar__` from `document.styleSheets`. Then open
-  the Conversation panel with Shift+\ and compare the bottom of `StickyHeaderSlotBar__`
-  with the bottom of `.gh-prism-conversation-header`, in the panel's overlay mode and
-  again after its pin button pins it as a column.
+  pull request with several long files, read each header's computed `position`, `top`, and
+  height, and its `diffEntry__` wrapper's `data-sticky-enabled`; read the rules matching
+  `diffHeaderWrapper` from `document.styleSheets`; and walk from a
+  `table[data-diff-anchor]` to `body` reading each ancestor's computed `overflow`,
+  `contain`, and `z-index`. On a signed-in pull request, watch `body`'s `style` for
+  `--base-sticky-header-height` while crossing 1011px, and compare it with a file header's
+  computed `top`. Scroll that pull request until its page header collapses into the sticky
+  header, and read the rules for `miniHeaderInner__` and `StickyHeaderSlotBar__` from
+  `document.styleSheets`. Then open the Conversation panel with Shift+\ and compare the
+  bottom of `StickyHeaderSlotBar__` with the bottom of `.gh-prism-conversation-header`, in
+  the panel's overlay mode and again after its pin button pins it as a column.
 
 ## The header counter
 

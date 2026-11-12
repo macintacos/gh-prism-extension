@@ -47,6 +47,8 @@ A quiet row's strength is `--gh-prism-quiet-tint`, the share of GitHub's own lin
 mixed into `--bgColor-default`. A marked line takes the same tint. The 2px loading line on
 a pending file's diff is `--fgColor-muted` too, in
 [`entrypoints/content/diffs/structural-notices.css`](../entrypoints/content/diffs/structural-notices.css).
+The same sheet gives a file's notice its ground, `--bgColor-default`, and the hairline
+under it, `--borderColor-default`.
 
 The spectrum is `SECTION_SPECTRUM` in `ui/section-catalog.ts`: a left-to-right band of
 every section's hue, in section order.

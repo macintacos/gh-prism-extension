@@ -1,8 +1,19 @@
 /* GitHub hooks: table[data-diff-anchor] inside GitHub's file card, which structural-notices.ts
-   places the notice and the loading line directly before, and --fgColor-muted. */
+   places the notice and the loading line directly before, --fgColor-muted, --bgColor-default (the
+   page behind the card), and the file's sticky header ([class*="diffHeaderWrapper__"], z-index 5
+   in the region's stacking context), under whose stuck bottom edge the notice sticks. */
 
 @import "../ui/tailwind.css" prefix(tw);
 @source "./structural-notices.ts";
+
+/* structural-notices.ts writes `top`. Above the table's positioned cells, below the header. */
+.gh-prism-structural-notice {
+  position: sticky;
+  z-index: 1;
+  background: var(--bgColor-default);
+  /* A shadow, not a border: the edge the rows pass under adds no height. */
+  box-shadow: 0 1px 0 var(--borderColor-default);
+}
 
 /* Overlays the table's top edge, so a file's code never moves when it comes and goes. */
 .gh-prism-structural-loading {

@@ -6,6 +6,65 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-12: Structural mode's notice sticks under the file header
+
+- **Asked for:** the maintainer asked for the notice to stay on screen while its file's
+  diff scrolls, with nothing else about its styling changed, and noted that GitHub's file
+  header is itself sticky.
+- **Compared:**
+  - for where the stuck notice's offset comes from, a pixel value measured once, a copy of
+    GitHub's `calc()` for the header's `top`, or GitHub's own computed values;
+  - for the stuck notice's ground, the page's `--bgColor-default` or the header's
+    `--bgColor-muted`;
+  - for what separates it from the rows passing beneath, nothing, a blurred drop shadow, a
+    hairline shown only while stuck, or a hairline always;
+  - for the loading line, sticking it too, or leaving it on the table's top edge.
+- **Won:**
+  - Every kind of notice sticks directly below its file's sticky header while any of the
+    file's diff is on screen, in the file's card, below the header and above the diff's
+    rows. At rest it keeps its height, text, spacing, and link.
+  - Its `top` is the `top` GitHub's stylesheet computes for a sticky file header, plus
+    that file's own header height, which a `ResizeObserver` reports. Scrolling runs no
+    script.
+  - Its ground is `--bgColor-default`, the colour the page already shows behind it.
+  - A 1px `--borderColor-default` hairline under the notice, at rest and stuck alike. It
+    is a `box-shadow` with no blur, so it adds no height.
+  - The loading line does not stick.
+- **Why:**
+  - A measured pixel value breaks the first time GitHub changes its header: a pull
+    request's header sticks at 108px and is 42px high, and a commit's sticks at 66px and
+    is 46px high (2026-11-12, at 1280px wide). GitHub's `calc()` reads a custom property
+    set on the header itself, which the notice can't inherit. A copy of it would also go
+    stale silently.
+  - `--bgColor-default` leaves the notice at rest exactly as it was, since the card is
+    transparent over the page. The header's `--bgColor-muted` would restyle it.
+  - With no edge, a row passing under the notice is cut off mid-line with nothing to cut
+    it, and reads as a drawing fault. A blurred drop shadow is a new material on a page
+    that has none. A hairline shown only while stuck needs a scroll-state container query,
+    which Firefox lacks, or a script watching each notice. The always-on hairline is the
+    card's own border colour, adds no height, and matches the sticky key hint at the foot
+    of the code owner details dialog (`ui/owners-dialog.ts`). At rest it lands on the top
+    edge of the table's first row, most often a tinted hunk header.
+  - The loading line shows for a moment and is replaced by the paint or by a notice, so
+    there is nothing to keep on screen.
+- **Accepted:**
+  - The hairline is the one change to the notice at rest.
+  - At a file's end, the last scroll of the notice's own height pushes it up under the
+    header, as it does the diff's last rows. Only then does the header start to leave. The
+    notice sits in the file's card and the header in the file's region, which clips its
+    contents, so the two can't leave in step unless the notice moves into GitHub's header.
+  - A notice sticks once two readings exist: the `top` of any file header on the page that
+    GitHub has made sticky, and the height of its own file's header, which arrives when
+    that header is first rendered. Should no header be sticky yet when the notices draw,
+    they look again at each later change to the diffs, and stick at the first one that
+    finds a sticky header.
+- **Checked:** 2026-11-12, signed in, in Chromium 156 and Firefox 157, light and dark, on
+  <https://github.com/apple/swift-argument-parser/pull/952/changes?diff=split> and its
+  merge commit `0db78d17cf`. At rest and mid-file the notice's top met the header's bottom
+  with a 0px gap. At 600px wide the notice wraps to two lines and still meets the header.
+  In Chromium the gap stayed 0px with Compact line height, in GitHub's diff settings menu,
+  on and off, and after pressing Structural from Unified.
+
 ## 2026-11-11: The Structural segment leads with gh-prism's prism
 
 - **Asked for:** the maintainer asked for "a little prism icon to the left of the word

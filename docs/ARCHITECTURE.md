@@ -1129,8 +1129,14 @@ since the painter paints no other. Both are gh-prism's own nodes, inserted direc
 the file's `table[data-diff-anchor]`; GitHub's nodes are left as they are. A pass reads
 every table before writing, and leaves a node that is already right untouched. It removes
 every node of its own that no mounted table claims, which sweeps a notice left in the card
-after a switch to GitHub's rich diff. On abort the notices clear their timers and frame,
-and remove every node by class and the `<style>` built from
+after a switch to GitHub's rich diff. A notice is `position: sticky` in the file's card,
+so it stays under the file's sticky header while the diff scrolls, and scrolling runs no
+script. Its `top` is the sum of two readings: `stuckHeaderTop` in `files-page.ts`, the
+`top` GitHub computes for a sticky file header, and the height of that file's own header,
+which a `ResizeObserver` reports. `observeCoveredTop` reports a window resize or a change
+to `body`'s `style`, where GitHub writes `--base-sticky-header-height`, and the notices
+then call `stuckHeaderTop` again. On abort the notices clear their timers and frame,
+disconnect the observer, and remove every node by class and the `<style>` built from
 [`diffs/structural-notices.css`](../entrypoints/content/diffs/structural-notices.css).
 
 On [cli/cli#14805 in Split](https://github.com/cli/cli/pull/14805/changes?diff=split) on
