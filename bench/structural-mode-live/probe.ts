@@ -19,7 +19,8 @@ export type ProbeRequest =
 
 /**
  * The highlight ranges per diff anchor, how many sit on a node no longer in the page, and how many
- * sit in a cell GitHub does not mark changed.
+ * sit in a cell GitHub does not mark changed. A range is one mark, so a file whose changed lines
+ * all changed in full is painted with none.
  */
 export type ProbePaint =
   | {

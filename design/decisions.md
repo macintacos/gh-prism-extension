@@ -6,6 +6,50 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-11: Structural mode marks the changed words of running text
+
+- **Asked for:** the maintainer reworded one clause of a doc comment and saw every line of
+  the comment painted. They asked for only the changed words, and for `.txt` files to get
+  the same diff.
+- **Compared:**
+  - for what counts as running text, comments alone, or also strings, JSX and HTML text,
+    Markdown prose, and YAML scalars;
+  - for a word's spacing, ignored everywhere, or kept where it is content;
+  - for a comment's markers, every marker dropped from the diff, or only a later line's
+    leader: the `*` that leads it, or the repeated marker of a continuing line comment;
+  - for a new comment's later lines, a mark across each line's words, the leader drawn
+    inside the first word's mark, or the leader counted as changed when the rest of its
+    line is.
+- **Won:**
+  - A comment, a string's text, JSX and HTML text, Markdown prose, and a YAML scalar are
+    compared word by word in all 22 languages, and so is a `.txt` file.
+  - Spacing is ignored in a comment, Markdown prose, and a `.txt` file. It counts as one
+    space in JSX and HTML text and in a YAML block scalar. It is kept as written in a
+    string.
+  - A comment's opening marker and a block comment's closing marker are compared. The
+    leader of a later line is not, and it counts as changed only when every word after it
+    on its line changed.
+- **Why:**
+  - **Running text:** each of these was one token, so one reworded word painted all of it,
+    which is the problem the maintainer reported for comments.
+  - **Spacing:** a re-wrapped comment or a reflowed paragraph says the same thing, so it
+    stays quiet. A string's spacing is part of its value, so `"a b"` to `"a  b"` is a
+    change.
+  - **Markers:** with every marker dropped, a new comment's `//` would look unchanged.
+    With the leaders compared, a re-wrap would mark each `*` it moved.
+  - **New comments:** a mark across every later line of a new comment made it louder than
+    the new code around it, which has no mark because its lines changed in full. A leader
+    inside a reworded word's mark would show a change that didn't happen. Counting the
+    leader with a line changed in full gives a new comment GitHub's line tint alone.
+- **Measured** 2026-11-11, signed in, Chromium 157 and Firefox 157, light and dark, on
+  gh-prism pull request #113's `entrypoints/content/files-page.ts`: the reworded doc
+  comment shows one mark on the removed "and" and two on the added clauses, and the doc
+  comments the pull request adds further down show no mark.
+- **Accepted:**
+  - A comment whose style alone changed, such as `//` to `/* */`, marks only its markers.
+  - A YAML block scalar or HTML text whose line breaks alone changed shows a quiet row,
+    though a line break in a literal block scalar is part of its value.
+
 ## 2026-11-11: The diff view control shows its name, and replaces GitHub's Layout group
 
 - **Asked for:** the maintainer tried the control and asked for three things: a visible

@@ -167,8 +167,9 @@ a commit's page, picks how the diffs are drawn: **Unified**, **Split**, or **Str
 
 - Structural draws GitHub's Split layout and highlights the code that changed. A line
   changed in full shows only GitHub's line colour, with no highlight, and lines whose
-  change only reformats them take a lighter tint. In a comment, a string, or a `.txt`
-  file, it highlights the words that changed.
+  change only reformats them take a lighter tint. In a comment, a string, HTML or JSX
+  text, a YAML value, Markdown prose, or a `.txt` file, it highlights the words that
+  changed.
 - It keeps GitHub's pairing of old and new lines, and doesn't mark code that moved.
 - It works on Bash, C, C++, C#, CSS, Go, HTML, Java, JavaScript, JSON, Kotlin, Lua,
   Markdown, PHP, Python, Ruby, Rust, Swift, TOML, TSX, TypeScript, YAML, and `.txt` files,
@@ -188,7 +189,7 @@ a commit's page, picks how the diffs are drawn: **Unified**, **Split**, or **Str
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/structural-dark.png">
-  <img src="docs/images/structural-light.png" width="1280" alt="The toolbar's Unified, Split, and Structural control with Structural pressed and a Beta tag inside it, beside GitHub's diff settings gear. Below, app/ledger.py in GitHub's split layout, where only the changed words of each edited line are highlighted and underlined, such as “integers” becoming “whole” and the added “never floats” in a comment.">
+  <img src="docs/images/structural-light.png" width="1280" alt="The toolbar's Diff view control, with Unified, Split, and Structural. Structural is pressed and carries a Beta tag. The control sits beside GitHub's diff settings gear. Below, app/ledger.py in GitHub's split layout, where only the changed words of each edited line sit in a rounded highlight, such as “integers in” becoming “whole” and the added “, never floats” in a comment.">
 </picture>
 
 </details>

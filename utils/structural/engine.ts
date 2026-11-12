@@ -95,7 +95,10 @@ export async function structuralChanges(input: EngineInput): Promise<EngineResul
 
   return {
     ok: true,
-    changes: { old: spansOf(oldSource, changed.old), new: spansOf(newSource, changed.new) },
+    changes: {
+      old: spansOf(oldSource, withLayout(oldSource, changed.old)),
+      new: spansOf(newSource, withLayout(newSource, changed.new)),
+    },
   };
 }
 
@@ -127,17 +130,19 @@ function tokensOf(
   }
 }
 
-/** A text with the offset of each of its lines, and its tokens. */
+/** A text with the offset of each of its lines, the tokens the diff compares, and its layout tokens. */
 interface Source {
   readonly text: string;
   readonly starts: readonly number[];
   readonly tokens: readonly Token[];
+  readonly layout: readonly Token[];
 }
 
 const sourceOf = (text: string, tokens: readonly Token[]): Source => ({
   text,
   starts: lineStarts(text),
-  tokens,
+  tokens: tokens.filter((token) => !token.layout),
+  layout: tokens.filter((token) => token.layout),
 });
 
 /** The offset where 1-based `line` starts, or the text's end past its last line. */
@@ -315,6 +320,24 @@ function changesOf(
   }
 
   return [removed, added];
+}
+
+/**
+ * `changed` in source order with each layout token whose line changed in full: every token after
+ * it on its line, or the tokens around it when it has the line to itself.
+ */
+function withLayout({ text, tokens, layout }: Source, changed: readonly Token[]): readonly Token[] {
+  if (layout.length === 0) return changed;
+
+  const isChanged = new Set(changed);
+  const inFull = layout.filter((leader) => {
+    const lineBreak = text.indexOf("\n", leader.end);
+    const { from, to } = tokenRange(tokens, leader.end, lineBreak === -1 ? text.length : lineBreak);
+    const rest = from < to ? tokens.slice(from, to) : [tokens[from - 1], tokens[from]];
+    return rest.every((token) => token === undefined || isChanged.has(token));
+  });
+
+  return [...changed, ...inFull].sort((a, b) => a.start - b.start);
 }
 
 /**

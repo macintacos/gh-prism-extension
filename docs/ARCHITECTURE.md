@@ -76,9 +76,16 @@ The background builds the host on the first `structural` request, which a conten
 sends only while Structural mode is on.
 
 [`utils/structural/tokens.ts`](../utils/structural/tokens.ts) turns each parse into the
-tokens the engine compares: one per leaf, and one per word of a comment, a string's text,
-or JSX text, split by [`utils/structural/words.ts`](../utils/structural/words.ts). A
-re-wrapped comment therefore changes no token. A `.txt` file has no grammar and no parse:
+tokens the engine compares: one per leaf, and one per word of running text, split by
+[`utils/structural/words.ts`](../utils/structural/words.ts). Running text is a comment, a
+string's text, JSX or HTML text, Markdown prose, and a YAML scalar. A re-wrapped comment
+or a reflowed Markdown paragraph therefore changes no token. A grammar joins by naming its
+node kinds in two tables at the top of `tokens.ts`: its comment kinds in `COMMENT_TYPES`,
+and its other text kinds in `TEXT_SPACING`, each with how its spacing counts. The `*` that
+leads a block comment's later line, and the marker of a line comment that continues
+another, are layout tokens. The engine's diff skips them. The engine reports one as
+changed only when the rest of its line changed, so a new comment's lines reach the painter
+changed in full. A `.txt` file has no grammar and no parse:
 [`utils/structural/plain-text.ts`](../utils/structural/plain-text.ts) names it, and the
 engine compares its words alone.
 

@@ -269,7 +269,7 @@ async function checkStopped(page: Page): Promise<void> {
   check("11 abort", left.highlights === 0 && left.attributes === 0, JSON.stringify(left));
 }
 
-/** Reloads on a painted line's hash and reads a pixel inside its token, above the underline. */
+/** Reloads on a painted line's hash and reads a pixel inside its mark, above the text. */
 async function linkedLine(from: Page): Promise<void> {
   // A fresh tab, so the hash arrives on the page's first navigation as a followed link's would.
   const page = await from.context().newPage();
@@ -306,13 +306,14 @@ async function linkedLine(from: Page): Promise<void> {
     const box = range?.getBoundingClientRect();
     return box && { x: box.x + box.width / 2, y: box.y + 3 };
   }, ENGINE_ANCHOR);
-  const expected = rgbOf(await background(engineCell(page, "right", 22)));
+  // A selected line keeps its mark, so the pixel is not the selected cell's own background.
+  const cell = rgbOf(await background(engineCell(page, "right", 22)));
   const got = token ? await pixel(page, token.x, token.y) : [];
   const ok =
     selectedCells === (await cells.and(page.locator("td:not(.empty-diff-line)")).count()) &&
     got.length === 3 &&
-    got.every((v, i) => Math.abs(v - (expected[i] ?? -99)) <= 2);
-  const detail = `(${selectedCells} cells selected, pixel ${got} vs ${expected})`;
+    got.some((v, i) => Math.abs(v - (cell[i] ?? -99)) > 2);
+  const detail = `(${selectedCells} cells selected, pixel ${got} over cell ${cell})`;
   if (browserName === "firefox" && !ok)
     console.log(`10 linked line: MISSED in Firefox ${detail} — reported, not failed`);
   else check("10 linked line", ok, detail);
@@ -320,7 +321,7 @@ async function linkedLine(from: Page): Promise<void> {
   await page.close();
 }
 
-/** WCAG contrast of each underline and word text against its word background, light then dark. */
+/** WCAG contrast of the word text against its mark, light then dark. */
 async function contrast(page: Page): Promise<void> {
   for (const mode of ["light", "dark"]) {
     await page.evaluate(
@@ -346,32 +347,40 @@ async function contrast(page: Page): Promise<void> {
         return Math.round(((Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)) * 100) / 100;
       };
       const page = rgba("var(--bgColor-default)").slice(0, 3);
-      // Keep in sync with structural.css's underline colours.
-      const sides = { addition: "--fgColor-success", deletion: "--display-red-fgColor" } as const;
-      // Keep in sync with structural.css's moved outline colour.
-      const movedColor = "--fgColor-muted";
-      const result = Object.entries(sides).map(([side, underlineColor]) => {
-        const line = over(rgba(`var(--diffBlob-${side}Line-bgColor)`), page);
-        const word = over(rgba(`var(--diffBlob-${side}Word-bgColor)`), line);
+      // color-mix() in srgb, by hand: a computed mix serializes as color(srgb …), not rgb().
+      const mixed = (a: number[], b: number[], share: number) => {
+        const [alphaA, alphaB] = [(a[3] ?? 1) * share, (b[3] ?? 1) * (1 - share)];
+        const alpha = alphaA + alphaB;
+        return [
+          ...a.slice(0, 3).map((c, i) => (c * alphaA + (b[i] ?? 0) * alphaB) / (alpha || 1)),
+          alpha,
+        ];
+      };
+      const strength =
+        Number.parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue("--gh-prism-mark-strength"),
+        ) / 100;
+      const result = ["addition", "deletion"].map((side) => {
+        const lineColor = rgba(`var(--diffBlob-${side}Line-bgColor)`);
+        const line = over(lineColor, page);
+        // Keep in sync with structural.css's mark colour.
+        const mark = over(
+          mixed(rgba(`var(--diffBlob-${side}Word-bgColor)`), lineColor, strength),
+          line,
+        );
         return {
           side,
-          underline: ratio(over(rgba(`var(${underlineColor})`), word), word),
           text: ratio(
-            over(rgba(`var(--diffBlob-${side}Word-fgColor, var(--fgColor-default))`), word),
-            word,
+            over(rgba(`var(--diffBlob-${side}Word-fgColor, var(--fgColor-default))`), mark),
+            mark,
           ),
-          moved: ratio(over(rgba(`var(${movedColor})`), line), line),
         };
       });
       probe.remove();
       return result;
     });
-    for (const { side, underline, text, moved } of ratios)
-      check(
-        `12 contrast ${mode} ${side}`,
-        underline >= 3 && text >= 4.5 && moved >= 3,
-        `(underline ${underline}:1, text ${text}:1, moved ${moved}:1)`,
-      );
+    for (const { side, text } of ratios)
+      check(`12 contrast ${mode} ${side}`, text >= 4.5, `(text ${text}:1)`);
   }
 }
 
