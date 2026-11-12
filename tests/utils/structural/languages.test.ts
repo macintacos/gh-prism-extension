@@ -27,6 +27,118 @@ const NO_CHANGE = { old: [], new: [] };
 /** What a comment must follow to parse, for the languages where it cannot open the file. */
 const OPENERS: Record<string, string> = { "a.php": "<?php\n" };
 
+/** A comment of one line comment per line of text, each after `marker`. */
+const lineComments = (marker: string) => (lines: readonly string[]) =>
+  `${lines.map((line) => `${marker} ${line}`).join("\n")}\n`;
+
+/** A comment from `open` to `close` whose later lines have no leader. */
+const blockComment = (open: string, close: string) => (lines: readonly string[]) =>
+  `${open} ${lines.join("\n   ")} ${close}\n`;
+
+/** A comment from `open` to `close`, one line of text after a `*` on each line between. */
+const starComment = (open: string) => (lines: readonly string[]) =>
+  `${open}\n${lines.map((line) => ` * ${line}`).join("\n")}\n */\n`;
+
+const SLASHES = { style: "//", of: lineComments("//") };
+const HASHES = { style: "#", of: lineComments("#") };
+const BLOCK = { style: "/* */", of: blockComment("/*", "*/") };
+const DOC_BLOCK = { style: "/** */", of: starComment("/**") };
+const DOC_SLASHES = { style: "///", of: lineComments("///") };
+
+/** Each comment style of each language that has comments; Markdown has none of its own. */
+const COMMENTS = [
+  ...[SLASHES, BLOCK, DOC_BLOCK].map((comment) => ({ path: "a.ts", ...comment })),
+  ...[SLASHES, BLOCK, DOC_BLOCK].map((comment) => ({ path: "a.tsx", ...comment })),
+  ...[SLASHES, BLOCK, DOC_BLOCK].map((comment) => ({ path: "a.js", ...comment })),
+  { path: "a.py", ...HASHES },
+  ...[SLASHES, DOC_SLASHES, BLOCK, DOC_BLOCK].map((comment) => ({ path: "a.rs", ...comment })),
+  { path: "a.rs", style: "//!", of: lineComments("//!") },
+  { path: "a.rs", style: "/*! */", of: starComment("/*!") },
+  ...[SLASHES, BLOCK].map((comment) => ({ path: "a.go", ...comment })),
+  { path: "a.css", ...BLOCK },
+  ...[SLASHES, BLOCK].map((comment) => ({ path: "a.jsonc", ...comment })),
+  { path: "a.yaml", ...HASHES },
+  { path: "a.toml", ...HASHES },
+  { path: "a.sh", ...HASHES },
+  ...[SLASHES, BLOCK, DOC_BLOCK].map((comment) => ({ path: "a.c", ...comment })),
+  ...[SLASHES, BLOCK, DOC_BLOCK].map((comment) => ({ path: "a.cpp", ...comment })),
+  { path: "a.lua", style: "--", of: lineComments("--") },
+  { path: "a.lua", style: "---", of: lineComments("---") },
+  { path: "a.lua", style: "--[[ ]]", of: blockComment("--[[", "]]") },
+  ...[SLASHES, BLOCK, DOC_BLOCK].map((comment) => ({ path: "A.java", ...comment })),
+  ...[SLASHES, HASHES, BLOCK, DOC_BLOCK].map((comment) => ({ path: "a.php", ...comment })),
+  { path: "a.rb", ...HASHES },
+  {
+    path: "a.rb",
+    style: "=begin =end",
+    of: (lines: readonly string[]) => `=begin\n${lines.join("\n")}\n=end\n`,
+  },
+  ...[SLASHES, DOC_SLASHES, BLOCK].map((comment) => ({ path: "A.cs", ...comment })),
+  { path: "a.html", style: "<!-- -->", of: blockComment("<!--", "-->") },
+  ...[SLASHES, BLOCK, DOC_BLOCK].map((comment) => ({ path: "A.kt", ...comment })),
+  ...[SLASHES, DOC_SLASHES, BLOCK, DOC_BLOCK].map((comment) => ({ path: "A.swift", ...comment })),
+];
+
+/** Each string style of each language that has strings, as a file holding `text` in one. */
+const STRINGS: { path: string; style: string; of: (text: string) => string }[] = [
+  { path: "a.ts", style: "'", of: (text) => `const s = '${text}';\n` },
+  { path: "a.ts", style: '"', of: (text) => `const s = "${text}";\n` },
+  { path: "a.ts", style: "`", of: (text) => `const s = \`${text}\`;\n` },
+  { path: "a.tsx", style: "attribute", of: (text) => `const s = <p title="${text}" />;\n` },
+  { path: "a.js", style: "'", of: (text) => `const s = '${text}';\n` },
+  { path: "a.py", style: '"', of: (text) => `s = "${text}"\n` },
+  { path: "a.py", style: '"""', of: (text) => `s = """${text}"""\n` },
+  { path: "a.rs", style: '"', of: (text) => `const S: &str = "${text}";\n` },
+  { path: "a.rs", style: 'r#""#', of: (text) => `const S: &str = r#"${text}"#;\n` },
+  { path: "a.go", style: '"', of: (text) => `package main\n\nvar s = "${text}"\n` },
+  { path: "a.go", style: "`", of: (text) => `package main\n\nvar s = \`${text}\`\n` },
+  { path: "a.css", style: '"', of: (text) => `.a::after {\n  content: "${text}";\n}\n` },
+  { path: "a.json", style: '"', of: (text) => `{ "s": "${text}" }\n` },
+  { path: "a.yaml", style: "plain", of: (text) => `s: ${text}\n` },
+  { path: "a.yaml", style: '"', of: (text) => `s: "${text}"\n` },
+  { path: "a.yaml", style: "'", of: (text) => `s: '${text}'\n` },
+  { path: "a.yaml", style: "|", of: (text) => `s: |\n  first line\n  ${text}\n  last line\n` },
+  { path: "a.yaml", style: ">", of: (text) => `s: >\n  first line\n  ${text}\n  last line\n` },
+  { path: "a.toml", style: '"', of: (text) => `s = "${text}"\n` },
+  { path: "a.toml", style: "'", of: (text) => `s = '${text}'\n` },
+  { path: "a.toml", style: '"""', of: (text) => `s = """\n${text}\n"""\n` },
+  { path: "a.sh", style: '"', of: (text) => `s="${text}"\n` },
+  { path: "a.sh", style: "'", of: (text) => `s='${text}'\n` },
+  { path: "a.sh", style: "$''", of: (text) => `s=$'${text}'\n` },
+  { path: "a.sh", style: "heredoc", of: (text) => `cat <<EOF\n${text}\nEOF\n` },
+  { path: "a.c", style: '"', of: (text) => `char *s = "${text}";\n` },
+  { path: "a.cpp", style: '"', of: (text) => `auto s = "${text}";\n` },
+  { path: "a.cpp", style: 'R"()"', of: (text) => `auto s = R"(${text})";\n` },
+  { path: "a.lua", style: '"', of: (text) => `local s = "${text}"\n` },
+  { path: "a.lua", style: "'", of: (text) => `local s = '${text}'\n` },
+  { path: "a.lua", style: "[[ ]]", of: (text) => `local s = [[${text}]]\n` },
+  { path: "A.java", style: '"', of: (text) => `class A {\n  String s = "${text}";\n}\n` },
+  {
+    path: "A.java",
+    style: '"""',
+    of: (text) => `class A {\n  String s = """\n    ${text}\n    """;\n}\n`,
+  },
+  { path: "a.php", style: '"', of: (text) => `<?php\n$s = "${text}";\n` },
+  { path: "a.php", style: "'", of: (text) => `<?php\n$s = '${text}';\n` },
+  { path: "a.php", style: "heredoc", of: (text) => `<?php\n$s = <<<EOT\n${text}\nEOT;\n` },
+  { path: "a.php", style: "nowdoc", of: (text) => `<?php\n$s = <<<'EOT'\n${text}\nEOT;\n` },
+  { path: "a.rb", style: '"', of: (text) => `s = "${text}"\n` },
+  { path: "a.rb", style: "'", of: (text) => `s = '${text}'\n` },
+  { path: "a.rb", style: "heredoc", of: (text) => `s = <<~EOS\n  ${text}\nEOS\n` },
+  { path: "A.cs", style: '"', of: (text) => `var s = "${text}";\n` },
+  { path: "A.cs", style: '@""', of: (text) => `var s = @"${text}";\n` },
+  { path: "A.cs", style: '$""', of: (text) => `var s = $"${text}";\n` },
+  { path: "A.cs", style: '"""', of: (text) => `var s = """${text}""";\n` },
+  { path: "a.html", style: "attribute", of: (text) => `<p title="${text}"></p>\n` },
+  { path: "a.html", style: "text", of: (text) => `<p>${text}</p>\n` },
+  { path: "a.html", style: "script", of: (text) => `<script>\n  ${text}\n</script>\n` },
+  { path: "A.kt", style: '"', of: (text) => `val s = "${text}"\n` },
+  { path: "A.kt", style: '"""', of: (text) => `val s = """${text}"""\n` },
+  { path: "A.swift", style: '"', of: (text) => `let s = "${text}"\n` },
+  { path: "A.swift", style: '"""', of: (text) => `let s = """\n  ${text}\n  """\n` },
+  { path: "A.swift", style: '#""#', of: (text) => `let s = #"${text}"#\n` },
+];
+
 describe("structuralChanges in each language", () => {
   it.each([
     {
@@ -151,7 +263,37 @@ describe("structuralChanges in each language", () => {
     },
   );
 
+  it.each(COMMENTS)("marks only the reworded word of a $path $style comment", async (comment) => {
+    const open = OPENERS[comment.path] ?? "";
+    const oldText = open + comment.of(["one two", "three"]);
+    const newText = open + comment.of(["one four", "three"]);
+
+    expect(await changedTexts(comment.path, oldText, newText)).toEqual({
+      old: ["two"],
+      new: ["four"],
+    });
+  });
+
+  it.each(COMMENTS)("finds no change in a re-wrapped $path $style comment", async (comment) => {
+    const open = OPENERS[comment.path] ?? "";
+    const oldText = open + comment.of(["one two", "three"]);
+    const newText = open + comment.of(["one", "two three"]);
+
+    expect(await changedTexts(comment.path, oldText, newText)).toEqual(NO_CHANGE);
+  });
+
+  it.each(STRINGS)("marks only the reworded word of a $path $style string", async (string) => {
+    const oldText = string.of("one two three");
+    const newText = string.of("one four three");
+
+    expect(await changedTexts(string.path, oldText, newText)).toEqual({
+      old: ["two"],
+      new: ["four"],
+    });
+  });
+
   it.each([
+    { path: "a.rs", comment: ["/* a", "   b */"] },
     { path: "a.go", comment: ["/* a", "   b */"] },
     { path: "a.css", comment: ["/* a", "   b */"] },
     { path: "a.jsonc", comment: ["/* a", "   b */"] },
@@ -190,6 +332,45 @@ describe("structuralChanges in each language", () => {
   it("finds no change in a YAML file indented deeper throughout", async () => {
     const oldText = "a:\n  b:\n    - c\n    - d: 1\n";
     const newText = "a:\n    b:\n        - c\n        - d: 1\n";
+
+    expect(await changedTexts("a.yaml", oldText, newText)).toEqual(NO_CHANGE);
+  });
+
+  it.each([
+    { where: "paragraph", of: (text: string) => `# Title\n\nFirst line\n${text} here.\n` },
+    { where: "heading", of: (text: string) => `## ${text}\n\nBody.\n` },
+    { where: "list item", of: (text: string) => `- ${text}\n- other\n` },
+    { where: "block quote", of: (text: string) => `> ${text}\n` },
+  ])("marks only the reworded word of a Markdown $where", async ({ of }) => {
+    const oldText = of("one two three");
+    const newText = of("one four three");
+
+    expect(await changedTexts("a.md", oldText, newText)).toEqual({ old: ["two"], new: ["four"] });
+  });
+
+  it.each([
+    {
+      where: "paragraph",
+      oldText: "Some (text) here\n*and* more words.\n",
+      newText: "Some (text)\nhere *and* more\nwords.\n",
+    },
+    {
+      where: "block quote",
+      oldText: "> one two\n> three\n",
+      newText: "> one\n> two three\n",
+    },
+    {
+      where: "list item",
+      oldText: "- one two\n  three\n- other\n",
+      newText: "- one\n  two three\n- other\n",
+    },
+  ])("finds no change in a reflowed Markdown $where", async ({ oldText, newText }) => {
+    expect(await changedTexts("a.md", oldText, newText)).toEqual(NO_CHANGE);
+  });
+
+  it("finds no change in a YAML block scalar indented deeper", async () => {
+    const oldText = "a:\n  b: |\n    one two\n    three\n";
+    const newText = "a:\n    b: |\n        one two\n        three\n";
 
     expect(await changedTexts("a.yaml", oldText, newText)).toEqual(NO_CHANGE);
   });

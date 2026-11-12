@@ -13,17 +13,39 @@ export interface Token {
   readonly type: string;
 }
 
-/** Node types that hold a comment; a grammar joins by naming its comment kinds here. */
-const COMMENT_TYPES = new Set([
-  ...["comment", "line_comment", "block_comment", "multiline_comment", "comment_content"],
-]);
+/**
+ * Node types that hold a comment, read whole whatever children the grammar gives them; a grammar
+ * joins by naming its comment kinds here.
+ */
+const COMMENT_TYPES = new Set(["comment", "line_comment", "block_comment", "multiline_comment"]);
 
-/** Node types that hold other running text, with how their words' spacing counts. */
+/** Markdown's running text, whose punctuation the grammar makes children. */
+const PROSE = "inline";
+
+/** A YAML plain scalar. A mapping's key is one, so its first word carries its line's depth. */
+const PLAIN_SCALAR = "string_scalar";
+
+/** Each of `types` with `spacing`. */
+const spaced = (spacing: Spacing, types: readonly string[]) =>
+  types.map((type) => [type, spacing] as const);
+
+/**
+ * Node types that hold other running text, with how their words' spacing counts. A type that is
+ * a parent gives it to its own text between its children; a grammar joins by naming its kinds
+ * here.
+ */
 const TEXT_SPACING = new Map<string, Spacing>([
-  ["jsx_text", "collapsed"],
-  ["text", "collapsed"],
-  ["string_fragment", "exact"],
-  ["string_content", "exact"],
+  [PROSE, "ignored"],
+  // A re-indented block keeps its words; only a gap gained or lost is a change.
+  ...spaced("collapsed", ["jsx_text", "text", "raw_text", "block_scalar"]),
+  ...spaced("exact", ["string_fragment", "string_content", "multiline_string_fragment"]),
+  ...spaced("exact", ["interpreted_string_literal_content", "raw_string_literal_content"]),
+  ...spaced("exact", ["string_literal_content", "raw_string_content", "verbatim_string_literal"]),
+  ...spaced("exact", ["line_str_text", "multi_line_str_text", "raw_str_end_part"]),
+  ...spaced("exact", ["raw_string", "ansi_c_string", "heredoc_body", "heredoc_content"]),
+  ...spaced("exact", ["nowdoc_string", "attribute_value"]),
+  // YAML's quoted scalars and TOML's strings hold their text themselves, with no child for it.
+  ...spaced("exact", [PLAIN_SCALAR, "double_quote_scalar", "single_quote_scalar", "string"]),
 ]);
 
 /** Whether a token of `type` is a word of a comment or of other running text. */
@@ -31,8 +53,8 @@ const isWord = (type: string) => COMMENT_TYPES.has(type) || TEXT_SPACING.has(typ
 
 /**
  * `tree`'s leaves in source order as tokens keyed by their text; a parent's own non-blank text
- * between its children is a token too. A comment, a string's text, and JSX text are one token
- * per word instead. `undefined` past `maxTokens`.
+ * between its children is a token too. A comment, a string's text, and other running text are
+ * one token per word instead. `undefined` past `maxTokens`.
  */
 export function leafTokens(tree: Tree, text: string, maxTokens: number): Token[] | undefined {
   const tokens: Token[] = [];
@@ -70,12 +92,16 @@ export function leafTokens(tree: Tree, text: string, maxTokens: number): Token[]
   try {
     for (;;) {
       const { startIndex: start, endIndex: end, nodeType: type } = cursor;
-      if (!fillTo(start, parents.at(-1)?.type)) return undefined;
-      if (cursor.gotoFirstChild()) {
+      const parentType = parents.at(-1)?.type;
+      if (!fillTo(start, parentType)) return undefined;
+      if (!COMMENT_TYPES.has(type) && cursor.gotoFirstChild()) {
         parents.push({ end, type });
         continue;
       }
-      if (end > start && !push(start, end, type)) return undefined;
+      // A continuation line's quote marker or indent inside prose is layout, as a comment's `*` is.
+      const inProse = parentType === PROSE;
+      const skipped = end === start || (inProse && type === "block_continuation");
+      if (!skipped && !push(start, end, inProse ? PROSE : type)) return undefined;
       covered = Math.max(covered, end);
       while (!cursor.gotoNextSibling()) {
         if (!cursor.gotoParent()) return tokens;
@@ -148,7 +174,8 @@ export function keyedByIndentation(tokens: readonly Token[], text: string): Toke
     const previousLine = line;
     while ((starts[line + 1] ?? Infinity) <= token.start) line++;
     const lineStart = starts[line] ?? 0;
-    const startsLogicalLine = line !== previousLine && bracketDepth === 0 && !isWord(token.type);
+    const opensLine = token.type === PLAIN_SCALAR || !isWord(token.type);
+    const startsLogicalLine = line !== previousLine && bracketDepth === 0 && opensLine;
     const keyed = startsLogicalLine ? withDepth(token, text, lineStart, widths) : token;
     bracketDepth += BRACKET_DEPTH[token.type] ?? 0;
     return keyed;
