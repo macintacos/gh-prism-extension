@@ -11,10 +11,10 @@ import {
   changedCells,
   type DiffSide,
 } from "../../../entrypoints/content/files-page";
-import type { FileSection } from "../../../entrypoints/content/visit/land";
 import type { LineAnnotation, StructuralFile } from "../../../utils/structural/changes";
 import commitSplit from "../../fixtures/commit-page-diff-split.html?raw";
 import commitWhitespaceSplit from "../../fixtures/commit-page-diff-whitespace-split.html?raw";
+import { anchorOfTable, mountDiffs, sectionsOf, tableAt, tables } from "../../fixtures/diff-tables";
 import prRename from "../../fixtures/files-page-diff-rename.html?raw";
 import prSplit from "../../fixtures/files-page-diff-split.html?raw";
 import prUnified from "../../fixtures/files-page-diff-unified.html?raw";
@@ -23,47 +23,6 @@ import { HighlightStub, stubHighlights } from "../../fixtures/highlights";
 const QUIET: LineAnnotation = { quiet: true };
 const CHANGED: LineAnnotation = { quiet: false, ranges: [] };
 const PAINTED = "[data-gh-prism-structural], [data-gh-prism-quiet], [data-gh-prism-moved]";
-
-/** Mounts each fixture's table in its own region, all inside one diffs container. */
-function mountDiffs(...htmls: string[]): HTMLElement {
-  const diffs = document.createElement("div");
-  for (const html of htmls) {
-    const region = document.createElement("div");
-    region.innerHTML = html;
-    diffs.append(region);
-  }
-  document.body.replaceChildren(diffs);
-  return diffs;
-}
-
-const tables = (root: ParentNode) => [
-  ...root.querySelectorAll<HTMLTableElement>("table[data-diff-anchor]"),
-];
-
-const tableAt = (root: ParentNode, index = 0): HTMLTableElement => {
-  const table = tables(root)[index];
-  if (!table) throw new Error(`no table ${index}`);
-  return table;
-};
-
-const anchorOfTable = (table: HTMLTableElement) => table.dataset.diffAnchor ?? "";
-
-/** One section listing each table's file, its path being the table's anchor. */
-function sectionsOf(root: ParentNode): FileSection[] {
-  const entries = tables(root).map((table) => {
-    const link = document.createElement("a");
-    link.setAttribute("href", `#${anchorOfTable(table)}`);
-    const file = {
-      path: anchorOfTable(table),
-      link,
-      active: false,
-      status: undefined,
-      comments: null,
-    };
-    return { section: "implementation", lines: undefined, file } as const;
-  });
-  return [{ key: "implementation", entries }];
-}
 
 /** A file whose text is the table's own and whose lines `annotate` annotates, quiet by default. */
 function fileOf(

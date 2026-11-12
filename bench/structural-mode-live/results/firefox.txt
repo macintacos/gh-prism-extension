@@ -1,9 +1,9 @@
 browser: firefox 157.0
 default preference off: ok
-off https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split: ok {"added":0,"removed":0,"attributes":0,"sheets":0,"offscreen":0}
-off https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split: ok {"added":0,"removed":0,"attributes":0,"sheets":0,"offscreen":0}
-off https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split: ok {"added":0,"removed":0,"attributes":0,"sheets":0,"offscreen":0}
-off https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split: ok {"added":0,"removed":0,"attributes":0,"sheets":0,"offscreen":0}
+off https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split: ok {"added":0,"removed":0,"attributes":0,"notices":0,"sheets":0,"offscreen":0}
+off https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split: ok {"added":0,"removed":0,"attributes":0,"notices":0,"sheets":0,"offscreen":0}
+off https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split: ok {"added":0,"removed":0,"attributes":0,"notices":0,"sheets":0,"offscreen":0}
+off https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split: ok {"added":0,"removed":0,"attributes":0,"notices":0,"sheets":0,"offscreen":0}
 mode off: ok
 preference set on: ok
 https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split app/ledger.py: painted
@@ -23,13 +23,17 @@ https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split src/ren
 https://github.com/macintacos/gh-prism-sandbox/pull/3/changes?diff=split tests/integration.rs: problem:unsupported
 https://github.com/macintacos/gh-prism-sandbox/commit/8d807ee?diff=split src/client/types.gen.ts: painted
 https://github.com/macintacos/gh-prism-sandbox/commit/4630717?diff=split src/client/client/utils.gen.ts: painted
+notices: ok (0 wrong)
+readme notice: ok
+rich diff: no notice: ok (0)
+source diff: notice again: ok
 unscrolled https://github.com/macintacos/gh-prism-sandbox/pull/4/changes?diff=split: ok (1 split tables below the fold, never scrolled to, 0 painted)
 no unpainted file: ok (0)
 mismatch: 0 of 4
 layout before: unified
 painted before Unified: ok (12, 4)
-unified: ok {"stored":false,"added":0,"removed":0,"attributes":0,"sheets":0}
+unified: ok {"stored":false,"added":0,"removed":0,"attributes":0,"notices":0,"sheets":0}
 unified: preference off
 unified: location.search gained diff=unified: true (?diff=unified)
 split: location.search still holds diff=unified: false (?diff=split)
-layout as found: ok (after: unified)
+layout as found: ok (before: unified, after: unified)

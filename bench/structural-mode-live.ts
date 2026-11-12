@@ -1,8 +1,9 @@
 /**
  * Live check of Structural mode in the built extension on signed-in GitHub pages: nothing
- * structural with the preference off, each on-screen file painted or skipped for a reason with it
- * on, and GitHub's Unified turning it off. Kept out of CI, Vitest and Playwright like the rest of
- * `bench/`.
+ * structural, notices included, with the preference off; with it on, each on-screen file painted or
+ * skipped for a reason, an unsupported file's notice and none on a painted one, README.md on
+ * sandbox PR #3 dropping its notice in the rich diff and showing it again in the source diff; and
+ * GitHub's Unified turning it off. Kept out of CI, Vitest and Playwright like the rest of `bench/`.
  *
  *   bun bench/structural-mode-live.ts <chromium|firefox> <storage-state path> [url…]
  *
@@ -43,6 +44,10 @@ const URLS = urlArgs.length
     ];
 // Keep in sync with structural.ts's attributes and highlight names.
 const STRUCTURAL_ATTRS = ["data-gh-prism-structural", "data-gh-prism-quiet", "data-gh-prism-moved"];
+// Keep in sync with structural-notices.ts's classes and NOTICE_COPY.unsupported.
+const NOTICE_SELECTOR = ".gh-prism-structural-notice, .gh-prism-structural-loading";
+const UNSUPPORTED_COPY =
+  "Structural mode doesn't cover this file's language yet, so this is GitHub's diff.";
 const PROBE = `import { defineContentScript } from "wxt/utils/define-content-script";
 import { probe } from "@/bench/structural-mode-live/probe";
 
@@ -102,13 +107,29 @@ async function load(page: Page, url: string): Promise<void> {
 /** What the DOM holds of structural mode. */
 const structuralTraces = (page: Page) =>
   page.evaluate(
-    (attrs) => ({
+    ({ attrs, notices }) => ({
       attributes: document.querySelectorAll(attrs.map((a) => `[${a}]`).join(", ")).length,
+      notices: document.querySelectorAll(notices).length,
       sheets: [...document.querySelectorAll("style")].filter((style) =>
         style.textContent?.includes("::highlight(gh-prism-"),
       ).length,
     }),
-    STRUCTURAL_ATTRS,
+    { attrs: STRUCTURAL_ATTRS, notices: NOTICE_SELECTOR },
+  );
+
+/**
+ * The text of gh-prism's node directly before `anchor`'s mounted table: `null` for none,
+ * `undefined` while unmounted.
+ */
+const noticeBefore = (page: Page, anchor: string) =>
+  page.evaluate(
+    ({ anchor, notices }) => {
+      const table = document.querySelector(`table[data-diff-anchor="${anchor}"]`);
+      if (!table) return undefined;
+      const before = table.previousElementSibling;
+      return before?.matches(notices) ? (before.textContent ?? "") : null;
+    },
+    { anchor, notices: NOTICE_SELECTOR },
   );
 
 async function offscreenDocuments(context: BrowserContext): Promise<number> {
@@ -139,6 +160,7 @@ async function modeOff(page: Page): Promise<void> {
         removed === 0 &&
         traces.attributes === 0 &&
         traces.sheets === 0 &&
+        traces.notices === 0 &&
         offscreen === 0,
       JSON.stringify({ added, removed, ...traces, offscreen }),
     );
@@ -192,18 +214,29 @@ const belowFold = (page: Page) =>
     };
   });
 
-/** Scrolls `url` top to bottom, letting each step settle, and classifies every file it mounts. */
+/**
+ * Scrolls `url` top to bottom, letting each step settle, and classifies every file it mounts. An
+ * `unsupported` file that mounted without its sentence before its table, or a painted file with a
+ * notice, reads `notice …` instead.
+ */
 async function scrollAndClassify(
   page: Page,
   answers: Record<string, ProbeAnswer>,
 ): Promise<Map<string, string>> {
   const results = new Map<string, string>();
+  // Unsupported files seen mounted, and whether any step found their sentence.
+  const noticeSeen = new Map<string, boolean>();
   let lastY = -1;
   for (let step = 0; step < 60; step++) {
     await page.waitForTimeout(2500);
     for (const [path, answer] of Object.entries(answers)) {
       if (!answer.ok) {
         results.set(path, `problem:${answer.problem}`);
+        if (answer.problem !== "unsupported") continue;
+        const notice = await noticeBefore(page, anchorOf(path));
+        if (notice !== undefined) {
+          noticeSeen.set(path, (noticeSeen.get(path) ?? false) || notice === UNSUPPORTED_COPY);
+        }
         continue;
       }
       const found = await classify(page, anchorOf(path), answer);
@@ -211,15 +244,48 @@ async function scrollAndClassify(
         if (!results.has(path)) results.set(path, found.kind);
         continue;
       }
-      if (results.get(path) === "painted") continue;
-      results.set(path, found.kind === "mismatch" ? `mismatch ${found.detail}` : found.kind);
+      if (results.get(path) === "painted" || results.get(path)?.startsWith("notice")) continue;
+      const notice = found.kind === "painted" ? await noticeBefore(page, anchorOf(path)) : null;
+      results.set(
+        path,
+        found.kind === "mismatch"
+          ? `mismatch ${found.detail}`
+          : notice
+            ? `notice on a painted file: ${notice}`
+            : found.kind,
+      );
     }
     const y = await page.evaluate(() => scrollY);
     if (y === lastY) break;
     lastY = y;
     await page.mouse.wheel(0, 700);
   }
+  for (const [path, noticed] of noticeSeen) {
+    if (!noticed) results.set(path, "notice missing on an unsupported file");
+  }
   return results;
+}
+
+/**
+ * On pull request #3, README.md's rich diff shows no notice in its region, and its source diff
+ * shows the `unsupported` sentence again. The toggle is page-local, so nothing needs restoring.
+ */
+async function richDiffHidesNotice(page: Page): Promise<void> {
+  const anchor = anchorOf("README.md");
+  await load(page, `${SANDBOX}/pull/3/changes?diff=split`);
+  const region = page.locator(`[role="region"][id="${anchor}"]`);
+  await region.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(2500);
+  check("readme notice", (await noticeBefore(page, anchor)) === UNSUPPORTED_COPY);
+
+  await region.getByRole("button", { name: "Display the rich diff" }).click();
+  await page.waitForTimeout(2500);
+  const noticesInRich = await region.locator(NOTICE_SELECTOR).count();
+  check("rich diff: no notice", noticesInRich === 0, `(${noticesInRich})`);
+
+  await region.getByRole("button", { name: "Display the source diff" }).click();
+  await page.waitForTimeout(2500);
+  check("source diff: notice again", (await noticeBefore(page, anchor)) === UNSUPPORTED_COPY);
 }
 
 /** Pass 2: with the preference on, each file the port answered `ok` for paints or mismatches. */
@@ -229,6 +295,7 @@ async function modeOn(page: Page): Promise<void> {
   let mismatches = 0;
   let answeredOk = 0;
   let unpainted = 0;
+  let wrongNotices = 0;
   let mostFiles = { url: "", files: -1 };
   for (const url of URLS) {
     await load(page, url);
@@ -243,8 +310,11 @@ async function modeOn(page: Page): Promise<void> {
       if (answers[path]?.ok) answeredOk++;
       if (result.startsWith("mismatch")) mismatches++;
       if (result === "unpainted") unpainted++;
+      if (result.startsWith("notice")) wrongNotices++;
     }
   }
+  check("notices", wrongNotices === 0, `(${wrongNotices} wrong)`);
+  await richDiffHidesNotice(page);
 
   // A short window, so a file of that URL starts below the fold.
   const viewport = page.viewportSize();
@@ -323,7 +393,11 @@ async function unifiedTurnsOff(page: Page): Promise<Layout> {
     const stored = await ask<unknown>(page, { op: "get" });
     check(
       "unified",
-      stored === false && added === 0 && removed === 0 && traces.attributes === 0,
+      stored === false &&
+        added === 0 &&
+        removed === 0 &&
+        traces.attributes === 0 &&
+        traces.notices === 0,
       JSON.stringify({ stored, added, removed, ...traces }),
     );
     log("unified: preference off");

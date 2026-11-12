@@ -252,12 +252,14 @@ test("paints no structural highlight while Structural is off", async ({ context,
     marked: document.querySelectorAll(
       "[data-gh-prism-structural], [data-gh-prism-quiet], [data-gh-prism-moved]",
     ).length,
+    notices: document.querySelectorAll(".gh-prism-structural-notice, .gh-prism-structural-loading")
+      .length,
     sheets: [...document.head.querySelectorAll("style")].filter((style) =>
       style.textContent.includes("::highlight(gh-prism-"),
     ).length,
   }));
 
-  expect(painted).toEqual({ highlights: [], marked: 0, sheets: 0 });
+  expect(painted).toEqual({ highlights: [], marked: 0, notices: 0, sheets: 0 });
 });
 
 test("a commit mounts its sections in path-only mode", async ({ context, page }) => {

@@ -483,7 +483,8 @@ and diff cards they stand in for. Once the sections land, they drop in one after
 `diffs/order.css` hold these.
 
 A view that waits on one load, with no count to show, holds its place with a skeleton
-alone: shaped like what it stands in for, held back 150 ms, then pulsing. Two use it.
+alone: shaped like what it stands in for, held back 150 ms, then pulsing. Two use it: the
+commit's message and the Conversation panel, described below.
 
 A commit's message holds its place the same way, without the bar: from the page's first
 frame, its column or its slot above the diffs shows a title bar and a line for each of the
@@ -496,6 +497,10 @@ carries on where the last one was, never fading in twice. `commit/message-view.t
 The Conversation panel holds its frame's place with a skeleton of the Conversation's
 timeline, shown only if the frame hasn't loaded 150 ms after its first open.
 `conversation/panel.css` holds it.
+
+Structural mode's loading line is a 2px line on a pending file's diff table, held back 150
+ms, for a load where GitHub's own content stays readable and there is no place to hold.
+`diffs/structural-notices.ts` and `design/decisions.md` hold the detail.
 
 ## The mark
 
@@ -556,6 +561,13 @@ of. A hovered mark cycles through the same hues one at a time instead.
 A notice is one plain sentence in small, muted text, with no icon and no illustration. The
 sidebar's "Grouped by path" notices are the model: each says what gh-prism did and, when
 the reviewer can change it, how. `sidebar/sections-view.ts` holds them.
+
+Structural mode's per-file notice is the second user. When the mode can't show a file in
+Split, a sentence directly before the file's diff table, under its file header, says why
+and that this is GitHub's diff. Its text starts in line with the header's path. It is not
+announced, because a pull request in an unsupported language shows the same sentence on
+every file; a screen reader reads it in place, between the header's controls and the diff.
+`diffs/structural-notices.ts` holds it.
 
 ## Dialogs
 

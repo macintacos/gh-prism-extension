@@ -196,6 +196,35 @@ describe("structuralFiles", () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
+  it("holds a path pending from its request until its answer settles", async () => {
+    const fake = fakeClient();
+    const files = structuralFiles(fake.connect, new AbortController().signal);
+
+    const before = files.pending("a.ts");
+    files.request(["a.ts"]);
+    const asked = files.pending("a.ts");
+    await settle(fake, "a.ts", NO_CHANGES);
+
+    expect([before, asked, files.pending("a.ts")]).toEqual([false, true, false]);
+  });
+
+  it("holds a failed path pending no longer once it settles", async () => {
+    const fake = fakeClient();
+    const files = structuralFiles(fake.connect, new AbortController().signal);
+    files.request(["a.ts"]);
+
+    await settle(fake, "a.ts", { ok: false, problem: "failed" });
+
+    expect(files.pending("a.ts")).toBe(false);
+  });
+
+  it("holds a path never asked not pending", () => {
+    const files = structuralFiles(fakeClient().connect, new AbortController().signal);
+    files.request(["a.ts"]);
+
+    expect(files.pending("b.ts")).toBe(false);
+  });
+
   it("gives back the outcome reported for a file", () => {
     const files = structuralFiles(fakeClient().connect, new AbortController().signal);
 

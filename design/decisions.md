@@ -6,6 +6,63 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-10: Structural mode's notices and loading line
+
+- **Compared:** for where a file's notice sits, inside the sticky file header, after the
+  diff table, on the file's row in the sidebar, or directly before the diff table, under
+  the file header, in GitHub's card. For the loading treatment, the spectrum bar, a
+  skeleton over the diff, a "Comparing…" sentence in the notice's place, or a thin line on
+  the table's top edge.
+- **Won:** in Split, a `<p>` of gh-prism's own directly before the file's diff table, in
+  small muted text with no icon, its text starting in line with the file header's path.
+  Each kind has one sentence:
+  - unsupported: "Structural mode doesn't cover this file's language yet, so this is
+    GitHub's diff."
+  - too large: "This file is too large for Structural mode, so this is GitHub's diff."
+  - rate-limited: "GitHub is rate-limiting requests, so this is GitHub's diff; reload to
+    try Structural mode again."
+  - no access: "Sign in to GitHub to see this file in Structural mode; until then, this is
+    GitHub's diff."
+  - failed: "Structural mode is in beta and couldn't compare this file, so this is
+    GitHub's diff."
+  - mismatch: "Structural mode is in beta and its reading of this file doesn't match the
+    page, so this is GitHub's diff; reload to try again."
+
+  The notice carries no `role` and no `aria-live`. For loading, a 2px `--fgColor-muted`
+  `<div>` overlaying the table's top 2px, shown once the file's request has been pending
+  150 ms, pulsing to 0.45 opacity, standing still at full strength under reduced motion,
+  and `aria-hidden`. The line shows only on a file whose own table is drawn in Split.
+- **Why:** the notice leaves the sticky file header and its chrome alone, so the band
+  gh-prism measures from the header does not change. After the table, the reason would sit
+  below a long diff, and the sidebar is away from the diff being read. The two kinds a
+  gh-prism bug could cause, failed and mismatch, say Structural mode is in beta. The
+  notice is not announced because a pull request in an unsupported language shows the same
+  sentence under every file (13 on sandbox PR #3), and a live region would speak it once
+  per file. A screen reader reads it in place, after the file header's controls and before
+  the diff. The spectrum is kept for where gh-prism announces itself, a skeleton would
+  hide GitHub's readable diff, and a sentence would push the code down and back within a
+  second. The hold is a timer per pending file, not the CSS animation delay the skeletons
+  use, because a delayed node would be inserted and removed under GitHub's diffs for every
+  request that settles in under 150 ms. Measured 2026-11-10 in Chromium on sandbox PR #3
+  in Split: the notice holds 6.11:1 light (`#59636e` on `#fff`) and 6.50:1 dark (`#9198a1`
+  on `#0d1117`), above 4.5:1. The loading line at full opacity holds 5.37:1 light (on
+  `#ddf4ff`) and 5.82:1 dark (on about `#111d2e`) against the hunk row it overlays, above
+  3:1, and the still line under reduced motion holds those values.
+- **Skipped:** `aria-describedby` from GitHub's grid to the notice, a retry for a failed
+  file, and a separate sentence for a run that timed out, which the too-large sentence
+  covers.
+- **Accepted:** a notice that lands on a file already on screen pushes its code down one
+  line, about 26px. On a virtualized list, a remounted file gets its notice again a moment
+  after its table, because the pass waits for the diffs to settle. Measured 2026-11-10 in
+  Chromium on the virtualized commit page
+  <https://github.com/cli/cli/commit/2ea46117e59a9fbcb31f673565eb2b5207e08aae?diff=split>:
+  the row in the viewport's middle moved 0px over 240 scroll steps with the mode on and
+  off, and all 5 re-insertions landed on a table above the viewport, likely held by the
+  browser's scroll anchoring. Firefox and a virtualized pull request list were not
+  measured. The pulse's trough, 0.45 opacity, falls below 3:1, about 1.9:1 in light by
+  calculation (`#59636e` at 0.45 over `#ddf4ff`); the line passes through it for a moment,
+  as the skeletons' pulse does.
+
 ## 2026-11-10: Structural mode's moved lines
 
 - **Compared:** for the mark, a 1px dashed outline on the moved line's code cell, a dashed

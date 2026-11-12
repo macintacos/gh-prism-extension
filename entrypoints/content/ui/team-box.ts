@@ -8,6 +8,7 @@
 import { type CodeOwner, codeOwnerOf, type TeamMembers } from "@/utils/github/code-owners";
 import type { TeamMember } from "@/utils/github/team-roster";
 import { el, icon, SEARCH_ICON } from "./dom";
+import { LOADING_DELAY_MS } from "./loading-view";
 import { memberIdentity, type OwnerIdentities, ownerFilterIcon, ownerLink } from "./owner-identity";
 
 /** What a team's box reads: its members as GitHub first lists them, and on demand its roster. */
@@ -20,7 +21,6 @@ export interface TeamReads {
 /** The most members a team shows whole; a larger one shows `COLLAPSED_COUNT`, then Show all. */
 const FULL_COUNT = 9;
 const COLLAPSED_COUNT = 8;
-const LOADING_DELAY_MS = 150;
 
 /**
  * `team`'s box: a header naming it, drawn by `identities`, over its members, which fill in with

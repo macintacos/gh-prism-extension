@@ -43,6 +43,8 @@ and `--diffBlob-deletionWord-bgColor`, and an underline in `--fgColor-success` w
 or `--display-red-fgColor` when removed. A quiet row's strength is
 `--gh-prism-quiet-tint`, the share of GitHub's own line tint mixed into
 `--bgColor-default`. A moved line's code cell takes a dashed outline in `--fgColor-muted`.
+The 2px loading line on a pending file's diff is `--fgColor-muted` too, in
+[`entrypoints/content/diffs/structural-notices.css`](../entrypoints/content/diffs/structural-notices.css).
 
 The spectrum is `SECTION_SPECTRUM` in `ui/section-catalog.ts`: a left-to-right band of
 every section's hue, in section order.

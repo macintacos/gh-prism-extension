@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ADDED_HIGHLIGHT, REMOVED_HIGHLIGHT } from "../../../entrypoints/content/diffs/structural";
 import type { StructuralMode } from "../../../entrypoints/content/diffs/structural-mode";
+import { LOADING_CLASS, NOTICE_CLASS } from "../../../entrypoints/content/diffs/structural-notices";
 import {
   anchorOf,
   type FilesPage,
@@ -355,6 +356,7 @@ describe("structural mode on a visit", () => {
     files: {
       request: () => {},
       answerOf: () => undefined,
+      pending: () => false,
       onAnswer: () => {},
       report: () => {},
       outcomeOf: () => undefined,
@@ -383,6 +385,7 @@ describe("structural mode on a visit", () => {
 
     expect(stub.highlights.size).toBe(0);
     expect(structuralMarks()).toHaveLength(0);
+    expect(document.querySelector(`.${NOTICE_CLASS}, .${LOADING_CLASS}`)).toBeNull();
   });
 
   it("registers both highlights when the visit is given structural mode", async () => {

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ADDED_HIGHLIGHT } from "../../../entrypoints/content/diffs/structural";
+import { ADDED_HIGHLIGHT, type PaintOutcome } from "../../../entrypoints/content/diffs/structural";
 import type {
   StructuralAnswer,
   StructuralFiles,
@@ -10,9 +10,14 @@ import {
   showStructural,
   structuralChoiceOf,
 } from "../../../entrypoints/content/diffs/structural-mode";
+import {
+  KIND_ATTR,
+  LOADING_CLASS,
+  NOTICE_CLASS,
+} from "../../../entrypoints/content/diffs/structural-notices";
 import { changedCells, type DiffSide } from "../../../entrypoints/content/files-page";
-import type { FileSection } from "../../../entrypoints/content/visit/land";
 import type { LineAnnotation, StructuralFile } from "../../../utils/structural/changes";
+import { anchorOfTable, mountDiffs, sectionsOf, tables } from "../../fixtures/diff-tables";
 import prRename from "../../fixtures/files-page-diff-rename.html?raw";
 import prSplit from "../../fixtures/files-page-diff-split.html?raw";
 import { HighlightStub, stubHighlights } from "../../fixtures/highlights";
@@ -23,23 +28,32 @@ const flush = () => vi.advanceTimersByTimeAsync(100);
 function fakeFiles() {
   const requested: string[] = [];
   const answers = new Map<string, StructuralAnswer>();
+  const pending = new Set<string>();
+  const outcomes = new Map<string, PaintOutcome>();
   const listeners = new Set<() => void>();
   const files: StructuralFiles = {
     request: (paths) => void requested.push(...paths),
     answerOf: (path) => answers.get(path),
+    pending: (path) => pending.has(path),
     onAnswer(listener, signal) {
       listeners.add(listener);
       signal.addEventListener("abort", () => listeners.delete(listener));
     },
-    report: () => {},
-    outcomeOf: () => undefined,
+    report: (path, outcome) => void outcomes.set(path, outcome),
+    outcomeOf: (path) => outcomes.get(path),
   };
-  const settle = (path: string, file: StructuralFile) => {
-    answers.set(path, { ok: true, file });
+  const answer = (path: string, settled: StructuralAnswer) => {
+    pending.delete(path);
+    answers.set(path, settled);
     for (const listener of listeners) listener();
   };
-  return { files, requested, settle };
+  const settle = (path: string, file: StructuralFile) => answer(path, { ok: true, file });
+  return { files, requested, pending, answer, settle };
 }
+
+const ours = (diffs: Element) => diffs.querySelectorAll(`.${NOTICE_CLASS}, .${LOADING_CLASS}`);
+const noticeKinds = (diffs: Element) =>
+  [...diffs.querySelectorAll(`.${NOTICE_CLASS}`)].map((notice) => notice.getAttribute(KIND_ATTR));
 
 /** `files-page-diff-rename` with its deleted rows removed, leaving an all-additions table. */
 function allAdditions(): string {
@@ -48,39 +62,6 @@ function allAdditions(): string {
   for (const { side, row } of changedCells(region)) if (side === "old") row.remove();
   expect(changedCells(region).length).toBeGreaterThan(0);
   return region.innerHTML;
-}
-
-function mountDiffs(...htmls: string[]): HTMLElement {
-  const diffs = document.createElement("div");
-  for (const html of htmls) {
-    const region = document.createElement("div");
-    region.innerHTML = html;
-    diffs.append(region);
-  }
-  document.body.replaceChildren(diffs);
-  return diffs;
-}
-
-const anchorOfTable = (table: HTMLTableElement) => table.dataset.diffAnchor ?? "";
-const tables = (root: ParentNode) => [
-  ...root.querySelectorAll<HTMLTableElement>("table[data-diff-anchor]"),
-];
-
-/** One section listing each table's file, its path being the table's anchor. */
-function sectionsOf(root: ParentNode): FileSection[] {
-  const entries = tables(root).map((table) => {
-    const link = document.createElement("a");
-    link.setAttribute("href", `#${anchorOfTable(table)}`);
-    const file = {
-      path: anchorOfTable(table),
-      link,
-      active: false,
-      status: undefined,
-      comments: null,
-    };
-    return { section: "implementation", lines: undefined, file } as const;
-  });
-  return [{ key: "implementation", entries }];
 }
 
 /** A file whose text is the table's own and whose every changed line has one range. */
@@ -152,6 +133,10 @@ describe("showStructural", () => {
 
   it("mounts nothing and requests nothing on a page already in Unified", async () => {
     const diffs = mountDiffs(prRename);
+    fake.answer(anchorOfTable(tables(diffs)[0] as HTMLTableElement), {
+      ok: false,
+      problem: "failed",
+    });
 
     const view = show(diffs);
     view.sections?.(sectionsOf(diffs), new Set());
@@ -161,7 +146,87 @@ describe("showStructural", () => {
     expect(unifiedSeen).toHaveBeenCalledTimes(1);
     expect(stub.highlights.size).toBe(0);
     expect(document.head.querySelector("style")).toBeNull();
+    expect(ours(diffs)).toHaveLength(0);
     expect(fake.requested).toEqual([]);
+  });
+
+  /** A split page shown with its sections fed, and its first table's path. */
+  const showSplit = () => {
+    const diffs = mountDiffs(prSplit);
+    const view = show(diffs);
+    view.sections?.(sectionsOf(diffs), new Set());
+    const table = tables(diffs)[0];
+    if (!table) throw new Error("no table");
+    return { diffs, view, table, path: anchorOfTable(table) };
+  };
+
+  it("shows a failed answer's notice once it settles", async () => {
+    const { diffs, path } = showSplit();
+    await flush();
+
+    fake.answer(path, { ok: false, problem: "failed" });
+    await flush();
+
+    expect(noticeKinds(diffs)).toEqual(["failed"]);
+  });
+
+  it("shows no notice for a not-applicable answer", async () => {
+    const { diffs, path } = showSplit();
+
+    fake.answer(path, { ok: false, problem: "not-applicable" });
+    await flush();
+
+    expect(ours(diffs)).toHaveLength(0);
+  });
+
+  it("shows the mismatch notice and no highlight for an answer whose text differs from the table's", async () => {
+    const { diffs, table, path } = showSplit();
+
+    fake.settle(path, { ...fileOf(table), text: { old: {}, new: {} } });
+    await flush();
+
+    expect(noticeKinds(diffs)).toEqual(["mismatch"]);
+    expect((stub.highlights.get(ADDED_HIGHLIGHT) as HighlightStub | undefined)?.size ?? 0).toBe(0);
+  });
+
+  it("shows a requested file's loading line after 150 ms, until its answer settles", async () => {
+    const { diffs, view, table, path } = showSplit();
+    fake.pending.add(path);
+    view.onScreen(new Set([path]));
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(diffs.querySelector(`.${LOADING_CLASS}`)).toBeNull();
+
+    await vi.advanceTimersByTimeAsync(200);
+
+    expect(diffs.querySelector(`.${LOADING_CLASS}`)).not.toBeNull();
+
+    fake.settle(path, fileOf(table));
+    await flush();
+
+    expect(ours(diffs)).toHaveLength(0);
+  });
+
+  const showNotice = (path: string) => fake.answer(path, { ok: false, problem: "failed" });
+  const showLoading = (path: string) => void fake.pending.add(path);
+  const endMode = () => until.abort();
+  const endPage = () => visit.abort();
+  it.for([
+    { shown: "notice", mark: showNotice, ending: "the mode turns off", end: endMode },
+    { shown: "notice", mark: showNotice, ending: "the page ends", end: endPage },
+    { shown: "loading line", mark: showLoading, ending: "the mode turns off", end: endMode },
+    { shown: "loading line", mark: showLoading, ending: "the page ends", end: endPage },
+  ])("removes its $shown when $ending", async ({ mark, end }) => {
+    const { diffs, view, path } = showSplit();
+    mark(path);
+    view.onScreen(new Set([path]));
+    await vi.advanceTimersByTimeAsync(300);
+    expect(ours(diffs)).toHaveLength(1);
+
+    end();
+    await flush();
+
+    expect(ours(diffs)).toHaveLength(0);
   });
 
   it("requests exactly the on-screen paths on a split page", () => {
