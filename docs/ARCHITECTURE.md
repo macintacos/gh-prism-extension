@@ -94,7 +94,7 @@ errors still gives every non-blank character a token, so the engine compares it 
 other: a grammar that trails its language, as tree-sitter-go does on Go 1.26's
 `new(expression)`, costs no file its structural diff. Python, Markdown, and YAML are the
 exception. Their tokens carry a line's depth, which `keyedByIndentation` reads from the
-tree's brackets, so the engine answers `failed` for a parse with errors there. A `.txt`
+tree's brackets, so the engine answers `unparsed` for a parse with errors there. A `.txt`
 file has no grammar and no parse:
 [`utils/structural/plain-text.ts`](../utils/structural/plain-text.ts) names it, and the
 engine compares its words alone.

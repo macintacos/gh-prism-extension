@@ -17,12 +17,12 @@ import type { EngineRun, StructuralRequest } from "./request";
  * - `unsupported`: not plain text and no grammar for the path, or the engine refuses it.
  * - `too-large`: the head or old text is past the engine's limits, a token walk runs past them,
  *   a parse or diff passes its deadline, or the result can't cross the port.
- * - `failed`: the diff doesn't list the path, the patch doesn't apply to the head, a text of an
- *   indentation-sensitive language parses with errors, or the engine's thread failed. Only the
- *   last may pass on a retry.
+ * - `unparsed`: a text of an indentation-sensitive language parses with errors.
+ * - `failed`: the diff doesn't list the path, the patch doesn't apply to the head, or the engine's
+ *   thread failed. Only the last may pass on a retry.
  * - `no-access`, `rate-limited`: the diff or head read's, as {@link PrDataProblem}.
  */
-export type StructuralProblem = PrDataProblem | "not-applicable" | "unsupported";
+export type StructuralProblem = PrDataProblem | "not-applicable" | "unsupported" | "unparsed";
 
 /** One file's structural changes, or why there are none. Small enough to cross a port: no file text. */
 export type FileChangesResult =
@@ -59,9 +59,9 @@ const refuse = (problem: StructuralProblem): FileChangesResult => ({ ok: false, 
 
 /**
  * Builds one diff file's structural changes from the source's cached diff and head text, running
- * `run` only for a listed, modified file that is plain text or has a grammar. Settled answers that belong to the file
- * are cached; fetch problems, `failed`, and the engine's `too-slow` are not. A path the diff does
- * not list answers `failed` without a head read.
+ * `run` only for a listed, modified file that is plain text or has a grammar. Settled answers that
+ * belong to the file are cached; fetch problems, `failed`, and the engine's `too-slow` are not. A
+ * path the diff does not list answers `failed` without a head read.
  */
 export function fileChanges({ source, run, cachedSpans }: FileChangesDeps): FileChanges {
   const cache = spanCache(cachedSpans);

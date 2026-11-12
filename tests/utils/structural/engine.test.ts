@@ -22,10 +22,10 @@ import {
 
 const GRAMMARS: readonly GrammarId[] = ["typescript", "tsx", "javascript", "python"];
 const PARSERS = new Map<GrammarId, Parser>();
-for (const id of GRAMMARS) PARSERS.set(id, await parserFor(id));
+for (const id of [...GRAMMARS, "yaml"] as const) PARSERS.set(id, await parserFor(id));
 
 const languageOf = (id: GrammarId) => ({
-  grammar: { id, indentationSensitive: id === "python" },
+  grammar: { id, indentationSensitive: id === "python" || id === "yaml" },
   parser: PARSERS.get(id) as Parser,
 });
 
@@ -331,6 +331,15 @@ describe("structuralChanges", () => {
     expect(unmarked(newText, changes.new, 1, 1)).toEqual([""]);
   });
 
+  it("marks a YAML list item in full when it shares only punctuation", async () => {
+    const oldText = "items:\n  - foo: bar\n";
+    const newText = "items:\n  - alpha beta gamma: qux\n";
+    const changes = changesOf(await run("yaml", oldText, newText));
+
+    expect(unmarked(oldText, changes.old, 2, 2)).toEqual([""]);
+    expect(unmarked(newText, changes.new, 2, 2)).toEqual([""]);
+  });
+
   it("marks only the new tokens of a long argument wrapped around a kept one", async () => {
     const oldText = "starts.push(state);\n";
     const newText = 'starts.push({ ...state, position: 1, kind: "line", depth: 0 });\n';
@@ -430,10 +439,17 @@ describe("structuralChanges", () => {
     expect(await changedTexts("typescript", oldText, newText, { regions })).toEqual(expected);
   });
 
-  it("fails a text that does not parse when its language is indentation-sensitive", async () => {
+  it("refuses a text that does not parse when its language is indentation-sensitive", async () => {
     const { oldText, newText } = readPair("python", "parse-error");
 
-    expect(await run("python", oldText, newText)).toEqual({ ok: false, reason: "failed" });
+    expect(await run("python", oldText, newText)).toEqual({ ok: false, reason: "unparsed" });
+  });
+
+  it("refuses a templated YAML text as unparsed", async () => {
+    const oldText = "metadata:\n  name: app\n";
+    const newText = 'metadata:\n  {{- include "app.labels" . | nindent 2 }}\n  name: app\n';
+
+    expect(await run("yaml", oldText, newText)).toEqual({ ok: false, reason: "unparsed" });
   });
 
   it.each(["typescript", "tsx", "javascript"] as const)(

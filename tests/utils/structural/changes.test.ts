@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parsePrHunks } from "../../../utils/github/pr-diff";
 import {
-  annotateLines,
   type LineAnnotations,
   type StructuralChanges,
   structuralFile,
@@ -21,7 +20,7 @@ const RENAMED = {
 } as const;
 const QUIET = { quiet: true } as const;
 
-describe("annotateLines", () => {
+describe("structuralFile's annotations", () => {
   it.each<{
     name: string;
     patch: string;
@@ -175,17 +174,9 @@ describe("annotateLines", () => {
   ])("$name", ({ patch, changes, expected }) => {
     const hunks = parsePrHunks(patch);
 
-    const annotations = annotateLines(changes, hunks);
+    const annotations = structuralFile(changes, hunks)?.annotations;
 
     expect(annotations).toEqual(expected);
-  });
-
-  it("gives undefined for an unreadable hunk", () => {
-    const hunks = parsePrHunks(lines("@@ -1,1 +1,1 @@", "?x"));
-
-    const annotations = annotateLines({ old: [], new: [] }, hunks);
-
-    expect(annotations).toBeUndefined();
   });
 });
 
@@ -234,17 +225,5 @@ describe("structuralFile", () => {
     const hunks = parsePrHunks(lines("@@ -1,1 +1,1 @@", "?x"));
 
     expect(structuralFile({ old: [], new: [] }, hunks)).toBeUndefined();
-  });
-
-  it("annotates the lines as annotateLines does", () => {
-    const changes = {
-      old: [{ line: 2, startCol: 9, endCol: 14 }],
-      new: [{ line: 2, startCol: 9, endCol: 14 }],
-    };
-    const hunks = parsePrHunks(RENAME);
-
-    const file = structuralFile(changes, hunks);
-
-    expect(file?.annotations).toEqual(annotateLines(changes, hunks));
   });
 });

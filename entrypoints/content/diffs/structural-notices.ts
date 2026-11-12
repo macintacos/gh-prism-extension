@@ -26,6 +26,7 @@ export const NOTICE_COPY: Record<NoticeKind, string> = {
     "GitHub is rate-limiting requests, so this is GitHub's diff; reload to try Structural mode again.",
   "no-access":
     "Sign in to GitHub to see this file in Structural mode; until then, this is GitHub's diff.",
+  unparsed: "Structural mode can't read this file's syntax, so this is GitHub's diff.",
   failed: "Structural mode is in beta and couldn't compare this file, so this is GitHub's diff.",
   mismatch:
     "Structural mode is in beta and its reading of this file doesn't match the page, so this is GitHub's diff; reload to try again.",
@@ -184,6 +185,7 @@ export function showStructuralNotices(
       heights.set(target, borderBoxSize[0]?.blockSize ?? 0);
     measure();
   });
+  const observed = new Set<Element>();
   const apply = ({ wants, ours }: Pass) => {
     const kept = new Set<Element>();
     for (const { table, path, show, current } of wants) {
@@ -194,9 +196,24 @@ export function showStructuralNotices(
       if (show === undefined) continue;
       table.before(nodeFor(show, path));
       const header = show === "loading" ? null : stickyHeaderOf(table);
-      if (header) headers.observe(header);
+      if (header && !observed.has(header)) {
+        headers.observe(header);
+        observed.add(header);
+      }
     }
     for (const node of ours) if (!kept.has(node)) node.remove();
+    unobserveBare();
+  };
+  // Each header with no notice under it any more stops reporting resizes.
+  const unobserveBare = () => {
+    const noticed = new Set<Element | null>();
+    for (const notice of diffs.querySelectorAll(`.${NOTICE_CLASS}`))
+      noticed.add(stickyHeaderOf(notice));
+    for (const header of observed) {
+      if (noticed.has(header)) continue;
+      headers.unobserve(header);
+      observed.delete(header);
+    }
   };
   const trackHolds = ({ pending }: Pass) => {
     for (const [path, hold] of holds) {

@@ -43,8 +43,8 @@ export function withoutChanceMatches(
   for (const run of runs) {
     for (let i = 0; i < run.length; i++) {
       const replaced =
-        firstKept.replaced.has(first.lines[run.first + i] as number) &&
-        secondKept.replaced.has(second.lines[run.second + i] as number);
+        firstKept.replaced.has(first.lines[run.first + i] ?? -1) &&
+        secondKept.replaced.has(second.lines[run.second + i] ?? -1);
       if (!replaced) real[run.first + i] = run.second + i;
     }
   }
@@ -91,7 +91,7 @@ function keptLines(
   const withWord = new Set<number>();
   for (const run of runs) {
     for (let at = run[which]; at < run[which] + run.length; at++) {
-      const line = lines[at] as number;
+      const line = lines[at] ?? -1;
       kept.set(line, (kept.get(line) ?? 0) + 1);
       if (words[at]) withWord.add(line);
     }
@@ -120,8 +120,8 @@ interface SeaSide {
 function outOfSeas(runs: readonly Run[], [first, second]: readonly [SeaSide, SeaSide]): Run[] {
   const kept: Run[] = [];
   const adrift = (before: Run | undefined, run: Run, after: Run | undefined) => {
-    const firstLine = first.lines[run.first] as number;
-    const secondLine = second.lines[run.second] as number;
+    const firstLine = first.lines[run.first] ?? -1;
+    const secondLine = second.lines[run.second] ?? -1;
     const inFirstSea =
       first.kept.replaced.has(firstLine) &&
       !second.kept.vouching.has(secondLine) &&

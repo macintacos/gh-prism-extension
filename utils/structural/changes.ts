@@ -60,14 +60,6 @@ export interface StructuralFile {
   readonly text: { readonly old: TextByLine; readonly new: TextByLine };
 }
 
-/** {@link structuralFile}'s annotations alone. */
-export function annotateLines(
-  changes: StructuralChanges,
-  hunks: readonly PrHunk[],
-): LineAnnotations | undefined {
-  return structuralFile(changes, hunks)?.annotations;
-}
-
 /**
  * Annotations for every line of `hunks`, with each line's text from `hunks`, without its line
  * terminator. A context line is annotated on both sides: a page that hides whitespace changes

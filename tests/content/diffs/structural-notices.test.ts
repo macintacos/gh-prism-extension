@@ -22,6 +22,7 @@ const PROBLEMS: readonly Exclude<StructuralProblem, "not-applicable">[] = [
   "no-access",
   "rate-limited",
   "too-large",
+  "unparsed",
   "failed",
   "unsupported",
 ];
@@ -159,15 +160,17 @@ describe("showStructuralNotices", () => {
     expect(link?.rel.split(" ")).toContain("noreferrer");
   });
 
-  it.each<NoticeKind>(["too-large", "rate-limited", "no-access", "failed", "mismatch"])(
-    "gives a %s notice no link",
+  it.each<NoticeKind>(["too-large", "rate-limited", "no-access", "unparsed", "failed", "mismatch"])(
+    "gives a %s notice its sentence and no link",
     async (kind) => {
       const diffs = mountDiffs(prSplit);
       states.set(anchorOfTable(tableAt(diffs)), kind);
 
       await show(diffs);
 
-      expect(tableAt(diffs).previousElementSibling?.querySelector("a")).toBeNull();
+      const notice = tableAt(diffs).previousElementSibling;
+      expect(notice?.textContent).toBe(NOTICE_COPY[kind]);
+      expect(notice?.querySelector("a")).toBeNull();
     },
   );
 
@@ -224,6 +227,29 @@ describe("showStructuralNotices", () => {
 
     expect(diffs.querySelectorAll(OWN)).toHaveLength(1);
     expect(fresh.previousSibling).toBe(diffs.querySelector(`.${NOTICE_CLASS}`));
+  });
+
+  it("stops measuring a file header once the last notice under it is gone", async () => {
+    const diffs = mountDiffs(prSplit);
+    const table = tableAt(diffs);
+    const card = table.parentElement;
+    if (!card) throw new Error("no card");
+    card.setAttribute("role", "region");
+    const header = Object.assign(document.createElement("div"), {
+      className: "diffHeaderWrapper__x",
+    });
+    card.prepend(header);
+    const path = anchorOfTable(table);
+    states.set(path, "too-large");
+    const notices = await show(diffs);
+    const unobserve = vi.spyOn(window.ResizeObserver.prototype, "unobserve");
+
+    states.delete(path);
+    notices.refresh();
+    await flush();
+
+    expect(unobserve).toHaveBeenCalledWith(header);
+    unobserve.mockRestore();
   });
 
   it("leaves no notice behind when the table gives way to the rich view", async () => {

@@ -195,7 +195,7 @@ function commentTokens(
 const BRACKET_DEPTH: Record<string, number> = { "(": 1, "[": 1, "{": 1, ")": -1, "]": -1, "}": -1 };
 
 /** Joins a depth to a key; no source token contains it, so a depth never collides with text. */
-export const DEPTH_SEPARATOR = "\u0000";
+const DEPTH_SEPARATOR = "\u0000";
 
 /** `tokens` with each logical line's block depth prefixed to the key of the line's first token. */
 export function keyedByIndentation(tokens: readonly Token[], text: string): Token[] {
