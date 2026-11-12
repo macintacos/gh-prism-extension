@@ -23,9 +23,12 @@ async function pythonKeys(text: string): Promise<string[]> {
   return keyedByIndentation(tokens, text).map((token) => token.key);
 }
 
-/** Each token's own text. */
+/** Each token's own text, a layout token's in brackets. */
 async function texts(id: GrammarId, text: string) {
-  return (await tokensOf(id, text))?.map((token) => text.slice(token.start, token.end));
+  return (await tokensOf(id, text))?.map((token) => {
+    const own = text.slice(token.start, token.end);
+    return token.layout ? `[${own}]` : own;
+  });
 }
 
 describe("leafTokens", () => {
@@ -94,11 +97,13 @@ describe("leafTokens", () => {
     ]);
   });
 
-  it("gives the * that leads a block comment's later lines no token", async () => {
+  it("makes the * that leads a block comment's later lines a layout token", async () => {
     expect(await texts("typescript", "/**\n * a b\n * c\n */")).toEqual([
       "/**",
+      "[*]",
       "a",
       "b",
+      "[*]",
       "c",
       "*",
       "/",
@@ -106,10 +111,10 @@ describe("leafTokens", () => {
   });
 
   it.each([
-    ["typescript", "// a\n// b\nx;\n// c", ["//", "a", "b", "x", ";", "//", "c"]],
-    ["python", "# a\n# b\nx\n# c", ["#", "a", "b", "x", "#", "c"]],
+    ["typescript", "// a\n// b\nx;\n// c", ["//", "a", "[//]", "b", "x", ";", "//", "c"]],
+    ["python", "# a\n# b\nx\n# c", ["#", "a", "[#]", "b", "x", "#", "c"]],
   ] as const)(
-    "gives the marker of a %s line comment that continues another no token",
+    "makes the marker of a %s line comment that continues another a layout token",
     async (id, text, expected) => {
       expect(await texts(id, text)).toEqual(expected);
     },

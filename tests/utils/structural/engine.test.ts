@@ -163,7 +163,7 @@ describe("structuralChanges", () => {
 
   it.each([
     ["alone", "// f();\n", "f();\n", ["//", "f", "(", ")", ";"]],
-    ["after another comment", "// a\n// f();\n", "// a\nf();\n", ["f", "(", ")", ";"]],
+    ["after another comment", "// a\n// f();\n", "// a\nf();\n", ["//", "f", "(", ")", ";"]],
   ])("marks code uncommented %s", async (_name, oldText, newText, old) => {
     expect(await changedTexts("typescript", oldText, newText)).toEqual({
       old,

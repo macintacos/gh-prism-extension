@@ -282,6 +282,25 @@ describe("structuralChanges in each language", () => {
     expect(await changedTexts(comment.path, oldText, newText)).toEqual(NO_CHANGE);
   });
 
+  it.each([
+    { style: "/** */", comment: "/**\n * one two\n *\n * three\n */\n" },
+    { style: "//", comment: "// one two\n//\n// three\n" },
+  ])("marks every character of a new $style comment's lines", async ({ comment }) => {
+    const { new: marked } = await changedTexts("a.ts", "x;\n", `${comment}x;\n`);
+
+    expect(marked.join("")).toBe(comment.replace(/\s/g, ""));
+  });
+
+  it("leaves the * before a reworded word of a block comment unmarked", async () => {
+    const oldText = "/**\n * one two\n * three four\n */\n";
+    const newText = "/**\n * one five\n * six four\n */\n";
+
+    expect(await changedTexts("a.ts", oldText, newText)).toEqual({
+      old: ["two", "three"],
+      new: ["five", "six"],
+    });
+  });
+
   it.each(STRINGS)("marks only the reworded word of a $path $style string", async (string) => {
     const oldText = string.of("one two three");
     const newText = string.of("one four three");

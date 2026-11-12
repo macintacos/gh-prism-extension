@@ -11,6 +11,12 @@ export interface Token {
    * type when that holds a string's text, and `""` otherwise.
    */
   readonly type: string;
+  /**
+   * Set on the `*` that leads a comment's later line and on the marker of a line comment that
+   * continues another. The diff skips it, so a re-wrap changes nothing; it counts as changed
+   * when the rest of its line is.
+   */
+  readonly layout?: true;
 }
 
 /**
@@ -72,7 +78,9 @@ export function leafTokens(tree: Tree, text: string, maxTokens: number): Token[]
 
     const comment = commentTokens(text, range, type);
     openMarker = comment.marker;
-    return comment.marker && comment.marker === continued ? comment.words : comment.tokens;
+    const [opener, ...words] = comment.tokens;
+    const continues = opener !== undefined && comment.marker !== "" && comment.marker === continued;
+    return continues ? [{ ...opener, layout: true }, ...words] : comment.tokens;
   };
   const push = (start: number, end: number, type: string) => {
     for (const token of tokensOf(start, end, type)) tokens.push(token);
@@ -117,18 +125,14 @@ export function leafTokens(tree: Tree, text: string, maxTokens: number): Token[]
 /** Starts a comment token's key; no source token contains it, so a comment never matches code. */
 const COMMENT_KEY = "\u0000";
 
-/** A comment's tokens: `tokens` is `words` after one token for `marker`, when it has one. */
+/** A comment's tokens: one for `marker`, when it has one, then its words and line leaders. */
 interface CommentTokens {
   /** The punctuation that opens the comment, such as `//`, `#`, or `/**`; `""` without any. */
   readonly marker: string;
-  readonly words: Token[];
   readonly tokens: Token[];
 }
 
-/**
- * The comment at `range`, one token per word. The `*` that leads a later line is layout and gets
- * none, so a re-wrap changes no token.
- */
+/** The comment at `range`, one token per word, and a layout token per `*` leading a later line. */
 function commentTokens(
   text: string,
   { start, end }: { readonly start: number; readonly end: number },
@@ -136,23 +140,25 @@ function commentTokens(
 ): CommentTokens {
   const keyed = (token: Token): Token => ({ ...token, key: `${COMMENT_KEY}${token.key}` });
   const marker = /^[^\s\p{L}\p{N}_]*/u.exec(text.slice(start, end))?.[0] ?? "";
-  const words: Token[] = [];
-  const lineLeader = /[ \t]*\*+(?!\/)/y;
+  const tokens: Token[] = [];
+  if (marker) tokens.push(keyed({ start, end: start + marker.length, key: marker, type }));
+  const lineLeader = /[ \t]*(\*+)(?!\/)/y;
   let from = start + marker.length;
 
   while (from < end) {
     const lineBreak = text.indexOf("\n", from);
     const to = lineBreak === -1 || lineBreak > end ? end : lineBreak;
     for (const token of wordTokens(text, { start: from, end: to }, type, "ignored"))
-      words.push(keyed(token));
+      tokens.push(keyed(token));
 
     lineLeader.lastIndex = to + 1;
-    lineLeader.exec(text);
-    from = Math.max(to + 1, lineLeader.lastIndex);
+    const stars = to + 1 < end ? lineLeader.exec(text)?.[1] : undefined;
+    from = stars ? lineLeader.lastIndex : to + 1;
+    if (stars)
+      tokens.push({ start: from - stars.length, end: from, key: stars, type, layout: true });
   }
 
-  const opener = keyed({ start, end: start + marker.length, key: marker, type });
-  return { marker, words, tokens: marker ? [opener, ...words] : words };
+  return { marker, tokens };
 }
 
 // A line inside brackets is a continuation line and carries no depth, so a rewrap stays quiet.
