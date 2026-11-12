@@ -5,6 +5,7 @@
     <meta name="manifest.include" content="['chrome']" />
   </head>
   <body>
-    <script type="module" src="./main.ts"></script>
+    <!-- wxt-ignore: bundled in dev builds too, so the page answers after the dev server stops. -->
+    <script type="module" src="./main.ts" wxt-ignore></script>
   </body>
 </html>
