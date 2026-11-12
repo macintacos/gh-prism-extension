@@ -17,8 +17,9 @@ import type { EngineRun, StructuralRequest } from "./request";
  * - `unsupported`: not plain text and no grammar for the path, or the engine refuses it.
  * - `too-large`: the head or old text is past the engine's limits, a token walk or diff runs past
  *   them, a parse or diff passes its deadline, or the result can't cross the port.
- * - `failed`: the diff doesn't list the path, the patch doesn't apply to the head, a text doesn't
- *   parse, or the engine's thread failed. Only the last may pass on a retry.
+ * - `failed`: the diff doesn't list the path, the patch doesn't apply to the head, a text of an
+ *   indentation-sensitive language parses with errors, or the engine's thread failed. Only the
+ *   last may pass on a retry.
  * - `no-access`, `rate-limited`: the diff or head read's, as {@link PrDataProblem}.
  */
 export type StructuralProblem = PrDataProblem | "not-applicable" | "unsupported";

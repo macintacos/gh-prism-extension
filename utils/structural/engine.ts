@@ -70,8 +70,9 @@ export interface EngineInput {
 /**
  * The tokens each version of a file changed, or why they can't be had: `unsupported` without a
  * language, `too-large` past a size limit, `too-slow` when a parse or the diff passes its deadline,
- * `failed` when either text does not parse. Rejects with `signal.reason` if `signal` has aborted
- * at the start or after either parse.
+ * `failed` when either text of an indentation-sensitive language parses with errors. Any other
+ * language's text is compared with its errors. Rejects with `signal.reason` if `signal` has
+ * aborted at the start or after either parse.
  */
 export async function structuralChanges(input: EngineInput): Promise<EngineResult> {
   const { oldText, newText, language, regions, limits, signal, now, pause } = input;
@@ -122,7 +123,9 @@ function tokensOf(
   if (tree === null) return "too-slow";
 
   try {
-    if (tree.rootNode.hasError) return "failed";
+    // A tree with errors still gives every non-blank character a token, so its diff marks only
+    // text that differs. A line's depth is read from the tree's brackets, which an error unbalances.
+    if (tree.rootNode.hasError && grammar.indentationSensitive) return "failed";
     const tokens = leafTokens(tree, text, limits.maxTokens);
     if (tokens === undefined) return "too-large";
     return grammar.indentationSensitive ? keyedByIndentation(tokens, text) : tokens;

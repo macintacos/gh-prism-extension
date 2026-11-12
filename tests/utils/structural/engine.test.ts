@@ -424,11 +424,20 @@ describe("structuralChanges", () => {
     expect(await changedTexts("typescript", oldText, newText, { regions })).toEqual(expected);
   });
 
-  it.each(GRAMMARS)("fails a %s text that does not parse", async (id) => {
-    const { oldText, newText } = readPair(id, "parse-error");
+  it("fails a text that does not parse when its language is indentation-sensitive", async () => {
+    const { oldText, newText } = readPair("python", "parse-error");
 
-    expect(await run(id, oldText, newText)).toEqual({ ok: false, reason: "failed" });
+    expect(await run("python", oldText, newText)).toEqual({ ok: false, reason: "failed" });
   });
+
+  it.each(["typescript", "tsx", "javascript"] as const)(
+    "compares the tokens of a %s text that does not parse",
+    async (id) => {
+      const { oldText, newText } = readPair(id, "parse-error");
+
+      expect(await changedTexts(id, oldText, newText)).toEqual({ old: ["}"], new: [] });
+    },
+  );
 
   it.each(PAIRS)("finds no change in a %s %s against itself", async (id, name) => {
     const { oldText } = readPair(id, name);

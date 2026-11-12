@@ -210,7 +210,8 @@ GitHub's word for its two-way choice alone
 
 **Engine**: What compares a changed file's old and new tokens for structural mode and
 reports each version's changed tokens, or why it can't: no grammar for the file, a file
-past its limits, or text that does not parse. _Avoid_: differ, parser
+past its limits, or text of an indentation-sensitive language that parses with errors.
+_Avoid_: differ, parser
 
 **Head outline**: What a parse of a changed file's head tells the hunk rules: where its
 multi-line comments and strings sit, and its test blocks. Used only in structural mode;
