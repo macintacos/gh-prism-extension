@@ -14,11 +14,14 @@ export interface Token {
 }
 
 /** Node types that hold a comment; a grammar joins by naming its comment kinds here. */
-const COMMENT_TYPES = new Set(["comment"]);
+const COMMENT_TYPES = new Set([
+  ...["comment", "line_comment", "block_comment", "multiline_comment", "comment_content"],
+]);
 
 /** Node types that hold other running text, with how their words' spacing counts. */
 const TEXT_SPACING = new Map<string, Spacing>([
   ["jsx_text", "collapsed"],
+  ["text", "collapsed"],
   ["string_fragment", "exact"],
   ["string_content", "exact"],
 ]);

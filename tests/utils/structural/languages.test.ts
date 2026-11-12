@@ -24,6 +24,9 @@ async function changedTexts(path: string, oldText: string, newText: string) {
 
 const NO_CHANGE = { old: [], new: [] };
 
+/** What a comment must follow to parse, for the languages where it cannot open the file. */
+const OPENERS: Record<string, string> = { "a.php": "<?php\n" };
+
 describe("structuralChanges in each language", () => {
   it.each([
     {
@@ -147,6 +150,35 @@ describe("structuralChanges in each language", () => {
       expect(await changedTexts(path, oldText, newText)).toEqual(changed);
     },
   );
+
+  it.each([
+    { path: "a.go", comment: ["/* a", "   b */"] },
+    { path: "a.css", comment: ["/* a", "   b */"] },
+    { path: "a.jsonc", comment: ["/* a", "   b */"] },
+    { path: "a.c", comment: ["/* a", "   b */"] },
+    { path: "a.cpp", comment: ["/* a", "   b */"] },
+    { path: "a.lua", comment: ["--[[ a", "     b ]]"] },
+    { path: "A.java", comment: ["/* a", "   b */"] },
+    { path: "a.php", comment: ["/* a", "   b */"] },
+    { path: "A.cs", comment: ["/* a", "   b */"] },
+    { path: "a.html", comment: ["<!-- a", "     b -->"] },
+    { path: "A.kt", comment: ["/* a", "   b */"] },
+    { path: "A.swift", comment: ["/* a", "   b */"] },
+  ])("finds no change in a reindented $path comment", async ({ path, comment }) => {
+    const indented = (indent: string) => `${comment.map((line) => indent + line).join("\n")}\n`;
+    const open = OPENERS[path] ?? "";
+
+    expect(await changedTexts(path, open + indented(""), open + indented("    "))).toEqual(
+      NO_CHANGE,
+    );
+  });
+
+  it("finds no change in reindented HTML text", async () => {
+    const oldText = "<p>\n  one\n  two\n</p>\n";
+    const newText = "<p>\n      one\n      two\n</p>\n";
+
+    expect(await changedTexts("a.html", oldText, newText)).toEqual(NO_CHANGE);
+  });
 
   it("marks a YAML key moved out of its mapping", async () => {
     const oldText = "a:\n  b: 1\n  c: 2\n";
