@@ -424,6 +424,19 @@ on a private one.
   `table[data-x] .syntax-highlighted-line.addition .x { background-color: transparent; }`
   wins; `table[data-x] .diff-text-inner .x` does not (Chromium 157 and Firefox 157,
   sandbox PR #3, 2026-11-10).
+- **Give a word mark its syntax colour back one `.pl-*` class at a time; `color: inherit`
+  alone doesn't.** GitHub's word-mark rules set `color` as well as the background:
+  `var(--diffBlob-additionWord-fgColor)` and `--diffBlob-deletionWord-fgColor`, both the
+  line's plain colour (`#f0f6fc` dark, `#1f2328` light). The `.x` class sits on the syntax
+  span itself (`span.pl-k.x`), so that colour replaces the syntax colour, and inheriting
+  takes the line's plain colour again. GitHub's syntax rules are single classes such as
+  `.pl-k { color: var(--color-prettylights-syntax-keyword); }`, with a few descendant
+  forms such as `.pl-s .pl-v`.
+  [`structural.css`](../../entrypoints/content/diffs/structural.css) repeats each one with
+  `.x` on its last class, under the painted table. Observed in Chromium 156 on gh-prism
+  pull request #119, light and dark, 2026-11-11; Firefox not measured live. Re-check: read
+  `document.styleSheets` for the rules whose selector holds `.pl-` and a `color`, and
+  compare them with the `.pl-*` rules in `structural.css`.
 - **Find the comment controls by these hooks.** The add-comment button is
   `button[data-add-comment-button="true"]` (`aria-label="Add comment"`), shown once a
   row's code cell is hovered. Its form is a `[role=dialog]` named "Comment view", with no

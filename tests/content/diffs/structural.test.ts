@@ -256,6 +256,54 @@ describe("paintStructural", () => {
     expect(allRanges()).toEqual([]);
     expect(diffs.querySelector(MARKED)).toBeNull();
     expect(line22.row.hasAttribute("data-gh-prism-quiet")).toBe(false);
+    expect(line22.row.hasAttribute("data-gh-prism-part")).toBe(false);
+  });
+
+  it("marks a line changed in full inside a unit that remains, and names its row's side", async () => {
+    const { diffs, line22 } = await paintLine22((cell) => ({
+      ...over(cell, "self.limit = limit;"),
+      inside: true,
+    }));
+    sizes.deliver();
+
+    expect(allRanges().map(String)).toEqual(["self.limit = limit;"]);
+    expect([...diffs.querySelectorAll(MARKED)]).toEqual([line22.textRoot]);
+    expect(line22.row.getAttribute("data-gh-prism-part")).toBe("new");
+  });
+
+  it("names the side of a row whose line changed in part", async () => {
+    const { line22 } = await paintLine22((cell) => overEach(cell, "self", "limit", ";"));
+
+    expect(line22.row.getAttribute("data-gh-prism-part")).toBe("new");
+    expect(line22.row.hasAttribute("data-gh-prism-quiet")).toBe(false);
+  });
+
+  it("names both sides of a row whose two lines changed in part", async () => {
+    const diffs = await paintFixtures((cell) => opening(cell), commitSplit);
+
+    const row = cellAt(tableAt(diffs), "old", 137).row;
+    expect(row.getAttribute("data-gh-prism-part")).toBe("old new");
+  });
+
+  it("stops naming a row's side when a new file object changes its line in full", async () => {
+    const { diffs, table, line22 } = await paintLine22((cell) => overEach(cell, "self"));
+
+    files.set(
+      anchorOfTable(table),
+      fileOf(table, (cell) => (sameLine(cell, line22) ? over(cell, "self.limit = limit;") : QUIET)),
+    );
+    diffs.append(document.createElement("div"));
+    await flush();
+
+    expect(line22.row.hasAttribute("data-gh-prism-part")).toBe(false);
+  });
+
+  it("takes a part row's attribute back on abort", async () => {
+    const { diffs } = await paintLine22((cell) => overEach(cell, "self"));
+
+    controller.abort();
+
+    expect(diffs.querySelector("[data-gh-prism-part]")).toBeNull();
   });
 
   it("draws a mark behind each range once its text is measured", async () => {

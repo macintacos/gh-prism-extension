@@ -6,6 +6,147 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-11: Structural mode marks a line changed in full inside a unit that remains
+
+This replaces the pick of the 2026-11-11 "Structural mode steps down the tint of a line
+changed in part" entry below, that a line changed in full never has a mark. Its tint step
+stands.
+
+- **Asked:** the maintainer uses the dark theme. There, the four removed names of a
+  wrapped import were a band only slightly stronger than the lines around it, which did
+  not read as highlighted. They proposed deciding by syntax instead of by rows: mark a
+  line changed in full when the syntax around it remains, and leave a block that left or
+  arrived whole to GitHub's line tint.
+- **Compared:**
+  - which lines get the mark: every line whose smallest syntax node that has its lines to
+    itself remains in part, as proposed; or the same rule with three changes, listed under
+    **Won**;
+  - how the marks on consecutive lines look: one rounded mark over each line's text, or
+    one joined shape over the run;
+  - the tint step: kept, softened, or dropped.
+- **Won:**
+  - A **unit** is a syntax node that starts at its line's first token and ends at its
+    line's last. A unit changed whole, inside a parent node that was not, keeps GitHub's
+    line tint and has no mark: a deleted statement, method, or function. So does every
+    line of a file added or deleted whole. Any other line changed in full gets one mark
+    over its text.
+  - A `;` after a node is part of that node's unit, so a deleted class field or interface
+    member is a unit, as a deleted method is.
+  - In a list that separates its entries with commas, an entry on one line is not a unit,
+    with or without a comma after it: a name in an import, an argument, a property. An
+    entry on several lines is a unit, with its comma.
+  - The largest node changed whole decides whether its lines get a mark, not the smallest.
+    Every line of an entry on several lines then looks the same.
+  - Each line has its own rounded mark, the same mark a changed token has.
+  - The tint step stays. A marked line takes the quiet row's tint, whether it changed in
+    part or in full.
+- **Why:**
+  - **The three changes:** as proposed, an import's last name, which no comma follows, is
+    a whole-line node and would keep the tint while the names above it got marks. A
+    10-line entry added to an array would get a mark on most of its lines but not on the
+    lines that hold only a bracket. A deleted interface member would get a mark and a
+    deleted method none.
+  - **One mark per line:** lines differ in length, so a joined shape is a stepped outline,
+    and it needs a painter that draws across cells. A mark per line is what the reader
+    already knows from a changed token, and the 4px between two marks keeps the lines
+    apart.
+  - **The tint step:** with it, a mark is the only strong colour on its row. Without it, a
+    marked line would sit on the same tint as the unmarked block beside it, and the mark
+    would add little in the dark theme.
+- **Measured** 2026-11-11, signed in, Chromium 156, light and dark, on gh-prism pull
+  request #119:
+  - `tests/utils/structural/engine-script.test.ts`: old lines 4 to 7 each have one mark
+    over the name and its comma. Old lines 10 to 125, the statements and tests deleted
+    below the import, have none.
+  - `utils/structural/engine-worker.ts`, a new file, has no mark.
+  - Across the pull request's 25 files that the engine reads, 1,104 lines changed in full.
+    67 of them now have a mark. The count comes from running the engine on the two
+    commits, not from the page.
+- **Accepted:**
+  - A list whose entries have no separator has units for entries: a YAML mapping's or
+    sequence's entry, an HTML or JSX attribute on its own line, a Go struct's field. A
+    deleted one keeps the tint.
+  - A call's only argument, on its own line, has no comma beside it, so it is a unit.
+  - A run of one-line entries added to a list that remains gets a mark on each line, as
+    long as the run is.
+  - A line comment that continues another is its own node, so a reworded `//` line among
+    others keeps the tint, while a reworded line of a block comment gets a mark.
+  - The engine's diff can match a bracket of a removed entry to a bracket that stayed. The
+    entry is then not changed whole, and its lines are split between marks and tint.
+  - A `.txt` file has no syntax tree, so its lines changed in full keep the tint.
+
+## 2026-11-11: Structural mode keeps the syntax colour of words GitHub's diff picked
+
+- **Found:** GitHub wraps each word its own diff picked in a `.x` span and gives that span
+  a brighter background and the line's plain text colour. Structural mode cleared the
+  background and left the colour, so those words lost their syntax colour: white in the
+  dark theme, among coloured text.
+- **Compared:** leaving GitHub's colour; `color: inherit` on every `.x` span; or giving
+  each `.x` span the colour GitHub's syntax rule for its class gives it.
+- **Won:** in a painted table, a word GitHub's diff picked shows the same colour as it
+  would on a line GitHub didn't pick it on. A table Structural mode doesn't paint keeps
+  GitHub's look.
+- **Why:**
+  - **Leaving it:** GitHub's diff and Structural mode's often disagree. A word in another
+    colour with no mark, or a mark beside such a word, reads as a second word-level signal
+    that conflicts with the marks.
+  - **`inherit` alone:** the `.x` class sits on the syntax span itself, so inheriting
+    takes the line's plain colour, which is what GitHub already sets.
+  - **The syntax colour:** the mark is then the only word-level signal in a painted table.
+    The cost is a copy of GitHub's syntax colour rules in `structural.css`.
+- **Measured** 2026-11-11, signed in, Chromium 156, on gh-prism pull request #119, light
+  then dark: the lowest contrast of a `.x` word against its mark is 3.92:1 light and
+  4.32:1 dark, both on a removed line and both the keyword colour. Other marked text on
+  the same pages already shows 3.92:1 light and 3.74:1 dark. With Structural off, a `.x`
+  word computes GitHub's own colour and background.
+- **Accepted:** a `.x` word on a mark can now sit below 4.5:1, as the rest of a marked
+  line's syntax-coloured text does. The 2026-11-11 "Structural mode's marks are rounded,
+  joined, and not underlined" entry below accepts that level.
+
+## 2026-11-11: Structural mode steps down the tint of a line changed in part
+
+This replaces the "Whole lines" reasoning of the 2026-11-11 "Structural mode's marks are
+rounded, joined, and not underlined" entry below. The 2026-11-11 "Structural mode marks a
+line changed in full inside a unit that remains" entry above narrows its pick, that a line
+changed in full has no mark.
+
+- **Asked:** the maintainer saw a multi-line import lose four of its five names. The four
+  removed lines had no mark, the one line changed in part had a single mark on its comma,
+  and all five carried the same line tint, so nothing showed which names went away. They
+  asked for the removed lines to read as removed, without bringing back a mark on every
+  changed line.
+- **Compared:**
+  - a mark on a line changed in full only when its run of changed rows also holds a quiet
+    row or a line changed in part;
+  - a mark on every line changed in full, drawn as one block per run of lines;
+  - no new mark, and GitHub's line tint stepped down on a line changed in part, as it is
+    on a quiet row.
+- **Won:** a line changed in part takes the quiet row's tint under its marks. GitHub's
+  line tint at full strength then means that every token on the line changed.
+- **Why:**
+  - **Marks by neighbourhood:** a deleted block that follows a changed line with no blank
+    line between them would get a mark on each of its lines, which is the look the
+    maintainer first rejected. The same line would also look different from one diff to
+    the next.
+  - **One block per run:** lines differ in length, so the block is a stepped outline over
+    all the code of a new file or a deleted function, and every such line needs measuring.
+  - **The tint:** each row is decided on its own. A changed token always sits on a strong
+    colour, a mark or the full line tint, and an unchanged token always sits on the quiet
+    row's tint. A run of lines changed in full is one unbroken band, and a new file looks
+    as GitHub draws it.
+  - **Cost:** the painter writes one more attribute, `data-gh-prism-part`, on a row whose
+    line changed in part, and measures nothing more.
+- **Measured** 2026-11-11, signed in, Chromium 156, light and dark, on gh-prism pull
+  request #119's `tests/utils/structural/engine-script.test.ts`: old lines 4 to 7 keep
+  GitHub's tint, `rgba(248, 81, 73, 0.1)` in the dark theme, and lines 3, 8, and 9 take
+  the quiet row's tint, with one mark on line 8's comma.
+  `utils/structural/engine-worker.ts`, which the pull request adds, shows GitHub's tint
+  and no mark on its code.
+- **Accepted:**
+  - The step between the quiet row's tint and GitHub's is small in the dark theme, where
+    GitHub's own line tint is close to the page. `--gh-prism-quiet-tint` sets it.
+  - A line changed in part and a quiet row share one tint. The marks tell them apart.
+
 ## 2026-11-11: Structural mode reads all of a Markdown file by word
 
 - **Asked for:** the maintainer saw a long line of a fenced block in

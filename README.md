@@ -165,11 +165,12 @@ diffs, and Older and Newer links step through its history.
 A control beside GitHub's diff settings gear, on a pull request's Files changed tab and on
 a commit's page, picks how the diffs are drawn: **Unified**, **Split**, or **Structural**.
 
-- Structural draws GitHub's Split layout and highlights the code that changed. A line
-  changed in full, or replaced by code that shares only stray tokens with it, shows only
-  GitHub's line colour, with no highlight, and lines whose change only reformats them take
-  a lighter tint. In a comment, a string, HTML or JSX text, a YAML value, a Markdown file,
-  or a `.txt` file, it highlights the words that changed.
+- Structural draws GitHub's Split layout and highlights the code that changed. A block
+  added or removed whole, such as a function or a statement, or replaced by code that
+  shares only stray tokens with it, shows only GitHub's line colour, with no highlight,
+  and lines with a highlight, and lines whose change only reformats them, take a lighter
+  tint. In a comment, a string, HTML or JSX text, a YAML value, a Markdown file, or a
+  `.txt` file, it highlights the words that changed.
 - It keeps GitHub's pairing of old and new lines, and doesn't mark code that moved.
 - It works on Bash, C, C++, C#, CSS, Go, HTML, Java, JavaScript, JSON, Kotlin, Lua,
   Markdown, PHP, Python, Ruby, Rust, Swift, TOML, TSX, TypeScript, YAML, and `.txt` files,

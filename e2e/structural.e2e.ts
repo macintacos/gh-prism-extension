@@ -357,6 +357,84 @@ test("marks a changed token, tints a quiet row, and keeps the mark on a selected
   for (const cell of quietCells) expect(await background(cell)).toBe("rgb(255, 230, 120)");
 });
 
+test("steps down the tint of a line changed in part, and leaves a line changed in full its tint", async ({
+  page,
+  bundle,
+}) => {
+  await mount(page, bundle, [COMMIT_SPLIT], TOKENS);
+  const oldCells = page.locator(
+    `tr:has(td[data-line-anchor="${COMMIT_ANCHOR}L137"]) > td:nth-child(-n+2)`,
+  );
+  const backgrounds = () =>
+    oldCells.evaluateAll((cells) => cells.map((td) => getComputedStyle(td).backgroundColor));
+  const unpainted = await backgrounds();
+  const line = (await oldCells.nth(1).locator(".diff-text-inner").textContent()) ?? "";
+
+  await startOver(page, line.trim());
+  await repaint(page);
+  const full = await backgrounds();
+  await page.evaluate(() => window.structural.stop());
+  await startOver(page, "RenderLinesResponse");
+  await repaint(page);
+  const part = await backgrounds();
+
+  expect(full).toEqual(unpainted);
+  part.forEach((background, i) => {
+    expect(background).not.toBe(unpainted[i]);
+  });
+});
+
+test("marks all the text of a line changed in full inside a unit that remains, and moves no row", async ({
+  page,
+  bundle,
+}) => {
+  await mount(page, bundle, [COMMIT_SPLIT], TOKENS);
+  const row = page.locator(`tr:has(td[data-line-anchor="${COMMIT_ANCHOR}L137"])`);
+  const oldCells = row.locator("> td:nth-child(-n+2)");
+  const backgrounds = () =>
+    oldCells.evaluateAll((cells) => cells.map((td) => getComputedStyle(td).backgroundColor));
+  const unpainted = { backgrounds: await backgrounds(), box: await row.boundingBox() };
+  const line = (await oldCells.nth(1).locator(".diff-text-inner").textContent()) ?? "";
+
+  await startOver(page, line.trim(), true);
+  await repaint(page);
+  const drawn = await page.evaluate(() => window.structural.drawn());
+  const { texts } = await page.evaluate(() => window.structural.ranges());
+
+  expect(texts).toEqual([line.trim()]);
+  expect(drawn).toHaveLength(1);
+  (await backgrounds()).forEach((background, i) => {
+    expect(background).not.toBe(unpainted.backgrounds[i]);
+  });
+  expect(await row.boundingBox()).toEqual(unpainted.box);
+});
+
+// GitHub's own rules for a word its diff picked and for a keyword, with literal colours.
+const WORD_MARKS = `<style>
+  .diff-text-cell .syntax-highlighted-line.deletion .x { color: rgb(1, 2, 3); background-color: rgb(200, 0, 0); }
+  :root { --color-prettylights-syntax-keyword: rgb(207, 34, 46); }
+  .pl-k { color: var(--color-prettylights-syntax-keyword); }
+</style>`;
+
+test("a word GitHub's diff picked shows its syntax colour in a painted table, and GitHub's colour in any other", async ({
+  page,
+  bundle,
+}) => {
+  await mount(page, bundle, [COMMIT_SPLIT], WORD_MARKS);
+  const keyword = page.locator("code.deletion .pl-k.x").first();
+  const colour = () => keyword.evaluate((span) => getComputedStyle(span).color);
+  const unpainted = await colour();
+
+  await page.evaluate(() => window.structural.start());
+  await repaint(page);
+  const painted = await colour();
+  await page.evaluate(() => window.structural.stop());
+
+  expect(unpainted).toBe("rgb(1, 2, 3)");
+  expect(painted).toBe("rgb(207, 34, 46)");
+  expect(await colour()).toBe("rgb(1, 2, 3)");
+});
+
 // GitHub's wrapping, which a routed fixture doesn't load, in a table narrow enough to wrap the
 // commit's one changed line.
 const WRAPPING = `${TOKENS}<style>
@@ -365,22 +443,26 @@ const WRAPPING = `${TOKENS}<style>
   .diff-text-inner { display: block; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; }
 </style>`;
 
-/** Starts the painter with one range on the commit's old line 137, over `token`. */
-const startOver = (page: Page, token: string) =>
+/**
+ * Starts the painter with one range on the commit's old line 137, over `token`; `inside` says the
+ * line changed inside a unit that remains.
+ */
+const startOver = (page: Page, token: string, inside = false) =>
   page.evaluate(
-    ({ anchor, token }) => {
+    ({ anchor, token, inside }) => {
       const files = window.structural.synthesize();
       const file = files[anchor];
       const startCol = file?.text.old[137]?.indexOf(token) ?? -1;
       if (!file || startCol < 0) throw new Error("no token");
       const ranges = [{ startCol, endCol: startCol + token.length }];
+      const changed = inside ? { quiet: false, ranges, inside } : { quiet: false, ranges };
       files[anchor] = {
         ...file,
-        annotations: { old: { 137: { quiet: false, ranges } }, new: { 137: { quiet: true } } },
+        annotations: { old: { 137: changed }, new: { 137: { quiet: true } } },
       };
       window.structural.start(files);
     },
-    { anchor: COMMIT_ANCHOR, token },
+    { anchor: COMMIT_ANCHOR, token, inside },
   );
 
 /** The RGB of a 1×1 screenshot. */

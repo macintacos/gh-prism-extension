@@ -17,6 +17,11 @@ export interface TokenSpan {
 export interface StructuralChanges {
   readonly old: readonly TokenSpan[];
   readonly new: readonly TokenSpan[];
+  /**
+   * Each version's 1-based lines holding a token that changed inside a syntax unit that remains,
+   * such as a name removed from a wrapped import. Absent when the file has no syntax tree.
+   */
+  readonly inside?: { readonly old: readonly number[]; readonly new: readonly number[] };
 }
 
 /** 0-based UTF-16 columns of one line, `endCol` exclusive. */
@@ -27,11 +32,12 @@ export interface ColumnRange {
 
 /**
  * What to paint on one line the page draws as changed: its changed tokens' ranges in column order,
- * or quiet when it has none.
+ * or quiet when it has none. `inside` is set when a token of the line changed inside a syntax unit
+ * that remains.
  */
 export type LineAnnotation =
   | { readonly quiet: true }
-  | { readonly quiet: false; readonly ranges: readonly ColumnRange[] };
+  | { readonly quiet: false; readonly ranges: readonly ColumnRange[]; readonly inside?: true };
 
 /**
  * Annotations for one version of a file, old or new, keyed by its 1-based line number. A record,
@@ -75,6 +81,8 @@ export function structuralFile(
 ): StructuralFile | undefined {
   const oldRanges = rangesByLine(changes.old);
   const newRanges = rangesByLine(changes.new);
+  const oldInside = new Set(changes.inside?.old);
+  const newInside = new Set(changes.inside?.new);
   const oldAnnotations: Record<number, LineAnnotation> = {};
   const newAnnotations: Record<number, LineAnnotation> = {};
   const oldText: Record<number, string> = {};
@@ -88,12 +96,12 @@ export function structuralFile(
     for (const { kind, text } of ops) {
       const lineText = text.endsWith("\n") ? text.slice(0, -1) : text;
       if (kind !== "+") {
-        oldAnnotations[oldLine] = annotationOf(oldRanges.get(oldLine));
+        oldAnnotations[oldLine] = annotationOf(oldRanges.get(oldLine), oldInside.has(oldLine));
         oldText[oldLine] = lineText;
         oldLine++;
       }
       if (kind !== "-") {
-        newAnnotations[newLine] = annotationOf(newRanges.get(newLine));
+        newAnnotations[newLine] = annotationOf(newRanges.get(newLine), newInside.has(newLine));
         newText[newLine] = lineText;
         newLine++;
       }
@@ -118,6 +126,7 @@ function rangesByLine(spans: readonly TokenSpan[]): Map<number, ColumnRange[]> {
   return byLine;
 }
 
-function annotationOf(ranges: readonly ColumnRange[] | undefined): LineAnnotation {
-  return ranges === undefined ? { quiet: true } : { quiet: false, ranges };
+function annotationOf(ranges: readonly ColumnRange[] | undefined, inside: boolean): LineAnnotation {
+  if (ranges === undefined) return { quiet: true };
+  return inside ? { quiet: false, ranges, inside } : { quiet: false, ranges };
 }
