@@ -261,17 +261,24 @@ Primer's disabled default Button, and its tooltip says why. `commit/step-links.t
 A choice among three views takes Primer's segmented control. The diff view control sits
 immediately before GitHub's diff settings gear and picks Unified, Split, or Structural:
 three `aria-pressed` buttons in a list named "Diff view", each a Tab stop with no key of
-its own. The track is 28px high, on `--controlTrack-bgColor-rest` in a 1px
-`--controlTrack-borderColor-rest` border. The pressed segment is a knob on
-`--controlKnob-bgColor-rest` with a semibold label and a 1px
+its own. The name stands before the track in muted body-small text, 8px from it, so a
+reader sees what the control picks. It is hidden from assistive technology, because the
+list already carries the same name. The track is 28px high, on
+`--controlTrack-bgColor-rest` in a 1px `--controlTrack-borderColor-rest` border. The
+pressed segment is a knob on `--controlKnob-bgColor-rest` with a semibold label and a 1px
 `--borderColor-neutral-emphasis` edge, so weight and edge carry the state without colour.
 Each label reserves its semibold width, so pressing shifts nothing. The pressed segment
 follows the layout the tables show, never a stored copy, and none is pressed while the
 layout can't be told. Structural carries the Beta tag (§ Tags) and the only tooltip. On a
 pull request filtered to one commit, Structural is `aria-disabled`, in
-`--control-fgColor-disabled`, and its tooltip says why. The control hides while GitHub's
-toolbar has no room for it, because that toolbar never wraps. `diffs/view-control.ts` and
-`diffs/view-control.css` build it.
+`--control-fgColor-disabled`, and its tooltip says why. The control gives up its room in
+two steps, because GitHub's toolbar never wraps: first the name goes, then the control
+hides. On a pull request each step happens when the toolbar would overflow. On a commit,
+fixed widths set both steps: the name goes below 1100px, before it would shrink GitHub's
+search box, and the control below 768px. While the control shows, GitHub's diff settings
+menu opens without its Layout group, which would only repeat the control; the menu stays
+whole whenever the control is hidden. `diffs/view-control.ts` and `diffs/view-control.css`
+build it.
 
 ## Tags
 
@@ -593,6 +600,9 @@ Split, a sentence directly before the file's diff table, under its file header, 
 and that this is GitHub's diff. Its text starts in line with the header's path. It is not
 announced, because a pull request in an unsupported language shows the same sentence on
 every file; a screen reader reads it in place, between the header's controls and the diff.
+The sentence for a language Structural mode doesn't cover ends in a link, "Request this
+language", in `--fgColor-accent` and underlined, so colour isn't its only signal. It opens
+gh-prism's language request form in a new tab and stays on the sentence's line.
 `diffs/structural-notices.ts` holds it.
 
 ## Dialogs

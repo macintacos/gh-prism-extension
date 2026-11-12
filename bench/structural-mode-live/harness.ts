@@ -156,8 +156,13 @@ export function gearLayout(page: Page): LayoutChoice {
           .getByRole("button", { name: "Open diff view settings" }),
       )
       .first();
+  // gh-prism hides the menu's Layout group while its control shows, so the items are found and
+  // clicked as markup, the way the control's own press does.
   const item = (layout: Layout) =>
-    page.getByRole("menuitemradio", { name: layout === "split" ? "Split" : "Unified" });
+    page.getByRole("menuitemradio", {
+      name: layout === "split" ? "Split" : "Unified",
+      includeHidden: true,
+    });
   return {
     async read() {
       await gear().click();
@@ -167,9 +172,9 @@ export function gearLayout(page: Page): LayoutChoice {
     },
     async choose(layout) {
       await gear().click();
-      await item(layout).click();
+      await item(layout).evaluate((node: HTMLElement) => node.click());
       await page.waitForTimeout(2500);
-      if (await item(layout).isVisible()) await page.keyboard.press("Escape");
+      if ((await item(layout).count()) > 0) await page.keyboard.press("Escape");
     },
   };
 }

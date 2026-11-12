@@ -574,19 +574,35 @@ on a private one.
   30 ms apart send two concurrent posts, and the server can save the earlier one: Split
   then Unified on commit `8d807ee` left Split saved (Chromium 157, signed in, 2026-11-10).
   So never click an item for the layout already shown, and don't choose twice in a row.
+- **Expect the Layout group first in the menu, as an `ActionList.Group` followed by an
+  `ActionList.Divider`,** on both page kinds; `findLayoutGroup` in `files-page.ts` reads
+  it and gives up on any other shape. GitHub focuses the menu's first item, Unified, in
+  the task that opens it, and the gear's `aria-expanded` turns `true` with the menu
+  already mounted, so an observer of that attribute finds the menu in its callback.
+- **Hide the Layout group by setting `hidden` on the group, its divider, and each of its
+  two items, then focus the first item left.** `hidden` on the group alone leaves focus on
+  the page's body, where no arrow key reaches the menu. With each item `hidden` too,
+  Primer's arrow keys, Home, and End walk only the items left, Escape closes the menu, and
+  focus returns to the gear. A synthetic `click()` on a hidden item still switches the
+  layout and posts `/users/diffview`. The menu's `u` (Unified) and `s` (Split) shortcuts
+  do nothing while their items are hidden. React leaves the attributes in place until the
+  menu unmounts, so set them on every open (Chromium 157 and Firefox 157, signed in,
+  sandbox PR #3 and commit `8d807ee`, 2026-11-11).
 - **Close the menu from script with a second `gear.click()` or an `Escape` `keydown`
   dispatched on the menu.** Both close it on both page kinds without choosing anything and
   send no `/users/diffview`. Primer returns focus to the gear whenever the menu closes,
   whatever held it before (Chromium 157, signed in, 2026-11-10).
-- **Expect the gear inside a `container-show-on-sm` wrapper on a pull request,** within
-  the toolbar's end `Stack`, and inside the `width-full` group after "Search within code"
-  on a commit. A node inserted with `gear.before(node)` survived a menu open, a Layout
-  choice, the tree toggle, and scrolling, with no React error (Chromium 155 and Firefox
-  156, 2026-11-10). Hydration still re-mounts such a node once as the page first settles,
-  which can land between a `pointerdown` and its `pointerup`, so the press's `click` never
-  fires (Chromium 157, signed in, 2026-11-10). At 500px wide on a pull request the wrapper
-  hides the gear and such a node with it (`offsetParent === null`), and "More options"
-  shows instead (Chromium 157, signed in, 2026-11-10).
+- **Expect the gear inside a `container-show-on-sm__<hash>` wrapper on a pull request,** a
+  CSS-module class when read on 2026-11-11, so match it as
+  `[class*="container-show-on-sm"]`. It sits within the toolbar's end `Stack`, and inside
+  the `width-full` group after "Search within code" on a commit. A node inserted with
+  `gear.before(node)` survived a menu open, a Layout choice, the tree toggle, and
+  scrolling, with no React error (Chromium 155 and Firefox 156, 2026-11-10). Hydration
+  still re-mounts such a node once as the page first settles, which can land between a
+  `pointerdown` and its `pointerup`, so the press's `click` never fires (Chromium 157,
+  signed in, 2026-11-10). At 500px wide on a pull request the wrapper hides the gear and
+  such a node with it (`offsetParent === null`), and "More options" shows instead
+  (Chromium 157, signed in, 2026-11-10).
 - **Expect the toolbar never to wrap.** An extra child that doesn't fit overflows the page
   sideways rather than starting a second row, so a node added to it must hide itself when
   the row has no room (Chromium 157, signed in, 2026-11-10).
@@ -627,16 +643,19 @@ on a private one.
      `/users/diffview` request body.
   4. Close the menu with a second `gear.click()`, then with an `Escape` `keydown` on the
      menu, and read `document.activeElement` each time.
-  5. Read `toolbar.contains(gear)` and `diffs.contains(toolbar)`.
-  6. Add a wide child before the gear and see the row overflow rather than wrap.
-  7. On a pull request, narrow the window to 500px and read the gear's `offsetParent`.
-  8. Insert a node before the gear as the page loads, and watch it with a
+  5. With gh-prism loaded and its control showing, open the menu from the keyboard, read
+     `document.activeElement`, and press ArrowDown, ArrowUp, Home, and End through it.
+     Narrow the window until the control hides, and see the Layout group return.
+  6. Read `toolbar.contains(gear)` and `diffs.contains(toolbar)`.
+  7. Add a wide child before the gear and see the row overflow rather than wrap.
+  8. On a pull request, narrow the window to 500px and read the gear's `offsetParent`.
+  9. Insert a node before the gear as the page loads, and watch it with a
      `MutationObserver` until the page settles.
-  9. With GitHub's scripts delayed 3 s, click the gear before the page hydrates, then read
-     its `aria-expanded` and look for a Layout menu a second later.
-  10. On the commit, read the gear's `getBoundingClientRect().x` every frame across
+  10. With GitHub's scripts delayed 3 s, click the gear before the page hydrates, then
+      read its `aria-expanded` and look for a Layout menu a second later.
+  11. On the commit, read the gear's `getBoundingClientRect().x` every frame across
       hydration.
-  11. On the commit, scroll down, read the "Top" button's width and the gear's x, scroll
+  12. On the commit, scroll down, read the "Top" button's width and the gear's x, scroll
       to the top, and read both every frame for 100 ms.
 
 ## The file card

@@ -1,16 +1,25 @@
 /* GitHub hooks:
-   .container-show-on-sm: a pull request's wrapper around the gear, which the control sits in.
+   [class*="container-show-on-sm"]: a pull request's wrapper around the gear, which the control
+   sits in.
    #diff-content-parent: a commit's diffs, whose toolbar the control hides from on a narrow window. */
 @import "../ui/tailwind.css" prefix(tw);
 @source "./view-control.ts";
 
-/* An 8px gap to the gear; a commit's group already has its own gap. */
-.container-show-on-sm .gh-prism-diff-view {
+/* An 8px gap to the gear and from the name; a commit's group already has its own gap. */
+[class*="container-show-on-sm"] .gh-prism-diff-view,
+[class*="container-show-on-sm"] .gh-prism-diff-view-name {
   margin-inline-end: 8px;
 }
 
 .gh-prism-diff-view:not([hidden]) {
   display: inline-flex;
+}
+
+/* A commit's search box shrinks to make room, so the name goes before it would, below 1100px. */
+@media (max-width: 1099px) {
+  #diff-content-parent .gh-prism-diff-view-name {
+    display: none;
+  }
 }
 
 /* Below 768px a commit's search box shrinks to make room; GitHub's own menu still switches. */

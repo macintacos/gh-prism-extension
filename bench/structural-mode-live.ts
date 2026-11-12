@@ -58,9 +58,9 @@ const URLS = urlArgs.length
       `${SANDBOX}/commit/8d807ee?diff=split`,
       `${SANDBOX}/commit/4630717?diff=split`,
     ];
-// Keep in sync with structural-notices.ts's NOTICE_COPY.unsupported.
+// Keep in sync with structural-notices.ts's NOTICE_COPY.unsupported and the link after it.
 const UNSUPPORTED_COPY =
-  "Structural mode doesn't cover this file's language yet, so this is GitHub's diff.";
+  "Structural mode doesn't cover this file's language yet, so this is GitHub's diff. Request this language";
 
 const log = (line: string) => console.log(line);
 

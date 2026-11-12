@@ -172,7 +172,13 @@ a commit's page, picks how the diffs are drawn: **Unified**, **Split**, or **Str
 - It keeps GitHub's pairing of old and new lines, and doesn't mark code that moved.
 - It works on Bash, C, C++, C#, CSS, Go, HTML, Java, JavaScript, JSON, Kotlin, Lua,
   Markdown, PHP, Python, Ruby, Rust, Swift, TOML, TSX, TypeScript, YAML, and `.txt` files,
-  and leaves every other file as GitHub draws it.
+  and leaves every other file as GitHub draws it. A file in a language it doesn't cover
+  says so above its diff, with a **Request this language** link. The link opens a
+  new-issue form on gh-prism's repository with the file's extension filled in, and nothing
+  else about the file.
+- While the control shows, GitHub's diff settings menu leaves out its own Layout choice,
+  which the control replaces. On a window too narrow for the control, the menu offers
+  Layout as before.
 - gh-prism remembers the choice. Choosing Unified or Split turns Structural off, and so
   does choosing Unified from GitHub's own Layout menu. On a pull request filtered to one
   commit, Structural is unavailable. Structural is in beta, so it may have bugs.

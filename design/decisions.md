@@ -6,6 +6,49 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-11: The diff view control shows its name, and replaces GitHub's Layout group
+
+- **Asked for:** the maintainer tried the control and asked for three things: a visible
+  label such as "Diff Style"; GitHub's own Layout group removed from the gear's menu; and
+  a link beside the unsupported-language notice to request that language.
+- **Compared:**
+  - for the name, "Diff style", "Layout", or "Diff view";
+  - for its place, before the track, inside the track, or in a tooltip;
+  - for assistive technology, the visible name labelling the list, or the list keeping its
+    own name with the visible copy hidden;
+  - for a toolbar short of room, hiding the control whole, or dropping the name first;
+  - for the Layout group, hiding it, disabling its items, or leaving it;
+  - for the link's words, "Request this language", "Ask for this language", or "Report".
+- **Won:** "Diff view" in muted body-small text before the track, `aria-hidden`, with the
+  list keeping its `aria-label`. When room runs short, the name hides first, then the
+  control. The gear's menu opens without its Layout group and the divider under it while
+  the control is drawn. The notice ends in an underlined accent link, "Request this
+  language".
+- **Why:**
+  - **Name:** GitHub names the gear "Open diff view settings", the control's accessible
+    name was already "Diff view", and "Layout" would leave out Structural, which is no
+    layout. "Style" appears nowhere on GitHub's page.
+  - **Place:** before the track it reads as a form label does. Inside the track it would
+    read as a fourth segment, and a tooltip stays hidden until hover, which is the problem
+    the maintainer reported.
+  - **Assistive technology:** a screen reader announces the list's name on entering it. A
+    readable label beside it would say "Diff view" twice.
+  - **Room:** the name is the part a reviewer can do without, so it goes first.
+  - **Layout group:** two controls for one choice ask the reviewer which is real. Disabled
+    items would keep the clutter. The group returns whenever the control is hidden, so a
+    reviewer never loses the only way to switch.
+  - **Link:** the verb says what the click does, and "this language" ties it to the file
+    whose diff it sits above.
+- **Measured** live on sandbox PR #3 and commit `8d807ee`, in Chromium 157 and Firefox
+  157, signed in, light theme:
+  - on a pull request the name shows at 768px and is gone at 720px, and the control shows
+    at 700px and is gone at 660px; GitHub's buttons hold their places at every width from
+    500px to 1600px, and the Viewed counter moves left by the name's width;
+  - on a commit the search box keeps its 215px with the name shown from 1100px up, and the
+    toolbar matches the earlier build below that;
+  - the notice with its link stays one line, 27.5px high, in a 1142px diff;
+  - the link's `rgb(9, 105, 218)` on white is 5.2:1.
+
 ## 2026-11-11: Structural mode's marks are rounded, joined, and not underlined
 
 This replaces the 2026-11-10 "Structural mode's moved lines" entry below, and the
