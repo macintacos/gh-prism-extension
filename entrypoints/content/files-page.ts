@@ -7,8 +7,9 @@
  * commit's message toggle starts, follows a pull request's narrow-layout overlay and the file-tree
  * filter menu, finds and follows the rows and code-owner shields of a pull request's Reviewers
  * lists and its comments' authors on Conversation and Files changed, measures and follows GitHub's
- * right-hand panel beside a pull request's Files changed, and copies that menu's group, divider,
- * and item for gh-prism's entries, so the selectors stay in this seam; it builds no UI of its own
+ * right-hand panel beside a pull request's Files changed, copies that menu's group, divider, and
+ * item for gh-prism's entries, collects a mounted diff's changed cells, reads and follows the diff
+ * layout, and finds the layout gear, so the selectors stay in this seam; it builds no UI of its own
  * and imports nothing from WXT. The pull request selectors come from EXC-1662's survey.
  */
 
@@ -796,6 +797,15 @@ export function findFilesToolbar(page: FilesPage): Element | undefined {
   return page.sidebar.ownerDocument.querySelector(page.kind.toolbar) ?? undefined;
 }
 
+/** The toolbar's gear, which opens GitHub's diff settings menu (its Layout choice among them). */
+export function findLayoutGear(page: FilesPage): HTMLButtonElement | undefined {
+  // A commit's sidebar holds a hidden copy of the gear; the toolbar row scopes it out.
+  return (
+    findFilesToolbar(page)?.querySelector<HTMLButtonElement>("button:has(.octicon-gear)") ??
+    undefined
+  );
+}
+
 /** What GitHub calls a pull request's own page: its overview, or the classic Conversation tab. */
 export type PrPageName = "Overview" | "Conversation";
 
@@ -968,6 +978,89 @@ export const lineRowOfAnchor = (page: FilesPage, anchor: string): HTMLTableRowEl
     ? (page.diffs.querySelector(`[data-line-anchor="${line}"]`)?.closest("tr") ?? null)
     : null;
 };
+
+/** Which version of a file a diff cell shows. */
+export type DiffSide = "old" | "new";
+
+/** A changed line's code cell in a mounted diff. */
+export interface ChangedCell {
+  readonly side: DiffSide;
+  /** The line's number on `side`. */
+  readonly line: number;
+  /** Holds the line's code text alone: no `+`/`-` marker and no review thread. */
+  readonly textRoot: Element;
+}
+
+// The child combinator keeps hunk headers and a review thread's own markup out.
+const CHANGED_CODE =
+  "td.diff-text-cell > code.diff-text.addition, td.diff-text-cell > code.diff-text.deletion";
+
+// The side letter and line number ending a line anchor.
+const ANCHOR_END = /([LR])(\d+)$/;
+
+/**
+ * The changed code cells under `root`, in document order. Hold none across an `observeDiffs`
+ * report: GitHub replaces a file's table, or the rows inside it, on context expansion, collapse,
+ * Load Diff, and a layout switch.
+ */
+export function changedCells(root: ParentNode): ChangedCell[] {
+  return [...root.querySelectorAll(CHANGED_CODE)].flatMap((code) => {
+    const anchor = code.closest("td")?.dataset.lineAnchor ?? "";
+    const [, sideLetter, line] = ANCHOR_END.exec(anchor) ?? [];
+    const textRoot = code.querySelector(":scope > .diff-text-inner");
+    return sideLetter && line && textRoot
+      ? [{ side: sideLetter === "R" ? "new" : "old", line: Number(line), textRoot } as const]
+      : [];
+  });
+}
+
+/** GitHub's two ways of drawing a diff. */
+export type DiffLayout = "unified" | "split";
+
+/**
+ * The layout the mounted diffs under `diffs` are drawn in, never read from `?diff=`. It is
+ * `undefined` while no diff table is mounted. `diffs` must be an ancestor of the tables: a region
+ * works, a table does not. A pull request draws a file that is all additions or all deletions
+ * unified even in Split, so it reads `"unified"` under Split while every mounted table is such a
+ * file.
+ */
+export function currentLayout(diffs: ParentNode): DiffLayout | undefined {
+  const tables = [...diffs.querySelectorAll("table[data-diff-anchor]")];
+  const SPLIT_COLUMNS = 4; // Unified draws 3.
+  // ponytail: column count can't see Split while every mounted table is a pull request's
+  // one-sided file; the open menu's aria-checked can.
+  if (
+    tables.some(
+      (table) => table.querySelector(":scope > colgroup")?.childElementCount === SPLIT_COLUMNS,
+    )
+  ) {
+    return "split";
+  }
+  return tables.length ? "unified" : undefined;
+}
+
+/**
+ * Calls `onChange` with the layout of the diffs under `diffs` at the start, when one is mounted,
+ * then 50 ms after each change to a different layout, until `signal` aborts. Never reports
+ * `undefined`: diffs unmounting keep the last layout. A report can follow files mounting or
+ * unmounting, not only a Layout choice.
+ */
+export function followLayout(
+  diffs: Element,
+  onChange: (layout: DiffLayout) => void,
+  { signal }: { signal: AbortSignal },
+): void {
+  let lastReported: DiffLayout | undefined;
+  const reportIfChanged = () => {
+    const layout = currentLayout(diffs);
+    if (!layout || layout === lastReported) return;
+    lastReported = layout;
+    onChange(layout);
+  };
+
+  observeDiffs(diffs, reportIfChanged, { signal });
+  reportIfChanged();
+}
 
 /** The `diff-…` anchor `link` points at: it names the file's diff and prefixes its line anchors. */
 export const anchorOf = (link: HTMLAnchorElement): string | undefined =>

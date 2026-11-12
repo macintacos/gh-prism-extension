@@ -22,6 +22,7 @@ import {
   findFilterMenu,
   findFilterOptions,
   findHeaderPage,
+  findLayoutGear,
   findOverlay,
   findReviewersHeadings,
   findTreeToggle,
@@ -49,6 +50,7 @@ import {
   viewedToggleOf,
   viewerLogin,
 } from "../../entrypoints/content/files-page";
+import commitToolbar from "../fixtures/commit-page-toolbar.html?raw";
 import commentsFixture from "../fixtures/conversation-comments.html?raw";
 import nodeConversation from "../fixtures/conversation-node.html?raw";
 import overviewConversation from "../fixtures/conversation-overview.html?raw";
@@ -81,6 +83,7 @@ import {
   VIEWED_CARGO_LOCK,
   VIEWED_LIB_RS,
 } from "../fixtures/files-page";
+import prToolbar from "../fixtures/files-page-toolbar.html?raw";
 
 const PATHS = [
   "config/app.toml",
@@ -984,6 +987,25 @@ describe("the pull request kind", () => {
     expect(findFilesToolbar(foundPage())).toBe(toggleButton().closest("section"));
   });
 
+  it("findLayoutGear finds the toolbar's gear", () => {
+    const toolbar = findFilesToolbar(foundPage());
+    if (!toolbar) throw new Error("fixture has no toolbar");
+    toolbar.outerHTML = prToolbar;
+
+    const gear = findLayoutGear(foundPage());
+
+    expect(gear?.tagName).toBe("BUTTON");
+    expect(gear?.getAttribute("aria-haspopup")).toBe("true");
+    expect(findFilesToolbar(foundPage())?.contains(gear ?? null)).toBe(true);
+    expect(document.getElementById(gear?.getAttribute("aria-labelledby") ?? "")?.textContent).toBe(
+      "Diff settings",
+    );
+  });
+
+  it("findLayoutGear reads undefined while the toolbar has no gear", () => {
+    expect(findLayoutGear(foundPage())).toBeUndefined();
+  });
+
   it("takes the regular tree toggle as collapsing the tree in place", () => {
     expect(treeToggleButtonOf(foundPage(), toggleButton())).toBe(toggleButton());
   });
@@ -1139,6 +1161,20 @@ describe("the commit kind", () => {
     const toggle = diffs().querySelector('[aria-controls="diff_file_tree"]');
 
     expect(findFilesToolbar(foundPage())).toBe(toggle?.parentElement?.parentElement);
+  });
+
+  it("findLayoutGear finds the diffs' gear, not the copy inside the sidebar", () => {
+    const toolbar = findFilesToolbar(foundPage());
+    if (!toolbar) throw new Error("fixture has no toolbar");
+    toolbar.outerHTML = commitToolbar;
+    const gear = findFilesToolbar(foundPage())?.querySelector("button:has(.octicon-gear)");
+    if (!gear) throw new Error("capture has no gear");
+    byId("diff_file_tree").append(gear.cloneNode(true));
+
+    expect(findLayoutGear(foundPage())).toBe(gear);
+    expect(document.getElementById(gear.getAttribute("aria-labelledby") ?? "")?.textContent).toBe(
+      "Open diff view settings",
+    );
   });
 
   it("finds the toolbar's tree toggle, not the copy inside the sidebar", () => {
