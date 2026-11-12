@@ -31,7 +31,7 @@ export default defineConfig({
         files.push({ absoluteSrc, relativeDest: `${WASM_DIR}/${file}` });
     },
   },
-  manifest: ({ browser }) => ({
+  manifest: ({ browser, command }) => ({
     // The Chrome Web Store's title, which its search weighs. The release zip keeps package.json's name.
     name: "gh-prism: Sectioned Pull Request Review",
     // storage holds preferences, the what's-new state, and the intent cache.
@@ -51,10 +51,12 @@ export default defineConfig({
       "https://raw.githubusercontent.com/*",
     ],
     // Only lets the structural engine compile WebAssembly: each is that browser's MV3 default plus 'wasm-unsafe-eval'.
+    // Under the dev server Firefox's goes without upgrade-insecure-requests, which would turn WXT's
+    // ws://localhost socket into wss://, so the background would register no content script.
     content_security_policy: {
       extension_pages:
         browser === "firefox"
-          ? "script-src 'self' 'wasm-unsafe-eval'; upgrade-insecure-requests;"
+          ? `script-src 'self' 'wasm-unsafe-eval';${command === "serve" ? "" : " upgrade-insecure-requests;"}`
           : "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
     },
     ...(browser === "firefox"
