@@ -1,0 +1,70 @@
+/* GitHub hooks: a split row's td by position (old number, old code, new number, new code),
+   td.empty-diff-line, td[data-selected="true"], .syntax-highlighted-line.addition .x and
+   .deletion .x (GitHub's word marks), the --diffBlob-* variables, --bgColor-default,
+   --fgColor-success, and --display-red-fgColor. structural.ts writes data-gh-prism-structural on
+   a painted table and data-gh-prism-quiet on a quiet row. */
+
+:root {
+  --gh-prism-quiet-tint: 40%;
+}
+
+::highlight(gh-prism-added) {
+  background-color: var(--diffBlob-additionWord-bgColor);
+  text-decoration: underline;
+  text-decoration-color: var(--fgColor-success);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+::highlight(gh-prism-removed) {
+  background-color: var(--diffBlob-deletionWord-bgColor);
+  text-decoration: underline;
+  /* --fgColor-danger holds only 2.78:1 on the dark theme's deletion word background. */
+  text-decoration-color: var(--display-red-fgColor);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+/* A selected line keeps GitHub's own highlight: only the underline stays. */
+td[data-selected="true"] *::highlight(gh-prism-added),
+td[data-selected="true"] *::highlight(gh-prism-removed) {
+  background-color: transparent;
+}
+
+table[data-gh-prism-structural] .syntax-highlighted-line.addition .x,
+table[data-gh-prism-structural] .syntax-highlighted-line.deletion .x {
+  background-color: transparent;
+}
+
+/* !important: GitHub sets these backgrounds inline on each td. */
+tr[data-gh-prism-quiet~="old"] > td:nth-child(1):not([data-selected="true"], .empty-diff-line) {
+  background-color: color-mix(
+    in srgb,
+    var(--diffBlob-deletionNum-bgColor) var(--gh-prism-quiet-tint),
+    var(--bgColor-default)
+  ) !important;
+}
+
+tr[data-gh-prism-quiet~="old"] > td:nth-child(2):not([data-selected="true"], .empty-diff-line) {
+  background-color: color-mix(
+    in srgb,
+    var(--diffBlob-deletionLine-bgColor) var(--gh-prism-quiet-tint),
+    var(--bgColor-default)
+  ) !important;
+}
+
+tr[data-gh-prism-quiet~="new"] > td:nth-child(3):not([data-selected="true"], .empty-diff-line) {
+  background-color: color-mix(
+    in srgb,
+    var(--diffBlob-additionNum-bgColor) var(--gh-prism-quiet-tint),
+    var(--bgColor-default)
+  ) !important;
+}
+
+tr[data-gh-prism-quiet~="new"] > td:nth-child(4):not([data-selected="true"], .empty-diff-line) {
+  background-color: color-mix(
+    in srgb,
+    var(--diffBlob-additionLine-bgColor) var(--gh-prism-quiet-tint),
+    var(--bgColor-default)
+  ) !important;
+}

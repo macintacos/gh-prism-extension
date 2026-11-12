@@ -81,6 +81,13 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s "a commit's message column slides out
   with the diffs at its edge in every frame…" samples each frame. Prove that `reverse()`
   turns an animation around in a live check.
+- **Stub `Highlight` and `CSS.highlights` on happy-dom's window before a test runs
+  Highlight API code.** happy-dom has neither. Its `window.CSS` is a getter that returns a
+  new object on every read, so assigning `highlights` onto it is lost; define `CSS` with
+  `Object.defineProperty` and delete it afterwards. happy-dom keeps no live ranges either,
+  so a range over removed text nodes never collapses; prove that in a browser.
+  [`structural.test.ts`](../../tests/content/diffs/structural.test.ts) stubs and restores
+  `CSS` this way.
 - **Stub an iframe's `contentWindow`.** happy-dom's `disableIframePageLoading` means an
   iframe never gets one.
 
@@ -202,6 +209,12 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   content script's fetch is routed, but Firefox holds it to the page's CSP, so a routed
   page's policy keeps GitHub's `connect-src 'self'`. A test that routes such a fetch skips
   in Firefox with `BACKGROUND_ROUTE_LIMIT`.
+- **Prove a module that takes an injected dependency in real browsers by bundling it, not
+  through the built extension.** No spec can reach a content script's parameters.
+  [`bench/bundle.ts`](../../bench/bundle.ts) bundles the module with a harness, and the
+  test runs it in the page's main world:
+  [`e2e/structural.e2e.ts`](../../e2e/structural.e2e.ts) on fixtures, and
+  [`bench/structural-live.ts`](../../bench/structural-live.ts) on live GitHub.
 - **Keep a live check's screenshots outside `test-results/`.** Playwright empties it at
   the start of every run.
 - **Keep each end-to-end test independent of the others.** `playwright.config.ts` sets
@@ -270,6 +283,11 @@ To check behavior live, build the extension and drive Playwright's bundled Chrom
   events for evidence. By hand, load the build as a temporary add-on from
   `about:debugging#/runtime/this-firefox`, and read session rules with
   `await browser.declarativeNetRequest.getSessionRules()` in gh-prism's Inspect console.
+- **Select a range of diff lines with a real Shift key, not a click modifier.** Under
+  Playwright, a pointer drag across number cells, or a click and then a click with Shift
+  held as real key state (`keyboard.down("Shift")`), selects a range; a click's
+  `modifiers` option does not. Loading a line hash in a fresh headless tab selected no
+  cell within 15 s (Chromium 157 and Firefox 157, sandbox PR #3 in Split, 2026-11-10).
 - **Check GitHub's own markup with no extension loaded.** A plain `playwright-cli` session
   with the saved `storageState` loaded serves the signed-in React views; build nothing for
   a selector or layout check.

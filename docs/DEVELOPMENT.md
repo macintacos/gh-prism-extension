@@ -104,7 +104,16 @@ Chromium on synthetic diffs of 100, 300, and 1,000 files. Its resize case narrow
 sidebar 20 times, one step per frame, and reports each step's p50 and p95 time, folder
 chain refits included. `--entry-size n` sets how many elements each synthetic diff entry
 has, its wrapper included; the default is 95. The benchmark lives in `bench/` and runs
-outside CI, Vitest, and Playwright.
+outside CI, Vitest, and Playwright, beside `bench/bundle.ts`, the bundler it shares with
+the structural painter's e2e spec.
+
+`bun bench/structural-live.ts --browser <chromium|firefox> --state <path> [--url <url>]`
+runs the structural painter on live GitHub and checks that it leaves the accessibility
+tree, copy, find, line selection, comments, and replies alone. It needs a signed-in
+Playwright `storageState` file. The default URL is sandbox PR #3 in Split and runs every
+check; another `--url` paints, counts, and stops. It opens comment and reply forms and
+cancels them, never submitting one. Its last line reads `parity: all checks passed` when
+every check ran, and `parity: <N> checks passed, <M> not driven` otherwise.
 
 ## Sandbox repositories
 

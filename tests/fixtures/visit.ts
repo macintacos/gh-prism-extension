@@ -76,7 +76,8 @@ export function mountsVisit() {
       prReviewers,
       teamMembers = async () => undefined,
       filter,
-    }: Pick<VisitOptions, "owner" | "codeOwners" | "prReviewers" | "filter"> &
+      structural,
+    }: Pick<VisitOptions, "owner" | "codeOwners" | "prReviewers" | "filter" | "structural"> &
       Partial<Pick<VisitOptions, "teamMembers">> = {},
   ): void => {
     controller.abort();
@@ -99,6 +100,7 @@ export function mountsVisit() {
         teamAvatar: async () => undefined,
         teamRoster: async () => undefined,
         filter,
+        structural,
         landHash,
       });
     };

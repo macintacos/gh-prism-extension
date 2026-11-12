@@ -8,7 +8,8 @@ export default defineConfig({
   // One per CPU on CI's runner; Playwright's default is half the CPUs.
   workers: process.env.CI ? 4 : undefined,
   projects: [
-    { name: "chromium", use: { browserName: "chromium" } },
+    // `mise run e2e` installs no headless shell, which is what a `page` fixture launches by default.
+    { name: "chromium", use: { browserName: "chromium", channel: "chromium" } },
     { name: "firefox", use: { browserName: "firefox" } },
   ],
 });

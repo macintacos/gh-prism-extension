@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ADDED_HIGHLIGHT, REMOVED_HIGHLIGHT } from "../../../entrypoints/content/diffs/structural";
 import {
   anchorOf,
   type FilesPage,
@@ -35,6 +36,7 @@ import {
   loadHeaderFixture,
   openOverlay,
 } from "../../fixtures/files-page";
+import { stubHighlights } from "../../fixtures/highlights";
 import { landedWith, pendingIntent, whole } from "../../fixtures/intent";
 import {
   addNativeFile,
@@ -339,6 +341,39 @@ describe("intent shared by each view of one visit", () => {
     expect(view()?.hasAttribute("aria-busy")).toBe(false);
     expect(view()?.hasAttribute("data-reveal")).toBe(false);
     expect(filesIn("docs")).toContain("src/parser.rs");
+  });
+});
+
+describe("structural mode on a visit", () => {
+  const { remountWith, abort } = mountsVisit();
+  let stub: ReturnType<typeof stubHighlights>;
+  const structuralMarks = () =>
+    document.querySelectorAll("[data-gh-prism-structural], [data-gh-prism-quiet]");
+
+  beforeEach(() => {
+    stub = stubHighlights();
+  });
+
+  afterEach(() => {
+    abort();
+    stub.restore();
+  });
+
+  it("paints nothing when the visit is not given structural mode", async () => {
+    remountWith(() => Promise.resolve(result));
+    await afterDebounce();
+
+    expect(stub.highlights.size).toBe(0);
+    expect(structuralMarks()).toHaveLength(0);
+  });
+
+  it("registers both highlights when the visit is given structural mode", async () => {
+    remountWith(() => Promise.resolve(result), undefined, {
+      structural: { annotationsOf: () => undefined, report: () => {} },
+    });
+    await afterDebounce();
+
+    expect([...stub.highlights.keys()]).toEqual([ADDED_HIGHLIGHT, REMOVED_HIGHLIGHT]);
   });
 });
 

@@ -36,6 +36,14 @@ header counter paints no tint. Its pills' icons rest in `--fgColor-muted`, and
 The Viewed box's edge and hover colours are in `sidebar/sections-view.css` too. They are
 mixed so the box holds 3:1 against every row background.
 
+Structural mode's colours are in
+[`entrypoints/content/diffs/structural.css`](../entrypoints/content/diffs/structural.css).
+A changed token takes GitHub's word-mark backgrounds, `--diffBlob-additionWord-bgColor`
+and `--diffBlob-deletionWord-bgColor`, and an underline in `--fgColor-success` when added
+or `--display-red-fgColor` when removed. A quiet row's strength is
+`--gh-prism-quiet-tint`, the share of GitHub's own line tint mixed into
+`--bgColor-default`.
+
 The spectrum is `SECTION_SPECTRUM` in `ui/section-catalog.ts`: a left-to-right band of
 every section's hue, in section order.
 
