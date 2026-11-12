@@ -190,7 +190,7 @@ a commit's page, picks how the diffs are drawn: **Unified**, **Split**, or **Str
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/structural-dark.png">
-  <img src="docs/images/structural-light.png" width="1280" alt="The toolbar's Diff view control, with Unified, Split, and Structural. Structural is pressed and carries a Beta tag. The control sits beside GitHub's diff settings gear. Below, app/ledger.py in GitHub's split layout, where only the changed words of each edited line sit in a rounded highlight, such as “integers in” becoming “whole” and the added “, never floats” in a comment.">
+  <img src="docs/images/structural-light.png" width="1280" alt="The toolbar's Diff view control, with Unified, Split, and Structural. Structural is pressed, leads with gh-prism's prism icon, and carries a Beta tag. The control sits beside GitHub's diff settings gear. Below, app/ledger.py in GitHub's split layout, where only the changed words of each edited line sit in a rounded highlight on a paler line colour, such as “integers in” becoming “whole” and the added “, never floats” in a comment. The added line “if amount:” is highlighted whole.">
 </picture>
 
 </details>
