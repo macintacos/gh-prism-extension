@@ -324,6 +324,15 @@ To check behavior live, build the extension and drive Playwright's bundled Chrom
 - **Wrap the service worker's `fetch` to observe pull request data requests.** The
   background script calls the global `fetch` at request time, so wrapping `self.fetch`
   through `worker.evaluate` logs each request.
+- **Log the structural engine's `.wasm` requests in Chromium over the DevTools protocol.**
+  Playwright reports no request from the offscreen document's Worker, and the Worker's
+  resource timing records no extension file. Launch with `--remote-debugging-port`, open
+  the browser's WebSocket, and send `Target.setAutoAttach` with
+  `waitForDebuggerOnStart: true` and `flatten: true`. On each `Target.attachedToTarget`,
+  send that session `Network.enable`, the same `Target.setAutoAttach`, and
+  `Runtime.runIfWaitingForDebugger`; the Worker's `Network.requestWillBeSent` events then
+  name each file it fetches, from its first. Exclude the `page` and `tab` target types
+  with `filter`, so Playwright's own pages never wait (Chromium 157, 2026-11-11).
 - **Enter from `/pulls` to check the head lookup.** That entry leaves no page head, so the
   service worker fetches the head itself. The page head is the head SHA read from the
   page's embedded data (`pageHeadSha` in
