@@ -6,6 +6,21 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-12: Structural mode's line tint steps up to 65%
+
+- **Asked for:** the maintainer found the tint on a quiet row and on a line changed in
+  part too faint to show which lines changed at all, and asked for it brighter, short of
+  GitHub's own, with the marks left as they are.
+- **Compared:** `--gh-prism-quiet-tint` at 40%, 55%, 65%, and GitHub's 100%, on a split
+  diff of a public commit in the light and dark themes.
+- **Won:** 65%, on the line cell and the number cell alike.
+- **Why:** at 40% the dark theme's line cell is barely off the page, and 55% moves it
+  little. At 65% a changed line is plain at a glance in both themes, and a line changed in
+  full, which keeps GitHub's tint, still reads as the stronger of the two.
+- **Accepted:** a mark's own rule is unchanged, so it stands out from its row slightly
+  less than before. Where GitHub's diff colours are translucent, as in the dark theme, a
+  mark is painted over the row's tint and brightens a little with it.
+
 ## 2026-11-12: Structural mode's notice sticks under the file header
 
 - **Asked for:** the maintainer asked for the notice to stay on screen while its file's

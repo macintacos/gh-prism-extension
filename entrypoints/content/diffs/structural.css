@@ -7,7 +7,7 @@
    and data-gh-prism-marks with the --gh-prism-marks mask on a marked line's .diff-text-inner. */
 
 :root {
-  --gh-prism-quiet-tint: 40%;
+  --gh-prism-quiet-tint: 65%;
   --gh-prism-mark-strength: 85%;
 }
 
