@@ -3,12 +3,14 @@ import type { EngineLimits } from "./engine";
 
 /** The limits the background sends with every request; a sender never supplies its own. */
 export const DEFAULT_LIMITS: EngineLimits = Object.freeze({
-  /** Firefox parses a token-dense 150,000-unit Python side in over 50 ms, half the deadline. */
-  maxTextLength: 100_000,
-  /** One parse is one uninterruptible stage. */
-  maxParseMs: 100,
-  /** Every measured side under both size caps parsed in 50 ms or less. */
-  maxTokens: 20_000,
+  /** Firefox parses a 500,000-unit side of the slowest grammar, Ruby, in about 120 ms. */
+  maxTextLength: 500_000,
+  /** One parse is one uninterruptible stage; twice what the longest side within the caps takes. */
+  maxParseMs: 250,
+  /** Firefox walks a 150,000-token side for its tokens and its units in about 240 ms. */
+  maxTokens: 150_000,
+  /** What an answer may carry across the port and into the cache. */
+  maxChangedTokens: 20_000,
   /** At 750, Firefox gives up on unrelated sides within the 50 ms diff deadline. */
   maxEditLength: 750,
   /** With one region's worst case, keeps the diff stage near 100 ms. */

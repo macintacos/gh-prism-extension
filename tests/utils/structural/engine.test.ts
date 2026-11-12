@@ -517,6 +517,20 @@ describe("structuralChanges", () => {
     });
   });
 
+  it("refuses more changed tokens on a side than maxChangedTokens", async () => {
+    const oldText = "f(a, b);\nkeep();\n";
+    const newText = "g(a, b);\nkeep();\n";
+    const rewritten = "h[c] = d;\nkeep();\n";
+
+    const renamed = await run("typescript", oldText, newText, { limits: { maxChangedTokens: 1 } });
+    const replaced = await run("typescript", oldText, rewritten, {
+      limits: { maxChangedTokens: 1 },
+    });
+
+    expect(renamed.ok).toBe(true);
+    expect(replaced).toEqual({ ok: false, reason: "too-large" });
+  });
+
   it("marks a region rewritten past maxEditLength whole, and compares the others", async () => {
     const oldText = "a(1);\nkeep();\nf(x);\n";
     const newText = "a(2);\nkeep();\ng(y, z);\n";
