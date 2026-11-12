@@ -1,7 +1,7 @@
 import { browser } from "wxt/browser";
 import { PR_DATA_PORT } from "@/utils/github/pr-port";
 import { yieldToMessages } from "@/utils/structural/engine-script";
-import { loadEngineThread } from "@/utils/structural/engine-thread";
+import { engineThread } from "@/utils/structural/engine-thread";
 import { structuralHost } from "@/utils/structural/host";
 import type { StructuralRequest } from "@/utils/structural/request";
 
@@ -31,7 +31,7 @@ export type BenchReply = { id: number; result: unknown } | { id: number; error: 
  * host runs timed in the background's clock, and the times it handled PR data port messages.
  */
 export function serveBench(): void {
-  const host = structuralHost({ loadEngine: loadEngineThread, pause: yieldToMessages });
+  const host = structuralHost({ engine: engineThread(), pause: yieldToMessages });
   const engineContextExists = engineContextProbe();
   let pingTimes: number[] = [];
 
