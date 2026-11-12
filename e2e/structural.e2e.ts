@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { inflateSync } from "node:zlib";
 import { test as base, type CDPSession, expect, type Page } from "@playwright/test";
 import { STRUCTURAL_ATTRS } from "../entrypoints/content/diffs/structural-attrs";
 import type { StructuralFile } from "../utils/structural/changes";
@@ -382,6 +383,22 @@ const startOver = (page: Page, token: string) =>
     { anchor: COMMIT_ANCHOR, token },
   );
 
+/** The RGB of a 1×1 screenshot. */
+function rgb(png: Buffer): number[] {
+  const data: Buffer[] = [];
+  for (let at = 8; at < png.length; at += 12 + png.readUInt32BE(at)) {
+    if (png.toString("latin1", at + 4, at + 8) === "IDAT") {
+      data.push(png.subarray(at + 8, at + 8 + png.readUInt32BE(at)));
+    }
+  }
+  // Byte 0 is the scanline's filter type.
+  return [...inflateSync(Buffer.concat(data)).subarray(1, 4)];
+}
+
+/** The largest difference between two colours' channels. */
+const apart = (a: readonly number[], b: readonly number[]) =>
+  Math.max(...a.map((value, index) => Math.abs(value - (b[index] ?? 0))));
+
 const padded = ([x = 0, y = 0, width = 0, height = 0]: number[]) => [
   x - 200,
   y - 200,
@@ -406,16 +423,25 @@ test("draws a mark 2px past its token on every side, with its corners rounded of
   const origin = await root.boundingBox();
   const [x = 0, y = 0, width = 0] = (line?.boxes[0] ?? []).map((value) => value / 100);
   if (!origin) throw new Error("no marked line");
+  // Floored: the box sits at a fraction of a pixel wherever the font's metrics put it, and a clip
+  // rounded up would sample one pixel inside the corner.
   const pixel = async (dx: number, dy: number) =>
-    [
-      ...(await page.screenshot({
-        clip: { x: origin.x + x + dx, y: origin.y + y + dy, width: 1, height: 1 },
-      })),
-    ].join();
+    rgb(
+      await page.screenshot({
+        clip: {
+          x: Math.floor(origin.x + x + dx),
+          y: Math.floor(origin.y + y + dy),
+          width: 1,
+          height: 1,
+        },
+      }),
+    );
   const lineTint = await pixel(-3, 8);
-  expect(await pixel(1, 8)).not.toBe(lineTint);
-  expect(await pixel(width - 1, 8)).not.toBe(lineTint);
-  expect(await pixel(0, 0)).toBe(lineTint);
+  const inside = await pixel(1, 8);
+  expect(inside).not.toEqual(lineTint);
+  expect(await pixel(width - 1, 8)).not.toEqual(lineTint);
+  // Antialiasing leaves a trace of the mark in the corner pixel, so it is near the tint, not equal.
+  expect(apart(await pixel(0, 0), lineTint)).toBeLessThan(apart(inside, lineTint) / 4);
 });
 
 test("draws a mark again where its token lands when a narrower table wraps the line", async ({
