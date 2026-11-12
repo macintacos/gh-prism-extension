@@ -1964,8 +1964,7 @@ test("a folder chain too long for its row keeps its first and deepest folders ar
 
 test("a folder chain refits as the sidebar is resized", async ({ context, page }) => {
   await servesChain(context, page);
-  await setTreeWidth(page, 280);
-  await expect.poll(() => chainLayout(page)).toMatchObject({ cut: [] });
+  await expectCollapsedChain(page);
   const collapsed = await chainLayout(page);
 
   await setTreeWidth(page, 900);
@@ -1978,7 +1977,6 @@ test("a folder chain refits as the sidebar is resized", async ({ context, page }
 
   await setTreeWidth(page, 280);
   await expect.poll(() => chainLayout(page)).toEqual(collapsed);
-  expect(collapsed?.shown).toContain("…");
 });
 
 test("a folder chain at 200% zoom keeps the same rules", async ({ context, page }) => {

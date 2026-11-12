@@ -3,6 +3,7 @@ import type { Parser } from "web-tree-sitter";
 import { type DiffSide, withoutChanceMatches } from "./chance";
 import type { StructuralChanges, TokenSpan } from "./changes";
 import type { Grammar } from "./grammar";
+import { innermostUnits, namedValues, type PairingSide } from "./named-values";
 import { PLAIN_TEXT, type PlainText, plainTextTokens } from "./plain-text";
 import { keyedByIndentation, leafTokens, lineStarts, type Token } from "./tokens";
 import { type Unit, wholeLineUnits } from "./units";
@@ -93,8 +94,8 @@ export async function structuralChanges(input: EngineInput): Promise<EngineResul
   await pause();
   if (signal.aborted) throw signal.reason;
 
-  const oldSource = sourceOf(oldText, oldParsed.tokens);
-  const newSource = sourceOf(newText, newParsed.tokens);
+  const oldSource = sourceOf(oldText, oldParsed);
+  const newSource = sourceOf(newText, newParsed);
   const changed = changedTokens(regions, oldSource, newSource, limits, now);
   if (typeof changed === "string") return refuse(changed);
   if (Math.max(changed.old.length, changed.new.length) > limits.maxChangedTokens)
@@ -163,18 +164,16 @@ function parsed(
 
 /**
  * A text with the offset of each of its lines, the tokens the diff compares, the 0-based line each
- * of those starts on and whether it is a word, and its layout tokens.
+ * of those starts on, whether it is a word, its statements, and its layout tokens.
  */
-interface Source extends DiffSide {
-  readonly text: string;
+interface Source extends DiffSide, PairingSide {
   readonly starts: readonly number[];
-  readonly tokens: readonly Token[];
   readonly layout: readonly Token[];
 }
 
 const WORD = /[\p{L}\p{N}_]/u;
 
-function sourceOf(text: string, all: readonly Token[]): Source {
+function sourceOf(text: string, { tokens: all, units }: Parsed): Source {
   const starts = lineStarts(text);
   const tokens = all.filter((token) => !token.layout);
   let line = 0;
@@ -185,7 +184,15 @@ function sourceOf(text: string, all: readonly Token[]): Source {
 
   const words = tokens.map((token) => WORD.test(text.slice(token.start, token.end)));
 
-  return { text, starts, tokens, lines, words, layout: all.filter((token) => token.layout) };
+  return {
+    text,
+    starts,
+    tokens,
+    lines,
+    words,
+    statements: units && innermostUnits(units),
+    layout: all.filter((token) => token.layout),
+  };
 }
 
 /** The offset where 1-based `line` starts, or the text's end past its last line. */
@@ -211,7 +218,7 @@ const joined = (parts: readonly ChangedTokens[]): ChangedTokens => ({
   new: parts.flatMap((part) => part.new),
 });
 
-/** The tokens one Myers diff per region finds changed, or `too-slow` past the diff's deadline. */
+/** The tokens each region's diffs find changed, or `too-slow` past the diff's deadline. */
 function changedTokens(
   regions: readonly ChangedRegion[],
   oldSource: Source,
@@ -223,16 +230,42 @@ function changedTokens(
   const parts: WindowChanges[] = [];
   for (const window of diffWindows(regions, oldSource, newSource)) {
     if (now() > deadline) return "too-slow";
-    parts.push(
-      windowChanges(
-        sideOf(oldSource, window.oldFrom, window.oldTo),
-        sideOf(newSource, window.newFrom, window.newTo),
-        limits.maxEditLength,
-      ),
-    );
+    parts.push(...pairedChanges(window, oldSource, newSource, limits.maxEditLength));
   }
 
   return { ...joined(parts), rewritten: joined(parts.filter((part) => part.rewritten)) };
+}
+
+/**
+ * A window's changes in order: the value and the name of each named value in it, and one Myers
+ * diff of each stretch between them, so a window with none is one diff.
+ */
+function pairedChanges(
+  window: TokenWindow,
+  oldSource: Source,
+  newSource: Source,
+  maxEditLength: number,
+): WindowChanges[] {
+  const pairs = namedValues(
+    { side: oldSource, from: window.oldFrom, to: window.oldTo },
+    { side: newSource, from: window.newFrom, to: window.newTo },
+  );
+  const parts: WindowChanges[] = [];
+  let oldAt = window.oldFrom;
+  let newAt = window.newFrom;
+  const diffTo = (oldTo: number, newTo: number) =>
+    windowChanges(sideOf(oldSource, oldAt, oldTo), sideOf(newSource, newAt, newTo), maxEditLength);
+
+  for (const { old, new: new_, changed } of pairs) {
+    parts.push(diffTo(old.from, new_.from), {
+      old: oldSource.tokens.slice(changed.old.from, changed.old.to),
+      new: newSource.tokens.slice(changed.new.from, changed.new.to),
+    });
+    oldAt = old.to;
+    newAt = new_.to;
+  }
+  parts.push(diffTo(window.oldTo, window.newTo));
+  return parts;
 }
 
 /** One version's tokens in a window. */

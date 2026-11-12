@@ -282,6 +282,11 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
 - **Keep each end-to-end test independent of the others.** `playwright.config.ts` sets
   `fullyParallel`, so the tests in one file run across workers in no fixed order. The
   `context` fixture gives each test its own browser profile.
+- **Leave a wait its default timeout unless the work itself is slow.** On CI
+  `playwright.config.ts` gives every `expect` 15 s, because a runner under 4 workers
+  stalls for seconds at a time: a hover card, a smooth scroll, and a refit each missed 5 s
+  there on commits that passed when re-run (2026-11-12). A test that fails at 15 s is
+  waiting on the wrong thing.
 - **Reproduce CI's e2e timing on Linux with 4 CPUs.** macOS runs too fast to show a
   slowdown CI fails on. With the extension built on the host, run the suite in
   `mcr.microsoft.com/playwright:v<version>-noble` with the repository mounted, through

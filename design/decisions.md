@@ -6,6 +6,53 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-12: Structural mode reads a value given a name as the value replaced
+
+- **Asked:** the maintainer, on `src/t_hash.c` of
+  <https://github.com/redis/redis/pull/15519>, where
+  `return lpReplaceInteger(lp, &p, (long long)tmpl->id);` became a declaration of `v` with
+  that call, an assertion, and `return v;`. The mode marked `return` as removed and
+  `unsigned char *v =` as added on the declaration, and nothing inside `return v;`. "It
+  feels like the line should've highlighted the `v`"; could the algorithm be "smarter
+  about what the differences are for a chunk of a diff", for every language.
+- **Compared:** for what the old `return` line becomes,
+  - the line that kept its call, as the token diff reads it: fewest tokens changed;
+  - the `return v;` line, with the call marked removed on the old side, `v` marked on the
+    new, and the declaration a plain added line;
+  - the same, with the call left unmarked on the declaration, as kept;
+  - the same, with the call marked as moved;
+  - any old statement paired with the new statement of the same kind.
+- **Won:** the old line pairs with `return v;`. The call is marked on the old line, `v` on
+  the new, and the declaration is an added line with GitHub's tint and no mark. The rule
+  names no language and no keyword: two statements pair when they differ only by a run of
+  tokens on one side and a name in its place on the other, and an earlier statement of the
+  name's side holds that run beside the name. It reads an inlined name the same way,
+  backwards. Plain text pairs lines by their words.
+- **Why:**
+  - The statement that survives is the one a reader looks for, and what changed in it is
+    what it returns. The token diff kept the longest run in place, which made the keyword
+    the change.
+  - The declaration is new, so it reads as GitHub's added line. Leaving the call unmarked
+    on it would put a mark inside a line that has no counterpart on the other side.
+  - "Marking code that moved" was skipped on 2026-11-11, with the moved-line outline
+    removed for being unclear. This pick adds no look.
+  - Pairing by kind changed far more than this shape. It failed 33 of the mode's own
+    tests, such as a re-wrapped comment staying quiet, and on 304 real file pairs took the
+    diff stage from 103 ms to 278 ms.
+- **Measured** 2026-11-12, on 304 real file pairs across every grammar and plain text,
+  1,435 changed regions: 5 regions' marks changed, each an extracted value now read this
+  way, and 1,430 are identical. In Firefox 157 the diff stage of that `t_hash.c` went from
+  1.5 ms to 1.9 ms, and a region of 199 lines on each side, the most the rule takes, from
+  35 ms to 39 ms.
+- **Accepted:**
+  - A CSS value moved into a custom property still reads as the property renamed, since
+    `var(--v)` is not a bare name.
+  - A statement wrapped over several lines pairs only when all of its lines changed. Where
+    its later lines are unchanged context, the first line reads as before.
+  - Two values named in the opposite order to their uses pair with nothing, and read as
+    before.
+- **Skipped:** a mark for code that moved, and pairing statements by their kind.
+
 ## 2026-11-12: Structural mode's line tint steps up to 65%
 
 - **Asked for:** the maintainer found the tint on a quiet row and on a line changed in
