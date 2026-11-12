@@ -7,13 +7,14 @@ import type { StructuralChanges } from "./changes";
 import type { EngineResult } from "./engine";
 import { type Grammar, grammarOf } from "./grammar";
 import { DEFAULT_LIMITS } from "./limits";
+import { isPlainText, PLAIN_TEXT, type PlainText } from "./plain-text";
 import { changedRegions } from "./regions";
 import type { EngineRun, StructuralRequest } from "./request";
 
 /**
  * Why a file has no structural changes.
  * - `not-applicable`: no old text to compare: binary, added, deleted, or no hunks.
- * - `unsupported`: no grammar for the path, or the engine refuses it.
+ * - `unsupported`: not plain text and no grammar for the path, or the engine refuses it.
  * - `too-large`: the head or old text is past the engine's limits, a token walk or diff runs past
  *   them, a parse or diff passes its deadline, or the result can't cross the port.
  * - `failed`: the diff doesn't list the path, the patch doesn't apply to the head, a text doesn't
@@ -57,7 +58,7 @@ const refuse = (problem: StructuralProblem): FileChangesResult => ({ ok: false, 
 
 /**
  * Builds one diff file's structural changes from the source's cached diff and head text, running
- * `run` only for a listed, modified file with a grammar. Settled answers that belong to the file
+ * `run` only for a listed, modified file that is plain text or has a grammar. Settled answers that belong to the file
  * are cached; fetch problems, `failed`, and the engine's `too-slow` are not. A path the diff does
  * not list answers `failed` without a head read.
  */
@@ -79,7 +80,7 @@ export function fileChanges({ source, run, cachedSpans }: FileChangesDeps): File
 
     if (!hasHunks(file)) return refuse("not-applicable");
 
-    const grammar = grammarOf(path);
+    const grammar = isPlainText(path) ? PLAIN_TEXT : grammarOf(path);
     if (!grammar) return refuse("unsupported");
 
     const key = cacheKey(pr, path);
@@ -127,7 +128,7 @@ const BOM = String.fromCharCode(0xfeff);
 function requestFor(
   file: PrFileDiff & { kind: "text" },
   head: string,
-  grammar: Grammar,
+  grammar: Grammar | PlainText,
 ): StructuralRequest | undefined {
   const regions = changedRegions(parsePrHunks(file.patch));
   if (!regions) return undefined;

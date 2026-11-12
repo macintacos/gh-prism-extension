@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_LIMITS } from "../../../utils/structural/engine";
 import { grammarOf } from "../../../utils/structural/grammar";
 import { GRAMMAR_WASM, RUNTIME_WASM, WASM_SOURCES } from "../../../utils/structural/packaged";
+import { PLAIN_TEXT } from "../../../utils/structural/plain-text";
 import type { StructuralRequest } from "../../../utils/structural/request";
 import { engineRunner } from "../../../utils/structural/runner";
 
@@ -56,6 +57,25 @@ describe("engineRunner", () => {
     expect(python.ok).toBe(true);
     expect(urlOf).toHaveBeenCalledTimes(3);
     expect(urlOf).toHaveBeenLastCalledWith(GRAMMAR_WASM.python);
+  });
+
+  it("diffs plain text by word and loads nothing", async () => {
+    const urlOf = packagedUrl();
+    const run = runnerWith(urlOf);
+
+    const result = await run(
+      { ...TYPESCRIPT, oldText: "one two\n", newText: "one three\n", grammar: PLAIN_TEXT },
+      live(),
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      changes: {
+        old: [{ line: 1, startCol: 4, endCol: 7 }],
+        new: [{ line: 1, startCol: 4, endCol: 9 }],
+      },
+    });
+    expect(urlOf).not.toHaveBeenCalled();
   });
 
   it("refuses a request without a grammar and loads nothing", async () => {

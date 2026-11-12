@@ -75,6 +75,13 @@ its Worker with it, so the engine and its grammars go, and the next request rebu
 The background builds the host on the first `structural` request, which a content script
 sends only while Structural mode is on.
 
+[`utils/structural/tokens.ts`](../utils/structural/tokens.ts) turns each parse into the
+tokens the engine compares: one per leaf, and one per word of a comment, a string's text,
+or JSX text, split by [`utils/structural/words.ts`](../utils/structural/words.ts). A
+re-wrapped comment therefore changes no token. A `.txt` file has no grammar and no parse:
+[`utils/structural/plain-text.ts`](../utils/structural/plain-text.ts) names it, and the
+engine compares its words alone.
+
 The content script in [`entrypoints/content/index.ts`](../entrypoints/content/index.ts)
 runs on every github.com page at `document_start`, so its watcher is in place before
 GitHub first renders the page. It cannot match only Files view URLs, because of GitHub's

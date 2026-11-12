@@ -11,6 +11,7 @@ import {
 } from "../../../utils/structural/file-changes";
 import { grammarOf } from "../../../utils/structural/grammar";
 import { DEFAULT_LIMITS } from "../../../utils/structural/limits";
+import { PLAIN_TEXT } from "../../../utils/structural/plain-text";
 import type { EngineRun } from "../../../utils/structural/request";
 import { heldResponses, routedFetch } from "../../fixtures/fetch";
 import { parserFor, readPair } from "../../fixtures/structural";
@@ -186,6 +187,18 @@ describe("fileChanges", () => {
       regions: [{ oldStart: 2, oldEnd: 3, newStart: 2, newEnd: 3 }],
       limits: DEFAULT_LIMITS,
     });
+  });
+
+  it("runs the engine on a .txt file as plain text", async () => {
+    const { run, changes } = setup({
+      diff: modified("docs/notes.txt", "one\ntwo\n", "one\nthree\n"),
+      routes: { [rawUrlOf(pr, "docs/notes.txt")]: async () => new Response("one\nthree\n") },
+    });
+
+    const result = await changes(pr, "docs/notes.txt", signal());
+
+    expect(result).toEqual({ ok: true, changes: CHANGES });
+    expect(run.mock.calls[0]?.[0]).toMatchObject({ newText: "one\nthree\n", grammar: PLAIN_TEXT });
   });
 
   describe("refusals", () => {
@@ -496,7 +509,10 @@ describe("fileChanges", () => {
       run: (request, runSignal) =>
         structuralChanges({
           ...request,
-          language: request.grammar && { grammar: request.grammar, parser },
+          language:
+            typeof request.grammar === "object"
+              ? { grammar: request.grammar, parser }
+              : request.grammar,
           signal: runSignal,
           now: () => 0,
           pause: () => Promise.resolve(),
