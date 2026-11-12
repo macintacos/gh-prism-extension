@@ -1066,6 +1066,9 @@ and whenever it changes.
 - **A row whose line changed in part** carries `data-gh-prism-part` with that side, in the
   same form. The sheet steps its tint down as it does a quiet row's. A line changed in
   full carries no attribute and no mark, and keeps GitHub's tint at full strength.
+- **A word GitHub's own diff picked keeps its syntax colour.** GitHub gives its `.x` spans
+  a background and the line's plain colour. In a painted table the sheet clears the
+  background and sets each span's colour back to its syntax class's.
 - **One pass per animation frame.** The `sections` hook and every `observeDiffs` report
   schedule a frame, and a pending frame is reused. The pass first reads every table, then
   writes, so its reads (`querySelectorAll`, `dataset`, `textContent`) never force a layout

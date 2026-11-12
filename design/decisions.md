@@ -6,6 +6,34 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-11: Structural mode keeps the syntax colour of words GitHub's diff picked
+
+- **Found:** GitHub wraps each word its own diff picked in a `.x` span and gives that span
+  a brighter background and the line's plain text colour. Structural mode cleared the
+  background and left the colour, so those words lost their syntax colour: white in the
+  dark theme, among coloured text.
+- **Compared:** leaving GitHub's colour; `color: inherit` on every `.x` span; or giving
+  each `.x` span the colour GitHub's syntax rule for its class gives it.
+- **Won:** in a painted table, a word GitHub's diff picked shows the same colour as it
+  would on a line GitHub didn't pick it on. A table Structural mode doesn't paint keeps
+  GitHub's look.
+- **Why:**
+  - **Leaving it:** GitHub's diff and Structural mode's often disagree. A word in another
+    colour with no mark, or a mark beside such a word, reads as a second word-level signal
+    that conflicts with the marks.
+  - **`inherit` alone:** the `.x` class sits on the syntax span itself, so inheriting
+    takes the line's plain colour, which is what GitHub already sets.
+  - **The syntax colour:** the mark is then the only word-level signal in a painted table.
+    The cost is a copy of GitHub's syntax colour rules in `structural.css`.
+- **Measured** 2026-11-11, signed in, Chromium 156, on gh-prism pull request #119, light
+  then dark: the lowest contrast of a `.x` word against its mark is 3.92:1 light and
+  4.32:1 dark, both on a removed line and both the keyword colour. Other marked text on
+  the same pages already shows 3.92:1 light and 3.74:1 dark. With Structural off, a `.x`
+  word computes GitHub's own colour and background.
+- **Accepted:** a `.x` word on a mark can now sit below 4.5:1, as the rest of a marked
+  line's syntax-coloured text does. The 2026-11-11 "Structural mode's marks are rounded,
+  joined, and not underlined" entry below accepts that level.
+
 ## 2026-11-11: Structural mode steps down the tint of a line changed in part
 
 This replaces the "Whole lines" reasoning of the 2026-11-11 "Structural mode's marks are

@@ -384,6 +384,32 @@ test("steps down the tint of a line changed in part, and leaves a line changed i
   });
 });
 
+// GitHub's own rules for a word its diff picked and for a keyword, with literal colours.
+const WORD_MARKS = `<style>
+  .diff-text-cell .syntax-highlighted-line.deletion .x { color: rgb(1, 2, 3); background-color: rgb(200, 0, 0); }
+  :root { --color-prettylights-syntax-keyword: rgb(207, 34, 46); }
+  .pl-k { color: var(--color-prettylights-syntax-keyword); }
+</style>`;
+
+test("a word GitHub's diff picked shows its syntax colour in a painted table, and GitHub's colour in any other", async ({
+  page,
+  bundle,
+}) => {
+  await mount(page, bundle, [COMMIT_SPLIT], WORD_MARKS);
+  const keyword = page.locator("code.deletion .pl-k.x").first();
+  const colour = () => keyword.evaluate((span) => getComputedStyle(span).color);
+  const unpainted = await colour();
+
+  await page.evaluate(() => window.structural.start());
+  await repaint(page);
+  const painted = await colour();
+  await page.evaluate(() => window.structural.stop());
+
+  expect(unpainted).toBe("rgb(1, 2, 3)");
+  expect(painted).toBe("rgb(207, 34, 46)");
+  expect(await colour()).toBe("rgb(1, 2, 3)");
+});
+
 // GitHub's wrapping, which a routed fixture doesn't load, in a table narrow enough to wrap the
 // commit's one changed line.
 const WRAPPING = `${TOKENS}<style>

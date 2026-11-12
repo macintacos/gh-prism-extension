@@ -1,10 +1,11 @@
 /* GitHub hooks: a split row's td by position (old number, old code, new number, new code),
    td.empty-diff-line, td[data-selected="true"], code.addition and code.deletion over
    .diff-text-inner, .syntax-highlighted-line.addition .x and .deletion .x (GitHub's word marks),
-   the --diffBlob-* variables, and --bgColor-default. structural.ts writes
-   data-gh-prism-structural on a painted table, data-gh-prism-quiet on a quiet row,
-   data-gh-prism-part on a row whose line changed in part, and data-gh-prism-marks with the
-   --gh-prism-marks mask on a marked line's .diff-text-inner. */
+   the .pl-* syntax classes and their --color-prettylights-syntax-* variables, the --diffBlob-*
+   variables, and --bgColor-default. structural.ts writes data-gh-prism-structural on a painted
+   table, data-gh-prism-quiet on a quiet row, data-gh-prism-part on a row whose line changed in
+   part, and data-gh-prism-marks with the --gh-prism-marks mask on a marked line's
+   .diff-text-inner. */
 
 :root {
   --gh-prism-quiet-tint: 40%;
@@ -57,9 +58,118 @@
   );
 }
 
-table[data-gh-prism-structural] .syntax-highlighted-line.addition .x,
-table[data-gh-prism-structural] .syntax-highlighted-line.deletion .x {
-  background-color: transparent;
+/* GitHub's word mark sets a colour on the syntax span itself, so each rule below gives a span its
+   syntax colour back. Keep the selectors, their order, and their variables in sync with GitHub's
+   .pl-* rules: each is GitHub's selector with .x on its last class. */
+table[data-gh-prism-structural] .syntax-highlighted-line:is(.addition, .deletion) {
+  .x {
+    background-color: transparent;
+    color: inherit;
+  }
+
+  .x.pl-c {
+    color: var(--color-prettylights-syntax-comment);
+  }
+
+  :is(.x.pl-c1, .pl-s .x.pl-v) {
+    color: var(--color-prettylights-syntax-constant);
+  }
+
+  :is(.x.pl-e, .x.pl-en) {
+    color: var(--color-prettylights-syntax-entity);
+  }
+
+  :is(.x.pl-smi, .pl-s .x.pl-s1) {
+    color: var(--color-prettylights-syntax-storage-modifier-import);
+  }
+
+  .x.pl-ent {
+    color: var(--color-prettylights-syntax-entity-tag);
+  }
+
+  .x.pl-k {
+    color: var(--color-prettylights-syntax-keyword);
+  }
+
+  :is(
+      .x.pl-s,
+      .x.pl-pds,
+      .pl-s .pl-pse .x.pl-s1,
+      .x.pl-sr,
+      .pl-sr .x.pl-cce,
+      .pl-sr .x.pl-sre,
+      .pl-sr .x.pl-sra
+    ) {
+    color: var(--color-prettylights-syntax-string);
+  }
+
+  :is(.x.pl-v, .x.pl-smw) {
+    color: var(--color-prettylights-syntax-variable);
+  }
+
+  .x.pl-bu {
+    color: var(--color-prettylights-syntax-brackethighlighter-unmatched);
+  }
+
+  .x.pl-ii {
+    color: var(--color-prettylights-syntax-invalid-illegal-text);
+  }
+
+  .x.pl-c2 {
+    color: var(--color-prettylights-syntax-carriage-return-text);
+  }
+
+  .pl-sr .x.pl-cce {
+    color: var(--color-prettylights-syntax-string-regexp);
+  }
+
+  .x.pl-ml {
+    color: var(--color-prettylights-syntax-markup-list);
+  }
+
+  :is(.x.pl-mh, .pl-mh .x.pl-en, .x.pl-ms) {
+    color: var(--color-prettylights-syntax-markup-heading);
+  }
+
+  .x.pl-mi {
+    color: var(--color-prettylights-syntax-markup-italic);
+  }
+
+  .x.pl-mb {
+    color: var(--color-prettylights-syntax-markup-bold);
+  }
+
+  .x.pl-md {
+    color: var(--color-prettylights-syntax-markup-deleted-text);
+  }
+
+  .x.pl-mi1 {
+    color: var(--color-prettylights-syntax-markup-inserted-text);
+  }
+
+  .x.pl-mc {
+    color: var(--color-prettylights-syntax-markup-changed-text);
+  }
+
+  .x.pl-mi2 {
+    color: var(--color-prettylights-syntax-markup-ignored-text);
+  }
+
+  .x.pl-mdr {
+    color: var(--color-prettylights-syntax-meta-diff-range);
+  }
+
+  .x.pl-ba {
+    color: var(--color-prettylights-syntax-brackethighlighter-angle);
+  }
+
+  .x.pl-sg {
+    color: var(--color-prettylights-syntax-sublimelinter-gutter-mark);
+  }
+
+  .x.pl-corl {
+    color: var(--color-prettylights-syntax-constant-other-reference-link);
+  }
 }
 
 /* !important: GitHub sets these backgrounds inline on each td. */
