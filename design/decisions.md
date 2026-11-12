@@ -6,6 +6,42 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-11: Structural mode reads all of a Markdown file by word
+
+- **Asked for:** the maintainer saw a long line of a fenced block in
+  `docs/ARCHITECTURE.md` marked over words that had not changed, and said Markdown read as
+  less accurate than code.
+- **Compared:**
+  - for a fenced or indented code block, a table cell, an HTML block, a link reference
+    definition, and front matter, the grammar's own pieces, or words as in prose;
+  - for the spacing of code and front matter, kept as written, or ignored inside a line
+    with the line's depth kept;
+  - for a table's delimiter row, its dashes compared, or skipped.
+- **Won:**
+  - Every kind of Markdown text is compared word by word, with spacing ignored.
+  - A line of a code block or of front matter carries its depth on its first word, as a
+    line of Python does.
+  - A delimiter row's dashes are not compared. Its alignment colons are.
+- **Why:**
+  - **Words:** the grammar splits this text only at punctuation, so a piece was a clause
+    or a whole cell, and the piece that ended a line kept its line break. Text added after
+    an unchanged clause therefore marked the clause, and one changed word marked its whole
+    piece.
+  - **Spacing:** a fenced block's language is unknown, and most languages ignore spacing
+    inside a line, as the engine does for code it parses. Indentation is the spacing that
+    can carry meaning, so a line moved deeper or shallower is still a change.
+  - **Delimiter row:** widening a column re-pads every row and lengthens the dashes. With
+    the dashes skipped and the padding ignored, a new row is all that is marked.
+- **Measured** 2026-11-11, signed in, Chromium 156, dark, on gh-prism pull request #120's
+  `docs/ARCHITECTURE.md`, old line 1030 against new line 1036: the old side marks `-` and
+  "loader", and the new side marks "the host runs requests on" and the three clauses added
+  at the end. Before, both sides also marked " the engine" and " and the list of packaged
+  files", which did not change.
+- **Accepted:**
+  - Code respaced inside a line, such as `f(a,b)` to `f(a, b)`, shows a quiet row, even in
+    a language where that spacing matters.
+  - A reworded word in a link's target marks only that part of the URL.
+
 ## 2026-11-11: Structural mode marks the changed words of running text
 
 - **Asked for:** the maintainer reworded one clause of a doc comment and saw every line of
