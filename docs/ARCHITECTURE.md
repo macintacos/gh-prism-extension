@@ -263,8 +263,12 @@ re-creating an `<iframe>` reloads it. Its first open in a visit loads the frame 
 If the `HEAD` fails or carries no policy, the rule is refused, or the loaded frame's
 `contentDocument` is `null`, the panel shows one sentence linking to the Conversation tab
 instead. A refused load after a good one re-points the frame at the marked URL once; a
-second refused load in a row shows that sentence. Closing hides the panel and keeps the
-frame, so reopening is instant.
+second refused load in a row shows that sentence.
+
+No step holds the skeleton up for good. `unstalled` in `panel.ts` gives each one 30 s: a
+`HEAD`, a rule, or a frame's first `load` that takes longer shows the sentence and logs
+which step it was, and a top page whose own `load` takes longer is framed all the same.
+Closing hides the panel and keeps the frame, so reopening is instant.
 
 The content script creates the frame and sets its `src`, never a script in the page's main
 world, whose `frame-src` would refuse it. It hears only messages from its own frame on
