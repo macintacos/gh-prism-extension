@@ -32,7 +32,10 @@ describe("annotateLines", () => {
       name: "a reindented block gives quiet rows",
       patch: lines("@@ -10,3 +10,3 @@", " if (a) {", "-b();", "+  b();", " }"),
       changes: { old: [], new: [] },
-      expected: { old: { 11: QUIET }, new: { 11: QUIET } },
+      expected: {
+        old: { 10: QUIET, 11: QUIET, 12: QUIET },
+        new: { 10: QUIET, 11: QUIET, 12: QUIET },
+      },
     },
     {
       name: "a renamed identifier gives only that token's range",
@@ -41,10 +44,13 @@ describe("annotateLines", () => {
         old: [{ line: 2, startCol: 9, endCol: 14 }],
         new: [{ line: 2, startCol: 9, endCol: 14 }],
       },
-      expected: { old: { 2: RENAMED }, new: { 2: RENAMED } },
+      expected: {
+        old: { 1: QUIET, 2: RENAMED, 3: QUIET },
+        new: { 1: QUIET, 2: RENAMED, 3: QUIET },
+      },
     },
     {
-      name: "a token on a context line is dropped",
+      name: "a token on a context line is kept on its own side",
       patch: RENAME,
       changes: {
         old: [
@@ -56,7 +62,10 @@ describe("annotateLines", () => {
           { line: 1, startCol: 9, endCol: 10 },
         ],
       },
-      expected: { old: { 2: RENAMED }, new: { 2: RENAMED } },
+      expected: {
+        old: { 1: QUIET, 2: RENAMED, 3: { quiet: false, ranges: [{ startCol: 0, endCol: 1 }] } },
+        new: { 1: { quiet: false, ranges: [{ startCol: 9, endCol: 10 }] }, 2: RENAMED, 3: QUIET },
+      },
     },
     {
       name: "a token spanning lines splits per line",
@@ -69,8 +78,9 @@ describe("annotateLines", () => {
         ],
       },
       expected: {
-        old: { 5: { quiet: false, ranges: [{ startCol: 10, endCol: 13 }] } },
+        old: { 4: QUIET, 5: { quiet: false, ranges: [{ startCol: 10, endCol: 13 }] } },
         new: {
+          4: QUIET,
           5: { quiet: false, ranges: [{ startCol: 10, endCol: 12 }] },
           6: { quiet: false, ranges: [{ startCol: 0, endCol: 2 }] },
         },
@@ -87,8 +97,9 @@ describe("annotateLines", () => {
         ],
       },
       expected: {
-        old: { 2: QUIET },
+        old: { 1: QUIET, 2: QUIET, 3: QUIET },
         new: {
+          1: QUIET,
           2: {
             quiet: false,
             ranges: [
@@ -96,6 +107,7 @@ describe("annotateLines", () => {
               { startCol: 9, endCol: 14 },
             ],
           },
+          3: QUIET,
         },
       },
     },
@@ -115,8 +127,8 @@ describe("annotateLines", () => {
       ),
       changes: { old: [], new: [] },
       expected: {
-        old: { 2: QUIET, 21: QUIET },
-        new: { 2: QUIET, 31: QUIET, 32: QUIET },
+        old: { 1: QUIET, 2: QUIET, 20: QUIET, 21: QUIET },
+        new: { 1: QUIET, 2: QUIET, 30: QUIET, 31: QUIET, 32: QUIET },
       },
     },
     {
@@ -149,10 +161,21 @@ describe("annotateLines", () => {
 });
 
 describe("structuralFile", () => {
-  it("gives the text of each changed line and none for context lines", () => {
+  it("gives the text of every hunk line, a context line's on both sides", () => {
     const file = structuralFile({ old: [], new: [] }, parsePrHunks(RENAME));
 
-    expect(file?.text).toEqual({ old: { 2: "  return count;" }, new: { 2: "  return total;" } });
+    expect(file?.text).toEqual({
+      old: { 1: "function f() {", 2: "  return count;", 3: "}" },
+      new: { 1: "function f() {", 2: "  return total;", 3: "}" },
+    });
+  });
+
+  it("numbers a context line by each side's own count", () => {
+    const hunks = parsePrHunks(lines("@@ -5,2 +5,3 @@", "+x", " a", " b"));
+
+    const file = structuralFile({ old: [], new: [] }, hunks);
+
+    expect(file?.text).toEqual({ old: { 5: "a", 6: "b" }, new: { 5: "x", 6: "a", 7: "b" } });
   });
 
   it("numbers each hunk's text from its own header", () => {
@@ -162,7 +185,10 @@ describe("structuralFile", () => {
 
     const file = structuralFile({ old: [], new: [] }, hunks);
 
-    expect(file?.text).toEqual({ old: { 2: "b", 21: "u" }, new: { 2: "B", 31: "U", 32: "v" } });
+    expect(file?.text).toEqual({
+      old: { 1: "a", 2: "b", 20: "t", 21: "u" },
+      new: { 1: "a", 2: "B", 30: "t", 31: "U", 32: "v" },
+    });
   });
 
   it("keeps the whole text of a final line with no newline", () => {

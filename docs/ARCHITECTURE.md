@@ -1056,7 +1056,10 @@ and whenever it changes.
 - **A mismatch skips the whole file.** Every mounted changed cell needs an annotation and
   text equal to the expected line. If one fails, the table gets no mark, no quiet row, and
   no table attribute, and the file reports `mismatch`. Annotations for lines the page does
-  not mount, as with Hide whitespace (`?w=1`), are fine.
+  not mount are fine. A `StructuralFile` holds every line of the `.diff`'s hunks, context
+  lines on both sides, because a page that hides whitespace changes draws `git diff -w`:
+  its alignment marks some of the `.diff`'s context lines as changed. A changed cell
+  outside the `.diff`'s hunks is still a mismatch.
 - **Split only, per table.** The painter reads each table's own layout from `diffTables`
   and paints it only when split, so it skips a unified page and a one-sided file's
   three-column table.

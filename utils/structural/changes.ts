@@ -26,8 +26,8 @@ export interface ColumnRange {
 }
 
 /**
- * What to paint on one `+` or `-` line: its changed tokens' ranges in column order, or quiet when
- * it has none.
+ * What to paint on one line the page draws as changed: its changed tokens' ranges in column order,
+ * or quiet when it has none.
  */
 export type LineAnnotation =
   | { readonly quiet: true }
@@ -39,13 +39,13 @@ export type LineAnnotation =
  */
 export type AnnotationsByLine = Readonly<Record<number, LineAnnotation>>;
 
-/** A file's annotations for its `-` lines (`old`) and its `+` lines (`new`). */
+/** A file's annotations for its old lines and its new lines. */
 export interface LineAnnotations {
   readonly old: AnnotationsByLine;
   readonly new: AnnotationsByLine;
 }
 
-/** A changed line's text by 1-based line number, as the engine read it, without its line terminator. */
+/** A line's text by 1-based line number, as the engine read it, without its line terminator. */
 export type TextByLine = Readonly<Record<number, string>>;
 
 /** What structural mode knows about one changed file: its annotations and the text they were computed from. */
@@ -63,11 +63,11 @@ export function annotateLines(
 }
 
 /**
- * Annotations for the `+` and `-` lines of `hunks`, with each annotated line's text from `hunks`,
- * without its line terminator. A span on any other line is dropped: context text is the same on
- * both sides, so a token reported there is the engine's mismatch, not a change. Columns are passed
- * through unchecked: `changes` must come from the texts these hunks describe. `undefined` when a
- * hunk's body cannot be read.
+ * Annotations for every line of `hunks`, with each line's text from `hunks`, without its line
+ * terminator. A context line is annotated on both sides: a page that hides whitespace changes
+ * aligns the two texts another way and draws some of these context lines as changed. A span
+ * outside the hunks is dropped. Columns are passed through unchecked: `changes` must come from the
+ * texts these hunks describe. `undefined` when a hunk's body cannot be read.
  */
 export function structuralFile(
   changes: StructuralChanges,
@@ -87,16 +87,16 @@ export function structuralFile(
     let newLine = hunk.newStart;
     for (const { kind, text } of ops) {
       const lineText = text.endsWith("\n") ? text.slice(0, -1) : text;
-      if (kind === "-") {
+      if (kind !== "+") {
         oldAnnotations[oldLine] = annotationOf(oldRanges.get(oldLine));
         oldText[oldLine] = lineText;
+        oldLine++;
       }
-      if (kind === "+") {
+      if (kind !== "-") {
         newAnnotations[newLine] = annotationOf(newRanges.get(newLine));
         newText[newLine] = lineText;
+        newLine++;
       }
-      if (kind !== "+") oldLine++;
-      if (kind !== "-") newLine++;
     }
   }
 
