@@ -41,7 +41,7 @@ export interface EngineLimits {
   readonly maxParseMs: number;
   /** Per side. */
   readonly maxTokens: number;
-  /** Edits one region's diff may reach. */
+  /** Edits one region's diff may reach; a region past it is changed whole. */
   readonly maxEditLength: number;
   /** Milliseconds across all regions, checked between them. */
   readonly maxDiffMs: number;
@@ -70,8 +70,9 @@ export interface EngineInput {
 /**
  * The tokens each version of a file changed, or why they can't be had: `unsupported` without a
  * language, `too-large` past a size limit, `too-slow` when a parse or the diff passes its deadline,
- * `failed` when either text does not parse. Rejects with `signal.reason` if `signal` has aborted
- * at the start or after either parse.
+ * `failed` when either text of an indentation-sensitive language parses with errors. Any other
+ * language's text is compared with its errors. Rejects with `signal.reason` if `signal` has
+ * aborted at the start or after either parse.
  */
 export async function structuralChanges(input: EngineInput): Promise<EngineResult> {
   const { oldText, newText, language, regions, limits, signal, now, pause } = input;
@@ -122,7 +123,9 @@ function tokensOf(
   if (tree === null) return "too-slow";
 
   try {
-    if (tree.rootNode.hasError) return "failed";
+    // A tree with errors still gives every non-blank character a token, so its diff marks only
+    // text that differs. A line's depth is read from the tree's brackets, which an error unbalances.
+    if (tree.rootNode.hasError && grammar.indentationSensitive) return "failed";
     const tokens = leafTokens(tree, text, limits.maxTokens);
     if (tokens === undefined) return "too-large";
     return grammar.indentationSensitive ? keyedByIndentation(tokens, text) : tokens;
@@ -166,25 +169,25 @@ interface ChangedTokens {
   readonly new: readonly Token[];
 }
 
-/** The tokens one Myers diff per region finds changed, or why the diff stage gave up. */
+/** The tokens one Myers diff per region finds changed, or `too-slow` past the diff's deadline. */
 function changedTokens(
   regions: readonly ChangedRegion[],
   oldSource: Source,
   newSource: Source,
   limits: EngineLimits,
   now: () => number,
-): ChangedTokens | "too-large" | "too-slow" {
+): ChangedTokens | "too-slow" {
   const deadline = now() + limits.maxDiffMs;
   const parts: ChangedTokens[] = [];
   for (const window of diffWindows(regions, oldSource, newSource)) {
     if (now() > deadline) return "too-slow";
-    const part = windowChanges(
-      sideOf(oldSource, window.oldFrom, window.oldTo),
-      sideOf(newSource, window.newFrom, window.newTo),
-      limits.maxEditLength,
+    parts.push(
+      windowChanges(
+        sideOf(oldSource, window.oldFrom, window.oldTo),
+        sideOf(newSource, window.newFrom, window.newTo),
+        limits.maxEditLength,
+      ),
     );
-    if (part === undefined) return "too-large";
-    parts.push(part);
   }
 
   return { old: parts.flatMap((part) => part.old), new: parts.flatMap((part) => part.new) };
@@ -285,16 +288,16 @@ function diffWindows(
 }
 
 /**
- * The tokens one window changed, `undefined` past `maxEditLength`: those the diff leaves
- * unmatched, and those it matches only by chance. A side with no tokens leaves the other changed
- * whole. The diff runs in a canonical order of the two key lists, because Myers breaks ties by
- * direction and swapping old and new must only swap the sides.
+ * The tokens one window changed: those the diff leaves unmatched, and those it matches only by
+ * chance. Past `maxEditLength` that is every token of both sides, as a side with no tokens leaves
+ * the other changed whole. The diff runs in a canonical order of the two key lists, because Myers
+ * breaks ties by direction and swapping old and new must only swap the sides.
  */
 function windowChanges(
   oldSide: WindowSide,
   newSide: WindowSide,
   maxEditLength: number,
-): ChangedTokens | undefined {
+): ChangedTokens {
   if (oldSide.tokens.length === 0 || newSide.tokens.length === 0)
     return { old: oldSide.tokens, new: newSide.tokens };
 
@@ -312,7 +315,7 @@ function windowChanges(
       ] as const);
 
   const parts = diffArrays(firstKeys, secondKeys, { maxEditLength });
-  if (parts === undefined) return undefined;
+  if (parts === undefined) return { old: oldSide.tokens, new: newSide.tokens };
 
   const matches = withoutChanceMatches(matchesOf(parts), first, second);
   const matched = new Set(matches);

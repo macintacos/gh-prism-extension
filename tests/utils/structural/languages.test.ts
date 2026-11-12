@@ -139,6 +139,30 @@ const STRINGS: { path: string; style: string; of: (text: string) => string }[] =
   { path: "A.swift", style: '#""#', of: (text) => `let s = #"${text}"#\n` },
 ];
 
+/**
+ * Valid code each grammar reports an error on, as a file holding `word` inside that code and
+ * `value` after it.
+ */
+const UNPARSED: { path: string; what: string; of: (word: string, value: string) => string }[] = [
+  {
+    path: "a.go",
+    what: "Go's new(expression)",
+    of: (word, value) => `package p\n\nvar name = new("${word}")\n\nvar size = ${value}\n`,
+  },
+  {
+    path: "a.css",
+    what: "Tailwind's @import prefix() and @source",
+    of: (word, value) =>
+      `@import "tailwindcss" prefix(${word});\n@source "../components";\n\n.a {\n  order: ${value};\n}\n`,
+  },
+  {
+    path: "a.ts",
+    what: "a call with a typeof import() type argument and its arguments on their own lines",
+    of: (word, value) =>
+      `const actual = await load<typeof import("./module")>(\n  "./${word}",\n);\nconst size = ${value};\n`,
+  },
+];
+
 describe("structuralChanges in each language", () => {
   it.each([
     {
@@ -518,4 +542,24 @@ describe("structuralChanges in each language", () => {
       new: ["- "],
     });
   });
+
+  it.each(UNPARSED)(
+    "marks a change after $what, which the grammar reports as an error",
+    async ({ path, of }) => {
+      expect(await changedTexts(path, of("old", "1"), of("old", "2"))).toEqual({
+        old: ["1"],
+        new: ["2"],
+      });
+    },
+  );
+
+  it.each(UNPARSED)(
+    "marks a word changed inside $what, which the grammar reports as an error",
+    async ({ path, of }) => {
+      expect(await changedTexts(path, of("old", "1"), of("new", "1"))).toEqual({
+        old: ["old"],
+        new: ["new"],
+      });
+    },
+  );
 });

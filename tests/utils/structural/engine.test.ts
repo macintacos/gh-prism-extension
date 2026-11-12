@@ -235,14 +235,13 @@ describe("structuralChanges", () => {
       });
     });
 
-    it("refuses two unrelated long texts", async () => {
+    it("marks every word of two unrelated long texts", async () => {
       const words = (prefix: string) =>
         Array.from({ length: 5_000 }, (_, i) => `${prefix}${i}`).join(" ");
 
-      expect(await run(PLAIN_TEXT, `${words("a")}\n`, `${words("b")}\n`)).toEqual({
-        ok: false,
-        reason: "too-large",
-      });
+      const result = await changedTexts(PLAIN_TEXT, `${words("a")}\n`, `${words("b")}\n`);
+
+      expect([result.old.length, result.new.length]).toEqual([5_000, 5_000]);
     });
   });
 
@@ -424,11 +423,20 @@ describe("structuralChanges", () => {
     expect(await changedTexts("typescript", oldText, newText, { regions })).toEqual(expected);
   });
 
-  it.each(GRAMMARS)("fails a %s text that does not parse", async (id) => {
-    const { oldText, newText } = readPair(id, "parse-error");
+  it("fails a text that does not parse when its language is indentation-sensitive", async () => {
+    const { oldText, newText } = readPair("python", "parse-error");
 
-    expect(await run(id, oldText, newText)).toEqual({ ok: false, reason: "failed" });
+    expect(await run("python", oldText, newText)).toEqual({ ok: false, reason: "failed" });
   });
+
+  it.each(["typescript", "tsx", "javascript"] as const)(
+    "compares the tokens of a %s text that does not parse",
+    async (id) => {
+      const { oldText, newText } = readPair(id, "parse-error");
+
+      expect(await changedTexts(id, oldText, newText)).toEqual({ old: ["}"], new: [] });
+    },
+  );
 
   it.each(PAIRS)("finds no change in a %s %s against itself", async (id, name) => {
     const { oldText } = readPair(id, name);
@@ -477,12 +485,26 @@ describe("structuralChanges", () => {
     expect(result).toEqual({ ok: false, reason: "too-large" });
   });
 
-  it.each([{ maxTokens: 3 }, { maxEditLength: 1 }])("refuses past %o", async (limits) => {
+  it("refuses past maxTokens", async () => {
     const { oldText, newText } = readPair("typescript", "rename");
 
-    expect(await run("typescript", oldText, newText, { limits })).toEqual({
+    expect(await run("typescript", oldText, newText, { limits: { maxTokens: 3 } })).toEqual({
       ok: false,
       reason: "too-large",
+    });
+  });
+
+  it("marks a region rewritten past maxEditLength whole, and compares the others", async () => {
+    const oldText = "a(1);\nkeep();\nf(x);\n";
+    const newText = "a(2);\nkeep();\ng(y, z);\n";
+
+    const result = await changedTexts("typescript", oldText, newText, {
+      limits: { maxEditLength: 3 },
+    });
+
+    expect(result).toEqual({
+      old: ["1", "f", "(", "x", ")", ";"],
+      new: ["2", "g", "(", "y", ",", "z", ")", ";"],
     });
   });
 
