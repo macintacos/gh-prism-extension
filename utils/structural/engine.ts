@@ -1,5 +1,6 @@
 import { type ChangeObject, diffArrays } from "diff";
 import type { Parser } from "web-tree-sitter";
+import { type DiffSide, withoutChanceMatches } from "./chance";
 import type { StructuralChanges, TokenSpan } from "./changes";
 import type { Grammar } from "./grammar";
 import { PLAIN_TEXT, type PlainText, plainTextTokens } from "./plain-text";
@@ -130,20 +131,32 @@ function tokensOf(
   }
 }
 
-/** A text with the offset of each of its lines, the tokens the diff compares, and its layout tokens. */
-interface Source {
+/**
+ * A text with the offset of each of its lines, the tokens the diff compares, the 0-based line each
+ * of those starts on and whether it is a word, and its layout tokens.
+ */
+interface Source extends DiffSide {
   readonly text: string;
   readonly starts: readonly number[];
   readonly tokens: readonly Token[];
   readonly layout: readonly Token[];
 }
 
-const sourceOf = (text: string, tokens: readonly Token[]): Source => ({
-  text,
-  starts: lineStarts(text),
-  tokens: tokens.filter((token) => !token.layout),
-  layout: tokens.filter((token) => token.layout),
-});
+const WORD = /[\p{L}\p{N}_]/u;
+
+function sourceOf(text: string, all: readonly Token[]): Source {
+  const starts = lineStarts(text);
+  const tokens = all.filter((token) => !token.layout);
+  let line = 0;
+  const lines = tokens.map((token) => {
+    while ((starts[line + 1] ?? Infinity) <= token.start) line++;
+    return line;
+  });
+
+  const words = tokens.map((token) => WORD.test(token.key));
+
+  return { text, starts, tokens, lines, words, layout: all.filter((token) => token.layout) };
+}
 
 /** The offset where 1-based `line` starts, or the text's end past its last line. */
 const offsetOf = ({ text, starts }: Source, line: number) => starts[line - 1] ?? text.length;
@@ -166,8 +179,8 @@ function changedTokens(
   for (const window of diffWindows(regions, oldSource, newSource)) {
     if (now() > deadline) return "too-slow";
     const part = windowChanges(
-      oldSource.tokens.slice(window.oldFrom, window.oldTo),
-      newSource.tokens.slice(window.newFrom, window.newTo),
+      sideOf(oldSource, window.oldFrom, window.oldTo),
+      sideOf(newSource, window.newFrom, window.newTo),
       limits.maxEditLength,
     );
     if (part === undefined) return "too-large";
@@ -176,6 +189,17 @@ function changedTokens(
 
   return { old: parts.flatMap((part) => part.old), new: parts.flatMap((part) => part.new) };
 }
+
+/** One version's tokens in a window. */
+interface WindowSide extends DiffSide {
+  readonly tokens: readonly Token[];
+}
+
+const sideOf = ({ tokens, lines, words }: Source, from: number, to: number): WindowSide => ({
+  tokens: tokens.slice(from, to),
+  lines: lines.slice(from, to),
+  words: words.slice(from, to),
+});
 
 /** The old and new token index ranges one Myers diff covers, `To` exclusive. */
 interface TokenWindow {
@@ -261,34 +285,39 @@ function diffWindows(
 }
 
 /**
- * The tokens one window changed, `undefined` past `maxEditLength`. A side with no tokens leaves
- * the other changed whole. The diff runs in a canonical order of the two key lists, because
- * Myers breaks ties by direction and swapping old and new must only swap the sides.
+ * The tokens one window changed, `undefined` past `maxEditLength`: those the diff leaves
+ * unmatched, and those it matches only by chance. A side with no tokens leaves the other changed
+ * whole. The diff runs in a canonical order of the two key lists, because Myers breaks ties by
+ * direction and swapping old and new must only swap the sides.
  */
 function windowChanges(
-  oldTokens: readonly Token[],
-  newTokens: readonly Token[],
+  oldSide: WindowSide,
+  newSide: WindowSide,
   maxEditLength: number,
 ): ChangedTokens | undefined {
-  if (oldTokens.length === 0 || newTokens.length === 0) return { old: oldTokens, new: newTokens };
+  if (oldSide.tokens.length === 0 || newSide.tokens.length === 0)
+    return { old: oldSide.tokens, new: newSide.tokens };
 
-  const oldKeys = oldTokens.map((token) => token.key);
-  const newKeys = newTokens.map((token) => token.key);
+  const oldKeys = oldSide.tokens.map((token) => token.key);
+  const newKeys = newSide.tokens.map((token) => token.key);
   const flipped = inCanonicalOrder(newKeys, oldKeys) && !inCanonicalOrder(oldKeys, newKeys);
   const [[first, firstKeys], [second, secondKeys]] = flipped
     ? ([
-        [newTokens, newKeys],
-        [oldTokens, oldKeys],
+        [newSide, newKeys],
+        [oldSide, oldKeys],
       ] as const)
     : ([
-        [oldTokens, oldKeys],
-        [newTokens, newKeys],
+        [oldSide, oldKeys],
+        [newSide, newKeys],
       ] as const);
 
   const parts = diffArrays(firstKeys, secondKeys, { maxEditLength });
   if (parts === undefined) return undefined;
 
-  const [removed, added] = changesOf(parts, first, second);
+  const matches = withoutChanceMatches(matchesOf(parts), first, second);
+  const matched = new Set(matches);
+  const removed = first.tokens.filter((_, i) => matches[i] === -1);
+  const added = second.tokens.filter((_, i) => !matched.has(i));
   return flipped ? { old: added, new: removed } : { old: removed, new: added };
 }
 
@@ -299,27 +328,18 @@ function inCanonicalOrder(a: readonly string[], b: readonly string[]): boolean {
   return i === -1 || (a[i] as string) < (b[i] as string);
 }
 
-/** The tokens `parts` removed from `first` and added from `second`. */
-function changesOf(
-  parts: readonly ChangeObject<string[]>[],
-  first: readonly Token[],
-  second: readonly Token[],
-): [Token[], Token[]] {
-  const removed: Token[] = [];
-  const added: Token[] = [];
-  let firstAt = 0;
+/** For each token of the diff's first side, the index of the second side's token `parts` matched it to, or -1. */
+function matchesOf(parts: readonly ChangeObject<string[]>[]): number[] {
+  const matches: number[] = [];
   let secondAt = 0;
-
   for (const part of parts) {
     for (let i = 0; i < part.count; i++) {
-      if (part.removed) removed.push(first[firstAt + i] as Token);
-      if (part.added) added.push(second[secondAt + i] as Token);
+      if (part.removed) matches.push(-1);
+      else if (!part.added) matches.push(secondAt + i);
     }
-    if (!part.added) firstAt += part.count;
     if (!part.removed) secondAt += part.count;
   }
-
-  return [removed, added];
+  return matches;
 }
 
 /**

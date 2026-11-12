@@ -14,6 +14,7 @@ import {
   inputFor,
   parserFor,
   readPair,
+  readRegions,
   regionsOf,
   spanTexts,
   swapped,
@@ -78,6 +79,19 @@ async function changedTexts(
 ) {
   const changes = changesOf(await run(id, oldText, newText, overrides));
   return { old: spanTexts(oldText, changes.old), new: spanTexts(newText, changes.new) };
+}
+
+/** What `spans` leave unmarked on each of `text`'s 1-based lines `from` to `to`, without whitespace. */
+function unmarked(text: string, spans: readonly TokenSpan[], from: number, to: number): string[] {
+  return text
+    .split("\n")
+    .slice(from - 1, to)
+    .map((line, i) => {
+      const kept = [...line];
+      for (const span of spans)
+        if (span.line === from + i) kept.fill(" ", span.startCol, span.endCol);
+      return kept.join("").replaceAll(/\s/g, "");
+    });
 }
 
 const wholeFile = (text: string): ChangedRegion[] => {
@@ -287,6 +301,84 @@ describe("structuralChanges", () => {
       expect(await changedTexts(id, two, four)).toEqual({ old: [], new: [] });
     },
   );
+
+  it("marks a block and the unrelated line that replaced it in full", async () => {
+    const { oldText, newText } = readPair("typescript", "replaced-block");
+
+    const changes = changesOf(
+      await run("typescript", oldText, newText, {
+        regions: readRegions("replaced-block"),
+      }),
+    );
+
+    expect(unmarked(oldText, changes.old, 5, 21).join("")).toBe("");
+    expect(unmarked(newText, changes.new, 5, 5)).toEqual([""]);
+  });
+
+  it.each([
+    ["only punctuation", "const total = 1;\n", "let sum = 2;\n"],
+    ["a closing line's punctuation", "const a = {\n  b: 1,\n};\n", 'import { a } from "./a";\n'],
+  ])("marks lines in full that share %s", async (_name, oldText, newText) => {
+    const changes = changesOf(await run("typescript", oldText, newText));
+
+    expect(unmarked(oldText, changes.old, 1, 3).join("")).toBe("");
+    expect(unmarked(newText, changes.new, 1, 1)).toEqual([""]);
+  });
+
+  it("marks only the new tokens of a long argument wrapped around a kept one", async () => {
+    const oldText = "starts.push(state);\n";
+    const newText = 'starts.push({ ...state, position: 1, kind: "line", depth: 0 });\n';
+
+    expect(await changedTexts("typescript", oldText, newText)).toEqual({
+      old: [],
+      new: [
+        "{",
+        "...",
+        ",",
+        "position",
+        ":",
+        "1",
+        ",",
+        "kind",
+        ":",
+        '"',
+        "line",
+        '"',
+        ",",
+        "depth",
+        ":",
+        "0",
+        "}",
+      ],
+    });
+  });
+
+  it("marks only the changed name on a line of two tokens", async () => {
+    expect(await changedTexts("typescript", "throw a\n", "throw b\n")).toEqual({
+      old: ["a"],
+      new: ["b"],
+    });
+  });
+
+  it("marks each changed name apart on a line that keeps only its punctuation", async () => {
+    const oldText = "const m = [\n  [a, b],\n];\n";
+    const newText = "const m = [\n  [x, y],\n];\n";
+
+    expect(await changedTexts("typescript", oldText, newText)).toEqual({
+      old: ["a", "b"],
+      new: ["x", "y"],
+    });
+  });
+
+  it("leaves a closing brace unmarked when an else branch is added before it", async () => {
+    const oldText = "if (x) {\n  a();\n}\n";
+    const newText = "if (x) {\n  a();\n} else {\n  b();\n}\n";
+
+    const changes = changesOf(await run("typescript", oldText, newText));
+
+    expect(changes.old).toEqual([]);
+    expect(unmarked(newText, changes.new, 3, 5)).toEqual(["", "", "}"]);
+  });
 
   it.each([
     ["an insertion", "", "\n"],
