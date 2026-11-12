@@ -5,6 +5,7 @@ import type { StructuralChanges, TokenSpan } from "./changes";
 import type { Grammar } from "./grammar";
 import { PLAIN_TEXT, type PlainText, plainTextTokens } from "./plain-text";
 import { keyedByIndentation, leafTokens, lineStarts, type Token } from "./tokens";
+import { type Unit, wholeLineUnits } from "./units";
 
 /** Why the engine returned no changes. */
 export type EngineRefusal = "unsupported" | "too-large" | "too-slow" | "failed";
@@ -80,40 +81,53 @@ export async function structuralChanges(input: EngineInput): Promise<EngineResul
   if (language === undefined) return refuse("unsupported");
   if (Math.max(oldText.length, newText.length) > limits.maxTextLength) return refuse("too-large");
 
-  const oldTokens = tokensOf(oldText, language, limits, now);
-  if (!Array.isArray(oldTokens)) return refuse(oldTokens);
+  const oldParsed = parsed(oldText, language, limits, now);
+  if (typeof oldParsed === "string") return refuse(oldParsed);
   await pause();
   if (signal.aborted) throw signal.reason;
 
-  const newTokens = tokensOf(newText, language, limits, now);
-  if (!Array.isArray(newTokens)) return refuse(newTokens);
+  const newParsed = parsed(newText, language, limits, now);
+  if (typeof newParsed === "string") return refuse(newParsed);
   await pause();
   if (signal.aborted) throw signal.reason;
 
-  const oldSource = sourceOf(oldText, oldTokens);
-  const newSource = sourceOf(newText, newTokens);
+  const oldSource = sourceOf(oldText, oldParsed.tokens);
+  const newSource = sourceOf(newText, newParsed.tokens);
   const changed = changedTokens(regions, oldSource, newSource, limits, now);
   if (typeof changed === "string") return refuse(changed);
 
-  return {
-    ok: true,
-    changes: {
-      old: spansOf(oldSource, withLayout(oldSource, changed.old)),
-      new: spansOf(newSource, withLayout(newSource, changed.new)),
-    },
+  const changes = {
+    old: spansOf(oldSource, withLayout(oldSource, changed.old)),
+    new: spansOf(newSource, withLayout(newSource, changed.new)),
   };
+  if (!oldParsed.units || !newParsed.units) return { ok: true, changes };
+
+  const inside = {
+    old: linesInside(oldSource, changed.old, oldParsed.units),
+    new: linesInside(newSource, changed.new, newParsed.units),
+  };
+  return { ok: true, changes: { ...changes, inside } };
 }
 
 const refuse = (reason: EngineRefusal): EngineResult => ({ ok: false, reason });
 
-/** `text`'s diff tokens, or why it has none. */
-function tokensOf(
+/** A text's diff tokens, and its whole-line units when it has a tree. */
+interface Parsed {
+  readonly tokens: Token[];
+  readonly units?: readonly Unit[];
+}
+
+/** `text`'s diff tokens and units, or why it has none. */
+function parsed(
   text: string,
   language: LoadedGrammar | PlainText,
   limits: EngineLimits,
   now: () => number,
-): Token[] | EngineRefusal {
-  if (language === PLAIN_TEXT) return plainTextTokens(text, limits.maxTokens) ?? "too-large";
+): Parsed | EngineRefusal {
+  if (language === PLAIN_TEXT) {
+    const tokens = plainTextTokens(text, limits.maxTokens);
+    return tokens ? { tokens } : "too-large";
+  }
 
   const { grammar, parser } = language;
   // A parse cancelled earlier would otherwise resume on this text.
@@ -128,7 +142,10 @@ function tokensOf(
     if (tree.rootNode.hasError && grammar.indentationSensitive) return "failed";
     const tokens = leafTokens(tree, text, limits.maxTokens);
     if (tokens === undefined) return "too-large";
-    return grammar.indentationSensitive ? keyedByIndentation(tokens, text) : tokens;
+    return {
+      tokens: grammar.indentationSensitive ? keyedByIndentation(tokens, text) : tokens,
+      units: wholeLineUnits(tree, text),
+    };
   } finally {
     tree.delete();
   }
@@ -387,4 +404,29 @@ function spansOf({ text, starts }: Source, tokens: readonly Token[]): TokenSpan[
   }
 
   return spans;
+}
+
+/**
+ * The 1-based lines, in order, of each of `changed` that left or arrived inside a unit that
+ * remains: every token but those of a unit changed whole whose parent was not.
+ */
+function linesInside(source: Source, changed: readonly Token[], units: readonly Unit[]): number[] {
+  const { tokens } = source;
+  const isChanged = new Set(changed);
+  const changedBefore = [0];
+  for (const token of tokens)
+    changedBefore.push((changedBefore.at(-1) ?? 0) + (isChanged.has(token) ? 1 : 0));
+  const range = (start: number, end: number) => tokenRange(tokens, start, end);
+  const changedWhole = ({ from, to }: { from: number; to: number }) =>
+    from < to && (changedBefore[to] ?? 0) - (changedBefore[from] ?? 0) === to - from;
+
+  const wentWhole = new Set<Token>();
+  for (const unit of units) {
+    const own = range(unit.start, unit.end);
+    if (!changedWhole(own) || changedWhole(range(unit.parentStart, unit.parentEnd))) continue;
+    for (let i = own.from; i < own.to; i++) wentWhole.add(tokens[i] as Token);
+  }
+
+  const inside = changed.filter((token) => !wentWhole.has(token));
+  return [...new Set(spansOf(source, inside).map(({ line }) => line))];
 }

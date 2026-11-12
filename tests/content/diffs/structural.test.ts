@@ -259,6 +259,18 @@ describe("paintStructural", () => {
     expect(line22.row.hasAttribute("data-gh-prism-part")).toBe(false);
   });
 
+  it("marks a line changed in full inside a unit that remains, and names its row's side", async () => {
+    const { diffs, line22 } = await paintLine22((cell) => ({
+      ...over(cell, "self.limit = limit;"),
+      inside: true,
+    }));
+    sizes.deliver();
+
+    expect(allRanges().map(String)).toEqual(["self.limit = limit;"]);
+    expect([...diffs.querySelectorAll(MARKED)]).toEqual([line22.textRoot]);
+    expect(line22.row.getAttribute("data-gh-prism-part")).toBe("new");
+  });
+
   it("names the side of a row whose line changed in part", async () => {
     const { line22 } = await paintLine22((cell) => overEach(cell, "self", "limit", ";"));
 

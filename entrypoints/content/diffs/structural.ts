@@ -39,7 +39,7 @@ const MASK_PROPERTY = "--gh-prism-marks";
 /** Each marked cell's text root and the ranges its marks cover. */
 type Marks = ReadonlyMap<HTMLElement, readonly Range[]>;
 
-/** The rows whose tint steps down, each with its sides: quiet rows, and rows whose line changed in part. */
+/** The rows whose tint steps down, each with its sides: quiet rows, and rows with a marked line. */
 interface FaintRows {
   readonly quiet: ReadonlyMap<Element, string>;
   readonly part: ReadonlyMap<Element, string>;
@@ -194,7 +194,8 @@ function planTable(
       continue;
     }
 
-    const ranges = markRanges(text, annotation.ranges).flatMap(
+    const inFull = annotation.inside ? "mark" : "tint";
+    const ranges = markRanges(text, annotation.ranges, inFull).flatMap(
       (columns) => rangeOf(textRoot, columns) ?? [],
     );
     if (ranges.length === 0) continue;

@@ -3,9 +3,8 @@
    .diff-text-inner, .syntax-highlighted-line.addition .x and .deletion .x (GitHub's word marks),
    the .pl-* syntax classes and their --color-prettylights-syntax-* variables, the --diffBlob-*
    variables, and --bgColor-default. structural.ts writes data-gh-prism-structural on a painted
-   table, data-gh-prism-quiet on a quiet row, data-gh-prism-part on a row whose line changed in
-   part, and data-gh-prism-marks with the --gh-prism-marks mask on a marked line's
-   .diff-text-inner. */
+   table, data-gh-prism-quiet on a quiet row, data-gh-prism-part on a row with a marked line,
+   and data-gh-prism-marks with the --gh-prism-marks mask on a marked line's .diff-text-inner. */
 
 :root {
   --gh-prism-quiet-tint: 40%;

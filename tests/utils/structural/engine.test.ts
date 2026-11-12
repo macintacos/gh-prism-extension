@@ -81,6 +81,13 @@ async function changedTexts(
   return { old: spanTexts(oldText, changes.old), new: spanTexts(newText, changes.new) };
 }
 
+/** `changes` with its old side as its new and its new as its old. */
+const sidesSwapped = ({ old, new: added, inside }: StructuralChanges): StructuralChanges => ({
+  old: added,
+  new: old,
+  ...(inside && { inside: { old: inside.new, new: inside.old } }),
+});
+
 /** What `spans` leave unmarked on each of `text`'s 1-based lines `from` to `to`, without whitespace. */
 function unmarked(text: string, spans: readonly TokenSpan[], from: number, to: number): string[] {
   return text
@@ -443,7 +450,7 @@ describe("structuralChanges", () => {
 
     const result = await run(id, oldText, oldText, { regions: wholeFile(oldText) });
 
-    expect(changesOf(result)).toEqual({ old: [], new: [] });
+    expect(changesOf(result)).toEqual({ old: [], new: [], inside: { old: [], new: [] } });
   });
 
   it.each(PAIRS)("swaps the sides of a %s %s run backwards", async (id, name) => {
@@ -454,7 +461,7 @@ describe("structuralChanges", () => {
       regions: swapped(regionsOf(oldText, newText)),
     });
 
-    expect(changesOf(backward)).toEqual({ old: forward.new, new: forward.old });
+    expect(changesOf(backward)).toEqual(sidesSwapped(forward));
   });
 
   it("swaps the sides of a run whose diff has ties", async () => {
@@ -466,7 +473,7 @@ describe("structuralChanges", () => {
 
     const backward = await run("javascript", newText, oldText, { regions: wholeFile(oldText) });
 
-    expect(changesOf(backward)).toEqual({ old: forward.new, new: forward.old });
+    expect(changesOf(backward)).toEqual(sidesSwapped(forward));
   });
 
   it("refuses a file without a grammar as unsupported", async () => {
@@ -628,5 +635,101 @@ describe("structuralChanges", () => {
     await expect(result).rejects.toThrow("left");
     expect(parse).toHaveBeenCalledTimes(1);
     parse.mockRestore();
+  });
+});
+
+/** The lines the engine found changed inside a unit that remains, for `oldText` against `newText`. */
+async function insideLines(id: GrammarId | typeof PLAIN_TEXT, oldText: string, newText: string) {
+  return changesOf(await run(id, oldText, newText)).inside;
+}
+
+describe("structuralChanges, lines inside a unit that remains", () => {
+  it("names the lines of the names removed from a wrapped import, not the statements deleted after it", async () => {
+    const oldText =
+      'import {\n  a,\n  b,\n  c,\n} from "./m";\n\nfunction gone() {\n  return a(b);\n}\n\nconst left = 1;\n';
+    const newText = 'import { c } from "./m";\n';
+
+    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [2, 3, 4], new: [] });
+  });
+
+  it("names the line of an argument removed from a call wrapped one argument a line", async () => {
+    const oldText = "run(\n  first,\n  second,\n  third,\n);\n";
+    const newText = "run(\n  first,\n  third,\n);\n";
+
+    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [3], new: [] });
+  });
+
+  it("names the line of a list's last entry, which no comma follows", async () => {
+    const oldText = "const o = {\n  a: 1,\n  b: 2\n};\n";
+    const newText = "const o = {\n  a: 1\n};\n";
+
+    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [2, 3], new: [] });
+  });
+
+  it("names no line of an entry on several lines removed from a list, only its comma's", async () => {
+    const oldText = "const l = [\n  1,\n  {\n    b: 2\n  }\n];\n";
+    const newText = "const l = [\n  1\n];\n";
+
+    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [2], new: [] });
+  });
+
+  it("names no line of an entry on several lines added to a list with its comma", async () => {
+    const oldText = "const l = [\n  1,\n];\n";
+    const newText = "const l = [\n  1,\n  {\n    b: 2,\n  },\n];\n";
+
+    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [], new: [] });
+  });
+
+  it("names no line of a method deleted from a class", async () => {
+    const oldText =
+      "class A {\n  one() {\n    return 1;\n  }\n\n  two() {\n    return 2;\n  }\n}\n";
+    const newText = "class A {\n  one() {\n    return 1;\n  }\n}\n";
+
+    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [], new: [] });
+  });
+
+  it("names no line of a member deleted with the semicolon that ends it", async () => {
+    const oldText = "interface A {\n  one: number;\n  two(\n    a: string,\n  ): void;\n}\n";
+    const newText = "interface A {\n  one: number;\n}\n";
+
+    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [], new: [] });
+  });
+
+  it("names no line of a statement added to a function's body", async () => {
+    const oldText = "function f() {\n  a();\n}\n";
+    const newText = "function f() {\n  a();\n  b(\n    1,\n  );\n}\n";
+
+    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [], new: [] });
+  });
+
+  it("names the line that opens a deleted else branch, and no line of the branch's statements", async () => {
+    const oldText = "if (a) {\n  b();\n} else {\n  c();\n}\n";
+    const newText = "if (a) {\n  b();\n}\n";
+
+    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [3], new: [] });
+  });
+
+  it("names no line of a file added whole", async () => {
+    const newText = "import { a } from './a';\n\nexport const b = a(\n  1,\n);\n";
+
+    expect(await insideLines("typescript", "", newText)).toEqual({ old: [], new: [] });
+  });
+
+  it("names a Python argument's line, and no line of a deleted statement", async () => {
+    const oldText = "def f():\n    g(\n        a,\n        b,\n    )\n    h()\n    return 1\n";
+    const newText = "def f():\n    g(\n        a,\n    )\n    return 1\n";
+
+    expect(await insideLines("python", oldText, newText)).toEqual({ old: [4], new: [] });
+  });
+
+  it("names a comment's reworded line when the comment's other lines remain", async () => {
+    const oldText = "/**\n * Keeps this.\n * Drops every word here.\n */\nf();\n";
+    const newText = "/**\n * Keeps this.\n * Says something else entirely.\n */\nf();\n";
+
+    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [3], new: [3] });
+  });
+
+  it("names no line of plain text, which has no units", async () => {
+    expect(await insideLines(PLAIN_TEXT, "one\ntwo\nthree\n", "one\nthree\n")).toBeUndefined();
   });
 });

@@ -38,7 +38,7 @@ describe("engineRunner", () => {
     const run = runnerWith(urlOf);
 
     const result = await run(TYPESCRIPT, live());
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: true,
       changes: {
         old: [{ line: 1, startCol: 14, endCol: 17 }],
