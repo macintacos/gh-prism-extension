@@ -574,6 +574,77 @@ describe("loading the frame", () => {
     });
   });
 
+  describe("a step that never settles", () => {
+    const never = () => new Promise<never>(() => {});
+    const state = () => aside()?.dataset.state;
+    const aMinute = () => vi.advanceTimersByTimeAsync(60_000);
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it.each([
+      ["policy read", { fetch: vi.fn(never) }],
+      ["framing rule", { allowFraming: vi.fn(never) }],
+    ])("fails within a minute when it is the %s", async (_step, stalled) => {
+      const { panel } = setup(stalled);
+      mountButton(panel)?.click();
+
+      await aMinute();
+
+      expect(state()).toBe("failed");
+      expect(frame()).toBeNull();
+    });
+
+    it("fails within a minute when it is the framed page's load", async () => {
+      const { panel } = setup();
+      mountButton(panel)?.click();
+      await vi.advanceTimersByTimeAsync(0);
+      const framedAt = frame();
+
+      await aMinute();
+
+      expect(framedAt?.getAttribute("src")).toBeTruthy();
+      expect(state()).toBe("failed");
+    });
+
+    it("stays loaded when the framed page loaded in time", async () => {
+      const { panel } = setup();
+      mountButton(panel)?.click();
+      await vi.advanceTimersByTimeAsync(0);
+      vi.spyOn(HTMLIFrameElement.prototype, "contentDocument", "get").mockReturnValue(document);
+      frame()?.dispatchEvent(new Event("load"));
+
+      await aMinute();
+
+      expect(state()).toBe("loaded");
+    });
+
+    it("frames the Conversation within a minute when it is the page's own load", async () => {
+      vi.spyOn(document, "readyState", "get").mockReturnValue("interactive");
+      const { panel } = setup();
+      mountButton(panel)?.click();
+      const framedAt = frame();
+
+      await aMinute();
+
+      expect(framedAt?.getAttribute("src")).toBe("https://github.com/o/r/pull/7?gh-prism-panel=1");
+    });
+
+    it("ends its wait with the visit", async () => {
+      const { panel, visit } = setup({ fetch: vi.fn(never) });
+      mountButton(panel)?.click();
+
+      visit.abort();
+
+      expect(vi.getTimerCount()).toBe(0);
+    });
+  });
+
   it("reuses the frame when reopened", async () => {
     const { panel, fetch } = setup();
     const control = mountButton(panel);

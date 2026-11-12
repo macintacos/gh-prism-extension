@@ -478,7 +478,8 @@ function jumpTo(frame: HTMLIFrameElement, selector: string): void {
 /**
  * Shows the skeleton, then frames `pr`'s Conversation once its live policy is fetched and the
  * framing rule is in, after the top page's `load` so the frame never holds Files changed's back.
- * Any failure shows the failure sentence instead, and no frame loads without its rule.
+ * Any failure, or a step that stalls, shows the failure sentence instead, and no frame loads
+ * without its rule. A page whose own `load` stalls is framed all the same.
  */
 function loadFrame(
   doc: Document,
@@ -503,8 +504,10 @@ function loadFrame(
   // Whether a load has succeeded since the frame was last pointed at `url`, so a refused load
   // re-points it once, and a refused re-point fails rather than looping.
   let loadedSincePoint = false;
+  const firstLoad = Promise.withResolvers<void>();
   frame.addEventListener("load", () => {
     if (!frame.hasAttribute("src")) return;
+    firstLoad.resolve();
     // Chrome's error page for a refused or failed frame is cross-origin.
     if (frame.contentDocument) {
       loadedSincePoint = true;
@@ -518,17 +521,47 @@ function loadFrame(
   });
 
   void (async () => {
-    const response = await fetch(url, { method: "HEAD", signal: visit });
+    const response = await unstalled(
+      fetch(url, { method: "HEAD", signal: visit }),
+      "reading its policy",
+      visit,
+    );
     const policy = response.ok ? response.headers.get("content-security-policy") : null;
-    if (!policy || !(await allowFraming(pr, policy, visit))) return showFailure();
-    await loaded(doc);
-    if (!visit.aborted) frame.src = url;
+    if (!policy) return showFailure();
+
+    const allowed = await unstalled(allowFraming(pr, policy, visit), "its framing rule", visit);
+    if (!allowed) return showFailure();
+
+    await unstalled(loaded(doc), "the page's load", visit).catch(() => {});
+    if (visit.aborted) return;
+
+    frame.src = url;
+    await unstalled(firstLoad.promise, "the framed page's load", visit);
   })().catch((error: unknown) => {
     if (visit.aborted) return;
     console.error("gh-prism: loading the Conversation panel failed", error);
     showFailure();
   });
   return frame;
+}
+
+// Well past a slow load of GitHub's page, so only a step that will never settle reaches it.
+const STALL_MS = 30_000;
+
+/**
+ * Settles as `work` does, or rejects, naming `step`, once it has taken `STALL_MS`. `until`
+ * aborting lifts that limit.
+ */
+function unstalled<T>(work: Promise<T>, step: string, until: AbortSignal): Promise<T> {
+  const stalled = Promise.withResolvers<never>();
+  const timer = setTimeout(
+    () => stalled.reject(new Error(`${step} took over ${STALL_MS / 1000} s`)),
+    STALL_MS,
+  );
+  const stop = () => clearTimeout(timer);
+  until.addEventListener("abort", stop, { once: true });
+
+  return Promise.race([work, stalled.promise]).finally(stop);
 }
 
 /** Settles once `doc` has fired `load`. */

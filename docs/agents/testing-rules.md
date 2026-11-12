@@ -336,6 +336,16 @@ To check behavior live, build the extension and drive Playwright's bundled Chrom
   `Runtime.runIfWaitingForDebugger`; the Worker's `Network.requestWillBeSent` events then
   name each file it fetches, from its first. Exclude the `page` and `tab` target types
   with `filter`, so Playwright's own pages never wait (Chromium 157, 2026-11-11).
+- **Stop the service worker yourself to check a cold start.** A worker Playwright is
+  attached to never idles out, so a live check never meets the stopped worker a reader's
+  browser has 30 s after its last event. From a page's CDP session, `Target.getTargets`
+  and `Target.closeTarget` on the `service_worker` target stop it, and the next port
+  starts a fresh one; `ServiceWorker.stopAllWorkers` leaves it running (Chromium 157,
+  2026-11-12).
+- **Stall a request by routing it to a handler that never answers.**
+  `page.route(url, () => {})` holds the request open, which is how to see what a view does
+  when a read never settles. Match the Conversation panel's `HEAD` and its frame's `GET`
+  apart by `route.request().method()`.
 - **Enter from `/pulls` to check the head lookup.** That entry leaves no page head, so the
   service worker fetches the head itself. The page head is the head SHA read from the
   page's embedded data (`pageHeadSha` in
