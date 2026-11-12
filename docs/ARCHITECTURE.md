@@ -1063,6 +1063,9 @@ and whenever it changes.
 - **A quiet row** carries `data-gh-prism-quiet` with the quiet side: `old`, `new`, or both
   sides, space-separated, and a painted table carries `data-gh-prism-structural`. The
   sheet keys on both.
+- **A row whose line changed in part** carries `data-gh-prism-part` with that side, in the
+  same form. The sheet steps its tint down as it does a quiet row's. A line changed in
+  full carries no attribute and no mark, and keeps GitHub's tint at full strength.
 - **One pass per animation frame.** The `sections` hook and every `observeDiffs` report
   schedule a frame, and a pending frame is reused. The pass first reads every table, then
   writes, so its reads (`querySelectorAll`, `dataset`, `textContent`) never force a layout
@@ -1093,8 +1096,8 @@ and whenever it changes.
   file's annotations arrive.
 
 On abort the painter cancels its frame, deletes both highlights, disconnects its observer,
-removes `data-gh-prism-structural`, `data-gh-prism-quiet`, `data-gh-prism-marks`, and each
-mask, and removes its `<style>`.
+removes `data-gh-prism-structural`, `data-gh-prism-quiet`, `data-gh-prism-part`,
+`data-gh-prism-marks`, and each mask, and removes its `<style>`.
 
 `showStructural` also mounts the notices, `showStructuralNotices` in
 [`diffs/structural-notices.ts`](../entrypoints/content/diffs/structural-notices.ts), under

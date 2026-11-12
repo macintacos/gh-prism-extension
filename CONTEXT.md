@@ -200,8 +200,9 @@ dims it. _Avoid_: dimmed row, unchanged row, whitespace-only row
 
 **Mark**: The rounded highlight structural mode draws behind changed tokens on a line
 changed in part. Changed tokens with only whitespace between them share one mark. A line
-changed in full has no mark: GitHub's line tint already says so. _Avoid_: chip, pill, word
-mark (GitHub's own highlight)
+changed in part takes a quiet row's fainter tint, so its marks are the only strong colour
+on it. A line changed in full has no mark: GitHub's line tint, left at full strength,
+already says so. _Avoid_: chip, pill, word mark (GitHub's own highlight)
 
 **Diff view control**: gh-prism's Unified, Split, and Structural control beside GitHub's
 diff settings gear. It picks GitHub's layout, Unified or Split, or Structural mode;

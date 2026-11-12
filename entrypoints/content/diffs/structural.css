@@ -2,8 +2,9 @@
    td.empty-diff-line, td[data-selected="true"], code.addition and code.deletion over
    .diff-text-inner, .syntax-highlighted-line.addition .x and .deletion .x (GitHub's word marks),
    the --diffBlob-* variables, and --bgColor-default. structural.ts writes
-   data-gh-prism-structural on a painted table, data-gh-prism-quiet on a quiet row, and
-   data-gh-prism-marks with the --gh-prism-marks mask on a marked line's .diff-text-inner. */
+   data-gh-prism-structural on a painted table, data-gh-prism-quiet on a quiet row,
+   data-gh-prism-part on a row whose line changed in part, and data-gh-prism-marks with the
+   --gh-prism-marks mask on a marked line's .diff-text-inner. */
 
 :root {
   --gh-prism-quiet-tint: 40%;
@@ -62,7 +63,8 @@ table[data-gh-prism-structural] .syntax-highlighted-line.deletion .x {
 }
 
 /* !important: GitHub sets these backgrounds inline on each td. */
-tr[data-gh-prism-quiet~="old"] > td:nth-child(1):not([data-selected="true"], .empty-diff-line) {
+tr:is([data-gh-prism-quiet~="old"], [data-gh-prism-part~="old"])
+  > td:nth-child(1):not([data-selected="true"], .empty-diff-line) {
   background-color: color-mix(
     in srgb,
     var(--diffBlob-deletionNum-bgColor) var(--gh-prism-quiet-tint),
@@ -70,7 +72,8 @@ tr[data-gh-prism-quiet~="old"] > td:nth-child(1):not([data-selected="true"], .em
   ) !important;
 }
 
-tr[data-gh-prism-quiet~="old"] > td:nth-child(2):not([data-selected="true"], .empty-diff-line) {
+tr:is([data-gh-prism-quiet~="old"], [data-gh-prism-part~="old"])
+  > td:nth-child(2):not([data-selected="true"], .empty-diff-line) {
   background-color: color-mix(
     in srgb,
     var(--diffBlob-deletionLine-bgColor) var(--gh-prism-quiet-tint),
@@ -78,7 +81,8 @@ tr[data-gh-prism-quiet~="old"] > td:nth-child(2):not([data-selected="true"], .em
   ) !important;
 }
 
-tr[data-gh-prism-quiet~="new"] > td:nth-child(3):not([data-selected="true"], .empty-diff-line) {
+tr:is([data-gh-prism-quiet~="new"], [data-gh-prism-part~="new"])
+  > td:nth-child(3):not([data-selected="true"], .empty-diff-line) {
   background-color: color-mix(
     in srgb,
     var(--diffBlob-additionNum-bgColor) var(--gh-prism-quiet-tint),
@@ -86,7 +90,8 @@ tr[data-gh-prism-quiet~="new"] > td:nth-child(3):not([data-selected="true"], .em
   ) !important;
 }
 
-tr[data-gh-prism-quiet~="new"] > td:nth-child(4):not([data-selected="true"], .empty-diff-line) {
+tr:is([data-gh-prism-quiet~="new"], [data-gh-prism-part~="new"])
+  > td:nth-child(4):not([data-selected="true"], .empty-diff-line) {
   background-color: color-mix(
     in srgb,
     var(--diffBlob-additionLine-bgColor) var(--gh-prism-quiet-tint),

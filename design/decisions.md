@@ -6,6 +6,49 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-11: Structural mode steps down the tint of a line changed in part
+
+This replaces the "Whole lines" reasoning of the 2026-11-11 "Structural mode's marks are
+rounded, joined, and not underlined" entry below. Its pick stands: a line changed in full
+has no mark.
+
+- **Asked:** the maintainer saw a multi-line import lose four of its five names. The four
+  removed lines had no mark, the one line changed in part had a single mark on its comma,
+  and all five carried the same line tint, so nothing showed which names went away. They
+  asked for the removed lines to read as removed, without bringing back a mark on every
+  changed line.
+- **Compared:**
+  - a mark on a line changed in full only when its run of changed rows also holds a quiet
+    row or a line changed in part;
+  - a mark on every line changed in full, drawn as one block per run of lines;
+  - no new mark, and GitHub's line tint stepped down on a line changed in part, as it is
+    on a quiet row.
+- **Won:** a line changed in part takes the quiet row's tint under its marks. GitHub's
+  line tint at full strength then means that every token on the line changed.
+- **Why:**
+  - **Marks by neighbourhood:** a deleted block that follows a changed line with no blank
+    line between them would get a mark on each of its lines, which is the look the
+    maintainer first rejected. The same line would also look different from one diff to
+    the next.
+  - **One block per run:** lines differ in length, so the block is a stepped outline over
+    all the code of a new file or a deleted function, and every such line needs measuring.
+  - **The tint:** each row is decided on its own. A changed token always sits on a strong
+    colour, a mark or the full line tint, and an unchanged token always sits on the quiet
+    row's tint. A run of lines changed in full is one unbroken band, and a new file looks
+    as GitHub draws it.
+  - **Cost:** the painter writes one more attribute, `data-gh-prism-part`, on a row whose
+    line changed in part, and measures nothing more.
+- **Measured** 2026-11-11, signed in, Chromium 156, light and dark, on gh-prism pull
+  request #119's `tests/utils/structural/engine-script.test.ts`: old lines 4 to 7 keep
+  GitHub's tint, `rgba(248, 81, 73, 0.1)` in the dark theme, and lines 3, 8, and 9 take
+  the quiet row's tint, with one mark on line 8's comma.
+  `utils/structural/engine-worker.ts`, which the pull request adds, shows GitHub's tint
+  and no mark on its code.
+- **Accepted:**
+  - The step between the quiet row's tint and GitHub's is small in the dark theme, where
+    GitHub's own line tint is close to the page. `--gh-prism-quiet-tint` sets it.
+  - A line changed in part and a quiet row share one tint. The marks tell them apart.
+
 ## 2026-11-11: Structural mode reads all of a Markdown file by word
 
 - **Asked for:** the maintainer saw a long line of a fenced block in

@@ -10,7 +10,7 @@ import type { LandingView } from "../visit/land";
 import { pathsByAnchor } from "./on-screen";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./structural.css?inline";
-import { MARKS_ATTR, QUIET_ATTR, TABLE_ATTR } from "./structural-attrs";
+import { MARKS_ATTR, PART_ATTR, QUIET_ATTR, TABLE_ATTR } from "./structural-attrs";
 import { type Box, lineBoxes, markRanges, maskOf } from "./structural-marks";
 
 /** How a mounted file fared: painted, or skipped whole because a mounted cell's text or annotation disagrees with the file. */
@@ -39,12 +39,20 @@ const MASK_PROPERTY = "--gh-prism-marks";
 /** Each marked cell's text root and the ranges its marks cover. */
 type Marks = ReadonlyMap<HTMLElement, readonly Range[]>;
 
-/** What one table holds: the file it was painted from, its cells' text roots, its ranges, its quiet rows, and its marks. */
+/** The rows whose tint steps down, each with its sides: quiet rows, and rows whose line changed in part. */
+interface FaintRows {
+  readonly quiet: ReadonlyMap<Element, string>;
+  readonly part: ReadonlyMap<Element, string>;
+}
+
+const noFaintRows = (): FaintRows => ({ quiet: new Map(), part: new Map() });
+
+/** What one table holds: the file it was painted from, its cells' text roots, its ranges, its faint rows, and its marks. */
 interface Painted {
   readonly file: StructuralFile;
   readonly roots: readonly Element[];
   readonly ranges: readonly Range[];
-  readonly quiet: ReadonlyMap<Element, string>;
+  readonly faint: FaintRows;
   readonly marks: Marks;
 }
 
@@ -55,8 +63,8 @@ interface Plan {
   readonly outcome: PaintOutcome;
   readonly added: readonly Range[];
   readonly removed: readonly Range[];
-  /** The quiet rows the table held before this plan. */
-  readonly quietBefore: ReadonlyMap<Element, string>;
+  /** The faint rows the table held before this plan. */
+  readonly faintBefore: FaintRows;
   /** The marks the table held before this plan. */
   readonly marksBefore: Marks;
   readonly painted: Painted;
@@ -115,6 +123,12 @@ function boxesOf(root: Element, ranges: readonly Range[]): Box[] {
   return ranges.flatMap((range) => lineBoxes(origin, range.getClientRects()));
 }
 
+/** Writes `now`'s rows onto the page and takes off the rows only in `before`. */
+function writeFaintRows(before: FaintRows, now: FaintRows): void {
+  writeRows(QUIET_ATTR, before.quiet, now.quiet);
+  writeRows(PART_ATTR, before.part, now.part);
+}
+
 /** Draws `mask` behind `root`'s text, or takes its marks off for `undefined`. */
 function writeMask(root: HTMLElement, mask: string | undefined): void {
   if (mask === undefined) {
@@ -150,25 +164,26 @@ function planTable(
   before: Painted | undefined,
 ): Plan {
   const roots = cells.map(({ textRoot }) => textRoot);
-  const quietBefore = before?.quiet ?? new Map<Element, string>();
+  const faintBefore = before?.faint ?? noFaintRows();
   const marksBefore = before?.marks ?? new Map<HTMLElement, readonly Range[]>();
   const added: Range[] = [];
   const removed: Range[] = [];
   const quiet = new Map<Element, string>();
+  const part = new Map<Element, string>();
   const marks = new Map<HTMLElement, readonly Range[]>();
 
   for (const { side, line, textRoot, row } of cells) {
     const annotation = file.annotations[side][line];
     const text = file.text[side][line];
     if (!annotation || text === undefined || textRoot.textContent !== text) {
-      const painted = { file, roots, ranges: [], quiet: new Map(), marks: new Map() };
+      const painted = { file, roots, ranges: [], faint: noFaintRows(), marks: new Map() };
       return {
         table,
         path,
         outcome: "mismatch",
         added: [],
         removed: [],
-        quietBefore,
+        faintBefore,
         marksBefore,
         painted,
       };
@@ -182,12 +197,15 @@ function planTable(
     const ranges = markRanges(text, annotation.ranges).flatMap(
       (columns) => rangeOf(textRoot, columns) ?? [],
     );
+    if (ranges.length === 0) continue;
+
     (side === "old" ? removed : added).push(...ranges);
-    if (ranges.length > 0 && textRoot instanceof HTMLElement) marks.set(textRoot, ranges);
+    markSide(part, row, side);
+    if (textRoot instanceof HTMLElement) marks.set(textRoot, ranges);
   }
 
-  const painted = { file, roots, ranges: [...added, ...removed], quiet, marks };
-  return { table, path, outcome: "painted", added, removed, quietBefore, marksBefore, painted };
+  const painted = { file, roots, ranges: [...added, ...removed], faint: { quiet, part }, marks };
+  return { table, path, outcome: "painted", added, removed, faintBefore, marksBefore, painted };
 }
 
 /**
@@ -261,14 +279,14 @@ export function paintStructural(
   };
   const unmark = (table: HTMLTableElement, entry: Painted | undefined) => {
     table.removeAttribute(TABLE_ATTR);
-    for (const row of entry?.quiet.keys() ?? []) row.removeAttribute(QUIET_ATTR);
+    if (entry) writeFaintRows(entry.faint, noFaintRows());
   };
   const paint = ({
     table,
     outcome,
     added,
     removed,
-    quietBefore,
+    faintBefore,
     marksBefore,
     painted: entry,
   }: Plan) => {
@@ -279,7 +297,7 @@ export function paintStructural(
     if (outcome === "painted" && !table.hasAttribute(TABLE_ATTR))
       table.setAttribute(TABLE_ATTR, "");
 
-    writeRows(QUIET_ATTR, quietBefore, entry.quiet);
+    writeFaintRows(faintBefore, entry.faint);
 
     for (const root of marksBefore.keys()) if (!entry.marks.has(root)) clearMarks(root);
     for (const [root, ranges] of entry.marks) measure(root, ranges);
@@ -330,10 +348,11 @@ export function paintStructural(
 
     // Sweeps the DOM, not `painted`: it also catches marks on a table GitHub moved since its pass.
     for (const element of diffs.querySelectorAll<HTMLElement>(
-      `[${TABLE_ATTR}], [${QUIET_ATTR}], [${MARKS_ATTR}]`,
+      `[${TABLE_ATTR}], [${QUIET_ATTR}], [${PART_ATTR}], [${MARKS_ATTR}]`,
     )) {
       element.removeAttribute(TABLE_ATTR);
       element.removeAttribute(QUIET_ATTR);
+      element.removeAttribute(PART_ATTR);
       writeMask(element, undefined);
     }
 

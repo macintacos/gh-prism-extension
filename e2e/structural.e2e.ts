@@ -357,6 +357,33 @@ test("marks a changed token, tints a quiet row, and keeps the mark on a selected
   for (const cell of quietCells) expect(await background(cell)).toBe("rgb(255, 230, 120)");
 });
 
+test("steps down the tint of a line changed in part, and leaves a line changed in full its tint", async ({
+  page,
+  bundle,
+}) => {
+  await mount(page, bundle, [COMMIT_SPLIT], TOKENS);
+  const oldCells = page.locator(
+    `tr:has(td[data-line-anchor="${COMMIT_ANCHOR}L137"]) > td:nth-child(-n+2)`,
+  );
+  const backgrounds = () =>
+    oldCells.evaluateAll((cells) => cells.map((td) => getComputedStyle(td).backgroundColor));
+  const unpainted = await backgrounds();
+  const line = (await oldCells.nth(1).locator(".diff-text-inner").textContent()) ?? "";
+
+  await startOver(page, line.trim());
+  await repaint(page);
+  const full = await backgrounds();
+  await page.evaluate(() => window.structural.stop());
+  await startOver(page, "RenderLinesResponse");
+  await repaint(page);
+  const part = await backgrounds();
+
+  expect(full).toEqual(unpainted);
+  part.forEach((background, i) => {
+    expect(background).not.toBe(unpainted[i]);
+  });
+});
+
 // GitHub's wrapping, which a routed fixture doesn't load, in a table narrow enough to wrap the
 // commit's one changed line.
 const WRAPPING = `${TOKENS}<style>
