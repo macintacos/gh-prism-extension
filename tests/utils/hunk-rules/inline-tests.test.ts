@@ -7,6 +7,13 @@ import {
   inlineTestRuleApplies,
 } from "../../../utils/hunk-rules/inline-tests";
 import { headOf, lines } from "../../fixtures/head-scan";
+import {
+  type InlineCase,
+  itBlockHead,
+  itBlockPatch,
+  pythonCases,
+  typescriptCases,
+} from "../../fixtures/inline-test-cases";
 
 const modified = (path: string, patch: string): PrFileDiff => ({
   kind: "text",
@@ -94,14 +101,6 @@ const gateCases: GateCase[] = [
     expected: false,
   },
 ];
-
-interface InlineCase {
-  readonly name: string;
-  readonly path: string;
-  readonly head: string;
-  readonly patch: string;
-  readonly expected: boolean;
-}
 
 // The new side of src/lib.rs on sandbox PR #3 (head 5fcad454), lines 1–23.
 const prThreeLib = lines(
@@ -397,452 +396,6 @@ const rustCases: InlineCase[] = [
   },
 ];
 
-const pythonCases: InlineCase[] = [
-  {
-    name: "Python: a def test_x body change is Tests",
-    path: "src/app.py",
-    head: lines(
-      "import pytest",
-      "",
-      "def test_x():",
-      "    value = compute(2)",
-      "    assert value == 2",
-    ),
-    patch: lines(
-      "@@ -3,3 +3,3 @@",
-      " def test_x():",
-      "-    value = compute()",
-      "+    value = compute(2)",
-      "     assert value == 2",
-    ),
-    expected: true,
-  },
-  {
-    name: "Python: a module-level def test_x added with its two blank lines is Tests",
-    path: "src/app.py",
-    head: lines("import pytest", "", "", "def test_x():", "    assert True"),
-    patch: lines("@@ -1 +1,5 @@", " import pytest", "+", "+", "+def test_x():", "+    assert True"),
-    expected: true,
-  },
-  {
-    name: "Python: renaming an outermost def test_parse() is Tests",
-    path: "src/app.py",
-    head: lines("def test_parse_all():", '    assert parse("a") == ["a"]'),
-    patch: lines(
-      "@@ -1,2 +1,2 @@",
-      "-def test_parse():",
-      "+def test_parse_all():",
-      '     assert parse("a") == ["a"]',
-    ),
-    expected: true,
-  },
-  {
-    name: "Python: an async def test_x body change is Tests",
-    path: "src/app.py",
-    head: lines("async def test_x():", "    await run(2)"),
-    patch: lines(
-      "@@ -1,2 +1,2 @@",
-      " async def test_x():",
-      "-    await run(1)",
-      "+    await run(2)",
-    ),
-    expected: true,
-  },
-  {
-    name: "Python: a method of class TestFoo is Tests",
-    path: "src/app.py",
-    head: lines(
-      "class TestFoo:",
-      "    def test_a(self):",
-      "        assert True",
-      "    def helper(self):",
-      "        return 2",
-    ),
-    patch: lines(
-      "@@ -4,2 +4,2 @@",
-      "     def helper(self):",
-      "-        return 1",
-      "+        return 2",
-    ),
-    expected: true,
-  },
-  {
-    name: "Python: a class named Testing is Tests",
-    path: "src/app.py",
-    head: lines("class Testing:", "    def helper(self):", "        return 2"),
-    patch: lines(
-      "@@ -2,2 +2,2 @@",
-      "     def helper(self):",
-      "-        return 1",
-      "+        return 2",
-    ),
-    expected: true,
-  },
-  {
-    name: "Python: a single-line decorator change above a test is Tests",
-    path: "src/app.py",
-    head: lines("import pytest", "", "@pytest.mark.slow", "def test_x():", "    assert True"),
-    patch: lines(
-      "@@ -2,4 +2,4 @@",
-      " ",
-      "-@pytest.mark.fast",
-      "+@pytest.mark.slow",
-      " def test_x():",
-      "     assert True",
-    ),
-    expected: true,
-  },
-  {
-    name: "Python: a black-style signature ending ') -> None:' keeps its body in the block",
-    path: "src/app.py",
-    head: lines("def test_x(", "    tmp_path,", ") -> None:", "    assert tmp_path.exists()"),
-    patch: lines("@@ -4 +4 @@", "-    assert tmp_path.is_dir()", "+    assert tmp_path.exists()"),
-    expected: true,
-  },
-  {
-    name: "Python: a column-zero line inside a triple-quoted string does not end the test",
-    path: "src/app.py",
-    head: lines("def test_x():", '    text = """', "column zero", '"""', "    assert text.strip()"),
-    patch: lines("@@ -5 +5 @@", "-    assert text", "+    assert text.strip()"),
-    expected: true,
-  },
-  {
-    name: "Python: a nested def inside a test is Tests",
-    path: "src/app.py",
-    head: lines(
-      "def test_x():",
-      "    def helper():",
-      "        return 2",
-      "    assert helper() == 2",
-    ),
-    patch: lines(
-      "@@ -2,3 +2,3 @@",
-      "     def helper():",
-      "-        return 1",
-      "+        return 2",
-      "     assert helper() == 2",
-    ),
-    expected: true,
-  },
-  {
-    name: "Python: def testing() is not Tests",
-    path: "src/app.py",
-    head: lines("def testing():", "    return 1"),
-    patch: lines("@@ -1,2 +1,2 @@", " def testing():", "-    return 0", "+    return 1"),
-    expected: false,
-  },
-  {
-    name: "Python: a def test_x method of a class that is not Test* is not Tests",
-    path: "src/app.py",
-    head: lines("class Helper:", "    def test_x(self):", "        return 1"),
-    patch: lines("@@ -3 +3 @@", "-        return 0", "+        return 1"),
-    expected: false,
-  },
-  {
-    name: "Python: a change after the test's dedent is not Tests",
-    path: "src/app.py",
-    head: lines("def test_x():", "    assert True", "", "VALUE = 1"),
-    patch: lines("@@ -2,3 +2,3 @@", "     assert True", " ", "-VALUE = 0", "+VALUE = 1"),
-    expected: false,
-  },
-  {
-    name: "Python: a code change in a test plus a reworded comment above the next def is not Tests",
-    path: "src/app.py",
-    head: lines(
-      "def test_x():",
-      "    assert True",
-      "",
-      "# Helper below checks the value.",
-      "def helper():",
-      "    return 1",
-    ),
-    patch: lines(
-      "@@ -1,5 +1,5 @@",
-      " def test_x():",
-      "-    assert False",
-      "+    assert True",
-      " ",
-      "-# Helper checks the value.",
-      "+# Helper below checks the value.",
-      " def helper():",
-    ),
-    expected: false,
-  },
-];
-
-const itBlockHead = lines('it("adds", () => {', "  expect(add(1, 2)).toBe(3);", "});");
-const itBlockPatch = lines(
-  "@@ -2 +2 @@",
-  "-  expect(add(1, 1)).toBe(2);",
-  "+  expect(add(1, 2)).toBe(3);",
-);
-
-const typescriptCases: InlineCase[] = [
-  {
-    name: "TypeScript: a describe body with an arrow callback is Tests",
-    path: "src/app.ts",
-    head: lines(
-      'describe("x", () => {',
-      '  it("works", () => {',
-      "    expect(add(1, 2)).toBe(3);",
-      "  });",
-      "});",
-    ),
-    patch: lines(
-      "@@ -3 +3 @@",
-      "-    expect(add(1, 1)).toBe(2);",
-      "+    expect(add(1, 2)).toBe(3);",
-    ),
-    expected: true,
-  },
-  {
-    name: "TypeScript: an it body is Tests",
-    path: "src/app.ts",
-    head: itBlockHead,
-    patch: itBlockPatch,
-    expected: true,
-  },
-  {
-    name: "TypeScript: a test body is Tests",
-    path: "src/app.ts",
-    head: lines('test("adds", () => {', "  expect(add(1, 2)).toBe(3);", "});"),
-    patch: lines("@@ -2 +2 @@", "-  expect(add(1, 1)).toBe(2);", "+  expect(add(1, 2)).toBe(3);"),
-    expected: true,
-  },
-  {
-    name: "TypeScript: an it.only body is Tests",
-    path: "src/app.ts",
-    head: lines('it.only("adds", () => {', "  expect(add(1, 2)).toBe(3);", "});"),
-    patch: lines("@@ -2 +2 @@", "-  expect(add(1, 1)).toBe(2);", "+  expect(add(1, 2)).toBe(3);"),
-    expected: true,
-  },
-  {
-    name: "TypeScript: a describe.skip body is Tests",
-    path: "src/app.ts",
-    head: lines('describe.skip("adds", () => {', "  expect(add(1, 2)).toBe(3);", "});"),
-    patch: lines("@@ -2 +2 @@", "-  expect(add(1, 1)).toBe(2);", "+  expect(add(1, 2)).toBe(3);"),
-    expected: true,
-  },
-  {
-    name: "TypeScript: a test.each table call with a callback is Tests",
-    path: "src/app.ts",
-    head: lines(
-      'test.each([[1, 2, 3]])("adds %i + %i", (a, b, c) => {',
-      "  expect(a + b).toBe(c);",
-      "});",
-    ),
-    patch: lines("@@ -2 +2 @@", "-  expect(a + b).toBe(c + 1);", "+  expect(a + b).toBe(c);"),
-    expected: true,
-  },
-  {
-    name: 'TypeScript: renaming an outermost describe("old") to describe("new") is Tests',
-    path: "src/app.ts",
-    head: lines(
-      'describe("new", () => {',
-      '  it("works", () => {',
-      "    expect(1).toBe(1);",
-      "  });",
-      "});",
-    ),
-    patch: lines(
-      "@@ -1,4 +1,4 @@",
-      '-describe("old", () => {',
-      '+describe("new", () => {',
-      '   it("works", () => {',
-      "     expect(1).toBe(1);",
-      "   });",
-    ),
-    expected: true,
-  },
-  {
-    name: "TypeScript: a namespace tests block is Tests",
-    path: "src/app.ts",
-    head: lines("namespace tests {", "  export const value = 1;", "}"),
-    patch: lines("@@ -2 +2 @@", "-  export const value = 0;", "+  export const value = 1;"),
-    expected: true,
-  },
-  {
-    name: "TypeScript: a .tsx test file is Tests",
-    path: "src/app.tsx",
-    head: itBlockHead,
-    patch: itBlockPatch,
-    expected: true,
-  },
-  {
-    name: "TypeScript: a .mts test file is Tests",
-    path: "src/app.mts",
-    head: itBlockHead,
-    patch: itBlockPatch,
-    expected: true,
-  },
-  {
-    name: "TypeScript: a .cts test file is Tests",
-    path: "src/app.cts",
-    head: itBlockHead,
-    patch: itBlockPatch,
-    expected: true,
-  },
-  {
-    name: "TypeScript: items.forEach with a callback is not Tests",
-    path: "src/app.ts",
-    head: lines("items.forEach(() => {", "  console.log(1);", "});"),
-    patch: lines("@@ -2 +2 @@", "-  console.log(0);", "+  console.log(1);"),
-    expected: false,
-  },
-  {
-    name: "TypeScript: itemize with a callback is not Tests",
-    path: "src/app.ts",
-    head: lines("itemize(items, () => {", "  return 1;", "});"),
-    patch: lines("@@ -2 +2 @@", "-  return 0;", "+  return 1;"),
-    expected: false,
-  },
-  {
-    name: "TypeScript: setup with a callback is not Tests",
-    path: "src/app.ts",
-    head: lines("setup(() => {", "  return 1;", "});"),
-    patch: lines("@@ -2 +2 @@", "-  return 0;", "+  return 1;"),
-    expected: false,
-  },
-  {
-    name: "TypeScript: test_refresh with a callback is not Tests",
-    path: "src/app.ts",
-    head: lines("test_refresh(() => {", "  return 1;", "});"),
-    patch: lines("@@ -2 +2 @@", "-  return 0;", "+  return 1;"),
-    expected: false,
-  },
-  {
-    name: "TypeScript: a test call without a callback is not Tests",
-    path: "src/app.ts",
-    head: lines("test(value);", "const x = 1;"),
-    patch: lines("@@ -1,2 +1,2 @@", "-test(other);", "+test(value);", " const x = 1;"),
-    expected: false,
-  },
-  {
-    name: "TypeScript: a class method named test with a body that has an arrow is not Tests",
-    path: "src/app.ts",
-    head: lines(
-      "class Checker {",
-      "  test(input: string): boolean {",
-      "    return [1].map((x) => x).length > 0 && input.length > 0;",
-      "  }",
-      "}",
-    ),
-    patch: lines(
-      "@@ -3 +3 @@",
-      "-    return [1].map((x) => x).length > 0 && input.length > 1;",
-      "+    return [1].map((x) => x).length > 0 && input.length > 0;",
-    ),
-    expected: false,
-  },
-  {
-    name: "TypeScript: a describe method with a body that has an arrow is not Tests",
-    path: "src/app.ts",
-    head: lines(
-      "class Labels {",
-      "  describe(): string {",
-      '    return names.map((n) => n).join(",");',
-      "  }",
-      "}",
-    ),
-    patch: lines(
-      "@@ -3 +3 @@",
-      '-    return names.map((n) => n).join(";");',
-      '+    return names.map((n) => n).join(",");',
-    ),
-    expected: false,
-  },
-  {
-    name: "TypeScript: an object-literal test method with a body that has an arrow is not Tests",
-    path: "src/app.ts",
-    head: lines(
-      "const runner = {",
-      "  test(x) {",
-      "    return [x].filter((y) => y > 0);",
-      "  },",
-      "};",
-    ),
-    patch: lines(
-      "@@ -3 +3 @@",
-      "-    return [x].filter((y) => y > 1);",
-      "+    return [x].filter((y) => y > 0);",
-    ),
-    expected: false,
-  },
-  {
-    name: "TypeScript: a class method named test with wrapped parameters is not Tests",
-    path: "src/app.ts",
-    head: lines(
-      "class Checker {",
-      "  test(",
-      "    input: string,",
-      "    options: Options,",
-      "  ): boolean {",
-      "    return this.rules.every((rule) => rule.check(input, options));",
-      "  }",
-      "}",
-    ),
-    patch: lines(
-      "@@ -6 +6 @@",
-      "-    return this.rules.every((rule) => rule.check(input));",
-      "+    return this.rules.every((rule) => rule.check(input, options));",
-    ),
-    expected: false,
-  },
-  {
-    name: "TypeScript: an interface member named test with wrapped parameters is not Tests",
-    path: "src/app.ts",
-    head: lines(
-      "interface Matcher {",
-      "  test(",
-      "    name: string,",
-      "    fn: () => Promise<void>,",
-      "  ): void;",
-      "}",
-    ),
-    patch: lines("@@ -3 +3 @@", "-    name: string,", "+    label: string,"),
-    expected: false,
-  },
-  {
-    name: "TypeScript: a describe call whose arguments wrap onto lines is Tests",
-    path: "src/app.ts",
-    head: lines("describe(", '  "x",', "  () => {", "    expect(add(1, 2)).toBe(3);", "  },", ");"),
-    patch: lines(
-      "@@ -4 +4 @@",
-      "-    expect(add(1, 1)).toBe(2);",
-      "+    expect(add(1, 2)).toBe(3);",
-    ),
-    expected: true,
-  },
-  {
-    name: "TypeScript: a describe body with brace, paren and template strings is Tests",
-    path: "src/app.ts",
-    head: lines(
-      'describe("x", () => {',
-      '  const brace = "}";',
-      "  const paren = '(';",
-      "  const template = `})`;",
-      "  expect(add(1, 2)).toBe(3);",
-      "});",
-    ),
-    patch: lines("@@ -5 +5 @@", "-  expect(add(1, 1)).toBe(2);", "+  expect(add(1, 2)).toBe(3);"),
-    expected: true,
-  },
-  {
-    name: "TypeScript: a change outside every test block is not Tests",
-    path: "src/app.ts",
-    head: lines(
-      'import { it } from "vitest";',
-      "",
-      'it("works", () => {',
-      "  expect(1).toBe(1);",
-      "});",
-      "const helper = 1;",
-    ),
-    patch: lines("@@ -6 +6 @@", "-const helper = 0;", "+const helper = 1;"),
-    expected: false,
-  },
-];
-
 describe("inlineTestRuleApplies", () => {
   it.each(gateCases)("$name", ({ file, expected }) => {
     expect(inlineTestRuleApplies(file)).toBe(expected);
@@ -882,6 +435,30 @@ describe("inlineTestHunkVerdicts", () => {
     expect(
       inlineTestHunkVerdicts(modified("src/lib.rs", patch), headOf("src/lib.rs", head)),
     ).toEqual([false, true]);
+  });
+
+  it("reads a head's parsed test blocks instead of finding its own", () => {
+    const head = lines("run(() => {", "  check(2);", "});");
+    const patch = lines("@@ -2 +2 @@", "-  check(1);", "+  check(2);");
+
+    const verdicts = inlineTestHunkVerdicts(modified("src/app.ts", patch), {
+      ...headOf("src/app.ts", head),
+      testBlocks: [{ start: 1, end: 3 }],
+    });
+
+    expect(verdicts).toEqual([true]);
+  });
+
+  it("widens a parsed test block over the comment lines directly above it", () => {
+    const head = lines("const a = 1;", "// covers a", "run(() => {", "});");
+    const patch = lines("@@ -2 +2 @@", "-// covers b", "+// covers a");
+
+    const verdicts = inlineTestHunkVerdicts(modified("src/app.ts", patch), {
+      ...headOf("src/app.ts", head),
+      testBlocks: [{ start: 3, end: 4 }],
+    });
+
+    expect(verdicts).toEqual([true]);
   });
 
   it("gives no verdicts when the rule does not apply to the file", () => {

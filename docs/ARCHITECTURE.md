@@ -569,6 +569,16 @@ flowchart TD
     store --> done
 ```
 
+A read line-scans each head it fetches, unless the visit's `IntentSources` supplies
+`headOutline`, which it asks for each file's outline at the listed head SHA, the revision
+the head text is read at. Then `headFromOutline` in
+[`utils/hunk-rules/head-scan.ts`](../utils/hunk-rules/head-scan.ts) builds the head from
+the `HeadOutline` that [`utils/structural/outline.ts`](../utils/structural/outline.ts)
+makes from a parse, and the inline-test rule uses its `testBlocks`. A file with no outline
+(`headOutline` resolves `undefined`, throws, or rejects) is line-scanned as before.
+Nothing supplies `headOutline` yet. A read made with it caches under its own pin and diff
+keys, so an outlined result and a line-scanned one never stand in for each other.
+
 [`utils/intent/cache.ts`](../utils/intent/cache.ts) keeps intent in extension storage.
 `index.ts` sizes it to 50 entries; a pinned diff takes two, one under its diff key and one
 under its pin. Each store moves its key to the front of an index and drops the entries
@@ -998,8 +1008,8 @@ utils/
   github/                routes, diff parsing, the PR data port and source, code owners and reviewers
     conversation-frame.ts  the per-tab session rule that lets only the Conversation panel frame a PR's Conversation tab, and the panel's request for it
   intent/                reading, caching, and landing intent
-  hunk-rules/            the docstring and inline-test rules, and the generator-marker scan
-  structural/            rebuilding a changed file's old text from its patch; the tree-sitter token-diff engine and its grammar table; mapping an engine's structural changes onto diff lines; pairing a file's moved lines; the request shape a message carries, the runner that compiles the packaged WebAssembly, the one-at-a-time host, the engine-script loader, and the list of packaged files
+  hunk-rules/            the docstring and inline-test rules, and the generator-marker scan; a head is line-scanned, or built from a head outline when one is given
+  structural/            rebuilding a changed file's old text from its patch; the tree-sitter token-diff engine and its grammar table; outlining a head file's multi-line comments, strings, and test blocks from a parse; mapping an engine's structural changes onto diff lines; pairing a file's moved lines; the request shape a message carries, the runner that compiles the packaged WebAssembly, the one-at-a-time host, the engine-script loader, and the list of packaged files
   sections.ts            path rules for the five sections
   prefs.ts               saved preferences
   whats-new.ts           when the what's-new block shows

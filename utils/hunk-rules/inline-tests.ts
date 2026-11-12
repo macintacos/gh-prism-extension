@@ -1,5 +1,6 @@
 import { type PrFileDiff, type PrHunk, parsePrHunks } from "../github/pr-diff";
 import { classify } from "../sections";
+import type { LineBlock as Block } from "../structural/outline";
 import { extensionOf, type ScannedHead } from "./head-scan";
 
 /**
@@ -19,12 +20,14 @@ import { extensionOf, type ScannedHead } from "./head-scan";
  * splits per line; a renamed file never moves.
  */
 
-// ponytail: a line scan, not a parser. Braces in multi-line strings, template literals, Rust raw
-// strings spanning lines, or regex literals miscount; an opener inside a multi-line template literal
-// or raw string still opens; a multi-line decorator stops the widening; an unbalanced block is
-// dropped rather than guessed; a member call on a local named `it`/`test`/`describe` opens a block;
-// a docstring directly above a Python test widens into it; an attribute on the `mod tests` line
-// itself is not recognised. Upgrade path: tree-sitter grammars (~3.3 MB of wasm) in the worker.
+// ponytail: a line scan, not a parser, and the default and fallback. Braces in multi-line strings,
+// template literals, Rust raw strings spanning lines, or regex literals miscount; an opener inside
+// a multi-line template literal or raw string still opens; a multi-line decorator stops the
+// widening; an unbalanced block is dropped rather than guessed; a member call on a local named
+// `it`/`test`/`describe` opens a block; an attribute on the `mod tests` line itself is not
+// recognised. A head built from a tree-sitter parse carries its own test blocks, which replace the
+// finders' guesses; with either, a docstring directly above a Python test widens into it. Upgrade
+// path for Rust: a grammar for it beside the others.
 
 /**
  * Whether the rule can judge a file: a text Rust, Python or TypeScript file the path rules put in
@@ -42,7 +45,7 @@ export function inlineTestRuleApplies(file: PrFileDiff): boolean {
 export function inlineTestHunkVerdicts(file: PrFileDiff, head: ScannedHead): boolean[] {
   const findBlocks = candidateFinder(file);
   if (findBlocks === undefined || file.kind !== "text") return [];
-  const blocks = findBlocks(head);
+  const blocks = head.testBlocks === undefined ? findBlocks(head) : widened(head, head.testBlocks);
   return parsePrHunks(file.patch).map((hunk) => hunkIsInTests(hunk, blocks));
 }
 
@@ -52,12 +55,6 @@ function candidateFinder(file: PrFileDiff): BlockFinder | undefined {
   }
   if (classify(file.path) !== "implementation") return undefined;
   return FINDERS_BY_EXTENSION.get(extensionOf(file.path));
-}
-
-/** A test block in head-file lines: 1-based and inclusive, like {@link PrHunk.newStart}. */
-interface Block {
-  readonly start: number;
-  readonly end: number;
 }
 
 type Kind = ScannedHead["kinds"][number];
@@ -154,6 +151,12 @@ function blocksIn(rows: readonly Row[], opener: Opener, leader?: RegExp): Block[
   return blocks;
 }
 
+/** Parsed test blocks, each widened over the comments directly above it. */
+function widened(head: ScannedHead, blocks: readonly Block[]): Block[] {
+  const rows = rowsOf(head);
+  return blocks.map((block) => ({ ...block, start: widenedStart(rows, block.start - 1) + 1 }));
+}
+
 /** Extends a block's start over the comments and leader lines directly above its opener. */
 function widenedStart(rows: readonly Row[], index: number, leader?: RegExp): number {
   let start = index;
@@ -217,6 +220,7 @@ const rustTestMod: Opener = (row, index, rows) =>
 
 const rustTestBlocks: BlockFinder = (head) => blocksIn(rowsOf(head), rustTestMod, RUST_ATTRIBUTE);
 
+// Keep in sync with structural/outline.ts's test names; outline-parity.test.ts compares the two.
 const PY_TEST_CLASS = /^class\s+Test\w*\s*[(:]/;
 const PY_TEST_DEF = /^(async\s+)?def\s+test_\w*\s*\(/;
 const PY_CLASS = /^class\s/;
@@ -268,6 +272,7 @@ const pythonTestBlocks: BlockFinder = (head) =>
 const TS_LITERALS = /"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\/\/.*|\/\*.*?\*\//g;
 const TS_BRACES: Brackets = { literals: TS_LITERALS, open: "{", close: "}" };
 const TS_BRACKETS: Brackets = { literals: TS_LITERALS, open: "([{", close: ")]}" };
+// Keep in sync with structural/outline.ts's test names; outline-parity.test.ts compares the two.
 const TS_NAMESPACE = /^(export\s+)?(declare\s+)?(namespace|module)\s+tests?\s*\{/;
 const TS_TEST_CALL = /^(describe|it|test)(\.[\w$]+)*\s*\(/;
 const TS_CALLBACK = /=>|\bfunction\b/;
