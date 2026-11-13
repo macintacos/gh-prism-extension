@@ -1085,10 +1085,21 @@ and whenever it changes.
 - **A word GitHub's own diff picked keeps its syntax colour.** GitHub gives its `.x` spans
   a background and the line's plain colour. In a painted table the sheet clears the
   background and sets each span's colour back to its syntax class's.
+- **Rows are re-paired before painting.** A `StructuralFile` carries the engine's line
+  `matches`. At the start of each pass,
+  [`diffs/structural-pairing.ts`](../entrypoints/content/diffs/structural-pairing.ts) asks
+  `pairedRows` in [`utils/structural/pairing.ts`](../utils/structural/pairing.ts) how each
+  changed block of a Split table should pair, then moves GitHub's own cell pairs between
+  the block's rows so each line faces its matching line. GitHub's rows are reused first;
+  extra rows are gh-prism `tr`s marked `data-gh-prism-added-row`, and created empty space
+  is GitHub's own empty cells or filler cells marked `data-gh-prism-filler`. Each table's
+  original cells are kept in a snapshot, which undoes the re-pairing when the mode ends. A
+  table whose snapshot rows are all mounted and whose file is unchanged is left alone, so
+  the writer's own mutations settle. A table re-paired in a pass is repainted in it.
 - **One pass per animation frame.** The `sections` hook and every `observeDiffs` report
-  schedule a frame, and a pending frame is reused. The pass first reads every table, then
-  writes, so its reads (`querySelectorAll`, `dataset`, `textContent`) never force a layout
-  after a write.
+  schedule a frame, and a pending frame is reused. Past re-pairing, the pass first reads
+  every table, then writes, so its reads (`querySelectorAll`, `dataset`, `textContent`)
+  never force a layout after a write.
 - **Per-table repainting.** A map from each table to what it holds lets a pass repaint
   only the tables that changed. A table counts as changed when `annotationsOf` returns a
   different `StructuralFile` object (compared by identity), when its cells' text elements

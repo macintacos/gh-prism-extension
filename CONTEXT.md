@@ -205,6 +205,14 @@ one mark over its text when it changed inside a unit that remains. Otherwise it 
 mark, and GitHub's line tint, left at full strength, shows it. _Avoid_: chip, pill, word
 mark (GitHub's own highlight)
 
+**Changed block**: A run of consecutive diff rows that each hold an added or deleted line,
+between two unchanged rows or a hunk's edge. _Avoid_: block alone (see Unit), change group
+
+**Matching line**: The line on the other side of the same changed block that a line shares
+the most matched tokens with. In Split, structural mode re-pairs a changed block's rows so
+each line sits opposite its matching line, keeping each side in file order. _Avoid_:
+partner line, aligned line
+
 **Unit**: In structural mode, a stretch of syntax that has its lines to itself: a syntax
 node that starts at its line's first token and ends at its line's last, with the `;` that
 ends it. A statement, a method, and a function are units. In a list that separates its

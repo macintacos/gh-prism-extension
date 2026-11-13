@@ -1074,6 +1074,83 @@ export function changedCells(root: ParentNode): ChangedCell[] {
   });
 }
 
+/**
+ * A maximal run of rows that each hold a changed cell, with each side's changed lines in order and
+ * each row's changed lines, `lines[i]` being `rows[i]`'s.
+ */
+export interface ChangedBlock {
+  readonly rows: readonly HTMLTableRowElement[];
+  readonly lines: readonly { old?: number; new?: number }[];
+  readonly olds: readonly number[];
+  readonly news: readonly number[];
+}
+
+/** The changed blocks of a split `table`, in document order. */
+export function changedBlocks(table: ParentNode): ChangedBlock[] {
+  const cellsByRow = new Map<HTMLTableRowElement, ChangedCell[]>();
+  for (const cell of changedCells(table))
+    cellsByRow.set(cell.row, [...(cellsByRow.get(cell.row) ?? []), cell]);
+
+  const blocks: {
+    rows: HTMLTableRowElement[];
+    lines: { old?: number; new?: number }[];
+    olds: number[];
+    news: number[];
+  }[] = [];
+  let open = false;
+  for (const row of table.querySelectorAll<HTMLTableRowElement>("tr.diff-line-row")) {
+    const cells = cellsByRow.get(row);
+    if (!cells) {
+      open = false;
+      continue;
+    }
+    if (!open) blocks.push({ rows: [], lines: [], olds: [], news: [] });
+    open = true;
+    const block = blocks.at(-1);
+    const lines: { old?: number; new?: number } = {};
+    for (const { side, line } of cells) {
+      lines[side] = line;
+      (side === "old" ? block?.olds : block?.news)?.push(line);
+    }
+    block?.rows.push(row);
+    block?.lines.push(lines);
+  }
+  return blocks;
+}
+
+/** One side of a split row: its number cell and its code cell. */
+export type SideCells = readonly [Element, Element];
+
+/** A split row's old-side and new-side cells, by position. */
+export function sideCellsOf(row: HTMLTableRowElement): { old: SideCells; new: SideCells } {
+  const [oldNumber, oldCode, newNumber, newCode] = row.children;
+  if (!oldNumber || !oldCode || !newNumber || !newCode) throw new Error("not a split row");
+  return { old: [oldNumber, oldCode], new: [newNumber, newCode] };
+}
+
+// ponytail: the pull request's empty-side shape, used on commit pages too; no commit fixture
+// holds a one-sided split row to check against.
+/** One side's empty pair, shaped like GitHub's own and marked with `marker`. */
+export function fillerCells(doc: Document, marker: string): SideCells {
+  const cell = () => {
+    const td = doc.createElement("td");
+    td.className = "focusable-grid-cell empty-diff-line left-side";
+    td.setAttribute("role", "gridcell");
+    td.tabIndex = -1;
+    td.setAttribute(marker, "");
+    return td;
+  };
+  return [cell(), cell()];
+}
+
+/** An empty diff row marked with `marker`. */
+export function addedRow(doc: Document, marker: string): HTMLTableRowElement {
+  const row = doc.createElement("tr");
+  row.className = "diff-line-row";
+  row.setAttribute(marker, "");
+  return row;
+}
+
 /** GitHub's two ways of drawing a diff. */
 export type DiffLayout = "unified" | "split";
 

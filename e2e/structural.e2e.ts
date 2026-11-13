@@ -4,7 +4,11 @@ import { join } from "node:path";
 import { inflateSync } from "node:zlib";
 import { test as base, type CDPSession, expect, type Page } from "@playwright/test";
 import { STRUCTURAL_ATTRS } from "../entrypoints/content/diffs/structural-attrs";
+import { inputFor, parserFor, regionsOf } from "../tests/fixtures/structural";
+import { PAIRING_NEW_TEXT, PAIRING_OLD_TEXT } from "../tests/fixtures/structural-pairing";
 import type { StructuralFile } from "../utils/structural/changes";
+import { structuralChanges } from "../utils/structural/engine";
+import { grammarOf } from "../utils/structural/grammar";
 import type { StructuralHarness } from "./structural-page";
 
 declare const window: Window & { readonly structural: StructuralHarness };
@@ -590,4 +594,112 @@ test("marks a changed token in the system's colours under forced colours", async
   // Without its ranges, the cell shows whatever else forced colours leave of the paint.
   await page.evaluate(() => CSS.highlights.clear());
   expect((await tokenCell.screenshot()).equals(marked)).toBe(false);
+});
+
+const PAIRING_SPLIT = "files-page-pairing-split.html";
+
+/** The engine's line matches for the pairing sandbox pull request's `app/records.py`. */
+async function pairingMatches(): Promise<NonNullable<StructuralFile["matches"]>> {
+  const python = grammarOf("records.py");
+  if (!python) throw new Error("no python grammar");
+  const result = await structuralChanges(
+    inputFor({
+      oldText: PAIRING_OLD_TEXT,
+      newText: PAIRING_NEW_TEXT,
+      language: { grammar: python, parser: await parserFor("python") },
+      regions: regionsOf(PAIRING_OLD_TEXT, PAIRING_NEW_TEXT),
+    }),
+  );
+  if (!result.ok || !result.changes.matches) throw new Error("the engine gave no matches");
+  return result.changes.matches;
+}
+
+/** Mounts the pairing fixture and starts the painter with the engine's matches on its file. */
+async function startPairing(page: Page, bundle: string) {
+  await mount(page, bundle, [PAIRING_SPLIT]);
+  const matches = await pairingMatches();
+  await page.evaluate((matches) => {
+    const files = window.structural.synthesize();
+    for (const [anchor, file] of Object.entries(files)) files[anchor] = { ...file, matches };
+    window.structural.start(files);
+  }, matches);
+  await repaint(page);
+}
+
+/** Each row's old and new line numbers from `first`'s old line on, `-` for a side with none. */
+const pairingRows = (page: Page, first: number, count: number) =>
+  page.evaluate(
+    ({ first, count }) => {
+      const rows = [...document.querySelectorAll("tr.diff-line-row")].map((row) => {
+        const number = (cell: Element | undefined) => cell?.getAttribute("data-line-number") ?? "-";
+        return `${number(row.children[0])}|${number(row.children[2])}`;
+      });
+      const at = rows.findIndex((row) => row.startsWith(`${first}|`));
+      return rows.slice(at, at + count);
+    },
+    { first, count },
+  );
+
+const githubPairing = ["120|138", "121|-", "122|139"];
+const linedUp = ["120|-", "121|138", "122|139"];
+
+test("lines a new line up opposite its matching old line", async ({ page, bundle }) => {
+  await startPairing(page, bundle);
+
+  expect(await pairingRows(page, 120, 3)).toEqual(linedUp);
+});
+
+test("shows a block needing more rows with one added row", async ({ page, bundle }) => {
+  await startPairing(page, bundle);
+
+  expect(await pairingRows(page, 125, 5)).toEqual([
+    "125|142",
+    "-|143",
+    "126|144",
+    "127|-",
+    "128|145",
+  ]);
+  await expect(page.locator("tr[data-gh-prism-added-row]")).toHaveCount(1);
+});
+
+test("re-pairs a table replaced by expanding context or loading late, never mixing rows", async ({
+  page,
+  bundle,
+}) => {
+  await startPairing(page, bundle);
+  const table = readFixture(PAIRING_SPLIT);
+
+  await page.evaluate((table) => {
+    const region = document.querySelector("#diffs > div");
+    if (region) region.innerHTML = table;
+  }, table);
+  await repaint(page);
+  expect(await pairingRows(page, 120, 3)).toEqual(linedUp);
+  await expect(page.locator("tr[data-gh-prism-added-row]")).toHaveCount(1);
+
+  await page.evaluate(() => document.querySelector("#diffs > div")?.replaceChildren());
+  await repaint(page);
+  await page.evaluate((table) => {
+    const region = document.querySelector("#diffs > div");
+    if (region) region.innerHTML = table;
+  }, table);
+  await repaint(page);
+  expect(await pairingRows(page, 120, 3)).toEqual(linedUp);
+  await expect(page.locator("tr[data-gh-prism-added-row]")).toHaveCount(1);
+});
+
+test("turning the mode off restores GitHub's rows", async ({ page, bundle }) => {
+  // Taking a mark off leaves an empty style attribute on its text root; rows are what this checks.
+  const tbody = () =>
+    page.evaluate(() => document.querySelector("tbody")?.innerHTML.replaceAll(' style=""', ""));
+  await mount(page, bundle, [PAIRING_SPLIT]);
+  const before = await tbody();
+  await page.evaluate(() => document.querySelector("#diffs")?.replaceChildren());
+  await startPairing(page, bundle);
+  expect(await pairingRows(page, 120, 3)).toEqual(linedUp);
+
+  await page.evaluate(() => window.structural.stop());
+
+  expect(await pairingRows(page, 120, 3)).toEqual(githubPairing);
+  expect(await tbody()).toBe(before);
 });

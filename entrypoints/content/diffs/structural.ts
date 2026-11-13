@@ -10,8 +10,16 @@ import type { LandingView } from "../visit/land";
 import { pathsByAnchor } from "./on-screen";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./structural.css?inline";
-import { MARKS_ATTR, PART_ATTR, QUIET_ATTR, TABLE_ATTR } from "./structural-attrs";
+import {
+  ADDED_ROW_ATTR,
+  FILLER_ATTR,
+  MARKS_ATTR,
+  PART_ATTR,
+  QUIET_ATTR,
+  TABLE_ATTR,
+} from "./structural-attrs";
 import { type Box, lineBoxes, markRanges, maskOf } from "./structural-marks";
+import { type PairingSnapshots, repairTable, restoreTable } from "./structural-pairing";
 
 /** How a mounted file fared: painted, or skipped whole because a mounted cell's text or annotation disagrees with the file. */
 export type PaintOutcome = "painted" | "mismatch";
@@ -240,11 +248,21 @@ export function paintStructural(
     });
     for (const [root, mask] of masks) writeMask(root, mask);
   });
+  const snapshots: PairingSnapshots = new Map();
   const reported = new Map<string, PaintOutcome>();
   let paths: ReadonlyMap<string, string> = new Map();
   let frame: number | undefined;
 
-  const collect = (): Pass => {
+  const repair = (): Set<HTMLTableElement> => {
+    const changed = new Set<HTMLTableElement>();
+    for (const { table, anchor, layout } of diffTables(diffs)) {
+      const path = paths.get(anchor);
+      const file = path === undefined ? undefined : annotationsOf(path);
+      if (file && layout === "split" && repairTable(table, file, snapshots)) changed.add(table);
+    }
+    return changed;
+  };
+  const collect = (repaired: ReadonlySet<HTMLTableElement>): Pass => {
     const plans: Plan[] = [];
     const fresh = new Set<HTMLTableElement>();
     for (const { table, anchor, layout } of diffTables(diffs)) {
@@ -253,7 +271,7 @@ export function paintStructural(
       if (path === undefined || !file || layout !== "split") continue;
       const cells = changedCells(table);
       const lastPaint = painted.get(table);
-      if (isFresh(lastPaint, file, cells)) fresh.add(table);
+      if (!repaired.has(table) && isFresh(lastPaint, file, cells)) fresh.add(table);
       else plans.push(planTable(table, path, file, cells, lastPaint));
     }
     return { plans, stale: [...painted.keys()].filter((table) => !fresh.has(table)) };
@@ -322,9 +340,9 @@ export function paintStructural(
       report(path, outcome);
     }
   };
-  // Every read precedes every write, so a pass never forces a layout between them.
+  // Past re-pairing, every read precedes every write, so painting never forces a layout between them.
   const pass = () => {
-    const work = collect();
+    const work = collect(repair());
     apply(work);
     reportChanged(work);
   };
@@ -346,6 +364,10 @@ export function paintStructural(
     win.CSS.highlights.delete(ADDED_HIGHLIGHT);
     win.CSS.highlights.delete(REMOVED_HIGHLIGHT);
     sizes.disconnect();
+
+    for (const table of [...snapshots.keys()]) restoreTable(table, snapshots);
+    for (const element of diffs.querySelectorAll(`[${ADDED_ROW_ATTR}], [${FILLER_ATTR}]`))
+      element.remove();
 
     // Sweeps the DOM, not `painted`: it also catches marks on a table GitHub moved since its pass.
     for (const element of diffs.querySelectorAll<HTMLElement>(

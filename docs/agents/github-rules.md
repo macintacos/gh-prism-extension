@@ -437,6 +437,22 @@ on a private one.
   pull request #119, light and dark, 2026-11-11; Firefox not measured live. Re-check: read
   `document.styleSheets` for the rules whose selector holds `.pl-` and a `color`, and
   compare them with the `.pl-*` rules in `structural.css`.
+- **Move a line's `td` pair only between rows of one changed block.** A probe on a
+  signed-in sandbox pull request in Chromium moved GitHub's own `td` pairs between `tr`s
+  and added a gh-prism `tr` to the `tbody`. React patched inside cells only: every `tr`
+  and `td` kept its identity, and the foreign `tr` survived in-place re-renders. Starting,
+  posting, replying to, and resolving a comment all worked on moved cells, because each
+  cell keeps its own `data-diff-side` and `data-line-number`, and the comment control,
+  form, and thread mount inside the line's `td.diff-text-cell` and travel with it.
+  Expanding a hunk replaces the whole `div.diffTargetable` under `div.diffEntry`, in
+  GitHub's own pairing. While a multi-line drag selection crosses re-paired rows, GitHub
+  tints cells by `data-diff-line-key` range, so some unselected cells look selected until
+  the drag ends; the comment still lands on the right lines. Firefox, a late-loading diff,
+  file collapse, and keyboard grid navigation across moved cells were not observed live.
+  `changedBlocks`, `sideCellsOf`, `fillerCells`, and `addedRow` in `files-page.ts` hold
+  the selectors. Re-check: on a sandbox pull request in Split, move a changed row's
+  `td:nth-child(n+3)` pair into the next changed row, comment on the moved line, and read
+  the posted comment's line and side; then expand the hunk and count `table` nodes.
 - **Find the comment controls by these hooks.** The add-comment button is
   `button[data-add-comment-button="true"]` (`aria-label="Add comment"`), shown once a
   row's code cell is hovered. Its form is a `[role=dialog]` named "Comment view", with no

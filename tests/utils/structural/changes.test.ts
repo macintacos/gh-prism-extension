@@ -221,6 +221,13 @@ describe("structuralFile", () => {
     expect(file?.text).toEqual({ old: { 1: "old" }, new: { 1: "new" } });
   });
 
+  it("keeps the engine's line matches", () => {
+    const matches = [{ old: 1, new: 2, count: 3 }];
+    expect(structuralFile({ old: [], new: [], matches }, parsePrHunks(RENAME))?.matches).toBe(
+      matches,
+    );
+  });
+
   it("gives undefined for an unreadable hunk", () => {
     const hunks = parsePrHunks(lines("@@ -1,1 +1,1 @@", "?x"));
 

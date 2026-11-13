@@ -67,6 +67,7 @@ export type TextByLine = Readonly<Record<number, string>>;
 export interface StructuralFile {
   readonly annotations: LineAnnotations;
   readonly text: { readonly old: TextByLine; readonly new: TextByLine };
+  readonly matches?: readonly LineMatch[];
 }
 
 /**
@@ -112,6 +113,7 @@ export function structuralFile(
   return {
     annotations: { old: oldAnnotations, new: newAnnotations },
     text: { old: oldText, new: newText },
+    ...(changes.matches && { matches: changes.matches }),
   };
 }
 
