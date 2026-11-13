@@ -22,7 +22,7 @@ export interface StructuralChanges {
    * such as a name removed from a wrapped import. Absent when the file has no syntax tree.
    */
   readonly inside?: { readonly old: readonly number[]; readonly new: readonly number[] };
-  /** Each pair of 1-based lines sharing matched tokens, where either line is in a changed region. */
+  /** Each pair of 1-based lines sharing matched tokens, where either line is in a changed region; absent reads as none. */
   readonly matches?: readonly LineMatch[];
 }
 
@@ -67,6 +67,7 @@ export type TextByLine = Readonly<Record<number, string>>;
 export interface StructuralFile {
   readonly annotations: LineAnnotations;
   readonly text: { readonly old: TextByLine; readonly new: TextByLine };
+  /** The engine's line matches, for re-pairing rows in Split; absent reads as none. */
   readonly matches?: readonly LineMatch[];
 }
 

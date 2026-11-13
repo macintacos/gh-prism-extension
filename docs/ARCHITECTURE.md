@@ -1094,8 +1094,12 @@ and whenever it changes.
   extra rows are gh-prism `tr`s marked `data-gh-prism-added-row`, and created empty space
   is GitHub's own empty cells or filler cells marked `data-gh-prism-filler`. Each table's
   original cells are kept in a snapshot, which undoes the re-pairing when the mode ends. A
-  table whose snapshot rows are all mounted and whose file is unchanged is left alone, so
-  the writer's own mutations settle. A table re-paired in a pass is repainted in it.
+  table is re-paired only when every changed cell's text equals the file's line, the same
+  check the painter makes (`matchedText`); otherwise GitHub's rows stay, and an empty
+  snapshot lets the table settle. A block is also left alone when GitHub drew it with
+  other than one row per line of its longer side, or a row lacks four cells. A table whose
+  snapshot rows are all mounted and whose file is unchanged is left alone, so the writer's
+  own mutations settle. A table re-paired in a pass is repainted in it.
 - **One pass per animation frame.** The `sections` hook and every `observeDiffs` report
   schedule a frame, and a pending frame is reused. Past re-pairing, the pass first reads
   every table, then writes, so its reads (`querySelectorAll`, `dataset`, `textContent`)
@@ -1126,7 +1130,9 @@ and whenever it changes.
   file's annotations arrive.
 
 On abort the painter cancels its frame, deletes both highlights, disconnects its observer,
-removes `data-gh-prism-structural`, `data-gh-prism-quiet`, `data-gh-prism-part`,
+puts re-paired cells back in GitHub's rows, removes its added rows
+(`data-gh-prism-added-row`) and filler cells (`data-gh-prism-filler`), removes
+`data-gh-prism-structural`, `data-gh-prism-quiet`, `data-gh-prism-part`,
 `data-gh-prism-marks`, and each mask, and removes its `<style>`.
 
 `showStructural` also mounts the notices, `showStructuralNotices` in

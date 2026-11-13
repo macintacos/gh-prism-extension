@@ -213,6 +213,10 @@ the most matched tokens with. In Split, structural mode re-pairs a changed block
 each line sits opposite its matching line, keeping each side in file order. _Avoid_:
 partner line, aligned line
 
+**Re-pair**: To move a changed block's cells between its rows so each line sits opposite
+its matching line. _Avoid_: pair, for the engine's matching of a named value's old and new
+sides
+
 **Unit**: In structural mode, a stretch of syntax that has its lines to itself: a syntax
 node that starts at its line's first token and ends at its line's last, with the `;` that
 ends it. A statement, a method, and a function are units. In a list that separates its

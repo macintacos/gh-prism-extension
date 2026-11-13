@@ -37,8 +37,8 @@ export type FileChanges = (
 ) => Promise<FileChangesResult>;
 
 /**
- * The most token spans the cache keeps across all files: about five files at the engine's worst
- * case, `maxChangedTokens` tokens changed a side.
+ * The most token spans and line matches the cache keeps across all files: about five files at the
+ * engine's worst case, `maxChangedTokens` a side.
  */
 export const CACHED_SPANS = 200_000;
 
@@ -51,7 +51,7 @@ export const STRUCTURAL_READS_AT_ONCE = 6;
 export interface FileChangesDeps {
   readonly source: Pick<PrDataSource, "files" | "content">;
   readonly run: EngineRun;
-  /** The cache's bound, in token spans across all entries. */
+  /** The cache's bound, in token spans and line matches across all entries. */
   readonly cachedSpans: number;
 }
 
@@ -169,8 +169,8 @@ const cacheKey = (pr: DiffHead, path: string): string => {
 };
 
 /**
- * Settled answers by key, bounded by `bound` token spans in total. An entry weighs its spans plus
- * one, so empty changes still count; a refusal weighs 1.
+ * Settled answers by key, bounded by `bound` token spans and line matches in total. An entry weighs
+ * its spans and matches plus one, so empty changes still count; a refusal weighs 1.
  */
 function spanCache(bound: number) {
   // ponytail: first in, first out; refresh an entry on read if revisits matter.

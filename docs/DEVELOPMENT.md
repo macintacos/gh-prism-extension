@@ -149,16 +149,19 @@ Structural mode in the built extension on live GitHub. It needs a signed-in Play
 `storageState` file; the default URLs are sandbox PRs #3 and #4 and two sandbox commits,
 all in Split. It builds a scratch copy with `bench/scratch-build.ts`, adding a bench-only
 content script that sets and reads the preference and asks the port for a file's answer.
-It runs three passes: with the preference off, no URL shows any structural trace, notices
-included; with it on, each on-screen file is painted or skipped for a reason, an
-unsupported file shows its notice and a painted one none, and README.md on sandbox PR #3
-drops its notice in the rich diff and shows it again in the source diff; and choosing
-Unified from the gear turns the preference off. That last pass changes the signed-in
-account's saved Layout, then chooses the original again before the run ends, on failure
-too; `bun bench/structural-mode-live/restore-check.ts` proves that restore offline. It
-prints one line per check, ends the second pass with `mismatch: <n> of <m>`, and exits 1
-when a check fails. `bench/structural-mode-live/results/*.txt` hold one run per browser,
-written by
+It runs five passes: with the preference off, no URL shows any structural trace, notices
+included; on the pairing pull request,
+<https://github.com/macintacos/gh-prism-sandbox/pull/11>, which runs whatever URLs you
+pass, new line 138 sits opposite old line 121 in one added row with no numbered filler,
+Split restores GitHub's row count, and an expanded hunk re-pairs the block once; with the
+preference on, each on-screen file is painted or skipped for a reason, and an unsupported
+file shows its notice and a painted one none; choosing Unified from the gear turns the
+preference off; and the diff view control drives both. The Unified pass changes the
+signed-in account's saved Layout, then chooses the original again before the run ends, on
+failure too; `bun bench/structural-mode-live/restore-check.ts` proves that restore
+offline. It prints one line per check, ends the second pass with `mismatch: <n> of <m>`,
+and exits 1 when a check fails. `bench/structural-mode-live/results/*.txt` hold one run
+per browser, written by
 `bun bench/structural-mode-live.ts chromium <path> > bench/structural-mode-live/results/chromium.txt`
 (and likewise for `firefox`); they are a dated record, not a baseline. Its diff view
 control pass ends each URL with a round trip from Unified through Structural, Unified, and
@@ -218,15 +221,17 @@ then decides; and one run on a large virtualized commit page.
 `scripts/create-sandbox.sh <owner>/<repo>` creates a private repository under an account
 you control, with ten open pull requests. Small, large, and complicated survey GitHub's
 Files view on pull requests you own. Four more, one per comment syntax (Python, C-like,
-Go, and Lua), mix code with comment and docstring lines. The last two add files with long
+Go, and Lua), mix code with comment and docstring lines. Two more add files with long
 paths and a long file name, for checking how the comment-lines sub-section's tree and
 Implementation show them. The bodies of these six list the counts gh-prism should show for
 Implementation, Tests, and Docs & Comments, worked out by hand, so you can check them
 against the sidebar in either dev browser. The tenth, structural pairing, changes one
 Python file whose changed blocks GitHub pairs line by line from the top; its body lists
-the rows Structural mode should show in Split instead. It needs the `gh` CLI signed in. It
-skips the repository and each pull request that already exists, so a rerun picks up where
-it left off. A pull request that failed midway is the exception: fix it by hand.
+the rows Structural mode should show in Split instead. On `macintacos/gh-prism-sandbox` it
+is <https://github.com/macintacos/gh-prism-sandbox/pull/11>, a number the live check and
+the pairing fixture hard-code. It needs the `gh` CLI signed in. It skips the repository
+and each pull request that already exists, so a rerun picks up where it left off. A pull
+request that failed midway is the exception: fix it by hand.
 
 `scripts/create-codeowners-sandbox.sh excessive-dev/gh-prism-codeowners-sandbox` creates
 the code-owners sandbox, a public repository under the `excessive-dev` organization. It is

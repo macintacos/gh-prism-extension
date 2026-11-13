@@ -1,7 +1,9 @@
 /**
  * Live check of Structural mode in the built extension on signed-in GitHub pages: nothing
- * structural, notices included, with the preference off; with it on, each on-screen file painted or
- * skipped for a reason, an unsupported file's notice and none on a painted one; GitHub's Unified turning it off; and the diff view control driving both. Kept out of CI, Vitest
+ * structural, notices included, with the preference off; on the pairing pull request, matching
+ * lines sharing a row and GitHub's rows restored; with the preference on, each on-screen file
+ * painted or skipped for a reason, an unsupported file's notice and none on a painted one;
+ * GitHub's Unified turning it off; and the diff view control driving both. Kept out of CI, Vitest
  * and Playwright like the rest of `bench/`.
  *
  *   bun bench/structural-mode-live.ts <chromium|firefox> <storage-state path> [url…]
@@ -47,6 +49,7 @@ const statePath: string = state;
 
 const SANDBOX = "https://github.com/macintacos/gh-prism-sandbox";
 const PR4 = `${SANDBOX}/pull/4/changes`;
+const PAIRING_PR = `${SANDBOX}/pull/11/changes?diff=split`;
 const URLS = urlArgs.length
   ? urlArgs
   : [
@@ -429,8 +432,9 @@ const pairingState = (page: Page) =>
   });
 
 /**
- * Pass 5, on the pairing pull request only: new line 138 sits opposite old line 121, fillers carry
- * no line number, Split restores GitHub's rows, and an expanded hunk re-pairs the block once.
+ * The pairing pass, on the pairing pull request only: new line 138 sits opposite old line 121,
+ * fillers carry no line number, the diff view control's Split segment restores GitHub's rows, and
+ * an expanded hunk re-pairs the block once.
  */
 async function pairing(page: Page, url: string): Promise<void> {
   const settle = async () => {
@@ -500,7 +504,7 @@ try {
     `browser: ${browserName} ${context.browser()?.version() ?? (await page.evaluate(() => navigator.userAgent))}`,
   );
   await modeOff(page);
-  for (const url of URLS.filter((url) => url.includes("/pull/11/"))) await pairing(page, url);
+  await pairing(page, PAIRING_PR);
   await modeOn(page);
   const before = await unifiedTurnsOff(page);
   await viewControl(page);

@@ -1,16 +1,29 @@
+/**
+ * Re-pairs a split table's changed blocks so each line faces its matching line, moving GitHub's
+ * own cells between its rows and adding rows and empty cells where a block needs more, and puts
+ * GitHub's rows back.
+ */
+
 import type { StructuralFile } from "@/utils/structural/changes";
 import { type PairedRow, pairedRows } from "@/utils/structural/pairing";
 import {
   addedRow,
-  type ChangedBlock,
+  type BlockRow,
+  type ChangedCell,
   changedBlocks,
+  changedCells,
+  type DiffSide,
   fillerCells,
+  pageKindOf,
   type SideCells,
   sideCellsOf,
 } from "../files-page";
 import { ADDED_ROW_ATTR, FILLER_ATTR } from "./structural-attrs";
 
-/** What one table looked like before re-pairing: the file it was paired from, and each touched GitHub row's own cells. */
+/**
+ * What one table looked like before re-pairing: the file it was paired from, and each touched
+ * GitHub row's own cells.
+ */
 interface Snapshot {
   readonly file: StructuralFile;
   readonly rows: readonly (readonly [HTMLTableRowElement, readonly Element[]])[];
@@ -19,71 +32,128 @@ interface Snapshot {
 /** Each re-paired table's snapshot, so its GitHub rows can be put back. */
 export type PairingSnapshots = Map<HTMLTableElement, Snapshot>;
 
+/** A block row with its cells on each side. */
+interface SidedRow extends BlockRow {
+  readonly sides: { readonly old: SideCells; readonly new: SideCells };
+}
+
+/** One block's rows and the rows it should show. */
+interface BlockPlan {
+  readonly rows: readonly SidedRow[];
+  readonly paired: readonly PairedRow[];
+}
+
+/** `cell`'s line text in `file`, or `undefined` when the mounted cell's text differs from it. */
+export function matchedText(file: StructuralFile, cell: ChangedCell): string | undefined {
+  const text = file.text[cell.side][cell.line];
+  return text !== undefined && cell.textRoot.textContent === text ? text : undefined;
+}
+
 /**
- * Re-pairs `table`'s changed blocks so each line faces its matching line, from `file`'s matches,
- * and records how to undo it in `snapshots`. Returns whether the table's rows changed. A table
- * already paired from `file`, whose rows are all still mounted, is left alone; snapshots of tables
- * no longer mounted are dropped.
+ * Re-pairs `table`'s changed blocks from `file`'s matches and records how to undo it in
+ * `snapshots`. Returns whether the table's rows changed. A table already paired from `file`, whose
+ * rows are all still mounted, is left alone, and so is a block whose rows GitHub did not draw one
+ * per line of its longer side, four cells each.
  */
 export function repairTable(
   table: HTMLTableElement,
   file: StructuralFile,
   snapshots: PairingSnapshots,
 ): boolean {
-  for (const stale of snapshots.keys()) if (!stale.isConnected) snapshots.delete(stale);
-
   const before = snapshots.get(table);
   if (before?.file === file && before.rows.every(([row]) => row.isConnected)) return false;
-  const undone = before !== undefined && before.rows.length > 0;
-  if (before) restoreTable(table, snapshots);
 
-  const { matches } = file;
-  const plans = matches
-    ? changedBlocks(table).flatMap((block) => {
-        const rows = pairedRows(block.olds, block.news, matches);
-        return rows ? [{ block, rows }] : [];
-      })
-    : [];
-  const rows = plans.flatMap(({ block }) => block.rows);
-  snapshots.set(table, { file, rows: rows.map((row) => [row, [...row.children]] as const) });
-  for (const { block, rows: paired } of plans) writeBlock(block, paired);
+  const undone = restoreTable(table, snapshots);
+  const plans = plansOf(table, file);
+  // An empty snapshot still records `file`, so a table with nothing to pair settles too.
+  snapshots.set(table, {
+    file,
+    rows: plans.flatMap(({ rows }) => rows.map(({ row }) => [row, [...row.children]] as const)),
+  });
+  for (const plan of plans) writeBlock(plan);
   return undone || plans.length > 0;
 }
 
-/** Puts `table`'s GitHub rows back as its snapshot recorded them and removes what re-pairing added. */
-export function restoreTable(table: HTMLTableElement, snapshots: PairingSnapshots): void {
-  for (const [row, cells] of snapshots.get(table)?.rows ?? [])
-    if (row.isConnected) row.replaceChildren(...cells);
+/** Drops the snapshots of tables no longer mounted. */
+export function dropUnmounted(snapshots: PairingSnapshots): void {
+  for (const table of snapshots.keys()) if (!table.isConnected) snapshots.delete(table);
+}
+
+/**
+ * Puts `table`'s GitHub rows back as its snapshot recorded them and removes what re-pairing added.
+ * Returns whether the snapshot had moved any row.
+ */
+export function restoreTable(table: HTMLTableElement, snapshots: PairingSnapshots): boolean {
+  const rows = snapshots.get(table)?.rows ?? [];
+  for (const [row, cells] of rows) if (row.isConnected) row.replaceChildren(...cells);
   for (const added of table.querySelectorAll(`[${ADDED_ROW_ATTR}], [${FILLER_ATTR}]`))
     added.remove();
   snapshots.delete(table);
+  return rows.length > 0;
 }
 
-/** Moves `block`'s cells into the rows `paired` lists, reusing GitHub's rows first and adding the rest after them. */
-function writeBlock(block: ChangedBlock, paired: readonly PairedRow[]): void {
-  const doc = block.rows[0]?.ownerDocument;
-  const last = block.rows.at(-1);
-  if (!doc || !last) return;
+/** The blocks of `table` to re-pair, none when a changed cell's text differs from `file`'s. */
+function plansOf(table: HTMLTableElement, file: StructuralFile): BlockPlan[] {
+  const { matches } = file;
+  if (!matches || !changedCells(table).every((cell) => matchedText(file, cell) !== undefined))
+    return [];
 
-  const old = new Map<number, SideCells>();
-  const fresh = new Map<number, SideCells>();
-  const spare: SideCells[] = [];
-  block.rows.forEach((row, i) => {
-    const sides = sideCellsOf(row);
-    const { old: oldLine, new: newLine } = block.lines[i] ?? {};
-    if (oldLine === undefined) spare.push(sides.old);
-    else old.set(oldLine, sides.old);
-    if (newLine === undefined) spare.push(sides.new);
-    else fresh.set(newLine, sides.new);
+  return changedBlocks(table).flatMap((block) => {
+    const rows = block.flatMap((row) => {
+      const sides = sideCellsOf(row.row);
+      return sides ? [{ ...row, sides }] : [];
+    });
+    const olds = block.flatMap((row) => row.old ?? []);
+    const news = block.flatMap((row) => row.new ?? []);
+    if (rows.length !== block.length || block.length !== Math.max(olds.length, news.length))
+      return [];
+    const paired = pairedRows(olds, news, matches);
+    return paired ? [{ rows, paired }] : [];
   });
-  const empty = () => spare.pop() ?? fillerCells(doc, FILLER_ATTR);
+}
 
-  const added = paired.slice(block.rows.length).map(() => addedRow(doc, ADDED_ROW_ATTR));
+const SIDES = ["old", "new"] as const;
+
+/**
+ * Moves a block's cells into the rows `paired` lists, reusing GitHub's rows first and adding the
+ * rest after them. A row that already holds its cells is left untouched.
+ */
+function writeBlock({ rows, paired }: BlockPlan): void {
+  const last = rows.at(-1)?.row;
+  if (!last) return;
+  const doc = last.ownerDocument;
+  const { emptySide } = pageKindOf(last);
+
+  const byLine = { old: new Map<number, SideCells>(), new: new Map<number, SideCells>() };
+  const spare = { old: new Set<SideCells>(), new: new Set<SideCells>() };
+  for (const row of rows)
+    for (const side of SIDES) {
+      const line = row[side];
+      if (line === undefined) spare[side].add(row.sides[side]);
+      else byLine[side].set(line, row.sides[side]);
+    }
+  // A row's own empty side first, so a row that does not move keeps it.
+  const cellsFor = (side: DiffSide, line: number | undefined, own: SideCells | undefined) => {
+    const found = line === undefined ? undefined : byLine[side].get(line);
+    if (found) return found;
+    const reused = own && spare[side].has(own) ? own : spare[side].values().next().value;
+    if (!reused) return fillerCells(doc, emptySide[side], FILLER_ATTR);
+    spare[side].delete(reused);
+    return reused;
+  };
+
+  const added = paired.slice(rows.length).map(() => addedRow(doc, ADDED_ROW_ATTR));
   last.after(...added);
-  [...block.rows, ...added].forEach((row, i) => {
-    const want = paired[i];
-    const oldCells = (want?.old !== undefined && old.get(want.old)) || empty();
-    const newCells = (want?.new !== undefined && fresh.get(want.new)) || empty();
-    row.replaceChildren(...oldCells, ...newCells);
+  const targets = [...rows, ...added.map((row) => ({ row, sides: undefined }))];
+  paired.forEach((want, i) => {
+    const target = targets[i];
+    if (!target) return;
+    const cells = [
+      ...cellsFor("old", want.old, target.sides?.old),
+      ...cellsFor("new", want.new, target.sides?.new),
+    ];
+    const { children } = target.row;
+    if (children.length !== cells.length || cells.some((cell, j) => children[j] !== cell))
+      target.row.replaceChildren(...cells);
   });
 }

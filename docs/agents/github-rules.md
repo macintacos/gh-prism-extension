@@ -314,7 +314,9 @@ on a private one.
   old or new side and the line from the anchor suffix, which is safe only because it
   yields changed cells, never the context cells or hunk headers whose suffix misleads.
   Each cell carries its `row`, so no caller walks GitHub's markup to reach it. Don't hold
-  cells across a report, since tables or their rows are replaced.
+  cells across a report, since tables or their rows are replaced. The one exception is
+  `PairingSnapshots` in `structural-pairing.ts`, which holds a re-paired table's rows and
+  cells to restore them, and drops or skips any whose `isConnected` is false.
 - **Find a renamed file's region by the hash of its new path:**
   [`macintacos/gh-prism-sandbox` PR #3](https://github.com/macintacos/gh-prism-sandbox/pull/3/changes)'s
   `src/util.rs` renamed to `src/helpers.rs` is `#diff-c2a0fff5…`. Region ids and their
@@ -437,22 +439,32 @@ on a private one.
   pull request #119, light and dark, 2026-11-11; Firefox not measured live. Re-check: read
   `document.styleSheets` for the rules whose selector holds `.pl-` and a `color`, and
   compare them with the `.pl-*` rules in `structural.css`.
-- **Move a line's `td` pair only between rows of one changed block.** A probe on a
-  signed-in sandbox pull request in Chromium moved GitHub's own `td` pairs between `tr`s
-  and added a gh-prism `tr` to the `tbody`. React patched inside cells only: every `tr`
-  and `td` kept its identity, and the foreign `tr` survived in-place re-renders. Starting,
-  posting, replying to, and resolving a comment all worked on moved cells, because each
-  cell keeps its own `data-diff-side` and `data-line-number`, and the comment control,
-  form, and thread mount inside the line's `td.diff-text-cell` and travel with it.
-  Expanding a hunk replaces the whole `div.diffTargetable` under `div.diffEntry`, in
-  GitHub's own pairing. While a multi-line drag selection crosses re-paired rows, GitHub
-  tints cells by `data-diff-line-key` range, so some unselected cells look selected until
-  the drag ends; the comment still lands on the right lines. Firefox, a late-loading diff,
-  file collapse, and keyboard grid navigation across moved cells were not observed live.
-  `changedBlocks`, `sideCellsOf`, `fillerCells`, and `addedRow` in `files-page.ts` hold
-  the selectors. Re-check: on a sandbox pull request in Split, move a changed row's
-  `td:nth-child(n+3)` pair into the next changed row, comment on the moved line, and read
-  the posted comment's line and side; then expand the hunk and count `table` nodes.
+- **Move a line's `td` pair only between rows of one changed block.** An earlier, undated
+  probe on a signed-in sandbox pull request in Chromium moved GitHub's own `td` pairs
+  between `tr`s and added a gh-prism `tr` to the `tbody`. React patched inside cells only:
+  every `tr` and `td` kept its identity, and the foreign `tr` survived in-place
+  re-renders. Starting, posting, replying to, and resolving a comment all worked on moved
+  cells, because each cell keeps its own `data-diff-side` and `data-line-number`, and the
+  comment control, form, and thread mount inside the line's `td.diff-text-cell` and travel
+  with it. Expanding a hunk replaces the whole `div.diffTargetable` under `div.diffEntry`,
+  in GitHub's own pairing. While a multi-line drag selection crosses re-paired rows,
+  GitHub tints cells by `data-diff-line-key` range, so some unselected cells look selected
+  until the drag ends; the comment still lands on the right lines. The live check's
+  pairing pass saw matching lines share a row, GitHub's rows restored when the mode went
+  off, and one re-pairing after a hunk expansion, in Chromium 156 and Firefox 157 on
+  <https://github.com/macintacos/gh-prism-sandbox/pull/11>, 2026-11-12. Commenting on
+  moved cells was not observed in Firefox; a late-loading diff, file collapse, and
+  keyboard grid navigation across moved cells were not observed in either. A filler cell
+  takes its page kind's empty-side shape: on a pull request, both cells of either side are
+  `td.focusable-grid-cell.empty-diff-line.left-side`; on a commit, both also carry
+  `valign="top"` and `style="user-select: none; position: relative;"`, and the old side's
+  code cell keeps `border-right`, the divider. A commit's empty new side is assumed the
+  same without `border-right`, since no page observed shows one. A filler carries no
+  `data-grid-cell-id`, line number, or anchor. `changedBlocks`, `sideCellsOf`,
+  `fillerCells`, and `addedRow` in `files-page.ts` hold the selectors. Re-check: on a
+  sandbox pull request in Split, move a changed row's `td:nth-child(n+3)` pair into the
+  next changed row, comment on the moved line, and read the posted comment's line and
+  side; then expand the hunk and count `table` nodes.
 - **Find the comment controls by these hooks.** The add-comment button is
   `button[data-add-comment-button="true"]` (`aria-label="Add comment"`), shown once a
   row's code cell is hovered. Its form is a `[role=dialog]` named "Comment view", with no

@@ -84,7 +84,27 @@ export interface PageKind {
    * a virtualized list's row. Only a pull request's, since a commit's regions have no id.
    */
   readonly hiddenDiffSelectors?: (anchor: string) => string;
+  /** The number cell and code cell GitHub draws for each empty side of a split row. */
+  readonly emptySide: Readonly<Record<DiffSide, EmptySide>>;
 }
+
+/** The attributes of one empty cell GitHub draws, beside its role and tab index. */
+export interface EmptyCell {
+  readonly className: string;
+  readonly valign?: string;
+  readonly style?: string;
+}
+
+/** An empty side's number cell and code cell. */
+export type EmptySide = readonly [EmptyCell, EmptyCell];
+
+const PR_EMPTY: EmptyCell = { className: "focusable-grid-cell empty-diff-line left-side" };
+
+const COMMIT_EMPTY: EmptyCell = {
+  className: "focusable-grid-cell empty-diff-line left-side",
+  valign: "top",
+  style: "user-select: none; position: relative;",
+};
 
 // A diff list's entry holds its file's diff; nothing else in the list does.
 const HOLDS_DIFF = ':has([role="region"])';
@@ -112,6 +132,7 @@ export const prPage = {
   reveal: "click",
   hiddenDiffSelectors: (anchor) =>
     `${PR_DIFFS} #${anchor}, ${PR_DIFFS} [data-path-digest="${digestOf(anchor)}"]`,
+  emptySide: { old: [PR_EMPTY, PR_EMPTY], new: [PR_EMPTY, PR_EMPTY] },
 } satisfies PageKind;
 
 // A commit's list while its diffs are in flow; a virtualized commit nests each diff a level deeper.
@@ -142,6 +163,16 @@ export const commitPage = {
   // A click would also navigate GitHub's router, whose scroll restoration can undo the scroll to
   // the file, since a commit's diffs have no ids.
   reveal: "hash",
+  emptySide: {
+    // The old side's code cell draws the divider between the sides.
+    old: [
+      COMMIT_EMPTY,
+      { ...COMMIT_EMPTY, className: "focusable-grid-cell empty-diff-line border-right left-side" },
+    ],
+    // ponytail: no fixture shows a commit's empty new side; assumed the old side's shape without
+    // the divider. Recapture one and match it once a commit adds lines GitHub leaves unfaced.
+    new: [COMMIT_EMPTY, COMMIT_EMPTY],
+  },
 } satisfies PageKind;
 
 /** Every page kind, in the order `findFilesPage` tries them. */
@@ -1074,46 +1105,36 @@ export function changedCells(root: ParentNode): ChangedCell[] {
   });
 }
 
-/**
- * A maximal run of rows that each hold a changed cell, with each side's changed lines in order and
- * each row's changed lines, `lines[i]` being `rows[i]`'s.
- */
-export interface ChangedBlock {
-  readonly rows: readonly HTMLTableRowElement[];
-  readonly lines: readonly { old?: number; new?: number }[];
-  readonly olds: readonly number[];
-  readonly news: readonly number[];
+/** One row of a changed block, with the changed line it holds on each side. */
+export interface BlockRow {
+  readonly row: HTMLTableRowElement;
+  readonly old?: number;
+  readonly new?: number;
 }
 
-/** The changed blocks of a split `table`, in document order. */
-export function changedBlocks(table: ParentNode): ChangedBlock[] {
-  const cellsByRow = new Map<HTMLTableRowElement, ChangedCell[]>();
-  for (const cell of changedCells(table))
-    cellsByRow.set(cell.row, [...(cellsByRow.get(cell.row) ?? []), cell]);
+/** A maximal run of rows that each hold a changed cell, in document order. */
+export type ChangedBlock = readonly BlockRow[];
 
-  const blocks: {
-    rows: HTMLTableRowElement[];
-    lines: { old?: number; new?: number }[];
-    olds: number[];
-    news: number[];
-  }[] = [];
-  let open = false;
+/**
+ * The changed blocks of `table`, in document order. Only a split table's rows hold four cells;
+ * the caller checks the layout.
+ */
+export function changedBlocks(table: ParentNode): ChangedBlock[] {
+  const cellsByRow = Map.groupBy(changedCells(table), (cell) => cell.row);
+
+  const blocks: BlockRow[][] = [];
+  let open: BlockRow[] | undefined;
   for (const row of table.querySelectorAll<HTMLTableRowElement>("tr.diff-line-row")) {
     const cells = cellsByRow.get(row);
     if (!cells) {
-      open = false;
+      open = undefined;
       continue;
     }
-    if (!open) blocks.push({ rows: [], lines: [], olds: [], news: [] });
-    open = true;
-    const block = blocks.at(-1);
-    const lines: { old?: number; new?: number } = {};
-    for (const { side, line } of cells) {
-      lines[side] = line;
-      (side === "old" ? block?.olds : block?.news)?.push(line);
+    if (!open) {
+      open = [];
+      blocks.push(open);
     }
-    block?.rows.push(row);
-    block?.lines.push(lines);
+    open.push({ row, ...Object.fromEntries(cells.map(({ side, line }) => [side, line])) });
   }
   return blocks;
 }
@@ -1121,26 +1142,35 @@ export function changedBlocks(table: ParentNode): ChangedBlock[] {
 /** One side of a split row: its number cell and its code cell. */
 export type SideCells = readonly [Element, Element];
 
-/** A split row's old-side and new-side cells, by position. */
-export function sideCellsOf(row: HTMLTableRowElement): { old: SideCells; new: SideCells } {
+/** A split row's old-side and new-side cells, by position, or `undefined` for a row without four. */
+export function sideCellsOf(
+  row: HTMLTableRowElement,
+): { old: SideCells; new: SideCells } | undefined {
   const [oldNumber, oldCode, newNumber, newCode] = row.children;
-  if (!oldNumber || !oldCode || !newNumber || !newCode) throw new Error("not a split row");
+  if (!oldNumber || !oldCode || !newNumber || !newCode) return undefined;
   return { old: [oldNumber, oldCode], new: [newNumber, newCode] };
 }
 
-// ponytail: the pull request's empty-side shape, used on commit pages too; no commit fixture
-// holds a one-sided split row to check against.
-/** One side's empty pair, shaped like GitHub's own and marked with `marker`. */
-export function fillerCells(doc: Document, marker: string): SideCells {
-  const cell = () => {
+/** The page kind whose diffs hold `node`, or a pull request's when none does. */
+export const pageKindOf = (node: Element): PageKind =>
+  PAGE_KINDS.find((kind) => node.closest(kind.diffs)) ?? prPage;
+
+/**
+ * An empty side's pair shaped as `shape`, marked with `marker`, and with no grid id, line number,
+ * or anchor.
+ */
+export function fillerCells(doc: Document, shape: EmptySide, marker: string): SideCells {
+  const cell = ({ className, valign, style }: EmptyCell) => {
     const td = doc.createElement("td");
-    td.className = "focusable-grid-cell empty-diff-line left-side";
+    td.className = className;
     td.setAttribute("role", "gridcell");
     td.tabIndex = -1;
+    if (valign) td.setAttribute("valign", valign);
+    if (style) td.setAttribute("style", style);
     td.setAttribute(marker, "");
     return td;
   };
-  return [cell(), cell()];
+  return [cell(shape[0]), cell(shape[1])];
 }
 
 /** An empty diff row marked with `marker`. */

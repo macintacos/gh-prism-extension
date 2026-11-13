@@ -43,7 +43,7 @@ export interface EngineLimits {
   readonly maxParseMs: number;
   /** Per side, of the whole text. */
   readonly maxTokens: number;
-  /** Per side, across all regions. */
+  /** Per side, across all regions; also caps the line matches reported. */
   readonly maxChangedTokens: number;
   /** Edits one region's diff may reach; a region past it is changed whole. */
   readonly maxEditLength: number;
@@ -295,10 +295,10 @@ function pairedChanges(
 
   // A named value's tokens before and after its value and name match one for one.
   const runLines = (oldFrom: number, newFrom: number, length: number): LinePair[] =>
-    Array.from({ length }, (_, i) => [
-      oldSource.lines[oldFrom + i] ?? 0,
-      newSource.lines[newFrom + i] ?? 0,
-    ]);
+    Array.from({ length }, (_, i): LinePair[] => {
+      const [oldLine, newLine] = [oldSource.lines[oldFrom + i], newSource.lines[newFrom + i]];
+      return oldLine === undefined || newLine === undefined ? [] : [[oldLine, newLine]];
+    }).flat();
 
   for (const { old, new: new_, changed } of pairs) {
     parts.push(diffTo(old.from, new_.from), {
@@ -446,8 +446,8 @@ function windowChanges(
   const removed = first.tokens.filter((_, i) => matches[i] === -1);
   const added = second.tokens.filter((_, i) => !matched.has(i));
   const lines = matches.flatMap((j, i): LinePair[] => {
-    if (j === -1) return [];
-    const [firstLine, secondLine] = [first.lines[i] ?? 0, second.lines[j] ?? 0];
+    const [firstLine, secondLine] = [first.lines[i], second.lines[j]];
+    if (firstLine === undefined || secondLine === undefined) return [];
     return [flipped ? [secondLine, firstLine] : [firstLine, secondLine]];
   });
   return flipped

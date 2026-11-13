@@ -9,7 +9,8 @@ export interface PairedRow {
 /** Fewest matched tokens two lines must share to count as a match. */
 export const MIN_SHARED_TOKENS = 2;
 
-/** ponytail: O(olds × news) table per block; past this the block keeps GitHub's pairing. */
+// ponytail: O(olds × news) table per block; past this the block keeps GitHub's pairing.
+/** Most old × new line pairs one block may hold. */
 export const MAX_PAIRING_CELLS = 10_000;
 
 /** Most rows a re-paired block may add beyond GitHub's own `githubRows`. */
@@ -18,12 +19,10 @@ export function maxAddedRows(githubRows: number): number {
 }
 
 /**
- * The rows a changed block should show, or undefined when it keeps
- * GitHub's own pairing.
+ * The rows a changed block should show, or undefined when it keeps GitHub's own pairing.
  *
- * @remarks Pairs the order-preserving set of matches with the largest
- * total count; ties go to the pairing whose first differing pair has the
- * smaller old line, then the smaller new line.
+ * @remarks Pairs the order-preserving set of matches with the largest total count; ties go to
+ * the pairing whose first differing pair has the smaller old line, then the smaller new line.
  */
 export function pairedRows(
   olds: readonly number[],
@@ -80,37 +79,35 @@ function bestPairs(
   const at = (i: number, j: number) => best[i]?.[j] ?? 0;
   const weight = (i: number, j: number) => weights[i]?.[j] ?? 0;
   for (let i = n - 1; i >= 0; i--) {
+    const row = best[i];
+    if (!row) continue;
     for (let j = m - 1; j >= 0; j--) {
       const paired = weight(i, j) > 0 ? weight(i, j) + at(i + 1, j + 1) : 0;
-      (best[i] as number[])[j] = Math.max(paired, at(i + 1, j), at(i, j + 1));
+      row[j] = Math.max(paired, at(i + 1, j), at(i, j + 1));
     }
   }
+
+  /**
+   * The smallest (old, new) pair from (i, j) on that still reaches the best total. Each call
+   * starts past the previous pair, so the scans across all calls stay linear in the table.
+   */
+  const firstPairOnBestPath = (i: number, j: number): [number, number] => {
+    for (let a = i; a < n; a++) {
+      for (let b = j; b < m; b++) {
+        if (weight(a, b) > 0 && weight(a, b) + at(a + 1, b + 1) === at(i, j)) return [a, b];
+      }
+    }
+    throw new Error("a positive best total has a pair on its path");
+  };
 
   const pairs: [number, number][] = [];
   let [i, j] = [0, 0];
   while (at(i, j) > 0) {
-    const next = firstPairOnBestPath(i, j, n, m, weight, at);
+    const next = firstPairOnBestPath(i, j);
     pairs.push(next);
     [i, j] = [next[0] + 1, next[1] + 1];
   }
   return pairs;
-}
-
-/** The smallest (old, new) pair from (i, j) on that still reaches the best total. */
-function firstPairOnBestPath(
-  i: number,
-  j: number,
-  n: number,
-  m: number,
-  weight: (i: number, j: number) => number,
-  at: (i: number, j: number) => number,
-): [number, number] {
-  for (let a = i; a < n; a++) {
-    for (let b = j; b < m; b++) {
-      if (weight(a, b) > 0 && weight(a, b) + at(a + 1, b + 1) === at(i, j)) return [a, b];
-    }
-  }
-  throw new Error("a positive best total has a pair on its path");
 }
 
 /** Rows in file order: pairs share a row; between pairs, unpaired old lines come before unpaired new lines. */
@@ -121,6 +118,7 @@ function rowsOf(
 ): PairedRow[] {
   const rows: PairedRow[] = [];
   let [i, j] = [0, 0];
+  // A sentinel past both ends flushes the lines after the last pair.
   for (const [a, b] of [...pairs, [olds.length, news.length] as const]) {
     for (; i < a; i++) rows.push({ old: olds[i] });
     for (; j < b; j++) rows.push({ new: news[j] });

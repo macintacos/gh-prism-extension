@@ -635,17 +635,19 @@ EOF
 
 # Prints `def <prefix><n>` getters for n in first..last, three lines each.
 getters() {
-	local i
-	for ((i = $2; i <= $3; i++)); do
-		printf 'def %s%02d(record):\n    return record.get("%s%02d")\n\n' "$1" "$i" "$1" "$i"
+	local prefix=$1 first=$2 last=$3 i
+	for ((i = first; i <= last; i++)); do
+		printf 'def %s%02d(record):\n    return record.get("%s%02d")\n\n' "$prefix" "$i" "$prefix" "$i"
 	done
 }
 
 # Prints app/records.py: `base` puts data = {} on line 120 and if "pk" in d: on 121; `head`
 # adds 18 lines of getters in two far-apart hunks, so if "pk" in obj: lands on line 138.
+# Keep in sync with tests/fixtures/structural-pairing.ts.
 records_py() {
+	local version=$1
 	printf '"""Record helpers."""\n\n'
-	if [[ $1 == head ]]; then
+	if [[ $version == head ]]; then
 		getters field_ 1 5
 		getters extra_ 1 3
 		getters field_ 6 25
@@ -659,7 +661,7 @@ def serialize(obj, d):
     """Serialize a record."""
     rows = []
 EOF
-	if [[ $1 == head ]]; then
+	if [[ $version == head ]]; then
 		printf '    if "pk" in obj:\n'
 	else
 		printf '    data = {}\n    if "pk" in d:\n'
@@ -670,7 +672,7 @@ EOF
 
 def total(items, rate):
 EOF
-	if [[ $1 == head ]]; then
+	if [[ $version == head ]]; then
 		printf '    started = time.monotonic()\n    total = compute(items, rate) * 100\n'
 	else
 		printf '    total = compute(items, rate)\n    log.info("done")\n'

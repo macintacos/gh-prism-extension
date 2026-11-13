@@ -12,7 +12,7 @@ export const FILLER_ATTR = "data-gh-prism-filler";
 /** Marks a row gh-prism added while re-pairing a changed block. */
 export const ADDED_ROW_ATTR = "data-gh-prism-added-row";
 
-/** Every attribute the painter writes. */
+/** Every attribute structural mode writes. */
 export const STRUCTURAL_ATTRS = [
   TABLE_ATTR,
   QUIET_ATTR,

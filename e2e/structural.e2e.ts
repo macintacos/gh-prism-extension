@@ -668,24 +668,22 @@ test("re-pairs a table replaced by expanding context or loading late, never mixi
 }) => {
   await startPairing(page, bundle);
   const table = readFixture(PAIRING_SPLIT);
+  /** Mounts `table` afresh in the region and checks it ends re-paired. */
+  const remountAndCheck = async () => {
+    await page.evaluate((table) => {
+      const region = document.querySelector("#diffs > div");
+      if (region) region.innerHTML = table;
+    }, table);
+    await repaint(page);
+    expect(await pairingRows(page, 120, 3)).toEqual(linedUp);
+    await expect(page.locator("tr[data-gh-prism-added-row]")).toHaveCount(1);
+  };
 
-  await page.evaluate((table) => {
-    const region = document.querySelector("#diffs > div");
-    if (region) region.innerHTML = table;
-  }, table);
-  await repaint(page);
-  expect(await pairingRows(page, 120, 3)).toEqual(linedUp);
-  await expect(page.locator("tr[data-gh-prism-added-row]")).toHaveCount(1);
+  await remountAndCheck();
 
   await page.evaluate(() => document.querySelector("#diffs > div")?.replaceChildren());
   await repaint(page);
-  await page.evaluate((table) => {
-    const region = document.querySelector("#diffs > div");
-    if (region) region.innerHTML = table;
-  }, table);
-  await repaint(page);
-  expect(await pairingRows(page, 120, 3)).toEqual(linedUp);
-  await expect(page.locator("tr[data-gh-prism-added-row]")).toHaveCount(1);
+  await remountAndCheck();
 });
 
 test("turning the mode off restores GitHub's rows", async ({ page, bundle }) => {
