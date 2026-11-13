@@ -352,8 +352,8 @@ describe("structuralChanges, changes that only look like a value gaining a name"
 
     const { old, new: added } = await marks("a.c", oldText, newText);
 
-    expect(old).toEqual([]);
-    expect(added).toEqual(["return «v;»", "«int v =» load(path, opts.depth);"]);
+    expect(old).toEqual(["«return» load(path, opts.depth);"]);
+    expect(added).toEqual(["«return v;»", "«int v =» load(path, opts.depth);"]);
   });
 
   it("keeps a statement that is all value beside the line that names it", async () => {
@@ -377,9 +377,9 @@ describe("structuralChanges, changes that only look like a value gaining a name"
 
     const { old, new: added } = await marks("a.c", oldText, newText);
 
-    expect(old).toEqual(["«foo»(load(a, b)«)»;", "«bar(calc(c, d));»"]);
+    expect(old).toEqual(["«foo(»load(a, b)«)»;", "«bar(calc(c, d));»"]);
     expect(added).toEqual([
-      "«int w = calc»(«c, d);»",
+      "«int w = calc(c, d);»",
       "«bar(w);»",
       "«int v =» load(a, b);",
       "«foo(v);»",

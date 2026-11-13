@@ -82,7 +82,7 @@ const TEXT_SPACING = new Map<string, Spacing>([
 ]);
 
 /** Whether a token of `type` is a word of a comment or of other running text. */
-const isWord = (type: string) => COMMENT_TYPES.has(type) || TEXT_SPACING.has(type);
+export const isWord = (type: string) => COMMENT_TYPES.has(type) || TEXT_SPACING.has(type);
 
 /**
  * `tree`'s leaves in source order as tokens keyed by their text; a parent's own non-blank text

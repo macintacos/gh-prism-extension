@@ -209,9 +209,10 @@ mark (GitHub's own highlight)
 between two unchanged rows or a hunk's edge. _Avoid_: block alone (see Unit), change group
 
 **Matching line**: The line on the other side of the same changed block that a line shares
-the most matched tokens with. In Split, structural mode re-pairs a changed block's rows so
-each line sits opposite its matching line, keeping each side in file order. _Avoid_:
-partner line, aligned line
+the most matched tokens with, at least half the shorter line's; of the lines a line was
+split onto, the first. In Split, structural mode re-pairs a changed block's rows so each
+line sits opposite its matching line, keeping each side in file order. _Avoid_: partner
+line, aligned line
 
 **Re-pair**: To move a changed block's cells between its rows so each line sits opposite
 its matching line. _Avoid_: pair, for the engine's matching of a named value's old and new

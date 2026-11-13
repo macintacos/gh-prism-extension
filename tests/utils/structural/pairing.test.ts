@@ -8,10 +8,16 @@ import {
 } from "../../../utils/structural/pairing";
 
 const range = (from: number, count: number) => Array.from({ length: count }, (_, i) => from + i);
-const match = (old: number, new_: number, count = MIN_SHARED_TOKENS): LineMatch => ({
+const match = (
+  old: number,
+  new_: number,
+  count = MIN_SHARED_TOKENS,
+  shorter = count,
+): LineMatch => ({
   old,
   new: new_,
   count,
+  shorter,
 });
 
 describe("a changed block whose lines face unrelated lines", () => {
@@ -22,11 +28,29 @@ describe("a changed block whose lines face unrelated lines", () => {
     ]);
   });
 
-  it("puts unpaired old lines before unpaired new lines between pairs", () => {
-    expect(pairedRows([1, 2], [10, 11], [match(2, 11)])).toEqual([
-      { old: 1 },
+  it("lays unpaired lines after a pair side by side from the top", () => {
+    expect(pairedRows([1, 2, 3], [10, 11, 12, 13], [match(1, 11)])).toEqual([
       { new: 10 },
+      { old: 1, new: 11 },
+      { old: 2, new: 12 },
+      { old: 3, new: 13 },
+    ]);
+  });
+
+  it("ends unpaired lines before the first pair against it, the longer side's extras first", () => {
+    expect(pairedRows([1, 2, 3], [10, 11], [match(3, 11)])).toEqual([
+      { old: 1 },
+      { old: 2, new: 10 },
+      { old: 3, new: 11 },
+    ]);
+  });
+
+  it("lays unpaired lines between two pairs side by side", () => {
+    expect(pairedRows([1, 2, 3, 4], [10, 11, 12], [match(1, 10), match(4, 12)])).toEqual([
+      { old: 1, new: 10 },
       { old: 2, new: 11 },
+      { old: 3 },
+      { old: 4, new: 12 },
     ]);
   });
 
@@ -48,7 +72,7 @@ describe("matches that cannot all hold", () => {
   });
 
   it("gives a line wanted by two lines to the one sharing more tokens", () => {
-    expect(pairedRows([1, 2], [10], [match(1, 10, 2), match(2, 10, 4)])).toEqual([
+    expect(pairedRows([1, 2], [10], [match(1, 10, 2, 5), match(2, 10, 4)])).toEqual([
       { old: 1 },
       { old: 2, new: 10 },
     ]);
@@ -63,10 +87,53 @@ describe("matches that cannot all hold", () => {
   });
 
   it("breaks a tie on the old line toward the smaller new line", () => {
-    expect(pairedRows([1, 2], [10, 11], [match(1, 11, 3), match(1, 10, 3)])).toEqual([
+    expect(pairedRows([0, 1], [10, 11], [match(1, 11, 3), match(1, 10, 3)])).toEqual([
+      { old: 0 },
+      { old: 1, new: 10 },
+      { new: 11 },
+    ]);
+  });
+});
+
+describe("a line split across several lines", () => {
+  it("sits beside the first of them though a later one shares more", () => {
+    const rustSignature = [
+      match(2, 10, 4, 5),
+      match(2, 11, 4, 5),
+      match(2, 12, 4, 5),
+      match(2, 13, 4, 5),
+      match(2, 14, 5, 5),
+    ];
+    expect(pairedRows([1, 2], range(10, 5), rustSignature)).toEqual([
+      { old: 1 },
+      { old: 2, new: 10 },
+      { new: 11 },
+      { new: 12 },
+      { new: 13 },
+      { new: 14 },
+    ]);
+  });
+
+  it("joined from several old lines sits beside the first of them", () => {
+    expect(
+      pairedRows(range(1, 3), [9, 10], [match(1, 10, 3), match(2, 10, 3), match(3, 10, 4)]),
+    ).toEqual([{ new: 9 }, { old: 1, new: 10 }, { old: 2 }, { old: 3 }]);
+  });
+
+  it("does not move past the pair before it", () => {
+    const matches = [match(1, 10, 4), match(3, 10, 3), match(3, 11, 2), match(3, 12, 4)];
+    expect(pairedRows([1, 2, 3], [10, 11, 12], matches)).toEqual([
       { old: 1, new: 10 },
       { old: 2 },
-      { new: 11 },
+      { old: 3, new: 11 },
+      { new: 12 },
+    ]);
+  });
+
+  it("does not move onto a line sharing less than half its own tokens", () => {
+    expect(pairedRows([2], [10, 11], [match(2, 10, 2, 5), match(2, 11, 4)])).toEqual([
+      { new: 10 },
+      { old: 2, new: 11 },
     ]);
   });
 });
@@ -75,6 +142,14 @@ describe("a match", () => {
   it("needs at least MIN_SHARED_TOKENS shared tokens", () => {
     expect(pairedRows([120, 121], [138], [match(121, 138, MIN_SHARED_TOKENS - 1)])).toBeUndefined();
     expect(pairedRows([120, 121], [138], [match(121, 138, MIN_SHARED_TOKENS)])).toEqual([
+      { old: 120 },
+      { old: 121, new: 138 },
+    ]);
+  });
+
+  it("needs at least half the shorter line's tokens", () => {
+    expect(pairedRows([120, 121], [138], [match(121, 138, 3, 7)])).toBeUndefined();
+    expect(pairedRows([120, 121], [138], [match(121, 138, 3, 6)])).toEqual([
       { old: 120 },
       { old: 121, new: 138 },
     ]);

@@ -222,7 +222,7 @@ describe("structuralFile", () => {
   });
 
   it("keeps the engine's line matches", () => {
-    const matches = [{ old: 1, new: 2, count: 3 }];
+    const matches = [{ old: 1, new: 2, count: 3, shorter: 4 }];
     expect(structuralFile({ old: [], new: [], matches }, parsePrHunks(RENAME))?.matches).toBe(
       matches,
     );

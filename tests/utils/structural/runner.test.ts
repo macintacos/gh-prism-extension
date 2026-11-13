@@ -72,7 +72,7 @@ describe("engineRunner", () => {
       changes: {
         old: [{ line: 1, startCol: 4, endCol: 7 }],
         new: [{ line: 1, startCol: 4, endCol: 9 }],
-        matches: [{ old: 1, new: 1, count: 1 }],
+        matches: [{ old: 1, new: 1, count: 1, shorter: 2 }],
       },
     });
     expect(urlOf).not.toHaveBeenCalled();

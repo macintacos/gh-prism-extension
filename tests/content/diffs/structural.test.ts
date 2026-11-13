@@ -415,23 +415,12 @@ describe("paintStructural", () => {
     expect(report).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ["one cell's text differs", "text"],
-    ["one changed cell has no annotation", "annotation"],
-  ] as const)("skips the whole file when %s", async (_, broken) => {
+  it("skips the whole file when one annotated cell's text differs", async () => {
     const diffs = mountDiffs(prSplit);
     const table = tableAt(diffs);
-    const line21 = cellAt(table, "new", 21);
-    const file = fileOf(table, (cell) =>
-      broken === "annotation" && sameLine(cell, line21) ? undefined : opening(cell),
-    );
+    const file = fileOf(table, opening);
     const anchor = anchorOfTable(table);
-    files.set(
-      anchor,
-      broken === "text"
-        ? { ...file, text: { ...file.text, new: { ...file.text.new, 21: "other" } } }
-        : file,
-    );
+    files.set(anchor, { ...file, text: { ...file.text, new: { ...file.text.new, 21: "other" } } });
 
     paint(diffs);
     await flush();
@@ -439,6 +428,24 @@ describe("paintStructural", () => {
     expect(allRanges()).toEqual([]);
     expect(diffs.querySelector(PAINTED)).toBeNull();
     expect(report.mock.calls).toEqual([[anchor, "mismatch"]]);
+  });
+
+  it("paints a changed cell outside the file's hunks quiet, whatever its text", async () => {
+    const diffs = mountDiffs(prSplit);
+    const table = tableAt(diffs);
+    const line21 = cellAt(table, "new", 21);
+    const line22 = cellAt(table, "new", 22);
+    const file = fileOf(table, (cell) => (sameLine(cell, line21) ? undefined : opening(cell)));
+    const { 21: _, ...newText } = file.text.new;
+    const anchor = anchorOfTable(table);
+    files.set(anchor, { ...file, text: { ...file.text, new: newText } });
+
+    paint(diffs);
+    await flush();
+
+    expect(report.mock.calls).toEqual([[anchor, "painted"]]);
+    expect(line21.row.getAttribute("data-gh-prism-quiet")).toContain("new");
+    expect(textsIn(ADDED_HIGHLIGHT)).toContain(line22.textRoot.textContent?.slice(0, 2));
   });
 
   it("ignores annotations and text for lines the table does not mount", async () => {

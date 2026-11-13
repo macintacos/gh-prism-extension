@@ -21,13 +21,13 @@ import {
 import { type Box, lineBoxes, markRanges, maskOf } from "./structural-marks";
 import {
   dropUnmounted,
-  matchedText,
   type PairingSnapshots,
   pairTable,
+  readCell,
   restoreTable,
 } from "./structural-pairing";
 
-/** How a mounted file fared: painted, or skipped whole because a mounted cell's text or annotation disagrees with the file. */
+/** How a mounted file fared: painted, or skipped whole because an annotated mounted cell's text disagrees with the file. */
 export type PaintOutcome = "painted" | "mismatch";
 
 /** What the painter asks of structural mode. */
@@ -169,7 +169,10 @@ function isFresh(
   );
 }
 
-/** Reads what `table` needs to show `file`; a cell without its annotation or its text is a mismatch. */
+/**
+ * Reads what `table` needs to show `file`. A cell with no annotation lies outside the `.diff`'s
+ * hunks and is quiet; an annotated cell whose text differs is a mismatch.
+ */
 function planTable(
   table: HTMLTableElement,
   path: string,
@@ -187,10 +190,9 @@ function planTable(
   const marks = new Map<HTMLElement, readonly Range[]>();
 
   for (const cell of cells) {
-    const { side, line, textRoot, row } = cell;
-    const annotation = file.annotations[side][line];
-    const text = matchedText(file, cell);
-    if (!annotation || text === undefined) {
+    const { side, textRoot, row } = cell;
+    const reading = readCell(file, cell);
+    if (reading.kind === "differs") {
       const painted = { file, roots, ranges: [], faint: noFaintRows(), marks: new Map() };
       return {
         table,
@@ -204,11 +206,12 @@ function planTable(
       };
     }
 
-    if (annotation.quiet) {
+    if (reading.kind === "outside" || reading.annotation.quiet) {
       markSide(quiet, row, side);
       continue;
     }
 
+    const { annotation, text } = reading;
     const inFull = annotation.inside ? "mark" : "tint";
     const ranges = markRanges(text, annotation.ranges, inFull).flatMap(
       (columns) => rangeOf(textRoot, columns) ?? [],
@@ -227,9 +230,10 @@ function planTable(
 /**
  * Paints structural mode onto the split diff tables mounted under `diffs`, and repaints after
  * GitHub re-renders them, until `signal` aborts. Paths come from the files the `sections` hook
- * lists. A file whose mounted text differs from its `StructuralFile` is skipped whole and reported
- * as a mismatch. Before each paint it re-pairs each table's changed blocks so a line faces its
- * matching line, and puts GitHub's rows back when `signal` aborts.
+ * lists. A file where an annotated mounted cell's text differs from its `StructuralFile` is
+ * skipped whole and reported as a mismatch; a changed cell outside the `.diff`'s hunks is quiet.
+ * Before each paint it re-pairs each table's changed blocks so a line faces its matching line, and
+ * puts GitHub's rows back when `signal` aborts.
  */
 export function paintStructural(
   diffs: Element,

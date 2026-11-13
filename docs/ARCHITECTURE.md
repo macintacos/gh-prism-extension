@@ -107,10 +107,16 @@ A diff of unrelated code still pairs some tokens, such as a `}` or a shared name
 hole in a line's mark. [`utils/structural/chance.ts`](../utils/structural/chance.ts) drops
 them, so a block replaced by unrelated code reaches the painter changed in full. A line is
 replaced when the diff leaves it less than half its tokens, or half when it is all
-punctuation. A line not replaced that keeps a word vouches for its pairings. A run of
-paired tokens is dropped when, on a replaced line of either side, changed runs at least as
-long as it sit before and after it, unless its line on the other side vouches for it. Any
-pairing left between two replaced lines is dropped too.
+punctuation. A line's main partner is the other side's line holding most of its paired
+tokens, the earlier on a tie. A line not replaced that keeps a name (a word that is not a
+keyword) vouches for its pairings with its main partner only. A run of paired tokens is
+dropped when, on a replaced line of either side, changed runs at least as long as it sit
+before and after it, unless its line on the other side vouches for it. Then a pairing is
+dropped when either of its lines is replaced and the other does not vouch for it, counted
+again round after round until a round drops none. Last, on the two lines of each pairing
+left, the unpaired tokens just before and just after it pair where their keys are equal,
+from the start of both, then from the end, so a line keeps the opening a stray pairing had
+taken from it.
 
 [`utils/structural/units.ts`](../utils/structural/units.ts) reads each parse for its
 units: the syntax nodes that have their lines to themselves. After the diff, the engine
@@ -1093,16 +1099,21 @@ and whenever it changes.
   [`diffs/structural-pairing.ts`](../entrypoints/content/diffs/structural-pairing.ts) asks
   `pairedRows` in [`utils/structural/pairing.ts`](../utils/structural/pairing.ts) how each
   changed block of a Split table should pair, then moves GitHub's own cell pairs between
-  the block's rows so each line faces its matching line. GitHub's rows are reused first;
-  extra rows are gh-prism `tr`s marked `data-gh-prism-added-row`, and created empty space
-  is GitHub's own empty cells or filler cells marked `data-gh-prism-filler`. Each table's
-  original cells are kept in a snapshot, which undoes the re-pairing when the mode ends. A
-  table is re-paired only when every changed cell's text equals the file's line, the same
-  check the painter makes (`matchedText`); otherwise GitHub's rows stay, and an empty
-  snapshot lets the table settle. A block is also left alone when GitHub drew it with
-  other than one row per line of its longer side, or a row lacks four cells. A table whose
-  snapshot rows are all mounted and whose file is unchanged is left alone, so the writer's
-  own mutations settle. A table re-paired in a pass is repainted in it.
+  the block's rows so each line faces its matching line. Each `LineMatch` counts the
+  tokens two lines share and the tokens on the `shorter` of them; two lines pair only when
+  they share at least two tokens and half the shorter line's. A line split onto several
+  lines faces the first of them, and unpaired lines between pairs share rows, one old and
+  one new, ending against the block's first pair and starting after any other. GitHub's
+  rows are reused first; extra rows are gh-prism `tr`s marked `data-gh-prism-added-row`,
+  and created empty space is GitHub's own empty cells or filler cells marked
+  `data-gh-prism-filler`. Each table's original cells are kept in a snapshot, which undoes
+  the re-pairing when the mode ends. A table is re-paired only when every changed cell's
+  text equals the file's line, the same check the painter makes (`matchedText`); otherwise
+  GitHub's rows stay, and an empty snapshot lets the table settle. A block is also left
+  alone when GitHub drew it with other than one row per line of its longer side, or a row
+  lacks four cells. A table whose snapshot rows are all mounted and whose file is
+  unchanged is left alone, so the writer's own mutations settle. A table re-paired in a
+  pass is repainted in it.
 - **One pass per animation frame.** The `sections` hook and every `observeDiffs` report
   schedule a frame, and a pending frame is reused. Past re-pairing, the pass first reads
   every table, then writes, so its reads (`querySelectorAll`, `dataset`, `textContent`)
@@ -1115,13 +1126,14 @@ and whenever it changes.
   drops them by that test. Nothing else marks a table changed: text GitHub replaces inside
   a kept text element, under a cell that holds no range (a quiet cell, or any cell of a
   mismatched table), goes unnoticed until one of those three changes.
-- **A mismatch skips the whole file.** Every mounted changed cell needs an annotation and
+- **A mismatch skips the whole file.** Every mounted changed cell with an annotation needs
   text equal to the expected line. If one fails, the table gets no mark, no quiet row, and
   no table attribute, and the file reports `mismatch`. Annotations for lines the page does
   not mount are fine. A `StructuralFile` holds every line of the `.diff`'s hunks, context
   lines on both sides, because a page that hides whitespace changes draws `git diff -w`:
   its alignment marks some of the `.diff`'s context lines as changed. A changed cell
-  outside the `.diff`'s hunks is still a mismatch.
+  outside the `.diff`'s hunks has no annotation: the line is the same in both versions, so
+  it is quiet, with no text check, and re-pairing still runs.
 - **Split only, per table.** The painter reads each table's own layout from `diffTables`
   and paints it only when split, so it skips a unified page and a one-sided file's
   three-column table.

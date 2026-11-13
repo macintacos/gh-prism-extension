@@ -1,8 +1,16 @@
-/** One side of a diff: for each of its tokens in source order, the line it starts on and whether it is a word. */
+/** One side of a diff: for each of its tokens in source order, the line it starts on and its kind. */
 export interface DiffSide {
   readonly lines: readonly number[];
   /** A token with a letter, a digit, or an underscore; punctuation is not one. */
   readonly words: readonly boolean[];
+  /** A word that is not a keyword, a keyword being a leaf whose node type is its text. */
+  readonly names: readonly boolean[];
+}
+
+/** One side of a diff: for each of its tokens in source order, the line it starts on and its key. */
+export interface KeyedSide {
+  readonly lines: readonly number[];
+  readonly keys: readonly string[];
 }
 
 /** A run of tokens two sides share: `length` tokens from index `first` on one and `second` on the other. */
@@ -12,15 +20,21 @@ interface Run {
   readonly length: number;
 }
 
+/** One matched token: its index on the first side and on the second. */
+type Pair = readonly [first: number, second: number];
+
 /**
  * `matches` without the ones a diff of unrelated code finds by chance, such as a `}` or a shared
  * name in a block that was replaced whole.
  *
  * A line is replaced when it keeps less than half its tokens, or half of them when it is all
- * punctuation. It vouches for its matches when it is not replaced and keeps a word. A run of
- * matched tokens is chance when, on a replaced line of either side, a changed run at least as
- * long as it sits before it and another after it, unless its line on the other side vouches for
- * it. After that, any match between two replaced lines is chance.
+ * punctuation. Its main partner is the line of the other side holding the most of its kept
+ * tokens, the earlier one on a tie. It vouches for a match with its main partner when it is not
+ * replaced and keeps a name. A run of matched tokens is chance when, on a replaced line of either
+ * side, a changed run at least as long as it sits before it and another after it, unless its line
+ * on the other side vouches for it. After that, a match is chance when either of its lines is
+ * replaced and the other does not vouch for it; what each line keeps is counted again after each
+ * round of drops, until a round drops none.
  *
  * @param matches - For each token of `first`, the index of the token of `second` it equals, or
  *   -1. The indexes increase.
@@ -33,22 +47,86 @@ export function withoutChanceMatches(
 ): number[] {
   const found = runsOf(matches);
   const runs = outOfSeas(found, [
-    { lines: first.lines, kept: keptLines(first, found, "first") },
-    { lines: second.lines, kept: keptLines(second, found, "second") },
+    { lines: first.lines, kept: keptLines(first, second.lines, pairsOfRuns(found), 0) },
+    { lines: second.lines, kept: keptLines(second, first.lines, pairsOfRuns(found), 1) },
   ]);
-  const firstKept = keptLines(first, runs, "first");
-  const secondKept = keptLines(second, runs, "second");
+  const vouched = withoutUnvouched(pairsOfRuns(runs), first, second);
+  return matchesOfPairs(vouched, matches.length);
+}
 
-  const real = matches.map(() => -1);
-  for (const run of runs) {
-    for (let i = 0; i < run.length; i++) {
-      const replaced =
-        firstKept.replaced.has(first.lines[run.first + i] ?? -1) &&
-        secondKept.replaced.has(second.lines[run.second + i] ?? -1);
-      if (!replaced) real[run.first + i] = run.second + i;
-    }
+/**
+ * `matches` with more matches on the line pairs of those it holds. Before and after each match,
+ * the unmatched tokens on its own two lines match where their keys are equal, from the start of
+ * both, then from the end of what is left.
+ *
+ * @param matches - As {@link withoutChanceMatches} takes and returns them.
+ */
+export function rematchedOnLines(
+  matches: readonly number[],
+  first: KeyedSide,
+  second: KeyedSide,
+): number[] {
+  const result = [...matches];
+  const anchors = pairsOf(matches);
+  let edge: Pair = [-1, -1];
+  anchors.forEach(([i, j], at) => {
+    const next = anchors[at + 1] ?? [first.lines.length, second.lines.length];
+    matchGap(result, [first, second], {
+      first: onLineBefore(first.lines, edge[0] + 1, i),
+      second: onLineBefore(second.lines, edge[1] + 1, j),
+    });
+    const after = matchGap(result, [first, second], {
+      first: onLineAfter(first.lines, i, next[0]),
+      second: onLineAfter(second.lines, j, next[1]),
+    });
+    edge = after ?? [i, j];
+  });
+  return result;
+}
+
+/** Token index range `[from, to)`. */
+interface Span {
+  readonly from: number;
+  readonly to: number;
+}
+
+/** The tokens in `[from, at)` on `at`'s line. */
+function onLineBefore(lines: readonly number[], from: number, at: number): Span {
+  let start = at;
+  while (start > from && lines[start - 1] === lines[at]) start--;
+  return { from: start, to: at };
+}
+
+/** The tokens in `(at, to)` on `at`'s line. */
+function onLineAfter(lines: readonly number[], at: number, to: number): Span {
+  let end = at + 1;
+  while (end < to && lines[end] === lines[at]) end++;
+  return { from: at + 1, to: end };
+}
+
+/**
+ * Matches into `result` the equal-keyed tokens that open both spans, then those that close what
+ * is left; returns the last pair matched.
+ */
+function matchGap(
+  result: number[],
+  [first, second]: readonly [KeyedSide, KeyedSide],
+  spans: { readonly first: Span; readonly second: Span },
+): Pair | undefined {
+  let { from: a, to: aEnd } = spans.first;
+  let { from: b, to: bEnd } = spans.second;
+  let opening: Pair | undefined;
+  while (a < aEnd && b < bEnd && first.keys[a] === second.keys[b]) {
+    result[a] = b;
+    opening = [a++, b++];
   }
-  return real;
+
+  let closing: Pair | undefined;
+  while (aEnd > a && bEnd > b && first.keys[aEnd - 1] === second.keys[bEnd - 1]) {
+    result[--aEnd] = --bEnd;
+    closing ??= [aEnd, bEnd];
+  }
+  return closing ?? opening;
 }
 
 /** The maximal runs of `matches` that are consecutive on both sides. */
@@ -68,17 +146,56 @@ function runsOf(matches: readonly number[]): Run[] {
   return runs;
 }
 
-/** What one side's lines keep: the replaced ones, and those that vouch for their matches. */
-interface KeptLines {
-  readonly replaced: ReadonlySet<number>;
-  readonly vouching: ReadonlySet<number>;
+const pairsOf = (matches: readonly number[]): Pair[] =>
+  matches.flatMap((second, first): Pair[] => (second === -1 ? [] : [[first, second]]));
+
+const pairsOfRuns = (runs: readonly Run[]): Pair[] =>
+  runs.flatMap((run) =>
+    Array.from({ length: run.length }, (_, i): Pair => [run.first + i, run.second + i]),
+  );
+
+function matchesOfPairs(pairs: readonly Pair[], length: number): number[] {
+  const matches = Array.from({ length }, () => -1);
+  for (const [first, second] of pairs) matches[first] = second;
+  return matches;
 }
 
-/** What each line of `side` keeps in `runs`. */
+/**
+ * `pairs` without each one that a replaced line holds and the other line does not vouch for,
+ * dropped round by round until none is.
+ */
+function withoutUnvouched(pairs: readonly Pair[], first: DiffSide, second: DiffSide): Pair[] {
+  // ponytail: each round recounts every line, so a cascade of k rounds costs O(k·tokens); a
+  // worklist of the lines each drop touches if long cascades show up.
+  for (;;) {
+    const firstKept = keptLines(first, second.lines, pairs, 0);
+    const secondKept = keptLines(second, first.lines, pairs, 1);
+    const chance = ([i, j]: Pair) => {
+      const [firstLine, secondLine] = [first.lines[i] ?? -1, second.lines[j] ?? -1];
+      return (
+        (firstKept.replaced.has(firstLine) &&
+          secondKept.mainPartner.get(secondLine) !== firstLine) ||
+        (secondKept.replaced.has(secondLine) && firstKept.mainPartner.get(firstLine) !== secondLine)
+      );
+    };
+    const real = pairs.filter((pair) => !chance(pair));
+    if (real.length === pairs.length) return real;
+    pairs = real;
+  }
+}
+
+/** What one side's lines keep: the replaced ones, and the main partner of each that vouches. */
+interface KeptLines {
+  readonly replaced: ReadonlySet<number>;
+  readonly mainPartner: ReadonlyMap<number, number>;
+}
+
+/** What each line of `side` keeps in `pairs`, whose `which` index is on `side`. */
 function keptLines(
-  { lines, words }: DiffSide,
-  runs: readonly Run[],
-  which: "first" | "second",
+  { lines, words, names }: DiffSide,
+  otherLines: readonly number[],
+  pairs: readonly Pair[],
+  which: 0 | 1,
 ): KeptLines {
   const tokens = new Map<number, number>();
   const worded = new Set<number>();
@@ -87,24 +204,38 @@ function keptLines(
     if (words[at]) worded.add(line);
   });
 
-  const kept = new Map<number, number>();
-  const withWord = new Set<number>();
-  for (const run of runs) {
-    for (let at = run[which]; at < run[which] + run.length; at++) {
-      const line = lines[at] ?? -1;
-      kept.set(line, (kept.get(line) ?? 0) + 1);
-      if (words[at]) withWord.add(line);
-    }
+  const partners = new Map<number, Map<number, number>>();
+  const named = new Set<number>();
+  for (const pair of pairs) {
+    const at = pair[which];
+    const line = lines[at] ?? -1;
+    const counts = partners.get(line) ?? new Map<number, number>();
+    partners.set(line, counts);
+    const partner = otherLines[pair[which === 0 ? 1 : 0]] ?? -1;
+    counts.set(partner, (counts.get(partner) ?? 0) + 1);
+    if (names[at]) named.add(line);
   }
 
   const replaced = new Set<number>();
-  const vouching = new Set<number>();
+  const mainPartner = new Map<number, number>();
   for (const [line, count] of tokens) {
-    const twice = (kept.get(line) ?? 0) * 2;
+    const counts = partners.get(line);
+    const twice = sum(counts) * 2;
     if (twice < count || (twice === count && !worded.has(line))) replaced.add(line);
-    else if (withWord.has(line)) vouching.add(line);
+    else if (counts && named.has(line)) mainPartner.set(line, mostHeld(counts));
   }
-  return { replaced, vouching };
+  return { replaced, mainPartner };
+}
+
+const sum = (counts: ReadonlyMap<number, number> | undefined) =>
+  [...(counts?.values() ?? [])].reduce((total, count) => total + count, 0);
+
+/** The partner line holding the most tokens; `counts` is in line order, so a tie keeps the earlier. */
+function mostHeld(counts: ReadonlyMap<number, number>): number {
+  let best = -1;
+  let most = 0;
+  for (const [line, count] of counts) if (count > most) [best, most] = [line, count];
+  return best;
 }
 
 interface SeaSide {
@@ -124,14 +255,14 @@ function outOfSeas(runs: readonly Run[], [first, second]: readonly [SeaSide, Sea
     const secondLine = second.lines[run.second] ?? -1;
     const inFirstSea =
       first.kept.replaced.has(firstLine) &&
-      !second.kept.vouching.has(secondLine) &&
+      second.kept.mainPartner.get(secondLine) !== firstLine &&
       inSea(first.lines, run.first, run.length, {
         from: before ? before.first + before.length : 0,
         to: after ? after.first : first.lines.length,
       });
     const inSecondSea =
       second.kept.replaced.has(secondLine) &&
-      !first.kept.vouching.has(firstLine) &&
+      first.kept.mainPartner.get(firstLine) !== secondLine &&
       inSea(second.lines, run.second, run.length, {
         from: before ? before.second + before.length : 0,
         to: after ? after.second : second.lines.length,

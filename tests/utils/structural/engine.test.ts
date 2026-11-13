@@ -93,7 +93,7 @@ const sidesSwapped = ({
   ...(inside && { inside: { old: inside.new, new: inside.old } }),
   ...(matches && {
     matches: matches
-      .map(({ old, new: new_, count }) => ({ old: new_, new: old, count }))
+      .map(({ old, new: new_, count, shorter }) => ({ old: new_, new: old, count, shorter }))
       .sort((a, b) => a.old - b.old || a.new - b.new),
   }),
 });
@@ -792,6 +792,27 @@ describe("structuralChanges, lines inside a unit that remains", () => {
     expect(changes.inside).toEqual({ old: [], new: [] });
   });
 
+  it("names no line of a test added before one whose title changed, and marks only the title's word", async () => {
+    const oldText = 'test("closes the old pane", () => {\n  close(pane);\n});\n';
+    const newText =
+      'test("opens a pane", () => {\n  open(pane, size);\n  expect(pane).toBe(1);\n});\n\ntest("closes the new pane", () => {\n  close(pane);\n});\n';
+
+    const changes = changesOf(await run("typescript", oldText, newText));
+
+    expect(changes.inside).toEqual({ old: [1], new: [6] });
+    expect(unmarked(oldText, changes.old, 1, 1)).toEqual(['test("closesthepane",()=>{']);
+    expect(unmarked(newText, changes.new, 6, 6)).toEqual(['test("closesthepane",()=>{']);
+  });
+
+  it("names no line of a function replaced by a longer one holding an if and a return", async () => {
+    const oldText =
+      "function within(text: string, start: number, end: number): boolean {\n  if (end <= start) return false;\n}\n";
+    const newText =
+      "function lines(text: string, starts: readonly number[]) {\n  const first: number[] = [];\n  starts.forEach((at) => {\n    first.push(at);\n  });\n  const lineOf = (at: number): number => {\n    if ((starts[at] ?? 0) <= at) low = at;\n    return low;\n  };\n  return first;\n}\n";
+
+    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [1], new: [1] });
+  });
+
   it("names no line of plain text, which has no units", async () => {
     expect(await insideLines(PLAIN_TEXT, "one\ntwo\nthree\n", "one\nthree\n")).toBeUndefined();
   });
@@ -878,7 +899,7 @@ describe("structuralChanges, lines that share matched tokens", () => {
       regions: [{ oldStart: 2, oldEnd: 3, newStart: 2, newEnd: 3 }],
     });
 
-    expect(matches).toEqual([{ old: 2, new: 2, count: 4 }]);
+    expect(matches).toEqual([{ old: 2, new: 2, count: 4, shorter: 5 }]);
   });
 
   it("pairs no line of a region rewritten past maxEditLength", async () => {
@@ -906,6 +927,7 @@ describe("structuralChanges, lines that share matched tokens", () => {
     const matches = await lineMatches("typescript", before, after);
 
     expect(matches.find((m) => m.old === 1 && m.new === 2)?.count).toBeGreaterThanOrEqual(3);
+    expect(matches.find((m) => m.old === 1 && m.new === 2)?.shorter).toBe(5);
   });
 
   it("refuses more line pairs than maxChangedTokens", async () => {

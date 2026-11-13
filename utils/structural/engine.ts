@@ -1,11 +1,11 @@
 import { type ChangeObject, diffArrays } from "diff";
 import type { Parser } from "web-tree-sitter";
-import { type DiffSide, withoutChanceMatches } from "./chance";
+import { type DiffSide, rematchedOnLines, withoutChanceMatches } from "./chance";
 import type { LineMatch, StructuralChanges, TokenSpan } from "./changes";
 import type { Grammar } from "./grammar";
 import { innermostUnits, namedValues, type PairingSide } from "./named-values";
 import { PLAIN_TEXT, type PlainText, plainTextTokens } from "./plain-text";
-import { keyedByIndentation, leafTokens, lineStarts, type Token } from "./tokens";
+import { isWord, keyedByIndentation, leafTokens, lineStarts, type Token } from "./tokens";
 import { type Unit, wholeLineUnits } from "./units";
 
 /** Why the engine returned no changes. */
@@ -98,7 +98,10 @@ export async function structuralChanges(input: EngineInput): Promise<EngineResul
   const newSource = sourceOf(newText, newParsed);
   const changed = changedTokens(regions, oldSource, newSource, limits, now);
   if (typeof changed === "string") return refuse(changed);
-  const matches = lineMatches(changed.matched, regions);
+  const matches = lineMatches(changed.matched, regions, {
+    old: tokensPerLine(oldSource.lines),
+    new: tokensPerLine(newSource.lines),
+  });
   if (Math.max(changed.old.length, changed.new.length, matches.length) > limits.maxChangedTokens)
     return refuse("too-large");
 
@@ -185,6 +188,11 @@ function sourceOf(text: string, { tokens: all, units }: Parsed): Source {
   });
 
   const words = tokens.map((token) => WORD.test(text.slice(token.start, token.end)));
+  const names = tokens.map(
+    (token, at) =>
+      words[at] === true &&
+      (isWord(token.type) || token.type !== text.slice(token.start, token.end)),
+  );
 
   return {
     text,
@@ -192,6 +200,7 @@ function sourceOf(text: string, { tokens: all, units }: Parsed): Source {
     tokens,
     lines,
     words,
+    names,
     statements: units && innermostUnits(units),
     layout: all.filter((token) => token.layout),
   };
@@ -253,8 +262,22 @@ function changedTokens(
   };
 }
 
-/** `matched` counted by 1-based line pair, keeping pairs with either line inside one of `regions`. */
-function lineMatches(matched: readonly LinePair[], regions: readonly ChangedRegion[]): LineMatch[] {
+/** How many tokens sit on each 0-based line, given each token's line. */
+function tokensPerLine(lines: readonly number[]): ReadonlyMap<number, number> {
+  const counts = new Map<number, number>();
+  for (const line of lines) counts.set(line, (counts.get(line) ?? 0) + 1);
+  return counts;
+}
+
+/**
+ * `matched` counted by 1-based line pair, keeping pairs with either line inside one of `regions`;
+ * `sizes` holds each side's tokens per 0-based line.
+ */
+function lineMatches(
+  matched: readonly LinePair[],
+  regions: readonly ChangedRegion[],
+  sizes: { readonly old: ReadonlyMap<number, number>; readonly new: ReadonlyMap<number, number> },
+): LineMatch[] {
   const inRegion = (line: number, start: "oldStart" | "newStart", end: "oldEnd" | "newEnd") =>
     regions.some((region) => region[start] <= line && line < region[end]);
 
@@ -262,7 +285,8 @@ function lineMatches(matched: readonly LinePair[], regions: readonly ChangedRegi
   for (const [oldLine, newLine] of matched) {
     const key = `${oldLine},${newLine}`;
     const count = (counts.get(key)?.count ?? 0) + 1;
-    counts.set(key, { old: oldLine + 1, new: newLine + 1, count });
+    const shorter = Math.min(sizes.old.get(oldLine) ?? 0, sizes.new.get(newLine) ?? 0);
+    counts.set(key, { old: oldLine + 1, new: newLine + 1, count, shorter });
   }
 
   return [...counts.values()]
@@ -321,10 +345,11 @@ interface WindowSide extends DiffSide {
   readonly tokens: readonly Token[];
 }
 
-const sideOf = ({ tokens, lines, words }: Source, from: number, to: number): WindowSide => ({
+const sideOf = ({ tokens, lines, words, names }: Source, from: number, to: number): WindowSide => ({
   tokens: tokens.slice(from, to),
   lines: lines.slice(from, to),
   words: words.slice(from, to),
+  names: names.slice(from, to),
 });
 
 /** The old and new token index ranges one Myers diff covers, `To` exclusive. */
@@ -441,7 +466,11 @@ function windowChanges(
   const parts = diffArrays(firstKeys, secondKeys, { maxEditLength });
   if (parts === undefined) return { old: oldSide.tokens, new: newSide.tokens, rewritten: true };
 
-  const matches = withoutChanceMatches(matchesOf(parts), first, second);
+  const matches = rematchedOnLines(
+    withoutChanceMatches(matchesOf(parts), first, second),
+    { lines: first.lines, keys: firstKeys },
+    { lines: second.lines, keys: secondKeys },
+  );
   const matched = new Set(matches);
   const removed = first.tokens.filter((_, i) => matches[i] === -1);
   const added = second.tokens.filter((_, i) => !matched.has(i));

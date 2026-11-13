@@ -4,7 +4,7 @@
  * GitHub's rows back.
  */
 
-import type { StructuralFile } from "@/utils/structural/changes";
+import type { LineAnnotation, StructuralFile } from "@/utils/structural/changes";
 import { type PairedRow, pairedRows } from "@/utils/structural/pairing";
 import {
   addedRow,
@@ -43,10 +43,23 @@ interface BlockPlan {
   readonly paired: readonly PairedRow[];
 }
 
-/** `cell`'s line text in `file`, or `undefined` when the mounted cell's text differs from it. */
-export function matchedText(file: StructuralFile, cell: ChangedCell): string | undefined {
+/** How a mounted changed cell reads against `file`. */
+export type CellReading =
+  | { readonly kind: "outside" }
+  | { readonly kind: "matched"; readonly annotation: LineAnnotation; readonly text: string }
+  | { readonly kind: "differs" };
+
+/**
+ * Reads `cell` against `file`: `outside` when its line has no annotation, so it lies outside the
+ * `.diff`'s hunks and is unchanged; `matched` when its text equals the file's; `differs` otherwise.
+ */
+export function readCell(file: StructuralFile, cell: ChangedCell): CellReading {
+  const annotation = file.annotations[cell.side][cell.line];
+  if (!annotation) return { kind: "outside" };
   const text = file.text[cell.side][cell.line];
-  return text !== undefined && cell.textRoot.textContent === text ? text : undefined;
+  return text !== undefined && cell.textRoot.textContent === text
+    ? { kind: "matched", annotation, text }
+    : { kind: "differs" };
 }
 
 /**
@@ -92,10 +105,13 @@ export function restoreTable(table: HTMLTableElement, snapshots: PairingSnapshot
   return rows.length > 0;
 }
 
-/** The blocks of `table` to re-pair, none when a changed cell's text differs from `file`'s. */
+/**
+ * The blocks of `table` to re-pair, none when an annotated changed cell's text differs from
+ * `file`'s. A cell outside the `.diff`'s hunks has no annotation and passes.
+ */
 function plansOf(table: HTMLTableElement, file: StructuralFile): BlockPlan[] {
   const { matches } = file;
-  if (!matches || !changedCells(table).every((cell) => matchedText(file, cell) !== undefined))
+  if (!matches || changedCells(table).some((cell) => readCell(file, cell).kind === "differs"))
     return [];
 
   return changedBlocks(table).flatMap((block) => {

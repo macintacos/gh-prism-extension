@@ -9,6 +9,9 @@ export interface PairedRow {
 /** Fewest matched tokens two lines must share to count as a match. */
 export const MIN_SHARED_TOKENS = 2;
 
+/** Least share of the shorter line's tokens two lines must share to count as a match. */
+export const MIN_SHARED_FRACTION = 0.5;
+
 // ponytail: O(olds × news) table per block; past this the block keeps GitHub's pairing.
 /** Most old × new line pairs one block may hold. */
 export const MAX_PAIRING_CELLS = 10_000;
@@ -21,8 +24,11 @@ export function maxAddedRows(githubRows: number): number {
 /**
  * The rows a changed block should show, or undefined when it keeps GitHub's own pairing.
  *
- * @remarks Pairs the order-preserving set of matches with the largest total count; ties go to
- * the pairing whose first differing pair has the smaller old line, then the smaller new line.
+ * @remarks Two lines match when they share at least MIN_SHARED_TOKENS tokens and
+ * MIN_SHARED_FRACTION of the shorter line's tokens. Pairs the order-preserving set of matches
+ * with the largest total count; ties go to the pairing whose first differing pair has the
+ * smaller old line, then the smaller new line. Each pair then moves up to the first line of a
+ * split or join it heads, and unpaired lines share rows as `rowsOf` lays them.
  */
 export function pairedRows(
   olds: readonly number[],
@@ -33,7 +39,7 @@ export function pairedRows(
     return undefined;
 
   const weights = weightTable(olds, news, matches);
-  const pairs = bestPairs(weights, olds.length, news.length);
+  const pairs = splitStarts(weights, bestPairs(weights, olds.length, news.length));
   if (pairs.length === 0) return undefined;
   const rows = rowsOf(olds, news, pairs);
 
@@ -48,7 +54,12 @@ export function pairedRows(
   return rows;
 }
 
-/** `weights[i][j]`: tokens olds[i] shares with news[j], or 0 below MIN_SHARED_TOKENS. */
+/** Whether a match shares enough tokens to pair its two lines. */
+function pairs({ count, shorter }: LineMatch): boolean {
+  return count >= MIN_SHARED_TOKENS && count >= shorter * MIN_SHARED_FRACTION;
+}
+
+/** `weights[i][j]`: tokens olds[i] shares with news[j], or 0 when the two do not pair. */
 function weightTable(
   olds: readonly number[],
   news: readonly number[],
@@ -58,12 +69,12 @@ function weightTable(
   const oldIndex = new Map(olds.map((line, i) => [line, i]));
   const newIndex = new Map(news.map((line, j) => [line, j]));
 
-  for (const { old, new: newLine, count } of matches) {
-    const i = oldIndex.get(old);
-    const j = newIndex.get(newLine);
+  for (const match of matches) {
+    const i = oldIndex.get(match.old);
+    const j = newIndex.get(match.new);
     const row = i === undefined ? undefined : weights[i];
-    if (row === undefined || j === undefined || count < MIN_SHARED_TOKENS) continue;
-    row[j] = Math.max(row[j] ?? 0, count);
+    if (row === undefined || j === undefined || !pairs(match)) continue;
+    row[j] = Math.max(row[j] ?? 0, match.count);
   }
   return weights;
 }
@@ -110,7 +121,30 @@ function bestPairs(
   return pairs;
 }
 
-/** Rows in file order: pairs share a row; between pairs, unpaired old lines come before unpaired new lines. */
+/**
+ * `pairs` with each moved up to the first line of the split or join it heads: onto the unpaired
+ * line just above it that also pairs with its other line, on the new side or else the old side.
+ */
+function splitStarts(
+  weights: readonly (readonly number[])[],
+  pairs: readonly [number, number][],
+): [number, number][] {
+  const pairsWith = (i: number, j: number) => (weights[i]?.[j] ?? 0) > 0;
+  let [lastOld, lastNew] = [-1, -1];
+  return pairs.map(([i, j]): [number, number] => {
+    let [a, b] = [i, j];
+    while (b - 1 > lastNew && pairsWith(a, b - 1)) b--;
+    if (b === j) while (a - 1 > lastOld && pairsWith(a - 1, b)) a--;
+    [lastOld, lastNew] = [a, b];
+    return [a, b];
+  });
+}
+
+/**
+ * Rows in file order: pairs share a row, and between them unpaired old and new lines share rows,
+ * the longer side running on alone. Before the first pair they end at it, so the longer side's
+ * extra lines come first; after a pair they fill from the top.
+ */
 function rowsOf(
   olds: readonly number[],
   news: readonly number[],
@@ -120,10 +154,25 @@ function rowsOf(
   let [i, j] = [0, 0];
   // A sentinel past both ends flushes the lines after the last pair.
   for (const [a, b] of [...pairs, [olds.length, news.length] as const]) {
-    for (; i < a; i++) rows.push({ old: olds[i] });
-    for (; j < b; j++) rows.push({ new: news[j] });
+    const gap = sideBySide(olds.slice(i, a), news.slice(j, b));
+    rows.push(...(rows.length === 0 && a < olds.length ? gap.alignedToEnd : gap.alignedToStart));
     if (a < olds.length && b < news.length) rows.push({ old: olds[a], new: news[b] });
     [i, j] = [a + 1, b + 1];
   }
   return rows;
+}
+
+/** Unpaired old and new lines one of each per row, aligned to the start or to the end. */
+function sideBySide(olds: readonly number[], news: readonly number[]) {
+  const length = Math.max(olds.length, news.length);
+  const row = (old: number | undefined, line: number | undefined): PairedRow => ({
+    ...(old === undefined ? {} : { old }),
+    ...(line === undefined ? {} : { new: line }),
+  });
+  const extraOlds = length - olds.length;
+  const extraNews = length - news.length;
+  return {
+    alignedToStart: Array.from({ length }, (_, k) => row(olds[k], news[k])),
+    alignedToEnd: Array.from({ length }, (_, k) => row(olds[k - extraOlds], news[k - extraNews])),
+  };
 }

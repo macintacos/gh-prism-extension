@@ -31,6 +31,8 @@ export interface LineMatch {
   readonly old: number;
   readonly new: number;
   readonly count: number;
+  /** Diff tokens on whichever of the two lines holds fewer. */
+  readonly shorter: number;
 }
 
 /** 0-based UTF-16 columns of one line, `endCol` exclusive. */

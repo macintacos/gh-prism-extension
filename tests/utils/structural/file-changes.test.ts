@@ -402,8 +402,8 @@ describe("fileChanges", () => {
 
     it("weighs an entry's line matches with its spans", async () => {
       const matches = [
-        { old: 1, new: 1, count: 2 },
-        { old: 2, new: 2, count: 3 },
+        { old: 1, new: 1, count: 2, shorter: 3 },
+        { old: 2, new: 2, count: 3, shorter: 4 },
       ];
       const { run, changes } = setup({
         diff,

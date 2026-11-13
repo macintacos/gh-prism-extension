@@ -15,7 +15,7 @@ import {
   type findFilesPage,
   lineRowOfAnchor,
 } from "../../../entrypoints/content/files-page";
-import type { StructuralFile } from "../../../utils/structural/changes";
+import type { LineAnnotation, StructuralFile } from "../../../utils/structural/changes";
 import commitWhitespaceSplit from "../../fixtures/commit-page-diff-whitespace-split.html?raw";
 import { anchorOfTable, mountDiffs, sectionsOf, tableAt } from "../../fixtures/diff-tables";
 import prUnified from "../../fixtures/files-page-diff-unified.html?raw";
@@ -25,16 +25,19 @@ import { stubResizeObserver } from "../../fixtures/resize-observer";
 
 // 121 `if "pk" in d:` matches 138 `if "pk" in obj:`; 126 opens `total` as 144 does.
 const MATCHES = [
-  { old: 121, new: 138, count: 3 },
-  { old: 126, new: 144, count: 4 },
+  { old: 121, new: 138, count: 3, shorter: 5 },
+  { old: 126, new: 144, count: 4, shorter: 6 },
 ];
 
 /** A file whose text is `table`'s mounted changed lines, with `matches`. */
 const fileWith = (table: HTMLTableElement, matches?: StructuralFile["matches"]): StructuralFile => {
   const text: Record<"old" | "new", Record<number, string>> = { old: {}, new: {} };
-  for (const { side, line, textRoot } of changedCells(table))
+  const annotations: Record<"old" | "new", Record<number, LineAnnotation>> = { old: {}, new: {} };
+  for (const { side, line, textRoot } of changedCells(table)) {
     text[side][line] = textRoot.textContent ?? "";
-  return { annotations: { old: {}, new: {} }, text, ...(matches && { matches }) };
+    annotations[side][line] = { quiet: true };
+  }
+  return { annotations, text, ...(matches && { matches }) };
 };
 
 /** Each row's old and new line numbers, `-` for a side with none. */
@@ -68,6 +71,21 @@ describe("pairTable", () => {
     const table = tableAt(mountDiffs(pairingSplit));
 
     pairTable(table, fileWith(table, MATCHES), snapshots);
+
+    expect(rowsAround(table, "119", 4)).toEqual(["119|137", "120|-", "121|138", "122|139"]);
+  });
+
+  it("re-pairs a table with a changed cell outside its file's hunks", () => {
+    const table = tableAt(mountDiffs(pairingSplit));
+    const file = fileWith(table, MATCHES);
+    const { 120: _, ...oldAnnotations } = file.annotations.old;
+    const outside = {
+      ...file,
+      annotations: { ...file.annotations, old: oldAnnotations },
+      text: { ...file.text, old: { ...file.text.old, 120: "something else" } },
+    };
+
+    pairTable(table, outside, snapshots);
 
     expect(rowsAround(table, "119", 4)).toEqual(["119|137", "120|-", "121|138", "122|139"]);
   });
@@ -234,8 +252,8 @@ describe("pairTable", () => {
     oldCode?.querySelector("code")?.classList.add("deletion");
     newCode?.querySelector("code")?.classList.add("addition");
     const file = fileWith(table, [
-      { old: 121, new: 138, count: 3 },
-      { old: 122, new: 139, count: 3 },
+      { old: 121, new: 138, count: 3, shorter: 5 },
+      { old: 122, new: 139, count: 3, shorter: 5 },
     ]);
     const watcher = new MutationObserver(() => {});
     if (row) watcher.observe(row, { childList: true });
@@ -316,7 +334,10 @@ describe("paintStructural's re-pairing", () => {
   });
 
   it("re-pairs a split table and restores GitHub's markup on abort", async () => {
-    const want = tableAt(mountDiffs(pairingSplit)).outerHTML;
+    const github = tableAt(mountDiffs(pairingSplit));
+    // Painting rewrites the table's inline style, which reserializes it unchanged.
+    github.setAttribute("style", github.style.cssText);
+    const want = github.outerHTML;
     const diffs = await paint(pairingSplit, MATCHES);
     const table = tableAt(diffs);
     expect(rowsAround(table, "120", 2)).toEqual(["120|-", "121|138"]);
@@ -342,7 +363,7 @@ describe("paintStructural's re-pairing", () => {
 
   it("leaves a unified table as GitHub drew it", async () => {
     const want = tableAt(mountDiffs(prUnified)).outerHTML;
-    const diffs = await paint(prUnified, [{ old: 1, new: 1, count: 5 }]);
+    const diffs = await paint(prUnified, [{ old: 1, new: 1, count: 5, shorter: 5 }]);
 
     expect(tableAt(diffs).outerHTML).toBe(want);
   });
