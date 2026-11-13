@@ -5,6 +5,7 @@
 @import "../ui/tailwind.css" prefix(tw);
 @import "../ui/mark.css";
 @source "./view-control.ts";
+@source "./structural-intro.ts";
 
 /* An 8px gap to the gear and from the name; a commit's group already has its own gap. */
 [class*="container-show-on-sm"] .gh-prism-diff-view,
@@ -125,41 +126,4 @@
   height: 12px;
   transform: translateY(-50%);
   background-color: var(--borderColor-default);
-}
-
-/* Primer's tooltip, opening downward and toward the page's inside, on Structural alone. */
-.gh-prism-diff-view-segment[data-view="structural"]::after {
-  content: attr(aria-description);
-  position: absolute;
-  top: calc(100% + 4px);
-  inset-inline-end: 0;
-  z-index: 100;
-  width: max-content;
-  max-width: 280px;
-  padding: 4px 8px;
-  border-radius: var(--borderRadius-medium);
-  background: var(--tooltip-bgColor);
-  color: var(--tooltip-fgColor);
-  font-size: var(--text-body-size-small);
-  font-weight: var(--base-text-weight-normal);
-  line-height: var(--text-body-lineHeight-small);
-  text-align: start;
-  white-space: normal;
-  pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity 120ms ease-out,
-    visibility 120ms;
-}
-
-.gh-prism-diff-view-segment[data-view="structural"]:is(:hover, :focus-visible)::after {
-  opacity: 1;
-  visibility: visible;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .gh-prism-diff-view-segment[data-view="structural"]::after {
-    transition: none;
-  }
 }

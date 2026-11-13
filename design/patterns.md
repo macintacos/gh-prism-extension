@@ -149,15 +149,14 @@ these marks.
 
 A tooltip copies Primer's. It is an `::after` on the control that shows the control's
 `aria-label`, on `--tooltip-bgColor`, at the small body size, and it fades in over 120 ms
-on hover and focus. The diff view control's Structural segment shows its
-`aria-description` instead. It opens toward the inside of the sidebar or the page, so it
-never clips at an edge. `sidebar/side.css`, `sidebar/report.css`, `commit/step-links.css`,
-`commit/message-view.css`, `conversation/panel.css`, `ui/mark.css`, `ui/pr-owners.css`,
-and `diffs/view-control.css` hold the eight in use. The code owners button beside a
-Reviewers heading sits near the sidebar's inline end, so `conversation/reviewer-files.css`
-overrides `ui/pr-owners.css`'s tooltip for it to open leftward from the button's end. Only
-the mark's opens on hover alone, since the mark takes no focus. Inside the header
-counter's tooltips, which take no pointer, the mark's own tooltip never opens.
+on hover and focus. It opens toward the inside of the sidebar or the page, so it never
+clips at an edge. `sidebar/side.css`, `sidebar/report.css`, `commit/step-links.css`,
+`commit/message-view.css`, `conversation/panel.css`, `ui/mark.css`, and `ui/pr-owners.css`
+hold the seven in use. The code owners button beside a Reviewers heading sits near the
+sidebar's inline end, so `conversation/reviewer-files.css` overrides `ui/pr-owners.css`'s
+tooltip for it to open leftward from the button's end. Only the mark's opens on hover
+alone, since the mark takes no focus. Inside the header counter's tooltips, which take no
+pointer, the mark's own tooltip never opens.
 
 The owner filter icons' tooltips (§ Owner identities) look the same but sit in the top
 layer, because their surfaces scroll, and an `::after` there would widen the scroller's
@@ -269,21 +268,22 @@ pressed segment is a knob on `--controlKnob-bgColor-rest` with a semibold label 
 `--borderColor-neutral-emphasis` edge, so weight and edge carry the state without colour.
 Each label reserves its semibold width, so pressing shifts nothing. The pressed segment
 follows the layout the tables show, never a stored copy, and none is pressed while the
-layout can't be told. Structural carries the Beta tag (§ Tags) and the only tooltip. It
-alone is gh-prism's view, so it alone leads with the mark's glyph (§ The mark), at 16px
-and hidden from assistive technology. The glyph is `--fgColor-muted` at rest and the
-label's colour while the segment is pressed. Hovering the segment, or giving it keyboard
-focus, runs the mark's pulse on the glyph, pressed or not. Under reduced motion the glyph
-swaps at once to the mark's still accent copy, and under forced colours it is `ButtonText`
-and still. On a pull request filtered to one commit, Structural is `aria-disabled`, in
-`--control-fgColor-disabled`, and its tooltip says why; its glyph takes that colour and
-stays still. The control gives up its room in two steps, because GitHub's toolbar never
-wraps: first the name goes, then the control hides. On a pull request each step happens
-when the toolbar would overflow. On a commit, fixed widths set both steps: the name goes
-below 1100px, before it would shrink GitHub's search box, and the control below 768px.
-While the control shows, GitHub's diff settings menu opens without its Layout group, which
-would only repeat the control; the menu stays whole whenever the control is hidden.
-`diffs/view-control.ts` and `diffs/view-control.css` build it.
+layout can't be told. Structural carries the Beta tag (§ Tags) and the Structural popover
+(§ Floating surfaces). It alone is gh-prism's view, so it alone leads with the mark's
+glyph (§ The mark), at 16px and hidden from assistive technology. The glyph is
+`--fgColor-muted` at rest and the label's colour while the segment is pressed. Hovering
+the segment, or giving it keyboard focus, runs the mark's pulse on the glyph, pressed or
+not. Under reduced motion the glyph swaps at once to the mark's still accent copy, and
+under forced colours it is `ButtonText` and still. On a pull request filtered to one
+commit, Structural is `aria-disabled`, in `--control-fgColor-disabled`, and its popover
+says why above the same link; its glyph takes that colour and stays still. The control
+gives up its room in two steps, because GitHub's toolbar never wraps: first the name goes,
+then the control hides. On a pull request each step happens when the toolbar would
+overflow. On a commit, fixed widths set both steps: the name goes below 1100px, before it
+would shrink GitHub's search box, and the control below 768px. While the control shows,
+GitHub's diff settings menu opens without its Layout group, which would only repeat the
+control; the menu stays whole whenever the control is hidden. `diffs/view-control.ts` and
+`diffs/view-control.css` build it.
 
 ## Tags
 
@@ -322,8 +322,12 @@ size. The plain-text view shows the message as written, with no label.
 
 An overlay that floats over the page sits on `--overlay-bgColor`, falling back to
 `--bgColor-default`, with the medium radius and `--shadow-floating-small`. The header
-counter's tip in `header/diffstat-view.ts` and the code owners popover in
-`sidebar/owners-popover.ts` share it, class for class.
+counter's tip in `header/diffstat-view.ts`, the code owners popover in
+`sidebar/owners-popover.ts`, and the Structural popover in `diffs/structural-intro.ts`
+share it, class for class. The Structural popover opens on hover or keyboard focus of the
+diff view control's Structural segment. It shows the segment's `aria-description` above a
+"What's a structural diff?" link, which opens `docs/STRUCTURAL-DIFFS.md` in a new tab. It
+sits right after the segment, so Tab from the segment reaches the link.
 
 A floating surface draws one 1px edge, never two. An overlay draws no border of its own,
 because `--shadow-floating-small` opens with a 1px ring that draws its edge, as in

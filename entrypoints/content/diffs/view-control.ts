@@ -19,6 +19,7 @@ import {
 import { el } from "../ui/dom";
 import { prismGlyph } from "../ui/mark";
 import type { PressGuard } from "../ui/press-guard";
+import { followStructuralTip } from "./structural-intro";
 import type { StructuralChoice } from "./structural-mode";
 // ?inline, not a plain import: a plain import ships the sheet in the manifest, styling every
 // github.com page; this mounts only while the control lives.
@@ -402,5 +403,6 @@ export function showDiffViewControl(
   });
 
   observeDiffs(page.diffs, follow, { signal });
+  followStructuralTip(doc, signal, { blocked: () => false });
   follow();
 }

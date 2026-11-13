@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { STRUCTURAL_DIFFS_DOC } from "../../../entrypoints/content/diffs/structural-intro";
 import { structuralChoiceOf } from "../../../entrypoints/content/diffs/structural-mode";
 import {
   type DiffView,
@@ -27,6 +28,10 @@ import prToolbar from "../../fixtures/files-page-toolbar.html?raw";
 import { installLayoutMenu } from "../../fixtures/layout-menu";
 import commitMenu from "../../fixtures/layout-menu-commit.html?raw";
 import prMenu from "../../fixtures/layout-menu-pr.html?raw";
+
+// happy-dom has no Popover API.
+HTMLElement.prototype.showPopover = () => {};
+HTMLElement.prototype.hidePopover = () => {};
 
 describe("shownView", () => {
   it.each<{ layout: DiffLayout | undefined; on: boolean; shown: DiffView | undefined }>([
@@ -907,5 +912,68 @@ describe("showDiffViewControl", () => {
     await flush();
 
     expect(log).toEqual([]);
+  });
+
+  describe("Structural popover", () => {
+    const card = () => segment("structural")?.nextElementSibling as HTMLElement | null | undefined;
+    const focusStructural = () =>
+      segment("structural")?.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+
+    it("opens at once on focus, beside the segment, with its tip and the doc link", async () => {
+      show(pageOf("pr", "split"), choiceOf(false).choice);
+      await flush();
+
+      focusStructural();
+
+      const link = card()?.querySelector("a");
+      expect(card()?.textContent).toMatch(/Highlights what changed in the code/);
+      expect(card()?.textContent).toContain(
+        segment("structural")?.getAttribute("aria-description"),
+      );
+      expect(link?.textContent).toBe("What's a structural diff?");
+      expect(link?.href).toBe(STRUCTURAL_DIFFS_DOC);
+      expect(link?.target).toBe("_blank");
+      expect(link?.rel).toBe("noopener noreferrer");
+    });
+
+    it("opens after a 200 ms hover and stays open while the pointer moves into it", async () => {
+      show(pageOf("pr", "split"), choiceOf(false).choice);
+      await flush();
+
+      segment("structural")?.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+      await vi.advanceTimersByTimeAsync(199);
+      expect(card()).toBeNull();
+      await vi.advanceTimersByTimeAsync(1);
+      const opened = card();
+      segment("structural")?.dispatchEvent(
+        new PointerEvent("pointerout", { bubbles: true, relatedTarget: opened ?? null }),
+      );
+      opened?.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+      await vi.advanceTimersByTimeAsync(500);
+
+      expect(opened?.isConnected).toBe(true);
+    });
+
+    it("closes on Escape", async () => {
+      show(pageOf("pr", "split"), choiceOf(false).choice);
+      await flush();
+      focusStructural();
+
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+      expect(card()).toBeNull();
+    });
+
+    it("shows the unavailable tip, and the link, where Structural isn't offered", async () => {
+      show(pageOf("pr", "split"), choiceOf(false).choice, { offersStructural: false });
+      await flush();
+
+      focusStructural();
+
+      const tip = segment("structural")?.getAttribute("aria-description") ?? "";
+      expect(tip).toContain("isn't available");
+      expect(card()?.textContent).toContain(tip);
+      expect(card()?.querySelector("a")?.href).toBe(STRUCTURAL_DIFFS_DOC);
+    });
   });
 });
