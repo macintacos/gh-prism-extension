@@ -164,6 +164,8 @@ diffs, and Older and Newer links step through its history.
 
 A control beside GitHub's diff settings gear, on a pull request's Files changed tab and on
 a commit's page, picks how the diffs are drawn: **Unified**, **Split**, or **Structural**.
+[What's a structural diff?](docs/STRUCTURAL-DIFFS.md) explains what Structural does and
+links to example pull requests.
 
 - Structural draws GitHub's Split layout and highlights the code that changed. A block
   added or removed whole, such as a function or a statement, or replaced by code that
