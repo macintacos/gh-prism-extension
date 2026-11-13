@@ -119,10 +119,10 @@ const SIDES = ["old", "new"] as const;
  * rest after them. A row that already holds its cells is left untouched.
  */
 function writeBlock({ rows, paired }: BlockPlan): void {
-  const last = rows.at(-1)?.row;
-  if (!last) return;
-  const doc = last.ownerDocument;
-  const { emptySide } = pageKindOf(last);
+  const lastRow = rows.at(-1)?.row;
+  if (!lastRow) return;
+  const doc = lastRow.ownerDocument;
+  const { emptySide } = pageKindOf(lastRow);
 
   const byLine = { old: new Map<number, SideCells>(), new: new Map<number, SideCells>() };
   const spare = { old: new Set<SideCells>(), new: new Set<SideCells>() };
@@ -143,14 +143,14 @@ function writeBlock({ rows, paired }: BlockPlan): void {
   };
 
   const added = paired.slice(rows.length).map(() => addedRow(doc, ADDED_ROW_ATTR));
-  last.after(...added);
+  lastRow.after(...added);
   const targets = [...rows, ...added.map((row) => ({ row, sides: undefined }))];
-  paired.forEach((want, i) => {
+  paired.forEach((pairedRow, i) => {
     const target = targets[i];
     if (!target) return;
     const cells = [
-      ...cellsFor("old", want.old, target.sides?.old),
-      ...cellsFor("new", want.new, target.sides?.new),
+      ...cellsFor("old", pairedRow.old, target.sides?.old),
+      ...cellsFor("new", pairedRow.new, target.sides?.new),
     ];
     const { children } = target.row;
     if (children.length !== cells.length || cells.some((cell, j) => children[j] !== cell))

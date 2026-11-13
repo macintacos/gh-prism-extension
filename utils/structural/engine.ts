@@ -445,14 +445,14 @@ function windowChanges(
   const matched = new Set(matches);
   const removed = first.tokens.filter((_, i) => matches[i] === -1);
   const added = second.tokens.filter((_, i) => !matched.has(i));
-  const lines = matches.flatMap((j, i): LinePair[] => {
+  const matchedLines = matches.flatMap((j, i): LinePair[] => {
     const [firstLine, secondLine] = [first.lines[i], second.lines[j]];
     if (firstLine === undefined || secondLine === undefined) return [];
     return [flipped ? [secondLine, firstLine] : [firstLine, secondLine]];
   });
   return flipped
-    ? { old: added, new: removed, matched: lines }
-    : { old: removed, new: added, matched: lines };
+    ? { old: added, new: removed, matched: matchedLines }
+    : { old: removed, new: added, matched: matchedLines };
 }
 
 /** Whether `a` sorts at or before `b`: shorter first, then by the first differing key. */

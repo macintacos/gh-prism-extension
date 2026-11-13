@@ -71,17 +71,17 @@ function weightTable(
 /** Index pairs of the heaviest order-preserving pairing, lexicographically smallest on ties. */
 function bestPairs(
   weights: readonly (readonly number[])[],
-  n: number,
-  m: number,
+  oldCount: number,
+  newCount: number,
 ): [number, number][] {
   // best[i][j]: the largest total reachable from olds[i..] and news[j..].
-  const best = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
+  const best = Array.from({ length: oldCount + 1 }, () => new Array<number>(newCount + 1).fill(0));
   const at = (i: number, j: number) => best[i]?.[j] ?? 0;
   const weight = (i: number, j: number) => weights[i]?.[j] ?? 0;
-  for (let i = n - 1; i >= 0; i--) {
+  for (let i = oldCount - 1; i >= 0; i--) {
     const row = best[i];
     if (!row) continue;
-    for (let j = m - 1; j >= 0; j--) {
+    for (let j = newCount - 1; j >= 0; j--) {
       const paired = weight(i, j) > 0 ? weight(i, j) + at(i + 1, j + 1) : 0;
       row[j] = Math.max(paired, at(i + 1, j), at(i, j + 1));
     }
@@ -92,8 +92,8 @@ function bestPairs(
    * starts past the previous pair, so the scans across all calls stay linear in the table.
    */
   const firstPairOnBestPath = (i: number, j: number): [number, number] => {
-    for (let a = i; a < n; a++) {
-      for (let b = j; b < m; b++) {
+    for (let a = i; a < oldCount; a++) {
+      for (let b = j; b < newCount; b++) {
         if (weight(a, b) > 0 && weight(a, b) + at(a + 1, b + 1) === at(i, j)) return [a, b];
       }
     }

@@ -1123,18 +1123,18 @@ export function changedBlocks(table: ParentNode): ChangedBlock[] {
   const cellsByRow = Map.groupBy(changedCells(table), (cell) => cell.row);
 
   const blocks: BlockRow[][] = [];
-  let open: BlockRow[] | undefined;
+  let openBlock: BlockRow[] | undefined;
   for (const row of table.querySelectorAll<HTMLTableRowElement>("tr.diff-line-row")) {
     const cells = cellsByRow.get(row);
     if (!cells) {
-      open = undefined;
+      openBlock = undefined;
       continue;
     }
-    if (!open) {
-      open = [];
-      blocks.push(open);
+    if (!openBlock) {
+      openBlock = [];
+      blocks.push(openBlock);
     }
-    open.push({ row, ...Object.fromEntries(cells.map(({ side, line }) => [side, line])) });
+    openBlock.push({ row, ...Object.fromEntries(cells.map(({ side, line }) => [side, line])) });
   }
   return blocks;
 }
