@@ -233,20 +233,22 @@ the pairing fixture hard-code. It needs the `gh` CLI signed in. It skips the rep
 and each pull request that already exists, so a rerun picks up where it left off. A pull
 request that failed midway is the exception: fix it by hand.
 
-The Structural mode showcase on `macintacos/gh-prism-sandbox` is a stack of four pull
+The Structural mode showcase on `macintacos/gh-prism-sandbox` is a stack of five pull
 requests, from <https://github.com/macintacos/gh-prism-sandbox/pull/13> (formatting only),
 through <https://github.com/macintacos/gh-prism-sandbox/pull/14> (formatting with edits
-inside) and <https://github.com/macintacos/gh-prism-sandbox/pull/15> (comment updates), up
-to <https://github.com/macintacos/gh-prism-sandbox/pull/16> (moved and lined-up lines).
+inside), <https://github.com/macintacos/gh-prism-sandbox/pull/15> (comment updates), and
+<https://github.com/macintacos/gh-prism-sandbox/pull/16> (moved and lined-up lines), up to
+<https://github.com/macintacos/gh-prism-sandbox/pull/18> (larger, realistic changes).
 `create-sandbox.sh` doesn't create it; it was made by hand. Its base files live under
-`showcase/` on `main`, and each pull request changes only its own folder there. Each body
-says, file by file, what GitHub's Split diff shows and what Structural mode shows instead.
-Step through the stack to check Structural mode by hand. Each body also names the gh-prism
-commit it was checked against, and says Structural mode is in no store release. When a
-store release ships Structural mode, update the four bodies with `gh pr edit`, which
-changes no branch. The stack is a public showcase, and links to it must keep working, so
-keep the four pull requests open, and never merge or rebase them. Don't change `showcase/`
-in other sandbox work, because the showcase pull requests build on those files.
+`showcase/` on `main`. Each of the first four pull requests changes only its own folder
+there, and the fifth reworks files in all four folders. Each body says, file by file, what
+GitHub's Split diff shows and what Structural mode shows instead. Step through the stack
+to check Structural mode by hand. Each body also names the gh-prism commit it was checked
+against, and says Structural mode is in no store release. When a store release ships
+Structural mode, update the five bodies with `gh pr edit`, which changes no branch. The
+stack is a public showcase, and links to it must keep working, so keep the five pull
+requests open, and never merge or rebase them. Don't change `showcase/` in other sandbox
+work, because the showcase pull requests build on those files.
 
 `scripts/create-codeowners-sandbox.sh excessive-dev/gh-prism-codeowners-sandbox` creates
 the code-owners sandbox, a public repository under the `excessive-dev` organization. It is
