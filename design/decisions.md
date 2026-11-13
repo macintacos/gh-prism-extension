@@ -6,6 +6,58 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-12: Structural mode pairs lines that share at least 2 matched tokens
+
+- **Asked for:** when Structural mode lines up matching lines in Split, how many
+  engine-matched tokens two lines must share before they face each other. Fewer tokens
+  line up more real edits, and more tokens keep weak pairs out.
+- **Compared:** at least 1, 2, and 3 shared tokens, on
+  <https://github.com/macintacos/gh-prism-sandbox/pull/11>,
+  <https://github.com/macintacos/gh-prism-sandbox/pull/3>,
+  <https://github.com/macintacos/gh-prism-sandbox/pull/4>, and
+  <https://github.com/nodejs/node/pull/66212>, with the empty-space rule held at half of
+  GitHub's rows.
+- **Won:** at least 2 shared tokens.
+- **Why:**
+  - 1 token only ever changed the result by adding weak pairs: `}` facing `}`, and two
+    unrelated prose lines sharing only a full stop. On nodejs/node it squeezed such blocks
+    under the empty-space limit, adding 51 rows where 2 tokens add 23.
+  - 3 tokens dropped real two-token edits. In `app/ledger.py` of sandbox pull request 4,
+    `result += amount` gained a trailing comment and shares 2 tokens with its old line; at
+    3 the block kept GitHub's rows. In nodejs/node's `lib/commands/ci.js`,
+    `await runScript({` and `await runRootScript(event)` were pulled apart, and
+    `lib/commands/install.js` lost the same pair, which GitHub's rows already had right.
+  - No 2-token pair in any block where the candidates differed was weak, so an absolute
+    count separates good matches from weak ones on these diffs, and no ratio rule is
+    needed.
+- **Accepted:**
+  - Screenshots exist for three blocks only: `app/ledger.py` in both themes, `ci.js` in
+    dark, and `npm.md` in light. The other blocks were judged from row tables.
+  - Commenting, replying, and resolving on re-paired rows were not exercised.
+
+## 2026-11-12: Structural mode adds at most half of GitHub's rows to a re-paired block
+
+- **Asked for:** how many empty rows Structural mode may add to a changed block to line up
+  matching lines in Split, before it leaves GitHub's rows as they are.
+- **Compared:** at most 2 added rows, at most half of GitHub's row count (at least 2), and
+  at most GitHub's row count, on the same pull requests, with the weak-match rule at 2
+  tokens.
+- **Won:** half of GitHub's row count, and at least 2.
+- **Why:**
+  - A flat 2 lost the two best re-pairings on nodejs/node: in `lib/base-cmd.js` a renamed
+    method signature and a renamed set, and in `lib/commands/pkg.js` three lines sharing
+    12, 10, and 4 tokens. Each needs 3 added rows.
+  - GitHub's row count re-paired three prose or rewrite blocks for one or two matches:
+    `package-lock-json.md` grew from 8 rows to 15 for one aligned line, and a rewritten
+    function in `lib/base-cmd.js` from 53 rows to 81. The empty space cost more than the
+    alignment gained.
+  - On nodejs/node, half re-pairs 30 blocks and adds 23 rows. A flat 2 re-pairs 28, and
+    GitHub's row count re-pairs 33 and adds 61.
+- **Accepted:**
+  - Screenshots exist for three blocks only, none of them the blocks this rule decides.
+    Those were judged from row tables.
+  - Commenting, replying, and resolving on re-paired rows were not exercised.
+
 ## 2026-11-12: Structural mode reads a value given a name as the value replaced
 
 - **Asked:** the maintainer, on `src/t_hash.c` of
