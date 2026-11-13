@@ -185,7 +185,12 @@ function spanCache(bound: number) {
   return {
     get: (key: string) => entries.get(key)?.result,
     set(key: string, result: FileChangesResult) {
-      const weight = result.ok ? result.changes.old.length + result.changes.new.length + 1 : 1;
+      const weight = result.ok
+        ? result.changes.old.length +
+          result.changes.new.length +
+          (result.changes.matches?.length ?? 0) +
+          1
+        : 1;
       evict(key);
       if (weight > bound) return;
 

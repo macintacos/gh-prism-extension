@@ -22,6 +22,15 @@ export interface StructuralChanges {
    * such as a name removed from a wrapped import. Absent when the file has no syntax tree.
    */
   readonly inside?: { readonly old: readonly number[]; readonly new: readonly number[] };
+  /** Each pair of 1-based lines sharing matched tokens, where either line is in a changed region. */
+  readonly matches?: readonly LineMatch[];
+}
+
+/** Matched tokens shared by one old line and one new line. */
+export interface LineMatch {
+  readonly old: number;
+  readonly new: number;
+  readonly count: number;
 }
 
 /** 0-based UTF-16 columns of one line, `endCol` exclusive. */

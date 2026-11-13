@@ -82,10 +82,20 @@ async function changedTexts(
 }
 
 /** `changes` with its old side as its new and its new as its old. */
-const sidesSwapped = ({ old, new: added, inside }: StructuralChanges): StructuralChanges => ({
+const sidesSwapped = ({
+  old,
+  new: added,
+  inside,
+  matches,
+}: StructuralChanges): StructuralChanges => ({
   old: added,
   new: old,
   ...(inside && { inside: { old: inside.new, new: inside.old } }),
+  ...(matches && {
+    matches: matches
+      .map(({ old, new: new_, count }) => ({ old: new_, new: old, count }))
+      .sort((a, b) => a.old - b.old || a.new - b.new),
+  }),
 });
 
 /** What `spans` leave unmarked on each of `text`'s 1-based lines `from` to `to`, without whitespace. */
@@ -466,7 +476,7 @@ describe("structuralChanges", () => {
 
     const result = await run(id, oldText, oldText, { regions: wholeFile(oldText) });
 
-    expect(changesOf(result)).toEqual({ old: [], new: [], inside: { old: [], new: [] } });
+    expect(changesOf(result)).toMatchObject({ old: [], new: [], inside: { old: [], new: [] } });
   });
 
   it.each(PAIRS)("swaps the sides of a %s %s run backwards", async (id, name) => {
@@ -784,5 +794,71 @@ describe("structuralChanges, lines inside a unit that remains", () => {
 
   it("names no line of plain text, which has no units", async () => {
     expect(await insideLines(PLAIN_TEXT, "one\ntwo\nthree\n", "one\nthree\n")).toBeUndefined();
+  });
+});
+
+/** The line pairs the engine found sharing matched tokens, for `oldText` against `newText`. */
+async function lineMatches(
+  id: GrammarId | typeof PLAIN_TEXT,
+  oldText: string,
+  newText: string,
+  overrides?: Overrides,
+) {
+  return changesOf(await run(id, oldText, newText, overrides)).matches ?? [];
+}
+
+describe("structuralChanges, lines that share matched tokens", () => {
+  const oldText = 'def f(d, obj):\n    data = {}\n    if "pk" in d:\n        return 1\n';
+  const newText = 'def f(d, obj):\n    if "pk" in obj:\n        return 1\n';
+
+  it("pairs a changed line with the line it shares its tokens with", async () => {
+    const matches = await lineMatches("python", oldText, newText);
+
+    expect(matches.find((m) => m.old === 3 && m.new === 2)?.count).toBeGreaterThanOrEqual(4);
+    expect(matches.filter((m) => m.old === 2)).toEqual([]);
+  });
+
+  it("pairs no line that has no changed line on either side", async () => {
+    const matches = await lineMatches("typescript", "a(1);\nb(2);\n", "a(9);\nb(3);\n", {
+      regions: [{ oldStart: 2, oldEnd: 3, newStart: 2, newEnd: 3 }],
+    });
+
+    expect(matches).toEqual([{ old: 2, new: 2, count: 4 }]);
+  });
+
+  it("pairs no line of a region rewritten past maxEditLength", async () => {
+    const matches = await lineMatches("typescript", "f(a, b, c);\n", "g(a, b, c, d);\n", {
+      limits: { maxEditLength: 1 },
+    });
+
+    expect(matches).toEqual([]);
+  });
+
+  it("pairs no lines whose only shared token is matched by chance", async () => {
+    const matches = await lineMatches(
+      "typescript",
+      "const total = compute(items);\n",
+      "if (ready) { start(); }\n",
+    );
+
+    expect(matches).toEqual([]);
+  });
+
+  it("pairs a value's line with the line that names it", async () => {
+    const before = "send(compute(a, b));\n";
+    const after = "const value = compute(a, b);\nsend(value);\n";
+
+    const matches = await lineMatches("typescript", before, after);
+
+    expect(matches.find((m) => m.old === 1 && m.new === 2)?.count).toBeGreaterThanOrEqual(3);
+  });
+
+  it("refuses more line pairs than maxChangedTokens", async () => {
+    const oldText = "a(1);\nb();\n";
+    const newText = "a(2);\n  b();\n";
+
+    const result = await run("typescript", oldText, newText, { limits: { maxChangedTokens: 1 } });
+
+    expect(result).toEqual({ ok: false, reason: "too-large" });
   });
 });

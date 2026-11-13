@@ -1,7 +1,7 @@
 import { type ChangeObject, diffArrays } from "diff";
 import type { Parser } from "web-tree-sitter";
 import { type DiffSide, withoutChanceMatches } from "./chance";
-import type { StructuralChanges, TokenSpan } from "./changes";
+import type { LineMatch, StructuralChanges, TokenSpan } from "./changes";
 import type { Grammar } from "./grammar";
 import { innermostUnits, namedValues, type PairingSide } from "./named-values";
 import { PLAIN_TEXT, type PlainText, plainTextTokens } from "./plain-text";
@@ -98,12 +98,14 @@ export async function structuralChanges(input: EngineInput): Promise<EngineResul
   const newSource = sourceOf(newText, newParsed);
   const changed = changedTokens(regions, oldSource, newSource, limits, now);
   if (typeof changed === "string") return refuse(changed);
-  if (Math.max(changed.old.length, changed.new.length) > limits.maxChangedTokens)
+  const matches = lineMatches(changed.matched, regions);
+  if (Math.max(changed.old.length, changed.new.length, matches.length) > limits.maxChangedTokens)
     return refuse("too-large");
 
   const changes = {
     old: spansOf(oldSource, withLayout(oldSource, changed.old)),
     new: spansOf(newSource, withLayout(newSource, changed.new)),
+    matches,
   };
   if (!oldParsed.units || !newParsed.units) return { ok: true, changes };
 
@@ -203,14 +205,25 @@ interface ChangedTokens {
   readonly new: readonly Token[];
 }
 
-/** A window's changed tokens, `rewritten` when its diff passed the edit limit. */
+/** The 0-based old and new lines of one matched token. */
+type LinePair = readonly [old: number, new: number];
+
+/**
+ * A window's changed tokens, and the lines of each token it matched; `rewritten`, matching none,
+ * when its diff passed the edit limit.
+ */
 interface WindowChanges extends ChangedTokens {
   readonly rewritten?: true;
+  readonly matched?: readonly LinePair[];
 }
 
-/** Every region's changed tokens, and those among them of the regions rewritten past the edit limit. */
+/**
+ * Every region's changed tokens, those among them of the regions rewritten past the edit limit,
+ * and the lines of each matched token.
+ */
 interface RegionChanges extends ChangedTokens {
   readonly rewritten: ChangedTokens;
+  readonly matched: readonly LinePair[];
 }
 
 const joined = (parts: readonly ChangedTokens[]): ChangedTokens => ({
@@ -233,7 +246,31 @@ function changedTokens(
     parts.push(...pairedChanges(window, oldSource, newSource, limits.maxEditLength));
   }
 
-  return { ...joined(parts), rewritten: joined(parts.filter((part) => part.rewritten)) };
+  return {
+    ...joined(parts),
+    rewritten: joined(parts.filter((part) => part.rewritten)),
+    matched: parts.flatMap((part) => part.matched ?? []),
+  };
+}
+
+/** `matched` counted by 1-based line pair, keeping pairs with either line inside one of `regions`. */
+function lineMatches(matched: readonly LinePair[], regions: readonly ChangedRegion[]): LineMatch[] {
+  const inRegion = (line: number, start: "oldStart" | "newStart", end: "oldEnd" | "newEnd") =>
+    regions.some((region) => region[start] <= line && line < region[end]);
+
+  const counts = new Map<string, LineMatch>();
+  for (const [oldLine, newLine] of matched) {
+    const key = `${oldLine},${newLine}`;
+    const count = (counts.get(key)?.count ?? 0) + 1;
+    counts.set(key, { old: oldLine + 1, new: newLine + 1, count });
+  }
+
+  return [...counts.values()]
+    .filter(
+      (match) =>
+        inRegion(match.old, "oldStart", "oldEnd") || inRegion(match.new, "newStart", "newEnd"),
+    )
+    .sort((a, b) => a.old - b.old || a.new - b.new);
 }
 
 /**
@@ -256,10 +293,21 @@ function pairedChanges(
   const diffTo = (oldTo: number, newTo: number) =>
     windowChanges(sideOf(oldSource, oldAt, oldTo), sideOf(newSource, newAt, newTo), maxEditLength);
 
+  // A named value's tokens before and after its value and name match one for one.
+  const runLines = (oldFrom: number, newFrom: number, length: number): LinePair[] =>
+    Array.from({ length }, (_, i) => [
+      oldSource.lines[oldFrom + i] ?? 0,
+      newSource.lines[newFrom + i] ?? 0,
+    ]);
+
   for (const { old, new: new_, changed } of pairs) {
     parts.push(diffTo(old.from, new_.from), {
       old: oldSource.tokens.slice(changed.old.from, changed.old.to),
       new: newSource.tokens.slice(changed.new.from, changed.new.to),
+      matched: [
+        ...runLines(old.from, new_.from, changed.old.from - old.from),
+        ...runLines(changed.old.to, changed.new.to, old.to - changed.old.to),
+      ],
     });
     oldAt = old.to;
     newAt = new_.to;
@@ -397,7 +445,14 @@ function windowChanges(
   const matched = new Set(matches);
   const removed = first.tokens.filter((_, i) => matches[i] === -1);
   const added = second.tokens.filter((_, i) => !matched.has(i));
-  return flipped ? { old: added, new: removed } : { old: removed, new: added };
+  const lines = matches.flatMap((j, i): LinePair[] => {
+    if (j === -1) return [];
+    const [firstLine, secondLine] = [first.lines[i] ?? 0, second.lines[j] ?? 0];
+    return [flipped ? [secondLine, firstLine] : [firstLine, secondLine]];
+  });
+  return flipped
+    ? { old: added, new: removed, matched: lines }
+    : { old: removed, new: added, matched: lines };
 }
 
 /** Whether `a` sorts at or before `b`: shorter first, then by the first differing key. */
