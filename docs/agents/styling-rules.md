@@ -82,6 +82,12 @@ markup a sheet targets are in [`github-rules.md`](github-rules.md).
   Shadow roots ignore `@property`, so those variables have no initial value. That rules
   out border, outline, shadow, ring, transform, gradient, leading, font-weight, and
   tabular-nums utilities there.
+- **In the section tree, give no part of a row a transform, including one @pierre/trees
+  sets.** While a folder's icon fades on hover, Chrome lifts every row painted after a
+  transformed part into a layer of its own, and their text shifts by a fraction of a pixel
+  until the fade ends. `section-tree.css` clears the library's nudge on each hairline
+  piece for this. A collapsed folder's turned chevron is the one left, and its name still
+  shifts while its icon fades.
 - **Keep `:host { color-scheme: inherit; }` in the section tree's sheet.** @pierre/trees
   sets `color-scheme: light dark` on its host, so without the override the library's
   `light-dark()` palette, which colors the file icons, follows the OS instead of GitHub's

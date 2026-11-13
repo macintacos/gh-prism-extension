@@ -277,6 +277,9 @@ svg:not([data-icon-token]):has(> use[href="#gh-prism-pkl"]) {
   height: auto;
   margin-bottom: calc(var(--gh-prism-last, 0) * 6px);
   opacity: 1;
+  /* Not the library's -0.25px nudge: while a folder's icon fades on hover, a transformed piece
+     makes Chrome lift every row below into a layer of its own, which shifts their text. */
+  transform: none;
   /* A 2px tile under a clear border, not a dotted border: Chrome fits a dotted border's dots to
      each piece, which doubles them where two pieces meet. */
   border-left-color: transparent;

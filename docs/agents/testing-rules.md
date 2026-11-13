@@ -377,6 +377,12 @@ To check behavior live, build the extension and drive Playwright's bundled Chrom
   held as real key state (`keyboard.down("Shift")`), selects a range; a click's
   `modifiers` option does not. Loading a line hash in a fresh headless tab selected no
   cell within 15 s (Chromium 157 and Firefox 157, sandbox PR #3 in Split, 2026-11-10).
+- **Check a hover's compositor layers, not its pixels, for a sub-pixel jitter.**
+  Screenshots in headless and headed Chromium put a split-off layer on the same pixel
+  grid, so the shift a reader sees never shows. Slow the tree's transitions to 10 s with a
+  style in its shadow root, hover, and compare `LayerTree.compositingReasons` for each
+  layer with the resting tree's. An `Overlap` layer that starts at a row part is the split
+  (Chromium 156, 2026-11-13).
 - **Check GitHub's own markup with no extension loaded.** A plain `playwright-cli` session
   with the saved `storageState` loaded serves the signed-in React views; build nothing for
   a selector or layout check.
