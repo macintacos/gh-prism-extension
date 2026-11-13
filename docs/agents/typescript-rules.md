@@ -44,6 +44,13 @@ imports a sheet or writes `tw:` classes are in [`styling-rules.md`](styling-rule
   [`tests/structural-offscreen-page.test.ts`](../../tests/structural-offscreen-page.test.ts)
   runs WXT's dev rewrite over the page.
 
+## Failures
+
+- **Warn with a `gh-prism:` line at every exit that answers a read or a Structural file
+  `failed`.** `failed` names no cause, and the notice it puts on a file says only that
+  Structural mode couldn't compare it, so the warning is the only record of which exit
+  fired. An exit that answers a more specific problem, such as `no-access`, needs none.
+
 ## Firefox
 
 - **Never let a content script define a custom element.** Firefox hands content scripts

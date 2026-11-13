@@ -187,6 +187,7 @@ export function servePrDataPort(
     if (!isObject(message) || !Number.isSafeInteger(message.id)) return;
     const request = asRequest(message.request);
     if (!request) {
+      console.warn("gh-prism: answered a malformed PR data request failed");
       port.postMessage({ id: message.id, result: FAILED });
       return;
     }
@@ -252,6 +253,9 @@ export function openPrData(
     });
     opened.onDisconnect.addListener(() => {
       if (port === opened) port = undefined;
+      if (pending.size > 0) {
+        console.warn(`gh-prism: lost the background with ${pending.size} reads in flight`);
+      }
       for (const settle of pending.values()) settle(FAILED);
       pending.clear();
     });
@@ -269,10 +273,11 @@ export function openPrData(
       try {
         sent = port ??= open();
         sent.postMessage({ id, request });
-      } catch {
+      } catch (error) {
         // A port whose post throws is dead before its onDisconnect arrives.
         if (sent && port === sent) port = undefined;
         pending.delete(id);
+        console.warn("gh-prism: couldn't send a read to the background", error);
         resolve(FAILED);
       }
     });

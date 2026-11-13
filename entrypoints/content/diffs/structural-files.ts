@@ -30,18 +30,21 @@ type StructuralClient = Pick<PrDataClient, "files" | "structural" | "close">;
 
 const FAILED: StructuralAnswer = { ok: false, problem: "failed" };
 
-/** `path`'s answer from the port's changes for it and the diff's listing. */
+/**
+ * `path`'s answer from the port's changes for it and the diff's listing, or `undefined` when the
+ * changes don't fit the listed diff.
+ */
 function answerFor(
   path: string,
   changes: FileChangesResult,
   listing: PrHeadAndFilesResult,
-): StructuralAnswer {
+): StructuralAnswer | undefined {
   if (!changes.ok) return changes;
   if (!listing.ok) return listing;
   const listed = listing.files.find((file) => file.path === path);
-  if (listed?.kind !== "text") return FAILED;
+  if (listed?.kind !== "text") return undefined;
   const file = structuralFile(changes.changes, parsePrHunks(listed.patch));
-  return file ? { ok: true, file } : FAILED;
+  return file ? { ok: true, file } : undefined;
 }
 
 /**
@@ -72,7 +75,10 @@ export function structuralFiles(
     const port = opened();
     void Promise.all([port.structural(path), port.files()]).then(([changes, listing]) => {
       if (signal.aborted) return;
-      answers.set(path, answerFor(path, changes, listing));
+      const answer = answerFor(path, changes, listing);
+      if (!answer)
+        console.warn(`gh-prism: Structural mode's answer for ${path} doesn't fit its diff`);
+      answers.set(path, answer ?? FAILED);
       for (const listener of listeners) listener();
     });
   };

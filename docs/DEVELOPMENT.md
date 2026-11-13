@@ -41,6 +41,16 @@ That browser is either another dev session or a dev window an earlier `mise run 
 open. `mise run dev --yes` closes it without asking. Without a terminal to ask in, the
 task exits instead, unless you pass `--yes`.
 
+The Firefox server warns that it skipped the `structural-offscreen` entrypoint. That is
+expected: the offscreen document is Chrome's alone, and Firefox runs the structural
+engine's Worker from its background.
+
+When Structural mode says it couldn't compare a file, a `gh-prism:` warning says why. Look
+in the extension's service-worker console in Chrome, or the console that gh-prism's
+**Inspect** opens in Firefox's `about:debugging`, then in the Files view's own console. In
+Chrome an engine error logs in `structural-offscreen.html` instead, which
+**Inspect views** on `chrome://extensions` lists only while the document is open.
+
 To build without opening either browser, create a gitignored `web-ext.config.ts` at the
 repository root:
 

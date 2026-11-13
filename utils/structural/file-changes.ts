@@ -77,7 +77,10 @@ export function fileChanges({ source, run, cachedSpans }: FileChangesDeps): File
     if (!listed.ok) return listed;
 
     const file = listed.files.find((candidate) => candidate.path === path);
-    if (!file) return refuse("failed");
+    if (!file) {
+      console.warn(`gh-prism: the diff at ${pr.headSha} doesn't list ${path}`);
+      return refuse("failed");
+    }
 
     if (!hasHunks(file)) return refuse("not-applicable");
 
@@ -101,7 +104,10 @@ export function fileChanges({ source, run, cachedSpans }: FileChangesDeps): File
     }
 
     const request = requestFor(file, head.text, grammar);
-    if (!request) return refuse("failed");
+    if (!request) {
+      console.warn(`gh-prism: ${path}'s patch doesn't apply to its text at ${pr.headSha}`);
+      return refuse("failed");
+    }
 
     const answer = await runOrFail(run, request, signal);
     const result = answerOf(answer);

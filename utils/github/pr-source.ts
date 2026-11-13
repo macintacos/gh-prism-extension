@@ -104,6 +104,18 @@ function problemFor(response: Response): PrDataProblem {
   return "failed";
 }
 
+/** A `failed` read of `url`, warned with `why`: `failed` alone never says what went wrong. */
+function failedRead(url: string, why: unknown): PrFailure {
+  console.warn(`gh-prism: couldn't read ${url}:`, why);
+  return { ok: false, problem: "failed" };
+}
+
+/** The failure a non-OK `response` to `url` reads as. */
+function failureFor(url: string, response: Response): PrFailure {
+  const problem = problemFor(response);
+  return problem === "failed" ? failedRead(url, response.status) : { ok: false, problem };
+}
+
 /**
  * A {@link PrDataSource} over `fetchFn` that caches successful `files` and `content` results in
  * memory, one head per PR and one commit per repository: a request naming another head replaces
@@ -145,11 +157,11 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
   async function fetchText(url: string, signal: AbortSignal): Promise<PrFileContentResult> {
     try {
       const response = await fetchFn(url, { credentials: "include", signal });
-      if (!response.ok) return { ok: false, problem: problemFor(response) };
+      if (!response.ok) return failureFor(url, response);
       return { ok: true, text: await response.text() };
     } catch (error) {
       if (signal.aborted) throw error;
-      return { ok: false, problem: "failed" };
+      return failedRead(url, error);
     }
   }
 
@@ -162,15 +174,17 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
       });
       // A range past an empty file's end is unsatisfiable.
       if (response.status === 416) return { ok: true, text: "" };
-      if (!response.ok) return { ok: false, problem: problemFor(response) };
+      if (!response.ok) return failureFor(url, response);
 
       const text = await readAtMost(response.body, PREFIX_BYTES);
       // readAtMost swallows the body's abort.
       if (signal.aborted) throw signal.reason;
-      return text === undefined ? { ok: false, problem: "failed" } : { ok: true, text };
+      return text === undefined
+        ? failedRead(url, "its body failed before any text")
+        : { ok: true, text };
     } catch (error) {
       if (signal.aborted) throw error;
-      return { ok: false, problem: "failed" };
+      return failedRead(url, error);
     }
   }
 
@@ -179,18 +193,20 @@ export function createPrDataSource(fetchFn: typeof fetch): PrDataSource {
     `${repoUrl(pr)}/raw/${pr.headSha}/${path.split("/").map(encodeURIComponent).join("/")}`;
 
   async function lookUpHead(pr: PrRef, signal: AbortSignal): Promise<PrHeadResult> {
-    const page = await fetchText(`${repoUrl(pr)}/pull/${pr.number}`, signal);
+    const url = `${repoUrl(pr)}/pull/${pr.number}`;
+    const page = await fetchText(url, signal);
     if (!page.ok) return page;
     const headSha = prHeadShaFromEmbeddedData(prEmbeddedDataFromHtml(page.text), pr);
-    return headSha ? { ok: true, headSha } : { ok: false, problem: "failed" };
+    return headSha ? { ok: true, headSha } : failedRead(url, "its page data names no head SHA");
   }
 
   async function readDiff(pr: DiffRef, signal: AbortSignal): Promise<PrFilesResult> {
-    const diff = await fetchText(`${diffUrl(pr)}.diff`, signal);
+    const url = `${diffUrl(pr)}.diff`;
+    const diff = await fetchText(url, signal);
     if (!diff.ok) return diff;
     const files = parsePrDiff(diff.text);
     // A non-empty 200 that parses to no files is an interstitial page, not an empty PR.
-    if (files.length === 0 && diff.text.trim() !== "") return { ok: false, problem: "failed" };
+    if (files.length === 0 && diff.text.trim() !== "") return failedRead(url, "not a diff");
     return { ok: true, files };
   }
 
