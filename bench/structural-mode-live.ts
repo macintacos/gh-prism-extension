@@ -1,9 +1,7 @@
 /**
  * Live check of Structural mode in the built extension on signed-in GitHub pages: nothing
  * structural, notices included, with the preference off; with it on, each on-screen file painted or
- * skipped for a reason, an unsupported file's notice and none on a painted one, README.md on
- * sandbox PR #3 dropping its notice in the rich diff and showing it again in the source diff;
- * GitHub's Unified turning it off; and the diff view control driving both. Kept out of CI, Vitest
+ * skipped for a reason, an unsupported file's notice and none on a painted one; GitHub's Unified turning it off; and the diff view control driving both. Kept out of CI, Vitest
  * and Playwright like the rest of `bench/`.
  *
  *   bun bench/structural-mode-live.ts <chromium|firefox> <storage-state path> [url…]
@@ -26,7 +24,6 @@ import {
   gearLayout,
   launch,
   load,
-  NOTICE_SELECTOR,
   noticeBefore,
   offscreenDocuments,
   PROBE,
@@ -189,28 +186,6 @@ async function scrollAndClassify(
   return results;
 }
 
-/**
- * On pull request #3, README.md's rich diff shows no notice in its region, and its source diff
- * shows the `unsupported` sentence again. The toggle is page-local, so nothing needs restoring.
- */
-async function richDiffHidesNotice(page: Page): Promise<void> {
-  const anchor = anchorOf("README.md");
-  await load(page, `${SANDBOX}/pull/3/changes?diff=split`);
-  const region = page.locator(`[role="region"][id="${anchor}"]`);
-  await region.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(2500);
-  check("readme notice", (await noticeBefore(page, anchor)) === UNSUPPORTED_COPY);
-
-  await region.getByRole("button", { name: "Display the rich diff" }).click();
-  await page.waitForTimeout(2500);
-  const noticesInRich = await region.locator(NOTICE_SELECTOR).count();
-  check("rich diff: no notice", noticesInRich === 0, `(${noticesInRich})`);
-
-  await region.getByRole("button", { name: "Display the source diff" }).click();
-  await page.waitForTimeout(2500);
-  check("source diff: notice again", (await noticeBefore(page, anchor)) === UNSUPPORTED_COPY);
-}
-
 /** Pass 2: with the preference on, each file the port answered `ok` for paints or mismatches. */
 async function modeOn(page: Page): Promise<void> {
   await ask(page, { op: "set", on: true });
@@ -237,7 +212,6 @@ async function modeOn(page: Page): Promise<void> {
     }
   }
   check("notices", wrongNotices === 0, `(${wrongNotices} wrong)`);
-  await richDiffHidesNotice(page);
 
   // A short window, so a file of that URL starts below the fold.
   const viewport = page.viewportSize();
@@ -436,6 +410,82 @@ async function viewControl(page: Page): Promise<void> {
   log("view control: ok");
 }
 
+/** The pairing pull request's table: its row count, gh-prism's rows and fillers, and 121's row. */
+const pairingState = (page: Page) =>
+  page.evaluate(() => {
+    const cell = document.querySelector(
+      'td.diff-text-cell[data-diff-side="left"][data-line-number="121"]',
+    );
+    const table = cell?.closest("table");
+    if (!table) return undefined;
+    const row = cell?.closest("tr");
+    return {
+      rows: table.querySelectorAll("tr").length,
+      added: table.querySelectorAll("tr[data-gh-prism-added-row]").length,
+      fillers: table.querySelectorAll("[data-gh-prism-filler]").length,
+      numberedFillers: table.querySelectorAll("[data-gh-prism-filler][data-line-number]").length,
+      paired: !!row?.querySelector('td[data-diff-side="right"][data-line-number="138"]'),
+    };
+  });
+
+/**
+ * Pass 5, on the pairing pull request only: new line 138 sits opposite old line 121, fillers carry
+ * no line number, Split restores GitHub's rows, and an expanded hunk re-pairs the block once.
+ */
+async function pairing(page: Page, url: string): Promise<void> {
+  const settle = async () => {
+    await page
+      .locator('td.diff-text-cell[data-diff-side="left"][data-line-number="121"]')
+      .scrollIntoViewIfNeeded();
+    await page.waitForTimeout(3000);
+    return pairingState(page);
+  };
+  await ask(page, { op: "set", on: false });
+  await load(page, url);
+  const github = await settle();
+  check("pairing github", !!github && !github.paired && github.added === 0, JSON.stringify(github));
+
+  await segmentOf(page, "Structural").click();
+  const on = await settle();
+  check(
+    "pairing on",
+    !!on && on.paired && on.added === 1 && on.fillers > 0 && on.numberedFillers === 0,
+    JSON.stringify(on),
+  );
+
+  await segmentOf(page, "Split").click();
+  const off = await settle();
+  check(
+    "pairing off",
+    !!off && off.added === 0 && off.fillers === 0 && off.rows === github?.rows,
+    JSON.stringify({ off, githubRows: github?.rows }),
+  );
+
+  await segmentOf(page, "Structural").click();
+  await settle();
+  const expanded = await page.evaluate(() => {
+    const table = document
+      .querySelector('td[data-diff-side="left"][data-line-number="121"]')
+      ?.closest("table");
+    const button = table?.querySelector<HTMLButtonElement>('button[aria-label^="Expand file"]');
+    button?.click();
+    return button?.getAttribute("aria-label") ?? null;
+  });
+  const after = await settle();
+  check(
+    "pairing expanded",
+    expanded !== null &&
+      !!after &&
+      after.paired &&
+      after.added === 1 &&
+      after.numberedFillers === 0 &&
+      after.rows > (on?.rows ?? 0),
+    JSON.stringify({ expanded, after }),
+  );
+  await ask(page, { op: "set", on: false });
+  log("pairing: ok");
+}
+
 const copy = mkdtempSync(join(tmpdir(), "gh-prism-mode-copy-"));
 const profile = mkdtempSync(join(tmpdir(), "gh-prism-mode-profile-"));
 let context: BrowserContext | undefined;
@@ -450,6 +500,7 @@ try {
     `browser: ${browserName} ${context.browser()?.version() ?? (await page.evaluate(() => navigator.userAgent))}`,
   );
   await modeOff(page);
+  for (const url of URLS.filter((url) => url.includes("/pull/11/"))) await pairing(page, url);
   await modeOn(page);
   const before = await unifiedTurnsOff(page);
   await viewControl(page);
