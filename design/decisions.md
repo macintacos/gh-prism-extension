@@ -6,6 +6,30 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-12: Structural mode reads a unit the line diff slid as changed whole
+
+- **Asked:** on `entrypoints/content/diffs/structural-notices.ts` of
+  <https://github.com/macintacos/gh-prism-extension/pull/138>, the maintainer said: "it's
+  not really clear to me why we're highlighting certain segments, given the diff section".
+  Git's line diff had slid an added arrow function by its closing `};`: the hunk added the
+  old declaration's `};` through the new one's last body line, and kept the new one's `};`
+  as context. The new declaration was then not changed whole, so its first line and the
+  added `};` got marks, and the lines between them did not.
+- **Compared:**
+  - leave it;
+  - widen the engine's diff window so the first `};` is matched, which leaves one fainter
+    row inside the added block;
+  - read the slid unit as changed whole, and the equal-keyed changed tokens beside it as
+    the ones that stayed.
+- **Won:** read the slid unit as changed whole. A unit changed in all but its last (or
+  first) few tokens, where the changed tokens joined to it just before (or after) it hold
+  the same keys and went whole with no unit of their own, counts as changed whole, and
+  those tokens get no mark either.
+- **Why:**
+  - The block reads as GitHub draws it: a plain added block.
+  - No token's report changes; only which lines are inside a unit that remains.
+  - The fainter row a wider window leaves would raise the same question.
+
 ## 2026-11-12: Structural mode pairs lines that share at least 2 matched tokens
 
 - **Asked for:** when Structural mode lines up matching lines in Split, how many

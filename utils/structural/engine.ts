@@ -522,8 +522,10 @@ function spansOf({ text, starts }: Source, tokens: readonly Token[]): TokenSpan[
 
 /**
  * The 1-based lines, in order, of each of `changed` that left or arrived inside a unit that
- * remains: every token but those of a unit changed whole whose parent was not, and those of a
- * region rewritten past the edit limit, which left or arrived as a block too.
+ * remains: every token but those of a unit changed whole whose parent was not, those of a
+ * region rewritten past the edit limit, which left or arrived as a block too, and those of a unit
+ * the line diff slid by its last or first tokens, which reads as changed whole once the
+ * equal-keyed changed tokens beside it read as the ones that stayed.
  */
 function linesInside(
   source: Source,
@@ -542,13 +544,89 @@ function linesInside(
   const changedWhole = ({ from, to }: { from: number; to: number }) =>
     from < to && (changedBefore[to] ?? 0) - (changedBefore[from] ?? 0) === to - from;
 
-  const wentWhole = new Set(rewritten);
+  const everything = { from: -1, to: Infinity };
+  const wentWith = new Map<Token, Span>(rewritten.map((token) => [token, everything]));
+  const remaining: Span[] = [];
   for (const unit of units) {
     const own = range(unit.start, unit.end);
-    if (!changedWhole(own) || changedWhole(range(unit.parentStart, unit.parentEnd))) continue;
-    for (const token of tokens.slice(own.from, own.to)) wentWhole.add(token);
+    if (changedWhole(range(unit.parentStart, unit.parentEnd))) continue;
+    if (!changedWhole(own)) {
+      if ((changedBefore[own.to] ?? 0) > (changedBefore[own.from] ?? 0)) remaining.push(own);
+    } else
+      for (const token of tokens.slice(own.from, own.to))
+        if (!wentWith.has(token)) wentWith.set(token, own);
   }
 
-  const inside = changed.filter((token) => !wentWhole.has(token));
+  // Outermost first, so a unit's slid closing tokens are not claimed by a block nested in it.
+  remaining.sort((a, b) => a.from - b.from || b.to - a.to);
+  const slid: Span[] = [];
+  for (const own of remaining) {
+    if (slid.some(({ from, to }) => from <= own.from && own.to <= to)) continue;
+    const stayed = slidTokens(tokens, own, { isChanged, changedWhole, wentWith });
+    if (stayed === undefined) continue;
+    slid.push(own);
+    for (const token of tokens.slice(own.from, own.to))
+      if (isChanged.has(token)) wentWith.set(token, own);
+    for (const token of stayed) wentWith.set(token, everything);
+  }
+
+  const inside = changed.filter((token) => !wentWith.has(token));
   return [...new Set(spansOf(source, inside).map(({ line }) => line))];
+}
+
+interface Span {
+  readonly from: number;
+  readonly to: number;
+}
+
+/**
+ * The tokens that read as the ones that stayed when the line diff slid `own` by the tokens it
+ * shares with a neighbour: all of `own` changed but its last (or first) few, and the nearest
+ * equal-keyed tokens before (or after) it that changed tokens join to it and that went whole with
+ * no unit reaching past them.
+ */
+function slidTokens(
+  tokens: readonly Token[],
+  { from, to }: Span,
+  {
+    isChanged,
+    changedWhole,
+    wentWith,
+  }: {
+    readonly isChanged: ReadonlySet<Token>;
+    readonly changedWhole: (span: Span) => boolean;
+    readonly wentWith: ReadonlyMap<Token, Span>;
+  },
+): readonly Token[] | undefined {
+  const kept = (at: number) => {
+    const token = tokens[at];
+    return token !== undefined && !isChanged.has(token);
+  };
+  const free = (token: Token, at: number, k: number) => {
+    const unit = wentWith.get(token);
+    return unit === undefined || (unit.from >= at && unit.to <= at + k);
+  };
+  const stays = (at: number, own: number, k: number) =>
+    tokens
+      .slice(at, at + k)
+      .every((token, i) => token.key === tokens[own + i]?.key && free(token, at, k));
+
+  let trailing = 0;
+  while (to - trailing > from && kept(to - trailing - 1)) trailing++;
+  if (trailing > 0 && changedWhole({ from, to: to - trailing }))
+    // ponytail: walks the changed run before the unit per unit; index runs by key if it shows in profiles
+    for (let at = from - trailing; at >= 0 && changedWhole({ from: at, to: from }); at--)
+      if (stays(at, to - trailing, trailing)) return tokens.slice(at, at + trailing);
+
+  let leading = 0;
+  while (from + leading < to && kept(from + leading)) leading++;
+  if (leading > 0 && changedWhole({ from: from + leading, to }))
+    for (
+      let at = to;
+      at + leading <= tokens.length && changedWhole({ from: to, to: at + leading });
+      at++
+    )
+      if (stays(at, from, leading)) return tokens.slice(at, at + leading);
+
+  return undefined;
 }

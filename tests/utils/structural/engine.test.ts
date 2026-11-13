@@ -795,6 +795,61 @@ describe("structuralChanges, lines inside a unit that remains", () => {
   it("names no line of plain text, which has no units", async () => {
     expect(await insideLines(PLAIN_TEXT, "one\ntwo\nthree\n", "one\nthree\n")).toBeUndefined();
   });
+
+  describe("a unit the line diff slid by the tokens it shares with its neighbour", () => {
+    const one = "function a() {\n  one();\n}\n";
+    const two = "function a() {\n  one();\n}\nfunction b() {\n  two();\n}\n";
+    const slidIn = [{ oldStart: 3, oldEnd: 3, newStart: 3, newEnd: 6 }];
+
+    it("names no line of a function added after another, its closing line kept", async () => {
+      const result = await run("typescript", one, two, { regions: slidIn });
+
+      expect(changesOf(result).inside).toEqual({ old: [], new: [] });
+    });
+
+    it("names no line of a function removed after another, its closing line kept", async () => {
+      const result = await run("typescript", two, one, { regions: swapped(slidIn) });
+
+      expect(changesOf(result).inside).toEqual({ old: [], new: [] });
+    });
+
+    it("names no line of a block added before one that opens the same way, its opening line kept", async () => {
+      const oldText = "if (a) {\n  one();\n}\n";
+      const newText = "if (a) {\n  two();\n}\nif (a) {\n  one();\n}\n";
+      const regions = [{ oldStart: 2, oldEnd: 2, newStart: 2, newEnd: 5 }];
+
+      const result = await run("typescript", oldText, newText, { regions });
+
+      expect(changesOf(result).inside).toEqual({ old: [], new: [] });
+    });
+
+    it("names the line of a unit whose kept tokens match nothing changed before it", async () => {
+      expect(await insideLines("typescript", "x;\n", "go();\ny + x;\n")).toEqual({
+        old: [],
+        new: [2],
+      });
+    });
+
+    it("names no line of two functions added after another, the last closing line kept", async () => {
+      const three = `${two}function c() {\n  three();\n}\n`;
+      const regions = [{ oldStart: 3, oldEnd: 3, newStart: 3, newEnd: 9 }];
+
+      const result = await run("typescript", one, three, { regions });
+
+      expect(changesOf(result).inside).toEqual({ old: [], new: [] });
+    });
+
+    it("names no line of a call and a declaration added where the line diff slid the declaration", async () => {
+      const oldText = "const a = () => {\n  one();\n};\n";
+      const newText =
+        "const a = () => {\n  one();\n  b();\n};\n// b runs last\nconst b = () => {\n  two();\n};\n";
+      const regions = [{ oldStart: 3, oldEnd: 3, newStart: 3, newEnd: 8 }];
+
+      const result = await run("typescript", oldText, newText, { regions });
+
+      expect(changesOf(result).inside).toEqual({ old: [], new: [] });
+    });
+  });
 });
 
 /** The line pairs the engine found sharing matched tokens, for `oldText` against `newText`. */

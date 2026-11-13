@@ -116,8 +116,11 @@ pairing left between two replaced lines is dropped too.
 units: the syntax nodes that have their lines to themselves. After the diff, the engine
 sets aside the tokens of each unit changed whole whose parent node was not, as a block
 that left or arrived, and those of a region whose diff passes `maxEditLength`, which is
-changed whole on both sides. Every other changed token changed inside a unit that remains,
-and the engine lists those tokens' lines in `StructuralChanges.inside`. `structuralFile`
+changed whole on both sides. It also sets aside a unit the line diff slid: one changed all
+but its last (or first) few tokens, where the changed tokens just before (or after) it end
+(or start) with the same keys, which it reads as the tokens that stayed, so the unit
+counts as changed whole. Every other changed token changed inside a unit that remains, and
+the engine lists those tokens' lines in `StructuralChanges.inside`. `structuralFile`
 copies the list onto each line's annotation as `inside`. A `.txt` file has no units and no
 list.
 
