@@ -23,7 +23,7 @@ import {
   dropUnmounted,
   matchedText,
   type PairingSnapshots,
-  repairTable,
+  pairTable,
   restoreTable,
 } from "./structural-pairing";
 
@@ -268,22 +268,22 @@ export function paintStructural(
       const file = path === undefined ? undefined : annotationsOf(path);
       return path !== undefined && file && layout === "split" ? [{ table, path, file }] : [];
     });
-  const repair = (tables: ReturnType<typeof splitFiles>): Set<HTMLTableElement> => {
+  const pairTables = (tables: ReturnType<typeof splitFiles>): Set<HTMLTableElement> => {
     dropUnmounted(snapshots);
     return new Set(
-      tables.flatMap(({ table, file }) => (repairTable(table, file, snapshots) ? [table] : [])),
+      tables.flatMap(({ table, file }) => (pairTable(table, file, snapshots) ? [table] : [])),
     );
   };
   const collect = (
     tables: ReturnType<typeof splitFiles>,
-    repaired: ReadonlySet<HTMLTableElement>,
+    paired: ReadonlySet<HTMLTableElement>,
   ): Pass => {
     const plans: Plan[] = [];
     const fresh = new Set<HTMLTableElement>();
     for (const { table, path, file } of tables) {
       const cells = changedCells(table);
       const lastPaint = painted.get(table);
-      if (!repaired.has(table) && isFresh(lastPaint, file, cells)) fresh.add(table);
+      if (!paired.has(table) && isFresh(lastPaint, file, cells)) fresh.add(table);
       else plans.push(planTable(table, path, file, cells, lastPaint));
     }
     return { plans, stale: [...painted.keys()].filter((table) => !fresh.has(table)) };
@@ -355,7 +355,7 @@ export function paintStructural(
   // Past re-pairing, every read precedes every write, so painting never forces a layout between them.
   const pass = () => {
     const tables = splitFiles();
-    const work = collect(tables, repair(tables));
+    const work = collect(tables, pairTables(tables));
     apply(work);
     reportChanged(work);
   };

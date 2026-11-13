@@ -55,7 +55,7 @@ export function matchedText(file: StructuralFile, cell: ChangedCell): string | u
  * rows are all still mounted, is left alone, and so is a block whose rows GitHub did not draw one
  * per line of its longer side, four cells each.
  */
-export function repairTable(
+export function pairTable(
   table: HTMLTableElement,
   file: StructuralFile,
   snapshots: PairingSnapshots,

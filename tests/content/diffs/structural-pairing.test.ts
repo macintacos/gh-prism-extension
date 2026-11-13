@@ -5,7 +5,7 @@ import { ADDED_ROW_ATTR, FILLER_ATTR } from "../../../entrypoints/content/diffs/
 import {
   dropUnmounted,
   type PairingSnapshots,
-  repairTable,
+  pairTable,
   restoreTable,
 } from "../../../entrypoints/content/diffs/structural-pairing";
 import {
@@ -57,7 +57,7 @@ const cellOf = (table: HTMLTableElement, suffix: string) => {
   return cell;
 };
 
-describe("repairTable", () => {
+describe("pairTable", () => {
   let snapshots: PairingSnapshots;
 
   beforeEach(() => {
@@ -67,7 +67,7 @@ describe("repairTable", () => {
   it("lines a new line up opposite its matching old line, leaving the other old line opposite empty space", () => {
     const table = tableAt(mountDiffs(pairingSplit));
 
-    repairTable(table, fileWith(table, MATCHES), snapshots);
+    pairTable(table, fileWith(table, MATCHES), snapshots);
 
     expect(rowsAround(table, "119", 4)).toEqual(["119|137", "120|-", "121|138", "122|139"]);
   });
@@ -75,7 +75,7 @@ describe("repairTable", () => {
   it("adds a row where a block needs more rows than GitHub drew", () => {
     const table = tableAt(mountDiffs(pairingSplit));
 
-    repairTable(table, fileWith(table, MATCHES), snapshots);
+    pairTable(table, fileWith(table, MATCHES), snapshots);
 
     expect(rowsAround(table, "125", 5)).toEqual([
       "125|142",
@@ -89,7 +89,7 @@ describe("repairTable", () => {
 
   it("keeps each side's line numbers in file order", () => {
     const table = tableAt(mountDiffs(pairingSplit));
-    repairTable(table, fileWith(table, MATCHES), snapshots);
+    pairTable(table, fileWith(table, MATCHES), snapshots);
 
     const numbers = (side: string) =>
       [...table.querySelectorAll(`td.new-diff-line-number[data-diff-side="${side}"]`)].map((cell) =>
@@ -101,7 +101,7 @@ describe("repairTable", () => {
 
   it("gives created empty space no line number, anchor, or control", () => {
     const table = tableAt(mountDiffs(pairingSplit));
-    repairTable(table, fileWith(table, MATCHES), snapshots);
+    pairTable(table, fileWith(table, MATCHES), snapshots);
 
     const fillers = [...table.querySelectorAll(`[${FILLER_ATTR}]`)];
     expect(fillers.length).toBeGreaterThan(0);
@@ -116,7 +116,7 @@ describe("repairTable", () => {
   it("keeps a line cell found by its anchor and as a changed cell inside an added row", () => {
     const diffs = mountDiffs(pairingSplit);
     const table = tableAt(diffs);
-    repairTable(table, fileWith(table, MATCHES), snapshots);
+    pairTable(table, fileWith(table, MATCHES), snapshots);
     const page = { diffs } as unknown as NonNullable<ReturnType<typeof findFilesPage>>;
     const added = table.querySelector(`tr[${ADDED_ROW_ATTR}]`);
 
@@ -133,7 +133,7 @@ describe("repairTable", () => {
     const thread = document.createElement("div");
     cellOf(table, "R138").append(thread);
 
-    repairTable(table, fileWith(table, MATCHES), snapshots);
+    pairTable(table, fileWith(table, MATCHES), snapshots);
 
     expect(thread.closest("tr")).toBe(cellOf(table, "L121").closest("tr"));
   });
@@ -141,22 +141,22 @@ describe("repairTable", () => {
   it("changes nothing when run again on the same file", () => {
     const table = tableAt(mountDiffs(pairingSplit));
     const file = fileWith(table, MATCHES);
-    repairTable(table, file, snapshots);
+    pairTable(table, file, snapshots);
     const once = table.outerHTML;
 
-    expect(repairTable(table, file, snapshots)).toBe(false);
+    expect(pairTable(table, file, snapshots)).toBe(false);
     expect(table.outerHTML).toBe(once);
   });
 
   it("re-pairs a table that replaced its rows from scratch, and the old snapshot drops once unmounted", () => {
     const diffs = mountDiffs(pairingSplit);
     const file = fileWith(tableAt(diffs), MATCHES);
-    repairTable(tableAt(diffs), file, snapshots);
+    pairTable(tableAt(diffs), file, snapshots);
     const region = tableAt(diffs).parentElement as HTMLElement;
     region.innerHTML = pairingSplit;
     const fresh = tableAt(diffs);
 
-    expect(repairTable(fresh, file, snapshots)).toBe(true);
+    expect(pairTable(fresh, file, snapshots)).toBe(true);
     expect(rowsAround(fresh, "125", 5)).toEqual([
       "125|142",
       "-|143",
@@ -172,7 +172,7 @@ describe("repairTable", () => {
     const table = tableAt(mountDiffs(pairingSplit));
     const before = table.outerHTML;
 
-    expect(repairTable(table, fileWith(table), snapshots)).toBe(false);
+    expect(pairTable(table, fileWith(table), snapshots)).toBe(false);
     expect(table.outerHTML).toBe(before);
   });
 
@@ -185,17 +185,17 @@ describe("repairTable", () => {
       text: { ...matching.text, new: { ...matching.text.new, 138: "something else" } },
     };
 
-    expect(repairTable(table, file, snapshots)).toBe(false);
+    expect(pairTable(table, file, snapshots)).toBe(false);
     expect(table.outerHTML).toBe(before);
-    expect(repairTable(table, file, snapshots)).toBe(false);
+    expect(pairTable(table, file, snapshots)).toBe(false);
   });
 
   it("puts GitHub's rows back when the same table's file changes to one with nothing to pair", () => {
     const table = tableAt(mountDiffs(pairingSplit));
     const before = table.outerHTML;
-    repairTable(table, fileWith(table, MATCHES), snapshots);
+    pairTable(table, fileWith(table, MATCHES), snapshots);
 
-    expect(repairTable(table, fileWith(table), snapshots)).toBe(true);
+    expect(pairTable(table, fileWith(table), snapshots)).toBe(true);
     expect(table.outerHTML).toBe(before);
   });
 
@@ -203,13 +203,13 @@ describe("repairTable", () => {
     const diffs = mountDiffs(pairingSplit);
     const table = tableAt(diffs);
     const file = fileWith(table, MATCHES);
-    repairTable(table, file, snapshots);
+    pairTable(table, file, snapshots);
     const github = tableAt(mountDiffs(pairingSplit));
     document.body.replaceChildren(diffs);
 
     table.replaceChildren(...github.children);
 
-    expect(repairTable(table, file, snapshots)).toBe(true);
+    expect(pairTable(table, file, snapshots)).toBe(true);
     expect(rowsAround(table, "119", 4)).toEqual(["119|137", "120|-", "121|138", "122|139"]);
     expect(table.querySelectorAll(`tr[${ADDED_ROW_ATTR}]`)).toHaveLength(1);
   });
@@ -219,7 +219,7 @@ describe("repairTable", () => {
     const file = fileWith(table, MATCHES);
     cellOf(table, "R144").previousElementSibling?.remove();
 
-    expect(() => repairTable(table, file, snapshots)).not.toThrow();
+    expect(() => pairTable(table, file, snapshots)).not.toThrow();
     expect(table.querySelectorAll(`tr[${ADDED_ROW_ATTR}]`)).toHaveLength(0);
     expect(rowsAround(table, "120", 2)).toEqual(["120|-", "121|138"]);
   });
@@ -240,7 +240,7 @@ describe("repairTable", () => {
     const watcher = new MutationObserver(() => {});
     if (row) watcher.observe(row, { childList: true });
 
-    repairTable(table, file, snapshots);
+    pairTable(table, file, snapshots);
 
     expect(rowsAround(table, "120", 3)).toEqual(["120|-", "121|138", "122|139"]);
     expect(watcher.takeRecords()).toEqual([]);
@@ -272,7 +272,7 @@ describe("restoreTable", () => {
     const want = expected.outerHTML;
     const table = tableAt(mountDiffs(pairingSplit));
     const snapshots: PairingSnapshots = new Map();
-    repairTable(table, fileWith(table, MATCHES), snapshots);
+    pairTable(table, fileWith(table, MATCHES), snapshots);
     cellOf(table, "R138").append(Object.assign(document.createElement("div"), { id: "t" }));
 
     restoreTable(table, snapshots);
