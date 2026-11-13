@@ -10,18 +10,32 @@ import type { LandingView } from "../visit/land";
 import { pathsByAnchor } from "./on-screen";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./structural.css?inline";
-import { MARKS_ATTR, PART_ATTR, QUIET_ATTR, TABLE_ATTR } from "./structural-attrs";
+import {
+  ADDED_ROW_ATTR,
+  FILLER_ATTR,
+  MARKS_ATTR,
+  PART_ATTR,
+  QUIET_ATTR,
+  TABLE_ATTR,
+} from "./structural-attrs";
 import { type Box, lineBoxes, markRanges, maskOf } from "./structural-marks";
+import {
+  dropUnmounted,
+  type PairingSnapshots,
+  pairTable,
+  readCell,
+  restoreTable,
+} from "./structural-pairing";
 
-/** How a mounted file fared: painted, or skipped whole because a mounted cell's text or annotation disagrees with the file. */
+/** How a mounted file fared: painted, or skipped whole because an annotated mounted cell's text disagrees with the file. */
 export type PaintOutcome = "painted" | "mismatch";
 
 /** What the painter asks of structural mode. */
 export interface StructuralPainting {
   /**
    * What structural mode knows about `path`, or `undefined` while it knows nothing. Asked again on
-   * every pass; return the same object while a file is unchanged, since a new object repaints its
-   * table. Nothing schedules a pass when the answer changes.
+   * every pass; return the same object while a file is unchanged, since a new object repaints and
+   * re-pairs its table. Nothing schedules a pass when the answer changes.
    */
   annotationsOf(path: string): StructuralFile | undefined;
   /**
@@ -155,7 +169,10 @@ function isFresh(
   );
 }
 
-/** Reads what `table` needs to show `file`; a cell without its annotation or its text is a mismatch. */
+/**
+ * Reads what `table` needs to show `file`. A cell with no annotation lies outside the `.diff`'s
+ * hunks and is quiet; an annotated cell whose text differs is a mismatch.
+ */
 function planTable(
   table: HTMLTableElement,
   path: string,
@@ -172,10 +189,10 @@ function planTable(
   const part = new Map<Element, string>();
   const marks = new Map<HTMLElement, readonly Range[]>();
 
-  for (const { side, line, textRoot, row } of cells) {
-    const annotation = file.annotations[side][line];
-    const text = file.text[side][line];
-    if (!annotation || text === undefined || textRoot.textContent !== text) {
+  for (const cell of cells) {
+    const { side, textRoot, row } = cell;
+    const reading = readCell(file, cell);
+    if (reading.kind === "differs") {
       const painted = { file, roots, ranges: [], faint: noFaintRows(), marks: new Map() };
       return {
         table,
@@ -189,13 +206,13 @@ function planTable(
       };
     }
 
-    if (annotation.quiet) {
+    if (reading.kind === "outside" || reading.annotation.quiet) {
       markSide(quiet, row, side);
       continue;
     }
 
-    const inFull = annotation.inside ? "mark" : "tint";
-    const ranges = markRanges(text, annotation.ranges, inFull).flatMap(
+    const { annotation, text } = reading;
+    const ranges = markRanges(text, annotation.ranges).flatMap(
       (columns) => rangeOf(textRoot, columns) ?? [],
     );
     if (ranges.length === 0) continue;
@@ -212,8 +229,10 @@ function planTable(
 /**
  * Paints structural mode onto the split diff tables mounted under `diffs`, and repaints after
  * GitHub re-renders them, until `signal` aborts. Paths come from the files the `sections` hook
- * lists. A file whose mounted text differs from its `StructuralFile` is skipped whole and reported
- * as a mismatch.
+ * lists. A file where an annotated mounted cell's text differs from its `StructuralFile` is
+ * skipped whole and reported as a mismatch; a changed cell outside the `.diff`'s hunks is quiet.
+ * Before each paint it re-pairs each table's changed blocks so a line faces its matching line, and
+ * puts GitHub's rows back when `signal` aborts.
  */
 export function paintStructural(
   diffs: Element,
@@ -240,20 +259,34 @@ export function paintStructural(
     });
     for (const [root, mask] of masks) writeMask(root, mask);
   });
+  const snapshots: PairingSnapshots = new Map();
   const reported = new Map<string, PaintOutcome>();
   let paths: ReadonlyMap<string, string> = new Map();
   let frame: number | undefined;
 
-  const collect = (): Pass => {
-    const plans: Plan[] = [];
-    const fresh = new Set<HTMLTableElement>();
-    for (const { table, anchor, layout } of diffTables(diffs)) {
+  /** Each mounted split table the mode has a file for. */
+  const splitFiles = () =>
+    diffTables(diffs).flatMap(({ table, anchor, layout }) => {
       const path = paths.get(anchor);
       const file = path === undefined ? undefined : annotationsOf(path);
-      if (path === undefined || !file || layout !== "split") continue;
+      return path !== undefined && file && layout === "split" ? [{ table, path, file }] : [];
+    });
+  const pairTables = (tables: ReturnType<typeof splitFiles>): Set<HTMLTableElement> => {
+    dropUnmounted(snapshots);
+    return new Set(
+      tables.flatMap(({ table, file }) => (pairTable(table, file, snapshots) ? [table] : [])),
+    );
+  };
+  const collect = (
+    tables: ReturnType<typeof splitFiles>,
+    paired: ReadonlySet<HTMLTableElement>,
+  ): Pass => {
+    const plans: Plan[] = [];
+    const fresh = new Set<HTMLTableElement>();
+    for (const { table, path, file } of tables) {
       const cells = changedCells(table);
       const lastPaint = painted.get(table);
-      if (isFresh(lastPaint, file, cells)) fresh.add(table);
+      if (!paired.has(table) && isFresh(lastPaint, file, cells)) fresh.add(table);
       else plans.push(planTable(table, path, file, cells, lastPaint));
     }
     return { plans, stale: [...painted.keys()].filter((table) => !fresh.has(table)) };
@@ -322,9 +355,10 @@ export function paintStructural(
       report(path, outcome);
     }
   };
-  // Every read precedes every write, so a pass never forces a layout between them.
+  // Past re-pairing, every read precedes every write, so painting never forces a layout between them.
   const pass = () => {
-    const work = collect();
+    const tables = splitFiles();
+    const work = collect(tables, pairTables(tables));
     apply(work);
     reportChanged(work);
   };
@@ -346,6 +380,11 @@ export function paintStructural(
     win.CSS.highlights.delete(ADDED_HIGHLIGHT);
     win.CSS.highlights.delete(REMOVED_HIGHLIGHT);
     sizes.disconnect();
+
+    for (const table of [...snapshots.keys()]) restoreTable(table, snapshots);
+    // Also catches a table whose snapshot was dropped while it was unmounted.
+    for (const element of diffs.querySelectorAll(`[${ADDED_ROW_ATTR}], [${FILLER_ATTR}]`))
+      element.remove();
 
     // Sweeps the DOM, not `painted`: it also catches marks on a table GitHub moved since its pass.
     for (const element of diffs.querySelectorAll<HTMLElement>(

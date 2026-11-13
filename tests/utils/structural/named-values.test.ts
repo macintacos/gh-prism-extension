@@ -37,7 +37,6 @@ async function marks(path: string, oldText: string, newText: string) {
   return {
     old: markedLines(oldText, result.changes.old),
     new: markedLines(newText, result.changes.new),
-    inside: result.changes.inside,
   };
 }
 
@@ -251,15 +250,6 @@ describe("structuralChanges, a value that gains or loses a name", () => {
     },
   );
 
-  it("names the line that uses the name as changed inside, and not the line that defines it", async () => {
-    const inPlace = `int f(void) {\n    return ${CALL};\n}\n`;
-    const named = `int f(void) {\n    int v = ${CALL};\n    check(v);\n    return v;\n}\n`;
-
-    const { inside } = await marks("a.c", inPlace, named);
-
-    expect(inside).toEqual({ old: [2], new: [4] });
-  });
-
   it("pairs a C statement wrapped over two lines with the one that uses its name", async () => {
     const inPlace = "int f(void) {\n    return load(path,\n                opts.depth);\n}\n";
     const named =
@@ -352,8 +342,8 @@ describe("structuralChanges, changes that only look like a value gaining a name"
 
     const { old, new: added } = await marks("a.c", oldText, newText);
 
-    expect(old).toEqual([]);
-    expect(added).toEqual(["return «v;»", "«int v =» load(path, opts.depth);"]);
+    expect(old).toEqual(["«return» load(path, opts.depth);"]);
+    expect(added).toEqual(["«return v;»", "«int v =» load(path, opts.depth);"]);
   });
 
   it("keeps a statement that is all value beside the line that names it", async () => {
@@ -377,9 +367,9 @@ describe("structuralChanges, changes that only look like a value gaining a name"
 
     const { old, new: added } = await marks("a.c", oldText, newText);
 
-    expect(old).toEqual(["«foo»(load(a, b)«)»;", "«bar(calc(c, d));»"]);
+    expect(old).toEqual(["«foo(»load(a, b)«)»;", "«bar(calc(c, d));»"]);
     expect(added).toEqual([
-      "«int w = calc»(«c, d);»",
+      "«int w = calc(c, d);»",
       "«bar(w);»",
       "«int v =» load(a, b);",
       "«foo(v);»",

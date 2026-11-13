@@ -244,7 +244,10 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   fourth pass drives the diff view control on each URL: each press checked against the
   gear's Layout, the stored mode, and the count of `POST /users/diffview`, a clean page
   after leaving Structural, the choice kept across a reload, the control following a
-  Layout chosen from the gear, and ArrowDown in the diffs unchanged by the mode.
+  Layout chosen from the gear, and ArrowDown in the diffs unchanged by the mode. Its
+  pairing pass always runs on <https://github.com/macintacos/gh-prism-sandbox/pull/11>:
+  new line 138 opposite old line 121, one added row, no numbered filler, Split restoring
+  GitHub's row count, and an expanded hunk re-paired once.
 - **Click a live control through its locator, never at coordinates read earlier.**
   GitHub's toolbar moves: a commit's drops its "Top" button about 50 ms after a scroll to
   the top, shifting the diff view control 71px, so a `mouse.click` at a `boundingBox()`

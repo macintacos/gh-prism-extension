@@ -107,19 +107,21 @@ A diff of unrelated code still pairs some tokens, such as a `}` or a shared name
 hole in a line's mark. [`utils/structural/chance.ts`](../utils/structural/chance.ts) drops
 them, so a block replaced by unrelated code reaches the painter changed in full. A line is
 replaced when the diff leaves it less than half its tokens, or half when it is all
-punctuation. A line not replaced that keeps a word vouches for its pairings. A run of
-paired tokens is dropped when, on a replaced line of either side, changed runs at least as
-long as it sit before and after it, unless its line on the other side vouches for it. Any
-pairing left between two replaced lines is dropped too.
+punctuation. A line's main partner is the other side's line holding most of its paired
+tokens, the earlier on a tie. A line not replaced that keeps a name (a word that is not a
+keyword) vouches for its pairings with its main partner only. A run of paired tokens is
+dropped when, on a replaced line of either side, changed runs at least as long as it sit
+before and after it, unless its line on the other side vouches for it. Then a pairing is
+dropped when either of its lines is replaced and the other does not vouch for it, counted
+again round after round until a round drops none. Last, on the two lines of each pairing
+left, the unpaired tokens just before and just after it pair where their keys are equal,
+from the start of both, then from the end, so a line keeps the opening a stray pairing had
+taken from it.
 
 [`utils/structural/units.ts`](../utils/structural/units.ts) reads each parse for its
-units: the syntax nodes that have their lines to themselves. After the diff, the engine
-sets aside the tokens of each unit changed whole whose parent node was not, as a block
-that left or arrived, and those of a region whose diff passes `maxEditLength`, which is
-changed whole on both sides. Every other changed token changed inside a unit that remains,
-and the engine lists those tokens' lines in `StructuralChanges.inside`. `structuralFile`
-copies the list onto each line's annotation as `inside`. A `.txt` file has no units and no
-list.
+units: the syntax nodes that have their lines to themselves.
+[`named-values.ts`](../utils/structural/named-values.ts) takes the innermost of them as
+the statements it pairs. A `.txt` file has no units.
 
 The content script in [`entrypoints/content/index.ts`](../entrypoints/content/index.ts)
 runs on every github.com page at `document_start`, so its watcher is in place before
@@ -1058,9 +1060,8 @@ and whenever it changes.
 
 - **Marks** show a line's changed tokens. `markRanges` in
   [`diffs/structural-marks.ts`](../entrypoints/content/diffs/structural-marks.ts) joins
-  the tokens that have only whitespace between them. A line changed in full gets one mark
-  over its text when its annotation says `inside`, and otherwise no mark, so GitHub's line
-  tint alone shows it. Each mark is a `Range`.
+  the tokens that have only whitespace between them. A line changed in full gets no mark,
+  so GitHub's line tint alone shows it. Each mark is a `Range`.
 - **A mask draws each mark.** A marked line's `.diff-text-inner` carries
   `data-gh-prism-marks` and a `--gh-prism-marks` custom property: an SVG of padded,
   rounded rectangles that `maskOf` builds. The sheet,
@@ -1079,16 +1080,35 @@ and whenever it changes.
   sides, space-separated, and a painted table carries `data-gh-prism-structural`. The
   sheet keys on both.
 - **A row with a marked line** carries `data-gh-prism-part` with that side, in the same
-  form, whether the line changed in part or in full. The sheet steps its tint down as it
-  does a quiet row's. A line changed in full with no mark carries no attribute, and keeps
-  GitHub's tint at full strength.
+  form. The sheet steps its tint down as it does a quiet row's. A line changed in full
+  carries no attribute, and keeps GitHub's tint at full strength.
 - **A word GitHub's own diff picked keeps its syntax colour.** GitHub gives its `.x` spans
   a background and the line's plain colour. In a painted table the sheet clears the
   background and sets each span's colour back to its syntax class's.
+- **Rows are re-paired before painting.** A `StructuralFile` carries the engine's line
+  `matches`. At the start of each pass,
+  [`diffs/structural-pairing.ts`](../entrypoints/content/diffs/structural-pairing.ts) asks
+  `pairedRows` in [`utils/structural/pairing.ts`](../utils/structural/pairing.ts) how each
+  changed block of a Split table should pair, then moves GitHub's own cell pairs between
+  the block's rows so each line faces its matching line. Each `LineMatch` counts the
+  tokens two lines share and the tokens on the `shorter` of them; two lines pair only when
+  they share at least two tokens and half the shorter line's. A line split onto several
+  lines faces the first of them, and unpaired lines between pairs share rows, one old and
+  one new, ending against the block's first pair and starting after any other. GitHub's
+  rows are reused first; extra rows are gh-prism `tr`s marked `data-gh-prism-added-row`,
+  and created empty space is GitHub's own empty cells or filler cells marked
+  `data-gh-prism-filler`. Each table's original cells are kept in a snapshot, which undoes
+  the re-pairing when the mode ends. A table is re-paired only when every changed cell's
+  text equals the file's line, the same check the painter makes (`matchedText`); otherwise
+  GitHub's rows stay, and an empty snapshot lets the table settle. A block is also left
+  alone when GitHub drew it with other than one row per line of its longer side, or a row
+  lacks four cells. A table whose snapshot rows are all mounted and whose file is
+  unchanged is left alone, so the writer's own mutations settle. A table re-paired in a
+  pass is repainted in it.
 - **One pass per animation frame.** The `sections` hook and every `observeDiffs` report
-  schedule a frame, and a pending frame is reused. The pass first reads every table, then
-  writes, so its reads (`querySelectorAll`, `dataset`, `textContent`) never force a layout
-  after a write.
+  schedule a frame, and a pending frame is reused. Past re-pairing, the pass first reads
+  every table, then writes, so its reads (`querySelectorAll`, `dataset`, `textContent`)
+  never force a layout after a write.
 - **Per-table repainting.** A map from each table to what it holds lets a pass repaint
   only the tables that changed. A table counts as changed when `annotationsOf` returns a
   different `StructuralFile` object (compared by identity), when its cells' text elements
@@ -1097,13 +1117,14 @@ and whenever it changes.
   drops them by that test. Nothing else marks a table changed: text GitHub replaces inside
   a kept text element, under a cell that holds no range (a quiet cell, or any cell of a
   mismatched table), goes unnoticed until one of those three changes.
-- **A mismatch skips the whole file.** Every mounted changed cell needs an annotation and
+- **A mismatch skips the whole file.** Every mounted changed cell with an annotation needs
   text equal to the expected line. If one fails, the table gets no mark, no quiet row, and
   no table attribute, and the file reports `mismatch`. Annotations for lines the page does
   not mount are fine. A `StructuralFile` holds every line of the `.diff`'s hunks, context
   lines on both sides, because a page that hides whitespace changes draws `git diff -w`:
   its alignment marks some of the `.diff`'s context lines as changed. A changed cell
-  outside the `.diff`'s hunks is still a mismatch.
+  outside the `.diff`'s hunks has no annotation: the line is the same in both versions, so
+  it is quiet, with no text check, and re-pairing still runs.
 - **Split only, per table.** The painter reads each table's own layout from `diffTables`
   and paints it only when split, so it skips a unified page and a one-sided file's
   three-column table.
@@ -1115,7 +1136,9 @@ and whenever it changes.
   file's annotations arrive.
 
 On abort the painter cancels its frame, deletes both highlights, disconnects its observer,
-removes `data-gh-prism-structural`, `data-gh-prism-quiet`, `data-gh-prism-part`,
+puts re-paired cells back in GitHub's rows, removes its added rows
+(`data-gh-prism-added-row`) and filler cells (`data-gh-prism-filler`), removes
+`data-gh-prism-structural`, `data-gh-prism-quiet`, `data-gh-prism-part`,
 `data-gh-prism-marks`, and each mask, and removes its `<style>`.
 
 `showStructural` also mounts the notices, `showStructuralNotices` in

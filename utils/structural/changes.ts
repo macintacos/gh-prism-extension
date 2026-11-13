@@ -17,11 +17,17 @@ export interface TokenSpan {
 export interface StructuralChanges {
   readonly old: readonly TokenSpan[];
   readonly new: readonly TokenSpan[];
-  /**
-   * Each version's 1-based lines holding a token that changed inside a syntax unit that remains,
-   * such as a name removed from a wrapped import. Absent when the file has no syntax tree.
-   */
-  readonly inside?: { readonly old: readonly number[]; readonly new: readonly number[] };
+  /** Each pair of 1-based lines sharing matched tokens, where either line is in a changed region; absent reads as none. */
+  readonly matches?: readonly LineMatch[];
+}
+
+/** Matched tokens shared by one old line and one new line. */
+export interface LineMatch {
+  readonly old: number;
+  readonly new: number;
+  readonly count: number;
+  /** Diff tokens on whichever of the two lines holds fewer. */
+  readonly shorter: number;
 }
 
 /** 0-based UTF-16 columns of one line, `endCol` exclusive. */
@@ -32,12 +38,11 @@ export interface ColumnRange {
 
 /**
  * What to paint on one line the page draws as changed: its changed tokens' ranges in column order,
- * or quiet when it has none. `inside` is set when a token of the line changed inside a syntax unit
- * that remains.
+ * or quiet when it has none.
  */
 export type LineAnnotation =
   | { readonly quiet: true }
-  | { readonly quiet: false; readonly ranges: readonly ColumnRange[]; readonly inside?: true };
+  | { readonly quiet: false; readonly ranges: readonly ColumnRange[] };
 
 /**
  * Annotations for one version of a file, old or new, keyed by its 1-based line number. A record,
@@ -58,6 +63,8 @@ export type TextByLine = Readonly<Record<number, string>>;
 export interface StructuralFile {
   readonly annotations: LineAnnotations;
   readonly text: { readonly old: TextByLine; readonly new: TextByLine };
+  /** The engine's line matches, for re-pairing rows in Split; absent reads as none. */
+  readonly matches?: readonly LineMatch[];
 }
 
 /**
@@ -73,8 +80,6 @@ export function structuralFile(
 ): StructuralFile | undefined {
   const oldRanges = rangesByLine(changes.old);
   const newRanges = rangesByLine(changes.new);
-  const oldInside = new Set(changes.inside?.old);
-  const newInside = new Set(changes.inside?.new);
   const oldAnnotations: Record<number, LineAnnotation> = {};
   const newAnnotations: Record<number, LineAnnotation> = {};
   const oldText: Record<number, string> = {};
@@ -88,12 +93,12 @@ export function structuralFile(
     for (const { kind, text } of ops) {
       const lineText = text.endsWith("\n") ? text.slice(0, -1) : text;
       if (kind !== "+") {
-        oldAnnotations[oldLine] = annotationOf(oldRanges.get(oldLine), oldInside.has(oldLine));
+        oldAnnotations[oldLine] = annotationOf(oldRanges.get(oldLine));
         oldText[oldLine] = lineText;
         oldLine++;
       }
       if (kind !== "-") {
-        newAnnotations[newLine] = annotationOf(newRanges.get(newLine), newInside.has(newLine));
+        newAnnotations[newLine] = annotationOf(newRanges.get(newLine));
         newText[newLine] = lineText;
         newLine++;
       }
@@ -103,6 +108,7 @@ export function structuralFile(
   return {
     annotations: { old: oldAnnotations, new: newAnnotations },
     text: { old: oldText, new: newText },
+    ...(changes.matches && { matches: changes.matches }),
   };
 }
 
@@ -118,7 +124,6 @@ function rangesByLine(spans: readonly TokenSpan[]): Map<number, ColumnRange[]> {
   return byLine;
 }
 
-function annotationOf(ranges: readonly ColumnRange[] | undefined, inside: boolean): LineAnnotation {
-  if (ranges === undefined) return { quiet: true };
-  return inside ? { quiet: false, ranges, inside } : { quiet: false, ranges };
+function annotationOf(ranges: readonly ColumnRange[] | undefined): LineAnnotation {
+  return ranges === undefined ? { quiet: true } : { quiet: false, ranges };
 }

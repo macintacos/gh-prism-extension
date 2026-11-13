@@ -1,14 +1,9 @@
 import type { Tree } from "web-tree-sitter";
 
-/**
- * A stretch of syntax that has its lines to itself, with its parent node's extent: UTF-16 offsets,
- * `end` exclusive. The root's parent is empty.
- */
+/** A stretch of syntax that has its lines to itself: UTF-16 offsets, `end` exclusive. */
 export interface Unit {
   readonly start: number;
   readonly end: number;
-  readonly parentStart: number;
-  readonly parentEnd: number;
 }
 
 /** What separates the entries of a list. */
@@ -19,8 +14,6 @@ const TERMINATOR = ";";
 
 /** What a level of the walk remembers of the sibling before the cursor's node. */
 interface Level {
-  readonly start: number;
-  readonly end: number;
   lastType: string | undefined;
   lastStart: number;
   /** The index in the walk's units of that sibling, when it is a unit on one line. */
@@ -36,14 +29,12 @@ interface Level {
  */
 export function wholeLineUnits(tree: Tree, text: string, starts: readonly number[]): Unit[] {
   const units: (Unit | undefined)[] = [];
-  const levelOf = (start: number, end: number): Level => ({
-    start,
-    end,
+  const levelOf = (start: number): Level => ({
     lastType: undefined,
     lastStart: start,
     lastOneLineUnit: undefined,
   });
-  const root = levelOf(0, 0);
+  const root = levelOf(0);
   const levels = [root];
   const lines = inkedLines(text, starts);
 
@@ -66,10 +57,10 @@ export function wholeLineUnits(tree: Tree, text: string, starts: readonly number
       level.lastOneLineUnit = isUnit && oneLine ? units.length : undefined;
       level.lastType = type;
       level.lastStart = start;
-      if (isUnit) units.push({ start: from, end, parentStart: level.start, parentEnd: level.end });
+      if (isUnit) units.push({ start: from, end });
 
       if (cursor.gotoFirstChild()) {
-        levels.push(levelOf(start, end));
+        levels.push(levelOf(start));
         continue;
       }
       while (!cursor.gotoNextSibling()) {

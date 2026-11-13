@@ -6,6 +6,213 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-13: Structural mode never marks a line changed in full
+
+This replaces the pick of the 2026-11-11 "Structural mode marks a line changed in full
+inside a unit that remains" entry below, and returns to that of the 2026-11-11 "Structural
+mode steps down the tint of a line changed in part" entry. The 2026-11-12 "Structural mode
+reads a unit the line diff slid as changed whole" entry no longer applies.
+
+- **Asked:** the maintainer, on 2026-11-13, looking at a C function whose body was
+  replaced. Of its twelve deleted lines, `while (newcap < needed) {` and
+  `if (newcap > maxcap / 2) {` each had a mark over the whole line, and the other ten had
+  none. Structural mode's token diff had matched the deleted `while`'s `}` to a `}` that
+  stayed, so the `while` did not count as changed whole. In their words: "highlighted
+  segments should be used to call attention to specific segments of a diff that are worth
+  looking at directly - whole lines being deleted or added is important (that's why the
+  lines are tinted) but also adding the segments adds little value, and in fact can muddy
+  things".
+- **Compared:**
+  - keep the whole-line mark, and fix the bracket matching behind this case;
+  - keep the whole-line mark only for a one-line entry of a list that remains, such as a
+    name in a wrapped import;
+  - never mark a line changed in full.
+- **Won:** never mark a line changed in full. A mark covers part of a line, never all of
+  it. A line whose every token changed keeps GitHub's line tint and has no mark. A line
+  changed in part has marks on its changed tokens and takes the quiet row's tint.
+- **Why:**
+  - With either of the first two, a line changed in full still gets a mark only when it
+    sits inside a unit that remains. Two deleted lines side by side can then still look
+    different, for a reason the reader cannot see.
+  - With the third, a mark always means "this part of the line". GitHub's line tint at
+    full strength means "this whole line", against the tint of a quiet row (a changed row
+    with no changed token), which is 65% of GitHub's. No reader has to know what a unit is
+    to predict a mark.
+- **Accepted:** the four removed names of a wrapped import, the case the 2026-11-11 entry
+  was written for, again read as rows at full tint among quiet rows, with no mark. The 65%
+  quiet tint, from the 2026-11-12 "Structural mode's line tint steps up to 65%" entry,
+  came after the maintainer's complaint about that import. It is now what sets those rows
+  apart from rows changed in part.
+
+## 2026-11-12: Structural mode keeps a token match only where a line vouches for it
+
+- **Asked:** the maintainer, on 2026-11-12, reviewing
+  <https://github.com/macintacos/gh-prism-extension/pull/138> and
+  <https://github.com/macintacos/caret/pull/743> in Split with Structural mode on. A new
+  test, a new type, and a new function had a mark on each line. Of those three: "it's just
+  enough that the lines are tinted, since they're almost all entirely new". Of an `if`
+  line twenty rows down: "it's not really clear what that is matching". Each mark came
+  from a few tokens the token diff matched between unrelated lines.
+- **Compared:**
+  - leave it;
+  - decide whether a statement still counts as kept by the share of its tokens that
+    stayed, which leaves the stray partial marks on the lines themselves;
+  - drop the stray matches.
+- **Won:** drop the stray matches.
+  - A name is a word that is not a keyword. A line is replaced when the diff leaves it
+    less than half its tokens.
+  - A line vouches for a match when it is not replaced, keeps a name, and the match is
+    with its main partner: the other side's line holding most of its kept tokens.
+  - A match is chance when either of its lines is replaced and the other line does not
+    vouch for it. The rule repeats until a round drops nothing.
+  - On the two lines of each match that is left, the unmatched tokens just before and
+    after it then match where their text is equal. This gives a line back the opening that
+    a stray match had taken.
+- **Why:** the marks came from the matches, so one rule clears both the whole-line marks
+  and the partial ones, and a new block reads as GitHub's plain added lines.
+- **Accepted:**
+  - A `return` can lose its match. Where `return load(…);` became `int v = load(…);` above
+    a new `return v;`, the old `return` is now marked, and `return v;` is marked whole.
+    Where `foo(load(a, b));` faces `int v = load(a, b);`, its `(` is marked too.
+  - In `test/pi/caret.test.ts` of caret pull request 743, old line 195 marks `/caret`
+    rather than `/`. The new title has no `caret` before `with`, so the first `caret` has
+    nothing left to match once its stray match to a new test above is dropped.
+  - Each round of the rule recounts every line, so each extra round of drops costs another
+    pass over the tokens.
+
+## 2026-11-12: Structural mode pairs lines sharing half the shorter one
+
+- **Asked:** the maintainer, on 2026-11-12, reviewing the same two pull requests. This
+  narrows the entry "Structural mode pairs lines that share at least 2 matched tokens"
+  below. Both conditions now hold together.
+  - Of a rewritten comment: "us being a little too eager to move the lines around, and it
+    makes the diff less sensible".
+  - Of comments stacked above and below a paired signature: "structural diff actually
+    makes me a bit more confused than github's naive approach".
+  - Of one line re-wrapped onto eight: "I don't really get why the line on the left is
+    shifted down one line".
+  - Of a Rust signature split onto five lines: "it would've been clearer for the line on
+    the left to be at the top".
+- **Compared:**
+  - For the pairing threshold: a higher token count, which a long line passes on
+    punctuation alone; a share of the shorter line.
+  - For unpaired lines: old rows then new rows, as before; side by side from the top
+    everywhere; side by side, ending at the block's first pair.
+- **Won:**
+  - Two lines pair when they share at least 2 tokens and at least half of the shorter
+    line's tokens.
+  - Unpaired lines share rows side by side. Before the block's first pair they end at the
+    pair. After a pair they fill from the top.
+  - When one line became several, or several became one, the pair sits at the first of
+    those lines.
+- **Why:**
+  - A share of the shorter line keeps a long line from pairing on punctuation alone.
+  - Ending the unpaired lines at the first pair keeps a comment that leads up to a paired
+    signature against it.
+  - A split line sits beside its first line, as GitHub draws it.
+- **Measured** on those two pull requests, as old row | new row:
+  - `src/adapters/opencode/paths.ts`: old 47 to 50 keeps GitHub's rows; old 53 to 56 reads
+    53|-, 54|52, 55|53, 56|54.
+  - `pi/plan.ts`: 106|108, 107|109, 108|110 stay together under ten new lines.
+  - `test/pi/demo.test.ts`: old 11 faces new 12.
+  - `utils/structural/units.ts`: 89|92, 90|93, 91|94.
+
+## 2026-11-12: Structural mode draws a changed cell outside the diff's hunks as quiet
+
+- **Asked:** the maintainer, on 2026-11-12, reviewing
+  `test/e2e/preview-drag-frames.e2e.ts` of caret pull request 743, which showed the
+  mismatch notice: "reloading doesn't work. need to fix that".
+- **Found:** the maintainer's account hides whitespace changes, so the page draws
+  `git diff -w`. On that file it draws as changed 12 lines that the `.diff` leaves between
+  hunks: old 68, 69, and 77 to 80, and new 104, 105, and 118 to 121. With `?w=0` the
+  page's hunks equal the `.diff`'s.
+- **Compared:**
+  - keep showing GitHub's own diff with the mismatch notice, and reword the notice;
+  - read the `.diff` with `?w=1`, whose context lines no longer rebuild the old file;
+  - draw the cell quiet.
+- **Won:** draw the cell quiet, as a row with no change. A changed cell the page draws on
+  a line the `.diff`'s hunks do not hold is no longer a mismatch.
+- **Why:** a line outside every hunk is the same in both versions, which is what a quiet
+  row says.
+- **Accepted:** such a cell gets no text check. A page newer than the diff the mode read
+  could show a changed line as quiet until the page is reloaded.
+
+## 2026-11-12: Structural mode reads a unit the line diff slid as changed whole
+
+- **Asked:** on `entrypoints/content/diffs/structural-notices.ts` of
+  <https://github.com/macintacos/gh-prism-extension/pull/138>, the maintainer said: "it's
+  not really clear to me why we're highlighting certain segments, given the diff section".
+  Git's line diff had slid an added arrow function by its closing `};`: the hunk added the
+  old declaration's `};` through the new one's last body line, and kept the new one's `};`
+  as context. The new declaration was then not changed whole, so its first line and the
+  added `};` got marks, and the lines between them did not.
+- **Compared:**
+  - leave it;
+  - widen the engine's diff window so the first `};` is matched, which leaves one fainter
+    row inside the added block;
+  - read the slid unit as changed whole, and the equal-keyed changed tokens beside it as
+    the ones that stayed.
+- **Won:** read the slid unit as changed whole. A unit changed in all but its last (or
+  first) few tokens, where the changed tokens joined to it just before (or after) it hold
+  the same keys and went whole with no unit of their own, counts as changed whole, and
+  those tokens get no mark either.
+- **Why:**
+  - The block reads as GitHub draws it: a plain added block.
+  - No token's report changes; only which lines are inside a unit that remains.
+  - The fainter row a wider window leaves would raise the same question.
+
+## 2026-11-12: Structural mode pairs lines that share at least 2 matched tokens
+
+- **Asked for:** when Structural mode lines up matching lines in Split, how many
+  engine-matched tokens two lines must share before they face each other. Fewer tokens
+  line up more real edits, and more tokens keep weak pairs out.
+- **Compared:** at least 1, 2, and 3 shared tokens, on
+  <https://github.com/macintacos/gh-prism-sandbox/pull/11>,
+  <https://github.com/macintacos/gh-prism-sandbox/pull/3>,
+  <https://github.com/macintacos/gh-prism-sandbox/pull/4>, and
+  <https://github.com/nodejs/node/pull/66212>, with the empty-space rule held at half of
+  GitHub's rows.
+- **Won:** at least 2 shared tokens.
+- **Why:**
+  - 1 token only ever changed the result by adding weak pairs: `}` facing `}`, and two
+    unrelated prose lines sharing only a full stop. On nodejs/node it squeezed such blocks
+    under the empty-space limit, adding 51 rows where 2 tokens add 23.
+  - 3 tokens dropped real two-token edits. In `app/ledger.py` of sandbox pull request 4,
+    `result += amount` gained a trailing comment and shares 2 tokens with its old line; at
+    3 the block kept GitHub's rows. In nodejs/node's `lib/commands/ci.js`,
+    `await runScript({` and `await runRootScript(event)` were pulled apart, and
+    `lib/commands/install.js` lost the same pair, which GitHub's rows already had right.
+  - No 2-token pair in any block where the candidates differed was weak, so an absolute
+    count separates good matches from weak ones on these diffs, and no ratio rule is
+    needed.
+- **Accepted:**
+  - Screenshots exist for three blocks only: `app/ledger.py` in both themes, `ci.js` in
+    dark, and `npm.md` in light. The other blocks were judged from row tables.
+  - Commenting, replying, and resolving on re-paired rows were not exercised.
+
+## 2026-11-12: Structural mode adds at most half of GitHub's rows to a re-paired block
+
+- **Asked for:** how many empty rows Structural mode may add to a changed block to line up
+  matching lines in Split, before it leaves GitHub's rows as they are.
+- **Compared:** at most 2 added rows, at most half of GitHub's row count (at least 2), and
+  at most GitHub's row count, on the same pull requests, with the weak-match rule at 2
+  tokens.
+- **Won:** half of GitHub's row count, and at least 2.
+- **Why:**
+  - A flat 2 lost the two best re-pairings on nodejs/node: in `lib/base-cmd.js` a renamed
+    method signature and a renamed set, and in `lib/commands/pkg.js` three lines sharing
+    12, 10, and 4 tokens. Each needs 3 added rows.
+  - GitHub's row count re-paired three prose or rewrite blocks for one or two matches:
+    `package-lock-json.md` grew from 8 rows to 15 for one aligned line, and a rewritten
+    function in `lib/base-cmd.js` from 53 rows to 81. The empty space cost more than the
+    alignment gained.
+  - On nodejs/node, half re-pairs 30 blocks and adds 23 rows. A flat 2 re-pairs 28, and
+    GitHub's row count re-pairs 33 and adds 61.
+- **Accepted:**
+  - Screenshots exist for three blocks only, none of them the blocks this rule decides.
+    Those were judged from row tables.
+  - Commenting, replying, and resolving on re-paired rows were not exercised.
+
 ## 2026-11-12: Structural mode reads a value given a name as the value replaced
 
 - **Asked:** the maintainer, on `src/t_hash.c` of

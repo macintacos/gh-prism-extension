@@ -400,6 +400,24 @@ describe("fileChanges", () => {
       expect(run).toHaveBeenCalledTimes(4);
     });
 
+    it("weighs an entry's line matches with its spans", async () => {
+      const matches = [
+        { old: 1, new: 1, count: 2, shorter: 3 },
+        { old: 2, new: 2, count: 3, shorter: 4 },
+      ];
+      const { run, changes } = setup({
+        diff,
+        routes,
+        cachedSpans: 4,
+        run: async () => ({ ok: true, changes: { ...CHANGES, matches } }),
+      });
+      await changes(pr, "src/a.ts", signal());
+
+      await changes(pr, "src/a.ts", signal());
+
+      expect(run).toHaveBeenCalledTimes(2);
+    });
+
     it("keeps no entry heavier than the bound", async () => {
       const { run, changes } = setup({ diff, routes, cachedSpans: 2 });
       await changes(pr, "src/a.ts", signal());

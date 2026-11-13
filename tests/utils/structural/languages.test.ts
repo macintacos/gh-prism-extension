@@ -315,6 +315,25 @@ describe("structuralChanges in each language", () => {
     expect(marked.join("")).toBe(comment.replace(/\s/g, ""));
   });
 
+  it("pairs a changed TypeScript condition under a deleted line with its new line", async () => {
+    const oldText =
+      'function f(d, obj) {\n  const data = {};\n  if ("pk" in d) {\n    return 1;\n  }\n}\n';
+    const newText = 'function f(d, obj) {\n  if ("pk" in obj) {\n    return 1;\n  }\n}\n';
+    const result = await structuralChanges(
+      inputFor({
+        oldText,
+        newText,
+        language: { grammar: grammarOf("a.ts") as Grammar, parser: await parserFor("typescript") },
+        regions: regionsOf(oldText, newText),
+      }),
+    );
+
+    const matches = result.ok ? (result.changes.matches ?? []) : [];
+
+    expect(matches.find((m) => m.old === 3 && m.new === 2)?.count).toBeGreaterThanOrEqual(4);
+    expect(matches.filter((m) => m.old === 2)).toEqual([]);
+  });
+
   it("leaves the * before a reworded word of a block comment unmarked", async () => {
     const oldText = "/**\n * one two\n * three four\n */\n";
     const newText = "/**\n * one five\n * six four\n */\n";

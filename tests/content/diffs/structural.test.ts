@@ -259,16 +259,27 @@ describe("paintStructural", () => {
     expect(line22.row.hasAttribute("data-gh-prism-part")).toBe(false);
   });
 
-  it("marks a line changed in full inside a unit that remains, and names its row's side", async () => {
-    const { diffs, line22 } = await paintLine22((cell) => ({
-      ...over(cell, "self.limit = limit;"),
-      inside: true,
-    }));
+  it("marks no line changed in full beside a line changed in part, and leaves its tint alone", async () => {
+    const diffs = mountDiffs(prSplit);
+    const table = tableAt(diffs);
+    const line21 = cellAt(table, "new", 21);
+    const line22 = cellAt(table, "new", 22);
+    files.set(
+      anchorOfTable(table),
+      fileOf(table, (cell) => {
+        if (sameLine(cell, line22)) return over(cell, "self.limit = limit;");
+        if (sameLine(cell, line21)) return over(cell, "limit");
+        return QUIET;
+      }),
+    );
+    paint(diffs);
+    await flush();
     sizes.deliver();
 
-    expect(allRanges().map(String)).toEqual(["self.limit = limit;"]);
-    expect([...diffs.querySelectorAll(MARKED)]).toEqual([line22.textRoot]);
-    expect(line22.row.getAttribute("data-gh-prism-part")).toBe("new");
+    expect(line21.row.getAttribute("data-gh-prism-part")).toBe("new");
+    expect(line22.textRoot.matches(MARKED)).toBe(false);
+    expect(line22.row.hasAttribute("data-gh-prism-quiet")).toBe(false);
+    expect(line22.row.hasAttribute("data-gh-prism-part")).toBe(false);
   });
 
   it("names the side of a row whose line changed in part", async () => {
@@ -415,23 +426,12 @@ describe("paintStructural", () => {
     expect(report).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ["one cell's text differs", "text"],
-    ["one changed cell has no annotation", "annotation"],
-  ] as const)("skips the whole file when %s", async (_, broken) => {
+  it("skips the whole file when one annotated cell's text differs", async () => {
     const diffs = mountDiffs(prSplit);
     const table = tableAt(diffs);
-    const line21 = cellAt(table, "new", 21);
-    const file = fileOf(table, (cell) =>
-      broken === "annotation" && sameLine(cell, line21) ? undefined : opening(cell),
-    );
+    const file = fileOf(table, opening);
     const anchor = anchorOfTable(table);
-    files.set(
-      anchor,
-      broken === "text"
-        ? { ...file, text: { ...file.text, new: { ...file.text.new, 21: "other" } } }
-        : file,
-    );
+    files.set(anchor, { ...file, text: { ...file.text, new: { ...file.text.new, 21: "other" } } });
 
     paint(diffs);
     await flush();
@@ -439,6 +439,24 @@ describe("paintStructural", () => {
     expect(allRanges()).toEqual([]);
     expect(diffs.querySelector(PAINTED)).toBeNull();
     expect(report.mock.calls).toEqual([[anchor, "mismatch"]]);
+  });
+
+  it("paints a changed cell outside the file's hunks quiet, whatever its text", async () => {
+    const diffs = mountDiffs(prSplit);
+    const table = tableAt(diffs);
+    const line21 = cellAt(table, "new", 21);
+    const line22 = cellAt(table, "new", 22);
+    const file = fileOf(table, (cell) => (sameLine(cell, line21) ? undefined : opening(cell)));
+    const { 21: _, ...newText } = file.text.new;
+    const anchor = anchorOfTable(table);
+    files.set(anchor, { ...file, text: { ...file.text, new: newText } });
+
+    paint(diffs);
+    await flush();
+
+    expect(report.mock.calls).toEqual([[anchor, "painted"]]);
+    expect(line21.row.getAttribute("data-gh-prism-quiet")).toContain("new");
+    expect(textsIn(ADDED_HIGHLIGHT)).toContain(line22.textRoot.textContent?.slice(0, 2));
   });
 
   it("ignores annotations and text for lines the table does not mount", async () => {

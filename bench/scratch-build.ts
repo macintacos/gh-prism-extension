@@ -23,6 +23,8 @@ export function scratchCopy(copy: string, overlays: Readonly<Record<string, stri
     copyFileSync(join(ROOT, path), join(copy, path));
   }
   symlinkSync(join(ROOT, "node_modules"), join(copy, "node_modules"));
+  // Git-ignored, so not among the tracked files copied above; the build packs its grammars.
+  symlinkSync(join(ROOT, ".grammars"), join(copy, ".grammars"));
   for (const [path, text] of Object.entries(overlays)) writeFileSync(join(copy, path), text);
 }
 

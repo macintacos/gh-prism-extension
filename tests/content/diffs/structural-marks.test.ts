@@ -24,14 +24,6 @@ describe("markRanges", () => {
     expect(textsOf(text, markRanges(text, rangesOf(text, ...tokens)))).toEqual(want);
   });
 
-  it("marks a line changed in full when it changed inside a unit that remains", () => {
-    const text = "  ENGINE_GLOBAL,";
-
-    const marks = markRanges(text, rangesOf(text, "ENGINE_GLOBAL", ","), "mark");
-
-    expect(textsOf(text, marks)).toEqual(["ENGINE_GLOBAL,"]);
-  });
-
   it("joins ranges that overlap into one mark", () => {
     const text = "  abcdef;";
 

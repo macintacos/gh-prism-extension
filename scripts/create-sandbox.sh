@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Creates a private sandbox repository with nine open PRs for surveying GitHub's
+# Creates a private sandbox repository with ten open PRs for surveying GitHub's
 # Files changed tab: small, large, and complicated, then one per comment syntax
-# (Python, C-like, Go, Lua) and two with long paths and file names, each with
-# gh-prism's expected counts in its body. All content is fake.
+# (Python, C-like, Go, Lua), two with long paths and file names, each with
+# gh-prism's expected counts in its body, and one for Structural mode's line pairing.
+# All content is fake.
 # Resumable per PR: the repo, main, and each PR are skipped when they already exist.
 # A run that fails partway through a PR leaves that PR for you to fix by hand.
 #
@@ -632,6 +633,77 @@ EOF
 	)" >/dev/null
 }
 
+# Prints `def <prefix><n>` getters for n in first..last, three lines each.
+getters() {
+	local prefix=$1 first=$2 last=$3 i
+	for ((i = first; i <= last; i++)); do
+		printf 'def %s%02d(record):\n    return record.get("%s%02d")\n\n' "$prefix" "$i" "$prefix" "$i"
+	done
+}
+
+# Prints app/records.py: `base` puts data = {} on line 120 and if "pk" in d: on 121; `head`
+# adds 18 lines of getters in two far-apart hunks, so if "pk" in obj: lands on line 138.
+# Keep in sync with tests/fixtures/structural-pairing.ts.
+records_py() {
+	local version=$1
+	printf '"""Record helpers."""\n\n'
+	if [[ $version == head ]]; then
+		getters field_ 1 5
+		getters extra_ 1 3
+		getters field_ 6 25
+		getters extra_ 4 6
+		getters field_ 26 38
+	else
+		getters field_ 1 38
+	fi
+	cat <<'EOF'
+def serialize(obj, d):
+    """Serialize a record."""
+    rows = []
+EOF
+	if [[ $version == head ]]; then
+		printf '    if "pk" in obj:\n'
+	else
+		printf '    data = {}\n    if "pk" in d:\n'
+	fi
+	cat <<'EOF'
+        rows.append("pk")
+    return rows
+
+def total(items, rate):
+EOF
+	if [[ $version == head ]]; then
+		printf '    started = time.monotonic()\n    total = compute(items, rate) * 100\n'
+	else
+		printf '    total = compute(items, rate)\n    log.info("done")\n'
+	fi
+	printf '    return total\n'
+}
+
+seed_pairing_base() {
+	git cat-file -e origin/main:app/records.py 2>/dev/null && return
+	git checkout -q -B main origin/main
+	records_py base >app/records.py
+	commit "Add the record helpers"
+	git push -q origin main
+}
+
+structural_pairing_pr() {
+	pr_exists structural-pairing && return
+	git checkout -q -B structural-pairing origin/main
+	records_py head >app/records.py
+	commit "Match records by their own key"
+	open_pr structural-pairing "Structural line pairing" "$(
+		cat <<'EOF'
+Expected gh-prism Structural pairing, in the Split layout, in `app/records.py`.
+
+- GitHub pairs old 120 `data = {}` with new 138 `if "pk" in obj:`. Structural mode shows old 120 alone, then old 121 `if "pk" in d:` opposite new 138.
+- GitHub pairs old 126 with new 143 and old 127 with new 144. Structural mode adds a row: new 143 `started = …` alone, old 126 `total = compute(items, rate)` opposite new 144, then old 127 `log.info("done")` alone.
+- The two added-getter hunks are pure additions and keep GitHub's rows.
+EOF
+	)" >/dev/null
+}
+
 gh repo view "$repo" >/dev/null 2>&1 ||
 	gh repo create "$repo" --private --description "Fake fixture repo for gh-prism PR UI scenarios"
 
@@ -651,7 +723,9 @@ go_comments_pr
 lua_comments_pr
 long_paths_pr
 long_file_name_pr
+seed_pairing_base
+structural_pairing_pr
 
-for branch in small-change large-change complicated-change python-comments c-like-comments go-comments lua-comments long-paths long-file-name; do
+for branch in small-change large-change complicated-change python-comments c-like-comments go-comments lua-comments long-paths long-file-name structural-pairing; do
 	gh pr view "$branch" -R "$repo" --json url --jq .url
 done
