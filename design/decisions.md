@@ -6,6 +6,44 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-13: Structural mode never marks a line changed in full
+
+This replaces the pick of the 2026-11-11 "Structural mode marks a line changed in full
+inside a unit that remains" entry below, and returns to that of the 2026-11-11 "Structural
+mode steps down the tint of a line changed in part" entry. The 2026-11-12 "Structural mode
+reads a unit the line diff slid as changed whole" entry no longer applies.
+
+- **Asked:** the maintainer, on 2026-11-13, looking at a C function whose body was
+  replaced. Of its twelve deleted lines, `while (newcap < needed) {` and
+  `if (newcap > maxcap / 2) {` each had a mark over the whole line, and the other ten had
+  none. Structural mode's token diff had matched the deleted `while`'s `}` to a `}` that
+  stayed, so the `while` did not count as changed whole. In their words: "highlighted
+  segments should be used to call attention to specific segments of a diff that are worth
+  looking at directly - whole lines being deleted or added is important (that's why the
+  lines are tinted) but also adding the segments adds little value, and in fact can muddy
+  things".
+- **Compared:**
+  - keep the whole-line mark, and fix the bracket matching behind this case;
+  - keep the whole-line mark only for a one-line entry of a list that remains, such as a
+    name in a wrapped import;
+  - never mark a line changed in full.
+- **Won:** never mark a line changed in full. A mark covers part of a line, never all of
+  it. A line whose every token changed keeps GitHub's line tint and has no mark. A line
+  changed in part has marks on its changed tokens and takes the quiet row's tint.
+- **Why:**
+  - With either of the first two, a line changed in full still gets a mark only when it
+    sits inside a unit that remains. Two deleted lines side by side can then still look
+    different, for a reason the reader cannot see.
+  - With the third, a mark always means "this part of the line". GitHub's line tint at
+    full strength means "this whole line", against the tint of a quiet row (a changed row
+    with no changed token), which is 65% of GitHub's. No reader has to know what a unit is
+    to predict a mark.
+- **Accepted:** the four removed names of a wrapped import, the case the 2026-11-11 entry
+  was written for, again read as rows at full tint among quiet rows, with no mark. The 65%
+  quiet tint, from the 2026-11-12 "Structural mode's line tint steps up to 65%" entry,
+  came after the maintainer's complaint about that import. It is now what sets those rows
+  apart from rows changed in part.
+
 ## 2026-11-12: Structural mode keeps a token match only where a line vouches for it
 
 - **Asked:** the maintainer, on 2026-11-12, reviewing

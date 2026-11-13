@@ -110,19 +110,7 @@ export async function structuralChanges(input: EngineInput): Promise<EngineResul
     new: spansOf(newSource, withLayout(newSource, changed.new)),
     matches,
   };
-  if (!oldParsed.units || !newParsed.units) return { ok: true, changes };
-
-  const inside = {
-    old: linesInside(oldSource, oldParsed.units, {
-      changed: changed.old,
-      rewritten: changed.rewritten.old,
-    }),
-    new: linesInside(newSource, newParsed.units, {
-      changed: changed.new,
-      rewritten: changed.rewritten.new,
-    }),
-  };
-  return { ok: true, changes: { ...changes, inside } };
+  return { ok: true, changes };
 }
 
 const refuse = (reason: EngineRefusal): EngineResult => ({ ok: false, reason });
@@ -218,27 +206,17 @@ interface ChangedTokens {
 type LinePair = readonly [old: number, new: number];
 
 /**
- * A window's changed tokens, and the lines of each token it matched; `rewritten`, matching none,
- * when its diff passed the edit limit.
+ * A window's changed tokens, and the lines of each token it matched; none when its diff passed the
+ * edit limit.
  */
 interface WindowChanges extends ChangedTokens {
-  readonly rewritten?: true;
   readonly matched?: readonly LinePair[];
 }
 
-/**
- * Every region's changed tokens, those among them of the regions rewritten past the edit limit,
- * and the lines of each matched token.
- */
+/** Every region's changed tokens, and the lines of each matched token. */
 interface RegionChanges extends ChangedTokens {
-  readonly rewritten: ChangedTokens;
   readonly matched: readonly LinePair[];
 }
-
-const joined = (parts: readonly ChangedTokens[]): ChangedTokens => ({
-  old: parts.flatMap((part) => part.old),
-  new: parts.flatMap((part) => part.new),
-});
 
 /** The tokens each region's diffs find changed, or `too-slow` past the diff's deadline. */
 function changedTokens(
@@ -256,8 +234,8 @@ function changedTokens(
   }
 
   return {
-    ...joined(parts),
-    rewritten: joined(parts.filter((part) => part.rewritten)),
+    old: parts.flatMap((part) => part.old),
+    new: parts.flatMap((part) => part.new),
     matched: parts.flatMap((part) => part.matched ?? []),
   };
 }
@@ -464,7 +442,7 @@ function windowChanges(
       ] as const);
 
   const parts = diffArrays(firstKeys, secondKeys, { maxEditLength });
-  if (parts === undefined) return { old: oldSide.tokens, new: newSide.tokens, rewritten: true };
+  if (parts === undefined) return { old: oldSide.tokens, new: newSide.tokens };
 
   const matches = rematchedOnLines(
     withoutChanceMatches(matchesOf(parts), first, second),
@@ -547,115 +525,4 @@ function spansOf({ text, starts }: Source, tokens: readonly Token[]): TokenSpan[
   }
 
   return spans;
-}
-
-/**
- * The 1-based lines, in order, of each of `changed` that left or arrived inside a unit that
- * remains: every token but those of a unit changed whole whose parent was not, those of a
- * region rewritten past the edit limit, which left or arrived as a block too, and those of a unit
- * the line diff slid by its last or first tokens, which reads as changed whole once the
- * equal-keyed changed tokens beside it read as the ones that stayed.
- */
-function linesInside(
-  source: Source,
-  units: readonly Unit[],
-  {
-    changed,
-    rewritten,
-  }: { readonly changed: readonly Token[]; readonly rewritten: readonly Token[] },
-): number[] {
-  const { tokens } = source;
-  const isChanged = new Set(changed);
-  const changedBefore = [0];
-  for (const token of tokens)
-    changedBefore.push((changedBefore.at(-1) ?? 0) + (isChanged.has(token) ? 1 : 0));
-  const range = (start: number, end: number) => tokenRange(tokens, start, end);
-  const changedWhole = ({ from, to }: { from: number; to: number }) =>
-    from < to && (changedBefore[to] ?? 0) - (changedBefore[from] ?? 0) === to - from;
-
-  const everything = { from: -1, to: Infinity };
-  const wentWith = new Map<Token, Span>(rewritten.map((token) => [token, everything]));
-  const remaining: Span[] = [];
-  for (const unit of units) {
-    const own = range(unit.start, unit.end);
-    if (changedWhole(range(unit.parentStart, unit.parentEnd))) continue;
-    if (!changedWhole(own)) {
-      if ((changedBefore[own.to] ?? 0) > (changedBefore[own.from] ?? 0)) remaining.push(own);
-    } else
-      for (const token of tokens.slice(own.from, own.to))
-        if (!wentWith.has(token)) wentWith.set(token, own);
-  }
-
-  // Outermost first, so a unit's slid closing tokens are not claimed by a block nested in it.
-  remaining.sort((a, b) => a.from - b.from || b.to - a.to);
-  const slid: Span[] = [];
-  for (const own of remaining) {
-    if (slid.some(({ from, to }) => from <= own.from && own.to <= to)) continue;
-    const stayed = slidTokens(tokens, own, { isChanged, changedWhole, wentWith });
-    if (stayed === undefined) continue;
-    slid.push(own);
-    for (const token of tokens.slice(own.from, own.to))
-      if (isChanged.has(token)) wentWith.set(token, own);
-    for (const token of stayed) wentWith.set(token, everything);
-  }
-
-  const inside = changed.filter((token) => !wentWith.has(token));
-  return [...new Set(spansOf(source, inside).map(({ line }) => line))];
-}
-
-interface Span {
-  readonly from: number;
-  readonly to: number;
-}
-
-/**
- * The tokens that read as the ones that stayed when the line diff slid `own` by the tokens it
- * shares with a neighbour: all of `own` changed but its last (or first) few, and the nearest
- * equal-keyed tokens before (or after) it that changed tokens join to it and that went whole with
- * no unit reaching past them.
- */
-function slidTokens(
-  tokens: readonly Token[],
-  { from, to }: Span,
-  {
-    isChanged,
-    changedWhole,
-    wentWith,
-  }: {
-    readonly isChanged: ReadonlySet<Token>;
-    readonly changedWhole: (span: Span) => boolean;
-    readonly wentWith: ReadonlyMap<Token, Span>;
-  },
-): readonly Token[] | undefined {
-  const kept = (at: number) => {
-    const token = tokens[at];
-    return token !== undefined && !isChanged.has(token);
-  };
-  const free = (token: Token, at: number, k: number) => {
-    const unit = wentWith.get(token);
-    return unit === undefined || (unit.from >= at && unit.to <= at + k);
-  };
-  const stays = (at: number, own: number, k: number) =>
-    tokens
-      .slice(at, at + k)
-      .every((token, i) => token.key === tokens[own + i]?.key && free(token, at, k));
-
-  let trailing = 0;
-  while (to - trailing > from && kept(to - trailing - 1)) trailing++;
-  if (trailing > 0 && changedWhole({ from, to: to - trailing }))
-    // ponytail: walks the changed run before the unit per unit; index runs by key if it shows in profiles
-    for (let at = from - trailing; at >= 0 && changedWhole({ from: at, to: from }); at--)
-      if (stays(at, to - trailing, trailing)) return tokens.slice(at, at + trailing);
-
-  let leading = 0;
-  while (from + leading < to && kept(from + leading)) leading++;
-  if (leading > 0 && changedWhole({ from: from + leading, to }))
-    for (
-      let at = to;
-      at + leading <= tokens.length && changedWhole({ from: to, to: at + leading });
-      at++
-    )
-      if (stays(at, from, leading)) return tokens.slice(at, at + leading);
-
-  return undefined;
 }

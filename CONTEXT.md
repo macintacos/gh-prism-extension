@@ -200,10 +200,9 @@ dims it. _Avoid_: dimmed row, unchanged row, whitespace-only row
 
 **Mark**: The rounded highlight structural mode draws behind changed tokens. Changed
 tokens with only whitespace between them share one mark. A marked line takes a quiet row's
-fainter tint, so its marks are the only strong colour on it. A line changed in full has
-one mark over its text when it changed inside a unit that remains. Otherwise it has no
-mark, and GitHub's line tint, left at full strength, shows it. _Avoid_: chip, pill, word
-mark (GitHub's own highlight)
+fainter tint, so its marks are the only strong colour on it. A mark covers part of a line,
+never all of it: a line changed in full has no mark, and GitHub's line tint, left at full
+strength, shows it. _Avoid_: chip, pill, word mark (GitHub's own highlight)
 
 **Changed block**: A run of consecutive diff rows that each hold an added or deleted line,
 between two unchanged rows or a hunk's edge. _Avoid_: block alone (see Unit), change group
@@ -222,9 +221,8 @@ sides
 node that starts at its line's first token and ends at its line's last, with the `;` that
 ends it. A statement, a method, and a function are units. In a list that separates its
 entries with commas, an entry on one line, such as a name in a wrapped import, is not, and
-an entry on several lines is. A unit changed whole, whose parent node was not, is a block
-that left or arrived, and its lines have no mark. _Avoid_: block (GitHub and Markdown both
-use it), node (a unit can be a node and its `;`)
+an entry on several lines is. _Avoid_: block (GitHub and Markdown both use it), node (a
+unit can be a node and its `;`)
 
 **Diff view control**: gh-prism's Unified, Split, and Structural control beside GitHub's
 diff settings gear. It picks GitHub's layout, Unified or Split, or Structural mode;

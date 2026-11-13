@@ -137,35 +137,6 @@ describe("structuralFile's annotations", () => {
       expected: { old: {}, new: { 1: QUIET, 2: QUIET } },
     },
     {
-      name: "a line the engine names as inside a unit that remains says so",
-      patch: lines("@@ -1,4 +1,3 @@", " run(", "-  first,", "-  second,", "+  first", " );"),
-      changes: {
-        old: [
-          { line: 2, startCol: 7, endCol: 8 },
-          { line: 3, startCol: 2, endCol: 8 },
-          { line: 3, startCol: 8, endCol: 9 },
-        ],
-        new: [],
-        inside: { old: [2, 3], new: [] },
-      },
-      expected: {
-        old: {
-          1: QUIET,
-          2: { quiet: false, ranges: [{ startCol: 7, endCol: 8 }], inside: true },
-          3: {
-            quiet: false,
-            ranges: [
-              { startCol: 2, endCol: 8 },
-              { startCol: 8, endCol: 9 },
-            ],
-            inside: true,
-          },
-          4: QUIET,
-        },
-        new: { 1: QUIET, 2: QUIET, 3: QUIET },
-      },
-    },
-    {
       name: "a pure insertion numbers from its new start",
       patch: lines("@@ -3,0 +4,1 @@", "+x"),
       changes: { old: [], new: [] },

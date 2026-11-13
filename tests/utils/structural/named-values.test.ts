@@ -37,7 +37,6 @@ async function marks(path: string, oldText: string, newText: string) {
   return {
     old: markedLines(oldText, result.changes.old),
     new: markedLines(newText, result.changes.new),
-    inside: result.changes.inside,
   };
 }
 
@@ -250,15 +249,6 @@ describe("structuralChanges, a value that gains or loses a name", () => {
       expect({ old, new: added }).toEqual({ old: namedMarks, new: inPlaceMarks });
     },
   );
-
-  it("names the line that uses the name as changed inside, and not the line that defines it", async () => {
-    const inPlace = `int f(void) {\n    return ${CALL};\n}\n`;
-    const named = `int f(void) {\n    int v = ${CALL};\n    check(v);\n    return v;\n}\n`;
-
-    const { inside } = await marks("a.c", inPlace, named);
-
-    expect(inside).toEqual({ old: [2], new: [4] });
-  });
 
   it("pairs a C statement wrapped over two lines with the one that uses its name", async () => {
     const inPlace = "int f(void) {\n    return load(path,\n                opts.depth);\n}\n";

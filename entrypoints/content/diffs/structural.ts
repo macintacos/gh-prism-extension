@@ -212,8 +212,7 @@ function planTable(
     }
 
     const { annotation, text } = reading;
-    const inFull = annotation.inside ? "mark" : "tint";
-    const ranges = markRanges(text, annotation.ranges, inFull).flatMap(
+    const ranges = markRanges(text, annotation.ranges).flatMap(
       (columns) => rangeOf(textRoot, columns) ?? [],
     );
     if (ranges.length === 0) continue;

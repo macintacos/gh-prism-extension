@@ -119,16 +119,9 @@ from the start of both, then from the end, so a line keeps the opening a stray p
 taken from it.
 
 [`utils/structural/units.ts`](../utils/structural/units.ts) reads each parse for its
-units: the syntax nodes that have their lines to themselves. After the diff, the engine
-sets aside the tokens of each unit changed whole whose parent node was not, as a block
-that left or arrived, and those of a region whose diff passes `maxEditLength`, which is
-changed whole on both sides. It also sets aside a unit the line diff slid: one changed all
-but its last (or first) few tokens, where the changed tokens just before (or after) it end
-(or start) with the same keys, which it reads as the tokens that stayed, so the unit
-counts as changed whole. Every other changed token changed inside a unit that remains, and
-the engine lists those tokens' lines in `StructuralChanges.inside`. `structuralFile`
-copies the list onto each line's annotation as `inside`. A `.txt` file has no units and no
-list.
+units: the syntax nodes that have their lines to themselves.
+[`named-values.ts`](../utils/structural/named-values.ts) takes the innermost of them as
+the statements it pairs. A `.txt` file has no units.
 
 The content script in [`entrypoints/content/index.ts`](../entrypoints/content/index.ts)
 runs on every github.com page at `document_start`, so its watcher is in place before
@@ -1067,9 +1060,8 @@ and whenever it changes.
 
 - **Marks** show a line's changed tokens. `markRanges` in
   [`diffs/structural-marks.ts`](../entrypoints/content/diffs/structural-marks.ts) joins
-  the tokens that have only whitespace between them. A line changed in full gets one mark
-  over its text when its annotation says `inside`, and otherwise no mark, so GitHub's line
-  tint alone shows it. Each mark is a `Range`.
+  the tokens that have only whitespace between them. A line changed in full gets no mark,
+  so GitHub's line tint alone shows it. Each mark is a `Range`.
 - **A mask draws each mark.** A marked line's `.diff-text-inner` carries
   `data-gh-prism-marks` and a `--gh-prism-marks` custom property: an SVG of padded,
   rounded rectangles that `maskOf` builds. The sheet,
@@ -1088,9 +1080,8 @@ and whenever it changes.
   sides, space-separated, and a painted table carries `data-gh-prism-structural`. The
   sheet keys on both.
 - **A row with a marked line** carries `data-gh-prism-part` with that side, in the same
-  form, whether the line changed in part or in full. The sheet steps its tint down as it
-  does a quiet row's. A line changed in full with no mark carries no attribute, and keeps
-  GitHub's tint at full strength.
+  form. The sheet steps its tint down as it does a quiet row's. A line changed in full
+  carries no attribute, and keeps GitHub's tint at full strength.
 - **A word GitHub's own diff picked keeps its syntax colour.** GitHub gives its `.x` spans
   a background and the line's plain colour. In a painted table the sheet clears the
   background and sets each span's colour back to its syntax class's.

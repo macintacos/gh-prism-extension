@@ -259,16 +259,27 @@ describe("paintStructural", () => {
     expect(line22.row.hasAttribute("data-gh-prism-part")).toBe(false);
   });
 
-  it("marks a line changed in full inside a unit that remains, and names its row's side", async () => {
-    const { diffs, line22 } = await paintLine22((cell) => ({
-      ...over(cell, "self.limit = limit;"),
-      inside: true,
-    }));
+  it("marks no line changed in full beside a line changed in part, and leaves its tint alone", async () => {
+    const diffs = mountDiffs(prSplit);
+    const table = tableAt(diffs);
+    const line21 = cellAt(table, "new", 21);
+    const line22 = cellAt(table, "new", 22);
+    files.set(
+      anchorOfTable(table),
+      fileOf(table, (cell) => {
+        if (sameLine(cell, line22)) return over(cell, "self.limit = limit;");
+        if (sameLine(cell, line21)) return over(cell, "limit");
+        return QUIET;
+      }),
+    );
+    paint(diffs);
+    await flush();
     sizes.deliver();
 
-    expect(allRanges().map(String)).toEqual(["self.limit = limit;"]);
-    expect([...diffs.querySelectorAll(MARKED)]).toEqual([line22.textRoot]);
-    expect(line22.row.getAttribute("data-gh-prism-part")).toBe("new");
+    expect(line21.row.getAttribute("data-gh-prism-part")).toBe("new");
+    expect(line22.textRoot.matches(MARKED)).toBe(false);
+    expect(line22.row.hasAttribute("data-gh-prism-quiet")).toBe(false);
+    expect(line22.row.hasAttribute("data-gh-prism-part")).toBe(false);
   });
 
   it("names the side of a row whose line changed in part", async () => {

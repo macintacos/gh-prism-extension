@@ -7,14 +7,9 @@ const inText = (text: string, { startCol, endCol }: ColumnRange) =>
 /**
  * The marks to draw on a line of `text` whose changed tokens are `ranges`, in column order: ranges
  * with only whitespace between them join into one mark, and a range outside `text` is dropped. A
- * line changed in full gets no mark when `inFull` is `"tint"`, since its line tint already says
- * so, and one mark over its text when `inFull` is `"mark"`.
+ * line changed in full gets no mark, since its line tint already says so.
  */
-export function markRanges(
-  text: string,
-  ranges: readonly ColumnRange[],
-  inFull: "tint" | "mark" = "tint",
-): ColumnRange[] {
+export function markRanges(text: string, ranges: readonly ColumnRange[]): ColumnRange[] {
   const marks: ColumnRange[] = [];
   for (const range of ranges) {
     if (!inText(text, range)) continue;
@@ -26,8 +21,6 @@ export function markRanges(
       };
     else marks.push(range);
   }
-
-  if (inFull === "mark") return marks;
 
   const [only, second] = marks;
   const whole =

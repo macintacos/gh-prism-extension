@@ -82,15 +82,9 @@ async function changedTexts(
 }
 
 /** `changes` with its old side as its new and its new as its old. */
-const sidesSwapped = ({
-  old,
-  new: added,
-  inside,
-  matches,
-}: StructuralChanges): StructuralChanges => ({
+const sidesSwapped = ({ old, new: added, matches }: StructuralChanges): StructuralChanges => ({
   old: added,
   new: old,
-  ...(inside && { inside: { old: inside.new, new: inside.old } }),
   ...(matches && {
     matches: matches
       .map(({ old, new: new_, count, shorter }) => ({ old: new_, new: old, count, shorter }))
@@ -476,7 +470,7 @@ describe("structuralChanges", () => {
 
     const result = await run(id, oldText, oldText, { regions: wholeFile(oldText) });
 
-    expect(changesOf(result)).toMatchObject({ old: [], new: [], inside: { old: [], new: [] } });
+    expect(changesOf(result)).toMatchObject({ old: [], new: [] });
   });
 
   it.each(PAIRS)("swaps the sides of a %s %s run backwards", async (id, name) => {
@@ -678,109 +672,8 @@ describe("structuralChanges", () => {
   });
 });
 
-/** The lines the engine found changed inside a unit that remains, for `oldText` against `newText`. */
-async function insideLines(id: GrammarId | typeof PLAIN_TEXT, oldText: string, newText: string) {
-  return changesOf(await run(id, oldText, newText)).inside;
-}
-
-describe("structuralChanges, lines inside a unit that remains", () => {
-  it("names the lines of the names removed from a wrapped import, not the statements deleted after it", async () => {
-    const oldText =
-      'import {\n  a,\n  b,\n  c,\n} from "./m";\n\nfunction gone() {\n  return a(b);\n}\n\nconst left = 1;\n';
-    const newText = 'import { c } from "./m";\n';
-
-    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [2, 3, 4], new: [] });
-  });
-
-  it("names the line of an argument removed from a call wrapped one argument a line", async () => {
-    const oldText = "run(\n  first,\n  second,\n  third,\n);\n";
-    const newText = "run(\n  first,\n  third,\n);\n";
-
-    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [3], new: [] });
-  });
-
-  it("names the line of a list's last entry, which no comma follows", async () => {
-    const oldText = "const o = {\n  a: 1,\n  b: 2\n};\n";
-    const newText = "const o = {\n  a: 1\n};\n";
-
-    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [2, 3], new: [] });
-  });
-
-  it("names no line of an entry on several lines removed from a list, only its comma's", async () => {
-    const oldText = "const l = [\n  1,\n  {\n    b: 2\n  }\n];\n";
-    const newText = "const l = [\n  1\n];\n";
-
-    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [2], new: [] });
-  });
-
-  it("names no line of an entry on several lines added to a list with its comma", async () => {
-    const oldText = "const l = [\n  1,\n];\n";
-    const newText = "const l = [\n  1,\n  {\n    b: 2,\n  },\n];\n";
-
-    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [], new: [] });
-  });
-
-  it("names no line of an entry removed from between two entries like it", async () => {
-    const entry = (id: string) => `  {\n    id: "${id}",\n    run: () => go("${id}"),\n  },\n`;
-    const oldText = `const l = [\n${entry("a")}${entry("b")}${entry("c")}];\n`;
-    const newText = `const l = [\n${entry("a")}${entry("c")}];\n`;
-    const regions = [{ oldStart: 6, oldEnd: 10, newStart: 6, newEnd: 6 }];
-
-    const result = await run("typescript", oldText, newText, { regions });
-
-    expect(changesOf(result).inside).toEqual({ old: [], new: [] });
-  });
-
-  it("names no line of a method deleted from a class", async () => {
-    const oldText =
-      "class A {\n  one() {\n    return 1;\n  }\n\n  two() {\n    return 2;\n  }\n}\n";
-    const newText = "class A {\n  one() {\n    return 1;\n  }\n}\n";
-
-    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [], new: [] });
-  });
-
-  it("names no line of a member deleted with the semicolon that ends it", async () => {
-    const oldText = "interface A {\n  one: number;\n  two(\n    a: string,\n  ): void;\n}\n";
-    const newText = "interface A {\n  one: number;\n}\n";
-
-    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [], new: [] });
-  });
-
-  it("names no line of a statement added to a function's body", async () => {
-    const oldText = "function f() {\n  a();\n}\n";
-    const newText = "function f() {\n  a();\n  b(\n    1,\n  );\n}\n";
-
-    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [], new: [] });
-  });
-
-  it("names the line that opens a deleted else branch, and no line of the branch's statements", async () => {
-    const oldText = "if (a) {\n  b();\n} else {\n  c();\n}\n";
-    const newText = "if (a) {\n  b();\n}\n";
-
-    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [3], new: [] });
-  });
-
-  it("names no line of a file added whole", async () => {
-    const newText = "import { a } from './a';\n\nexport const b = a(\n  1,\n);\n";
-
-    expect(await insideLines("typescript", "", newText)).toEqual({ old: [], new: [] });
-  });
-
-  it("names a Python argument's line, and no line of a deleted statement", async () => {
-    const oldText = "def f():\n    g(\n        a,\n        b,\n    )\n    h()\n    return 1\n";
-    const newText = "def f():\n    g(\n        a,\n    )\n    return 1\n";
-
-    expect(await insideLines("python", oldText, newText)).toEqual({ old: [4], new: [] });
-  });
-
-  it("names a comment's reworded line when the comment's other lines remain", async () => {
-    const oldText = "/**\n * Keeps this.\n * Drops every word here.\n */\nf();\n";
-    const newText = "/**\n * Keeps this.\n * Says something else entirely.\n */\nf();\n";
-
-    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [3], new: [3] });
-  });
-
-  it("names no line of a region rewritten past maxEditLength, whose function keeps its closing brace", async () => {
+describe("structuralChanges, units replaced whole", () => {
+  it("marks every token of a region rewritten past maxEditLength, the function's closing brace too", async () => {
     const oldText = "const keep = 1;\nfunction f() {\n  a(1);\n  b(2);\n}\n";
     const newText = "const keep = 1;\nclass G {\n  m() {}\n}\n";
 
@@ -789,87 +682,17 @@ describe("structuralChanges, lines inside a unit that remains", () => {
     const changes = changesOf(result);
     expect(unmarked(oldText, changes.old, 2, 4)).toEqual(["", "", ""]);
     expect(unmarked(newText, changes.new, 2, 3)).toEqual(["", ""]);
-    expect(changes.inside).toEqual({ old: [], new: [] });
   });
 
-  it("names no line of a test added before one whose title changed, and marks only the title's word", async () => {
+  it("marks only the changed word of a test's title when a test is added before it", async () => {
     const oldText = 'test("closes the old pane", () => {\n  close(pane);\n});\n';
     const newText =
       'test("opens a pane", () => {\n  open(pane, size);\n  expect(pane).toBe(1);\n});\n\ntest("closes the new pane", () => {\n  close(pane);\n});\n';
 
     const changes = changesOf(await run("typescript", oldText, newText));
 
-    expect(changes.inside).toEqual({ old: [1], new: [6] });
     expect(unmarked(oldText, changes.old, 1, 1)).toEqual(['test("closesthepane",()=>{']);
     expect(unmarked(newText, changes.new, 6, 6)).toEqual(['test("closesthepane",()=>{']);
-  });
-
-  it("names no line of a function replaced by a longer one holding an if and a return", async () => {
-    const oldText =
-      "function within(text: string, start: number, end: number): boolean {\n  if (end <= start) return false;\n}\n";
-    const newText =
-      "function lines(text: string, starts: readonly number[]) {\n  const first: number[] = [];\n  starts.forEach((at) => {\n    first.push(at);\n  });\n  const lineOf = (at: number): number => {\n    if ((starts[at] ?? 0) <= at) low = at;\n    return low;\n  };\n  return first;\n}\n";
-
-    expect(await insideLines("typescript", oldText, newText)).toEqual({ old: [1], new: [1] });
-  });
-
-  it("names no line of plain text, which has no units", async () => {
-    expect(await insideLines(PLAIN_TEXT, "one\ntwo\nthree\n", "one\nthree\n")).toBeUndefined();
-  });
-
-  describe("a unit the line diff slid by the tokens it shares with its neighbour", () => {
-    const one = "function a() {\n  one();\n}\n";
-    const two = "function a() {\n  one();\n}\nfunction b() {\n  two();\n}\n";
-    const slidIn = [{ oldStart: 3, oldEnd: 3, newStart: 3, newEnd: 6 }];
-
-    it("names no line of a function added after another, its closing line kept", async () => {
-      const result = await run("typescript", one, two, { regions: slidIn });
-
-      expect(changesOf(result).inside).toEqual({ old: [], new: [] });
-    });
-
-    it("names no line of a function removed after another, its closing line kept", async () => {
-      const result = await run("typescript", two, one, { regions: swapped(slidIn) });
-
-      expect(changesOf(result).inside).toEqual({ old: [], new: [] });
-    });
-
-    it("names no line of a block added before one that opens the same way, its opening line kept", async () => {
-      const oldText = "if (a) {\n  one();\n}\n";
-      const newText = "if (a) {\n  two();\n}\nif (a) {\n  one();\n}\n";
-      const regions = [{ oldStart: 2, oldEnd: 2, newStart: 2, newEnd: 5 }];
-
-      const result = await run("typescript", oldText, newText, { regions });
-
-      expect(changesOf(result).inside).toEqual({ old: [], new: [] });
-    });
-
-    it("names the line of a unit whose kept tokens match nothing changed before it", async () => {
-      expect(await insideLines("typescript", "x;\n", "go();\ny + x;\n")).toEqual({
-        old: [],
-        new: [2],
-      });
-    });
-
-    it("names no line of two functions added after another, the last closing line kept", async () => {
-      const three = `${two}function c() {\n  three();\n}\n`;
-      const regions = [{ oldStart: 3, oldEnd: 3, newStart: 3, newEnd: 9 }];
-
-      const result = await run("typescript", one, three, { regions });
-
-      expect(changesOf(result).inside).toEqual({ old: [], new: [] });
-    });
-
-    it("names no line of a call and a declaration added where the line diff slid the declaration", async () => {
-      const oldText = "const a = () => {\n  one();\n};\n";
-      const newText =
-        "const a = () => {\n  one();\n  b();\n};\n// b runs last\nconst b = () => {\n  two();\n};\n";
-      const regions = [{ oldStart: 3, oldEnd: 3, newStart: 3, newEnd: 8 }];
-
-      const result = await run("typescript", oldText, newText, { regions });
-
-      expect(changesOf(result).inside).toEqual({ old: [], new: [] });
-    });
   });
 });
 
