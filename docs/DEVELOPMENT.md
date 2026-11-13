@@ -216,15 +216,17 @@ then decides; and one run on a large virtualized commit page.
 ## Sandbox repositories
 
 `scripts/create-sandbox.sh <owner>/<repo>` creates a private repository under an account
-you control, with nine open pull requests. Small, large, and complicated survey GitHub's
+you control, with ten open pull requests. Small, large, and complicated survey GitHub's
 Files view on pull requests you own. Four more, one per comment syntax (Python, C-like,
 Go, and Lua), mix code with comment and docstring lines. The last two add files with long
 paths and a long file name, for checking how the comment-lines sub-section's tree and
 Implementation show them. The bodies of these six list the counts gh-prism should show for
 Implementation, Tests, and Docs & Comments, worked out by hand, so you can check them
-against the sidebar in either dev browser. It needs the `gh` CLI signed in. It skips the
-repository and each pull request that already exists, so a rerun picks up where it left
-off. A pull request that failed midway is the exception: fix it by hand.
+against the sidebar in either dev browser. The tenth, structural pairing, changes one
+Python file whose changed blocks GitHub pairs line by line from the top; its body lists
+the rows Structural mode should show in Split instead. It needs the `gh` CLI signed in. It
+skips the repository and each pull request that already exists, so a rerun picks up where
+it left off. A pull request that failed midway is the exception: fix it by hand.
 
 `scripts/create-codeowners-sandbox.sh excessive-dev/gh-prism-codeowners-sandbox` creates
 the code-owners sandbox, a public repository under the `excessive-dev` organization. It is
