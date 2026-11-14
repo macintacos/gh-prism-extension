@@ -13,6 +13,9 @@ import {
   type LayoutMenu,
   observeDiffs,
 } from "../files-page";
+import { followSideScroll } from "./side-scroll";
+// ?inline: a plain import would ship in the manifest, styling every github.com page.
+import css from "./wrap-lines.css?inline";
 
 export interface WrapLinesOptions {
   /** The saved choice, shared by every visit. */
@@ -41,9 +44,18 @@ export function showWrapLines(
     console.warn(`gh-prism: ${message}`);
   };
 
+  let unwrapped: AbortController | undefined;
   const apply = () => {
-    if (gate === "open" && !wrap.on) doc.documentElement.dataset.ghPrismWrap = "off";
-    else delete doc.documentElement.dataset.ghPrismWrap;
+    if (gate === "open" && !wrap.on) {
+      doc.documentElement.dataset.ghPrismWrap = "off";
+      if (unwrapped) return;
+      unwrapped = new AbortController();
+      followSideScroll(page, AbortSignal.any([signal, unwrapped.signal]));
+    } else {
+      delete doc.documentElement.dataset.ghPrismWrap;
+      unwrapped?.abort();
+      unwrapped = undefined;
+    }
   };
 
   const openGate = () => {
@@ -70,6 +82,10 @@ export function showWrapLines(
     });
     compact.after(item);
   };
+
+  const style = Object.assign(doc.createElement("style"), { textContent: css });
+  doc.head.append(style);
+  signal.addEventListener("abort", () => style.remove());
 
   observeDiffs(page.diffs, openGate, { signal });
   followLayoutMenu(doc, (menu) => gate !== "given up" && addItem(menu), { signal });

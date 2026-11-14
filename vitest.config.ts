@@ -9,6 +9,7 @@ export default defineConfig({
     css: {
       include: [
         /diffs\/order\.css/,
+        /diffs\/wrap-lines\.css/,
         /conversation\/frame\.css/,
         /conversation\/reviewer-files\.css/,
         /diffstat-view\.css/,

@@ -188,6 +188,26 @@ describe("showWrapLines", () => {
     expect(unwrapped()).toBe(true);
   });
 
+  it("keeps a line on one row in a sideways-scrolling box while unwrapped", () => {
+    show(pageOf("pr"), false);
+    const inner = document.querySelector(".diff-text-inner");
+    const box = document.querySelector("table[data-diff-anchor]")?.parentElement;
+    if (!inner || !box) throw new Error("fixture has no line");
+
+    expect(getComputedStyle(inner).whiteSpace).toBe("pre");
+    expect(getComputedStyle(box).overflowX).toBe("auto");
+  });
+
+  it("leaves lines and their box as GitHub draws them while wrapped", () => {
+    show(pageOf("pr"), true);
+    const inner = document.querySelector(".diff-text-inner");
+    const box = document.querySelector("table[data-diff-anchor]")?.parentElement;
+    if (!inner || !box) throw new Error("fixture has no line");
+
+    expect(getComputedStyle(inner).whiteSpace).not.toBe("pre");
+    expect(getComputedStyle(box).overflowX).not.toBe("auto");
+  });
+
   it("wraps again once the page is torn down", () => {
     show(pageOf("pr"), false);
 
