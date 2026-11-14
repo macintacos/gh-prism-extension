@@ -26,6 +26,7 @@ digraph gh_prism_docs_router {
     "Which doc does the change affect?" -> "Edit docs/ARCHITECTURE.md" [label="how gh-prism works: page kinds, the visit lifecycle, intent and its cache, section rows, diff order, styling, source layout"];
     "Which doc does the change affect?" -> "Edit docs/DEVELOPMENT.md" [label="developing gh-prism: setup, the dev browser, the task catalog, tests, the benchmark, the sandbox repositories, hooks, CI, patched dependencies"];
     "Which doc does the change affect?" -> "Edit docs/STRUCTURAL-DIFFS.md" [label="what a structural diff is and how Structural mode works, for people using it"];
+    "Which doc does the change affect?" -> "Re-check the sandbox showcase pull requests" [label="what Structural mode shows on a diff: its marks, its quiet lines, which old line sits opposite which new line"];
     "Which doc does the change affect?" -> "Edit design/" [label="gh-prism's design direction: the brief, tokens, patterns, departures from the /taste defaults, dated design picks"];
     "Which doc does the change affect?" -> "Edit .claude/skills/release-gh-prism/SKILL.md" [label="the release skill: computing, confirming, and dispatching a release, the release notes"];
     "Which doc does the change affect?" -> "Edit a docs/agents/*-rules.md rule file" [label="a rule for a code area that AGENTS.md routes to"];
@@ -63,6 +64,15 @@ digraph gh_prism_docs_router {
   for people using gh-prism. Shipped builds link to it, so its path never changes. How to
   edit it: [`references/structural-diffs.md`](references/structural-diffs.md). It changes
   with Structural mode's behaviour and with `README.md` § Structural diffs (Beta).
+- **The sandbox showcase pull requests**: five stacked pull requests on
+  `macintacos/gh-prism-sandbox`, from
+  <https://github.com/macintacos/gh-prism-sandbox/pull/13> to
+  <https://github.com/macintacos/gh-prism-sandbox/pull/18>. They are living documentation
+  for people using gh-prism: `docs/STRUCTURAL-DIFFS.md` sends readers to them, and each
+  body says, file by file, what Structural mode shows. The bodies live on GitHub, not in
+  this repository. How to edit them:
+  [`references/showcase-prs.md`](references/showcase-prs.md). They change with Structural
+  mode's behaviour, as `docs/STRUCTURAL-DIFFS.md` does.
 - **`design/`**: gh-prism's design direction, for coding agents changing how it looks,
   moves, or reads, and the people who maintain that direction. Its entry file,
   `design/README.md`, routes to the other files in it. How to edit it:
