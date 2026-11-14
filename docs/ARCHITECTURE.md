@@ -987,6 +987,36 @@ not the page: on a commit page GitHub's client mount replaces the markup and scr
 the top after the cover lifts, so the hold re-finds the line in whatever markup shows,
 until the user scrolls, clicks, or types, or 5 s pass.
 
+## Wrap lines
+
+[`entrypoints/content/diffs/wrap-lines.ts`](../entrypoints/content/diffs/wrap-lines.ts)
+adds a "Wrap lines" item to GitHub's diff settings menu, right after Compact line height,
+on every open that `followLayoutMenu` in
+[`files-page.ts`](../entrypoints/content/files-page.ts) reports. The item is a copy of
+Compact line height, which `findCompactLineHeight` finds, made by `copyMenuItem`.
+`followLayoutMenu` and `followFilterMenu` share one private loop, `followMenu`. The item
+saves the choice to `sync:wrapLines` in [`utils/prefs.ts`](../utils/prefs.ts), where a
+missing value means wrapped. While the item is unchecked, `wrap-lines.ts` sets
+`data-gh-prism-wrap="off"` on `<html>`. `diffs/wrap-lines.css` keys every rule on that
+attribute, so files that render later come up unwrapped with no per-row work.
+`wrap-lines.ts` sets the attribute only once it finds the layout gear, so a page without
+the gear never unwraps with no way back. When the gear is missing, or a menu opens without
+Compact line height, diffs stay wrapped and gh-prism logs one warning.
+
+While the page is unwrapped, `wrap-lines.ts` runs
+[`diffs/side-scroll.ts`](../entrypoints/content/diffs/side-scroll.ts). It measures each
+side's reach, how far its widest line runs past its cell, with one `ResizeObserver` per
+diff table. One passive, capturing scroll listener on the diff list follows each file
+box's `scrollLeft`. The observer writes each side's reach, and the listener the scroll
+offset, as custom properties on the file's box, the table's parent.
+
+The sheet makes that box scroll sideways over an empty `::after` strip as wide as the
+file's larger reach. The table is `position: sticky; left: 0`, so it stays put, and line
+numbers and +/− markers with it. Each line's text shifts left by the smaller of the scroll
+and its own side's reach, and is clipped clear of the +/− marker. In Split and Structural
+mode, both sides of a file share one box, so they scroll together, and a narrower side
+stops at its own end.
+
 ## Structural painter
 
 [`entrypoints/content/diffs/structural.ts`](../entrypoints/content/diffs/structural.ts)
@@ -1220,12 +1250,12 @@ entrypoints/
   conversation-frame.content.ts  content script in the Conversation panel's frame
   content/
     index.ts             content script entry: wires the watchers, intent, and views
-    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; Conversation and Files changed comments' authors; a commit's message box and the row its message column joins; the toolbar row the Conversation button or a commit's message toggle starts; a diff's changed cells, its layout, and the layout gear
+    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; Conversation and Files changed comments' authors; a commit's message box and the row its message column joins; the toolbar row the Conversation button or a commit's message toggle starts; a diff's changed cells, its layout, and the layout gear; the diff settings menu and its Compact line height item
     commit/              a commit's message rendered as Markdown in GitHub's box's place, or in a resizable column beside the diffs, with its switch back to GitHub's box and the toolbar toggle that hides it; a conventional title's type label
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
-    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet; structural-files.ts, a visit's structural answers; structural-mode.ts, Structural mode on a page; structural-notices.ts and structural-notices.css, its per-file notices and loading line; view-control.ts and view-control.css, the Unified, Split, and Structural control before the layout gear; structural-intro.ts, the Structural segment's popover and popup
+    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet; structural-files.ts, a visit's structural answers; structural-mode.ts, Structural mode on a page; structural-notices.ts and structural-notices.css, its per-file notices and loading line; view-control.ts and view-control.css, the Unified, Split, and Structural control before the layout gear; structural-intro.ts, the Structural segment's popover and popup; wrap-lines.ts and wrap-lines.css, the Wrap lines item and the unwrapped view; side-scroll.ts, each file's sideways scroll
     header/              diffstat breakout
     conversation/        a code owner's files popup and gh-prism's shield, in the Reviewers lists and beside Conversation and Files changed comment authors; the Conversation panel and its button, dressing its frame, and the messages the frame posts
     ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, column separator, view-transition glide, keycaps and the Shift+\ toolbar button, a visit's press guard for controls GitHub re-mounts mid-press, Tailwind tokens
