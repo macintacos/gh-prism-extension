@@ -1,0 +1,459 @@
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import {
+  type BrowserContext,
+  test as base,
+  chromium,
+  expect,
+  firefox,
+  type Page,
+} from "@playwright/test";
+import { withExtension } from "playwright-webextext";
+import { MARKS_ATTR } from "../entrypoints/content/diffs/structural-attrs";
+import { installLayoutMenu } from "../tests/fixtures/layout-menu";
+import type { StructuralHarness } from "./structural-page";
+
+const CHROME_EXTENSION = join(import.meta.dirname, "../.output/chrome-mv3");
+const FIREFOX_EXTENSION = join(import.meta.dirname, "../.output/firefox-mv3");
+const PR_URL = "https://github.com/o/r/pull/1/changes";
+const ANCHOR = "diff-ff278ec599adfd033d35a083ebe8948db8bf177c9817dee8ddc4f3a9e3f5728e";
+
+const readFixture = (name: string) =>
+  readFileSync(join(import.meta.dirname, "../tests/fixtures", name), "utf8");
+const MENU = readFixture("layout-menu-pr.html");
+const TABLES = {
+  // Changes both sides, so its three columns can only be Unified.
+  unified: readFixture("files-page-diff-rename.html"),
+  split: readFixture("files-page-diff-split.html"),
+};
+const TOOLBAR = readFixture("files-page-toolbar.html").replace(
+  'aria-haspopup="true" aria-expanded="true"',
+  'aria-haspopup="true" aria-expanded="false"',
+);
+
+type Layout = keyof typeof TABLES;
+
+/**
+ * The pull request page with the captured toolbar, gear and all, and one diff table in `layout`.
+ * The fixture loads no GitHub sheet, so it stands in for the two rules that fit a table to its file.
+ */
+const FIT_TABLES =
+  '<style>.width-full { width: 100%; } [class*="tableLayoutFixed"] { table-layout: fixed; }</style>';
+const pageBody = (layout: Layout) =>
+  `<!doctype html>${FIT_TABLES}${readFixture("files-page.html")}`
+    .replace(/<section class="toolbar__ztHN6">[\s\S]*?<\/section>/, TOOLBAR)
+    .replace(/(<div role="region" id="diff-ff278[^"]*">)/, `$1${TABLES[layout]}`);
+
+const test = base.extend<{ context: BrowserContext }>({
+  context: async ({ browserName }, use) => {
+    const profile = await mkdtemp(join(tmpdir(), "gh-prism-e2e-"));
+    const context = await (browserName === "firefox"
+      ? withExtension(firefox, FIREFOX_EXTENSION).launchPersistentContext(profile, {
+          proxy: { server: "http://127.0.0.1:9" },
+        })
+      : chromium.launchPersistentContext(profile, {
+          channel: "chromium",
+          args: [
+            `--disable-extensions-except=${CHROME_EXTENSION}`,
+            `--load-extension=${CHROME_EXTENSION}`,
+          ],
+        }));
+    await context.route("https://github.com/**", (route) => route.fulfill({ status: 404 }));
+
+    await use(context);
+
+    await context.close();
+    await rm(profile, { recursive: true, force: true });
+  },
+});
+
+declare const window: Window & {
+  readonly structural: StructuralHarness;
+  readonly unwrapDiffs: () => void;
+};
+
+/**
+ * The structural painter's harness, with `unwrapDiffs()` mounting `wrap-lines.css` unwrapped and
+ * following `#diffs` with `side-scroll.ts`. A content script's painter can't be reached on a routed
+ * page, which has no repository to compare.
+ */
+const structuralBundle = (() => {
+  let built: string | undefined;
+  return () => {
+    if (built) return built;
+    const root = join(import.meta.dirname, "..");
+    const entry = join(mkdtempSync(join(tmpdir(), "gh-prism-wrap-")), "entry.ts");
+    writeFileSync(
+      entry,
+      `import "${root}/e2e/structural-page.ts";
+import { followSideScroll } from "${root}/entrypoints/content/diffs/side-scroll";
+import css from "${root}/entrypoints/content/diffs/wrap-lines.css?inline";
+(window as any).unwrapDiffs = () => {
+  document.head.append(Object.assign(document.createElement("style"), { textContent: css }));
+  document.documentElement.dataset.ghPrismWrap = "off";
+  followSideScroll({ diffs: document.querySelector("#diffs") } as any, new AbortController().signal);
+};`,
+    );
+    built = execFileSync("bun", [join(root, "bench/bundle.ts"), entry], {
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    rmSync(dirname(entry), { recursive: true, force: true });
+    return built;
+  };
+})();
+
+const toHundredths = (px: number) => Math.round(px * 100) / 100 + 0;
+
+const gear = (page: Page) => page.locator("button:has(.octicon-gear)");
+const wrapItem = (page: Page) => page.getByRole("menuitemcheckbox", { name: "Wrap lines" });
+const segment = (page: Page, name: "Unified" | "Split" | "Structural") =>
+  page
+    .getByRole("list", { name: "Diff view" })
+    .getByRole("button", { name: name === "Structural" ? /^Structural/ : name });
+
+/**
+ * Moves focus through the open menu's items on ArrowDown and ArrowUp, as Primer's menu does; the
+ * stand-in Layout menu plays only clicks.
+ */
+function installMenuArrows(): void {
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    const menu = (event.target as Element | null)?.closest?.('ul[role="menu"]');
+    if (!menu) return;
+    const items = [...menu.querySelectorAll<HTMLElement>('[role^="menuitem"]')].filter((item) =>
+      item.checkVisibility(),
+    );
+    const at = items.indexOf(event.target as HTMLElement);
+    const step = event.key === "ArrowDown" ? 1 : -1;
+    items[(at + step + items.length) % items.length]?.focus();
+    event.preventDefault();
+  });
+}
+
+/**
+ * Serves the pull request page with a stand-in gear menu at a width where some lines overflow,
+ * and opens it with the cover lifted and the Structural popup closed. Returns every
+ * `/users/diffview` request.
+ */
+async function openPage(context: BrowserContext, page: Page, layout: Layout = "split") {
+  const diffviews: string[] = [];
+  await context.route(PR_URL, (route) =>
+    route.fulfill({ contentType: "text/html", body: pageBody(layout) }),
+  );
+  await context.route("https://github.com/users/diffview", (route) => {
+    diffviews.push(route.request().postData() ?? "");
+    return route.fulfill({ status: 200, body: "" });
+  });
+  await page.setViewportSize({ width: 900, height: 720 });
+  await page.addInitScript(installLayoutMenu, { menu: MENU, tables: TABLES });
+  await page.addInitScript(installMenuArrows);
+
+  await page.goto(PR_URL);
+  await settle(page);
+  return diffviews;
+}
+
+/** Waits for the cover to lift and closes the Structural popup, which sits over the toolbar. */
+async function settle(page: Page) {
+  await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-diffs", "covered");
+  await segment(page, "Structural").scrollIntoViewIfNeeded();
+  const close = page.locator(".gh-prism-structural-popup button[aria-label=Close]");
+  if (await close.isVisible()) await close.click();
+}
+
+/** Opens the gear and clicks "Wrap lines", waiting for the menu to close. */
+async function toggleWrap(page: Page) {
+  await gear(page).click();
+  await wrapItem(page).click();
+  await expect(wrapItem(page)).toHaveCount(0);
+}
+
+async function unwrap(page: Page) {
+  await toggleWrap(page);
+  await expect(page.locator("html")).toHaveAttribute("data-gh-prism-wrap", "off");
+}
+
+const whiteSpaces = (page: Page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll("table[data-diff-anchor] .diff-text-inner")].map(
+      (inner) => getComputedStyle(inner).whiteSpace,
+    ),
+  );
+
+/** Each diff table's scrolling box: how far it can scroll sideways. */
+const scrollRanges = (page: Page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll("table[data-diff-anchor]")].map(({ parentElement: box }) =>
+      box ? box.scrollWidth - box.clientWidth : 0,
+    ),
+  );
+
+/** Scrolls the first table's box to `x`, then waits a frame for the shift to paint. */
+const scrollFileTo = (page: Page, x: number) =>
+  page.evaluate(async (x) => {
+    const box = document.querySelector("table[data-diff-anchor]")?.parentElement;
+    if (!box) throw new Error("no diff table");
+    box.scrollLeft = x;
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  }, x);
+
+/**
+ * The first table's geometry: its left edge, every number cell's and marker's x, each hunk row's
+ * width, and each side's text x and reach.
+ */
+const geometry = (page: Page) =>
+  page.evaluate(() => {
+    const table = document.querySelector("table[data-diff-anchor]");
+    const box = table?.parentElement;
+    if (!table || !box) throw new Error("no diff table");
+    const x = (node: Element) => node.getBoundingClientRect().x;
+    const textX = (side: string) =>
+      [...table.querySelectorAll(`td.${side}-side-diff-cell .diff-text-inner`)].map(x);
+    const reach = (side: string) =>
+      Number.parseFloat(box.style.getPropertyValue(`--gh-prism-reach-${side}`)) || 0;
+    return {
+      table: x(table),
+      numbers: [...table.querySelectorAll('td[class*="line-number"]')].map(x),
+      markers: [...table.querySelectorAll(".diff-text-marker")].map(x),
+      hunks: [...table.querySelectorAll("td.diff-hunk-cell")].map(
+        (cell) => cell.getBoundingClientRect().width,
+      ),
+      old: { text: textX("left"), reach: reach("old") },
+      new: { text: textX("right"), reach: reach("new") },
+      scrollLeft: box.scrollLeft,
+    };
+  });
+
+/** A copy of the page's diff region under a new anchor, appended after it, as a file that loads late. */
+const addFile = (page: Page, anchor: string) =>
+  page.evaluate(
+    ({ from, anchor }) => {
+      const region = document.getElementById(from);
+      if (!region) throw new Error("no diff region");
+      const copy = region.cloneNode(true) as HTMLElement;
+      copy.id = anchor;
+      copy.querySelector("table")?.setAttribute("data-diff-anchor", anchor);
+      region.after(copy);
+    },
+    { from: ANCHOR, anchor },
+  );
+
+test("Wrap lines is a checked item after Compact line height that Space unchecks from the keyboard", async ({
+  context,
+  page,
+}) => {
+  await openPage(context, page);
+  await gear(page).click();
+  await expect(page.locator("#__primerPortalRoot__ :focus")).toHaveCount(1);
+  const items = await page.locator('#__primerPortalRoot__ [role^="menuitem"]').count();
+
+  const onWrap = () => wrapItem(page).evaluate((item) => item === document.activeElement);
+  for (let n = 0; n < items && !(await onWrap()); n++) await page.keyboard.press("ArrowDown");
+
+  await expect(wrapItem(page)).toBeFocused();
+  await expect(wrapItem(page)).toHaveAttribute("aria-checked", "true");
+  const before = await wrapItem(page).evaluate((item) =>
+    item.previousElementSibling?.textContent?.trim(),
+  );
+  expect(before).toBe("Compact line height");
+
+  await page.keyboard.press(" ");
+
+  await expect(wrapItem(page)).toHaveCount(0);
+  await expect(gear(page)).toBeFocused();
+  await expect(page.locator("html")).toHaveAttribute("data-gh-prism-wrap", "off");
+});
+
+test("unchecking Wrap lines keeps every code line on one row, and an overflowing file scrolls sideways", async ({
+  context,
+  page,
+}) => {
+  await openPage(context, page);
+
+  await unwrap(page);
+
+  await expect.poll(() => whiteSpaces(page)).not.toContain("normal");
+  expect(new Set(await whiteSpaces(page))).toEqual(new Set(["pre"]));
+  await expect.poll(async () => (await scrollRanges(page))[0]).toBeGreaterThan(0);
+});
+
+test("scrolling a split file sideways shifts both sides' text together while numbers, markers, and hunks hold still", async ({
+  context,
+  page,
+}) => {
+  await openPage(context, page);
+  await unwrap(page);
+  await expect.poll(async () => (await scrollRanges(page))[0]).toBeGreaterThan(0);
+  const rest = await geometry(page);
+  const expectShifted = (moved: Awaited<ReturnType<typeof geometry>>) => {
+    expect(toHundredths(moved.table)).toBe(toHundredths(rest.table));
+    expect(moved.numbers.map(toHundredths)).toEqual(rest.numbers.map(toHundredths));
+    expect(moved.markers.map(toHundredths)).toEqual(rest.markers.map(toHundredths));
+    expect(moved.hunks.map(toHundredths)).toEqual(rest.hunks.map(toHundredths));
+    for (const side of ["old", "new"] as const) {
+      const shift = Math.min(moved.scrollLeft, rest[side].reach);
+      expect(moved[side].text.map(toHundredths)).toEqual(
+        rest[side].text.map((x) => toHundredths(x - shift)),
+      );
+    }
+  };
+
+  await scrollFileTo(page, 40);
+  const set = await geometry(page);
+  expect(set.scrollLeft).toBeGreaterThan(0);
+  expectShifted(set);
+
+  await scrollFileTo(page, 0);
+  await page.locator("table[data-diff-anchor] td.diff-text-cell").first().hover();
+  await page.mouse.wheel(30, 0);
+  await expect.poll(async () => (await geometry(page)).scrollLeft).toBeGreaterThan(0);
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  );
+  expectShifted(await geometry(page));
+});
+
+test("scrolling one unified file sideways leaves another file's offset alone", async ({
+  context,
+  page,
+}) => {
+  await openPage(context, page, "unified");
+  // The rename's lines are short; one long line makes both copies overflow.
+  await page.evaluate(() => {
+    document
+      .querySelector("table[data-diff-anchor] .diff-text-inner")
+      ?.append(" // a comment long enough to run past the cell".repeat(8));
+  });
+  await addFile(page, "diff-0b7e");
+  await unwrap(page);
+  await expect.poll(async () => (await scrollRanges(page))[0]).toBeGreaterThan(0);
+
+  await scrollFileTo(page, 30);
+
+  const offsets = await page.evaluate(() =>
+    [...document.querySelectorAll("table[data-diff-anchor]")].map((table) =>
+      table.parentElement?.style.getPropertyValue("--gh-prism-x"),
+    ),
+  );
+  expect(offsets).toEqual(["30px", ""]);
+});
+
+test("a file that loads after Wrap lines is unchecked comes up unwrapped and measured", async ({
+  context,
+  page,
+}) => {
+  await openPage(context, page);
+  await unwrap(page);
+
+  await addFile(page, "diff-0b7e");
+
+  const late = page.locator("#diff-0b7e");
+  await expect
+    .poll(() => late.evaluate((region) => region.style.getPropertyValue("--gh-prism-reach")))
+    .toMatch(/px$/);
+  const spaces = await late.evaluate((region) =>
+    [...region.querySelectorAll(".diff-text-inner")].map(
+      (inner) => getComputedStyle(inner).whiteSpace,
+    ),
+  );
+  expect(new Set(spaces)).toEqual(new Set(["pre"]));
+});
+
+test("a review thread in a line's cell holds its place while the file scrolls sideways", async ({
+  context,
+  page,
+}) => {
+  await openPage(context, page);
+  await page.evaluate(() => {
+    const code = document.querySelector("table[data-diff-anchor] td.diff-text-cell code");
+    const thread = Object.assign(document.createElement("div"), {
+      id: "thread",
+      textContent: "A review comment",
+    });
+    code?.after(thread);
+  });
+  await unwrap(page);
+  await expect.poll(async () => (await scrollRanges(page))[0]).toBeGreaterThan(0);
+  const rest = await page.locator("#thread").boundingBox();
+
+  await scrollFileTo(page, 40);
+
+  const moved = await page.locator("#thread").boundingBox();
+  expect(moved && [moved.x, moved.width].map(toHundredths)).toEqual(
+    rest && [rest.x, rest.width].map(toHundredths),
+  );
+});
+
+test("Wrap lines stays unchecked across a reload, and checking it wraps the diffs again", async ({
+  context,
+  page,
+}) => {
+  await openPage(context, page);
+  await unwrap(page);
+
+  await page.reload();
+  await settle(page);
+
+  await expect(page.locator("html")).toHaveAttribute("data-gh-prism-wrap", "off");
+  await expect.poll(() => whiteSpaces(page)).not.toContain("normal");
+  await gear(page).click();
+  await expect(wrapItem(page)).toHaveAttribute("aria-checked", "false");
+  await wrapItem(page).click();
+  await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-wrap");
+  expect(new Set(await whiteSpaces(page))).toEqual(new Set(["normal"]));
+  expect(Math.max(...(await scrollRanges(page)))).toBeLessThanOrEqual(0);
+});
+
+test("toggling Wrap lines never saves GitHub's diff settings", async ({ context, page }) => {
+  const diffviews = await openPage(context, page);
+
+  await unwrap(page);
+  await toggleWrap(page);
+  await expect(page.locator("html")).not.toHaveAttribute("data-gh-prism-wrap");
+
+  expect(diffviews).toEqual([]);
+});
+
+test("Structural's marked lines stay as wide as their text and shift with their row while unwrapped", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 700, height: 720 });
+  await page.setContent(
+    `<!doctype html>${FIT_TABLES}<div id="diffs"><div>${TABLES.split}</div></div>`,
+  );
+  await page.addScriptTag({ content: structuralBundle() });
+  await page.evaluate(() => window.structural.start());
+  const marked = page.locator(`table[data-diff-anchor] [${MARKS_ATTR}]`);
+  await expect.poll(() => marked.count()).toBeGreaterThan(0);
+  const rows = await page.locator("table[data-diff-anchor] tr").count();
+
+  await page.evaluate(() => window.unwrapDiffs());
+  await expect.poll(async () => (await scrollRanges(page))[0]).toBeGreaterThan(0);
+  const rest = await geometry(page);
+
+  await scrollFileTo(page, 40);
+
+  const moved = await geometry(page);
+  for (const side of ["old", "new"] as const) {
+    const shift = Math.min(moved.scrollLeft, rest[side].reach);
+    expect(moved[side].text.map(toHundredths)).toEqual(
+      rest[side].text.map((x) => toHundredths(x - shift)),
+    );
+  }
+  const widths = await marked.evaluateAll((inners) =>
+    inners.map((inner) => {
+      const range = document.createRange();
+      range.selectNodeContents(inner);
+      return {
+        width: (inner as HTMLElement).offsetWidth,
+        text: range.getBoundingClientRect().width,
+      };
+    }),
+  );
+  for (const { width, text } of widths) expect(width).toBeGreaterThanOrEqual(Math.floor(text));
+  expect(await page.locator("table[data-diff-anchor] tr").count()).toBe(rows);
+});
