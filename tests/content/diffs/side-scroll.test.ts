@@ -34,12 +34,20 @@ describe("followSideScroll", () => {
     return box;
   }
 
-  /** Lays every line of `box` out `width` wide in cells `room` wide; happy-dom lays nothing out. */
-  function layOut(box: HTMLElement, { width, room }: { width: number; room: number }) {
+  /**
+   * Lays every line of `box` out `width` wide in code `room` wide that starts `codeLeft` into its
+   * cell; happy-dom lays nothing out.
+   */
+  function layOut(
+    box: HTMLElement,
+    { width, room, codeLeft = 0 }: { width: number; room: number; codeLeft?: number },
+  ) {
     for (const inner of box.querySelectorAll(".diff-text-inner"))
       Object.defineProperty(inner, "offsetWidth", { configurable: true, value: width });
-    for (const cell of box.querySelectorAll("td.diff-text-cell"))
-      Object.defineProperty(cell, "clientWidth", { configurable: true, value: room });
+    for (const code of box.querySelectorAll("td.diff-text-cell > code.diff-text")) {
+      Object.defineProperty(code, "offsetLeft", { configurable: true, value: codeLeft });
+      Object.defineProperty(code, "clientWidth", { configurable: true, value: room });
+    }
   }
 
   beforeEach(() => {
@@ -80,6 +88,16 @@ describe("followSideScroll", () => {
       "200px",
       "200px",
     ]);
+  });
+
+  it("measures a line's reach past its code's right edge, not its cell's", () => {
+    const box = mountFile();
+    layOut(box, { width: 500, room: 280, codeLeft: 20 });
+    followSideScroll(page, controller.signal);
+
+    observer.deliver();
+
+    expect(box.style.getPropertyValue("--gh-prism-reach")).toBe("200px");
   });
 
   it("measures a table that mounts later", async () => {

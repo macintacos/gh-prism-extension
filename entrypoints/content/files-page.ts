@@ -1354,10 +1354,10 @@ export const fileBox = (table: HTMLTableElement): HTMLElement | null => table.pa
 export const isFileBox = (el: Element): boolean =>
   el.querySelector(":scope > table[data-diff-anchor]") !== null;
 
-/** One line of a diff's code: its text, the cell that holds it, and its side. */
+/** One line of a diff's code: its text, the `code.diff-text` that holds it, and its side. */
 export interface CodeLine {
   readonly inner: HTMLElement;
-  readonly cell: HTMLTableCellElement;
+  readonly code: HTMLElement;
   readonly side: "old" | "new";
 }
 
@@ -1367,9 +1367,10 @@ export interface CodeLine {
  */
 export function* codeLines({ table, layout }: DiffTable): Generator<CodeLine> {
   for (const cell of table.querySelectorAll<HTMLTableCellElement>("td.diff-text-cell")) {
-    const inner = cell.querySelector<HTMLElement>(".diff-text-inner");
-    if (!inner) continue;
-    yield { inner, cell, side: layout === "split" && cell.cellIndex === 1 ? "old" : "new" };
+    const code = cell.querySelector<HTMLElement>(":scope > code.diff-text");
+    const inner = code?.querySelector<HTMLElement>(".diff-text-inner");
+    if (!code || !inner) continue;
+    yield { inner, code, side: layout === "split" && cell.cellIndex === 1 ? "old" : "new" };
   }
 }
 

@@ -693,10 +693,17 @@ on a private one.
   `<html>` reaches every row as it renders, with no per-row work, and a `ResizeObserver`
   on a table that hasn't rendered yet first fires once it renders (Chromium and Firefox,
   signed in, 2026-11-14).
-- **Clip a line on its `td.diff-text-cell`, not its code.** GitHub draws `code.diff-text`
-  inline, so `overflow` set on it does nothing. A line's `.diff-text-inner` has that `td`
-  as its offset parent, so its `offsetLeft` and `offsetWidth` measure the line against its
-  cell's `clientWidth` (Chromium and Firefox, signed in, 2026-11-14).
+- **Clip a line on its code, not its `td.diff-text-cell`, and make the code a block to do
+  it.** GitHub draws `code.diff-text` inline, so `overflow` set on it does nothing until
+  it is `display: block`. The `td` holds GitHub's absolutely positioned add-comment button
+  at `left: -11px`, its action bar, and its inline markers row, which hang past the cell's
+  edges, so a clip on the `td` cuts all of them. The code ends about 24px inside the cell,
+  the strip the action bar sits in. GitHub sets the `td` to `position: relative`, so it is
+  the offset parent of both the code and its `.diff-text-inner`. Measure a line's reach,
+  the inner's `offsetLeft + offsetWidth`, against the code's `offsetLeft + clientWidth`,
+  not the cell's `clientWidth`. A fixture without GitHub's sheet must position the `td`
+  too: in Firefox, a static `td` is the code's offset parent but not the inner's, which
+  then measures from the table (Chromium and Firefox, signed in, 2026-11-14).
 - **Test the menu against the captured menus:** `tests/fixtures/layout-menu-pr.html` and
   `tests/fixtures/layout-menu-commit.html`, each opened from the gear with Unified saved.
 - **Test the gear against the captured toolbars:**

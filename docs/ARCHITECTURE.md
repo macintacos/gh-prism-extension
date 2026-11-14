@@ -1006,18 +1006,20 @@ Compact line height, diffs stay wrapped and gh-prism logs one warning.
 
 While the page is unwrapped, `wrap-lines.ts` runs
 [`diffs/side-scroll.ts`](../entrypoints/content/diffs/side-scroll.ts). It measures each
-side's reach, how far its widest line runs past its cell, with one `ResizeObserver`
-watching every diff table. It reads lines through `codeLines` in `files-page.ts`, which
-skips hunk headers and takes a line's side from its position: only the old code cell of a
-split row, the second of its four cells, is old. One passive, capturing scroll listener on
-the diff list follows each file box's `scrollLeft`. The observer writes each side's reach,
-and the listener the scroll offset, as custom properties on the file's box, which
-`fileBox` and `isFileBox` find.
+side's reach, how far its widest line runs past its code's right edge, with one
+`ResizeObserver` watching every diff table. It reads lines through `codeLines` in
+`files-page.ts`, which skips hunk headers and takes a line's side from its position: only
+the old code cell of a split row, the second of its four cells, is old. One passive,
+capturing scroll listener on the diff list follows each file box's `scrollLeft`. The
+observer writes each side's reach, and the listener the scroll offset, as custom
+properties on the file's box, which `fileBox` and `isFileBox` find.
 
 The sheet makes that box scroll sideways over an empty `::after` strip as wide as the
 file's larger reach. The table is `position: sticky; left: 0`, so it stays put, and line
 numbers and +/− markers with it. Each line's text shifts left by the smaller of the scroll
-and its own side's reach, and is clipped clear of the +/− marker. In Split and Structural
+and its own side's reach, and is clipped clear of the +/− marker. The sheet clips each
+line on its `code.diff-text`, not its cell, so GitHub's add-comment button, action bar,
+and inline markers, which hang past the cell's edges, stay whole. In Split and Structural
 mode, both sides of a file share one box, so they scroll together, and a narrower side
 stops at its own end. Hunk headers stay wrapped and don't shift. Structural's notice and
 loading line share the box with the table, and the box is their scroll container, so the

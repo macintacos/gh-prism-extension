@@ -37,9 +37,12 @@ const TOOLBAR = readFixture("files-page-toolbar.html").replace(
 
 type Layout = keyof typeof TABLES;
 
-/** The fixture loads no GitHub sheet, so this stands in for the two rules that fit a table to its file. */
+/**
+ * The fixture loads no GitHub sheet, so this stands in for the two rules that fit a table to its
+ * file, and the one that positions a code cell, which makes it its line's offset parent in Firefox.
+ */
 const FIT_TABLES =
-  '<style>.width-full { width: 100%; } [class*="tableLayoutFixed"] { table-layout: fixed; }</style>';
+  '<style>.width-full { width: 100%; } [class*="tableLayoutFixed"] { table-layout: fixed; } td.diff-text-cell { position: relative; }</style>';
 /** The pull request page with the captured toolbar, gear and all, and one diff table in `layout`. */
 const pageBody = (layout: Layout) =>
   `<!doctype html>${FIT_TABLES}${readFixture("files-page.html")}`
@@ -398,6 +401,77 @@ test("a review thread in a line's cell holds its place while the file scrolls si
   expect(moved && [moved.x, moved.width].map(toHundredths)).toEqual(
     rest && [rest.x, rest.width].map(toHundredths),
   );
+});
+
+test("a line's add-comment button, hung past its cell's left edge, stays whole while unwrapped", async ({
+  context,
+  page,
+}) => {
+  await openPage(context, page);
+  await page.evaluate(() => {
+    const cell = document.querySelector<HTMLElement>("table[data-diff-anchor] td.diff-text-cell");
+    if (!cell) throw new Error("no code cell");
+    const button = Object.assign(document.createElement("button"), { id: "add-comment" });
+    button.style.cssText =
+      "position: absolute; left: -11px; top: 0; width: 24px; height: 20px; z-index: 2";
+    cell.append(button);
+  });
+  await unwrap(page);
+  await expect.poll(async () => (await scrollRanges(page))[0]).toBeGreaterThan(0);
+  const leftEdgeHit = () =>
+    page.evaluate(() => {
+      const button = document.getElementById("add-comment");
+      if (!button) throw new Error("no add-comment button");
+      window.scrollBy(0, button.getBoundingClientRect().y - 300);
+      const box = button.getBoundingClientRect();
+      return document.elementFromPoint(box.x + 1, box.y + box.height / 2)?.id;
+    });
+
+  expect(await leftEdgeHit()).toBe("add-comment");
+  await scrollFileTo(page, 40);
+  expect(await leftEdgeHit()).toBe("add-comment");
+});
+
+test("the widest line's last character shows once its file scrolls all the way", async ({
+  context,
+  page,
+}) => {
+  await openPage(context, page);
+  await unwrap(page);
+  await expect.poll(async () => (await scrollRanges(page))[0]).toBeGreaterThan(0);
+
+  await page.evaluate(() => {
+    const overflow = (inner: HTMLElement) => {
+      const code = inner.parentElement as HTMLElement;
+      return inner.offsetLeft + inner.offsetWidth - (code.offsetLeft + code.clientWidth);
+    };
+    const inners = [
+      ...document.querySelectorAll<HTMLElement>(
+        "table[data-diff-anchor] td.diff-text-cell .diff-text-inner",
+      ),
+    ];
+    const widest = inners.reduce((a, b) => (overflow(b) > overflow(a) ? b : a));
+    widest.id = "widest";
+    window.scrollTo(0, widest.getBoundingClientRect().y + window.scrollY - 300);
+  });
+  await scrollFileTo(page, 100_000);
+
+  const lastCharacterHit = await page.evaluate(() => {
+    const widest = document.getElementById("widest");
+    if (!widest) throw new Error("no widest line");
+    const walker = document.createTreeWalker(widest, NodeFilter.SHOW_TEXT);
+    let text: Text | undefined;
+    for (let node = walker.nextNode(); node; node = walker.nextNode())
+      if (node.textContent?.trim()) text = node as Text;
+    if (!text) throw new Error("widest line has no text");
+    const end = (text.textContent ?? "").trimEnd().length;
+    const range = document.createRange();
+    range.setStart(text, end - 1);
+    range.setEnd(text, end);
+    const char = range.getBoundingClientRect();
+    return widest.contains(document.elementFromPoint(char.right - 1, char.y + char.height / 2));
+  });
+  expect(lastCharacterHit).toBe(true);
 });
 
 test("Wrap lines stays unchecked across a reload, and checking it wraps the diffs again", async ({

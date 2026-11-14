@@ -1806,7 +1806,18 @@ describe("codeLines", () => {
     const [table] = diffTables(document.body);
     if (!table) throw new Error("fixture has no table");
 
-    expect([...codeLines(table)].every(({ cell }) => !cell.closest(".diff-hunk-cell"))).toBe(true);
+    expect([...codeLines(table)].every(({ code }) => !code.closest(".diff-hunk-cell"))).toBe(true);
+  });
+
+  it("gives each line the code element that holds its text", () => {
+    document.body.innerHTML = prSplit;
+    const [table] = diffTables(document.body);
+    if (!table) throw new Error("fixture has no table");
+
+    for (const { inner, code } of codeLines(table)) {
+      expect(code.matches("td.diff-text-cell > code.diff-text")).toBe(true);
+      expect(code.contains(inner)).toBe(true);
+    }
   });
 });
 

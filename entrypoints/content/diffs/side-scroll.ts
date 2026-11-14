@@ -19,7 +19,7 @@ export interface Reach {
   readonly new: number;
 }
 
-/** One line's layout: where its text ends and how wide its cell is, both from the cell's left. */
+/** One line's layout: where its text ends and where its code clips it, both from the cell's left. */
 export interface LineExtent {
   readonly side: keyof Reach;
   readonly end: number;
@@ -87,8 +87,12 @@ export function followSideScroll(page: Pick<FilesPage, "diffs">, signal: AbortSi
 
 /** Each line's extent in `diff`, from layout values the shift's transform leaves alone. */
 function* extentsOf(diff: DiffTable): Generator<LineExtent> {
-  for (const { inner, cell, side } of codeLines(diff))
-    yield { side, end: inner.offsetLeft + inner.offsetWidth, room: cell.clientWidth };
+  for (const { inner, code, side } of codeLines(diff))
+    yield {
+      side,
+      end: inner.offsetLeft + inner.offsetWidth,
+      room: code.offsetLeft + code.clientWidth,
+    };
 }
 
 function writeReach(box: HTMLElement, reach: Reach): void {

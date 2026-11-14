@@ -1,11 +1,11 @@
 /* GitHub hooks: table[data-diff-anchor] and its parent div (a file's bordered box),
-   td.diff-text-cell, td.diff-text-cell:nth-child(2) (a split row's old code cell, by position:
-   a commit marks Unified deletions left-side-diff-cell too), and .diff-text-inner, which also
-   sits in hunk headers; those stay wrapped, so only a td.diff-text-cell's line shifts.
-   gh-prism hooks: .gh-prism-structural-notice and Structural's loading line, the box's other
-   children. wrap-lines.ts mounts this sheet and writes data-gh-prism-wrap="off" on <html> while
-   unwrapped; side-scroll.ts writes --gh-prism-x, --gh-prism-reach, --gh-prism-reach-old, and
-   --gh-prism-reach-new on a table's parent. */
+   td.diff-text-cell and its code.diff-text, td.diff-text-cell:nth-child(2) (a split row's old
+   code cell, by position: a commit marks Unified deletions left-side-diff-cell too), and
+   .diff-text-inner, which also sits in hunk headers; those stay wrapped, so only a
+   td.diff-text-cell's line shifts. gh-prism hooks: .gh-prism-structural-notice and Structural's
+   loading line, the box's other children. wrap-lines.ts mounts this sheet and writes
+   data-gh-prism-wrap="off" on <html> while unwrapped; side-scroll.ts writes --gh-prism-x,
+   --gh-prism-reach, --gh-prism-reach-old, and --gh-prism-reach-new on a table's parent. */
 
 /* The box scrolls over an empty strip as wide as the file's overflow, while the table stays put
    and each line's text shifts by the scroll instead. */
@@ -31,10 +31,12 @@ html[data-gh-prism-wrap="off"] div:has(> table[data-diff-anchor]) > :not(table) 
   top: auto !important;
 }
 
-/* The cell clips, not its code: GitHub draws code.diff-text inline, where overflow does nothing.
+/* The code clips, not its cell, whose add-comment button, action bar, and inline markers hang past
+   its edges. GitHub draws code.diff-text inline, where overflow does nothing.
    ponytail: find-in-page can't scroll to a match clipped off the right edge, since the text is
    shifted, not laid out in the scroller. */
-html[data-gh-prism-wrap="off"] table[data-diff-anchor] td.diff-text-cell {
+html[data-gh-prism-wrap="off"] table[data-diff-anchor] td.diff-text-cell > code.diff-text {
+  display: block;
   overflow-x: clip;
 }
 
