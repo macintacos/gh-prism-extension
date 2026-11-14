@@ -126,7 +126,7 @@ export default defineContentScript({
       dismissed,
       savedStructural,
       whatsNewForPage,
-      intro,
+      introChoice,
     ] = await Promise.all([
       readSavedSide(),
       readSavedDiffstat(),
@@ -284,7 +284,7 @@ export default defineContentScript({
               offersStructural: !route.commitFiltered,
               search: () => location.search,
               guard: diffViewGuard,
-              intro: { choice: intro, save: saveIntroDismissed },
+              intro: { choice: introChoice, save: saveIntroDismissed },
             });
             showCommitMessage(page, signal, {
               afterSections: afterLanding(intent),

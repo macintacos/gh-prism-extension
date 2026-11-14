@@ -5471,12 +5471,12 @@ test("the diff view control's Structural popup shows once, until it's closed", a
     await expect(popup).toHaveCount(0);
   }).toPass();
 
-  const other = await context.newPage();
+  const otherTab = await context.newPage();
   const { url, menu, tables } = LAYOUT_PAGES.pr;
-  await other.addInitScript(installLayoutMenu, { menu, tables });
-  await other.goto(url);
-  await expect(segment(other, "Structural")).toBeVisible();
-  await expect(popupOf(other)).toHaveCount(0);
+  await otherTab.addInitScript(installLayoutMenu, { menu, tables });
+  await otherTab.goto(url);
+  await expect(segment(otherTab, "Structural")).toBeVisible();
+  await expect(popupOf(otherTab)).toHaveCount(0);
 });
 
 test("Escape in the diff view control's Structural popup closes it and returns focus to the segment", async ({

@@ -112,15 +112,15 @@ function openTip(segment: HTMLElement): Card {
 /** The popup's surface, and its close button, which calls `close`. */
 function popupOf(doc: Document, close: () => void): HTMLElement {
   // Primer's small invisible IconButton, at the 24px target floor.
-  const closer = el(
+  const closeButton = el(
     doc,
     "button",
     "tw:shrink-0 tw:inline-grid tw:place-content-center tw:size-6 tw:-my-1 tw:-me-1 tw:p-0 tw:[border:0] tw:rounded-medium tw:[background:none] tw:text-[color:var(--button-invisible-iconColor-rest)] tw:cursor-pointer tw:hover:bg-[var(--button-invisible-bgColor-hover)] tw:hover:text-[color:var(--button-invisible-iconColor-hover)] tw:active:bg-[var(--button-invisible-bgColor-active)] tw:focus-visible:outline-2 tw:focus-visible:outline-focus-outline tw:focus-visible:-outline-offset-2",
     icon(doc, X_ICON, {}),
   );
-  closer.type = "button";
-  closer.setAttribute("aria-label", "Close");
-  closer.addEventListener("click", close);
+  closeButton.type = "button";
+  closeButton.setAttribute("aria-label", "Close");
+  closeButton.addEventListener("click", close);
 
   // Visible overflow keeps the sheet's ::before caret unclipped.
   const popup = el(
@@ -133,7 +133,7 @@ function popupOf(doc: Document, close: () => void): HTMLElement {
       "tw:flex tw:items-center tw:gap-2 tw:mb-1",
       prismMark(doc),
       el(doc, "strong", "tw:flex-1 tw:font-semibold", "Structural diffs are new"),
-      closer,
+      closeButton,
     ),
     el(
       doc,
