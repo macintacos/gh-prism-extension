@@ -330,6 +330,7 @@ const GROUP_HEADING = '[data-component="GroupHeadingWrap"]';
 const GROUP_LIST = 'ul[role="group"]';
 const ITEM_LABEL = '[data-component="ActionList.Item.Label"]';
 const ITEM_SELECTION = '[data-component="ActionList.Selection"]';
+const TRAILING_VISUAL = '[data-component="ActionList.TrailingVisual"]';
 const DIVIDER = '[data-component="ActionList.Divider"]';
 const FILTER_ROW = "#diff-file-tree-filter";
 
@@ -499,12 +500,26 @@ export function copyMenuItem(template: HTMLElement): {
   // itself down and re-add in a loop.
   for (const attr of ["id", "aria-labelledby", "aria-keyshortcuts", "aria-checked", "tabindex"])
     item.removeAttribute(attr);
-  for (const trailing of item.querySelectorAll('[data-component="ActionList.TrailingVisual"]'))
-    trailing.remove();
+  for (const trailing of item.querySelectorAll(TRAILING_VISUAL)) trailing.remove();
   const label = item.querySelector<HTMLElement>(ITEM_LABEL);
   if (!label) throw new Error("menu item lost its label");
   label.replaceChildren();
   return { item, label };
+}
+
+/**
+ * Ends `item`'s label row with `icon`, in an empty copy of the first trailing visual among
+ * `menu`'s items, so it takes Primer's spacing and muted colour; leaves `item` alone when no item
+ * has one.
+ */
+export function addTrailingIcon(menu: LayoutMenu, item: HTMLElement, icon: Element): void {
+  const template = menu.list.querySelector(TRAILING_VISUAL);
+  const row = item.querySelector(ITEM_LABEL)?.parentElement;
+  if (!template || !row) return;
+  const slot = cloneOf(template, false);
+  slot.removeAttribute("id");
+  slot.append(icon);
+  row.append(slot);
 }
 
 /** What a menu entry shows and does. */

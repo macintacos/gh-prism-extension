@@ -4,6 +4,7 @@
  */
 
 import {
+  addTrailingIcon,
   diffTables,
   type FilesPage,
   findCompactLineHeight,
@@ -13,6 +14,7 @@ import {
   menuEntry,
   observeDiffs,
 } from "../files-page";
+import { prismGlyph } from "../ui/mark";
 import { followSideScroll } from "./side-scroll";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./wrap-lines.css?inline";
@@ -91,15 +93,15 @@ export function showWrapLines(
       save(choice.on);
       apply();
     };
-    compact.after(
-      menuEntry(compact, {
-        id: ITEM_ID,
-        text: "Wrap lines",
-        role: "menuitemcheckbox",
-        checked: choice.on,
-        pick: flip,
-      }),
-    );
+    const item = menuEntry(compact, {
+      id: ITEM_ID,
+      text: "Wrap lines",
+      role: "menuitemcheckbox",
+      checked: choice.on,
+      pick: flip,
+    });
+    addTrailingIcon(menu, item, prismGlyph(doc, {}));
+    compact.after(item);
   };
 
   observeDiffs(page.diffs, openGate, { signal });

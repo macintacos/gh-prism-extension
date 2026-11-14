@@ -107,6 +107,22 @@ describe("showWrapLines", () => {
     },
   );
 
+  it.each(["pr", "commit"] as const)(
+    "shows gh-prism's glyph in the item's trailing slot, styled like the menu's own, on a %s page",
+    async (kind) => {
+      const page = pageOf(kind);
+      show(page);
+
+      await openMenu(page);
+
+      const slot = '[data-component="ActionList.TrailingVisual"]';
+      const trailing = wrapItem()?.querySelector(slot);
+      const primers = [...document.querySelectorAll(slot)].filter((el) => el !== trailing);
+      expect(trailing?.className).toBe(primers[0]?.className);
+      expect(trailing?.querySelector(":scope > svg")?.getAttribute("aria-hidden")).toBe("true");
+    },
+  );
+
   it.each([
     { name: "a click", press: (item: HTMLElement) => item.click() },
     {

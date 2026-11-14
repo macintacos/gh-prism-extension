@@ -994,15 +994,16 @@ adds a "Wrap lines" item to GitHub's diff settings menu, right after Compact lin
 on every open that `followLayoutMenu` in
 [`files-page.ts`](../entrypoints/content/files-page.ts) reports. The item is a copy of
 Compact line height, which `findCompactLineHeight` finds, built by `menuEntry`, the same
-builder the owner section's entries use. `followLayoutMenu` and `followFilterMenu` share
-one private loop, `followMenu`. The item saves the choice to `sync:wrapLines` in
-[`utils/prefs.ts`](../utils/prefs.ts), where a missing value means wrapped. While the item
-is unchecked, `wrap-lines.ts` sets `data-gh-prism-wrap="off"` on `<html>` and mounts
-`diffs/wrap-lines.css`, which it removes again on rewrap. The sheet keys every rule on
-that attribute, so files that render later come up unwrapped with no per-row work.
-`wrap-lines.ts` sets the attribute only once it finds the layout gear, so a page without
-the gear never unwraps with no way back. When the gear is missing, or a menu opens without
-Compact line height, diffs stay wrapped and gh-prism logs one warning.
+builder the owner section's entries use. `addTrailingIcon` ends its row with the mark's
+glyph, in a copy of the menu's first trailing visual. `followLayoutMenu` and
+`followFilterMenu` share one private loop, `followMenu`. The item saves the choice to
+`sync:wrapLines` in [`utils/prefs.ts`](../utils/prefs.ts), where a missing value means
+wrapped. While the item is unchecked, `wrap-lines.ts` sets `data-gh-prism-wrap="off"` on
+`<html>` and mounts `diffs/wrap-lines.css`, which it removes again on rewrap. The sheet
+keys every rule on that attribute, so files that render later come up unwrapped with no
+per-row work. `wrap-lines.ts` sets the attribute only once it finds the layout gear, so a
+page without the gear never unwraps with no way back. When the gear is missing, or a menu
+opens without Compact line height, diffs stay wrapped and gh-prism logs one warning.
 
 While the page is unwrapped, `wrap-lines.ts` runs
 [`diffs/side-scroll.ts`](../entrypoints/content/diffs/side-scroll.ts). It measures each

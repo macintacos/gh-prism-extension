@@ -288,6 +288,19 @@ test("Wrap lines is a checked item after Compact line height that Space unchecks
   await expect(page.locator("html")).toHaveAttribute("data-gh-prism-wrap", "off");
 });
 
+test("Wrap lines shows gh-prism's glyph and is named only Wrap lines", async ({
+  context,
+  page,
+}) => {
+  await openPage(context, page);
+
+  await gear(page).click();
+
+  const item = page.getByRole("menuitemcheckbox", { name: "Wrap lines", exact: true });
+  await expect(item).toHaveCount(1);
+  await expect(item.locator('[data-component="ActionList.TrailingVisual"] > svg')).toBeVisible();
+});
+
 test("unchecking Wrap lines keeps every code line on one row, and an overflowing file scrolls sideways", async ({
   context,
   page,
