@@ -315,9 +315,9 @@ test("scrolling a split file sideways shifts both sides' text together while num
   };
 
   await scrollFileTo(page, 40);
-  const set = await geometry(page);
-  expect(set.scrollLeft).toBeGreaterThan(0);
-  expectShifted(set);
+  const scrolled = await geometry(page);
+  expect(scrolled.scrollLeft).toBeGreaterThan(0);
+  expectShifted(scrolled);
 
   await scrollFileTo(page, 0);
   await page.locator("table[data-diff-anchor] td.diff-text-cell").first().hover();

@@ -40,12 +40,12 @@ const REACH_PROPS = ["--gh-prism-reach-old", "--gh-prism-reach-new", "--gh-prism
  * box, the one that scrolls sideways; on abort, removes every property written.
  */
 export function followSideScroll(page: Pick<FilesPage, "diffs">, signal: AbortSignal): void {
-  const boxes = new Map<Element, { box: HTMLElement; diff: DiffTable }>();
+  const filesByTable = new Map<Element, { box: HTMLElement; diff: DiffTable }>();
 
   // Every entry is measured before any is written, so one batch costs one layout.
   const resizes = new ResizeObserver((entries) => {
     const measured = entries.flatMap(({ target }) => {
-      const file = boxes.get(target);
+      const file = filesByTable.get(target);
       return file && target.isConnected
         ? [{ box: file.box, reach: sideReach(extentsOf(file.diff)) }]
         : [];
@@ -53,20 +53,20 @@ export function followSideScroll(page: Pick<FilesPage, "diffs">, signal: AbortSi
     for (const { box, reach } of measured) writeReach(box, reach);
   });
   const observeTables = () => {
-    const current = new Map<Element, DiffTable>(
+    const liveTables = new Map<Element, DiffTable>(
       diffTables(page.diffs).map((diff) => [diff.table, diff]),
     );
-    for (const table of boxes.keys())
-      if (!current.has(table)) {
+    for (const table of filesByTable.keys())
+      if (!liveTables.has(table)) {
         resizes.unobserve(table);
-        boxes.delete(table);
+        filesByTable.delete(table);
       }
-    for (const diff of current.values()) {
+    for (const diff of liveTables.values()) {
       const { table } = diff;
       const box = fileBox(table);
-      if (boxes.has(table) || !box) continue;
+      if (filesByTable.has(table) || !box) continue;
       resizes.observe(table);
-      boxes.set(table, { box, diff });
+      filesByTable.set(table, { box, diff });
     }
   };
 
@@ -81,7 +81,7 @@ export function followSideScroll(page: Pick<FilesPage, "diffs">, signal: AbortSi
 
   signal.addEventListener("abort", () => {
     resizes.disconnect();
-    for (const { box } of boxes.values()) clearProps(box);
+    for (const { box } of filesByTable.values()) clearProps(box);
   });
 }
 
@@ -92,10 +92,10 @@ function* extentsOf(diff: DiffTable): Generator<LineExtent> {
 }
 
 function writeReach(box: HTMLElement, reach: Reach): void {
-  const [old, neu, both] = REACH_PROPS;
-  box.style.setProperty(old, `${reach.old}px`);
-  box.style.setProperty(neu, `${reach.new}px`);
-  box.style.setProperty(both, `${Math.max(reach.old, reach.new)}px`);
+  const [oldProp, newProp, widestProp] = REACH_PROPS;
+  box.style.setProperty(oldProp, `${reach.old}px`);
+  box.style.setProperty(newProp, `${reach.new}px`);
+  box.style.setProperty(widestProp, `${Math.max(reach.old, reach.new)}px`);
 }
 
 function clearProps(box: HTMLElement): void {

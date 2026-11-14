@@ -55,15 +55,15 @@ export function showWrapLines(
     if (gate === "open" && !choice.on) {
       if (unwrapped) return;
       unwrapped = new AbortController();
-      const stretch = AbortSignal.any([signal, unwrapped.signal]);
+      const whileUnwrapped = AbortSignal.any([signal, unwrapped.signal]);
       const style = Object.assign(doc.createElement("style"), { textContent: css });
       doc.head.append(style);
       doc.documentElement.dataset.ghPrismWrap = "off";
-      stretch.addEventListener("abort", () => {
+      whileUnwrapped.addEventListener("abort", () => {
         style.remove();
         delete doc.documentElement.dataset.ghPrismWrap;
       });
-      followSideScroll(page, stretch);
+      followSideScroll(page, whileUnwrapped);
     } else {
       unwrapped?.abort();
       unwrapped = undefined;
