@@ -9,6 +9,8 @@ Pick the page that matches what you want to do:
   [`ARCHITECTURE.md`](ARCHITECTURE.md).
 - **Build, test, or benchmark gh-prism locally:** read
   [`DEVELOPMENT.md`](DEVELOPMENT.md).
+- **Learn what a structural diff is and how Structural mode works:** read
+  [`STRUCTURAL-DIFFS.md`](STRUCTURAL-DIFFS.md).
 - **Check how gh-prism should look, move, and read:** read
   [`design/`](../design/README.md).
 - **Look up a term such as visit, intent, or section:** read

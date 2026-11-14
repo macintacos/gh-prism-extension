@@ -50,6 +50,10 @@ import { installLayoutMenu } from "../fixtures/layout-menu";
 import prLayoutMenu from "../fixtures/layout-menu-pr.html?raw";
 import { setViewport } from "../fixtures/viewport";
 
+// happy-dom has no Popover API.
+HTMLElement.prototype.showPopover = () => {};
+HTMLElement.prototype.hidePopover = () => {};
+
 // Only leaves are faked: intentFor needs a port fakeBrowser lacks; the views' DOM has own tests.
 vi.mock(import("../../utils/intent/read"), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -553,6 +557,63 @@ describe("content script", () => {
         await run();
 
         expect(segment("structural")?.getAttribute("aria-disabled")).toBe("true");
+      });
+
+      describe("Structural popup", () => {
+        const popup = () => document.querySelector(".gh-prism-structural-popup");
+
+        it("shows on a fresh profile's pull request", async () => {
+          withToolbar(prToolbar, prSplit, prTables);
+
+          await run();
+
+          expect(popup()).not.toBeNull();
+        });
+
+        it.each([
+          {
+            name: "once dismissed",
+            setUp: () => fakeBrowser.storage.local.set({ structuralIntroDismissed: true }),
+          },
+          {
+            name: "while Structural is the saved choice",
+            setUp: () => fakeBrowser.storage.sync.set({ structuralMode: true }),
+          },
+          {
+            name: "when its dismissal won't read",
+            setUp: () => {
+              vi.spyOn(fakeBrowser.storage.local, "get").mockRejectedValue(
+                new Error("invalidated"),
+              );
+              vi.spyOn(console, "error").mockImplementation(() => {});
+            },
+          },
+          {
+            name: "on a commit-filtered pull request page",
+            setUp: () => history.replaceState(null, "", `${PR}/dd95cdc`),
+          },
+        ])("shows nothing $name", async ({ setUp }) => {
+          await setUp();
+          withToolbar(prToolbar, prSplit, prTables);
+
+          await run();
+
+          expect(document.querySelector(".gh-prism-diff-view")).not.toBeNull();
+          expect(popup()).toBeNull();
+        });
+
+        it("stores its dismissal on this computer", async () => {
+          withToolbar(prToolbar, prSplit, prTables);
+          await run();
+
+          popup()?.querySelector<HTMLButtonElement>("button")?.click();
+
+          await vi.waitFor(async () =>
+            expect(await fakeBrowser.storage.local.get("structuralIntroDismissed")).toEqual({
+              structuralIntroDismissed: true,
+            }),
+          );
+        });
       });
     });
 

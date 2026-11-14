@@ -1050,7 +1050,22 @@ fires: `pressGuard` in [`ui/press-guard.ts`](../entrypoints/content/ui/press-gua
 built once per visit by `index.ts`, keeps the press and runs it on a release over the
 re-mounted segment of the same view once the original has left the page; a release or
 cancel anywhere else forgets it. A commit-filtered pull request page shows Structural
-disabled.
+disabled. Hovering or focusing the Structural segment opens the Structural popover, with
+the segment's `aria-description` and a link to the Structural diffs doc;
+[`diffs/structural-intro.ts`](../entrypoints/content/diffs/structural-intro.ts) builds it
+through `followHoverIntent` from
+[`ui/hover-intent.ts`](../entrypoints/content/ui/hover-intent.ts).
+
+Until the reviewer dismisses it, the Structural popup points at the Structural segment,
+saying Structural diffs are new and linking the same doc. `structuralIntro` in the same
+module builds it. The control moves it to the new segment when it re-mounts, and hides it
+while the control isn't drawn, while Structural is already on, and on a commit-filtered
+pull request page, where Structural is disabled. Its close button dismisses it, as do a
+press that turns Structural on or off and Escape pressed while focus is in the popup, on
+the segment, or on no control. A re-mount never does. At startup, `index.ts` reads the
+dismissal from `structuralIntroDismissed` in [`utils/prefs.ts`](../utils/prefs.ts),
+treating a failed read as dismissed. `index.ts` shares the dismissal across the tab's
+pages, keeps it current from other tabs, and saves it on dismissal.
 
 The painter takes a `StructuralPainting`. Its `annotationsOf(path)` returns a file's
 `StructuralFile` from [`utils/structural/changes.ts`](../utils/structural/changes.ts): the
@@ -1181,7 +1196,8 @@ then mounted only on the pages that need it. The rules for writing styles are in
 [`docs/agents/styling-rules.md`](agents/styling-rules.md).
 
 The sidebar, the header counter's tooltips, the code owner details dialog, the classic
-page notice, and the commit message column each append the `prismMark` built by
+page notice, the commit message column, and the Structural popup
+(`diffs/structural-intro.ts`) each append the `prismMark` built by
 [`ui/mark.ts`](../entrypoints/content/ui/mark.ts). The code owners popover and the code
 owner's files popup get theirs from `detailsHint`, the footer they share. Every one of
 these surfaces' sheets `@import`s the mark's partial, `ui/mark.css`. The diff view
@@ -1205,7 +1221,7 @@ entrypoints/
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
-    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet; structural-files.ts, a visit's structural answers; structural-mode.ts, Structural mode on a page; structural-notices.ts and structural-notices.css, its per-file notices and loading line; view-control.ts and view-control.css, the Unified, Split, and Structural control before the layout gear
+    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet; structural-files.ts, a visit's structural answers; structural-mode.ts, Structural mode on a page; structural-notices.ts and structural-notices.css, its per-file notices and loading line; view-control.ts and view-control.css, the Unified, Split, and Structural control before the layout gear; structural-intro.ts, the Structural segment's popover and popup
     header/              diffstat breakout
     conversation/        a code owner's files popup and gh-prism's shield, in the Reviewers lists and beside Conversation and Files changed comment authors; the Conversation panel and its button, dressing its frame, and the messages the frame posts
     ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, column separator, view-transition glide, keycaps and the Shift+\ toolbar button, a visit's press guard for controls GitHub re-mounts mid-press, Tailwind tokens

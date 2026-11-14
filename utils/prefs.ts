@@ -97,6 +97,12 @@ export const classicNoticeDismissed = storage.defineItem<boolean>("local:classic
   fallback: false,
 });
 
+/** Whether the user dismissed the popup announcing Structural diffs; kept on this computer only. */
+export const structuralIntroDismissed = storage.defineItem<boolean>(
+  "local:structuralIntroDismissed",
+  { fallback: false },
+);
+
 /**
  * Which version's what's-new notes the user dismissed or first saw, and when; kept on this
  * computer only.
