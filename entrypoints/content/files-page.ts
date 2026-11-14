@@ -486,7 +486,7 @@ export function copyMenuGroup(
 export const copyMenuDivider = (menu: FilterMenu): Element => cloneOf(menu.divider, true);
 
 /**
- * A copy of `menu`'s item with its checkmark kept, and no id, labelling, tab stop, label text,
+ * A copy of `template` with its checkmark kept, and no id, labelling, tab stop, label text,
  * trailing visual, checked state, or key: the item, and the label to fill.
  */
 export function copyMenuItem(template: HTMLElement): {
