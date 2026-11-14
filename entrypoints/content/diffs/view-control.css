@@ -111,6 +111,31 @@
   font-weight: var(--base-text-weight-semibold);
 }
 
+/* The popup's point: turned 45° in the surface's colour, its two outer edges carrying the floating
+   shadow's ring. Its size is the gap aim leaves; keep in sync with structural-intro.ts's GAP. */
+.gh-prism-structural-popup::before {
+  content: "";
+  position: absolute;
+  left: var(--gh-prism-caret-x);
+  box-sizing: border-box;
+  width: 8px;
+  height: 8px;
+  margin-inline-start: -4px;
+  transform: rotate(45deg);
+  background: var(--overlay-bgColor, var(--bgColor-default));
+  border: 0 solid var(--borderColor-default);
+}
+
+.gh-prism-structural-popup[data-side="below"]::before {
+  top: -4px;
+  border-width: 1px 0 0 1px;
+}
+
+.gh-prism-structural-popup[data-side="above"]::before {
+  bottom: -4px;
+  border-width: 0 1px 1px 0;
+}
+
 /* A rule between two unpressed neighbours, as Primer's. */
 .gh-prism-diff-view-item {
   position: relative;

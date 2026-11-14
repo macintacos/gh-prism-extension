@@ -116,7 +116,7 @@ export interface DiffViewOptions {
   readonly search: () => string;
   /** The visit's, so a press outlives the page that started it. */
   readonly guard: PressGuard;
-  /** The tab's Structural popup dismissal. */
+  /** The tab's Structural popup choice and how to save its dismissal; unused where Structural isn't offered. */
   readonly intro: IntroOptions;
 }
 
@@ -227,7 +227,10 @@ export function showDiffViewControl(
   { choice, commit, offersStructural, search, guard, intro: introOptions }: DiffViewOptions,
 ): void {
   const doc = page.sidebar.ownerDocument;
-  const intro = offersStructural ? structuralIntro(doc, signal, introOptions) : undefined;
+  const intro =
+    offersStructural && !introOptions.choice.dismissed
+      ? structuralIntro(doc, signal, introOptions)
+      : undefined;
   let control: DiffViewControl | undefined;
   // The view last drawn pressed; `null` until the mounted control draws one.
   let pressedView: DiffView | undefined | null = null;
@@ -275,7 +278,7 @@ export function showDiffViewControl(
   const introduce = () => {
     const win = doc.defaultView;
     intro?.follow(
-      control && win && isDrawn(control, win) && !choice.on
+      !introOptions.choice.dismissed && control && win && isDrawn(control, win) && !choice.on
         ? control.segments.structural
         : undefined,
     );
@@ -313,7 +316,8 @@ export function showDiffViewControl(
       if (view === "structural" && !(await leftUnified())) return;
       if (signal.aborted) return;
       if (steps.set !== undefined) choice.set(steps.set);
-      if (steps.set) intro?.dismiss();
+      // A press that changed the mode, on or off, counts; one GitHub's menu aborted returned above.
+      if (steps.set !== undefined) intro?.dismiss();
     } finally {
       pressing = false;
       if (!signal.aborted) render();

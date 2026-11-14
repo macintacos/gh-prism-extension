@@ -636,7 +636,10 @@ const saveDismissed = () =>
       console.error("gh-prism: saving the notice's dismissal failed", error),
     );
 
-/** Whether the user dismissed the Structural popup; dismissed, when storage won't read. */
+/**
+ * Whether the user dismissed the Structural popup; dismissed, when storage won't read: better to
+ * miss the announcement than to show it again to someone who closed it.
+ */
 const readIntroDismissed = (): Promise<boolean> =>
   structuralIntroDismissed
     .getValue()

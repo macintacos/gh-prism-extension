@@ -50,6 +50,10 @@ import { installLayoutMenu } from "../fixtures/layout-menu";
 import prLayoutMenu from "../fixtures/layout-menu-pr.html?raw";
 import { setViewport } from "../fixtures/viewport";
 
+// happy-dom has no Popover API.
+HTMLElement.prototype.showPopover = () => {};
+HTMLElement.prototype.hidePopover = () => {};
+
 // Only leaves are faked: intentFor needs a port fakeBrowser lacks; the views' DOM has own tests.
 vi.mock(import("../../utils/intent/read"), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -114,10 +118,6 @@ const fakeClient = (): PrDataClient => ({
 
 const PR = "/o/r/pull/1/changes";
 let controller: AbortController;
-
-// happy-dom has no Popover API.
-HTMLElement.prototype.showPopover = () => {};
-HTMLElement.prototype.hidePopover = () => {};
 const run = () => {
   const { signal } = controller;
   const onInvalidated = (cb: () => void) => signal.addEventListener("abort", cb);

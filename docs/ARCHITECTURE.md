@@ -1061,8 +1061,8 @@ saying Structural diffs are new and linking the same doc. `structuralIntro` in t
 module builds it. The control moves it to the new segment when it re-mounts, and hides it
 while the control isn't drawn, while Structural is already on, and on a commit-filtered
 pull request page, where Structural is disabled. Its close button dismisses it, as do a
-press that turns Structural on and Escape pressed while focus is in the popup, on the
-segment, or on no control. A re-mount never does. At startup, `index.ts` reads the
+press that turns Structural on or off and Escape pressed while focus is in the popup, on
+the segment, or on no control. A re-mount never does. At startup, `index.ts` reads the
 dismissal from `structuralIntroDismissed` in [`utils/prefs.ts`](../utils/prefs.ts),
 treating a failed read as dismissed. `index.ts` shares the dismissal across the tab's
 pages, keeps it current from other tabs, and saves it on dismissal.
@@ -1196,7 +1196,8 @@ then mounted only on the pages that need it. The rules for writing styles are in
 [`docs/agents/styling-rules.md`](agents/styling-rules.md).
 
 The sidebar, the header counter's tooltips, the code owner details dialog, the classic
-page notice, and the commit message column each append the `prismMark` built by
+page notice, the commit message column, and the Structural popup
+(`diffs/structural-intro.ts`) each append the `prismMark` built by
 [`ui/mark.ts`](../entrypoints/content/ui/mark.ts). The code owners popover and the code
 owner's files popup get theirs from `detailsHint`, the footer they share. Every one of
 these surfaces' sheets `@import`s the mark's partial, `ui/mark.css`. The diff view

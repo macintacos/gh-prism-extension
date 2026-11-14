@@ -12,8 +12,11 @@ When to edit it:
 - The covered languages change in a way the doc's own wording names. The language list
   itself lives in `README.md` § Structural diffs (Beta), which the doc links.
 - The sandbox showcase pull requests move or are replaced.
+- `README.md`'s `### Structural diffs (Beta)` heading is renamed: the doc links its
+  anchor.
 
-Maintenance: shipped builds link to `docs/STRUCTURAL-DIFFS.md` on `main`, with its H1,
-"What's a structural diff?", as the link text, so never rename or move the file. Adding,
-removing, or renaming this pointer follows the maintenance rule in
+Maintenance: shipped builds link to `docs/STRUCTURAL-DIFFS.md` on `main`, so never rename
+or move it. Its H1 matches the link text in `structural-intro.ts`'s `docLink` and in
+`README.md`; change them together. Adding, removing, or renaming this pointer follows the
+maintenance rule in
 [`documentation-rules.md`](../documentation-rules.md).

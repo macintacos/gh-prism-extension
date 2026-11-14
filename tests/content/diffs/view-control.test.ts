@@ -925,7 +925,7 @@ describe("showDiffViewControl", () => {
   });
 
   describe("Structural popover", () => {
-    const card = () => segment("structural")?.nextElementSibling as HTMLElement | null | undefined;
+    const card = () => document.querySelector<HTMLElement>(".gh-prism-structural-tip");
     const focusStructural = () =>
       segment("structural")?.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
 
@@ -972,6 +972,26 @@ describe("showDiffViewControl", () => {
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
       expect(card()).toBeNull();
+    });
+
+    it("closes on a scroll outside it", async () => {
+      show(pageOf("pr", "split"), choiceOf(false).choice);
+      await flush();
+      focusStructural();
+
+      document.dispatchEvent(new Event("scroll"));
+
+      expect(card()).toBeNull();
+    });
+
+    it("stays open on a scroll inside it", async () => {
+      show(pageOf("pr", "split"), choiceOf(false).choice);
+      await flush();
+      focusStructural();
+
+      card()?.dispatchEvent(new Event("scroll"));
+
+      expect(card()).not.toBeNull();
     });
 
     it("shows the unavailable tip, and the link, where Structural isn't offered", async () => {
@@ -1114,10 +1134,11 @@ describe("showDiffViewControl", () => {
           await flush();
         },
       },
-    ])("closes for good on $name", async ({ act }) => {
+    ])("closes for good, once, on $name", async ({ act }) => {
       const { save } = showIntro();
 
       await act();
+      // A second Escape must not save again.
       pressEscape();
 
       expect(popup()).toBeNull();
@@ -1134,14 +1155,56 @@ describe("showDiffViewControl", () => {
       expect(save).not.toHaveBeenCalled();
     });
 
-    it("stays when Split is pressed", async () => {
-      const { save } = showIntro();
+    it.each([
+      { view: "split", from: "unified" },
+      { view: "unified", from: "split" },
+    ] as const)("stays when $view is pressed from $from", async ({ view, from }) => {
+      const { save } = showIntro({}, pageOf("pr", from));
 
-      segment("split")?.click();
+      segment(view)?.click();
       await flush();
+      expect(pressed()).toEqual([view]);
 
       expect(popup()).not.toBeNull();
       expect(save).not.toHaveBeenCalled();
+    });
+
+    it("closes for good once Structural is turned off", async () => {
+      const { save, page } = showIntro({ on: true });
+
+      segment("split")?.click();
+      await flush();
+      page.diffs.append(document.createElement("div"));
+      await flush();
+
+      expect(popup()).toBeNull();
+      expect(save).toHaveBeenCalledOnce();
+    });
+
+    it("closes on its close button after another tab dismissed it, without saving again", () => {
+      const save = vi.fn();
+      const intro = { choice: { dismissed: false }, save };
+      show(pageOf("pr", "split"), choiceOf(false).choice, { intro });
+
+      intro.choice.dismissed = true;
+      closeButton()?.click();
+
+      expect(popup()).toBeNull();
+      expect(save).not.toHaveBeenCalled();
+    });
+
+    it("stays on an Escape something else already handled", () => {
+      showIntro();
+
+      const event = new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      });
+      event.preventDefault();
+      document.dispatchEvent(event);
+
+      expect(popup()).not.toBeNull();
     });
 
     it("keeps the segment's card closed while it shows", () => {
@@ -1150,16 +1213,87 @@ describe("showDiffViewControl", () => {
       segment("structural")?.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
 
       expect(popup()).not.toBeNull();
-      expect(segment("structural")?.parentElement?.children).toHaveLength(2);
+      expect(document.querySelector(".gh-prism-structural-tip")).toBeNull();
     });
 
-    it("returns focus to the segment when closed from inside", () => {
+    it("returns focus to the segment, opening no card, when closed from inside", () => {
       showIntro();
 
       closeButton()?.focus();
       closeButton()?.click();
 
       expect(document.activeElement).toBe(segment("structural"));
+      expect(document.querySelector(".gh-prism-structural-tip")).toBeNull();
+    });
+
+    describe("placement", () => {
+      const resize = () => window.dispatchEvent(new Event("resize"));
+      const rectOf = (top: number, bottom: number) => () => new DOMRect(100, top, 40, bottom - top);
+
+      afterEach(() => {
+        vi.restoreAllMocks();
+      });
+
+      it("sits below the segment, its caret at the segment's centre", () => {
+        showIntro();
+        const structural = segment("structural");
+        if (!structural) throw new Error("no segment");
+        structural.getBoundingClientRect = rectOf(10, 40);
+
+        resize();
+
+        expect(popup()?.dataset.side).toBe("below");
+        expect(popup()?.style.getPropertyValue("--gh-prism-caret-x")).toBe("20px");
+      });
+
+      it("flips above a segment with no room below it", () => {
+        showIntro();
+        const structural = segment("structural");
+        if (!structural) throw new Error("no segment");
+        structural.getBoundingClientRect = rectOf(window.innerHeight - 40, window.innerHeight - 10);
+
+        resize();
+
+        expect(popup()?.dataset.side).toBe("above");
+      });
+
+      it("lifts a height cap the viewport no longer needs", () => {
+        showIntro();
+        const structural = segment("structural");
+        if (!structural) throw new Error("no segment");
+        structural.getBoundingClientRect = rectOf(10, 40);
+        popup()?.style.setProperty("max-height", "5px");
+
+        resize();
+
+        expect(popup()?.style.maxHeight).toBe("");
+      });
+
+      it("hides while the segment is off screen, and shows again once it's back", () => {
+        showIntro();
+        const structural = segment("structural");
+        if (!structural) throw new Error("no segment");
+        const hidePopover = vi.spyOn(HTMLElement.prototype, "hidePopover");
+        const showPopover = vi.spyOn(HTMLElement.prototype, "showPopover");
+
+        structural.getBoundingClientRect = rectOf(-100, -50);
+        resize();
+        expect(hidePopover).toHaveBeenCalledOnce();
+
+        structural.getBoundingClientRect = rectOf(10, 40);
+        resize();
+        expect(showPopover).toHaveBeenCalledOnce();
+      });
+
+      it("hides once GitHub detaches its segment, before the control follows", () => {
+        showIntro();
+        const hidePopover = vi.spyOn(HTMLElement.prototype, "hidePopover");
+
+        control()?.remove();
+        resize();
+
+        expect(hidePopover).toHaveBeenCalledOnce();
+      });
     });
   });
 });

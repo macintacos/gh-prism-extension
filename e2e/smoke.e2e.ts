@@ -5365,8 +5365,8 @@ for (const kind of ["pr", "commit"] as const) {
     await expect(
       page.getByRole("navigation", { name: "Changed files by section" }),
     ).not.toHaveAttribute("aria-busy");
-    // Open, the Structural popup sits between the segment and the gear in Tab order. It shows only
-    // while the segment is on screen.
+    // While open, the Structural popup sits between the segment and the gear in Tab order, and only
+    // while the segment is on screen, so scroll it in and close it first.
     await segment(page, "Structural").scrollIntoViewIfNeeded();
     await page.locator(".gh-prism-structural-popup").getByRole("button", { name: "Close" }).click();
     const boxes = () =>
@@ -5461,13 +5461,15 @@ test("the diff view control's Structural popup shows once, until it's closed", a
   expect(await popup.evaluate((el) => el.contains(document.activeElement))).toBe(false);
 
   await popup.getByRole("button", { name: "Close" }).click();
+  await expect(page.locator(".gh-prism-structural-tip")).toHaveCount(0);
   await expect(popup).toBeHidden();
 
+  // The dismissal saves to storage asynchronously, so a reload can beat it and show the popup again.
   await expect(async () => {
     await page.reload();
     await expect(segment(page, "Structural")).toBeVisible({ timeout: 2000 });
+    await expect(popup).toHaveCount(0);
   }).toPass();
-  await expect(popup).toHaveCount(0);
 
   const other = await context.newPage();
   const { url, menu, tables } = LAYOUT_PAGES.pr;
@@ -5475,4 +5477,22 @@ test("the diff view control's Structural popup shows once, until it's closed", a
   await other.goto(url);
   await expect(segment(other, "Structural")).toBeVisible();
   await expect(popupOf(other)).toHaveCount(0);
+});
+
+test("Escape in the diff view control's Structural popup closes it and returns focus to the segment", async ({
+  context,
+  page,
+}) => {
+  await serveLayoutPage(context, page, "pr");
+  const popup = page.locator(".gh-prism-structural-popup");
+  await expect(popup).toBeVisible();
+  await segment(page, "Structural").focus();
+  await page.keyboard.press("Tab");
+  expect(await popup.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+
+  await page.keyboard.press("Escape");
+
+  await expect(popup).toBeHidden();
+  await expect(segment(page, "Structural")).toBeFocused();
+  await expect(page.locator(".gh-prism-structural-tip")).toHaveCount(0);
 });

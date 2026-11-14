@@ -22,8 +22,9 @@ When to edit it:
 screenshot, at most three bullets, and the feature's screenshot in a collapsed
 `<details>`. A new feature joins the headline it extends, or gets its own `###` and
 screenshot pair. The hero above § What it does stays expanded. Keep the headings
-`## What it does` and `## Permissions`: the opening links the first, and
-[`typescript-rules.md`](../typescript-rules.md) links the second.
+`## What it does`, `### Structural diffs (Beta)`, and `## Permissions`: the opening links
+the first, `docs/STRUCTURAL-DIFFS.md` links the second, and
+[`typescript-rules.md`](../typescript-rules.md) links the third.
 
 Each picture is a `<picture>` whose `<source media="(prefers-color-scheme: dark)">` names
 `docs/images/<surface>-dark.png` and whose `<img>` names `<surface>-light.png`, with
