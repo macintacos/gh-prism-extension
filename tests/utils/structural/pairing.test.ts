@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { LineMatch } from "../../../utils/structural/changes";
+import { structuralChanges } from "../../../utils/structural/engine";
 import {
   MAX_PAIRING_CELLS,
   MIN_SHARED_TOKENS,
   maxAddedRows,
   pairedRows,
 } from "../../../utils/structural/pairing";
+import { inputFor, parserFor, readPair, regionsOf } from "../../fixtures/structural";
 
 const range = (from: number, count: number) => Array.from({ length: count }, (_, i) => from + i);
 const match = (
@@ -118,6 +120,31 @@ describe("a line split across several lines", () => {
     expect(
       pairedRows(range(1, 3), [9, 10], [match(1, 10, 3), match(2, 10, 3), match(3, 10, 4)]),
     ).toEqual([{ new: 9 }, { old: 1, new: 10 }, { old: 2 }, { old: 3 }]);
+  });
+
+  // report_builder.ts of https://github.com/macintacos/gh-prism-sandbox/pull/18: old 136
+  // `const byPayee = new Map…;` and 137 `for (… rowsOf(rows, "payout")) {` join into new 134
+  // `const byPayee = rowsOf(rows, "payout").reduce(`. Fails while 136's `new Map…` moving below
+  // the loop leaves it 3 of 13 tokens: the engine drops its `const byPayee =` as chance, and 3
+  // tokens fall short of half the shorter line.
+  it.fails("joined from a declaration and the loop after it sits beside the declaration", async () => {
+    const { oldText, newText } = readPair("typescript", "folded-declaration");
+    const parser = await parserFor("typescript");
+
+    const result = await structuralChanges(
+      inputFor({
+        oldText,
+        newText,
+        language: { grammar: { id: "typescript", indentationSensitive: false }, parser },
+        regions: regionsOf(oldText, newText),
+      }),
+    );
+    const matches = result.ok ? (result.changes.matches ?? []) : [];
+
+    expect(pairedRows(range(136, 5), range(134, 4), matches)).toContainEqual({
+      old: 136,
+      new: 134,
+    });
   });
 
   it("does not move past the pair before it", () => {
