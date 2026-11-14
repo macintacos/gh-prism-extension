@@ -3,7 +3,15 @@
  * sideways scroll, as the custom properties `wrap-lines.css` shifts the text by.
  */
 
-import { diffTables, type FilesPage, observeDiffs } from "../files-page";
+import {
+  codeLines,
+  type DiffTable,
+  diffTables,
+  type FilesPage,
+  fileBox,
+  isFileBox,
+  observeDiffs,
+} from "../files-page";
 
 /** How far each side's widest line runs past its cell, in px. */
 export interface Reach {
@@ -25,74 +33,72 @@ export function sideReach(lines: Iterable<LineExtent>): Reach {
   return reach;
 }
 
-const PROPS = ["--gh-prism-x", "--gh-prism-reach-old", "--gh-prism-reach-new", "--gh-prism-reach"];
+const REACH_PROPS = ["--gh-prism-reach-old", "--gh-prism-reach-new", "--gh-prism-reach"] as const;
 
 /**
  * Until `signal` aborts, writes each file's scroll offset and each side's reach on its table's
- * parent, the box that scrolls sideways; on abort, removes every property written.
+ * box, the one that scrolls sideways; on abort, removes every property written.
  */
-export function followSideScroll(page: FilesPage, signal: AbortSignal): void {
-  const boxes = new Set<HTMLElement>();
-  const boxOf = (table: Element) => {
-    const box = table.parentElement as HTMLElement;
-    boxes.add(box);
-    return box;
-  };
+export function followSideScroll(page: Pick<FilesPage, "diffs">, signal: AbortSignal): void {
+  const boxes = new Map<Element, { box: HTMLElement; diff: DiffTable }>();
 
+  // Every entry is measured before any is written, so one batch costs one layout.
   const resizes = new ResizeObserver((entries) => {
-    for (const { target } of entries) writeReach(boxOf(target), sideReach(extentsOf(target)));
+    const measured = entries.flatMap(({ target }) => {
+      const file = boxes.get(target);
+      return file && target.isConnected
+        ? [{ box: file.box, reach: sideReach(extentsOf(file.diff)) }]
+        : [];
+    });
+    for (const { box, reach } of measured) writeReach(box, reach);
   });
-  const observed = new Set<Element>();
   const observeTables = () => {
-    const tables = new Set(diffTables(page.diffs).map(({ table }) => table));
-    for (const table of observed)
-      if (!tables.has(table as HTMLTableElement)) {
+    const current = new Map<Element, DiffTable>(
+      diffTables(page.diffs).map((diff) => [diff.table, diff]),
+    );
+    for (const table of boxes.keys())
+      if (!current.has(table)) {
         resizes.unobserve(table);
-        observed.delete(table);
+        boxes.delete(table);
       }
-    for (const table of tables)
-      if (!observed.has(table)) {
-        resizes.observe(table);
-        observed.add(table);
-      }
+    for (const diff of current.values()) {
+      const { table } = diff;
+      const box = fileBox(table);
+      if (boxes.has(table) || !box) continue;
+      resizes.observe(table);
+      boxes.set(table, { box, diff });
+    }
   };
 
   const onScroll = ({ target }: Event) => {
-    if (!(target instanceof HTMLElement)) return;
-    if (!target.querySelector(":scope > table[data-diff-anchor]")) return;
-    boxes.add(target);
+    if (!(target instanceof HTMLElement) || !isFileBox(target)) return;
     target.style.setProperty("--gh-prism-x", `${target.scrollLeft}px`);
   };
-  page.diffs.addEventListener("scroll", onScroll, { capture: true, passive: true });
+  page.diffs.addEventListener("scroll", onScroll, { capture: true, passive: true, signal });
 
   observeDiffs(page.diffs, observeTables, { signal });
   observeTables();
 
   signal.addEventListener("abort", () => {
     resizes.disconnect();
-    page.diffs.removeEventListener("scroll", onScroll, { capture: true });
-    for (const box of boxes) for (const prop of PROPS) box.style.removeProperty(prop);
-    for (const box of boxes) if (box.getAttribute("style") === "") box.removeAttribute("style");
+    for (const { box } of boxes.values()) clearProps(box);
   });
 }
 
-/**
- * Each line's extent in `table`, from layout values the shift's transform leaves alone. A
- * `td` is its line's offset parent.
- */
-function* extentsOf(table: Element): Generator<LineExtent> {
-  for (const inner of table.querySelectorAll<HTMLElement>("td.diff-text-cell .diff-text-inner")) {
-    const cell = inner.closest("td") as HTMLElement;
-    yield {
-      side: cell.classList.contains("left-side-diff-cell") ? "old" : "new",
-      end: inner.offsetLeft + inner.offsetWidth,
-      room: cell.clientWidth,
-    };
-  }
+/** Each line's extent in `diff`, from layout values the shift's transform leaves alone. */
+function* extentsOf(diff: DiffTable): Generator<LineExtent> {
+  for (const { inner, cell, side } of codeLines(diff))
+    yield { side, end: inner.offsetLeft + inner.offsetWidth, room: cell.clientWidth };
 }
 
 function writeReach(box: HTMLElement, reach: Reach): void {
-  box.style.setProperty("--gh-prism-reach-old", `${reach.old}px`);
-  box.style.setProperty("--gh-prism-reach-new", `${reach.new}px`);
-  box.style.setProperty("--gh-prism-reach", `${Math.max(reach.old, reach.new)}px`);
+  const [old, neu, both] = REACH_PROPS;
+  box.style.setProperty(old, `${reach.old}px`);
+  box.style.setProperty(neu, `${reach.new}px`);
+  box.style.setProperty(both, `${Math.max(reach.old, reach.new)}px`);
+}
+
+function clearProps(box: HTMLElement): void {
+  for (const prop of ["--gh-prism-x", ...REACH_PROPS]) box.style.removeProperty(prop);
+  if (box.getAttribute("style") === "") box.removeAttribute("style");
 }

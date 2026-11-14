@@ -186,6 +186,9 @@ links to example pull requests.
 - gh-prism remembers the choice. Choosing Unified or Split turns Structural off, and so
   does choosing Unified from GitHub's own Layout menu. On a pull request filtered to one
   commit, Structural is unavailable. Structural is in beta, so it may have bugs.
+- gh-prism adds **Wrap lines** to GitHub's diff settings menu, checked by default. Uncheck
+  it to keep each line of code on one line. Each file then scrolls sideways. In Split and
+  Structural, both sides scroll together. gh-prism remembers the choice.
 
 <details>
 <summary>Screenshot: a Python file in Structural, with only the changed words highlighted</summary>

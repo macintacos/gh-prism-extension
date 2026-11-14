@@ -618,6 +618,17 @@ It appears only where gh-prism announces itself: the loading bar and the 3px top
 the classic-page dialog. Anywhere else, it would compete with the section hues it is made
 of. A hovered mark cycles through the same hues one at a time instead.
 
+## Menu items
+
+An item gh-prism adds to one of GitHub's menus is a copy of GitHub's own item, so Primer's
+check icon, hover, focus, and arrow-key navigation stay native. gh-prism adds no style of
+its own that could drift. `menuEntry` in `files-page.ts` builds it from a template item: a
+fresh `id`, a label that the item's `aria-labelledby` names, the role and `aria-checked`
+state, and `tabindex="-1"`, as Primer's focus zone expects. A pick by click, Enter, or
+Space runs the item's action, then closes the menu with the `Escape` `keydown` Primer
+listens for. The owner section's entries in the file-tree filter menu and Wrap lines in
+the diff settings menu use it.
+
 ## Notices
 
 A notice is one plain sentence in small, muted text, with no icon and no illustration. The

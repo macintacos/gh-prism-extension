@@ -586,7 +586,7 @@ inside the filter row and the groups, divider, and items the section copies; any
 else, and gh-prism leaves the menu alone.
 
 The entries are copies of GitHub's own divider, group, and first item (`copyMenuDivider`,
-`copyMenuGroup`, `copyMenuItem`, all in `files-page.ts`), so Primer's hover, focus, and
+`copyMenuGroup`, and `menuEntry`, all in `files-page.ts`), so Primer's hover, focus, and
 checkmark stay native. "Me" stands in for GitHub's "Only files owned by you" rather than
 moving it, since React owns that node: a pick on "Me" forwards a `.click()` to GitHub's
 item, whose group the sheet hides as the section's next sibling. The hidden item also gets
@@ -993,29 +993,36 @@ until the user scrolls, clicks, or types, or 5 s pass.
 adds a "Wrap lines" item to GitHub's diff settings menu, right after Compact line height,
 on every open that `followLayoutMenu` in
 [`files-page.ts`](../entrypoints/content/files-page.ts) reports. The item is a copy of
-Compact line height, which `findCompactLineHeight` finds, made by `copyMenuItem`.
-`followLayoutMenu` and `followFilterMenu` share one private loop, `followMenu`. The item
-saves the choice to `sync:wrapLines` in [`utils/prefs.ts`](../utils/prefs.ts), where a
-missing value means wrapped. While the item is unchecked, `wrap-lines.ts` sets
-`data-gh-prism-wrap="off"` on `<html>`. `diffs/wrap-lines.css` keys every rule on that
-attribute, so files that render later come up unwrapped with no per-row work.
+Compact line height, which `findCompactLineHeight` finds, built by `menuEntry`, the same
+builder the owner section's entries use. `followLayoutMenu` and `followFilterMenu` share
+one private loop, `followMenu`. The item saves the choice to `sync:wrapLines` in
+[`utils/prefs.ts`](../utils/prefs.ts), where a missing value means wrapped. While the item
+is unchecked, `wrap-lines.ts` sets `data-gh-prism-wrap="off"` on `<html>` and mounts
+`diffs/wrap-lines.css`, which it removes again on rewrap. The sheet keys every rule on
+that attribute, so files that render later come up unwrapped with no per-row work.
 `wrap-lines.ts` sets the attribute only once it finds the layout gear, so a page without
 the gear never unwraps with no way back. When the gear is missing, or a menu opens without
 Compact line height, diffs stay wrapped and gh-prism logs one warning.
 
 While the page is unwrapped, `wrap-lines.ts` runs
 [`diffs/side-scroll.ts`](../entrypoints/content/diffs/side-scroll.ts). It measures each
-side's reach, how far its widest line runs past its cell, with one `ResizeObserver` per
-diff table. One passive, capturing scroll listener on the diff list follows each file
-box's `scrollLeft`. The observer writes each side's reach, and the listener the scroll
-offset, as custom properties on the file's box, the table's parent.
+side's reach, how far its widest line runs past its cell, with one `ResizeObserver`
+watching every diff table. It reads lines through `codeLines` in `files-page.ts`, which
+skips hunk headers and takes a line's side from its position: only the old code cell of a
+split row, the second of its four cells, is old. One passive, capturing scroll listener on
+the diff list follows each file box's `scrollLeft`. The observer writes each side's reach,
+and the listener the scroll offset, as custom properties on the file's box, which
+`fileBox` and `isFileBox` find.
 
 The sheet makes that box scroll sideways over an empty `::after` strip as wide as the
 file's larger reach. The table is `position: sticky; left: 0`, so it stays put, and line
 numbers and +/− markers with it. Each line's text shifts left by the smaller of the scroll
 and its own side's reach, and is clipped clear of the +/− marker. In Split and Structural
 mode, both sides of a file share one box, so they scroll together, and a narrower side
-stops at its own end.
+stops at its own end. Hunk headers stay wrapped and don't shift. Structural's notice and
+loading line share the box with the table, and the box is their scroll container, so the
+sheet holds them at its left edge with `top: auto`, and they stop sticking under the file
+header.
 
 ## Structural painter
 

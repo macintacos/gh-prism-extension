@@ -680,12 +680,13 @@ on a private one.
   re-renders a CSS-module class on each `table[data-diff-anchor]`, replacing any class
   added there. Key a page-wide mode on an attribute of `<html>` instead, as
   `data-gh-prism-wrap` is (Chromium and Firefox, signed in, 2026-11-14).
-- **Expect each file's table alone in a bordered box, with both Split sides in one row.**
-  The box is the card § The file card describes, and a split row holds old number, old
-  code, new number, and new code, as § Diff lines says. So one scroll container on the box
-  moves both sides of a file together. The file's sticky header sits outside that box, so
-  the box can scroll without unpinning the header (Chromium and Firefox, signed in,
-  2026-11-14).
+- **Expect each file's table in a bordered box, with both Split sides in one row.** The
+  box is the card § The file card describes; besides the table it holds only nodes
+  gh-prism places before it, such as Structural's notice and loading line. A split row
+  holds old number, old code, new number, and new code, as § Diff lines says. So one
+  scroll container on the box moves both sides of a file together. The file's sticky
+  header sits outside that box, so the box can scroll without unpinning the header
+  (Chromium and Firefox, signed in, 2026-11-14).
 - **Expect diff rows never to be virtualized.** A file skips painting while off screen
   through `content-visibility: auto`, and files mount lazily in batches. Expanding context
   and switching the layout replace rows or whole tables. So CSS keyed on an attribute of
@@ -808,7 +809,11 @@ on a private one.
 - **Expect a `position: sticky` node in the file card to stick to the window.** The card
   and every ancestor up to `body` compute `overflow: visible`, at 1280px, 1000px, and
   600px wide. Nothing in the card scrolls sideways either: the table is
-  `table-layout: fixed` at the card's width and wraps long lines.
+  `table-layout: fixed` at the card's width and wraps long lines. The exception is the
+  unwrapped view: while `<html>` has `data-gh-prism-wrap="off"`, `wrap-lines.css` gives
+  the card `overflow-x: auto`, so both axes compute `auto` and a sticky node in the card
+  sticks to the card, not the window. gh-prism's Structural notice and loading line are
+  held at the card's left there and give up sticking under the header.
 - **Don't measure the sticky bar itself.** The commit page's bar has no stable hook, and
   the pull request's is `height: 0` until stuck.
 - **Expect a pull request's collapsed sticky header to be a `--base-size-48` row over a

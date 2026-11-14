@@ -1,7 +1,6 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { followSideScroll, sideReach } from "../../../entrypoints/content/diffs/side-scroll";
-import type { FilesPage } from "../../../entrypoints/content/files-page";
 import prSplit from "../../fixtures/files-page-diff-split.html?raw";
 import { stubResizeObserver } from "../../fixtures/resize-observer";
 
@@ -25,7 +24,7 @@ describe("followSideScroll", () => {
   const REACH_PROPS = ["--gh-prism-reach-old", "--gh-prism-reach-new", "--gh-prism-reach"];
   let controller: AbortController;
   let observer: ReturnType<typeof stubResizeObserver>;
-  let page: FilesPage;
+  let page: { diffs: HTMLElement };
 
   /** Mounts a file's split table in its own box under the page's diffs, and returns the box. */
   function mountFile(): HTMLElement {
@@ -44,17 +43,19 @@ describe("followSideScroll", () => {
   }
 
   beforeEach(() => {
+    vi.useFakeTimers();
     observer = stubResizeObserver();
 
     controller = new AbortController();
 
-    document.body.innerHTML = "<div></div>";
-    page = { diffs: document.body.firstElementChild } as unknown as FilesPage;
+    document.body.innerHTML = "";
+    page = { diffs: document.body.appendChild(document.createElement("div")) };
   });
 
   afterEach(() => {
     controller.abort();
     observer.restore();
+    vi.useRealTimers();
   });
 
   it("writes a box's scroll offset as --gh-prism-x", () => {
@@ -86,10 +87,23 @@ describe("followSideScroll", () => {
     const box = mountFile();
     layOut(box, { width: 350, room: 300 });
 
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await vi.advanceTimersByTimeAsync(50);
     observer.deliver();
 
     expect(box.style.getPropertyValue("--gh-prism-reach")).toBe("50px");
+  });
+
+  it("skips a table that left its box before it was measured, and measures the rest", () => {
+    const gone = mountFile();
+    const box = mountFile();
+    layOut(box, { width: 500, room: 300 });
+    followSideScroll(page, controller.signal);
+
+    gone.querySelector("table")?.remove();
+    observer.deliver();
+
+    expect(box.style.getPropertyValue("--gh-prism-reach")).toBe("200px");
+    expect(() => controller.abort()).not.toThrow();
   });
 
   it("removes every property it wrote once aborted", () => {

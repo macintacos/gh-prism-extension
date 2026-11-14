@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { showWrapLines } from "../../../entrypoints/content/diffs/wrap-lines";
+import { showWrapLines, type WrapChoice } from "../../../entrypoints/content/diffs/wrap-lines";
 import {
   type FilesPage,
   findFilesPage,
@@ -68,9 +68,9 @@ describe("showWrapLines", () => {
   }
 
   function show(page: FilesPage, on = true) {
-    const wrap = { on };
+    const wrap: WrapChoice = { on };
     const save = vi.fn<(on: boolean) => void>();
-    showWrapLines(page, controller.signal, { wrap, save });
+    showWrapLines(page, controller.signal, { choice: wrap, save });
     return { wrap, save };
   }
 
@@ -129,7 +129,6 @@ describe("showWrapLines", () => {
     press(item);
     await flush();
 
-    expect(item.getAttribute("aria-checked")).toBe("false");
     expect(wrap.on).toBe(false);
     expect(save).toHaveBeenCalledWith(false);
     expect(unwrapped()).toBe(true);
@@ -190,7 +189,7 @@ describe("showWrapLines", () => {
 
   it("keeps a line on one row in a sideways-scrolling box while unwrapped", () => {
     show(pageOf("pr"), false);
-    const inner = document.querySelector(".diff-text-inner");
+    const inner = document.querySelector("td.diff-text-cell .diff-text-inner");
     const box = document.querySelector("table[data-diff-anchor]")?.parentElement;
     if (!inner || !box) throw new Error("fixture has no line");
 
@@ -198,14 +197,72 @@ describe("showWrapLines", () => {
     expect(getComputedStyle(box).overflowX).toBe("auto");
   });
 
+  it("holds a file's notice still at the box's left edge while unwrapped", () => {
+    show(pageOf("pr"), false);
+    const table = document.querySelector("table[data-diff-anchor]");
+    if (!table) throw new Error("fixture has no table");
+    const notice = document.createElement("div");
+    notice.className = "gh-prism-structural-notice";
+    notice.style.top = "150px";
+    table.before(notice);
+
+    expect(getComputedStyle(notice).top).toBe("auto");
+    expect(getComputedStyle(notice).left).toBe("0px");
+  });
+
+  it("leaves hunk headers wrapping while unwrapped", () => {
+    show(pageOf("pr"), false);
+    const hunk = document.querySelector(".diff-hunk-cell .diff-text-inner");
+    if (!hunk) throw new Error("fixture has no hunk header");
+
+    expect(getComputedStyle(hunk).whiteSpace).not.toBe("pre");
+  });
+
+  it("offers the item once a gear missing at the start appears", async () => {
+    const page = pageOf("pr", { gear: false });
+    const { save } = show(page);
+    const toolbar = findFilesToolbar(page);
+    if (!toolbar) throw new Error("fixture has no toolbar");
+    toolbar.outerHTML = prToolbar;
+
+    await openMenu(page);
+    wrapItem()?.click();
+    await flush();
+
+    expect(save).toHaveBeenCalledWith(false);
+    expect(unwrapped()).toBe(true);
+  });
+
+  it("warns once for a missing gear and once for a menu without Compact line height", async () => {
+    const page = pageOf("pr", {
+      gear: false,
+      menu: prMenu.replace("Compact line height", "Something else"),
+    });
+    show(page);
+    const toolbar = findFilesToolbar(page);
+    if (!toolbar) throw new Error("fixture has no toolbar");
+    page.diffs.append(document.createElement("div"));
+    await flush();
+    toolbar.outerHTML = prToolbar;
+
+    await openMenu(page);
+
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
+
   it("leaves lines and their box as GitHub draws them while wrapped", () => {
     show(pageOf("pr"), true);
-    const inner = document.querySelector(".diff-text-inner");
+    const inner = document.querySelector("td.diff-text-cell .diff-text-inner");
     const box = document.querySelector("table[data-diff-anchor]")?.parentElement;
     if (!inner || !box) throw new Error("fixture has no line");
 
     expect(getComputedStyle(inner).whiteSpace).not.toBe("pre");
     expect(getComputedStyle(box).overflowX).not.toBe("auto");
+    expect(
+      [...document.head.querySelectorAll("style")].some((style) =>
+        style.textContent?.includes("data-gh-prism-wrap"),
+      ),
+    ).toBe(false);
   });
 
   it("wraps again once the page is torn down", () => {

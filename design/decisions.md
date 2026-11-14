@@ -28,7 +28,9 @@ at the top, dated.
     scrollbar out of scope.
 - **Accepted:** on a tall file, the scrollbar sits at the file's bottom, off screen until
   the reader scrolls there. Trackpad and Shift + wheel still scroll the file from anywhere
-  in it.
+  in it. While unwrapped, Structural's per-file notice and its loading line stay at the
+  file's left edge. They no longer stick under the file header, because the file's box is
+  their scroll container.
 
 ## 2026-11-13: Structural mode never marks a line changed in full
 

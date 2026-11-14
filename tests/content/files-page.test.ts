@@ -9,6 +9,7 @@ import type {
 import {
   appendToDiffs,
   changedCells,
+  codeLines,
   commitPage,
   copyMenuGroup,
   copyMenuItem,
@@ -63,6 +64,7 @@ import {
   viewedToggleOf,
   viewerLogin,
 } from "../../entrypoints/content/files-page";
+import commitUnified from "../fixtures/commit-page-diff-unified.html?raw";
 import commitToolbar from "../fixtures/commit-page-toolbar.html?raw";
 import commentsFixture from "../fixtures/conversation-comments.html?raw";
 import nodeConversation from "../fixtures/conversation-node.html?raw";
@@ -875,7 +877,7 @@ describe("copyMenuGroup and copyMenuItem", () => {
     const menu = openMenu();
     const before = menu.list.outerHTML;
 
-    const { item, label } = copyMenuItem(menu);
+    const { item, label } = copyMenuItem(menu.item);
 
     expect(item.tagName).toBe("LI");
     for (const attr of ["id", "aria-keyshortcuts", "aria-checked"]) {
@@ -1777,6 +1779,34 @@ describe("diffTables", () => {
     document.body.innerHTML = "";
 
     expect(diffTables(document.body)).toEqual([]);
+  });
+});
+
+describe("codeLines", () => {
+  const sidesOf = (html: string) => {
+    document.body.innerHTML = html;
+    const [table] = diffTables(document.body);
+    if (!table) throw new Error("fixture has no table");
+    return [...codeLines(table)].map(({ side }) => side);
+  };
+
+  it("puts a split row's 2nd cell on the old side and its 4th on the new", () => {
+    const sides = sidesOf(prSplit);
+
+    expect(sides.filter((side) => side === "old")).toHaveLength(20);
+    expect(sides.filter((side) => side === "new")).toHaveLength(24);
+  });
+
+  it("puts every line of a commit's Unified diff on the new side", () => {
+    expect(sidesOf(commitUnified)).toEqual(["new", "new", "new", "new", "new"]);
+  });
+
+  it("skips hunk headers", () => {
+    document.body.innerHTML = prSplit;
+    const [table] = diffTables(document.body);
+    if (!table) throw new Error("fixture has no table");
+
+    expect([...codeLines(table)].every(({ cell }) => !cell.closest(".diff-hunk-cell"))).toBe(true);
   });
 });
 

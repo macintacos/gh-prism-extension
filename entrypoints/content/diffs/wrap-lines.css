@@ -1,24 +1,34 @@
-/* GitHub hooks: table[data-diff-anchor] and its parent (a file's bordered box),
-   td.diff-text-cell, td.left-side-diff-cell (a split row's old side), and .diff-text-inner.
-   wrap-lines.ts writes data-gh-prism-wrap="off" on <html>; side-scroll.ts writes --gh-prism-x,
-   --gh-prism-reach, --gh-prism-reach-old, and --gh-prism-reach-new on a table's parent. */
+/* GitHub hooks: table[data-diff-anchor] and its parent div (a file's bordered box),
+   td.diff-text-cell, td.diff-text-cell:nth-child(2) (a split row's old code cell, by position:
+   a commit marks Unified deletions left-side-diff-cell too), and .diff-text-inner, which also
+   sits in hunk headers; those stay wrapped, so only a td.diff-text-cell's line shifts.
+   gh-prism hooks: .gh-prism-structural-notice and Structural's loading line, the box's other
+   children. wrap-lines.ts mounts this sheet and writes data-gh-prism-wrap="off" on <html> while
+   unwrapped; side-scroll.ts writes --gh-prism-x, --gh-prism-reach, --gh-prism-reach-old, and
+   --gh-prism-reach-new on a table's parent. */
 
 /* The box scrolls over an empty strip as wide as the file's overflow, while the table stays put
    and each line's text shifts by the scroll instead. */
-html[data-gh-prism-wrap="off"] :has(> table[data-diff-anchor]) {
+html[data-gh-prism-wrap="off"] div:has(> table[data-diff-anchor]) {
   overflow-x: auto;
 }
 
-html[data-gh-prism-wrap="off"] :has(> table[data-diff-anchor])::after {
+html[data-gh-prism-wrap="off"] div:has(> table[data-diff-anchor])::after {
   content: "";
   display: block;
   width: calc(100% + var(--gh-prism-reach, 0px));
   height: 0;
 }
 
-html[data-gh-prism-wrap="off"] table[data-diff-anchor] {
+html[data-gh-prism-wrap="off"] div:has(> table[data-diff-anchor]) > * {
   position: sticky;
   left: 0;
+}
+
+/* The box is now the notice's scroll container, so the window-relative top Structural writes
+   inline would push it over the code; !important beats an inline style. */
+html[data-gh-prism-wrap="off"] div:has(> table[data-diff-anchor]) > :not(table) {
+  top: auto !important;
 }
 
 /* The cell clips, not its code: GitHub draws code.diff-text inline, where overflow does nothing.
@@ -30,17 +40,18 @@ html[data-gh-prism-wrap="off"] table[data-diff-anchor] td.diff-text-cell {
 
 /* A side stops at its own reach, and clips its left edge by its shift so it never paints over
    the +/- marker. */
-html[data-gh-prism-wrap="off"] table[data-diff-anchor] .diff-text-inner {
+html[data-gh-prism-wrap="off"] table[data-diff-anchor] td.diff-text-cell .diff-text-inner {
   --gh-prism-shift: min(var(--gh-prism-x, 0px), var(--gh-prism-reach-new, 0px));
   white-space: pre;
-  overflow-wrap: normal;
-  word-break: normal;
   width: max-content;
   min-width: 100%;
   transform: translateX(calc(-1 * var(--gh-prism-shift)));
   clip-path: inset(0 0 0 var(--gh-prism-shift));
 }
 
-html[data-gh-prism-wrap="off"] table[data-diff-anchor] td.left-side-diff-cell .diff-text-inner {
+html[data-gh-prism-wrap="off"]
+  table[data-diff-anchor]
+  td.diff-text-cell:nth-child(2)
+  .diff-text-inner {
   --gh-prism-shift: min(var(--gh-prism-x, 0px), var(--gh-prism-reach-old, 0px));
 }

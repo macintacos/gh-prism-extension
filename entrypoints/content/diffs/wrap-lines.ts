@@ -4,22 +4,28 @@
  */
 
 import {
-  copyMenuItem,
   diffTables,
   type FilesPage,
   findCompactLineHeight,
   findLayoutGear,
   followLayoutMenu,
   type LayoutMenu,
+  menuEntry,
   observeDiffs,
 } from "../files-page";
 import { followSideScroll } from "./side-scroll";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./wrap-lines.css?inline";
 
+/** Whether diffs wrap long lines. One per tab, so the choice carries to the next page. */
+export interface WrapChoice {
+  on: boolean;
+}
+
+/** The tab's Wrap lines choice for `showWrapLines` to apply, and how to persist a flip. */
 export interface WrapLinesOptions {
-  /** The saved choice, shared by every visit. */
-  readonly wrap: { on: boolean };
+  readonly choice: WrapChoice;
+  /** Remembers the choice the item flipped to. */
   readonly save: (on: boolean) => void;
 }
 
@@ -33,26 +39,32 @@ const ITEM_ID = "gh-prism-wrap-lines";
 export function showWrapLines(
   page: FilesPage,
   signal: AbortSignal,
-  { wrap, save }: WrapLinesOptions,
+  { choice, save }: WrapLinesOptions,
 ): void {
   const doc = page.sidebar.ownerDocument;
   let gate: "closed" | "open" | "given up" = "closed";
-  let warned = false;
+  const warned = new Set<string>();
   const warnOnce = (message: string) => {
-    if (warned) return;
-    warned = true;
+    if (warned.has(message)) return;
+    warned.add(message);
     console.warn(`gh-prism: ${message}`);
   };
 
   let unwrapped: AbortController | undefined;
   const apply = () => {
-    if (gate === "open" && !wrap.on) {
-      doc.documentElement.dataset.ghPrismWrap = "off";
+    if (gate === "open" && !choice.on) {
       if (unwrapped) return;
       unwrapped = new AbortController();
-      followSideScroll(page, AbortSignal.any([signal, unwrapped.signal]));
+      const stretch = AbortSignal.any([signal, unwrapped.signal]);
+      const style = Object.assign(doc.createElement("style"), { textContent: css });
+      doc.head.append(style);
+      doc.documentElement.dataset.ghPrismWrap = "off";
+      stretch.addEventListener("abort", () => {
+        style.remove();
+        delete doc.documentElement.dataset.ghPrismWrap;
+      });
+      followSideScroll(page, stretch);
     } else {
-      delete doc.documentElement.dataset.ghPrismWrap;
       unwrapped?.abort();
       unwrapped = undefined;
     }
@@ -74,48 +86,30 @@ export function showWrapLines(
       warnOnce("the diff settings menu has no Compact line height, so it gets no Wrap lines");
       return;
     }
-    const item = wrapItem(compact, wrap.on, () => {
-      wrap.on = !wrap.on;
-      save(wrap.on);
+    const flip = () => {
+      choice.on = !choice.on;
+      save(choice.on);
       apply();
-      return wrap.on;
-    });
-    compact.after(item);
+    };
+    compact.after(
+      menuEntry(compact, {
+        id: ITEM_ID,
+        text: "Wrap lines",
+        role: "menuitemcheckbox",
+        checked: choice.on,
+        pick: flip,
+      }),
+    );
   };
-
-  const style = Object.assign(doc.createElement("style"), { textContent: css });
-  doc.head.append(style);
-  signal.addEventListener("abort", () => style.remove());
 
   observeDiffs(page.diffs, openGate, { signal });
-  followLayoutMenu(doc, (menu) => gate !== "given up" && addItem(menu), { signal });
-  signal.addEventListener("abort", () => delete doc.documentElement.dataset.ghPrismWrap);
+  followLayoutMenu(
+    doc,
+    (menu) => {
+      openGate();
+      if (gate === "open") addItem(menu);
+    },
+    { signal },
+  );
   openGate();
-}
-
-/**
- * A copy of `compact` labelled "Wrap lines", checked while `on`, that runs `flip` on click, Enter,
- * or Space, shows what it returns, then closes the menu.
- */
-function wrapItem(compact: HTMLElement, on: boolean, flip: () => boolean): HTMLElement {
-  const { item, label } = copyMenuItem({ item: compact });
-  item.id = ITEM_ID;
-  item.setAttribute("role", "menuitemcheckbox");
-  item.setAttribute("tabindex", "-1");
-  item.setAttribute("aria-labelledby", `${ITEM_ID}--label`);
-  item.setAttribute("aria-checked", String(on));
-  label.id = `${ITEM_ID}--label`;
-  label.textContent = "Wrap lines";
-
-  const flipAndClose = () => {
-    item.setAttribute("aria-checked", String(flip()));
-    item.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-  };
-  item.addEventListener("click", flipAndClose);
-  item.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    event.preventDefault();
-    flipAndClose();
-  });
-  return item;
 }

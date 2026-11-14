@@ -1,8 +1,8 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import {
   type BrowserContext,
   test as base,
@@ -14,6 +14,7 @@ import {
 import { withExtension } from "playwright-webextext";
 import { MARKS_ATTR } from "../entrypoints/content/diffs/structural-attrs";
 import { installLayoutMenu } from "../tests/fixtures/layout-menu";
+import type { NoticesHarness } from "./structural-notices-page";
 import type { StructuralHarness } from "./structural-page";
 
 const CHROME_EXTENSION = join(import.meta.dirname, "../.output/chrome-mv3");
@@ -36,18 +37,36 @@ const TOOLBAR = readFixture("files-page-toolbar.html").replace(
 
 type Layout = keyof typeof TABLES;
 
-/**
- * The pull request page with the captured toolbar, gear and all, and one diff table in `layout`.
- * The fixture loads no GitHub sheet, so it stands in for the two rules that fit a table to its file.
- */
+/** The fixture loads no GitHub sheet, so this stands in for the two rules that fit a table to its file. */
 const FIT_TABLES =
   '<style>.width-full { width: 100%; } [class*="tableLayoutFixed"] { table-layout: fixed; }</style>';
+/** The pull request page with the captured toolbar, gear and all, and one diff table in `layout`. */
 const pageBody = (layout: Layout) =>
   `<!doctype html>${FIT_TABLES}${readFixture("files-page.html")}`
     .replace(/<section class="toolbar__ztHN6">[\s\S]*?<\/section>/, TOOLBAR)
     .replace(/(<div role="region" id="diff-ff278[^"]*">)/, `$1${TABLES[layout]}`);
 
-const test = base.extend<{ context: BrowserContext }>({
+/**
+ * `bundle` is `wrap-lines-page.ts` with the structural painter's and notices' harnesses, built once
+ * per worker. A content script can't be reached on a routed page, which has no repository to compare.
+ */
+const test = base.extend<{ context: BrowserContext }, { bundle: string }>({
+  bundle: [
+    // Playwright requires a destructured first parameter; this fixture depends on nothing in it.
+    async ({ browserName: _ }, use) => {
+      await use(
+        execFileSync(
+          "bun",
+          [
+            join(import.meta.dirname, "../bench/bundle.ts"),
+            join(import.meta.dirname, "wrap-lines-page.ts"),
+          ],
+          { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+        ),
+      );
+    },
+    { scope: "worker" },
+  ],
   context: async ({ browserName }, use) => {
     const profile = await mkdtemp(join(tmpdir(), "gh-prism-e2e-"));
     const context = await (browserName === "firefox"
@@ -72,39 +91,16 @@ const test = base.extend<{ context: BrowserContext }>({
 
 declare const window: Window & {
   readonly structural: StructuralHarness;
+  readonly notices: NoticesHarness;
   readonly unwrapDiffs: () => void;
 };
 
-/**
- * The structural painter's harness, with `unwrapDiffs()` mounting `wrap-lines.css` unwrapped and
- * following `#diffs` with `side-scroll.ts`. A content script's painter can't be reached on a routed
- * page, which has no repository to compare.
- */
-const structuralBundle = (() => {
-  let built: string | undefined;
-  return () => {
-    if (built) return built;
-    const root = join(import.meta.dirname, "..");
-    const entry = join(mkdtempSync(join(tmpdir(), "gh-prism-wrap-")), "entry.ts");
-    writeFileSync(
-      entry,
-      `import "${root}/e2e/structural-page.ts";
-import { followSideScroll } from "${root}/entrypoints/content/diffs/side-scroll";
-import css from "${root}/entrypoints/content/diffs/wrap-lines.css?inline";
-(window as any).unwrapDiffs = () => {
-  document.head.append(Object.assign(document.createElement("style"), { textContent: css }));
-  document.documentElement.dataset.ghPrismWrap = "off";
-  followSideScroll({ diffs: document.querySelector("#diffs") } as any, new AbortController().signal);
-};`,
-    );
-    built = execFileSync("bun", [join(root, "bench/bundle.ts"), entry], {
-      encoding: "utf8",
-      maxBuffer: 64 * 1024 * 1024,
-    });
-    rmSync(dirname(entry), { recursive: true, force: true });
-    return built;
-  };
-})();
+/** Mounts `table` alone in `#diffs` at a width where its lines overflow, then `bundle`. */
+async function mountHarness(page: Page, bundle: string, table: string) {
+  await page.setViewportSize({ width: 700, height: 720 });
+  await page.setContent(`<!doctype html>${FIT_TABLES}<div id="diffs"><div>${table}</div></div>`);
+  await page.addScriptTag({ content: bundle });
+}
 
 const toHundredths = (px: number) => Math.round(px * 100) / 100 + 0;
 
@@ -179,9 +175,9 @@ async function unwrap(page: Page) {
 
 const whiteSpaces = (page: Page) =>
   page.evaluate(() =>
-    [...document.querySelectorAll("table[data-diff-anchor] .diff-text-inner")].map(
-      (inner) => getComputedStyle(inner).whiteSpace,
-    ),
+    [
+      ...document.querySelectorAll("table[data-diff-anchor] td.diff-text-cell .diff-text-inner"),
+    ].map((inner) => getComputedStyle(inner).whiteSpace),
   );
 
 /** Each diff table's scrolling box: how far it can scroll sideways. */
@@ -227,6 +223,27 @@ const geometry = (page: Page) =>
       scrollLeft: box.scrollLeft,
     };
   });
+
+type Geometry = Awaited<ReturnType<typeof geometry>>;
+
+/** Each side's text in `moved` sits left of `rest` by the scroll, clamped to that side's reach. */
+function expectTextShifted(rest: Geometry, moved: Geometry) {
+  for (const side of ["old", "new"] as const) {
+    const shift = Math.min(moved.scrollLeft, rest[side].reach);
+    expect(moved[side].text.map(toHundredths)).toEqual(
+      rest[side].text.map((x) => toHundredths(x - shift)),
+    );
+  }
+}
+
+/** Every `.diff-text-inner` in the first table matching `selector`: its x and computed transform. */
+const inners = (page: Page, selector: string) =>
+  page.locator(`table[data-diff-anchor] ${selector}`).evaluateAll((nodes) =>
+    nodes.map((node) => ({
+      x: node.getBoundingClientRect().x,
+      transform: getComputedStyle(node).transform,
+    })),
+  );
 
 /** A copy of the page's diff region under a new anchor, appended after it, as a file that loads late. */
 const addFile = (page: Page, anchor: string) =>
@@ -294,12 +311,7 @@ test("scrolling a split file sideways shifts both sides' text together while num
     expect(moved.numbers.map(toHundredths)).toEqual(rest.numbers.map(toHundredths));
     expect(moved.markers.map(toHundredths)).toEqual(rest.markers.map(toHundredths));
     expect(moved.hunks.map(toHundredths)).toEqual(rest.hunks.map(toHundredths));
-    for (const side of ["old", "new"] as const) {
-      const shift = Math.min(moved.scrollLeft, rest[side].reach);
-      expect(moved[side].text.map(toHundredths)).toEqual(
-        rest[side].text.map((x) => toHundredths(x - shift)),
-      );
-    }
+    expectTextShifted(rest, moved);
   };
 
   await scrollFileTo(page, 40);
@@ -325,7 +337,7 @@ test("scrolling one unified file sideways leaves another file's offset alone", a
   // The rename's lines are short; one long line makes both copies overflow.
   await page.evaluate(() => {
     document
-      .querySelector("table[data-diff-anchor] .diff-text-inner")
+      .querySelector("table[data-diff-anchor] td.diff-text-cell .diff-text-inner")
       ?.append(" // a comment long enough to run past the cell".repeat(8));
   });
   await addFile(page, "diff-0b7e");
@@ -356,7 +368,7 @@ test("a file that loads after Wrap lines is unchecked comes up unwrapped and mea
     .poll(() => late.evaluate((region) => region.style.getPropertyValue("--gh-prism-reach")))
     .toMatch(/px$/);
   const spaces = await late.evaluate((region) =>
-    [...region.querySelectorAll(".diff-text-inner")].map(
+    [...region.querySelectorAll("td.diff-text-cell .diff-text-inner")].map(
       (inner) => getComputedStyle(inner).whiteSpace,
     ),
   );
@@ -419,13 +431,10 @@ test("toggling Wrap lines never saves GitHub's diff settings", async ({ context,
 });
 
 test("Structural's marked lines stay as wide as their text and shift with their row while unwrapped", async ({
+  bundle,
   page,
 }) => {
-  await page.setViewportSize({ width: 700, height: 720 });
-  await page.setContent(
-    `<!doctype html>${FIT_TABLES}<div id="diffs"><div>${TABLES.split}</div></div>`,
-  );
-  await page.addScriptTag({ content: structuralBundle() });
+  await mountHarness(page, bundle, TABLES.split);
   await page.evaluate(() => window.structural.start());
   const marked = page.locator(`table[data-diff-anchor] [${MARKS_ATTR}]`);
   await expect.poll(() => marked.count()).toBeGreaterThan(0);
@@ -437,13 +446,7 @@ test("Structural's marked lines stay as wide as their text and shift with their 
 
   await scrollFileTo(page, 40);
 
-  const moved = await geometry(page);
-  for (const side of ["old", "new"] as const) {
-    const shift = Math.min(moved.scrollLeft, rest[side].reach);
-    expect(moved[side].text.map(toHundredths)).toEqual(
-      rest[side].text.map((x) => toHundredths(x - shift)),
-    );
-  }
+  expectTextShifted(rest, await geometry(page));
   const widths = await marked.evaluateAll((inners) =>
     inners.map((inner) => {
       const range = document.createRange();
@@ -456,4 +459,68 @@ test("Structural's marked lines stay as wide as their text and shift with their 
   );
   for (const { width, text } of widths) expect(width).toBeGreaterThanOrEqual(Math.floor(text));
   expect(await page.locator("table[data-diff-anchor] tr").count()).toBe(rows);
+});
+
+test("on a commit's unified view, every line shifts by the same scroll once it passes the deletions' reach", async ({
+  bundle,
+  page,
+}) => {
+  await mountHarness(page, bundle, readFixture("commit-page-diff-unified.html"));
+  await page.evaluate(() => {
+    document
+      .querySelector("table[data-diff-anchor] td.right-side-diff-cell .diff-text-inner")
+      ?.append(" // a comment long enough to run past the cell".repeat(8));
+  });
+  await page.evaluate(() => window.unwrapDiffs());
+  await expect.poll(async () => (await scrollRanges(page))[0]).toBeGreaterThan(200);
+  const lines = "td.diff-text-cell .diff-text-inner";
+  const rest = await inners(page, lines);
+
+  await scrollFileTo(page, 200);
+
+  const shifts = (await inners(page, lines)).map(({ x }, n) => toHundredths((rest[n]?.x ?? 0) - x));
+  expect(new Set(shifts)).toEqual(new Set([200]));
+});
+
+test("a hunk header's text holds still while its file scrolls sideways", async ({
+  bundle,
+  page,
+}) => {
+  await mountHarness(page, bundle, TABLES.split);
+  await page.evaluate(() => window.unwrapDiffs());
+  await expect.poll(async () => (await scrollRanges(page))[0]).toBeGreaterThan(0);
+  const hunks = "td.diff-hunk-cell .diff-text-inner";
+  const rest = await inners(page, hunks);
+  expect(rest.length).toBeGreaterThan(0);
+
+  await scrollFileTo(page, 40);
+
+  const moved = await inners(page, hunks);
+  expect(moved.map(({ x }) => toHundredths(x))).toEqual(rest.map(({ x }) => toHundredths(x)));
+  expect(new Set(moved.map(({ transform }) => transform))).toEqual(new Set(["none"]));
+});
+
+test("a Structural notice stays clear of the code and holds its place while its file is unwrapped", async ({
+  bundle,
+  page,
+}) => {
+  await mountHarness(page, bundle, TABLES.split);
+  await page.evaluate(() => window.notices.start());
+  const notice = page.locator(".gh-prism-structural-notice");
+  await expect(notice).toBeVisible();
+  await page.evaluate(() => window.unwrapDiffs());
+  await expect.poll(async () => (await scrollRanges(page))[0]).toBeGreaterThan(0);
+  const rest = await notice.boundingBox();
+
+  await scrollFileTo(page, 40);
+
+  const moved = await notice.boundingBox();
+  expect(moved && toHundredths(moved.x)).toBe(rest && toHundredths(rest.x));
+  const overlaps = await notice.evaluate((node) => {
+    const box = node.getBoundingClientRect();
+    return [...document.querySelectorAll("table[data-diff-anchor] tr:has(td.diff-text-cell)")]
+      .map((row) => row.getBoundingClientRect())
+      .filter((row) => row.top < box.bottom && box.top < row.bottom).length;
+  });
+  expect(overlaps).toBe(0);
 });

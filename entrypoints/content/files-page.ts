@@ -392,7 +392,8 @@ export function followFilterMenu(
 
 /**
  * Calls `onOpen` with the diff settings menu each time it opens (and one already open), with a
- * signal that aborts once it closes, until `signal` aborts. Undebounced, like `followFilterMenu`.
+ * signal that aborts once it closes, until `signal` aborts. Undebounced, so the item is in place
+ * before the menu first paints.
  */
 export function followLayoutMenu(
   doc: Document,
@@ -488,11 +489,11 @@ export const copyMenuDivider = (menu: FilterMenu): Element => cloneOf(menu.divid
  * A copy of `menu`'s item with its checkmark kept, and no id, labelling, tab stop, label text,
  * trailing visual, checked state, or key: the item, and the label to fill.
  */
-export function copyMenuItem(menu: Pick<FilterMenu, "item">): {
+export function copyMenuItem(template: HTMLElement): {
   item: HTMLElement;
   label: HTMLElement;
 } {
-  const item = cloneOf(menu.item, true);
+  const item = cloneOf(template, true);
   // Load-bearing beyond key clashes: a copy that kept GitHub's "o" would pass for its owned-by
   // item, so findFilterMenu would stop recognizing the open menu and the section would tear
   // itself down and re-add in a loop.
@@ -501,9 +502,48 @@ export function copyMenuItem(menu: Pick<FilterMenu, "item">): {
   for (const trailing of item.querySelectorAll('[data-component="ActionList.TrailingVisual"]'))
     trailing.remove();
   const label = item.querySelector<HTMLElement>(ITEM_LABEL);
-  if (!label) throw new Error("filter menu's item lost its label");
+  if (!label) throw new Error("menu item lost its label");
   label.replaceChildren();
   return { item, label };
+}
+
+/** What a menu entry shows and does. */
+export interface MenuEntryParts {
+  readonly id: string;
+  readonly text: string;
+  readonly role: "menuitemradio" | "menuitemcheckbox";
+  readonly checked: boolean;
+  readonly pick: () => void;
+}
+
+/**
+ * A copy of `template` labelled `text` that runs `pick` on click, Enter, or Space, then closes the
+ * menu with the Escape Primer listens for.
+ */
+export function menuEntry(
+  template: HTMLElement,
+  { id, text, role, checked, pick }: MenuEntryParts,
+): HTMLElement {
+  const { item, label } = copyMenuItem(template);
+  item.id = id;
+  item.setAttribute("role", role);
+  item.setAttribute("tabindex", "-1");
+  item.setAttribute("aria-labelledby", `${id}--label`);
+  item.setAttribute("aria-checked", String(checked));
+  label.id = `${id}--label`;
+  label.textContent = text;
+
+  const pickAndClose = () => {
+    pick();
+    item.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  };
+  item.addEventListener("click", pickAndClose);
+  item.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    pickAndClose();
+  });
+  return item;
 }
 
 /**
@@ -881,11 +921,8 @@ export interface LayoutMenu {
 export function findLayoutMenu(doc: Document): LayoutMenu | undefined {
   // No other GitHub menu holds both items, so the menu needs no tie back to the gear.
   for (const list of doc.querySelectorAll('#__primerPortalRoot__ ul[role="menu"]')) {
-    const items = [...list.querySelectorAll<HTMLElement>('[role="menuitemradio"]')];
-    const labelled = (text: string) =>
-      items.find((item) => item.querySelector(ITEM_LABEL)?.textContent?.trim() === text);
-    const unified = labelled("Unified");
-    const split = labelled("Split");
+    const unified = menuItemLabelled(list, "menuitemradio", "Unified");
+    const split = menuItemLabelled(list, "menuitemradio", "Split");
     if (unified && split) return { list, unified, split };
   }
   return undefined;
@@ -893,10 +930,14 @@ export function findLayoutMenu(doc: Document): LayoutMenu | undefined {
 
 /** `menu`'s "Compact line height" item, or `undefined` when it has none. */
 export function findCompactLineHeight(menu: LayoutMenu): HTMLElement | undefined {
-  return [...menu.list.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')].find(
-    (item) => item.querySelector(ITEM_LABEL)?.textContent?.trim() === "Compact line height",
-  );
+  return menuItemLabelled(menu.list, "menuitemcheckbox", "Compact line height");
 }
+
+/** The item of `role` in `list` labelled `text`. */
+const menuItemLabelled = (list: Element, role: string, text: string) =>
+  [...list.querySelectorAll<HTMLElement>(`[role="${role}"]`)].find(
+    (item) => item.querySelector(ITEM_LABEL)?.textContent?.trim() === text,
+  );
 
 /** What an open diff settings menu draws only to offer its Layout choice. */
 export interface LayoutGroup {
@@ -1304,6 +1345,32 @@ export function diffTables(diffs: ParentNode): DiffTable[] {
         ? "split"
         : "unified",
   }));
+}
+
+/** The box that holds a file's `table` alone, or `null` once the table has left it. */
+export const fileBox = (table: HTMLTableElement): HTMLElement | null => table.parentElement;
+
+/** Whether `el` is a file's box, the direct parent of its diff table. */
+export const isFileBox = (el: Element): boolean =>
+  el.querySelector(":scope > table[data-diff-anchor]") !== null;
+
+/** One line of a diff's code: its text, the cell that holds it, and its side. */
+export interface CodeLine {
+  readonly inner: HTMLElement;
+  readonly cell: HTMLTableCellElement;
+  readonly side: "old" | "new";
+}
+
+/**
+ * Each code line of `table`, hunk headers aside. Only a split row's old code cell, its 2nd, is
+ * `old`: a commit marks Unified deletions `left-side-diff-cell` too.
+ */
+export function* codeLines({ table, layout }: DiffTable): Generator<CodeLine> {
+  for (const cell of table.querySelectorAll<HTMLTableCellElement>("td.diff-text-cell")) {
+    const inner = cell.querySelector<HTMLElement>(".diff-text-inner");
+    if (!inner) continue;
+    yield { inner, cell, side: layout === "split" && cell.cellIndex === 1 ? "old" : "new" };
+  }
 }
 
 /**
