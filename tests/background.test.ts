@@ -3,7 +3,7 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 import background from "../entrypoints/background";
 import { CONVERSATION_FRAME_PORT } from "../utils/github/conversation-frame";
 import { PR_DATA_PORT, type PrDataPort } from "../utils/github/pr-port";
-import { whatsNewSeen } from "../utils/prefs";
+import { structuralIntroDismissed, whatsNewSeen } from "../utils/prefs";
 
 type Serve = (
   port: PrDataPort & { readonly name: string; readonly sender?: { tab?: { id?: number } } },
@@ -162,6 +162,20 @@ describe("background", () => {
 
   it("leaves the notes to show after an update", async () => {
     const setValue = vi.spyOn(whatsNewSeen, "setValue");
+
+    await fakeBrowser.runtime.onInstalled.trigger({ reason: "update", previousVersion: "0.3.2" });
+
+    expect(setValue).not.toHaveBeenCalled();
+  });
+
+  it("marks a fresh install's Structural popup dismissed", async () => {
+    await fakeBrowser.runtime.onInstalled.trigger({ reason: "install" });
+
+    await vi.waitFor(async () => expect(await structuralIntroDismissed.getValue()).toBe(true));
+  });
+
+  it("leaves the Structural popup to show after an update", async () => {
+    const setValue = vi.spyOn(structuralIntroDismissed, "setValue");
 
     await fakeBrowser.runtime.onInstalled.trigger({ reason: "update", previousVersion: "0.3.2" });
 

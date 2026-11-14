@@ -35,7 +35,8 @@ content script forces on `pagehide`. Removing it when the port closes is best ef
 worker stopped while idle never hears the port close. Closing the tab removes it always,
 and a leftover rule still matches only that tab's marked URL. It also clears the intent
 cache whenever the extension is installed, updated, or reloaded in development, and on a
-fresh install it marks the installed version's what's-new notes dismissed.
+fresh install it marks the installed version's what's-new notes and the Structural popup
+dismissed.
 
 The structural diff engine runs in a dedicated Worker, off the background's thread, so a
 long parse never delays port traffic. The Worker's script is
@@ -1065,7 +1066,10 @@ press that turns Structural on or off and Escape pressed while focus is in the p
 the segment, or on no control. A re-mount never does. At startup, `index.ts` reads the
 dismissal from `structuralIntroDismissed` in [`utils/prefs.ts`](../utils/prefs.ts),
 treating a failed read as dismissed. `index.ts` shares the dismissal across the tab's
-pages, keeps it current from other tabs, and saves it on dismissal.
+pages, keeps it current from other tabs, and saves it on dismissal. On
+`runtime.onInstalled` with reason `install`,
+[`entrypoints/background.ts`](../entrypoints/background.ts) saves it dismissed, so only an
+update shows the popup.
 
 The painter takes a `StructuralPainting`. Its `annotationsOf(path)` returns a file's
 `StructuralFile` from [`utils/structural/changes.ts`](../utils/structural/changes.ts): the

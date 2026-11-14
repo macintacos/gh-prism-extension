@@ -5,7 +5,7 @@ import { CONVERSATION_FRAME_PORT, conversationFraming } from "../utils/github/co
 import { PR_DATA_PORT, servePrDataPort } from "../utils/github/pr-port";
 import { createPrDataSource } from "../utils/github/pr-source";
 import { forgetIntents } from "../utils/intent/cache";
-import { RETIRED_HIDDEN_COMMITS, whatsNewSeen } from "../utils/prefs";
+import { RETIRED_HIDDEN_COMMITS, structuralIntroDismissed, whatsNewSeen } from "../utils/prefs";
 import { yieldToMessages } from "../utils/structural/engine-script";
 import { engineThread } from "../utils/structural/engine-thread";
 import { CACHED_SPANS, type FileChanges, fileChanges } from "../utils/structural/file-changes";
@@ -15,11 +15,12 @@ import { dismissWhatsNew } from "../utils/whats-new";
 /**
  * Serves pull request data and, on request, a file's structural changes to content scripts, lets
  * a tab's Conversation panel frame its pull request's Conversation tab, clears the intent cache
- * and retired storage keys on install, and marks a fresh install's what's-new notes dismissed.
+ * and retired storage keys on install, and marks a fresh install's what's-new notes and Structural
+ * popup dismissed.
  */
 export default defineBackground(() => {
   // Intents clear on installs, updates, and dev reloads alike: a new build may place files
-  // differently. Only a fresh install marks the notes, so an update still shows them.
+  // differently. Only a fresh install marks the notes and the popup, so an update still shows them.
   browser.runtime.onInstalled.addListener(({ reason }) => {
     void forgetIntents(storage);
     void storage
@@ -32,6 +33,11 @@ export default defineBackground(() => {
       .setValue(dismissWhatsNew({}, browser.runtime.getManifest().version))
       .catch((error: unknown) =>
         console.error("gh-prism: saving the what's-new mark failed", error),
+      );
+    void structuralIntroDismissed
+      .setValue(true)
+      .catch((error: unknown) =>
+        console.error("gh-prism: saving the Structural popup's dismissal failed", error),
       );
   });
   // A fetch called as a method of anything but the global throws "Illegal invocation".
