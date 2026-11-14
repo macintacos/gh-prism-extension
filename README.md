@@ -298,6 +298,7 @@ syncs these to your other computers:
 - Whether the Conversation panel is pinned, and whether it's open.
 - Whether you hid the commit message.
 - Whether Structural mode is on.
+- Whether diffs wrap long lines.
 
 It keeps these on this computer only:
 

@@ -43,6 +43,7 @@ import {
   structuralIntroDismissed,
   structuralMode,
   whatsNewSeen,
+  wrapLines,
 } from "@/utils/prefs";
 import {
   dismissWhatsNew,
@@ -74,6 +75,7 @@ import {
 } from "./diffs/structural-mode";
 import { showDiffViewControl } from "./diffs/view-control";
 import { visitViewed } from "./diffs/viewed";
+import { showWrapLines } from "./diffs/wrap-lines";
 import { findCommentAuthors, findFilesCommentAuthors, followRightPanel } from "./files-page";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
 import { showOwnerSection } from "./sidebar/owner-section";
@@ -125,6 +127,7 @@ export default defineContentScript({
       savedConversationWidth,
       dismissed,
       savedStructural,
+      savedWrap,
       whatsNewForPage,
       introChoice,
     ] = await Promise.all([
@@ -138,6 +141,7 @@ export default defineContentScript({
       readSavedConversationWidth(),
       readNoticeDismissed(),
       readSavedStructural(),
+      readSavedWrap(),
       release && followWhatsNew(release, ctx),
       followIntro(ctx),
     ]);
@@ -153,6 +157,8 @@ export default defineContentScript({
     } satisfies DiffstatOptions;
     // Shared by every visit, so Unified seen on one keeps the next one off.
     const structural = structuralChoiceOf(savedStructural === true, saveStructural);
+    // Shared by every visit, so a soft navigation keeps the diffs as the reader last left them.
+    const wrap = { on: savedWrap !== false };
     const notice: NoticeChoice = { dismissed };
     const conversation = conversationChoiceOf(
       { pinned: savedPinned, open: savedOpen, width: savedConversationWidth },
@@ -286,6 +292,7 @@ export default defineContentScript({
               guard: diffViewGuard,
               intro: { choice: introChoice, save: saveIntroDismissed },
             });
+            showWrapLines(page, signal, { wrap, save: saveWrap });
             showCommitMessage(page, signal, {
               afterSections: afterLanding(intent),
               choice: commitMessage,
@@ -577,6 +584,20 @@ const readSavedStructural = (): Promise<unknown> =>
     console.error("gh-prism: reading whether Structural mode is on failed", error);
     return structuralMode.fallback;
   });
+
+/** Whether diffs were left wrapping long lines, unchecked, or wrapping when storage won't read. */
+const readSavedWrap = (): Promise<unknown> =>
+  wrapLines.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading whether diffs wrap long lines failed", error);
+    return wrapLines.fallback;
+  });
+
+const saveWrap = (on: boolean) =>
+  wrapLines
+    .setValue(on)
+    .catch((error: unknown) =>
+      console.error("gh-prism: saving whether diffs wrap long lines failed", error),
+    );
 
 const saveStructural = (on: boolean) =>
   structuralMode

@@ -384,11 +384,39 @@ export function followFilterMenu(
   onOpen: (menu: FilterMenu, closed: AbortSignal) => void,
   { signal }: { signal: AbortSignal },
 ): void {
-  let shown: FilterMenu | undefined;
+  followMenu(doc, findFilterMenu, onOpen, {
+    signal,
+    same: (a, b) => a?.list === b?.list && a?.ownedByYou?.item === b?.ownedByYou?.item,
+  });
+}
+
+/**
+ * Calls `onOpen` with the diff settings menu each time it opens (and one already open), with a
+ * signal that aborts once it closes, until `signal` aborts. Undebounced, like `followFilterMenu`.
+ */
+export function followLayoutMenu(
+  doc: Document,
+  onOpen: (menu: LayoutMenu, closed: AbortSignal) => void,
+  { signal }: { signal: AbortSignal },
+): void {
+  followMenu(doc, findLayoutMenu, onOpen, { signal, same: (a, b) => a?.list === b?.list });
+}
+
+/** Calls `onOpen` each time `find` answers a menu that isn't the `same` as the last one shown. */
+function followMenu<Menu>(
+  doc: Document,
+  find: (doc: Document) => Menu | undefined,
+  onOpen: (menu: Menu, closed: AbortSignal) => void,
+  {
+    signal,
+    same,
+  }: { signal: AbortSignal; same: (a: Menu | undefined, b: Menu | undefined) => boolean },
+): void {
+  let shown: Menu | undefined;
   let closed: AbortController | undefined;
   const reportIfChanged = () => {
-    const menu = findFilterMenu(doc);
-    if (menu?.list === shown?.list && menu?.ownedByYou?.item === shown?.ownedByYou?.item) return;
+    const menu = find(doc);
+    if (same(menu, shown)) return;
     closed?.abort();
     shown = menu;
     closed = menu && new AbortController();
@@ -460,7 +488,10 @@ export const copyMenuDivider = (menu: FilterMenu): Element => cloneOf(menu.divid
  * A copy of `menu`'s item with its checkmark kept, and no id, labelling, tab stop, label text,
  * trailing visual, checked state, or key: the item, and the label to fill.
  */
-export function copyMenuItem(menu: FilterMenu): { item: HTMLElement; label: HTMLElement } {
+export function copyMenuItem(menu: Pick<FilterMenu, "item">): {
+  item: HTMLElement;
+  label: HTMLElement;
+} {
   const item = cloneOf(menu.item, true);
   // Load-bearing beyond key clashes: a copy that kept GitHub's "o" would pass for its owned-by
   // item, so findFilterMenu would stop recognizing the open menu and the section would tear
@@ -858,6 +889,13 @@ export function findLayoutMenu(doc: Document): LayoutMenu | undefined {
     if (unified && split) return { list, unified, split };
   }
   return undefined;
+}
+
+/** `menu`'s "Compact line height" item, or `undefined` when it has none. */
+export function findCompactLineHeight(menu: LayoutMenu): HTMLElement | undefined {
+  return [...menu.list.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')].find(
+    (item) => item.querySelector(ITEM_LABEL)?.textContent?.trim() === "Compact line height",
+  );
 }
 
 /** What an open diff settings menu draws only to offer its Layout choice. */

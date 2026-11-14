@@ -1,6 +1,11 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { FilesPage, FilterMenu, NativeTree } from "../../entrypoints/content/files-page";
+import type {
+  FilesPage,
+  FilterMenu,
+  LayoutMenu,
+  NativeTree,
+} from "../../entrypoints/content/files-page";
 import {
   appendToDiffs,
   changedCells,
@@ -15,6 +20,7 @@ import {
   findCommitColumnRow,
   findCommitHeader,
   findCommitMessage,
+  findCompactLineHeight,
   findDiff,
   findDiffList,
   findDiffstat,
@@ -31,6 +37,7 @@ import {
   findReviewersHeadings,
   findTreeToggle,
   followFilterMenu,
+  followLayoutMenu,
   followOverlay,
   followOwnerSpots,
   headerOf,
@@ -592,6 +599,52 @@ describe("findLayoutMenu", () => {
     itemLabelled("Split")?.remove();
 
     expect(findLayoutMenu(document)).toBeUndefined();
+  });
+});
+
+describe("findCompactLineHeight", () => {
+  const openLayoutMenu = (html: string): LayoutMenu => {
+    document.body.innerHTML = `<div id="__primerPortalRoot__">${html}</div>`;
+    const menu = findLayoutMenu(document);
+    if (!menu) throw new Error("fixture has no layout menu");
+    return menu;
+  };
+
+  it.each([
+    { name: "a pull request's", html: prLayoutMenu },
+    { name: "a commit's", html: commitLayoutMenu },
+  ])("finds Compact line height in $name menu", ({ html }) => {
+    const menu = openLayoutMenu(html);
+
+    expect(findCompactLineHeight(menu)?.textContent?.trim()).toBe("Compact line height");
+    expect(findCompactLineHeight(menu)?.getAttribute("role")).toBe("menuitemcheckbox");
+  });
+
+  it("is undefined when the menu has no Compact line height", () => {
+    const menu = openLayoutMenu(prLayoutMenu);
+    for (const label of document.querySelectorAll('[data-component="ActionList.Item.Label"]'))
+      if (label.textContent === "Compact line height") label.textContent = "Something else";
+
+    expect(findCompactLineHeight(menu)).toBeUndefined();
+  });
+});
+
+describe("followLayoutMenu", () => {
+  it("reports the menu as it opens and aborts closed once it closes", async () => {
+    const controller = new AbortController();
+    const onOpen = vi.fn<(menu: LayoutMenu, closed: AbortSignal) => void>();
+    followLayoutMenu(document, onOpen, { signal: controller.signal });
+
+    document.body.innerHTML = `<div id="__primerPortalRoot__">${prLayoutMenu}</div>`;
+    await Promise.resolve();
+    const opened = onOpen.mock.calls[0];
+    document.body.innerHTML = "";
+    await Promise.resolve();
+    controller.abort();
+
+    expect(onOpen).toHaveBeenCalledOnce();
+    expect(opened?.[0].list).toBe(onOpen.mock.calls[0]?.[0].list);
+    expect(onOpen.mock.calls[0]?.[1].aborted).toBe(true);
   });
 });
 
