@@ -304,6 +304,7 @@ It keeps these on this computer only:
 - The width of the commit message column.
 - The width of the pinned Conversation panel.
 - Whether you closed the dialog on GitHub's classic Files changed tab.
+- Whether you closed the popup announcing Structural diffs.
 - Which version's release notes, shown in the sidebar after an update, you dismissed or
   first saw, and when.
 - Which section it put each file in, for the diffs it read most recently.

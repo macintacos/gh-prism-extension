@@ -19,7 +19,7 @@ import {
 import { el } from "../ui/dom";
 import { prismGlyph } from "../ui/mark";
 import type { PressGuard } from "../ui/press-guard";
-import { followStructuralTip } from "./structural-intro";
+import { followStructuralTip, type IntroOptions, structuralIntro } from "./structural-intro";
 import type { StructuralChoice } from "./structural-mode";
 // ?inline, not a plain import: a plain import ships the sheet in the manifest, styling every
 // github.com page; this mounts only while the control lives.
@@ -116,6 +116,8 @@ export interface DiffViewOptions {
   readonly search: () => string;
   /** The visit's, so a press outlives the page that started it. */
   readonly guard: PressGuard;
+  /** The tab's Structural popup dismissal. */
+  readonly intro: IntroOptions;
 }
 
 const STRUCTURAL_TIP =
@@ -222,9 +224,10 @@ const isDrawn = (control: DiffViewControl, win: Window): boolean =>
 export function showDiffViewControl(
   page: FilesPage,
   signal: AbortSignal,
-  { choice, commit, offersStructural, search, guard }: DiffViewOptions,
+  { choice, commit, offersStructural, search, guard, intro: introOptions }: DiffViewOptions,
 ): void {
   const doc = page.sidebar.ownerDocument;
+  const intro = offersStructural ? structuralIntro(doc, signal, introOptions) : undefined;
   let control: DiffViewControl | undefined;
   // The view last drawn pressed; `null` until the mounted control draws one.
   let pressedView: DiffView | undefined | null = null;
@@ -268,10 +271,21 @@ export function showDiffViewControl(
     );
   };
 
+  // The popup points at Structural only while it's drawn and not already the saved choice.
+  const introduce = () => {
+    const win = doc.defaultView;
+    intro?.follow(
+      control && win && isDrawn(control, win) && !choice.on
+        ? control.segments.structural
+        : undefined,
+    );
+  };
+
   const unmount = () => {
     control?.name.remove();
     control?.list.remove();
     control = undefined;
+    intro?.follow(undefined);
   };
 
   const giveUp = () => {
@@ -299,6 +313,7 @@ export function showDiffViewControl(
       if (view === "structural" && !(await leftUnified())) return;
       if (signal.aborted) return;
       if (steps.set !== undefined) choice.set(steps.set);
+      if (steps.set) intro?.dismiss();
     } finally {
       pressing = false;
       if (!signal.aborted) render();
@@ -369,11 +384,15 @@ export function showDiffViewControl(
     )
       mount(gear);
     render();
+    introduce();
   };
 
   // The toolbar's room changes only as it resizes or its children change; GitHub can replace a
   // pull request's toolbar, a page-wide header outside its diffs, without a new page.
-  const resizes = new ResizeObserver(fitToToolbar);
+  const resizes = new ResizeObserver(() => {
+    fitToToolbar();
+    introduce();
+  });
   let watchedToolbar: Element | undefined;
   let unwatch: AbortController | undefined;
   const watchToolbar = () => {
@@ -389,6 +408,7 @@ export function showDiffViewControl(
     const onToolbar = () => {
       follow();
       fitToToolbar();
+      introduce();
     };
     observeDiffs(toolbar, onToolbar, { signal: AbortSignal.any([signal, unwatch.signal]) });
   };
@@ -403,6 +423,6 @@ export function showDiffViewControl(
   });
 
   observeDiffs(page.diffs, follow, { signal });
-  followStructuralTip(doc, signal, { blocked: () => false });
+  followStructuralTip(doc, signal, { blocked: () => intro?.isOpen() ?? false });
   follow();
 }

@@ -329,6 +329,17 @@ diff view control's Structural segment. It shows the segment's `aria-description
 "What's a structural diff?" link, which opens `docs/STRUCTURAL-DIFFS.md` in a new tab. It
 sits right after the segment, so Tab from the segment reaches the link.
 
+The Structural popup, also in `diffs/structural-intro.ts`, shares the surface too. It is a
+`popover="manual"` that `place` in `ui/place.ts` puts below the Structural segment,
+start-aligned, or above it when there's no room below. A small caret on its edge facing
+the segment, at the segment's horizontal centre, points at it. The caret's two outer edges
+take `--borderColor-default`, the colour of the shadow's 1px ring. It holds gh-prism's
+mark (§ The mark), the title "Structural diffs are new", a muted line on what Structural
+does, the "What's a structural diff?" link, and a close button named "Close". It takes no
+focus and sits right after the segment, so Tab from the segment reaches its close button,
+then its link. It hides while the segment is off screen. While the popup shows, the
+Structural popover stays closed, so the two never overlap.
+
 A floating surface draws one 1px edge, never two. An overlay draws no border of its own,
 because `--shadow-floating-small` opens with a 1px ring that draws its edge, as in
 Primer's ActionMenu. Browsers give `[popover]` and `<dialog>` a default border, which

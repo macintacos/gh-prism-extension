@@ -5365,6 +5365,10 @@ for (const kind of ["pr", "commit"] as const) {
     await expect(
       page.getByRole("navigation", { name: "Changed files by section" }),
     ).not.toHaveAttribute("aria-busy");
+    // Open, the Structural popup sits between the segment and the gear in Tab order. It shows only
+    // while the segment is on screen.
+    await segment(page, "Structural").scrollIntoViewIfNeeded();
+    await page.locator(".gh-prism-structural-popup").getByRole("button", { name: "Close" }).click();
     const boxes = () =>
       page.evaluate(() =>
         // In the document, since a focus can scroll the window.
@@ -5379,18 +5383,21 @@ for (const kind of ["pr", "commit"] as const) {
     await segment(page, "Unified").focus();
 
     const visited = [];
-    for (let press = 0; press < 3; press++) {
+    for (let press = 0; press < 4; press++) {
       await page.keyboard.press("Tab");
       visited.push(
         await page.evaluate(
           () =>
             (document.activeElement as HTMLElement | null)?.dataset.view ??
-            (document.activeElement?.querySelector(".octicon-gear") ? "gear" : "other"),
+            (document.activeElement?.querySelector(".octicon-gear")
+              ? "gear"
+              : (document.activeElement?.textContent ?? "other")),
         ),
       );
     }
 
-    expect(visited).toEqual(["split", "structural", "gear"]);
+    // Focus opens Structural's card, whose link follows it.
+    expect(visited).toEqual(["split", "structural", "What's a structural diff?", "gear"]);
     expect(await boxes()).toEqual(before);
   });
 }
@@ -5440,4 +5447,32 @@ test("an unavailable Structural segment's prism stays still under the pointer", 
     "animation-play-state",
     "paused",
   );
+});
+
+test("the diff view control's Structural popup shows once, until it's closed", async ({
+  context,
+  page,
+}) => {
+  await serveLayoutPage(context, page, "pr");
+  const popupOf = (on: Page) => on.locator(".gh-prism-structural-popup");
+  const popup = popupOf(page);
+  await expect(popup).toBeVisible();
+  await expect(popup.getByRole("link", { name: "What's a structural diff?" })).toBeVisible();
+  expect(await popup.evaluate((el) => el.contains(document.activeElement))).toBe(false);
+
+  await popup.getByRole("button", { name: "Close" }).click();
+  await expect(popup).toBeHidden();
+
+  await expect(async () => {
+    await page.reload();
+    await expect(segment(page, "Structural")).toBeVisible({ timeout: 2000 });
+  }).toPass();
+  await expect(popup).toHaveCount(0);
+
+  const other = await context.newPage();
+  const { url, menu, tables } = LAYOUT_PAGES.pr;
+  await other.addInitScript(installLayoutMenu, { menu, tables });
+  await other.goto(url);
+  await expect(segment(other, "Structural")).toBeVisible();
+  await expect(popupOf(other)).toHaveCount(0);
 });

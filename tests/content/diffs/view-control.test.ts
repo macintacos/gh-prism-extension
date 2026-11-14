@@ -1,6 +1,9 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { STRUCTURAL_DIFFS_DOC } from "../../../entrypoints/content/diffs/structural-intro";
+import {
+  type IntroOptions,
+  STRUCTURAL_DIFFS_DOC,
+} from "../../../entrypoints/content/diffs/structural-intro";
 import { structuralChoiceOf } from "../../../entrypoints/content/diffs/structural-mode";
 import {
   type DiffView,
@@ -158,7 +161,11 @@ describe("showDiffViewControl", () => {
   function show(
     page: FilesPage,
     choice: ReturnType<typeof choiceOf>["choice"],
-    { commit = false, offersStructural = true } = {},
+    {
+      commit = false,
+      offersStructural = true,
+      intro = { choice: { dismissed: true }, save: () => {} },
+    }: { commit?: boolean; offersStructural?: boolean; intro?: IntroOptions } = {},
   ) {
     showDiffViewControl(page, controller.signal, {
       choice,
@@ -166,6 +173,7 @@ describe("showDiffViewControl", () => {
       offersStructural,
       search: () => location.search,
       guard,
+      intro,
     });
   }
 
@@ -786,6 +794,7 @@ describe("showDiffViewControl", () => {
       offersStructural: true,
       search: () => location.search,
       guard,
+      intro: { choice: { dismissed: true }, save: () => {} },
     });
 
     segment("unified")?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
@@ -809,6 +818,7 @@ describe("showDiffViewControl", () => {
       offersStructural: true,
       search: () => location.search,
       guard,
+      intro: { choice: { dismissed: true }, save: () => {} },
     });
 
     segment("structural")?.click();
@@ -974,6 +984,182 @@ describe("showDiffViewControl", () => {
       expect(tip).toContain("isn't available");
       expect(card()?.textContent).toContain(tip);
       expect(card()?.querySelector("a")?.href).toBe(STRUCTURAL_DIFFS_DOC);
+    });
+  });
+
+  describe("Structural popup", () => {
+    const popup = () => document.querySelector<HTMLElement>(".gh-prism-structural-popup");
+    const closeButton = () => popup()?.querySelector<HTMLButtonElement>("button");
+    const pressEscape = () =>
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+    function introOf(dismissed = false) {
+      const save = vi.fn();
+      return { save, intro: { choice: { dismissed }, save } };
+    }
+
+    function showIntro(
+      { on = false, offersStructural = true, dismissed = false } = {},
+      page = pageOf("pr", "split"),
+    ) {
+      const { save, intro } = introOf(dismissed);
+      show(page, choiceOf(on).choice, { offersStructural, intro });
+      return { save, page };
+    }
+
+    it("points at the Structural segment, saying it's new and linking the doc, without taking focus", () => {
+      const before = document.activeElement;
+
+      showIntro();
+
+      const link = popup()?.querySelector("a");
+      expect(segment("structural")?.nextElementSibling).toBe(popup());
+      expect(popup()?.querySelector(".gh-prism-mark")).not.toBeNull();
+      expect(popup()?.textContent).toMatch(/new/);
+      expect(link?.textContent).toBe("What's a structural diff?");
+      expect(link?.href).toBe(STRUCTURAL_DIFFS_DOC);
+      expect(link?.target).toBe("_blank");
+      expect(closeButton()?.getAttribute("aria-label")).toBe("Close");
+      expect(document.activeElement).toBe(before);
+    });
+
+    it.each([
+      { name: "once dismissed", options: { dismissed: true } },
+      { name: "while Structural is the saved choice", options: { on: true } },
+      { name: "where Structural isn't offered", options: { offersStructural: false } },
+    ])("shows nothing $name", ({ options }) => {
+      showIntro(options);
+
+      expect(popup()).toBeNull();
+    });
+
+    it("shows nothing while the toolbar has no room for the control", () => {
+      vi.stubGlobal(
+        "ResizeObserver",
+        class {
+          observe() {}
+          disconnect() {}
+        },
+      );
+      const page = pageOf("pr", "split");
+      const toolbar = findFilesToolbar(page);
+      if (!toolbar) throw new Error("fixture has no toolbar");
+      Object.defineProperty(toolbar, "clientWidth", { get: () => 500 });
+      Object.defineProperty(toolbar, "scrollWidth", {
+        get: () => (control()?.hidden ? 500 : 700),
+      });
+
+      showIntro({}, page);
+
+      vi.unstubAllGlobals();
+      expect(control()?.hidden).toBe(true);
+      expect(popup()).toBeNull();
+    });
+
+    it("moves to the new segment when the control mounts again, undismissed", async () => {
+      const { save } = showIntro();
+
+      control()?.remove();
+      await flush();
+
+      expect(popup()).not.toBeNull();
+      expect(segment("structural")?.nextElementSibling).toBe(popup());
+      expect(save).not.toHaveBeenCalled();
+    });
+
+    it("moves to the new segment when GitHub replaces the toolbar, undismissed", async () => {
+      vi.stubGlobal(
+        "ResizeObserver",
+        class {
+          observe() {}
+          disconnect() {}
+        },
+      );
+      const { save, page } = showIntro();
+
+      const toolbar = findFilesToolbar(page);
+      const replacement = toolbar?.cloneNode(true) as Element;
+      for (const stale of replacement.querySelectorAll(".gh-prism-diff-view")) stale.remove();
+      toolbar?.replaceWith(replacement);
+      page.diffs.append(document.createElement("div"));
+      await flush();
+
+      vi.unstubAllGlobals();
+      expect(popup()).not.toBeNull();
+      expect(segment("structural")?.nextElementSibling).toBe(popup());
+      expect(save).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { name: "its close button", act: () => closeButton()?.click() },
+      { name: "Escape with focus on the page", act: pressEscape },
+      {
+        name: "Escape with focus on the segment",
+        act: () => {
+          segment("structural")?.focus();
+          pressEscape();
+        },
+      },
+      {
+        name: "Escape with focus in the popup",
+        act: () => {
+          popup()?.querySelector("a")?.focus();
+          pressEscape();
+        },
+      },
+      {
+        name: "pressing Structural",
+        act: async () => {
+          segment("structural")?.click();
+          await flush();
+        },
+      },
+    ])("closes for good on $name", async ({ act }) => {
+      const { save } = showIntro();
+
+      await act();
+      pressEscape();
+
+      expect(popup()).toBeNull();
+      expect(save).toHaveBeenCalledOnce();
+    });
+
+    it("stays on Escape with focus elsewhere", () => {
+      const { save } = showIntro();
+
+      segment("split")?.focus();
+      pressEscape();
+
+      expect(popup()).not.toBeNull();
+      expect(save).not.toHaveBeenCalled();
+    });
+
+    it("stays when Split is pressed", async () => {
+      const { save } = showIntro();
+
+      segment("split")?.click();
+      await flush();
+
+      expect(popup()).not.toBeNull();
+      expect(save).not.toHaveBeenCalled();
+    });
+
+    it("keeps the segment's card closed while it shows", () => {
+      showIntro();
+
+      segment("structural")?.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+
+      expect(popup()).not.toBeNull();
+      expect(segment("structural")?.parentElement?.children).toHaveLength(2);
+    });
+
+    it("returns focus to the segment when closed from inside", () => {
+      showIntro();
+
+      closeButton()?.focus();
+      closeButton()?.click();
+
+      expect(document.activeElement).toBe(segment("structural"));
     });
   });
 });

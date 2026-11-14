@@ -40,6 +40,7 @@ import {
   type DiffstatView,
   diffstatView,
   sidebarSide,
+  structuralIntroDismissed,
   structuralMode,
   whatsNewSeen,
 } from "@/utils/prefs";
@@ -65,6 +66,7 @@ import {
 import { showReviewerFiles } from "./conversation/reviewer-files";
 import { hashLanding } from "./diffs/reveal";
 import { structuralFiles } from "./diffs/structural-files";
+import type { IntroChoice } from "./diffs/structural-intro";
 import {
   type StructuralChoice,
   type StructuralMode,
@@ -124,6 +126,7 @@ export default defineContentScript({
       dismissed,
       savedStructural,
       whatsNewForPage,
+      intro,
     ] = await Promise.all([
       readSavedSide(),
       readSavedDiffstat(),
@@ -136,6 +139,7 @@ export default defineContentScript({
       readNoticeDismissed(),
       readSavedStructural(),
       release && followWhatsNew(release, ctx),
+      followIntro(ctx),
     ]);
     const side = sideChoiceOf(savedSide);
     const commitMessage = commitMessageChoiceOf(savedCommitMessage, savedColumnWidth);
@@ -280,6 +284,7 @@ export default defineContentScript({
               offersStructural: !route.commitFiltered,
               search: () => location.search,
               guard: diffViewGuard,
+              intro: { choice: intro, save: saveIntroDismissed },
             });
             showCommitMessage(page, signal, {
               afterSections: afterLanding(intent),
@@ -630,6 +635,37 @@ const saveDismissed = () =>
     .catch((error: unknown) =>
       console.error("gh-prism: saving the notice's dismissal failed", error),
     );
+
+/** Whether the user dismissed the Structural popup; dismissed, when storage won't read. */
+const readIntroDismissed = (): Promise<boolean> =>
+  structuralIntroDismissed
+    .getValue()
+    .then((saved: unknown) => saved === true)
+    .catch((error: unknown) => {
+      console.error("gh-prism: reading the Structural popup's dismissal failed", error);
+      return true;
+    });
+
+const saveIntroDismissed = () =>
+  structuralIntroDismissed
+    .setValue(true)
+    .catch((error: unknown) =>
+      console.error("gh-prism: saving the Structural popup's dismissal failed", error),
+    );
+
+/**
+ * The tab's Structural popup choice, kept current across tabs until `ctx` ends. Dismissed at
+ * startup, it never shows again, so its tab skips the watch.
+ */
+async function followIntro(ctx: ContentScriptContext): Promise<IntroChoice> {
+  const choice: IntroChoice = { dismissed: await readIntroDismissed() };
+  if (!choice.dismissed) {
+    ctx.onInvalidated(
+      structuralIntroDismissed.watch((saved) => (choice.dismissed = saved === true)),
+    );
+  }
+  return choice;
+}
 
 interface Release {
   readonly version: string;
