@@ -66,6 +66,7 @@ import {
   showConversationButton,
 } from "./conversation/panel";
 import { showReviewerFiles } from "./conversation/reviewer-files";
+import { showPrismMenu } from "./diffs/prism-menu";
 import { hashLanding } from "./diffs/reveal";
 import { structuralFiles } from "./diffs/structural-files";
 import type { IntroChoice } from "./diffs/structural-intro";
@@ -76,7 +77,7 @@ import {
 } from "./diffs/structural-mode";
 import { showDiffViewControl } from "./diffs/view-control";
 import { visitViewed } from "./diffs/viewed";
-import { showWrapLines, type WrapChoice } from "./diffs/wrap-lines";
+import { type WrapChoice, wrapLinesItem } from "./diffs/wrap-lines";
 import { findCommentAuthors, findFilesCommentAuthors, followRightPanel } from "./files-page";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
 import type { OnboardingChoice } from "./sidebar/onboarding";
@@ -300,7 +301,9 @@ export default defineContentScript({
               guard: diffViewGuard,
               intro: { choice: introChoice, save: saveIntroDismissed },
             });
-            showWrapLines(page, signal, { choice: wrap, save: saveWrap });
+            showPrismMenu(page, signal, [
+              wrapLinesItem(page, signal, { choice: wrap, save: saveWrap }),
+            ]);
             showCommitMessage(page, signal, {
               afterSections: afterLanding(intent),
               choice: commitMessage,

@@ -262,7 +262,7 @@ const addFile = (page: Page, anchor: string) =>
     { from: ANCHOR, anchor },
   );
 
-test("Wrap lines is a checked item after Compact line height that Space unchecks from the keyboard", async ({
+test("Wrap lines is a checked item in the gh-prism group that Space unchecks from the keyboard", async ({
   context,
   page,
 }) => {
@@ -276,10 +276,9 @@ test("Wrap lines is a checked item after Compact line height that Space unchecks
 
   await expect(wrapItem(page)).toBeFocused();
   await expect(wrapItem(page)).toHaveAttribute("aria-checked", "true");
-  const before = await wrapItem(page).evaluate((item) =>
-    item.previousElementSibling?.textContent?.trim(),
+  await expect(page.getByRole("group", { name: "gh-prism" }).locator(wrapItem(page))).toHaveCount(
+    1,
   );
-  expect(before).toBe("Compact line height");
 
   await page.keyboard.press(" ");
 
@@ -288,7 +287,7 @@ test("Wrap lines is a checked item after Compact line height that Space unchecks
   await expect(page.locator("html")).toHaveAttribute("data-gh-prism-wrap", "off");
 });
 
-test("Wrap lines shows gh-prism's glyph and is named only Wrap lines", async ({
+test("Wrap lines sits after a divider in a group whose heading shows gh-prism's glyph", async ({
   context,
   page,
 }) => {
@@ -298,7 +297,16 @@ test("Wrap lines shows gh-prism's glyph and is named only Wrap lines", async ({
 
   const item = page.getByRole("menuitemcheckbox", { name: "Wrap lines", exact: true });
   await expect(item).toHaveCount(1);
-  await expect(item.locator('[data-component="ActionList.TrailingVisual"] > svg')).toBeVisible();
+  await expect(item.locator('[data-component="ActionList.TrailingVisual"]')).toHaveCount(0);
+  const group = page.locator(
+    '[data-component="ActionList.Group"]:has(> ul[aria-label="gh-prism"])',
+  );
+  await expect(group.locator('[data-component="GroupHeadingWrap"] svg')).toBeVisible();
+  expect(
+    await group.evaluate((el) =>
+      el.previousElementSibling?.matches('[data-component="ActionList.Divider"]'),
+    ),
+  ).toBe(true);
 });
 
 test("unchecking Wrap lines keeps every code line on one row, and an overflowing file scrolls sideways", async ({

@@ -647,13 +647,12 @@ Space runs the item's action, then closes the menu with the `Escape` `keydown` P
 listens for. The owner section's entries in the file-tree filter menu and Wrap lines in
 the diff settings menu use it.
 
-Wrap lines also ends its row with the mark's bare glyph, a 16px SVG, so a reader can tell
-it from GitHub's own items. `addTrailingIcon` in `files-page.ts` puts the glyph in an
-empty copy of the first trailing visual it finds among the menu's items. A trailing visual
-is Primer's slot for an item's trailing icon: GitHub's Whitespace changes item holds its
-chevron there, and Minimize comments its key. The copy keeps Primer's spacing and muted
-colour, so gh-prism adds no style of its own. The glyph is hidden from screen readers, so
-the item's name stays "Wrap lines". The owner section's entries carry no glyph.
+gh-prism's diff settings items sit in a group headed "gh-prism", at the end of the menu,
+so a reader can tell them from GitHub's own items. The heading is a copy of GitHub's
+Layout group heading, so it keeps Primer's styling. The mark's bare glyph, a 16px SVG,
+sits after its text. The glyph is hidden from screen readers. The group takes its name,
+"gh-prism", from its list's `aria-label`. Neither the group's items nor the owner
+section's entries carry a glyph.
 
 ## Notices
 

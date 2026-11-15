@@ -11,6 +11,7 @@ import {
   changedCells,
   codeLines,
   commitPage,
+  copyMenuDivider,
   copyMenuGroup,
   copyMenuItem,
   coveredTop,
@@ -578,14 +579,55 @@ describe("findLayoutMenu", () => {
   it.each([
     { name: "a pull request's", html: prLayoutMenu },
     { name: "a commit's", html: commitLayoutMenu },
-  ])("finds both Layout items in $name menu", ({ html }) => {
-    const list = openLayoutMenu(html);
+  ])(
+    "finds both Layout items, the Layout group's parts, and the divider in $name menu",
+    ({ html }) => {
+      const list = openLayoutMenu(html);
+      const heading = document.querySelector<HTMLElement>('[data-component="GroupHeadingWrap"]');
+      const group = heading?.closest('[data-component="ActionList.Group"]');
 
-    expect(findLayoutMenu(document)).toEqual({
-      list,
-      unified: itemLabelled("Unified"),
-      split: itemLabelled("Split"),
-    });
+      expect(findLayoutMenu(document)).toEqual({
+        list,
+        unified: itemLabelled("Unified"),
+        split: itemLabelled("Split"),
+        headedGroup: { group, heading, items: group?.querySelector('ul[role="group"]') },
+        divider: list.querySelector('[data-component="ActionList.Divider"]'),
+      });
+      expect(heading?.textContent).toContain("Layout");
+    },
+  );
+
+  it("copyMenuGroup copies its Layout group as an empty group headed by the given text", () => {
+    openLayoutMenu(prLayoutMenu);
+    const menu = findLayoutMenu(document);
+    const headedGroup = menu?.headedGroup;
+    if (!menu || !headedGroup) throw new Error("fixture menu has no headed group");
+    const before = menu.list.outerHTML;
+
+    const { group, list, heading } = copyMenuGroup({ headedGroup }, "gh-prism");
+
+    expect(heading.textContent).toBe("gh-prism");
+    expect(group.querySelector('[data-component="GroupHeadingWrap"]')?.contains(heading)).toBe(
+      true,
+    );
+    expect(group.querySelector('ul[role="group"][aria-label="gh-prism"]')).toBe(list);
+    expect(list.children).toHaveLength(0);
+    expect(menu.list.outerHTML).toBe(before);
+  });
+
+  it("copies a Layout group and divider that the diff view control hid as shown", () => {
+    openLayoutMenu(prLayoutMenu);
+    const menu = findLayoutMenu(document);
+    const { headedGroup, divider } = menu ?? {};
+    if (!headedGroup || !divider) throw new Error("fixture menu lacks its group or divider");
+    for (const part of [headedGroup.group, headedGroup.heading, headedGroup.items, divider])
+      part.setAttribute("hidden", "");
+
+    const { group } = copyMenuGroup({ headedGroup }, "gh-prism");
+
+    expect(group.querySelectorAll("[hidden]")).toHaveLength(0);
+    expect(group.hasAttribute("hidden")).toBe(false);
+    expect(copyMenuDivider({ divider }).hasAttribute("hidden")).toBe(false);
   });
 
   it("finds the Layout menu behind another open menu", () => {

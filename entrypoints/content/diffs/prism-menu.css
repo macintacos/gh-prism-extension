@@ -1,0 +1,11 @@
+/* GitHub hooks: the copied Layout group's [data-component="ActionList.Group"], its
+   [data-component="GroupHeadingWrap"] and the span inside it, and its ul[role="group"], which
+   prism-menu.ts labels "gh-prism"; the aria-hidden glyph it appends to that span. */
+@import "../ui/tailwind.css" prefix(tw);
+
+[data-component="ActionList.Group"]:has(> ul[aria-label="gh-prism"])
+  [data-component="GroupHeadingWrap"]
+  svg[aria-hidden="true"] {
+  margin-inline-start: var(--base-size-4, 4px);
+  vertical-align: text-bottom;
+}

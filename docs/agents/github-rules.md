@@ -528,6 +528,16 @@ on a private one.
   Compact line height. A commit has no Whitespace changes group; its checkboxes are
   Minimize comments, Hide whitespace, and Compact line height. Observed in Chromium 157
   and Firefox 157 on 2026-11-10.
+- **Expect the Layout group to be the menu's only headed group, on both page kinds.** It
+  is an `li[data-component="ActionList.Group"]` holding a
+  `[data-component="GroupHeadingWrap"]` heading, then its `ul[role="group"]`.
+  `findLayoutMenu` reads it as the `headedGroup` that gh-prism's own group copies.
+  Observed in Chromium 157 on 2026-11-14.
+- **Name a menu group by the `aria-label` on its `ul[role="group"]`.** A pull request's
+  groups are Layout, Whitespace changes, Comments, and Format; a commit's are Layout,
+  Comments, and Format. Observed in Chromium 157 on 2026-11-14.
+- **Expect a commit page's gear to be labelled "Open diff view settings" and to have a
+  hidden 0×0 duplicate.** Observed in Chromium 157 on 2026-11-14.
 - **Expect a commit's Hide whitespace to follow `?w=1`:** its `aria-checked` is `false` on
   a plain load and `true` on a `?w=1` load. Observed in Chromium 157 and Firefox 157 on
   2026-11-10.

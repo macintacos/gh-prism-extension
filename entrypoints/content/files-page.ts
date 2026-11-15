@@ -315,14 +315,16 @@ export interface FilterMenu {
    * changed file.
    */
   readonly ownedByYou: { readonly item: HTMLElement; readonly group: Element } | undefined;
-  /** A group with a heading, to copy: the group, its heading, and the list its items go in. */
-  readonly headedGroup: {
-    readonly group: HTMLElement;
-    readonly heading: HTMLElement;
-    readonly items: HTMLElement;
-  };
+  readonly headedGroup: MenuHeadedGroup;
   /** An item, to copy. */
   readonly item: HTMLElement;
+}
+
+/** A menu group with a heading, to copy: the group, its heading, and the list its items go in. */
+export interface MenuHeadedGroup {
+  readonly group: HTMLElement;
+  readonly heading: HTMLElement;
+  readonly items: HTMLElement;
 }
 
 const MENU_GROUP = '[data-component="ActionList.Group"]';
@@ -464,27 +466,35 @@ export function followRightPanel(
 const cloneOf = <T extends Element>(el: T, deep: boolean): T => el.cloneNode(deep) as T;
 
 /**
- * An empty copy of `menu`'s headed group, headed `heading`: the group, and the list its items go
- * in.
+ * An empty copy of `menu`'s headed group, headed `heading`: the group, the list its items go in,
+ * and the span holding the heading's text.
  */
 export function copyMenuGroup(
-  menu: FilterMenu,
+  menu: { readonly headedGroup: MenuHeadedGroup },
   heading: string,
-): { group: HTMLElement; list: HTMLElement } {
-  const group = cloneOf(menu.headedGroup.group, false);
-  const headingCopy = cloneOf(menu.headedGroup.heading, true);
+): { group: HTMLElement; list: HTMLElement; heading: Element } {
+  const group = shownCopyOf(menu.headedGroup.group, false);
+  const headingCopy = shownCopyOf(menu.headedGroup.heading, true);
   const span = headingCopy.querySelector("span") ?? headingCopy;
   span.removeAttribute("id");
   span.textContent = heading;
 
-  const list = cloneOf(menu.headedGroup.items, false);
+  const list = shownCopyOf(menu.headedGroup.items, false);
   list.setAttribute("aria-label", heading);
   group.append(headingCopy, list);
-  return { group, list };
+  return { group, list, heading: span };
 }
 
 /** A copy of `menu`'s first divider. */
-export const copyMenuDivider = (menu: FilterMenu): Element => cloneOf(menu.divider, true);
+export const copyMenuDivider = (menu: { readonly divider: Element }): Element =>
+  shownCopyOf(menu.divider, true);
+
+/** A copy of `el` with no `hidden`, which the diff view control sets on the Layout group it hides. */
+function shownCopyOf<T extends Element>(el: T, deep: boolean): T {
+  const copy = cloneOf(el, deep);
+  for (const part of [copy, ...copy.querySelectorAll("[hidden]")]) part.removeAttribute("hidden");
+  return copy;
+}
 
 /**
  * A copy of `template` with its checkmark kept, and no id, labelling, tab stop, label text,
@@ -505,21 +515,6 @@ export function copyMenuItem(template: HTMLElement): {
   if (!label) throw new Error("menu item lost its label");
   label.replaceChildren();
   return { item, label };
-}
-
-/**
- * Ends `item`'s label row with `icon`, in an empty copy of the first trailing visual among
- * `menu`'s items, so it takes Primer's spacing and muted colour; leaves `item` alone when no item
- * has one.
- */
-export function addTrailingIcon(menu: LayoutMenu, item: HTMLElement, icon: Element): void {
-  const template = menu.list.querySelector(TRAILING_VISUAL);
-  const row = item.querySelector(ITEM_LABEL)?.parentElement;
-  if (!template || !row) return;
-  const slot = cloneOf(template, false);
-  slot.removeAttribute("id");
-  slot.append(icon);
-  row.append(slot);
 }
 
 /** What a menu entry shows and does. */
@@ -924,12 +919,16 @@ export function findLayoutGear(page: FilesPage): HTMLButtonElement | undefined {
   );
 }
 
-/** GitHub's open diff settings menu: its list and its two Layout items. */
+/** GitHub's open diff settings menu: its list, its two Layout items, and the parts to copy. */
 export interface LayoutMenu {
   /** The menu's `ul[role="menu"]`. */
   readonly list: Element;
   readonly unified: HTMLElement;
   readonly split: HTMLElement;
+  /** The headed Layout group; absent when GitHub drops its heading. */
+  readonly headedGroup: MenuHeadedGroup | undefined;
+  /** The menu's first divider. */
+  readonly divider: Element | undefined;
 }
 
 /** The open diff settings menu in `doc`, or `undefined` while it's closed or lacks either Layout item. */
@@ -938,9 +937,24 @@ export function findLayoutMenu(doc: Document): LayoutMenu | undefined {
   for (const list of doc.querySelectorAll('#__primerPortalRoot__ ul[role="menu"]')) {
     const unified = menuItemLabelled(list, "menuitemradio", "Unified");
     const split = menuItemLabelled(list, "menuitemradio", "Split");
-    if (unified && split) return { list, unified, split };
+    if (unified && split)
+      return {
+        list,
+        unified,
+        split,
+        headedGroup: layoutHeadedGroup(unified),
+        divider: list.querySelector(DIVIDER) ?? undefined,
+      };
   }
   return undefined;
+}
+
+/** The headed group holding `unified`, or `undefined` when it lacks its heading or list. */
+function layoutHeadedGroup(unified: HTMLElement): MenuHeadedGroup | undefined {
+  const group = unified.closest<HTMLElement>(MENU_GROUP);
+  const heading = group?.querySelector<HTMLElement>(GROUP_HEADING);
+  const items = group?.querySelector<HTMLElement>(GROUP_LIST);
+  return group && heading && items ? { group, heading, items } : undefined;
 }
 
 /** `menu`'s "Compact line height" item, or `undefined` when it has none. */

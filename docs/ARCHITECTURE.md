@@ -1025,20 +1025,32 @@ until the user scrolls, clicks, or types, or 5 s pass.
 ## Wrap lines
 
 [`entrypoints/content/diffs/wrap-lines.ts`](../entrypoints/content/diffs/wrap-lines.ts)
-adds a "Wrap lines" item to GitHub's diff settings menu, right after Compact line height,
-on every open that `followLayoutMenu` in
-[`files-page.ts`](../entrypoints/content/files-page.ts) reports. The item is a copy of
+builds the "Wrap lines" item that
+[`diffs/prism-menu.ts`](../entrypoints/content/diffs/prism-menu.ts) places in gh-prism's
+group. `showPrismMenu` appends that group at the end of GitHub's diff settings menu on
+every open that `followLayoutMenu` in
+[`files-page.ts`](../entrypoints/content/files-page.ts) reports. The group is a copy of
+the menu's Layout group, made by `copyMenuGroup`, after a copy of its first divider, made
+by `copyMenuDivider`. Its heading reads "gh-prism" and ends with the mark's glyph.
+`diffs/prism-menu.css` adds the gap between the text and the glyph. Each item is a copy of
 Compact line height, which `findCompactLineHeight` finds, built by `menuEntry`, the same
-builder the owner section's entries use. `addTrailingIcon` ends its row with the mark's
-glyph, in a copy of the menu's first trailing visual. `followLayoutMenu` and
-`followFilterMenu` share one private loop, `followMenu`. The item saves the choice to
-`sync:wrapLines` in [`utils/prefs.ts`](../utils/prefs.ts), where a missing value means
-wrapped. While the item is unchecked, `wrap-lines.ts` sets `data-gh-prism-wrap="off"` on
-`<html>` and mounts `diffs/wrap-lines.css`, which it removes again on rewrap. The sheet
-keys every rule on that attribute, so files that render later come up unwrapped with no
-per-row work. `wrap-lines.ts` sets the attribute only once it finds the layout gear, so a
-page without the gear never unwraps with no way back. When the gear is missing, or a menu
-opens without Compact line height, diffs stay wrapped and gh-prism logs one warning.
+builder the owner section's entries use. The items carry no glyph. `followLayoutMenu` and
+`followFilterMenu` share one private loop, `followMenu`.
+
+`prism-menu.ts` tracks whether the group can be offered, its gate: closed, open, or given
+up. It passes each change to every item's `follow` callback. The gate opens once the
+layout gear is found. It gives up for the page once a menu opens without Compact line
+height, the Layout group's heading, or a divider. From then on the menu gets no group, and
+Wrap lines wraps the diffs again. When the gear is missing, or the gate gives up, gh-prism
+logs one warning.
+
+The item saves the choice to `sync:wrapLines` in [`utils/prefs.ts`](../utils/prefs.ts),
+where a missing value means wrapped. While the item is unchecked and the gate is open,
+`wrap-lines.ts` sets `data-gh-prism-wrap="off"` on `<html>` and mounts
+`diffs/wrap-lines.css`, which it removes again on rewrap. The sheet keys every rule on
+that attribute, so files that render later come up unwrapped with no per-row work. The
+attribute waits for the open gate, so a page without the gear, which has no item to rewrap
+it, stays wrapped.
 
 While the page is unwrapped, `wrap-lines.ts` runs
 [`diffs/side-scroll.ts`](../entrypoints/content/diffs/side-scroll.ts). It measures each
@@ -1299,7 +1311,7 @@ entrypoints/
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, onboarding, report link, owner section
-    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet; structural-files.ts, a visit's structural answers; structural-mode.ts, Structural mode on a page; structural-notices.ts and structural-notices.css, its per-file notices and loading line; view-control.ts and view-control.css, the Unified, Split, and Structural control before the layout gear; structural-intro.ts, the Structural segment's popover and popup; wrap-lines.ts and wrap-lines.css, the Wrap lines item and the unwrapped view; side-scroll.ts, each file's sideways scroll
+    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet; structural-files.ts, a visit's structural answers; structural-mode.ts, Structural mode on a page; structural-notices.ts and structural-notices.css, its per-file notices and loading line; view-control.ts and view-control.css, the Unified, Split, and Structural control before the layout gear; structural-intro.ts, the Structural segment's popover and popup; prism-menu.ts and prism-menu.css, gh-prism's group in the diff settings menu; wrap-lines.ts and wrap-lines.css, the Wrap lines item and the unwrapped view; side-scroll.ts, each file's sideways scroll
     header/              diffstat breakout
     conversation/        a code owner's files popup and gh-prism's shield, in the Reviewers lists and beside Conversation and Files changed comment authors; the Conversation panel and its button, dressing its frame, and the messages the frame posts
     ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, column separator, view-transition glide, keycaps and the Shift+\ toolbar button, a visit's press guard for controls GitHub re-mounts mid-press, Tailwind tokens

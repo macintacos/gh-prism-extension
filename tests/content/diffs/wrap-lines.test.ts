@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { showWrapLines, type WrapChoice } from "../../../entrypoints/content/diffs/wrap-lines";
+import { showPrismMenu } from "../../../entrypoints/content/diffs/prism-menu";
+import { type WrapChoice, wrapLinesItem } from "../../../entrypoints/content/diffs/wrap-lines";
 import {
   type FilesPage,
   findFilesPage,
@@ -18,7 +19,7 @@ import { installLayoutMenu } from "../../fixtures/layout-menu";
 import commitMenu from "../../fixtures/layout-menu-commit.html?raw";
 import prMenu from "../../fixtures/layout-menu-pr.html?raw";
 
-describe("showWrapLines", () => {
+describe("wrapLinesItem", () => {
   let controller: AbortController;
   let warn: ReturnType<typeof vi.spyOn>;
   const flush = () => vi.advanceTimersByTimeAsync(100);
@@ -70,7 +71,9 @@ describe("showWrapLines", () => {
   function show(page: FilesPage, on = true) {
     const wrap: WrapChoice = { on };
     const save = vi.fn<(on: boolean) => void>();
-    showWrapLines(page, controller.signal, { choice: wrap, save });
+    showPrismMenu(page, controller.signal, [
+      wrapLinesItem(page, controller.signal, { choice: wrap, save }),
+    ]);
     return { wrap, save };
   }
 
@@ -93,33 +96,19 @@ describe("showWrapLines", () => {
   });
 
   it.each(["pr", "commit"] as const)(
-    "adds one checked Wrap lines item right after Compact line height on a %s page",
+    "offers one checked Wrap lines item in gh-prism's group on a %s page",
     async (kind) => {
       const page = pageOf(kind);
       show(page);
 
       await openMenu(page);
 
-      expect(document.querySelectorAll('[role="menuitemcheckbox"]')).toContain(wrapItem());
-      expect(labelled("Compact line height")?.nextElementSibling).toBe(wrapItem());
+      const items = document.querySelectorAll(
+        'ul[aria-label="gh-prism"] > [role="menuitemcheckbox"]',
+      );
+      expect([...items]).toEqual([wrapItem()]);
       expect(wrapItem()?.getAttribute("aria-checked")).toBe("true");
       expect(unwrapped()).toBe(false);
-    },
-  );
-
-  it.each(["pr", "commit"] as const)(
-    "shows gh-prism's glyph in the item's trailing slot, styled like the menu's own, on a %s page",
-    async (kind) => {
-      const page = pageOf(kind);
-      show(page);
-
-      await openMenu(page);
-
-      const slot = '[data-component="ActionList.TrailingVisual"]';
-      const trailing = wrapItem()?.querySelector(slot);
-      const primers = [...document.querySelectorAll(slot)].filter((el) => el !== trailing);
-      expect(trailing?.className).toBe(primers[0]?.className);
-      expect(trailing?.querySelector(":scope > svg")?.getAttribute("aria-hidden")).toBe("true");
     },
   );
 
