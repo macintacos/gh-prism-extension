@@ -66,10 +66,10 @@ function entriesOf({ placements, lines, commentLines }: Landing, path: string): 
     placement?.kind === "split"
       ? placement.shares.map((share) => ({ section: share.section, share, lines: share.lines }))
       : [{ section: sectionOf(path, placement?.section), lines: lines.get(path) }];
-  const comments = commentLines.get(path);
+  const movedLines = commentLines.get(path);
   return entries.map((entry) =>
-    comments && entry.section === classify(path) && isCounted(entry.lines)
-      ? { ...entry, lines: minus(entry.lines, comments), moved: comments }
+    movedLines && entry.section === classify(path) && isCounted(entry.lines)
+      ? { ...entry, lines: minus(entry.lines, movedLines), moved: movedLines }
       : entry,
   );
 }
