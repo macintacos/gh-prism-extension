@@ -5365,10 +5365,12 @@ for (const kind of ["pr", "commit"] as const) {
     await expect(
       page.getByRole("navigation", { name: "Changed files by section" }),
     ).not.toHaveAttribute("aria-busy");
-    // While open, the Structural popup sits between the segment and the gear in Tab order, and only
-    // while the segment is on screen, so scroll it in and close it first.
+    // A fresh install hides the Structural popup, but a page that loads before the install saves
+    // that still shows it, and while open it sits between the segment and the gear in Tab order. It
+    // mounts with the control but shows only once the segment is on screen.
     await segment(page, "Structural").scrollIntoViewIfNeeded();
-    await page.locator(".gh-prism-structural-popup").getByRole("button", { name: "Close" }).click();
+    const popup = page.locator(".gh-prism-structural-popup");
+    if ((await popup.count()) > 0) await popup.getByRole("button", { name: "Close" }).click();
     const boxes = () =>
       page.evaluate(() =>
         // In the document, since a focus can scroll the window.
@@ -5449,10 +5451,33 @@ test("an unavailable Structural segment's prism stays still under the pointer", 
   );
 });
 
+const NO_INTRO_RESET =
+  "Playwright's Firefox has no context.serviceWorkers(), so this test can't clear the dismissal a fresh install saves";
+
+/** Clears the Structural popup's dismissal once the install has saved it, as an update leaves it. */
+const undismissStructuralIntro = async (context: BrowserContext) => {
+  const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
+  const storage = () =>
+    worker.evaluate(() =>
+      (globalThis as unknown as { chrome: WxtBrowser }).chrome.storage.local
+        .get("structuralIntroDismissed")
+        .then((items) => items.structuralIntroDismissed),
+    );
+  await expect.poll(storage).toBe(true);
+  await worker.evaluate(() =>
+    (globalThis as unknown as { chrome: WxtBrowser }).chrome.storage.local.remove(
+      "structuralIntroDismissed",
+    ),
+  );
+};
+
 test("the diff view control's Structural popup shows once, until it's closed", async ({
+  browserName,
   context,
   page,
 }) => {
+  test.skip(browserName === "firefox", NO_INTRO_RESET);
+  await undismissStructuralIntro(context);
   await serveLayoutPage(context, page, "pr");
   const popupOf = (on: Page) => on.locator(".gh-prism-structural-popup");
   const popup = popupOf(page);
@@ -5480,9 +5505,12 @@ test("the diff view control's Structural popup shows once, until it's closed", a
 });
 
 test("Escape in the diff view control's Structural popup closes it and returns focus to the segment", async ({
+  browserName,
   context,
   page,
 }) => {
+  test.skip(browserName === "firefox", NO_INTRO_RESET);
+  await undismissStructuralIntro(context);
   await serveLayoutPage(context, page, "pr");
   const popup = page.locator(".gh-prism-structural-popup");
   await expect(popup).toBeVisible();

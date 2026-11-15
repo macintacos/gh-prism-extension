@@ -86,6 +86,12 @@ export const structuralMode = storage.defineItem<boolean>("sync:structuralMode",
   fallback: false,
 });
 
+/**
+ * Whether the user last left diffs wrapping long lines; Chrome sync carries it to their other
+ * computers when on.
+ */
+export const wrapLines = storage.defineItem<boolean>("sync:wrapLines", { fallback: true });
+
 /** A retired key a released version wrote: the commits whose message the user hid, one by one. */
 export const RETIRED_HIDDEN_COMMITS = "local:hiddenCommitMessages";
 

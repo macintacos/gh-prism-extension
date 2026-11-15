@@ -1,9 +1,15 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { FilesPage, FilterMenu, NativeTree } from "../../entrypoints/content/files-page";
+import type {
+  FilesPage,
+  FilterMenu,
+  LayoutMenu,
+  NativeTree,
+} from "../../entrypoints/content/files-page";
 import {
   appendToDiffs,
   changedCells,
+  codeLines,
   commitPage,
   copyMenuGroup,
   copyMenuItem,
@@ -15,6 +21,7 @@ import {
   findCommitColumnRow,
   findCommitHeader,
   findCommitMessage,
+  findCompactLineHeight,
   findDiff,
   findDiffList,
   findDiffstat,
@@ -31,6 +38,7 @@ import {
   findReviewersHeadings,
   findTreeToggle,
   followFilterMenu,
+  followLayoutMenu,
   followOverlay,
   followOwnerSpots,
   headerOf,
@@ -56,6 +64,7 @@ import {
   viewedToggleOf,
   viewerLogin,
 } from "../../entrypoints/content/files-page";
+import commitUnified from "../fixtures/commit-page-diff-unified.html?raw";
 import commitToolbar from "../fixtures/commit-page-toolbar.html?raw";
 import commentsFixture from "../fixtures/conversation-comments.html?raw";
 import nodeConversation from "../fixtures/conversation-node.html?raw";
@@ -595,6 +604,52 @@ describe("findLayoutMenu", () => {
   });
 });
 
+describe("findCompactLineHeight", () => {
+  const openLayoutMenu = (html: string): LayoutMenu => {
+    document.body.innerHTML = `<div id="__primerPortalRoot__">${html}</div>`;
+    const menu = findLayoutMenu(document);
+    if (!menu) throw new Error("fixture has no layout menu");
+    return menu;
+  };
+
+  it.each([
+    { name: "a pull request's", html: prLayoutMenu },
+    { name: "a commit's", html: commitLayoutMenu },
+  ])("finds Compact line height in $name menu", ({ html }) => {
+    const menu = openLayoutMenu(html);
+
+    expect(findCompactLineHeight(menu)?.textContent?.trim()).toBe("Compact line height");
+    expect(findCompactLineHeight(menu)?.getAttribute("role")).toBe("menuitemcheckbox");
+  });
+
+  it("is undefined when the menu has no Compact line height", () => {
+    const menu = openLayoutMenu(prLayoutMenu);
+    for (const label of document.querySelectorAll('[data-component="ActionList.Item.Label"]'))
+      if (label.textContent === "Compact line height") label.textContent = "Something else";
+
+    expect(findCompactLineHeight(menu)).toBeUndefined();
+  });
+});
+
+describe("followLayoutMenu", () => {
+  it("reports the menu as it opens and aborts closed once it closes", async () => {
+    const controller = new AbortController();
+    const onOpen = vi.fn<(menu: LayoutMenu, closed: AbortSignal) => void>();
+    followLayoutMenu(document, onOpen, { signal: controller.signal });
+
+    document.body.innerHTML = `<div id="__primerPortalRoot__">${prLayoutMenu}</div>`;
+    await Promise.resolve();
+    const opened = onOpen.mock.calls[0];
+    document.body.innerHTML = "";
+    await Promise.resolve();
+    controller.abort();
+
+    expect(onOpen).toHaveBeenCalledOnce();
+    expect(opened?.[0].list).toBe(onOpen.mock.calls[0]?.[0].list);
+    expect(onOpen.mock.calls[0]?.[1].aborted).toBe(true);
+  });
+});
+
 describe("findLayoutGroup", () => {
   const openLayoutMenu = (html: string) => {
     document.body.innerHTML = `<div id="__primerPortalRoot__">${html}</div>`;
@@ -822,7 +877,7 @@ describe("copyMenuGroup and copyMenuItem", () => {
     const menu = openMenu();
     const before = menu.list.outerHTML;
 
-    const { item, label } = copyMenuItem(menu);
+    const { item, label } = copyMenuItem(menu.item);
 
     expect(item.tagName).toBe("LI");
     for (const attr of ["id", "aria-keyshortcuts", "aria-checked"]) {
@@ -1724,6 +1779,45 @@ describe("diffTables", () => {
     document.body.innerHTML = "";
 
     expect(diffTables(document.body)).toEqual([]);
+  });
+});
+
+describe("codeLines", () => {
+  const sidesOf = (html: string) => {
+    document.body.innerHTML = html;
+    const [table] = diffTables(document.body);
+    if (!table) throw new Error("fixture has no table");
+    return [...codeLines(table)].map(({ side }) => side);
+  };
+
+  it("puts a split row's 2nd cell on the old side and its 4th on the new", () => {
+    const sides = sidesOf(prSplit);
+
+    expect(sides.filter((side) => side === "old")).toHaveLength(20);
+    expect(sides.filter((side) => side === "new")).toHaveLength(24);
+  });
+
+  it("puts every line of a commit's Unified diff on the new side", () => {
+    expect(sidesOf(commitUnified)).toEqual(["new", "new", "new", "new", "new"]);
+  });
+
+  it("skips hunk headers", () => {
+    document.body.innerHTML = prSplit;
+    const [table] = diffTables(document.body);
+    if (!table) throw new Error("fixture has no table");
+
+    expect([...codeLines(table)].every(({ code }) => !code.closest(".diff-hunk-cell"))).toBe(true);
+  });
+
+  it("gives each line the code element that holds its text", () => {
+    document.body.innerHTML = prSplit;
+    const [table] = diffTables(document.body);
+    if (!table) throw new Error("fixture has no table");
+
+    for (const { inner, code } of codeLines(table)) {
+      expect(code.matches("td.diff-text-cell > code.diff-text")).toBe(true);
+      expect(code.contains(inner)).toBe(true);
+    }
   });
 });
 

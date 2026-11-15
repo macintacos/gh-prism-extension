@@ -6,6 +6,32 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-14: Wrap lines copies GitHub's item and scrolls by the platform's scrollbar
+
+- **Asked:**
+  [EXC-2369](https://linear.app/macintacos/issue/EXC-2369/add-a-wrap-lines-toggle-to-the-diff-settings-menu),
+  which adds a "Wrap lines" item to GitHub's Diff settings menu, styled like Compact line
+  height.
+- **Compared:**
+  - for the item: one built in gh-prism's own markup, or a copy of GitHub's Compact line
+    height item;
+  - for the scrollbar: one pinned to the window's bottom, a strip of gh-prism's own driven
+    by a `wheel` listener, or the platform's own at the bottom of each file.
+- **Won:** a copy of Compact line height, placed right after it, and the platform's own
+  scrollbar at the bottom of each file.
+- **Why:**
+  - A copy keeps Primer's check icon, hover, focus, and arrow-key reach, and announces its
+    checked state as GitHub's items do, with no styles of gh-prism's own to drift.
+  - The platform's scrollbar gives trackpad, Shift + wheel, momentum, and keyboard
+    scrolling with no code of gh-prism's own. A `wheel` listener that can cancel the event
+    would hold up vertical page scrolling over the diffs. The issue puts a window-pinned
+    scrollbar out of scope.
+- **Accepted:** on a tall file, the scrollbar sits at the file's bottom, off screen until
+  the reader scrolls there. Trackpad and Shift + wheel still scroll the file from anywhere
+  in it. While unwrapped, Structural's per-file notice and its loading line stay at the
+  file's left edge. They no longer stick under the file header, because the file's box is
+  their scroll container.
+
 ## 2026-11-13: Structural mode never marks a line changed in full
 
 This replaces the pick of the 2026-11-11 "Structural mode marks a line changed in full

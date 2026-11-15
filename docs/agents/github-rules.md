@@ -664,6 +664,46 @@ on a private one.
 - **Expect a pull request's toolbar outside `page.diffs` and a commit's inside it.** An
   observer on the diffs sees a commit's toolbar re-render but not a pull request's, so a
   node in the toolbar watches the toolbar itself (Chromium 157, signed in, 2026-11-10).
+- **Add to the diff settings menu on every open.** GitHub mounts the menu under
+  `#__primerPortalRoot__` each time the gear opens it and unmounts it on close, so a node
+  added to it lasts one open. `followLayoutMenu` in `files-page.ts` reports each open with
+  a signal that aborts when the menu closes (Chromium and Firefox, signed in, 2026-11-14).
+- **Copy a checkbox item from the menu rather than build one.** Its checkbox items are
+  Primer `li[role="menuitemcheckbox"][data-component="ActionList.Item"]`, each with an
+  `ActionList.Item.Label` span and an `ActionList.Selection` check icon that is always in
+  the DOM. Primer's CSS shows the icon from the item's `aria-checked`, so a copy shows its
+  state by that attribute alone. Class names are hashed `prc-*`; match `data-component`
+  and roles. `findCompactLineHeight` in `files-page.ts` finds Compact line height by its
+  label (Chromium and Firefox, signed in, 2026-11-14).
+- **Don't put a class of gh-prism's own on a diff table.** Compact line height saves to
+  the account with `POST /users/diffview` and a body of `{"lineSpacing":…}`, then React
+  re-renders a CSS-module class on each `table[data-diff-anchor]`, replacing any class
+  added there. Key a page-wide mode on an attribute of `<html>` instead, as
+  `data-gh-prism-wrap` is (Chromium and Firefox, signed in, 2026-11-14).
+- **Expect each file's table in a bordered box, with both Split sides in one row.** The
+  box is the card § The file card describes; besides the table it holds only nodes
+  gh-prism places before it, such as Structural's notice and loading line. A split row
+  holds old number, old code, new number, and new code, as § Diff lines says. So one
+  scroll container on the box moves both sides of a file together. The file's sticky
+  header sits outside that box, so the box can scroll without unpinning the header
+  (Chromium and Firefox, signed in, 2026-11-14).
+- **Expect diff rows never to be virtualized.** A file skips painting while off screen
+  through `content-visibility: auto`, and files mount lazily in batches. Expanding context
+  and switching the layout replace rows or whole tables. So CSS keyed on an attribute of
+  `<html>` reaches every row as it renders, with no per-row work, and a `ResizeObserver`
+  on a table that hasn't rendered yet first fires once it renders (Chromium and Firefox,
+  signed in, 2026-11-14).
+- **Clip a line on its code, not its `td.diff-text-cell`, and make the code a block to do
+  it.** GitHub draws `code.diff-text` inline, so `overflow` set on it does nothing until
+  it is `display: block`. The `td` holds GitHub's absolutely positioned add-comment button
+  at `left: -11px`, its action bar, and its inline markers row, which hang past the cell's
+  edges, so a clip on the `td` cuts all of them. The code ends about 24px inside the cell,
+  the strip the action bar sits in. GitHub sets the `td` to `position: relative`, so it is
+  the offset parent of both the code and its `.diff-text-inner`. Measure a line's reach,
+  the inner's `offsetLeft + offsetWidth`, against the code's `offsetLeft + clientWidth`,
+  not the cell's `clientWidth`. A fixture without GitHub's sheet must position the `td`
+  too: in Firefox, a static `td` is the code's offset parent but not the inner's, which
+  then measures from the table (Chromium and Firefox, signed in, 2026-11-14).
 - **Test the menu against the captured menus:** `tests/fixtures/layout-menu-pr.html` and
   `tests/fixtures/layout-menu-commit.html`, each opened from the gear with Unified saved.
 - **Test the gear against the captured toolbars:**
@@ -776,7 +816,11 @@ on a private one.
 - **Expect a `position: sticky` node in the file card to stick to the window.** The card
   and every ancestor up to `body` compute `overflow: visible`, at 1280px, 1000px, and
   600px wide. Nothing in the card scrolls sideways either: the table is
-  `table-layout: fixed` at the card's width and wraps long lines.
+  `table-layout: fixed` at the card's width and wraps long lines. The exception is the
+  unwrapped view: while `<html>` has `data-gh-prism-wrap="off"`, `wrap-lines.css` gives
+  the card `overflow-x: auto`, so both axes compute `auto` and a sticky node in the card
+  sticks to the card, not the window. gh-prism's Structural notice and loading line are
+  held at the card's left there and give up sticking under the header.
 - **Don't measure the sticky bar itself.** The commit page's bar has no stable hook, and
   the pull request's is `height: 0` until stuck.
 - **Expect a pull request's collapsed sticky header to be a `--base-size-48` row over a

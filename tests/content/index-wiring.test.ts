@@ -897,6 +897,85 @@ describe("content script", () => {
     expect(consoleWarn).toHaveBeenCalledOnce();
   });
 
+  describe("Wrap lines", () => {
+    const unwrapped = () => document.documentElement.dataset.ghPrismWrap === "off";
+
+    beforeEach(() => {
+      const page = findFilesPage(document);
+      const row = page && findFilesToolbar(page);
+      if (!row) throw new Error("fixture has no toolbar");
+      row.outerHTML = prToolbar;
+    });
+
+    afterEach(() => {
+      delete document.documentElement.dataset.ghPrismWrap;
+    });
+
+    it.each<{ saved?: unknown; off: boolean }>([
+      { off: false },
+      { saved: true, off: false },
+      { saved: "false", off: false },
+      { saved: false, off: true },
+    ])("unwraps the diffs: $off (saved: $saved)", async ({ saved, off }) => {
+      // Raw key on purpose, so the test outlives a move to typed storage items.
+      if (saved !== undefined) await fakeBrowser.storage.sync.set({ wrapLines: saved });
+
+      await run();
+
+      expect(unwrapped()).toBe(off);
+    });
+
+    it("keeps the diffs wrapped when reading the saved choice fails", async () => {
+      await fakeBrowser.storage.sync.set({ wrapLines: false });
+      const failure = new Error("invalidated");
+      vi.spyOn(fakeBrowser.storage.sync, "get").mockRejectedValue(failure);
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      await run();
+
+      expect(unwrapped()).toBe(false);
+      expect(consoleError).toHaveBeenCalledWith(
+        "gh-prism: reading whether diffs wrap long lines failed",
+        failure,
+      );
+    });
+
+    it("logs a failed save instead of throwing it", async () => {
+      installLayoutMenu({
+        menu: prLayoutMenu,
+        tables: { unified: prRename, split: prSplit },
+        signal: controller.signal,
+      });
+      const failure = new Error("quota");
+      vi.spyOn(fakeBrowser.storage.sync, "set").mockRejectedValue(failure);
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+      await run();
+
+      const page = findFilesPage(document);
+      if (page) findLayoutGear(page)?.click();
+      await afterMutations();
+      document.querySelector<HTMLElement>("#gh-prism-wrap-lines")?.click();
+
+      await vi.waitFor(() =>
+        expect(consoleError).toHaveBeenCalledWith(
+          "gh-prism: saving whether diffs wrap long lines failed",
+          failure,
+        ),
+      );
+    });
+
+    it("keeps the diffs unwrapped across a soft navigation to another files page", async () => {
+      await fakeBrowser.storage.sync.set({ wrapLines: false });
+      await run();
+
+      history.pushState(null, "", "/o/r/pull/2/changes");
+      document.dispatchEvent(new Event("soft-nav:end"));
+      await afterMutations();
+
+      expect(unwrapped()).toBe(true);
+    });
+  });
+
   describe("on a pull request's header tab", () => {
     beforeEach(() => {
       history.replaceState(null, "", "/o/r/pull/3");

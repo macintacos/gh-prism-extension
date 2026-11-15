@@ -330,6 +330,7 @@ const GROUP_HEADING = '[data-component="GroupHeadingWrap"]';
 const GROUP_LIST = 'ul[role="group"]';
 const ITEM_LABEL = '[data-component="ActionList.Item.Label"]';
 const ITEM_SELECTION = '[data-component="ActionList.Selection"]';
+const TRAILING_VISUAL = '[data-component="ActionList.TrailingVisual"]';
 const DIVIDER = '[data-component="ActionList.Divider"]';
 const FILTER_ROW = "#diff-file-tree-filter";
 
@@ -384,11 +385,40 @@ export function followFilterMenu(
   onOpen: (menu: FilterMenu, closed: AbortSignal) => void,
   { signal }: { signal: AbortSignal },
 ): void {
-  let shown: FilterMenu | undefined;
+  followMenu(doc, findFilterMenu, onOpen, {
+    signal,
+    same: (a, b) => a?.list === b?.list && a?.ownedByYou?.item === b?.ownedByYou?.item,
+  });
+}
+
+/**
+ * Calls `onOpen` with the diff settings menu each time it opens (and one already open), with a
+ * signal that aborts once it closes, until `signal` aborts. Undebounced, so the item is in place
+ * before the menu first paints.
+ */
+export function followLayoutMenu(
+  doc: Document,
+  onOpen: (menu: LayoutMenu, closed: AbortSignal) => void,
+  { signal }: { signal: AbortSignal },
+): void {
+  followMenu(doc, findLayoutMenu, onOpen, { signal, same: (a, b) => a?.list === b?.list });
+}
+
+/** Calls `onOpen` each time `find` answers a menu that isn't the `same` as the last one shown. */
+function followMenu<Menu>(
+  doc: Document,
+  find: (doc: Document) => Menu | undefined,
+  onOpen: (menu: Menu, closed: AbortSignal) => void,
+  {
+    signal,
+    same,
+  }: { signal: AbortSignal; same: (a: Menu | undefined, b: Menu | undefined) => boolean },
+): void {
+  let shown: Menu | undefined;
   let closed: AbortController | undefined;
   const reportIfChanged = () => {
-    const menu = findFilterMenu(doc);
-    if (menu?.list === shown?.list && menu?.ownedByYou?.item === shown?.ownedByYou?.item) return;
+    const menu = find(doc);
+    if (same(menu, shown)) return;
     closed?.abort();
     shown = menu;
     closed = menu && new AbortController();
@@ -457,22 +487,78 @@ export function copyMenuGroup(
 export const copyMenuDivider = (menu: FilterMenu): Element => cloneOf(menu.divider, true);
 
 /**
- * A copy of `menu`'s item with its checkmark kept, and no id, labelling, tab stop, label text,
+ * A copy of `template` with its checkmark kept, and no id, labelling, tab stop, label text,
  * trailing visual, checked state, or key: the item, and the label to fill.
  */
-export function copyMenuItem(menu: FilterMenu): { item: HTMLElement; label: HTMLElement } {
-  const item = cloneOf(menu.item, true);
+export function copyMenuItem(template: HTMLElement): {
+  item: HTMLElement;
+  label: HTMLElement;
+} {
+  const item = cloneOf(template, true);
   // Load-bearing beyond key clashes: a copy that kept GitHub's "o" would pass for its owned-by
   // item, so findFilterMenu would stop recognizing the open menu and the section would tear
   // itself down and re-add in a loop.
   for (const attr of ["id", "aria-labelledby", "aria-keyshortcuts", "aria-checked", "tabindex"])
     item.removeAttribute(attr);
-  for (const trailing of item.querySelectorAll('[data-component="ActionList.TrailingVisual"]'))
-    trailing.remove();
+  for (const trailing of item.querySelectorAll(TRAILING_VISUAL)) trailing.remove();
   const label = item.querySelector<HTMLElement>(ITEM_LABEL);
-  if (!label) throw new Error("filter menu's item lost its label");
+  if (!label) throw new Error("menu item lost its label");
   label.replaceChildren();
   return { item, label };
+}
+
+/**
+ * Ends `item`'s label row with `icon`, in an empty copy of the first trailing visual among
+ * `menu`'s items, so it takes Primer's spacing and muted colour; leaves `item` alone when no item
+ * has one.
+ */
+export function addTrailingIcon(menu: LayoutMenu, item: HTMLElement, icon: Element): void {
+  const template = menu.list.querySelector(TRAILING_VISUAL);
+  const row = item.querySelector(ITEM_LABEL)?.parentElement;
+  if (!template || !row) return;
+  const slot = cloneOf(template, false);
+  slot.removeAttribute("id");
+  slot.append(icon);
+  row.append(slot);
+}
+
+/** What a menu entry shows and does. */
+export interface MenuEntryParts {
+  readonly id: string;
+  readonly text: string;
+  readonly role: "menuitemradio" | "menuitemcheckbox";
+  readonly checked: boolean;
+  readonly pick: () => void;
+}
+
+/**
+ * A copy of `template` labelled `text` that runs `pick` on click, Enter, or Space, then closes the
+ * menu with the Escape Primer listens for.
+ */
+export function menuEntry(
+  template: HTMLElement,
+  { id, text, role, checked, pick }: MenuEntryParts,
+): HTMLElement {
+  const { item, label } = copyMenuItem(template);
+  item.id = id;
+  item.setAttribute("role", role);
+  item.setAttribute("tabindex", "-1");
+  item.setAttribute("aria-labelledby", `${id}--label`);
+  item.setAttribute("aria-checked", String(checked));
+  label.id = `${id}--label`;
+  label.textContent = text;
+
+  const pickAndClose = () => {
+    pick();
+    item.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  };
+  item.addEventListener("click", pickAndClose);
+  item.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    pickAndClose();
+  });
+  return item;
 }
 
 /**
@@ -850,15 +936,23 @@ export interface LayoutMenu {
 export function findLayoutMenu(doc: Document): LayoutMenu | undefined {
   // No other GitHub menu holds both items, so the menu needs no tie back to the gear.
   for (const list of doc.querySelectorAll('#__primerPortalRoot__ ul[role="menu"]')) {
-    const items = [...list.querySelectorAll<HTMLElement>('[role="menuitemradio"]')];
-    const labelled = (text: string) =>
-      items.find((item) => item.querySelector(ITEM_LABEL)?.textContent?.trim() === text);
-    const unified = labelled("Unified");
-    const split = labelled("Split");
+    const unified = menuItemLabelled(list, "menuitemradio", "Unified");
+    const split = menuItemLabelled(list, "menuitemradio", "Split");
     if (unified && split) return { list, unified, split };
   }
   return undefined;
 }
+
+/** `menu`'s "Compact line height" item, or `undefined` when it has none. */
+export function findCompactLineHeight(menu: LayoutMenu): HTMLElement | undefined {
+  return menuItemLabelled(menu.list, "menuitemcheckbox", "Compact line height");
+}
+
+/** The item of `role` in `list` labelled `text`. */
+const menuItemLabelled = (list: Element, role: string, text: string) =>
+  [...list.querySelectorAll<HTMLElement>(`[role="${role}"]`)].find(
+    (item) => item.querySelector(ITEM_LABEL)?.textContent?.trim() === text,
+  );
 
 /** What an open diff settings menu draws only to offer its Layout choice. */
 export interface LayoutGroup {
@@ -1266,6 +1360,33 @@ export function diffTables(diffs: ParentNode): DiffTable[] {
         ? "split"
         : "unified",
   }));
+}
+
+/** The box that holds a file's `table` alone, or `null` once the table has left it. */
+export const fileBox = (table: HTMLTableElement): HTMLElement | null => table.parentElement;
+
+/** Whether `el` is a file's box, the direct parent of its diff table. */
+export const isFileBox = (el: Element): boolean =>
+  el.querySelector(":scope > table[data-diff-anchor]") !== null;
+
+/** One line of a diff's code: its text, the `code.diff-text` that holds it, and its side. */
+export interface CodeLine {
+  readonly inner: HTMLElement;
+  readonly code: HTMLElement;
+  readonly side: "old" | "new";
+}
+
+/**
+ * Each code line of `table`, hunk headers aside. Only a split row's old code cell, its 2nd, is
+ * `old`: a commit marks Unified deletions `left-side-diff-cell` too.
+ */
+export function* codeLines({ table, layout }: DiffTable): Generator<CodeLine> {
+  for (const cell of table.querySelectorAll<HTMLTableCellElement>("td.diff-text-cell")) {
+    const code = cell.querySelector<HTMLElement>(":scope > code.diff-text");
+    const inner = code?.querySelector<HTMLElement>(".diff-text-inner");
+    if (!code || !inner) continue;
+    yield { inner, code, side: layout === "split" && cell.cellIndex === 1 ? "old" : "new" };
+  }
 }
 
 /**

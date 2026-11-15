@@ -14,10 +14,10 @@ import { ownerOf, withOwner, withViewerOwner } from "@/utils/github/files-route"
 import {
   copyMenuDivider,
   copyMenuGroup,
-  copyMenuItem,
   type FilesPage,
   type FilterMenu,
   followFilterMenu,
+  menuEntry,
   viewerLogin,
 } from "../files-page";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
@@ -86,8 +86,9 @@ function addSection(
   if (ownedByYou) {
     const checked = ownedByYou.item.getAttribute("aria-checked") === "true";
     list.append(
-      entry(menu, {
+      menuEntry(menu.item, {
         id: nextId(),
+        role: "menuitemradio",
         text: "Me",
         checked,
         pick: () => {
@@ -110,8 +111,9 @@ function addSection(
     // never un-hides; re-read the owner on an in-page URL change in watch.ts and land.ts to skip
     // it.
     list.append(
-      entry(menu, {
+      menuEntry(menu.item, {
         id: nextId(),
+        role: "menuitemradio",
         text: token,
         checked,
         pick: () => navigate(withOwner(doc.location.href, checked ? undefined : token)),
@@ -136,35 +138,4 @@ function addSection(
     dividerCopy?.remove();
     ownedByYou?.item.removeAttribute("disabled");
   });
-}
-
-interface EntryParts {
-  readonly id: string;
-  readonly text: string;
-  readonly checked: boolean;
-  readonly pick: () => void;
-}
-
-/** A menu entry labelled `text` that runs `pick` on click, Enter, or Space, then closes the menu. */
-function entry(menu: FilterMenu, { id, text, checked, pick }: EntryParts): HTMLElement {
-  const { item, label } = copyMenuItem(menu);
-  item.id = id;
-  item.setAttribute("role", "menuitemradio");
-  item.setAttribute("tabindex", "-1");
-  item.setAttribute("aria-labelledby", `${id}--label`);
-  item.setAttribute("aria-checked", String(checked));
-  label.id = `${id}--label`;
-  label.textContent = text;
-
-  const pickAndClose = () => {
-    pick();
-    item.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-  };
-  item.addEventListener("click", pickAndClose);
-  item.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    event.preventDefault();
-    pickAndClose();
-  });
-  return item;
 }

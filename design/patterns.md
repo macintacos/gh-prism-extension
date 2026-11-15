@@ -594,11 +594,12 @@ control carry none. On a control that small, a mark would crowd the content it l
 repeat down the page. A future surface gets a mark only if it is a panel, dialog, popup,
 or tooltip of gh-prism's own, decided case by case against this entry.
 
-Two controls hold the mark's glyph as their icon, which is not a mark: it has no name and
-no tooltip, and says only that the control is gh-prism's. The classic page's "Why is
+Three controls hold the mark's glyph as their icon, which is not a mark: it has no name
+and no tooltip, and says only that the control is gh-prism's. The classic page's "Why is
 gh-prism off?" button holds the bare glyph in its text colour. The diff view control's
 Structural segment holds the glyph and the coloured copy that pulses, and hovering or
-keyboard-focusing the segment runs the pulse (§ Switches).
+keyboard-focusing the segment runs the pulse (§ Switches). The Wrap lines item in the diff
+settings menu holds the bare glyph as its trailing icon (§ Menu items).
 
 At rest the mark is `--fgColor-muted`. Hovering cross-fades it to a coloured copy of the
 glyph on `tokens.md`'s "State, opening" row. While the pointer stays, the copy pulses on
@@ -617,6 +618,25 @@ The spectrum is gh-prism's signature: every section's hue in one band, in sectio
 It appears only where gh-prism announces itself: the loading bar and the 3px top edge of
 the classic-page dialog. Anywhere else, it would compete with the section hues it is made
 of. A hovered mark cycles through the same hues one at a time instead.
+
+## Menu items
+
+An item gh-prism adds to one of GitHub's menus is a copy of GitHub's own item, so Primer's
+check icon, hover, focus, and arrow-key navigation stay native. gh-prism adds no style of
+its own that could drift. `menuEntry` in `files-page.ts` builds it from a template item: a
+fresh `id`, a label that the item's `aria-labelledby` names, the role and `aria-checked`
+state, and `tabindex="-1"`, as Primer's focus zone expects. A pick by click, Enter, or
+Space runs the item's action, then closes the menu with the `Escape` `keydown` Primer
+listens for. The owner section's entries in the file-tree filter menu and Wrap lines in
+the diff settings menu use it.
+
+Wrap lines also ends its row with the mark's bare glyph, a 16px SVG, so a reader can tell
+it from GitHub's own items. `addTrailingIcon` in `files-page.ts` puts the glyph in an
+empty copy of the first trailing visual it finds among the menu's items. A trailing visual
+is Primer's slot for an item's trailing icon: GitHub's Whitespace changes item holds its
+chevron there, and Minimize comments its key. The copy keeps Primer's spacing and muted
+colour, so gh-prism adds no style of its own. The glyph is hidden from screen readers, so
+the item's name stays "Wrap lines". The owner section's entries carry no glyph.
 
 ## Notices
 
