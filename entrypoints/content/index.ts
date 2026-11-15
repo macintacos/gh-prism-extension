@@ -68,6 +68,7 @@ import {
 } from "./conversation/panel";
 import { showReviewerFiles } from "./conversation/reviewer-files";
 import { type ClickToCommentChoice, clickToCommentItem } from "./diffs/click-to-comment";
+import { showClickableHeaders } from "./diffs/file-headers";
 import { showPrismMenu } from "./diffs/prism-menu";
 import { hashLanding } from "./diffs/reveal";
 import { structuralFiles } from "./diffs/structural-files";
@@ -313,6 +314,7 @@ export default defineContentScript({
                 save: saveClickToComment,
               }),
             ]);
+            showClickableHeaders(page, signal);
             showCommitMessage(page, signal, {
               afterSections: afterLanding(intent),
               choice: commitMessage,

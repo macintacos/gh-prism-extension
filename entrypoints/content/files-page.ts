@@ -1704,6 +1704,33 @@ export function expandedDiff(diff: Element | null): Element | null {
   return diff && diff.children.length > 1 ? diff : null;
 }
 
+const FILE_HEADER = '[class*="diff-file-header__"]';
+// Keep in sync with file-headers.css's :has() list.
+const HEADER_CONTROL = 'a, button, input, label, select, summary, textarea, [role="button"]';
+
+/** A diff's file header: its bar, the chevron that collapses and expands the diff, and its path link. */
+export interface FileHeader {
+  readonly bar: Element;
+  readonly chevron: HTMLButtonElement;
+  readonly link: HTMLAnchorElement;
+}
+
+/** The file header `target` sits in, or `undefined` outside one or when it lacks its chevron or path link. */
+export function fileHeaderAt(target: Element): FileHeader | undefined {
+  const bar = target.closest(FILE_HEADER);
+  const chevron = bar?.querySelector("button");
+  const link = bar?.querySelector<HTMLAnchorElement>('h3 a[href^="#diff-"]');
+  if (!bar || !chevron || !link) return undefined;
+  if (!chevron.querySelector(".octicon-chevron-down, .octicon-chevron-right")) return undefined;
+  return { bar, chevron, link };
+}
+
+/** Whether `target` sits in a control inside `header`'s bar rather than on its blank area. */
+export function onHeaderControl(header: FileHeader, target: Element): boolean {
+  const control = target.closest(HEADER_CONTROL);
+  return !!control && header.bar.contains(control);
+}
+
 // A pull request's placeholder says "Load Diff"; a commit's says "Load diff".
 const LOAD_DIFF_LABEL = "load diff";
 

@@ -1,0 +1,14 @@
+/* GitHub hooks: [class*="diff-file-header__"] and the controls in it. gh-prism hooks: file-headers.ts mounts this sheet on every Files changed page and forwards a click on the bar's blank area to its chevron. */
+
+[class*="diff-file-header__"]:hover:not(
+    :has(:is(a, button, input, label, select, summary, textarea, [role="button"]):hover)
+  ) {
+  background-image: linear-gradient(var(--bgColor-neutral-muted), var(--bgColor-neutral-muted));
+}
+
+[class*="diff-file-header__"] {
+  &,
+  & * {
+    cursor: pointer;
+  }
+}
