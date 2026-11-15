@@ -148,6 +148,12 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   view. Which alignment the click lands on depends on the machine's speed, so the sidebar
   can stay put locally and move on CI. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s
   "ticking a box doesn't scroll the sidebar" awaits the animations' `finished` first.
+- **Scroll a test's setup with `behavior: "instant"` when its fixture's `html` scrolls
+  smoothly.** A plain `scrollBy(x, y)` or `scrollTo` then animates. Firefox's `scrollY`
+  can hold still for two frames mid-animation, which passes Playwright's stability check,
+  so a hover rests the pointer on a line that scrolls away before the press.
+  [`e2e/click-to-comment.e2e.ts`](../../e2e/click-to-comment.e2e.ts)'s "holding a drag at
+  the window's bottom edge…" scrolls its start line into place this way.
 - **Retry a jump and its check together after a test wheels the sidebar.** A wheel's
   scroll can land after a later `scrollTop` write and carry the sidebar past the target. A
   poll for `scrollTop > 0` only proves that the wheel started. In

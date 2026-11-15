@@ -314,7 +314,10 @@ test("holding a drag at the window's bottom edge scrolls the page and carries th
   await addFile(page, ANCHOR, "diff-0b7f");
   await turnOn(page);
   const start = line(page, 4);
-  await start.evaluate((cell) => window.scrollBy(0, cell.getBoundingClientRect().top - 560));
+  // FIT_TABLES' html scrolls smoothly, and a press mid-scroll lands on a line with no "+".
+  await start.evaluate((cell) =>
+    window.scrollBy({ top: cell.getBoundingClientRect().top - 560, behavior: "instant" }),
+  );
   await hoverLine(start);
   const box = await start.boundingBox();
   if (!box) throw new Error("no start line");
