@@ -140,10 +140,10 @@ describe("background", () => {
     async (details) => {
       // Raw keys on purpose, so the test outlives a move to typed storage items.
       const stored = {
+        "intent.v1": ["k"],
+        "intent.v1:k": {},
         "intent.v2": ["k"],
         "intent.v2:k": {},
-        "intent.v3": ["k"],
-        "intent.v3:k": {},
         hiddenCommitMessages: { "o/r@abc": true },
         unrelated: 1,
       };

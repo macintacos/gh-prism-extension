@@ -699,10 +699,10 @@ keys, so an outlined result and a line-scanned one never stand in for each other
 `index.ts` sizes it to 50 entries; a pinned diff takes two, one under its diff key and one
 under its pin. Each store moves its key to the front of an index and drops the entries
 past the limit, so the cache keeps the 50 most recently stored keys. A cache hit alone
-does not refresh its entry. Entries live under the `intent.v3` key prefix; a new stored
+does not refresh its entry. Entries live under the `intent.v2` key prefix; a new stored
 shape takes a new prefix, so an older entry never validates. The service worker clears the
 cache on install, update, and dev reload, because a new build may place files differently,
-and the clear also drops the retired `intent.v2` entries.
+and the clear also drops the retired `intent.v1` entries.
 
 ## Code owners and reviewers
 

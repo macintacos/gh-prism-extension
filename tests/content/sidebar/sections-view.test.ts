@@ -489,6 +489,25 @@ describe("showSections", () => {
       expect(commentLinesToggle().textContent).toContain("Comment lines");
     });
 
+    it("keeps a test file under its own folder beside other sections' files", async () => {
+      addNativeFile("src/a/foo.ts", "src/parser.rs");
+      addNativeFile("src/b/bar.ts", "src/a/foo.ts");
+      addNativeFile("src/a/foo.test.ts", "src/b/bar.ts");
+      const paths = ["src/a/foo.ts", "src/b/bar.ts", "src/a/foo.test.ts"];
+      await landed(
+        landedWith(
+          new Map(),
+          new Map(paths.map((path) => [path, { added: 4, removed: 1 }])),
+          new Map(paths.map((path) => [path, { added: 1, removed: 0 }])),
+        ),
+      );
+      commentLinesToggle().click();
+
+      expect(filesIn("tests")).toContain("src/a/foo.test.ts");
+      expect(fileRows()).toEqual(["src/a/foo.test.ts", "src/a/foo.ts", "src/b/bar.ts"]);
+      expect(partTexts(COMMENT_LINES, "src/a/foo.test.ts")).toEqual(["Partial", "+1", "−0"]);
+    });
+
     it("counts its viewed files in its header once any file is Viewed", () => {
       viewed("src/engine.rs");
 

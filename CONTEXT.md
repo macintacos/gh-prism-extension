@@ -65,16 +65,18 @@ than the patch, or in part to look for a generator's marker.
 marker is in question.
 
 **Hunk rule**: A rule that claims hunks for a rule section by what they change, not where
-the file lives, except that the docstring rule moves an Implementation file only whole.
-There are two: the docstring rule and the inline-test rule. _Avoid_: classifier, detector
+the file lives, except that the docstring rule moves an Implementation or Tests file only
+whole. There are two: the docstring rule and the inline-test rule. _Avoid_: classifier,
+detector
 
 **Generated rule**: The rule that claims a file whole for Generated when GitHub flags it
 generated or a generator's marker heads its leading comment block. _Avoid_: detector
 
 **Docstring-only change**: A hunk that changes only comments or docstrings. The docstring
-rule claims it for Docs & Comments. In an Implementation file it claims the file whole,
-when every hunk is docstring-only. Otherwise the hunk stays in Implementation while some
-other hunk stays there as code, and goes to Docs & Comments when none does.
+rule claims it for Docs & Comments. In an Implementation or Tests file it claims the file
+whole when every hunk is docstring-only; otherwise the hunk stays in the file's path
+section while some other hunk stays there as code, and goes to Docs & Comments when none
+does.
 
 **Inline-test change**: A hunk whose changes all sit inside a source file's test blocks.
 The inline-test rule claims it for Tests.

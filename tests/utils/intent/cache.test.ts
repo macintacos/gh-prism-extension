@@ -66,16 +66,6 @@ describe("storedIntents", () => {
     expect(await cache.get("a")).toEqual(landed);
   });
 
-  it("misses an entry stored under the retired intent.v2 keys", async () => {
-    const written = jsonStorage();
-    await storedIntents(written, 10).set("k", landed);
-    const storage = jsonStorage();
-    for (const [key, value] of written.values)
-      storage.values.set(key.replace(/intent\.v\d+/, "intent.v2"), value);
-
-    expect(await storedIntents(storage, 10).get("k")).toBeUndefined();
-  });
-
   it("misses a key it hasn't stored", async () => {
     const cache = storedIntents(jsonStorage(), 10);
     await cache.set("a", landed);
@@ -127,10 +117,10 @@ describe("forgetIntents", () => {
     expect(storage.values.size).toBe(0);
   });
 
-  it("leaves nothing of the retired intent.v2 entries either", async () => {
+  it("leaves nothing of the retired intent.v1 entries either", async () => {
     const storage = jsonStorage();
-    await storage.setItem("local:intent.v2", ["k"]);
-    await storage.setItem("local:intent.v2:k", {});
+    await storage.setItem("local:intent.v1", ["k"]);
+    await storage.setItem("local:intent.v1:k", {});
 
     await forgetIntents(storage);
 

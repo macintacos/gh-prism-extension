@@ -15,8 +15,8 @@ export interface LandedEntry {
   readonly section: SectionKey;
   readonly share?: SectionShare;
   /**
-   * The lines this entry adds and removes: its share's, else the file's, less its comment lines in
-   * Implementation; `undefined` when unknown.
+   * The lines this entry adds and removes: its share's, else the file's, less `moved`; `undefined`
+   * when unknown.
    */
   readonly lines: FileLines | undefined;
   /** Comment lines taken out of `lines`; they count toward Docs & Comments instead. */
@@ -133,7 +133,7 @@ export function totalsOf(
   });
 }
 
-/** The comment lines of the diff's Implementation and Tests files, and their sum. */
+/** The diff's comment lines, by file, and their sum. */
 export interface CommentLines {
   readonly lines: LineCounts;
   /** In diff order. */

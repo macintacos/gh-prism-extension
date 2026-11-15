@@ -4,7 +4,7 @@
  * that is open: each render re-reads it, and file clicks go to its row's link, whose handler mounts
  * a virtualized diff that a bare hash jump would not. A file whose hunks span sections is listed,
  * marked Partial, in each; clicking it there reveals the first of that section's hunks. Docs &
- * Comments ends with a sub-section listing Implementation's files again by their comment lines.
+ * Comments ends with a sub-section listing files again by their comment lines.
  */
 
 import type { FileTreeRowDecoration } from "@pierre/trees";
@@ -318,16 +318,19 @@ function commentLinesShell(doc: Document, lines: LineCounts | undefined) {
 
 /**
  * The comment-lines sub-section's listing among `sections`, while the landing has `commentLines`:
- * every entry whose comment lines moved, each counting only those, and so Partial.
+ * every entry whose comment lines moved, each counting only those, and so Partial. Sorted by
+ * path, since the presorted tree needs each directory's files together.
  */
 function commentLinesListing(
   sections: readonly FileSection[],
   commentLines: CommentLines | undefined,
 ): Listing[] {
   if (!commentLines) return [];
-  const entries = sections.flatMap((section) =>
-    section.entries.flatMap((entry) => (entry.moved ? [{ ...entry, lines: entry.moved }] : [])),
-  );
+  const entries = sections
+    .flatMap((section) =>
+      section.entries.flatMap((entry) => (entry.moved ? [{ ...entry, lines: entry.moved }] : [])),
+    )
+    .toSorted(({ file: a }, { file: b }) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
   return [{ key: COMMENT_LINES, entries }];
 }
 
