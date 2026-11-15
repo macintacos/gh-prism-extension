@@ -50,6 +50,14 @@ a pending file's diff is `--fgColor-muted` too, in
 The same sheet gives a file's notice its ground, `--bgColor-default`, and the hairline
 under it, `--borderColor-default`.
 
+Click to comment's colours are in
+[`entrypoints/content/diffs/click-to-comment.css`](../entrypoints/content/diffs/click-to-comment.css).
+A hovered line takes `--bgColor-neutral-muted`, and a dragged range takes
+`--bgColor-attention-muted`, GitHub's own selected-line colour. On the line under the
+pointer, the range colour replaces the hover colour. Both are overlays above GitHub's line
+tint, so added and deleted lines keep theirs. Neither animates: each switches on and off
+with no transition.
+
 The spectrum is `SECTION_SPECTRUM` in `ui/section-catalog.ts`: a left-to-right band of
 every section's hue, in section order.
 

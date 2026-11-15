@@ -980,6 +980,31 @@ describe("content script", () => {
       );
     });
 
+    it.each<{ saved?: unknown; checked: string }>([
+      { checked: "false" },
+      { saved: true, checked: "true" },
+    ])(
+      "checks Click anywhere on a line to comment: $checked (saved: $saved)",
+      async ({ saved, checked }) => {
+        installLayoutMenu({
+          menu: prLayoutMenu,
+          tables: { unified: prRename, split: prSplit },
+          signal: controller.signal,
+        });
+        // Raw key on purpose, so the test outlives a move to typed storage items.
+        if (saved !== undefined) await fakeBrowser.storage.sync.set({ clickToComment: saved });
+        await run();
+
+        const page = findFilesPage(document);
+        if (page) findLayoutGear(page)?.click();
+        await afterMutations();
+
+        expect(
+          document.querySelector("#gh-prism-click-to-comment")?.getAttribute("aria-checked"),
+        ).toBe(checked);
+      },
+    );
+
     it("keeps the diffs unwrapped across a soft navigation to another files page", async () => {
       await fakeBrowser.storage.sync.set({ wrapLines: false });
       await run();

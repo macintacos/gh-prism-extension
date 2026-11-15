@@ -13,10 +13,11 @@ owner details dialog that a code-owner shield or the code owners button opens, t
 Conversation panel that shows a pull request's Conversation tab beside Files changed, the
 per-file notice that Structural mode shows above the diff of a file it can't show, saying
 why, and the diff view control beside GitHub's diff settings gear, which picks Unified,
-Split, or Structural, and the Wrap lines item gh-prism adds inside that gear's menu.
-[`CONTEXT.md`](../CONTEXT.md) defines the domain terms these files use, such as section,
-Viewed, and what's new. [`docs/agents/styling-rules.md`](../docs/agents/styling-rules.md)
-says how a stylesheet is written, imported, and scoped.
+Split, or Structural, and the gh-prism group in that gear's menu, holding Wrap lines and
+"Click anywhere on a line to comment". [`CONTEXT.md`](../CONTEXT.md) defines the domain
+terms these files use, such as section, Viewed, and what's new.
+[`docs/agents/styling-rules.md`](../docs/agents/styling-rules.md) says how a stylesheet is
+written, imported, and scoped.
 
 ## Routing
 

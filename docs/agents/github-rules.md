@@ -474,6 +474,36 @@ on a private one.
   reading "Write a reply" and `aria-hidden` until the thread is expanded; it opens the
   same textarea and Cancel (Chromium 157 and Firefox 157, sandbox PR #3 in Split,
   2026-11-10).
+- **Open a comment box by replaying GitHub's own presses; synthetic events work.**
+  Observed in Chromium 157 on sandbox PR #3 and commit `526444b`, 2026-11-14; Firefox not
+  measured.
+  - **The "+".** On both page kinds it is `button[aria-label="Add comment"]`; only a pull
+    request also marks it `data-add-comment-button`. GitHub mounts one "+" in the hovered
+    `td.diff-text-cell` and moves it to the last hovered line. A synthetic `mouseover` on
+    the cell mounts it a frame later; `mousemove` or `pointerover` alone doesn't.
+  - **A range.** A press (`pointerdown`, `mousedown` with `buttons: 1`, `pointerup`,
+    `mouseup`, `click`) on a number cell, then the same press with `shiftKey` on another,
+    writes that range into the hash, with no scroll, focus move, or `hashchange`. A pull
+    request writes each press with `history.pushState`, a history entry each; a commit
+    page only with `replaceState`. A commit page applies a press in a microtask, so a
+    Shift-press sent before that extends the previous selection. A pull request deselects
+    a lone selected line when it is pressed again. Clicking the end line's "+" then opens
+    the box for the range. GitHub clamps no range, across hunks or Split's sides.
+  - **A synthetic drag from "+" does nothing.**
+  - **Boxes coexist.** Opening one keeps another's draft.
+  - **Text selection.** A `mousedown` on a code cell sets
+    `data-block-diff-cell-selection="left|right"` on the table, which makes the other
+    column's code `user-select: none`. Nothing clears it, but it never blocks a selection
+    on the pressed side, so it needs no clearing.
+  - **Number cells.** A commit's are `td.diff-line-number`, not `td.new-diff-line-number`.
+    On a commit's Unified deletion row, the new-side number cell is an empty
+    `td.diff-line-number`. A pull request uses `.empty-diff-line` there. So the old-side
+    number cell is two cells before the code cell.
+  - **Structural.** The "+", number-cell selection, and the box all follow Structural's
+    moved cells.
+  - **Tint the `td`.** `code.diff-text` stops about 20px short of its cell's left edge.
+  - **Re-check:** hover a code cell, read where `button[aria-label="Add comment"]` mounts,
+    then replay the press sequence above from the console.
 - **Test against the captured tables:** `tests/fixtures/files-page-diff-*.html` (pull
   request unified, split, and rename) and `tests/fixtures/commit-page-diff-*.html` (commit
   unified, split, and `?w=1` in both layouts). Each fixture's header comment names its
@@ -528,6 +558,16 @@ on a private one.
   Compact line height. A commit has no Whitespace changes group; its checkboxes are
   Minimize comments, Hide whitespace, and Compact line height. Observed in Chromium 157
   and Firefox 157 on 2026-11-10.
+- **Expect the Layout group to be the menu's only headed group, on both page kinds.** It
+  is an `li[data-component="ActionList.Group"]` holding a
+  `[data-component="GroupHeadingWrap"]` heading, then its `ul[role="group"]`.
+  `findLayoutMenu` reads it as the `headedGroup` that gh-prism's own group copies.
+  Observed in Chromium 157 on 2026-11-14.
+- **Name a menu group by the `aria-label` on its `ul[role="group"]`.** A pull request's
+  groups are Layout, Whitespace changes, Comments, and Format; a commit's are Layout,
+  Comments, and Format. Observed in Chromium 157 on 2026-11-14.
+- **Expect a commit page's gear to be labelled "Open diff view settings" and to have a
+  hidden 0×0 duplicate.** Observed in Chromium 157 on 2026-11-14.
 - **Expect a commit's Hide whitespace to follow `?w=1`:** its `aria-checked` is `false` on
   a plain load and `true` on a `?w=1` load. Observed in Chromium 157 and Firefox 157 on
   2026-11-10.

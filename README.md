@@ -188,9 +188,15 @@ links to example pull requests.
 - gh-prism remembers the choice. Choosing Unified or Split turns Structural off, and so
   does choosing Unified from GitHub's own Layout menu. On a pull request filtered to one
   commit, Structural is unavailable. Structural is in beta, so it may have bugs.
-- gh-prism adds **Wrap lines** to GitHub's diff settings menu, checked by default. Uncheck
-  it to keep each line of code on one line. Each file then scrolls sideways. In Split and
-  Structural, both sides scroll together. gh-prism remembers the choice.
+- gh-prism adds **Wrap lines** in a "gh-prism" group at the end of GitHub's diff settings
+  menu, checked by default. Uncheck it to keep each line of code on one line. Each file
+  then scrolls sideways. In Split and Structural, both sides scroll together. gh-prism
+  remembers the choice.
+- The same group holds **Click anywhere on a line to comment**, off by default. When it's
+  on, hovering a line you can comment on tints it and shows the pointer, and a click or a
+  drag across lines opens GitHub's comment box for the line or the range. Hold Shift,
+  which shows the text cursor, while you drag to select text instead. gh-prism only opens
+  GitHub's own box, and never writes or posts a comment.
 
 <details>
 <summary>Screenshot: a Python file in Structural, with only the changed words highlighted</summary>
@@ -305,6 +311,7 @@ syncs these to your other computers:
 - Whether Structural mode is on.
 - Whether diffs wrap long lines.
 - Whether you've revealed the sidebar past its first-run introduction.
+- Whether clicking a line opens a comment box.
 
 It keeps these on this computer only:
 

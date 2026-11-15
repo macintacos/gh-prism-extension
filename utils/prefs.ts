@@ -95,6 +95,14 @@ export const structuralMode = storage.defineItem<boolean>("sync:structuralMode",
  */
 export const wrapLines = storage.defineItem<boolean>("sync:wrapLines", { fallback: true });
 
+/**
+ * Whether the user turned on clicking anywhere on a diff line to comment; Chrome sync carries it
+ * to their other computers when on.
+ */
+export const clickToComment = storage.defineItem<boolean>("sync:clickToComment", {
+  fallback: false,
+});
+
 /** A retired key a released version wrote: the commits whose message the user hid, one by one. */
 export const RETIRED_HIDDEN_COMMITS = "local:hiddenCommitMessages";
 

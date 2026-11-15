@@ -1025,20 +1025,35 @@ until the user scrolls, clicks, or types, or 5 s pass.
 ## Wrap lines
 
 [`entrypoints/content/diffs/wrap-lines.ts`](../entrypoints/content/diffs/wrap-lines.ts)
-adds a "Wrap lines" item to GitHub's diff settings menu, right after Compact line height,
-on every open that `followLayoutMenu` in
-[`files-page.ts`](../entrypoints/content/files-page.ts) reports. The item is a copy of
+builds the "Wrap lines" item that
+[`diffs/prism-menu.ts`](../entrypoints/content/diffs/prism-menu.ts) places in gh-prism's
+group. `showPrismMenu` appends that group at the end of GitHub's diff settings menu on
+every open that `followLayoutMenu` in
+[`files-page.ts`](../entrypoints/content/files-page.ts) reports. The group is a copy of
+the menu's Layout group, made by `copyMenuGroup`, after a copy of its first divider, made
+by `copyMenuDivider`. Its heading reads "gh-prism" and ends with the mark's glyph.
+Tailwind classes on the glyph add the gap between it and the text. Each item is a copy of
 Compact line height, which `findCompactLineHeight` finds, built by `menuEntry`, the same
-builder the owner section's entries use. `addTrailingIcon` ends its row with the mark's
-glyph, in a copy of the menu's first trailing visual. `followLayoutMenu` and
-`followFilterMenu` share one private loop, `followMenu`. The item saves the choice to
-`sync:wrapLines` in [`utils/prefs.ts`](../utils/prefs.ts), where a missing value means
-wrapped. While the item is unchecked, `wrap-lines.ts` sets `data-gh-prism-wrap="off"` on
-`<html>` and mounts `diffs/wrap-lines.css`, which it removes again on rewrap. The sheet
-keys every rule on that attribute, so files that render later come up unwrapped with no
-per-row work. `wrap-lines.ts` sets the attribute only once it finds the layout gear, so a
-page without the gear never unwraps with no way back. When the gear is missing, or a menu
-opens without Compact line height, diffs stay wrapped and gh-prism logs one warning.
+builder the owner section's entries use. The items carry no glyph. An item with a subtitle
+gets a `data-gh-prism-label-stack` span in its label's place. The span holds the label
+over a muted `data-gh-prism-subtitle` line, which the item's `aria-describedby` names, and
+`prism-menu.css` styles both. `followLayoutMenu` and `followFilterMenu` share one private
+loop, `followMenu`.
+
+`prism-menu.ts` tracks whether the group can be offered, its gate: closed, open, or given
+up. It passes each change to every item's `follow` callback. The gate opens once the
+layout gear is found. It gives up for the page once a menu opens without Compact line
+height, the Layout group's heading, or a divider. From then on the menu gets no group, and
+Wrap lines wraps the diffs again. When the gear is missing, or the gate gives up, gh-prism
+logs one warning.
+
+The item saves the choice to `sync:wrapLines` in [`utils/prefs.ts`](../utils/prefs.ts),
+where a missing value means wrapped. While the item is unchecked and the gate is open,
+`wrap-lines.ts` sets `data-gh-prism-wrap="off"` on `<html>` and mounts
+`diffs/wrap-lines.css`, which it removes again on rewrap. The sheet keys every rule on
+that attribute, so files that render later come up unwrapped with no per-row work. The
+attribute waits for the open gate, so a page without the gear, which has no item to rewrap
+it, stays wrapped.
 
 While the page is unwrapped, `wrap-lines.ts` runs
 [`diffs/side-scroll.ts`](../entrypoints/content/diffs/side-scroll.ts). It measures each
@@ -1061,6 +1076,66 @@ stops at its own end. Hunk headers stay wrapped and don't shift. Structural's no
 loading line share the box with the table, and the box is their scroll container, so the
 sheet holds them at its left edge with `top: auto`, and they stop sticking under the file
 header.
+
+## Click anywhere on a line to comment
+
+[`entrypoints/content/diffs/click-to-comment.ts`](../entrypoints/content/diffs/click-to-comment.ts)
+builds the second item in gh-prism's diff settings group, "Click anywhere on a line to
+comment", with the subtitle "Hold Shift to select text". It saves the choice to
+`sync:clickToComment` in [`utils/prefs.ts`](../utils/prefs.ts), where a missing or
+unreadable value means off. gh-prism only drives GitHub's own controls: it never calls
+GitHub's endpoints, writes into a comment box, or posts.
+
+While the item is checked, the gate is open, and the page hasn't given up (see below), the
+module sets `data-gh-prism-click-comment` on `<html>`, mounts
+`diffs/click-to-comment.css`, and adds one delegated `pointerdown` listener on the diff
+list. Unchecking removes all three, so with the option off gh-prism does no work per line.
+The sheet's hover tint is keyed on GitHub's "+", `button[aria-label="Add comment"]`, which
+GitHub mounts only in the hovered cell of a line it lets you comment on. So the tint lands
+on exactly those lines, never on hunk headers, fillers, or a signed-out page, with no
+script per row.
+
+The same lines, and the cells a drag covers, show the `pointer` cursor, set on every
+descendant too because an element's own cursor beats an inherited one. A cell holding a
+thread or an open box keeps GitHub's cursors. While Shift is held, the module sets
+`data-gh-prism-click-comment-select` on `<html>` from window key events, and the sheet
+swaps the pointer for the `text` cursor, since a Shift press selects text. CSS can't see a
+modifier key, and a pointer event's `shiftKey` only updates on the next move. The
+attribute also clears on window `blur`, because a Shift released in another window sends
+no `keyup` here, and it goes when the option turns off.
+
+A plain left mouse press on a line, which `diffLineAt` in
+[`files-page.ts`](../entrypoints/content/files-page.ts) resolves, starts a drag when the
+line shows its "+". Touch, pen, and modified presses stay GitHub's. A Shift press
+collapses the selection to the press point and leaves the native text drag to run. The
+drag cancels the press's default and blocks `selectstart`, so no text gets selected. Its
+move, release, cancel, Escape, and blur listeners live only for that drag. Each move finds
+the row under the pointer in the start line's column. `columnSlots` walks the rows from
+the start line to that row, in either direction, and `rangeEnd` ends the range at the last
+line before the first hunk header on the way, skipping rows with no line in that column.
+The covered cells carry `data-gh-prism-comment-range`, tinted with GitHub's selected-line
+colour.
+
+While the pointer rests within 48 px of the window's top or bottom, the drag scrolls the
+page once per animation frame. Each scroll is instant (`behavior: "instant"`), because
+GitHub sets `scroll-behavior: smooth` on `html`, and a smooth scroll restarted every frame
+barely moves. The scroll distance grows linearly from 0 at 48 px from the edge to 24 px
+per frame at the edge itself. After each frame's scroll, the drag finds the row under the
+pointer again, so the range follows the rows that scroll under it. That lookup uses
+`elementsFromPoint`, not `elementFromPoint`: near the top, the topmost element under the
+pointer is GitHub's sticky header, but the full stack still holds the row beneath it. So
+the range reaches rows the header covers. Scrolling stops when the pointer moves more than
+48 px from the edge or the drag ends.
+
+On release, the module replays the presses GitHub answers to. For a range, it presses the
+first line's number cell, which `lineNumberCellOf` finds, then Shift-presses the last's.
+It waits a microtask between the two, because GitHub's commit page applies a press in one.
+A single line needs no presses. If the URL hash already names a line, though, the module
+presses the line's number cell first, so the stale range doesn't widen the box. It then
+hovers the last line and clicks its "+" once it mounts. When a number cell is missing, or
+the "+" hasn't mounted within 5 frames, the page gives up: gh-prism logs one warning, and
+click to comment stops responding on this page, though its diff settings item stays
+checked.
 
 ## Structural painter
 
@@ -1299,7 +1374,7 @@ entrypoints/
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, onboarding, report link, owner section
-    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet; structural-files.ts, a visit's structural answers; structural-mode.ts, Structural mode on a page; structural-notices.ts and structural-notices.css, its per-file notices and loading line; view-control.ts and view-control.css, the Unified, Split, and Structural control before the layout gear; structural-intro.ts, the Structural segment's popover and popup; wrap-lines.ts and wrap-lines.css, the Wrap lines item and the unwrapped view; side-scroll.ts, each file's sideways scroll
+    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet; structural-files.ts, a visit's structural answers; structural-mode.ts, Structural mode on a page; structural-notices.ts and structural-notices.css, its per-file notices and loading line; view-control.ts and view-control.css, the Unified, Split, and Structural control before the layout gear; structural-intro.ts, the Structural segment's popover and popup; prism-menu.ts and prism-menu.css, gh-prism's group in the diff settings menu; click-to-comment.ts and click-to-comment.css, click anywhere on a line to comment; wrap-lines.ts and wrap-lines.css, the Wrap lines item and the unwrapped view; side-scroll.ts, each file's sideways scroll
     header/              diffstat breakout
     conversation/        a code owner's files popup and gh-prism's shield, in the Reviewers lists and beside Conversation and Files changed comment authors; the Conversation panel and its button, dressing its frame, and the messages the frame posts
     ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, column separator, view-transition glide, keycaps and the Shift+\ toolbar button, a visit's press guard for controls GitHub re-mounts mid-press, Tailwind tokens

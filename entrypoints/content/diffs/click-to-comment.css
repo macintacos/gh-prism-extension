@@ -1,0 +1,45 @@
+/* GitHub hooks: td.diff-text-cell, button[aria-label="Add comment"] (the "+" GitHub mounts only
+   in the hovered cell of a line it lets you comment on), and a cell's
+   [data-testid="review-thread"] or textarea (a thread or open comment box). gh-prism hooks:
+   click-to-comment.ts mounts this sheet and writes data-gh-prism-click-comment on <html> while
+   the option is on, data-gh-prism-click-comment-select on <html> while Shift is held, and
+   data-gh-prism-comment-range on each code cell a drag covers. */
+
+/* The cell, not its code.diff-text, which stops short of the cell's edges. A thread or open
+   box renders inside the cell, so a cell holding one stays untinted. An overlay, not a background
+   colour, so added and deleted lines keep GitHub's inline tint under it. */
+html[data-gh-prism-click-comment]
+  td.diff-text-cell:hover:has(button[aria-label="Add comment"]):not(
+    [data-gh-prism-comment-range],
+    :has([data-testid="review-thread"], textarea)
+  ) {
+  background-image: linear-gradient(var(--bgColor-neutral-muted), var(--bgColor-neutral-muted));
+}
+
+/* GitHub's own td[data-selected="true"] colour, so the drag previews the selection the box opens
+   with. */
+html[data-gh-prism-click-comment]
+  td[data-gh-prism-comment-range]:not(:has([data-testid="review-thread"], textarea)) {
+  background-image: linear-gradient(
+    var(--bgColor-attention-muted),
+    var(--bgColor-attention-muted)
+  );
+}
+
+/* Every descendant too, since an element's own cursor beats an inherited one. Range cells keep
+   the pointer through a drag; Shift, which hands the press to text selection, shows the I-beam. */
+html[data-gh-prism-click-comment]
+  td.diff-text-cell:is(
+    :hover:has(button[aria-label="Add comment"]),
+    [data-gh-prism-comment-range]
+  ):not(:has([data-testid="review-thread"], textarea)) {
+  &,
+  & * {
+    cursor: pointer;
+  }
+
+  html[data-gh-prism-click-comment-select] &,
+  html[data-gh-prism-click-comment-select] & * {
+    cursor: text;
+  }
+}

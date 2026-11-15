@@ -44,6 +44,21 @@ at the top, dated.
 - **Accepted:** the 8px blur hides the section names a new user could read through the
   other variants' lighter blurs.
 
+## 2026-11-14: gh-prism's diff settings items sit in a headed group
+
+- **Asked:**
+  [EXC-2387](https://linear.app/macintacos/issue/EXC-2387/click-anywhere-on-a-diff-line-to-comment),
+  which adds a second gh-prism item, "Click anywhere on a line to comment", to GitHub's
+  Diff settings menu.
+- **Compared:** the glyph as each item's trailing icon, placed after Compact line height
+  (the 2026-11-14 Wrap lines pick), or a headed "gh-prism" group of gh-prism's own at the
+  end of the menu.
+- **Won:** the headed group, copied from GitHub's Layout group so it keeps Primer's
+  styling, with the glyph in the heading rather than on each item.
+- **Why:** a second item made a per-item glyph noisy, and one heading names every gh-prism
+  item at once. A copy of GitHub's own heading keeps Primer's look with no styles of
+  gh-prism's own to drift.
+
 ## 2026-11-14: Wrap lines copies GitHub's item and scrolls by the platform's scrollbar
 
 - **Asked:**

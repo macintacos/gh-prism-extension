@@ -31,6 +31,7 @@ import {
 import {
   type CommitMessageView,
   classicNoticeDismissed,
+  clickToComment,
   commitColumnWidth,
   commitMessageHidden,
   commitMessageView,
@@ -66,6 +67,8 @@ import {
   showConversationButton,
 } from "./conversation/panel";
 import { showReviewerFiles } from "./conversation/reviewer-files";
+import { type ClickToCommentChoice, clickToCommentItem } from "./diffs/click-to-comment";
+import { showPrismMenu } from "./diffs/prism-menu";
 import { hashLanding } from "./diffs/reveal";
 import { structuralFiles } from "./diffs/structural-files";
 import type { IntroChoice } from "./diffs/structural-intro";
@@ -76,7 +79,7 @@ import {
 } from "./diffs/structural-mode";
 import { showDiffViewControl } from "./diffs/view-control";
 import { visitViewed } from "./diffs/viewed";
-import { showWrapLines, type WrapChoice } from "./diffs/wrap-lines";
+import { type WrapChoice, wrapLinesItem } from "./diffs/wrap-lines";
 import { findCommentAuthors, findFilesCommentAuthors, followRightPanel } from "./files-page";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
 import type { OnboardingChoice } from "./sidebar/onboarding";
@@ -131,6 +134,7 @@ export default defineContentScript({
       dismissed,
       savedStructural,
       savedWrap,
+      savedClickComment,
       whatsNewForPage,
       introChoice,
       onboarding,
@@ -146,6 +150,7 @@ export default defineContentScript({
       readNoticeDismissed(),
       readSavedStructural(),
       readSavedWrap(),
+      readSavedClickToComment(),
       release && followWhatsNew(release, ctx),
       followIntro(ctx),
       followOnboarding(ctx),
@@ -162,8 +167,9 @@ export default defineContentScript({
     } satisfies DiffstatOptions;
     // Shared by every visit, so Unified seen on one keeps the next one off.
     const structural = structuralChoiceOf(savedStructural === true, saveStructural);
-    // Shared by every visit, so a soft navigation keeps the diffs as the reader last left them.
+    // Shared by every visit, so a soft navigation keeps both diff settings as the reader left them.
     const wrap: WrapChoice = { on: savedWrap !== false };
+    const clickComment: ClickToCommentChoice = { on: savedClickComment === true };
     const notice: NoticeChoice = { dismissed };
     const conversation = conversationChoiceOf(
       { pinned: savedPinned, open: savedOpen, width: savedConversationWidth },
@@ -300,7 +306,13 @@ export default defineContentScript({
               guard: diffViewGuard,
               intro: { choice: introChoice, save: saveIntroDismissed },
             });
-            showWrapLines(page, signal, { choice: wrap, save: saveWrap });
+            showPrismMenu(page, signal, [
+              wrapLinesItem(page, signal, { choice: wrap, save: saveWrap }),
+              clickToCommentItem(page, signal, {
+                choice: clickComment,
+                save: saveClickToComment,
+              }),
+            ]);
             showCommitMessage(page, signal, {
               afterSections: afterLanding(intent),
               choice: commitMessage,
@@ -612,6 +624,20 @@ const saveWrap = (on: boolean) =>
     .setValue(on)
     .catch((error: unknown) =>
       console.error("gh-prism: saving whether diffs wrap long lines failed", error),
+    );
+
+/** Whether click to comment was left on; off when unset or when storage won't read. */
+const readSavedClickToComment = (): Promise<unknown> =>
+  clickToComment.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading whether click to comment is on failed", error);
+    return clickToComment.fallback;
+  });
+
+const saveClickToComment = (on: boolean) =>
+  clickToComment
+    .setValue(on)
+    .catch((error: unknown) =>
+      console.error("gh-prism: saving whether click to comment is on failed", error),
     );
 
 /**

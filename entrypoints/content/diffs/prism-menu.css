@@ -1,0 +1,17 @@
+/* No GitHub hooks. gh-prism hooks: [data-gh-prism-label-stack], which menuEntry puts in a
+   label's place to hold it over [data-gh-prism-subtitle]. */
+@import "../ui/tailwind.css" prefix(tw);
+@source "./prism-menu.ts";
+
+[data-gh-prism-label-stack] {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The commit page's menu has no description item to copy, so this matches GitHub's own
+   "Whitespace changes" subtitle by hand. */
+[data-gh-prism-subtitle] {
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+  line-height: var(--text-body-lineHeight-small);
+}

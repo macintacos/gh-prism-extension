@@ -148,6 +148,16 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   view. Which alignment the click lands on depends on the machine's speed, so the sidebar
   can stay put locally and move on CI. [`e2e/smoke.e2e.ts`](../../e2e/smoke.e2e.ts)'s
   "ticking a box doesn't scroll the sidebar" awaits the animations' `finished` first.
+- **Scroll a test's setup with `behavior: "instant"` when its fixture's `html` scrolls
+  smoothly.** A plain `scrollBy(x, y)` or `scrollTo` then animates. Firefox's `scrollY`
+  can hold still for two frames mid-animation, which passes Playwright's stability check,
+  so a hover rests the pointer on a line that scrolls away before the press.
+  [`e2e/click-to-comment.e2e.ts`](../../e2e/click-to-comment.e2e.ts)'s "holding a drag at
+  the window's bottom edge…" scrolls its start line into place this way.
+- **Don't retry a `hover()` to wait for the content script.** A routed fixture's markup is
+  hoverable before gh-prism starts, and a second `hover()` at the same point sends no
+  `pointerover`, so a `toPass` around it never recovers. `followHoverIntent` opens a card
+  for a trigger the pointer already rests on when it starts, so one `hover()` is enough.
 - **Retry a jump and its check together after a test wheels the sidebar.** A wheel's
   scroll can land after a later `scrollTop` write and carry the sidebar past the target. A
   poll for `scrollTop > 0` only proves that the wheel started. In
@@ -287,6 +297,20 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   menu from `layout-menu-pr.html` or `layout-menu-commit.html`. A pull request's
   three-column table counts as Unified only when it changes both sides, so the pull
   request pages use `files-page-diff-rename.html` for Unified.
+- **Switch a routed page's layout through gh-prism's Diff view control, not the gear's
+  Layout items.** gh-prism hides those `menuitemradio` items while its control shows, so a
+  click on one waits until the test times out.
+  [`e2e/click-to-comment.e2e.ts`](../../e2e/click-to-comment.e2e.ts)'s "the diff takes
+  clicks after a switch to Unified" is the pattern.
+- **Await the sections' reveal animations, from `getAnimations({ subtree: true })`, with
+  `Promise.allSettled`, not `Promise.all`.** A cancelled animation's `finished` rejects
+  with an `AbortError`, which fails the wait even though the reveal has settled.
+  [`e2e/click-to-comment.e2e.ts`](../../e2e/click-to-comment.e2e.ts)'s `settle` is the
+  pattern.
+- **Aim a press or drag on a line's text at the text's own box.** Get it from
+  `getBoundingClientRect()` on a `Range` over the text. A short line's `.diff-text-inner`
+  runs past its last character. A hovered line's add-comment "+" covers the cell's left
+  edge. So a press at the inner's edges lands on no text, or on the "+".
 - **Keep a live check's screenshots outside `test-results/`.** Playwright empties it at
   the start of every run.
 - **Keep each end-to-end test independent of the others.** `playwright.config.ts` sets

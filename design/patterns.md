@@ -608,8 +608,8 @@ Three controls hold the mark's glyph as their icon, which is not a mark: it has 
 and no tooltip, and says only that the control is gh-prism's. The classic page's "Why is
 gh-prism off?" button holds the bare glyph in its text colour. The diff view control's
 Structural segment holds the glyph and the coloured copy that pulses, and hovering or
-keyboard-focusing the segment runs the pulse (§ Switches). The Wrap lines item in the diff
-settings menu holds the bare glyph as its trailing icon (§ Menu items).
+keyboard-focusing the segment runs the pulse (§ Switches). The "gh-prism" group heading in
+the diff settings menu holds the bare glyph after its text (§ Menu items).
 
 At rest the mark is `--fgColor-muted`. Hovering cross-fades it to a coloured copy of the
 glyph on `tokens.md`'s "State, opening" row. While the pointer stays, the copy pulses on
@@ -644,16 +644,17 @@ its own that could drift. `menuEntry` in `files-page.ts` builds it from a templa
 fresh `id`, a label that the item's `aria-labelledby` names, the role and `aria-checked`
 state, and `tabindex="-1"`, as Primer's focus zone expects. A pick by click, Enter, or
 Space runs the item's action, then closes the menu with the `Escape` `keydown` Primer
-listens for. The owner section's entries in the file-tree filter menu and Wrap lines in
-the diff settings menu use it.
+listens for. An optional subtitle adds a muted second line under the label, which the
+item's `aria-describedby` names. gh-prism styles it in `diffs/prism-menu.css`, because the
+commit page's menu has no description item to copy. The owner section's entries in the
+file-tree filter menu and both diff settings items use it.
 
-Wrap lines also ends its row with the mark's bare glyph, a 16px SVG, so a reader can tell
-it from GitHub's own items. `addTrailingIcon` in `files-page.ts` puts the glyph in an
-empty copy of the first trailing visual it finds among the menu's items. A trailing visual
-is Primer's slot for an item's trailing icon: GitHub's Whitespace changes item holds its
-chevron there, and Minimize comments its key. The copy keeps Primer's spacing and muted
-colour, so gh-prism adds no style of its own. The glyph is hidden from screen readers, so
-the item's name stays "Wrap lines". The owner section's entries carry no glyph.
+gh-prism's diff settings items sit in a group headed "gh-prism", at the end of the menu,
+so a reader can tell them from GitHub's own items. The heading is a copy of GitHub's
+Layout group heading, so it keeps Primer's styling. The mark's bare glyph, a 16px SVG,
+sits after its text. The glyph is hidden from screen readers. The group takes its name,
+"gh-prism", from its list's `aria-label`. Neither the group's items nor the owner
+section's entries carry a glyph.
 
 ## Notices
 
