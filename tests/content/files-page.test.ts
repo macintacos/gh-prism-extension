@@ -16,6 +16,7 @@ import {
   coveredTop,
   diffEntryOf,
   diffTables,
+  fileCountsOf,
   findClassicPage,
   findCommentAuthors,
   findCommitColumnRow,
@@ -25,6 +26,7 @@ import {
   findDiff,
   findDiffList,
   findDiffstat,
+  findFileDiffstat,
   findFilesCommentAuthors,
   findFilesPage,
   findFilesToolbar,
@@ -1547,6 +1549,51 @@ describe("the signed-in Viewed fixtures", () => {
       expect(findFilesPage(document)?.kind).toBe(prPage);
       expect(document.querySelectorAll(prPage.diffEntries).length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("findFileDiffstat", () => {
+  const countsByAnchor = () =>
+    new Map(
+      [...mountedDiffs(foundPage())].map(([anchor, region]) => [
+        anchor,
+        findFileDiffstat(region)?.querySelector(".sr-only")?.textContent ?? null,
+      ]),
+    );
+
+  it("finds each counted pull request header's counts row", () => {
+    loadViewedFixture();
+
+    expect(countsByAnchor()).toEqual(
+      new Map([
+        [VIEWED_APP_TOML, null],
+        [VIEWED_LIB_RS, "Lines changed: 12 additions & 4 deletions"],
+        [VIEWED_CARGO_LOCK, "Lines changed: 0 additions & 5 deletions"],
+      ]),
+    );
+  });
+
+  it("finds each commit header's counts row", () => {
+    loadCommitFixture();
+
+    expect([...countsByAnchor().values()]).toEqual([
+      "Lines changed: 36 additions & 8 deletions",
+      "Lines changed: 39 additions & 0 deletions",
+    ]);
+  });
+});
+
+describe("fileCountsOf", () => {
+  it("returns the row's counts and none of its squares", () => {
+    loadViewedFixture();
+    const row = findFileDiffstat(byId(VIEWED_LIB_RS));
+    if (!row) throw new Error("no counts row");
+
+    expect(fileCountsOf(row).map((span) => span.textContent)).toEqual([
+      "+12",
+      "-4",
+      "Lines changed: 12 additions & 4 deletions",
+    ]);
   });
 });
 
