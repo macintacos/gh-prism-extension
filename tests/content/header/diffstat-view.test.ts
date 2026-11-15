@@ -85,22 +85,28 @@ describe("the header's lines-changed counter", () => {
     ]);
   });
 
-  it("counts Implementation files' comment lines in the docs pill, not Implementation's", async () => {
-    await landed(
-      landedWith(
-        new Map(),
-        new Map<string, FileLines>([
-          ["src/parser.rs", { added: 10, removed: 3 }],
-          ["README.md", { added: 1, removed: 0 }],
-        ]),
-        new Map([["src/parser.rs", { added: 4, removed: 1 }]]),
-      ),
-    );
-    expect(pillCounts()).toEqual([
-      ["implementation", ["+6", "−2"]],
-      ["docs", ["+5", "−1"]],
-    ]);
-  });
+  it.each([
+    ["implementation", "src/parser.rs"],
+    ["tests", "tests/parser.rs"],
+  ] as const)(
+    "counts %s files' comment lines in the docs pill, not their section's",
+    async (section, path) => {
+      await landed(
+        landedWith(
+          new Map(),
+          new Map<string, FileLines>([
+            [path, { added: 10, removed: 3 }],
+            ["README.md", { added: 1, removed: 0 }],
+          ]),
+          new Map([[path, { added: 4, removed: 1 }]]),
+        ),
+      );
+      expect(pillCounts()).toEqual([
+        [section, ["+6", "−2"]],
+        ["docs", ["+5", "−1"]],
+      ]);
+    },
+  );
 
   it("styles its pills with its own stylesheet, without the sidebar, until aborted", () => {
     abort();
@@ -462,19 +468,25 @@ describe("each file header's lines-changed counter", () => {
     expect(pillsOf(rows()[1]?.firstElementChild ?? undefined)).toEqual([["tests", ["+39", "−0"]]]);
   });
 
-  it("shows a pill per section a file's lines land in, its comment lines under Docs & Comments", () => {
-    show(loadCommitFixture).landed(
-      landedWith(
-        new Map(),
-        new Map<string, FileLines>([[LAUNCHER, { added: 36, removed: 8 }]]),
-        new Map([[LAUNCHER, { added: 6, removed: 1 }]]),
-      ),
-    );
-    expect(pillsOf(standIns()[0])).toEqual([
-      ["implementation", ["+30", "−7"]],
-      ["docs", ["+6", "−1"]],
-    ]);
-  });
+  it.each([
+    ["implementation", LAUNCHER],
+    ["tests", LAUNCHER_TEST],
+  ] as const)(
+    "shows a pill per section a %s file's lines land in, its comment lines under Docs & Comments",
+    (section, path) => {
+      show(loadCommitFixture).landed(
+        landedWith(
+          new Map(),
+          new Map<string, FileLines>([[path, { added: 36, removed: 8 }]]),
+          new Map([[path, { added: 6, removed: 1 }]]),
+        ),
+      );
+      expect(pillsOf(standIns()[0])).toEqual([
+        [section, ["+30", "−7"]],
+        ["docs", ["+6", "−1"]],
+      ]);
+    },
+  );
 
   it("shows a pill per share of a split file", () => {
     const split: Placement = {

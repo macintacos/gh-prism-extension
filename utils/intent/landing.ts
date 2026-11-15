@@ -57,8 +57,8 @@ export const sectionOf = (path: string, claimed?: IntentSection): SectionKey =>
   claimed ?? classify(path);
 
 /**
- * Where `path` lands: once whole, or once per share of a split. Its Implementation entry leaves
- * out its comment lines, which count toward Docs & Comments.
+ * Where `path` lands: once whole, or once per share of a split. Its entry in its path section
+ * leaves out its comment lines, which count toward Docs & Comments.
  */
 function entriesOf({ placements, lines, commentLines }: Landing, path: string): LandedEntry[] {
   const placement = placements.get(path);
@@ -68,7 +68,7 @@ function entriesOf({ placements, lines, commentLines }: Landing, path: string): 
       : [{ section: sectionOf(path, placement?.section), lines: lines.get(path) }];
   const comments = commentLines.get(path);
   return entries.map((entry) =>
-    comments && entry.section === "implementation" && isCounted(entry.lines)
+    comments && entry.section === classify(path) && isCounted(entry.lines)
       ? { ...entry, lines: minus(entry.lines, comments), moved: comments }
       : entry,
   );
@@ -133,7 +133,7 @@ export function totalsOf(
   });
 }
 
-/** The comment lines of the diff's Implementation files, and their sum. */
+/** The comment lines of the diff's Implementation and Tests files, and their sum. */
 export interface CommentLines {
   readonly lines: LineCounts;
   /** In diff order. */
