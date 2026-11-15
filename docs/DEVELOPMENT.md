@@ -41,6 +41,16 @@ That browser is either another dev session or a dev window an earlier `mise run 
 open. `mise run dev --yes` closes it without asking. Without a terminal to ask in, the
 task exits instead, unless you pass `--yes`.
 
+`mise run dev --fresh-install` starts both dev profiles as a fresh installation: it
+removes the stored reveal and marks the install as one the onboarding greets, so the
+onboarding shows, and leaves every other stored pref alone. `mise run dev --tenured`
+stores the sidebar as revealed in both profiles, so the onboarding doesn't show. Passing
+both is an error. The dev build re-applies the flag on every reload and browser start, so
+with `--fresh-install` the onboarding comes back after each reload until you run without
+it. Without either flag the profiles follow the install rule like any browser. Firefox
+loads the dev build as a temporary add-on, so it can show the onboarding as a fresh
+install until you reveal it; `--tenured` skips it.
+
 The Firefox server warns that it skipped the `structural-offscreen` entrypoint. That is
 expected: the offscreen document is Chrome's alone, and Firefox runs the structural
 engine's Worker from its background.
@@ -61,8 +71,9 @@ export default defineWebExtConfig({ disabled: true });
 ```
 
 To preview the sidebar's what's-new block, pass release notes into the build:
-`WXT_RELEASE_NOTES="$(cat notes.md)" mise run dev`. A fresh install, a dismissal, or a
-3-day-old first view hides it. If it doesn't show, run
+`WXT_RELEASE_NOTES="$(cat notes.md)" mise run dev`. A fresh install, a dismissal, a
+3-day-old first view, or the onboarding's veil over the sidebar hides it. If it doesn't
+show, dismiss the onboarding (or run `mise run dev --tenured`), then run
 `chrome.storage.local.remove("whatsNewSeen")` in the extension's service-worker console in
 Chrome, or `browser.storage.local.remove("whatsNewSeen")` in the console that gh-prism's
 **Inspect** opens in Firefox's `about:debugging`. Then reload a Files view.
@@ -75,7 +86,7 @@ Chrome, or `browser.storage.local.remove("whatsNewSeen")` in the console that gh
 | Task | What it does |
 | --- | --- |
 | `mise run setup` | Installs the pinned tools and dependencies, and registers the git hooks. |
-| `mise run dev [--yes]` | Builds the extension and opens it in the dev Chrome and Firefox profiles, reloading on change; `--yes` closes a Chrome or Firefox already using its profile without asking. |
+| `mise run dev [--yes] [--fresh-install \| --tenured]` | Builds the extension and opens it in the dev Chrome and Firefox profiles, reloading on change; `--yes` closes a Chrome or Firefox already using its profile without asking; `--fresh-install` or `--tenured` starts both profiles with the onboarding showing or revealed. |
 | `mise run build` | Builds the extension into `.output/chrome-mv3` and `.output/firefox-mv3`, ready to load in Chrome or Firefox. |
 | `mise run test [filter] [-w]` | Runs Vitest, only on test files whose path contains `filter`; `-w` reruns on change. |
 | `mise run e2e [browser]` | Builds the extension and runs the Playwright smoke suite against it in Chromium and Firefox, or only in `browser`. |

@@ -39,6 +39,7 @@ import {
   conversationWidth,
   type DiffstatView,
   diffstatView,
+  onboarded,
   sidebarSide,
   structuralIntroDismissed,
   structuralMode,
@@ -78,6 +79,7 @@ import { visitViewed } from "./diffs/viewed";
 import { showWrapLines, type WrapChoice } from "./diffs/wrap-lines";
 import { findCommentAuthors, findFilesCommentAuthors, followRightPanel } from "./files-page";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
+import type { OnboardingChoice } from "./sidebar/onboarding";
 import { showOwnerSection } from "./sidebar/owner-section";
 import { showReportLink } from "./sidebar/report";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar/side";
@@ -95,7 +97,8 @@ const CACHED_DIFFS = 50;
  * diffstat, docks the sidebar on the saved side with a switch, adds a link to report a
  * miscategorized file, adds an "Only files owned by…" section to GitHub's filter menu, on a pull
  * request adds a button opening its Conversation in a panel, and, after an update, opens the
- * sidebar with that release's notes. On a pull request's header tabs, stands in for the diffstat,
+ * sidebar with that release's notes, and, for a new user, veils the sidebar's sections with an
+ * introduction until they dismiss it. On a pull request's header tabs, stands in for the diffstat,
  * and on Conversation lists a code owner's files from their Reviewers sidebar shield. On
  * Conversation and Files changed, lists them from the shield beside their comments. On a commit's
  * page, shows its message rendered as Markdown, above the diffs or in a column beside them, with a
@@ -130,6 +133,7 @@ export default defineContentScript({
       savedWrap,
       whatsNewForPage,
       introChoice,
+      onboarding,
     ] = await Promise.all([
       readSavedSide(),
       readSavedDiffstat(),
@@ -144,6 +148,7 @@ export default defineContentScript({
       readSavedWrap(),
       release && followWhatsNew(release, ctx),
       followIntro(ctx),
+      followOnboarding(ctx),
     ]);
     const side = sideChoiceOf(savedSide);
     const commitMessage = commitMessageChoiceOf(savedCommitMessage, savedColumnWidth);
@@ -277,9 +282,12 @@ export default defineContentScript({
               teamRoster,
               owner,
               filter,
-              whatsNew: whatsNewForPage?.(),
               landHash,
               structural: structuralFor(),
+              // Not calling whatsNewForPage leaves its first showing for the page after the lift.
+              ...(onboarding.whileVeiled.aborted
+                ? { whatsNew: whatsNewForPage?.() }
+                : { onboarding: { choice: onboarding, save: saveOnboarded } }),
             });
             showDiffViewControl(page, signal, {
               choice: pageStructural(structural, () => {
@@ -686,6 +694,44 @@ async function followIntro(ctx: ContentScriptContext): Promise<IntroChoice> {
   if (!choice.dismissed) {
     ctx.onInvalidated(
       structuralIntroDismissed.watch((saved) => (choice.dismissed = saved === true)),
+    );
+  }
+  return choice;
+}
+
+/**
+ * Whether the user revealed the sidebar past the onboarding; revealed, when storage won't read:
+ * better to skip the introduction than to cover a tenured user's sections.
+ */
+const readOnboarded = (): Promise<boolean> =>
+  onboarded
+    .getValue()
+    .then((saved: unknown) => saved === true)
+    .catch((error: unknown) => {
+      console.error("gh-prism: reading the onboarding's reveal failed", error);
+      return true;
+    });
+
+const saveOnboarded = () =>
+  onboarded
+    .setValue(true)
+    .catch((error: unknown) =>
+      console.error("gh-prism: saving the onboarding's reveal failed", error),
+    );
+
+/**
+ * The tab's onboarding choice, lifting its drawn veils once any tab dismisses one, until `ctx`
+ * ends. Dismissed at startup, it never shows again, so its tab skips the watch.
+ */
+async function followOnboarding(ctx: ContentScriptContext): Promise<OnboardingChoice> {
+  const veiled = new AbortController();
+  const choice: OnboardingChoice = { whileVeiled: veiled.signal, lift: () => veiled.abort() };
+  if (await readOnboarded()) choice.lift();
+  else {
+    ctx.onInvalidated(
+      onboarded.watch((saved) => {
+        if (saved === true) choice.lift();
+      }),
     );
   }
   return choice;

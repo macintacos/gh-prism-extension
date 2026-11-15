@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 #MISE description="Build the extension and open it in the dedicated dev Chrome and Firefox profiles, reloading on change"
 #USAGE flag "-y --yes" help="Close a Chrome or Firefox that already holds its dev profile without asking"
+#USAGE flag "--fresh-install" help="Start both dev profiles as a fresh installation: reset only the onboarding, so it shows"
+#USAGE flag "--tenured" help="Start both dev profiles as a tenured user: store the sidebar as revealed, so the onboarding doesn't show"
 
 set -euo pipefail
 
@@ -61,6 +63,16 @@ stop_firefox() {
 }
 
 main() {
+	if [[ ${usage_fresh_install:-false} == true && ${usage_tenured:-false} == true ]]; then
+		echo "Pass --fresh-install or --tenured, not both." >&2
+		exit 2
+	fi
+
+	# The background's dev build applies it on install, reload, and browser start.
+	local -x WXT_DEV_ONBOARDING=
+	[[ ${usage_fresh_install:-false} != true ]] || WXT_DEV_ONBOARDING=fresh
+	[[ ${usage_tenured:-false} != true ]] || WXT_DEV_ONBOARDING=tenured
+
 	free_profile Chrome --user-data-dir= "$chrome_profile"
 	free_profile Firefox "$firefox_launch_arg" "$firefox_profile"
 	# A fresh clone may skip setup; postinstall (wxt prepare) generates .wxt/.

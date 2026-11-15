@@ -6,6 +6,44 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-14: The onboarding cover veils the sections under the spectrum
+
+- **Asked:**
+  [EXC-2389](https://linear.app/macintacos/issue/EXC-2389/onboard-first-time-users-with-a-sidebar-reveal),
+  which introduces gh-prism to a new user the first time they open a Files changed view:
+  the sidebar's sections sit blurred under a short blurb and a button that lifts the
+  cover.
+- **Compared:**
+  - a card styled like the what's-new block, over the sections blurred 4px, with "Show
+    sections";
+  - a block stacked first in the nav, the what's-new block's shape, above the sections
+    blurred 6px, with "Got it";
+  - a translucent veil that fills the nav, led by the spectrum, over the sections blurred
+    8px, with "Start reviewing".
+- **Won:** the veil, picked by the maintainer.
+  - **Layout:** overlay. The veil is a child of the nav, absolutely placed over its other
+    children, and covers the nav's other children, which are blurred and carry the `inert`
+    attribute. Its ground is
+    `color-mix(in srgb, var(--bgColor-default) 55%, transparent)`, so the blurred sections
+    show through. From the top, with 10px gaps: the spectrum, the heading with the mark,
+    the blurb, the note, and a full-width primary button.
+  - **Blur:** `filter: blur(8px)` on the nav's other children.
+  - **Heading:** "Review in sections".
+  - **Blurb:** "gh-prism rearranges these files into sections to walk through one by one."
+  - **Note,** in muted text under the blurb: "Also new to you: Wrap lines in the diff
+    settings menu, and Structural diffs."
+  - **Button label:** "Start reviewing".
+  - **Lift:** the veil slides up 24px and fades on the "Spatial" row of the
+    [motion scale](tokens.md#motion), 280 ms `cubic-bezier(0.2, 0.7, 0.2, 1)`. The blur
+    clears to 0 on the same scale's "State, opening" row, 240 ms
+    `cubic-bezier(0.16, 1, 0.3, 1)`.
+  - **Reduced motion:** the veil is removed and the blur drops to 0 with no transition.
+- **Why:** the spectrum marks where gh-prism announces itself, and a first run is that
+  moment. The veil covers every section the nav holds, at any length, so no section shows
+  unblurred below a card.
+- **Accepted:** the 8px blur hides the section names a new user could read through the
+  other variants' lighter blurs.
+
 ## 2026-11-14: Wrap lines copies GitHub's item and scrolls by the platform's scrollbar
 
 - **Asked:**

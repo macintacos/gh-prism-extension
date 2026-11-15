@@ -625,9 +625,16 @@ the same words on hover only.
 ## The spectrum
 
 The spectrum is gh-prism's signature: every section's hue in one band, in section order.
-It appears only where gh-prism announces itself: the loading bar and the 3px top edge of
-the classic-page dialog. Anywhere else, it would compete with the section hues it is made
-of. A hovered mark cycles through the same hues one at a time instead.
+It appears only where gh-prism announces itself: the loading bar, the 3px top edge of the
+classic-page dialog, and the top of the onboarding veil. Anywhere else, it would compete
+with the section hues it is made of. A hovered mark cycles through the same hues one at a
+time instead.
+
+## Primary button
+
+A call to act, such as "Sign in" or "Start reviewing", is Primer's medium primary Button.
+Two modules copy its classes by hand, `entrypoints/content/classic/notice.ts` (`PRIMARY`)
+and `entrypoints/content/sidebar/onboarding.ts`; a change to one is a change to both.
 
 ## Menu items
 

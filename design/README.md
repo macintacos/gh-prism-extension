@@ -4,19 +4,19 @@
 maintain its design direction.*
 
 `design/` holds gh-prism's design direction: how its UI looks, moves, and words things
-inside GitHub's pages. That UI is the sidebar, the header counter (the per-section
-breakout of the lines-changed count, on a commit's page and a pull request's tabs) and
-each file header's counter, the commit message rendered as Markdown on a commit's page (in
-a column beside the diffs on a wide window), the dialog gh-prism opens on GitHub's classic
-Files changed page, the code owner details dialog that a code-owner shield or the code
-owners button opens, the Conversation panel that shows a pull request's Conversation tab
-beside Files changed, the per-file notice that Structural mode shows above the diff of a
-file it can't show, saying why, and the diff view control beside GitHub's diff settings
-gear, which picks Unified, Split, or Structural, and the Wrap lines item gh-prism adds
-inside that gear's menu. [`CONTEXT.md`](../CONTEXT.md) defines the domain terms these
-files use, such as section, Viewed, and what's new.
-[`docs/agents/styling-rules.md`](../docs/agents/styling-rules.md) says how a stylesheet is
-written, imported, and scoped.
+inside GitHub's pages. That UI is the sidebar, the onboarding cover (the veil) over a new
+user's sidebar sections, the header counter (the per-section breakout of the lines-changed
+count, on a commit's page and a pull request's tabs) and each file header's counter, the
+commit message rendered as Markdown on a commit's page (in a column beside the diffs on a
+wide window), the dialog gh-prism opens on GitHub's classic Files changed page, the code
+owner details dialog that a code-owner shield or the code owners button opens, the
+Conversation panel that shows a pull request's Conversation tab beside Files changed, the
+per-file notice that Structural mode shows above the diff of a file it can't show, saying
+why, and the diff view control beside GitHub's diff settings gear, which picks Unified,
+Split, or Structural, and the Wrap lines item gh-prism adds inside that gear's menu.
+[`CONTEXT.md`](../CONTEXT.md) defines the domain terms these files use, such as section,
+Viewed, and what's new. [`docs/agents/styling-rules.md`](../docs/agents/styling-rules.md)
+says how a stylesheet is written, imported, and scoped.
 
 ## Routing
 

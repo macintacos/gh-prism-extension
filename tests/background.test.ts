@@ -3,7 +3,12 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 import background from "../entrypoints/background";
 import { CONVERSATION_FRAME_PORT } from "../utils/github/conversation-frame";
 import { PR_DATA_PORT, type PrDataPort } from "../utils/github/pr-port";
-import { structuralIntroDismissed, whatsNewSeen } from "../utils/prefs";
+import {
+  installedWithOnboarding,
+  onboarded,
+  structuralIntroDismissed,
+  whatsNewSeen,
+} from "../utils/prefs";
 
 type Serve = (
   port: PrDataPort & { readonly name: string; readonly sender?: { tab?: { id?: number } } },
@@ -180,6 +185,81 @@ describe("background", () => {
     await fakeBrowser.runtime.onInstalled.trigger({ reason: "update", previousVersion: "0.3.2" });
 
     expect(setValue).not.toHaveBeenCalled();
+  });
+
+  describe("onboarding", () => {
+    it("marks a fresh install as one the onboarding greets, leaving it to show", async () => {
+      await fakeBrowser.runtime.onInstalled.trigger({ reason: "install" });
+
+      await vi.waitFor(async () => expect(await installedWithOnboarding.getValue()).toBe(true));
+      expect(await fakeBrowser.storage.sync.get("onboarded")).toEqual({});
+    });
+
+    it("stores the sidebar as revealed on an update of an install from before the onboarding", async () => {
+      await fakeBrowser.runtime.onInstalled.trigger({ reason: "update", previousVersion: "0.3.2" });
+
+      await vi.waitFor(async () => expect(await onboarded.getValue()).toBe(true));
+    });
+
+    it("leaves the onboarding to show on a new user's later update", async () => {
+      await installedWithOnboarding.setValue(true);
+      const setValue = vi.spyOn(onboarded, "setValue");
+
+      await fakeBrowser.runtime.onInstalled.trigger({ reason: "update", previousVersion: "0.3.2" });
+
+      await vi.waitFor(async () => expect(await installedWithOnboarding.getValue()).toBe(true));
+      expect(setValue).not.toHaveBeenCalled();
+    });
+
+    describe("under a dev build's flag", () => {
+      const update = () =>
+        fakeBrowser.runtime.onInstalled.trigger({ reason: "update", previousVersion: "0.3.2" });
+      const install = () => fakeBrowser.runtime.onInstalled.trigger({ reason: "install" });
+      const start = () => fakeBrowser.runtime.onStartup.trigger();
+
+      /** Rebuilds the background so its listeners see `flag` as `mise run dev` passed it. */
+      function runWith(flag: string) {
+        vi.stubEnv("DEV", true);
+        vi.stubEnv("WXT_DEV_ONBOARDING", flag);
+        background.main();
+      }
+
+      it.each([
+        ["an update", update],
+        ["a browser start", start],
+      ])("fresh resets only the onboarding on %s", async (_, fire) => {
+        await onboarded.setValue(true);
+        await fakeBrowser.storage.sync.set({ unrelated: 1 });
+        runWith("fresh");
+
+        await fire();
+
+        await vi.waitFor(async () => {
+          expect(await fakeBrowser.storage.sync.get(null)).toEqual({ unrelated: 1 });
+          expect(await installedWithOnboarding.getValue()).toBe(true);
+        });
+      });
+
+      it.each([
+        ["an install", install],
+        ["a browser start", start],
+      ])("tenured stores the sidebar as revealed on %s", async (_, fire) => {
+        runWith("tenured");
+
+        await fire();
+
+        await vi.waitFor(async () => expect(await onboarded.getValue()).toBe(true));
+      });
+
+      it("an empty flag writes nothing on a browser start", async () => {
+        runWith("");
+
+        await start();
+
+        expect(await fakeBrowser.storage.sync.get(null)).toEqual({});
+        expect(await fakeBrowser.storage.local.get(null)).toEqual({});
+      });
+    });
   });
 
   it("serves the PR data port", () => {

@@ -59,7 +59,7 @@ interface Listing {
 /** The sidebar's sections view, as `showSections` mounts it. */
 interface SectionsView extends LandingView {
   /** The view's `<nav>`. */
-  readonly root: Element;
+  readonly root: HTMLElement;
   /** Marks the files whose diffs are on screen: their hairline piece (a top-level file's row edge), or a collapsed listing's header. */
   onScreen(paths: ReadonlySet<string>): void;
   /**

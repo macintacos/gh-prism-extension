@@ -36,7 +36,10 @@ worker stopped while idle never hears the port close. Closing the tab removes it
 and a leftover rule still matches only that tab's marked URL. It also clears the intent
 cache whenever the extension is installed, updated, or reloaded in development, and on a
 fresh install it marks the installed version's what's-new notes and the Structural popup
-dismissed.
+dismissed. On install it also marks this browser's install as one the onboarding greets;
+on an update without that mark it stores the onboarding as dismissed, since that user had
+gh-prism before the onboarding shipped. A dev build applies `mise run dev`'s onboarding
+flag on install, reload, and browser start.
 
 The structural diff engine runs in a dedicated Worker, off the background's thread, so a
 long parse never delays port traffic. The Worker's script is
@@ -379,7 +382,35 @@ and watches it only if, at the tab's startup, the block can still show, since a 
 or expired version never shows again. A dismissal in one tab drops the block from the
 others on their next page. On `runtime.onInstalled` with reason `install`,
 [`entrypoints/background.ts`](../entrypoints/background.ts) marks the installed version
-dismissed, so only an update shows the notes.
+dismissed, so only an update shows the notes. While the onboarding veils the sidebar, the
+block waits: `index.ts` doesn't ask for it, so its first view, and its 3 days, start on
+the first page after the user dismisses the onboarding.
+
+## The onboarding
+
+A new user's Files changed view, on a pull request or a commit, opens with the sidebar's
+sections under a veil, built by
+[`entrypoints/content/sidebar/onboarding.ts`](../entrypoints/content/sidebar/onboarding.ts):
+the veil blurs the sections, makes them inert, and holds a short introduction and a button
+that dismisses it. The diffs stay usable throughout.
+
+The `sync:onboarded` item in [`utils/prefs.ts`](../utils/prefs.ts) holds the dismissal, so
+browser sync carries it to the user's other browsers, best effort. The background sets it
+on an update that lacks the local install mark, since that user had gh-prism before the
+onboarding shipped; a fresh install sets the mark, so the veil keeps showing across
+updates until the user dismisses it.
+
+`index.ts` reads `onboarded` with the other prefs before the first render, so once the
+background has settled the install rule, a tenured user's sidebar is never drawn veiled
+and a new user's veil mounts with the sections, in the same task. A failed read counts as
+dismissed: better to skip the introduction than to veil a tenured user's sections. On the
+update that ships the onboarding, a content script that starts before the background's
+write lands reads `false` and veils a tenured user's sections; only the watch below lifts
+that veil. A tab that starts with the veil watches the item, and a dismissal in any tab,
+or one sync delivers late, lifts the veils already drawn. While the veil shows, `j` and
+`k` don't step through the files
+([`entrypoints/content/diffs/file-keys.ts`](../entrypoints/content/diffs/file-keys.ts)),
+and the what's-new block waits for the first page after the dismissal.
 
 ## The report link
 
@@ -1257,7 +1288,7 @@ while the segment is hovered or shows keyboard focus.
 
 ```text
 entrypoints/
-  background.ts          service worker: PR data port, the Conversation panel's framing rule, cache clearing and what's-new mark on install
+  background.ts          service worker: PR data port, the Conversation panel's framing rule, cache clearing, what's-new mark, and onboarding rule on install
   structural-engine.ts   the structural engine's dedicated Worker script
   structural-offscreen/  Chrome only: the offscreen document that owns the engine's Worker and answers the service worker's relayed requests
   conversation-frame.content.ts  content script in the Conversation panel's frame
@@ -1267,7 +1298,7 @@ entrypoints/
     commit/              a commit's message rendered as Markdown in GitHub's box's place, or in a resizable column beside the diffs, with its switch back to GitHub's box and the toolbar toggle that hides it; a conventional title's type label
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
-    sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
+    sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, onboarding, report link, owner section
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet; structural-files.ts, a visit's structural answers; structural-mode.ts, Structural mode on a page; structural-notices.ts and structural-notices.css, its per-file notices and loading line; view-control.ts and view-control.css, the Unified, Split, and Structural control before the layout gear; structural-intro.ts, the Structural segment's popover and popup; wrap-lines.ts and wrap-lines.css, the Wrap lines item and the unwrapped view; side-scroll.ts, each file's sideways scroll
     header/              diffstat breakout
     conversation/        a code owner's files popup and gh-prism's shield, in the Reviewers lists and beside Conversation and Files changed comment authors; the Conversation panel and its button, dressing its frame, and the messages the frame posts

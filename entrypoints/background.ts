@@ -1,11 +1,17 @@
-import { browser } from "wxt/browser";
+import { type Browser, browser } from "wxt/browser";
 import { defineBackground } from "wxt/utils/define-background";
 import { storage } from "wxt/utils/storage";
 import { CONVERSATION_FRAME_PORT, conversationFraming } from "../utils/github/conversation-frame";
 import { PR_DATA_PORT, servePrDataPort } from "../utils/github/pr-port";
 import { createPrDataSource } from "../utils/github/pr-source";
 import { forgetIntents } from "../utils/intent/cache";
-import { RETIRED_HIDDEN_COMMITS, structuralIntroDismissed, whatsNewSeen } from "../utils/prefs";
+import {
+  installedWithOnboarding,
+  onboarded,
+  RETIRED_HIDDEN_COMMITS,
+  structuralIntroDismissed,
+  whatsNewSeen,
+} from "../utils/prefs";
 import { yieldToMessages } from "../utils/structural/engine-script";
 import { engineThread } from "../utils/structural/engine-thread";
 import { CACHED_SPANS, type FileChanges, fileChanges } from "../utils/structural/file-changes";
@@ -15,8 +21,9 @@ import { dismissWhatsNew } from "../utils/whats-new";
 /**
  * Serves pull request data and, on request, a file's structural changes to content scripts, lets
  * a tab's Conversation panel frame its pull request's Conversation tab, clears the intent cache
- * and retired storage keys on install, and marks a fresh install's what's-new notes and Structural
- * popup dismissed.
+ * and retired storage keys on install, marks a fresh install's what's-new notes and Structural
+ * popup dismissed, and settles the onboarding on install and update. A dev build also applies
+ * `mise run dev`'s onboarding flag on install, reload, and browser start.
  */
 export default defineBackground(() => {
   // Intents clear on installs, updates, and dev reloads alike: a new build may place files
@@ -28,6 +35,9 @@ export default defineBackground(() => {
       .catch((error: unknown) =>
         console.error("gh-prism: removing the retired hidden commit list failed", error),
       );
+    void settleOnboarding(reason).catch((error: unknown) =>
+      console.error("gh-prism: settling the onboarding failed", error),
+    );
     if (reason !== "install") return;
     void whatsNewSeen
       .setValue(dismissWhatsNew({}, browser.runtime.getManifest().version))
@@ -40,6 +50,13 @@ export default defineBackground(() => {
         console.error("gh-prism: saving the Structural popup's dismissal failed", error),
       );
   });
+  if (import.meta.env.DEV) {
+    browser.runtime.onStartup.addListener(() => {
+      void applyDevOnboarding(import.meta.env.WXT_DEV_ONBOARDING).catch((error: unknown) =>
+        console.error("gh-prism: applying the dev onboarding flag failed", error),
+      );
+    });
+  }
   // A fetch called as a method of anything but the global throws "Illegal invocation".
   const source = createPrDataSource((input, init) => fetch(input, init));
   const framing = conversationFraming({
@@ -61,3 +78,24 @@ export default defineBackground(() => {
   });
   browser.tabs.onRemoved.addListener((tabId) => framing.forget(tabId));
 });
+
+/**
+ * Marks a fresh install as this browser's new user, and stores the onboarding as dismissed on an
+ * update without that mark: that user had gh-prism before the onboarding shipped.
+ */
+async function settleOnboarding(reason: Browser.runtime.InstalledDetails["reason"]): Promise<void> {
+  if (reason === "install") await installedWithOnboarding.setValue(true);
+  else if (reason === "update" && !(await installedWithOnboarding.getValue())) {
+    await onboarded.setValue(true);
+  }
+
+  // After the rule above, so a dev reload ends in the state `mise run dev` asked for.
+  if (import.meta.env.DEV) await applyDevOnboarding(import.meta.env.WXT_DEV_ONBOARDING);
+}
+
+/** Puts the onboarding in the state `mise run dev` asked for, if any. */
+async function applyDevOnboarding(flag: unknown): Promise<void> {
+  if (flag === "fresh") {
+    await Promise.all([onboarded.removeValue(), installedWithOnboarding.setValue(true)]);
+  } else if (flag === "tenured") await onboarded.setValue(true);
+}

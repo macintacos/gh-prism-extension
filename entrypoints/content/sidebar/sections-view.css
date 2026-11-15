@@ -1,5 +1,6 @@
 /* GitHub hooks: #pr-file-tree, #diff_file_tree, ul[role="tree"], and the filter row's pr-lg-3.
-   Every other rule selects only gh-prism's own classes. */
+   Every other rule selects only gh-prism's own classes, and onboarding.ts's
+   data-gh-prism-onboarding on the nav. */
 @import "../ui/tailwind.css" prefix(tw);
 @import "../ui/reveal.css";
 @import "../ui/mark.css";
@@ -7,6 +8,7 @@
 @source "./sections-view.ts";
 @source "../ui/line-counts.ts";
 @source "./whats-new.ts";
+@source "./onboarding.ts";
 @source "./owners-popover.ts";
 @source "../ui/owners-dialog.ts";
 @source "../ui/file-list.ts";
@@ -305,6 +307,32 @@
   }
 }
 
+/* The veil overlays the nav, so the nav keeps the veil's height at the default pane width (220px). */
+.gh-prism-sections:has(> .gh-prism-onboarding) {
+  position: relative;
+  min-height: 220px;
+}
+
+.gh-prism-sections:has(> .gh-prism-onboarding) > :not(.gh-prism-onboarding) {
+  transition: filter 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.gh-prism-sections[data-gh-prism-onboarding] > :not(.gh-prism-onboarding) {
+  filter: blur(8px);
+}
+
+/* onboarding.ts inerts the veil as it lifts, then removes it after this transition. */
+.gh-prism-onboarding {
+  transition:
+    opacity 280ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    translate 280ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.gh-prism-onboarding[inert] {
+  opacity: 0;
+  translate: 0 -24px;
+}
+
 /* A shield's code owners, placed under it by owners-popover.ts. */
 .gh-prism-owners[popover] {
   transition:
@@ -329,9 +357,18 @@
   .gh-prism-chevron,
   .gh-prism-files,
   .gh-prism-whats-new-body,
-  .gh-prism-whats-new {
+  .gh-prism-whats-new,
+  .gh-prism-onboarding {
     transition: none;
     animation: none;
+  }
+
+  .gh-prism-sections:has(> .gh-prism-onboarding) > :not(.gh-prism-onboarding) {
+    transition: none;
+  }
+
+  .gh-prism-onboarding[inert] {
+    display: none;
   }
 }
 

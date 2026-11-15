@@ -145,8 +145,13 @@ tree. _Avoid_: file tree, which is GitHub's
 _Avoid_: glide
 
 **What's new**: The sidebar's block of the installed version's release notes, shown above
-the sections after an update until the reviewer dismisses it or 3 days after it first
-shows. _Avoid_: section, changelog
+the sections after an update, from the first page the onboarding doesn't veil, until the
+reviewer dismisses it or 3 days after it first shows. _Avoid_: section, changelog
+
+**Onboarding**: The veil over a new user's sidebar sections that introduces gh-prism,
+until they dismiss it; once dismissed, it never shows again in any of their tabs or synced
+browsers. _Avoid_: cover (the diffs' cover until their order lands), reveal (see Reveal),
+tour, welcome, intro (the Structural popup's term)
 
 **Current file**: GitHub's `aria-current` file, shown as the sidebar's selected row. There
 is at most one.
@@ -260,6 +265,7 @@ of the page over instead of covering it. _Avoid_: docked, which is the sidebar's
 - "Glide" also names the sidebar's move. The sidebar slides; a reveal glides. The
   view-transition helper in `ui/glide.ts`, which runs the sidebar's slide, is not the
   reveal's glide.
+- "Cover" is the diffs' cover; the onboarding's is the veil.
 - "Source" names both the background's fetcher of diffs and file contents, and where
   intent is read from and cached. Keep it for the fetcher.
 - "Pin" also names a diff head's one commit and the Conversation panel's Pinned mode. Say

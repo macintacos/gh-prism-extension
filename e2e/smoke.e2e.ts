@@ -94,13 +94,15 @@ const launchFirefox = (profile: string) =>
     proxy: { server: "http://127.0.0.1:9" },
   });
 
-const test = base.extend<{ context: BrowserContext }>({
-  context: async ({ browserName }, use) => {
+const test = base.extend<{ onboarded: boolean; context: BrowserContext }>({
+  onboarded: [true, { option: true }],
+  context: async ({ browserName, onboarded }, use) => {
     const profile = await mkdtemp(join(tmpdir(), "gh-prism-e2e-"));
     const context = await (browserName === "firefox" ? launchFirefox : launchChromium)(profile);
     // In Chromium, also answers the service worker's fetches, so intent settles offline. Each
     // serve() registers later and wins.
     await context.route("https://github.com/**", (route) => route.fulfill({ status: 404 }));
+    if (onboarded) await passOnboarding(context, browserName);
 
     await use(context);
 
@@ -111,6 +113,68 @@ const test = base.extend<{ context: BrowserContext }>({
 
 const serve = (context: BrowserContext, url: string, body: string) =>
   context.route(url, (route) => route.fulfill({ contentType: "text/html", body }));
+
+/**
+ * Stores the sidebar as revealed, leaving the profile as a tenured user's. Chromium seeds it
+ * through the service worker; Playwright's Firefox exposes none, so it reveals on a throwaway page.
+ */
+async function passOnboarding(context: BrowserContext, browserName: string) {
+  if (browserName === "firefox") return revealOnPage(context);
+
+  const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
+  // e2e's tsconfig has no extension globals; the worker has `chrome`.
+  await worker.evaluate(() =>
+    (globalThis as unknown as { chrome: WxtBrowser }).chrome.storage.sync.set({ onboarded: true }),
+  );
+}
+
+// ponytail: one throwaway page per Firefox test; seed storage directly if Playwright's Firefox ever reaches the add-on's background.
+async function revealOnPage(context: BrowserContext) {
+  await serve(context, PR_URL, PR_BODY);
+  const page = await context.newPage();
+  await page.goto(PR_URL);
+  await page.getByRole("button", { name: "Start reviewing" }).click();
+
+  // A reload proves the reveal is stored, not only lifted in this tab.
+  await expect(async () => {
+    await page.reload();
+    await expect(page.locator(".gh-prism-sections")).toBeVisible();
+    await expect(page.locator(".gh-prism-onboarding")).toHaveCount(0);
+  }).toPass();
+
+  await page.close();
+  await context.unroute(PR_URL);
+}
+
+/** Records, every frame `.gh-prism-sections` exists, whether it carries the onboarding cover. */
+const recordCoverEachFrame = (page: Page) =>
+  page.addInitScript(() => {
+    const covered: boolean[] = [];
+    Object.assign(window, { covered });
+    const sample = () => {
+      requestAnimationFrame(sample);
+      const sections = document.querySelector(".gh-prism-sections");
+      if (sections) covered.push(sections.hasAttribute("data-gh-prism-onboarding"));
+    };
+    requestAnimationFrame(sample);
+  });
+
+const coverByFrame = async (page: Page) => {
+  await expect(page.locator(".gh-prism-section").first()).toBeVisible();
+  return page.evaluate(() => (window as unknown as { covered: boolean[] }).covered);
+};
+
+const sectionFilter = (page: Page) =>
+  page
+    .locator(".gh-prism-section")
+    .first()
+    .evaluate((el) => getComputedStyle(el).filter);
+
+const sectionInert = (page: Page) =>
+  page
+    .locator(".gh-prism-section")
+    .first()
+    .evaluate((el) => !!el.closest("[inert]"));
 
 /** Sets the Viewed toggle in diff region `anchor` to `viewed`, as GitHub's click leaves its attributes. */
 const setViewed = (page: Page, anchor: string, viewed: boolean) =>
@@ -5417,6 +5481,8 @@ for (const kind of ["pr", "commit"] as const) {
     await segment(page, "Structural").scrollIntoViewIfNeeded();
     const popup = page.locator(".gh-prism-structural-popup");
     if ((await popup.count()) > 0) await popup.getByRole("button", { name: "Close" }).click();
+    // A scroll's `scroll` event waits for the next frame, and the card closes on any scroll it hears.
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
     const boxes = () =>
       page.evaluate(() =>
         // In the document, since a focus can scroll the window.
@@ -5569,4 +5635,72 @@ test("Escape in the diff view control's Structural popup closes it and returns f
   await expect(popup).toBeHidden();
   await expect(segment(page, "Structural")).toBeFocused();
   await expect(page.locator(".gh-prism-structural-tip")).toHaveCount(0);
+});
+
+test.describe("onboarding", () => {
+  test.use({ onboarded: false });
+
+  test("a new user's first Files changed views cover the sections until the reveal, in every open tab", async ({
+    context,
+  }) => {
+    await serve(context, PR_URL, PR_BODY);
+    await serve(context, COMMIT_URL, COMMIT_BODY);
+    const pr = await context.newPage();
+    await pr.goto(PR_URL);
+    const commit = await context.newPage();
+    await commit.goto(COMMIT_URL);
+
+    for (const page of [pr, commit]) {
+      await expect(page.locator(".gh-prism-onboarding")).toBeVisible();
+      await expect.poll(() => sectionFilter(page)).toContain("blur");
+      expect(await sectionInert(page)).toBe(true);
+    }
+    const hash = await pr.evaluate(() => location.hash);
+    await pr.keyboard.press("j");
+    expect(await pr.evaluate(() => location.hash)).toBe(hash);
+
+    await pr.bringToFront();
+    await pr.getByRole("button", { name: "Start reviewing" }).focus();
+    await pr.keyboard.press("Enter");
+
+    for (const page of [pr, commit]) {
+      await expect(page.locator(".gh-prism-onboarding")).toHaveCount(0);
+      await expect.poll(() => sectionFilter(page)).toBe("none");
+      expect(await sectionInert(page)).toBe(false);
+    }
+    await pr.keyboard.press("j");
+    await expect.poll(() => pr.evaluate(() => location.hash)).not.toBe(hash);
+  });
+
+  test("leaving without the reveal shows the onboarding again", async ({ context, page }) => {
+    await serve(context, PR_URL, PR_BODY);
+    await page.goto(PR_URL);
+    await expect(page.locator(".gh-prism-onboarding")).toBeVisible();
+
+    await page.reload();
+
+    await expect(page.locator(".gh-prism-onboarding")).toBeVisible();
+  });
+
+  test("a new user never sees a frame of uncovered sections", async ({ context, page }) => {
+    await serve(context, PR_URL, PR_BODY);
+    await recordCoverEachFrame(page);
+
+    await page.goto(PR_URL);
+
+    const covered = await coverByFrame(page);
+    expect(covered.length).toBeGreaterThan(0);
+    expect(covered.every(Boolean)).toBe(true);
+  });
+});
+
+test("a tenured user never sees a frame of the onboarding", async ({ context, page }) => {
+  await serve(context, PR_URL, PR_BODY);
+  await recordCoverEachFrame(page);
+
+  await page.goto(PR_URL);
+
+  const covered = await coverByFrame(page);
+  expect(covered.length).toBeGreaterThan(0);
+  expect(covered.some(Boolean)).toBe(false);
 });

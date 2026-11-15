@@ -31,15 +31,19 @@ function neighbor(
 
 /**
  * Has `j` and `k` reveal the next and previous file in the sidebar's order while `page`'s diffs
- * follow it, until `signal` aborts.
+ * follow it, until `signal` aborts, ignoring them while `held` returns true.
  */
-export function followFileKeys(page: FilesPage, signal: AbortSignal): LandingView {
+export function followFileKeys(
+  page: FilesPage,
+  signal: AbortSignal,
+  held: () => boolean,
+): LandingView {
   const doc = page.diffs.ownerDocument;
   let links: readonly HTMLAnchorElement[] = [];
   const onKey = (event: KeyboardEvent) => {
     const step = STEPS.get(event.key);
     if (!step || event.altKey || event.ctrlKey || event.metaKey || isEditable(event.target)) return;
-    if (links.length === 0 || !reorderable(page)) return;
+    if (links.length === 0 || held() || !reorderable(page)) return;
     // Cancelling the keydown also cancels its keypress, where Refined GitHub listens.
     event.preventDefault();
     event.stopPropagation();

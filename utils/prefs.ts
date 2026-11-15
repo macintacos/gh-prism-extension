@@ -112,6 +112,18 @@ export const structuralIntroDismissed = storage.defineItem<boolean>(
   { fallback: false },
 );
 
+/** Whether the user dismissed the onboarding; browser sync carries it to their other browsers when on. */
+export const onboarded = storage.defineItem<boolean>("sync:onboarded", { fallback: false });
+
+/**
+ * Whether this computer installed gh-prism with the onboarding in it, so an update can tell a new
+ * user from one who had gh-prism before it; kept on this computer only.
+ */
+export const installedWithOnboarding = storage.defineItem<boolean>(
+  "local:installedWithOnboarding",
+  { fallback: false },
+);
+
 /**
  * Which version's what's-new notes the user dismissed or first saw, and when; kept on this
  * computer only.
