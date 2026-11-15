@@ -66,8 +66,8 @@ export type IntentResult =
       /** Every file in the PR's diff, keyed by path. */
       lines: ReadonlyMap<string, FileLines>;
       /**
-       * Keyed by path: the changed comment and docstring lines in the file's hunks that stay in
-       * Implementation. A file with none is absent.
+       * Keyed by path: the file's comment lines, in its hunks that stay in its path section. A
+       * file with none is absent.
        */
       commentLines: ReadonlyMap<string, LineCounts>;
     }
@@ -108,7 +108,7 @@ async function outlineOrNone(
 
 const sumHunkLines = (hunks: readonly PrHunk[]): LineCounts => sum(hunks.map(hunkLineCounts));
 
-/** Where one file lands, and the comment lines in its hunks that stay in Implementation. */
+/** Where one file lands, and the comment lines in its hunks that stay in its path section. */
 interface FileIntent {
   /** `undefined` keeps the file in its path section. */
   readonly placement: Placement | undefined;
@@ -131,13 +131,13 @@ async function prefixLines(
 }
 
 /**
- * `file`'s placement and Implementation comment lines; whole in Generated when the patch, the
- * shared head, or one prefix read (none after a failed head read) shows a generator's marker. The
- * head is read only when the patch can't settle every hunk as docs and a rule or a comment count
- * needs it. A file whose every hunk is docs moves whole to Docs & Comments; otherwise a hunk in a
- * test block counts as Tests even when it only edits a doc comment, and an Implementation file that
- * keeps a code hunk outside its test blocks keeps its other docs hunks too, counting their comment
- * lines. A head read for any reason settles every unclaimed hunk's count, as it is the more
+ * `file`'s placement and comment lines; whole in Generated when the patch, the shared head, or one
+ * prefix read (none after a failed head read) shows a generator's marker. The head is read only
+ * when the patch can't settle every hunk as docs and a rule or a comment count needs it. A file
+ * whose every hunk is docs moves whole to Docs & Comments; otherwise a hunk in a test block counts
+ * as Tests even when it only edits a doc comment, and a file whose section keeps comment lines and
+ * that keeps a code hunk outside its test blocks keeps its other docs hunks too, counting their
+ * comment lines. A head read for any reason settles every unclaimed hunk's count, as it is the more
  * accurate scan; a hunk whose comment lines only the unread head could confirm counts none.
  */
 async function fileIntent(client: FileReads, file: PrFileDiff): Promise<FileIntent> {
@@ -147,7 +147,7 @@ async function fileIntent(client: FileReads, file: PrFileDiff): Promise<FileInte
   const patchVerdicts = docHunkVerdicts(file);
   const allDocs = patchVerdicts.every(isDocs); // also true for binary or renamed
   const hunks = hunksOf(file);
-  const countsComments = classify(file.path) === "implementation";
+  const countsComments = keepsCommentLines(file.path);
   const patchCounts = countsComments ? hunks.map((hunk) => commentLineCounts(file.path, hunk)) : [];
   const needsHead =
     !allDocs &&
@@ -183,9 +183,21 @@ async function fileIntent(client: FileReads, file: PrFileDiff): Promise<FileInte
   return { placement, commentLines: sum(counts) };
 }
 
-/** Where a docs hunk goes in a file that doesn't move whole: an Implementation file keeps it. */
+/**
+ * Whether `path`'s section keeps the docs hunks beside its code, counting their comment lines
+ * toward Docs & Comments.
+ */
+const keepsCommentLines = (path: string): boolean => {
+  const section = classify(path);
+  return section === "implementation" || section === "tests";
+};
+
+/**
+ * Where a docs hunk goes in a file that doesn't move whole: its path section if
+ * `keepsCommentLines`, else Docs & Comments.
+ */
 const docsHunkSection = (path: string): IntentSection | undefined =>
-  classify(path) === "implementation" ? undefined : "docs";
+  keepsCommentLines(path) ? undefined : "docs";
 
 const patchSections = (path: string, verdicts: readonly DocVerdict[]) =>
   verdicts.map((verdict) => (isDocs(verdict) ? docsHunkSection(path) : undefined));

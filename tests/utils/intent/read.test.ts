@@ -531,20 +531,20 @@ describe("readIntent", () => {
     );
   });
 
-  it("lists a file whose every change is a comment, without reading its content", async () => {
-    const client = fakeClient(
-      { ok: true, files: [modified("src/parser.rs", parserPatch)] },
-      unreadable,
-    );
+  it.each(["src/parser.rs", "tests/parser.rs"])(
+    "lists %s, whose every change is a comment, without reading its content",
+    async (path) => {
+      const client = fakeClient({ ok: true, files: [modified(path, parserPatch)] }, unreadable);
 
-    expect(await readIntent(client)).toEqual({
-      ok: true,
-      placements: new Map([["src/parser.rs", whole("docs")]]),
-      lines: new Map([["src/parser.rs", { added: 1, removed: 1 }]]),
-      commentLines: new Map(),
-    });
-    expect(client.fileContent).not.toHaveBeenCalled();
-  });
+      expect(await readIntent(client)).toEqual({
+        ok: true,
+        placements: new Map([[path, whole("docs")]]),
+        lines: new Map([[path, { added: 1, removed: 1 }]]),
+        commentLines: new Map(),
+      });
+      expect(client.fileContent).not.toHaveBeenCalled();
+    },
+  );
 
   it("leaves out a file with a code change outside the inline-test rule, without reading its content", async () => {
     const client = fakeClient(
@@ -593,19 +593,19 @@ describe("readIntent", () => {
     expect(client.fileContent).toHaveBeenCalledWith("src/notes.rs");
   });
 
-  it("keeps a needs-content Implementation file in its path section when its content can't be read, counting the comment lines its patch settles", async () => {
-    const client = fakeClient(
-      { ok: true, files: [modified("src/notes.rs", notesPatch)] },
-      unreadable,
-    );
+  it.each(["src/notes.rs", "tests/notes.rs"])(
+    "keeps needs-content %s in its path section when its content can't be read, counting the comment lines its patch settles",
+    async (path) => {
+      const client = fakeClient({ ok: true, files: [modified(path, notesPatch)] }, unreadable);
 
-    expect(await readIntent(client)).toEqual({
-      ok: true,
-      placements: new Map(),
-      lines: new Map([["src/notes.rs", { added: 2, removed: 2 }]]),
-      commentLines: new Map([["src/notes.rs", { added: 1, removed: 1 }]]),
-    });
-  });
+      expect(await readIntent(client)).toEqual({
+        ok: true,
+        placements: new Map(),
+        lines: new Map([[path, { added: 2, removed: 2 }]]),
+        commentLines: new Map([[path, { added: 1, removed: 1 }]]),
+      });
+    },
+  );
 
   it("maps a Rust implementation file whose only hunk is inside `mod tests` to tests", async () => {
     const client = fakeClient(
@@ -860,28 +860,31 @@ describe("readIntent", () => {
     expect(client.fileContent).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps a Go file's patch-settled docs hunk in Implementation with its code hunk, counting its comment lines without reading its content", async () => {
-    const client = fakeClient(
-      { ok: true, files: [modified("engine/engine.go", goCodeAndDocPatch)] },
-      unreadable,
-    );
+  it.each(["engine/engine.go", "tests/engine.go"])(
+    "keeps %s's patch-settled docs hunk in its path section with its code hunk, counting its comment lines without reading its content",
+    async (path) => {
+      const client = fakeClient(
+        { ok: true, files: [modified(path, goCodeAndDocPatch)] },
+        unreadable,
+      );
 
-    expect(await readIntent(client)).toEqual({
-      ok: true,
-      placements: new Map(),
-      lines: new Map([["engine/engine.go", { added: 2, removed: 2 }]]),
-      commentLines: new Map([["engine/engine.go", { added: 1, removed: 1 }]]),
-    });
-    expect(client.fileContent).not.toHaveBeenCalled();
-  });
+      expect(await readIntent(client)).toEqual({
+        ok: true,
+        placements: new Map(),
+        lines: new Map([[path, { added: 2, removed: 2 }]]),
+        commentLines: new Map([[path, { added: 1, removed: 1 }]]),
+      });
+      expect(client.fileContent).not.toHaveBeenCalled();
+    },
+  );
 
-  it("counts each split share's lines from only the hunks placed in it", async () => {
+  it("splits a Config file's docs hunk out to Docs & Comments, counting each share's lines from only its own hunks", async () => {
     const client = fakeClient(
       {
         ok: true,
         files: [
           modified(
-            "tests/engine.go",
+            "tools/engine.config.go",
             lines(
               "@@ -2,3 +2,2 @@",
               "-\treturn parse(input)",
@@ -902,99 +905,47 @@ describe("readIntent", () => {
       ok: true,
       placements: new Map([
         [
-          "tests/engine.go",
+          "tools/engine.config.go",
           {
             kind: "split",
             shares: [
               {
-                section: "tests",
+                section: "docs",
+                hunks: [{ first: 10, last: 10 }],
+                lines: { added: 1, removed: 1 },
+              },
+              {
+                section: "config",
                 hunks: [{ first: 2, last: 3 }],
                 lines: { added: 1, removed: 2 },
               },
-              {
-                section: "docs",
-                hunks: [{ first: 10, last: 10 }],
-                lines: { added: 1, removed: 1 },
-              },
             ],
           },
         ],
       ]),
-      lines: new Map([["tests/engine.go", { added: 2, removed: 3 }]]),
+      lines: new Map([["tools/engine.config.go", { added: 2, removed: 3 }]]),
       commentLines: new Map(),
     });
   });
 
-  it("reads a Go file's head once to count its needs-content docs hunk, kept in Implementation with its code hunk", async () => {
-    const client = fakeClient(
-      { ok: true, files: [modified("engine/engine.go", goNeedsContentPatch)] },
-      { ok: true, text: goNeedsContentHead },
-    );
+  it.each(["engine/engine.go", "tests/engine.go"])(
+    "reads %s's head once to count its needs-content docs hunk, kept in its path section with its code hunk",
+    async (path) => {
+      const client = fakeClient(
+        { ok: true, files: [modified(path, goNeedsContentPatch)] },
+        { ok: true, text: goNeedsContentHead },
+      );
 
-    expect(await readIntent(client)).toEqual({
-      ok: true,
-      placements: new Map(),
-      lines: new Map([["engine/engine.go", { added: 2, removed: 2 }]]),
-      commentLines: new Map([["engine/engine.go", { added: 1, removed: 1 }]]),
-    });
-    expect(client.fileContent).toHaveBeenCalledTimes(1);
-  });
-
-  it("splits a test-directory file's head-settled docs hunk out to Docs & Comments", async () => {
-    const client = fakeClient(
-      { ok: true, files: [modified("tests/engine.go", goNeedsContentPatch)] },
-      { ok: true, text: goNeedsContentHead },
-    );
-
-    expect(await readIntent(client)).toEqual({
-      ok: true,
-      placements: new Map([
-        [
-          "tests/engine.go",
-          {
-            kind: "split",
-            shares: [
-              { section: "tests", hunks: [{ first: 9, last: 9 }], lines: { added: 1, removed: 1 } },
-              { section: "docs", hunks: [{ first: 4, last: 6 }], lines: { added: 1, removed: 1 } },
-            ],
-          },
-        ],
-      ]),
-      lines: new Map([["tests/engine.go", { added: 2, removed: 2 }]]),
-      commentLines: new Map(),
-    });
-    expect(client.fileContent).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps a test-directory file's unclaimed code hunk in Tests, beside its docs hunk in Docs & Comments", async () => {
-    const client = fakeClient(
-      { ok: true, files: [modified("tests/engine.go", goCodeAndDocPatch)] },
-      unreadable,
-    );
-
-    expect(await readIntent(client)).toEqual({
-      ok: true,
-      placements: new Map([
-        [
-          "tests/engine.go",
-          {
-            kind: "split",
-            shares: [
-              { section: "tests", hunks: [{ first: 2, last: 2 }], lines: { added: 1, removed: 1 } },
-              {
-                section: "docs",
-                hunks: [{ first: 10, last: 10 }],
-                lines: { added: 1, removed: 1 },
-              },
-            ],
-          },
-        ],
-      ]),
-      lines: new Map([["tests/engine.go", { added: 2, removed: 2 }]]),
-      commentLines: new Map(),
-    });
-    expect(client.fileContent).not.toHaveBeenCalled();
-  });
+      expect(await readIntent(client)).toEqual({
+        ok: true,
+        placements: new Map(),
+        lines: new Map([[path, { added: 2, removed: 2 }]]),
+        commentLines: new Map([[path, { added: 1, removed: 1 }]]),
+      });
+      expect(client.fileContent).toHaveBeenCalledWith(path);
+      expect(client.fileContent).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("leaves a renamed mixed file out of the placements, without reading it", async () => {
     const client = fakeClient(
@@ -1022,20 +973,23 @@ describe("readIntent", () => {
     expect(client.fileContent).not.toHaveBeenCalled();
   });
 
-  it("counts an Implementation file's mixed hunk's comment lines, keeping its whole lines and path section", async () => {
-    const client = fakeClient(
-      { ok: true, files: [modified("engine/run.go", mixedGoPatch)] },
-      { ok: true, text: mixedGoHead },
-    );
+  it.each(["engine/run.go", "tests/run.go"])(
+    "counts %s's mixed hunk's comment lines, keeping its whole lines and path section",
+    async (path) => {
+      const client = fakeClient(
+        { ok: true, files: [modified(path, mixedGoPatch)] },
+        { ok: true, text: mixedGoHead },
+      );
 
-    expect(await readIntent(client)).toEqual({
-      ok: true,
-      placements: new Map(),
-      lines: new Map([["engine/run.go", { added: 2, removed: 2 }]]),
-      commentLines: new Map([["engine/run.go", { added: 1, removed: 1 }]]),
-    });
-    expect(client.fileContent).not.toHaveBeenCalled();
-  });
+      expect(await readIntent(client)).toEqual({
+        ok: true,
+        placements: new Map(),
+        lines: new Map([[path, { added: 2, removed: 2 }]]),
+        commentLines: new Map([[path, { added: 1, removed: 1 }]]),
+      });
+      expect(client.fileContent).not.toHaveBeenCalled();
+    },
+  );
 
   it("keeps a comment-only hunk in Implementation with a mixed hunk, counting the comment lines of both", async () => {
     const client = fakeClient(
@@ -1051,19 +1005,16 @@ describe("readIntent", () => {
     );
   });
 
-  it.each(["tests/run.go", "vite.config.ts"])(
-    "counts no comment lines in %s, whose hunks stay out of Implementation",
-    async (path) => {
-      const client = fakeClient(
-        { ok: true, files: [modified(path, mixedGoPatch)] },
-        { ok: true, text: mixedGoHead },
-      );
+  it("counts no comment lines in a Config file", async () => {
+    const client = fakeClient(
+      { ok: true, files: [modified("vite.config.ts", mixedGoPatch)] },
+      { ok: true, text: mixedGoHead },
+    );
 
-      const result = await readIntent(client);
+    const result = await readIntent(client);
 
-      expect(result.ok && result.commentLines).toEqual(new Map());
-    },
-  );
+    expect(result.ok && result.commentLines).toEqual(new Map());
+  });
 
   it("counts no comment lines in a hunk inside an inline test block", async () => {
     const client = fakeClient(

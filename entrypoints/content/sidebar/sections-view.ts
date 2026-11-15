@@ -4,7 +4,7 @@
  * that is open: each render re-reads it, and file clicks go to its row's link, whose handler mounts
  * a virtualized diff that a bare hash jump would not. A file whose hunks span sections is listed,
  * marked Partial, in each; clicking it there reveals the first of that section's hunks. Docs &
- * Comments ends with a sub-section listing Implementation's files again by their comment lines.
+ * Comments ends with a sub-section listing files again by their comment lines.
  */
 
 import type { FileTreeRowDecoration } from "@pierre/trees";
@@ -45,7 +45,7 @@ import css from "./sections-view.css?inline";
 
 type FileEntry = FileSection["entries"][number];
 
-/** Docs & Comments' sub-section listing Implementation's files by their comment lines. */
+/** Docs & Comments' sub-section listing files by their comment lines. */
 const COMMENT_LINES = "comment-lines";
 
 /** What lists files under a header of its own: a section, or the comment-lines sub-section. */
@@ -272,7 +272,7 @@ const COMMENT_ICON =
  * does.
  */
 function commentLinesShell(doc: Document, lines: LineCounts | undefined) {
-  const label = "Implementation comments";
+  const label = "Comment lines";
   const counter = counterPill(doc);
   const glyph = el(
     doc,
@@ -318,17 +318,19 @@ function commentLinesShell(doc: Document, lines: LineCounts | undefined) {
 
 /**
  * The comment-lines sub-section's listing among `sections`, while the landing has `commentLines`:
- * Implementation's entries whose comment lines moved, each counting only those, and so Partial.
+ * every entry whose comment lines moved, each counting only those, and so Partial. Sorted by
+ * path, since the presorted tree needs each directory's files together.
  */
 function commentLinesListing(
   sections: readonly FileSection[],
   commentLines: CommentLines | undefined,
 ): Listing[] {
   if (!commentLines) return [];
-  const implementation = sections.find(({ key }) => key === "implementation")?.entries ?? [];
-  const entries = implementation.flatMap((entry) =>
-    entry.moved ? [{ ...entry, lines: entry.moved }] : [],
-  );
+  const entries = sections
+    .flatMap((section) =>
+      section.entries.flatMap((entry) => (entry.moved ? [{ ...entry, lines: entry.moved }] : [])),
+    )
+    .toSorted(({ file: a }, { file: b }) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
   return [{ key: COMMENT_LINES, entries }];
 }
 
@@ -510,7 +512,8 @@ export function showSections(
 
   /**
    * Marks each section that lists a file on screen; sections-view.css shows it on a collapsed
-   * header. The comment-lines sub-section's files are all Implementation's, which marks them.
+   * header. Each of the comment-lines sub-section's files is also listed in its own section,
+   * which marks it.
    */
   const markHeaders = () => {
     for (const { key, entries } of latestListings) {

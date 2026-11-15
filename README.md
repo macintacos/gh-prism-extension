@@ -36,8 +36,8 @@ Implementation, Tests, Docs & Comments, Config, and Generated / lockfiles.
 
 - A file whose changes belong in more than one section is listed under each, marked
   `Partial`.
-- Comment-only changes count toward Docs & Comments. An Implementation file's comment
-  lines are listed under **Implementation comments**.
+- Comment-only changes count toward Docs & Comments. An Implementation or Tests file's
+  comment lines are listed under **Comment lines**.
 - The diffs follow the sidebar's order, except on very large pull requests, and clicking a
   section's heading collapses it.
 
@@ -46,7 +46,7 @@ Implementation, Tests, Docs & Comments, Config, and Generated / lockfiles.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/sections-dark.png">
-  <img src="docs/images/sections-light.png" width="360" alt="The gh-prism sidebar with Implementation (3 files, render.rs marked Partial), Tests (2), Docs & Comments (4, ending in an Implementation comments row), Config (2), and Generated / lockfiles (2), each with its lines added and removed.">
+  <img src="docs/images/sections-light.png" width="360" alt="The gh-prism sidebar with Implementation (3 files, render.rs marked Partial), Tests (2), Docs & Comments (4, ending in a Comment lines row), Config (2), and Generated / lockfiles (2), each with its lines added and removed.">
 </picture>
 
 </details>

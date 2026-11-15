@@ -243,25 +243,37 @@ describe("comment lines", () => {
     expect(sum(totals.map(({ lines }) => lines))).toEqual({ added: 41, removed: 6 });
   });
 
-  it("move nothing out of a file that doesn't land in Implementation", () => {
+  it("move nothing out of a file placed outside its path section", () => {
     const outside = landingOf({
       ok: true,
       placements: new Map<string, Placement>([["src/a.rs", { kind: "whole", section: "docs" }]]),
-      lines: new Map([
-        ["src/a.rs", { added: 2, removed: 0 }],
-        ["tests/b.rs", { added: 5, removed: 1 }],
-      ]),
-      commentLines: new Map([
-        ["src/a.rs", { added: 1, removed: 0 }],
-        ["tests/b.rs", { added: 2, removed: 1 }],
-      ]),
+      lines: new Map([["src/a.rs", { added: 2, removed: 0 }]]),
+      commentLines: new Map([["src/a.rs", { added: 1, removed: 0 }]]),
     });
 
-    expect(totalsOf(outside)).toEqual([
-      { section: "tests", lines: { added: 5, removed: 1 } },
-      { section: "docs", lines: { added: 2, removed: 0 } },
-    ]);
+    expect(totalsOf(outside)).toEqual([{ section: "docs", lines: { added: 2, removed: 0 } }]);
     expect(commentLinesOf(outside)).toEqual(undefined);
+  });
+
+  it("move a Tests file's comment lines to docs, as an Implementation file's", () => {
+    const tested = landingOf({
+      ok: true,
+      placements: new Map(),
+      lines: new Map([["tests/b.rs", { added: 5, removed: 1 }]]),
+      commentLines: new Map([["tests/b.rs", { added: 2, removed: 1 }]]),
+    });
+
+    expect(placesOf(sectionsOf(tested, files("tests/b.rs")), "tests/b.rs")).toEqual([
+      { section: "tests", share: undefined, lines: { added: 3, removed: 0 } },
+    ]);
+    expect(totalsOf(tested)).toEqual([
+      { section: "tests", lines: { added: 3, removed: 0 } },
+      { section: "docs", lines: { added: 2, removed: 1 } },
+    ]);
+    expect(commentLinesOf(tested)).toEqual({
+      lines: { added: 2, removed: 1 },
+      files: [{ path: "tests/b.rs", lines: { added: 2, removed: 1 } }],
+    });
   });
 
   it("move an Implementation file's own comment lines to docs in its per-file totals", () => {

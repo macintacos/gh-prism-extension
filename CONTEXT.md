@@ -65,27 +65,30 @@ than the patch, or in part to look for a generator's marker.
 marker is in question.
 
 **Hunk rule**: A rule that claims hunks for a rule section by what they change, not where
-the file lives, except that the docstring rule moves an Implementation file only whole.
-There are two: the docstring rule and the inline-test rule. _Avoid_: classifier, detector
+the file lives, except that the docstring rule moves an Implementation or Tests file only
+whole. There are two: the docstring rule and the inline-test rule. _Avoid_: classifier,
+detector
 
 **Generated rule**: The rule that claims a file whole for Generated when GitHub flags it
 generated or a generator's marker heads its leading comment block. _Avoid_: detector
 
 **Docstring-only change**: A hunk that changes only comments or docstrings. The docstring
-rule claims it for Docs & Comments. In an Implementation file it claims the file whole,
-when every hunk is docstring-only. Otherwise the hunk stays in Implementation while some
-other hunk stays there as code, and goes to Docs & Comments when none does.
+rule claims it for Docs & Comments. In an Implementation or Tests file it claims the file
+whole when every hunk is docstring-only; otherwise the hunk stays in the file's path
+section while some other hunk stays there as code, and goes to Docs & Comments when none
+does.
 
 **Inline-test change**: A hunk whose changes all sit inside a source file's test blocks.
 The inline-test rule claims it for Tests.
 
-**Comment lines**: The changed lines in a hunk left in Implementation that the comment
-scan confirms are comments or docstrings. They count toward Docs & Comments, in the
-comment-lines sub-section.
+**Comment lines**: The changed lines in a hunk left in Implementation or Tests that the
+comment scan confirms are comments or docstrings. They count toward Docs & Comments, in
+the comment-lines sub-section.
 
-**Comment-lines sub-section**: The sub-section at the end of Docs & Comments that lists
-each Implementation file with comment lines, counted by them. Its files don't count toward
-Docs & Comments' own file count. _Avoid_: comment-lines item, phantom item, phantom row
+**Comment-lines sub-section**: The sub-section at the end of Docs & Comments, headed
+Comment lines, that lists each Implementation or Tests file with comment lines, counted by
+them. Its files don't count toward Docs & Comments' own file count. _Avoid_: comment-lines
+item, phantom item, phantom row
 
 **Intent**: Where the hunk rules and the generated rule place a diff's files, once read. A
 file it doesn't mention keeps its path section. _Avoid_: classification
@@ -99,8 +102,8 @@ sections hunk by hunk.
 add and remove. _Avoid_: slice, part
 
 **Partial**: The sidebar's word for an entry holding only part of its file's lines: a
-share, an Implementation entry whose comment lines moved, or a comment-lines sub-section
-entry. _Avoid_: share, in anything a reviewer reads
+share, an Implementation or Tests entry whose comment lines moved, or a comment-lines
+sub-section entry. _Avoid_: share, in anything a reviewer reads
 
 **Landing**: Every file's resolved place in the sections, whole or as shares, with each
 section's line totals, built from intent or from paths alone.
