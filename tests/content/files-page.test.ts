@@ -10,12 +10,14 @@ import {
   appendToDiffs,
   changedCells,
   codeLines,
+  columnSlots,
   commitPage,
   copyMenuDivider,
   copyMenuGroup,
   copyMenuItem,
   coveredTop,
   diffEntryOf,
+  diffLineAt,
   diffTables,
   fileCountsOf,
   findClassicPage,
@@ -48,7 +50,9 @@ import {
   isLineAnchor,
   isPublicRepo,
   isSignedIn,
+  lineNumberCellOf,
   lineRowOfAnchor,
+  menuEntry,
   mountedDiffs,
   observeDiffs,
   observeTree,
@@ -67,6 +71,7 @@ import {
   viewedToggleOf,
   viewerLogin,
 } from "../../entrypoints/content/files-page";
+import commitSplit from "../fixtures/commit-page-diff-split.html?raw";
 import commitUnified from "../fixtures/commit-page-diff-unified.html?raw";
 import commitToolbar from "../fixtures/commit-page-toolbar.html?raw";
 import commentsFixture from "../fixtures/conversation-comments.html?raw";
@@ -101,6 +106,7 @@ import {
   VIEWED_CARGO_LOCK,
   VIEWED_LIB_RS,
 } from "../fixtures/files-page";
+import prRename from "../fixtures/files-page-diff-rename.html?raw";
 import prSplit from "../fixtures/files-page-diff-split.html?raw";
 import prUnified from "../fixtures/files-page-diff-unified.html?raw";
 import prToolbar from "../fixtures/files-page-toolbar.html?raw";
@@ -672,6 +678,29 @@ describe("findCompactLineHeight", () => {
       if (label.textContent === "Compact line height") label.textContent = "Something else";
 
     expect(findCompactLineHeight(menu)).toBeUndefined();
+  });
+});
+
+describe("menuEntry", () => {
+  it("shows a subtitle under its label and describes the item by it", () => {
+    document.body.innerHTML = `<div id="__primerPortalRoot__">${prLayoutMenu}</div>`;
+    const menu = findLayoutMenu(document);
+    const template = menu && findCompactLineHeight(menu);
+    if (!template) throw new Error("fixture has no Compact line height");
+
+    const item = menuEntry(template, {
+      id: "entry",
+      text: "Label",
+      subtitle: "More words",
+      role: "menuitemcheckbox",
+      checked: false,
+      pick: () => {},
+    });
+
+    const subtitle = item.querySelector("#entry--description");
+    expect(subtitle?.textContent).toBe("More words");
+    expect(item.getAttribute("aria-describedby")).toBe("entry--description");
+    expect(item.querySelector("#entry--label")?.textContent).toBe("Label");
   });
 });
 
@@ -1918,5 +1947,123 @@ describe("changedCells row", () => {
       expect(row).toBe(textRoot.closest("tr"));
     }
     expect(changedCells(document).length).toBeGreaterThan(0);
+  });
+});
+
+describe("diff lines", () => {
+  const SPLIT = "diff-ff278ec599adfd033d35a083ebe8948db8bf177c9817dee8ddc4f3a9e3f5728e";
+  const RENAME = "diff-c2a0fff5575ebf83634ea4da334a24d52775bcef6700ed6f9d0bc4e3db79e42a";
+  const COMMIT = "diff-cc3fb1ce8d7fcf13784c71a054155c0fcde23acb2ebee6c808198187e6232c6a";
+  /** The `index`th code cell anchored `anchor` (a split row holds two for a context line). */
+  const cell = (anchor: string, index = 0) => {
+    const found = document.querySelectorAll<HTMLTableCellElement>(
+      `td.diff-text-cell[data-line-anchor="${anchor}"]`,
+    )[index];
+    if (!found) throw new Error(`no cell ${anchor}`);
+    return found;
+  };
+  const lineOf = (target: Element) => {
+    const line = diffLineAt(target);
+    if (!line) throw new Error("no line");
+    return line;
+  };
+
+  describe("diffLineAt", () => {
+    it.each([
+      { name: "a pull request", html: prSplit, anchor: `${SPLIT}R4` },
+      { name: "a commit", html: commitSplit, anchor: `${COMMIT}R135` },
+    ])("finds the line of $name's code text and of the cell itself", ({ html, anchor }) => {
+      document.body.innerHTML = html;
+      const code = cell(anchor);
+      const text = code.querySelector(".diff-text-inner");
+      if (!text) throw new Error("no code text");
+
+      expect(diffLineAt(text)).toEqual({
+        cell: code,
+        row: code.closest("tr"),
+        table: code.closest("table"),
+      });
+      expect(diffLineAt(code)?.cell).toBe(code);
+    });
+
+    it("rejects a number cell, a hunk header, a filler, and a review thread", () => {
+      document.body.innerHTML = prSplit;
+      const code = cell(`${SPLIT}R4`);
+      const filler = cell(`${SPLIT}R5`);
+      filler.setAttribute("data-gh-prism-filler", "");
+      const thread = document.createElement("div");
+      thread.innerHTML = '<div data-testid="review-thread"><p>a comment</p></div>';
+      code.append(thread);
+
+      expect(diffLineAt(code.previousElementSibling)).toBeUndefined();
+      expect(diffLineAt(document.querySelector("td.diff-hunk-cell code"))).toBeUndefined();
+      expect(diffLineAt(filler)).toBeUndefined();
+      expect(diffLineAt(thread.querySelector("p"))).toBeUndefined();
+    });
+
+    it("rejects a link inside the code", () => {
+      document.body.innerHTML = prSplit;
+      const link = document.createElement("a");
+      cell(`${SPLIT}R4`).querySelector(".diff-text-inner")?.append(link);
+
+      expect(diffLineAt(link)).toBeUndefined();
+    });
+  });
+
+  describe("lineNumberCellOf", () => {
+    it("finds each side's number cell in a split row", () => {
+      document.body.innerHTML = prSplit;
+      const row = cell(`${SPLIT}R4`).closest("tr");
+
+      expect(lineNumberCellOf(lineOf(cell(`${SPLIT}R4`, 0)))).toBe(row?.cells[0]);
+      expect(lineNumberCellOf(lineOf(cell(`${SPLIT}R4`, 1)))).toBe(row?.cells[2]);
+    });
+
+    it("skips a unified deletion's empty new-side number cell", () => {
+      document.body.innerHTML = prRename;
+      const deletion = cell(`${RENAME}L14`);
+
+      expect(lineNumberCellOf(lineOf(deletion))).toBe(deletion.closest("tr")?.cells[0]);
+    });
+
+    it("finds a unified context line's new-side number cell", () => {
+      document.body.innerHTML = commitUnified;
+      const context = cell(`${COMMIT}R134`);
+
+      expect(lineNumberCellOf(lineOf(context))).toBe(context.previousElementSibling);
+    });
+  });
+
+  describe("columnSlots", () => {
+    it("walks to a row in either direction and stops at a hunk header", () => {
+      document.body.innerHTML = prSplit;
+      const start = lineOf(cell(`${SPLIT}R2`, 1));
+      const rowOf = (n: number) => cell(`${SPLIT}R${n}`, 1).closest("tr") as HTMLTableRowElement;
+      const hunk = document.querySelector("td.diff-hunk-cell")?.closest("tr");
+      if (!hunk) throw new Error("no hunk");
+
+      const down = columnSlots(start.table, start.row, rowOf(4), 3);
+      const up = columnSlots(start.table, start.row, hunk, 3);
+
+      expect(down.map((slot) => (typeof slot === "string" ? slot : slot.cell))).toEqual([
+        start.cell,
+        cell(`${SPLIT}R3`, 1),
+        cell(`${SPLIT}R4`, 1),
+      ]);
+      expect(up.map((slot) => (typeof slot === "string" ? slot : slot.cell))).toEqual([
+        start.cell,
+        cell(`${SPLIT}R1`, 1),
+        "stop",
+      ]);
+    });
+
+    it("reads a filler as a gap", () => {
+      document.body.innerHTML = prSplit;
+      const start = lineOf(cell(`${SPLIT}R2`, 1));
+      cell(`${SPLIT}R3`, 1).setAttribute("data-gh-prism-filler", "");
+      const end = cell(`${SPLIT}R3`, 1).closest("tr") as HTMLTableRowElement;
+
+      expect(columnSlots(start.table, start.row, end, 3)[1]).toBe("gap");
+    });
   });
 });

@@ -120,6 +120,15 @@ describe("showPrismMenu", () => {
     expect(group()?.querySelector('[data-component="ActionList.TrailingVisual"]')).toBeNull();
   });
 
+  it("gives an item's subtitle to its entry", async () => {
+    const page = pageOf("commit");
+    showPrismMenu(page, controller.signal, [{ ...item("first"), subtitle: "Below" }]);
+
+    await openMenu(page);
+
+    expect(document.querySelector("#first--description")?.textContent).toBe("Below");
+  });
+
   it.each([
     { name: "without Compact line height", menu: prMenu.replace("Compact line height", "Other") },
     { name: "without its Layout heading", menu: prMenu.replace(/GroupHeadingWrap/g, "Gone") },

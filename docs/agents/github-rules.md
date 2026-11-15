@@ -474,6 +474,30 @@ on a private one.
   reading "Write a reply" and `aria-hidden` until the thread is expanded; it opens the
   same textarea and Cancel (Chromium 157 and Firefox 157, sandbox PR #3 in Split,
   2026-11-10).
+- **Open a comment box by replaying GitHub's own presses; synthetic events work.**
+  Observed in Chromium 157 on sandbox PR #3 and commit `526444b`, 2026-11-14; Firefox not
+  measured.
+  - **The "+".** On both page kinds it is `button[aria-label="Add comment"]`; only a pull
+    request also marks it `data-add-comment-button`. GitHub mounts one "+" in the hovered
+    `td.diff-text-cell` and moves it to the last hovered line. A synthetic `mouseover` on
+    the cell mounts it a frame later; `mousemove` or `pointerover` alone doesn't.
+  - **A range.** A press (`pointerdown`, `mousedown` with `buttons: 1`, `pointerup`,
+    `mouseup`, `click`) on a number cell, then the same press with `shiftKey` on another,
+    writes that range into the hash with `history.pushState`. Each press adds a history
+    entry, with no scroll, focus move, or `hashchange`. Clicking the end line's "+" then
+    opens the box for the range. GitHub clamps no range, across hunks or Split's sides.
+  - **A synthetic drag from "+" does nothing.**
+  - **Boxes coexist.** Opening one keeps another's draft.
+  - **Text selection.** A `mousedown` on a code cell sets
+    `data-block-diff-cell-selection="left|right"` on the table, which makes the other
+    column's code `user-select: none`. Nothing clears it, but it never blocks a selection
+    on the pressed side, so it needs no clearing.
+  - **Number cells.** A commit's are `td.diff-line-number`, not `td.new-diff-line-number`.
+  - **Structural.** The "+", number-cell selection, and the box all follow Structural's
+    moved cells.
+  - **Tint the `td`.** `code.diff-text` stops about 20px short of its cell's left edge.
+  - **Re-check:** hover a code cell, read where `button[aria-label="Add comment"]` mounts,
+    then replay the press sequence above from the console.
 - **Test against the captured tables:** `tests/fixtures/files-page-diff-*.html` (pull
   request unified, split, and rename) and `tests/fixtures/commit-page-diff-*.html` (commit
   unified, split, and `?w=1` in both layouts). Each fixture's header comment names its

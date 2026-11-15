@@ -1034,8 +1034,11 @@ the menu's Layout group, made by `copyMenuGroup`, after a copy of its first divi
 by `copyMenuDivider`. Its heading reads "gh-prism" and ends with the mark's glyph.
 `diffs/prism-menu.css` adds the gap between the text and the glyph. Each item is a copy of
 Compact line height, which `findCompactLineHeight` finds, built by `menuEntry`, the same
-builder the owner section's entries use. The items carry no glyph. `followLayoutMenu` and
-`followFilterMenu` share one private loop, `followMenu`.
+builder the owner section's entries use. The items carry no glyph. An item with a subtitle
+gets a `data-gh-prism-label-stack` span in its label's place. The span holds the label
+over a muted `data-gh-prism-subtitle` line, which the item's `aria-describedby` names, and
+`prism-menu.css` styles both. `followLayoutMenu` and `followFilterMenu` share one private
+loop, `followMenu`.
 
 `prism-menu.ts` tracks whether the group can be offered, its gate: closed, open, or given
 up. It passes each change to every item's `follow` callback. The gate opens once the
@@ -1073,6 +1076,44 @@ stops at its own end. Hunk headers stay wrapped and don't shift. Structural's no
 loading line share the box with the table, and the box is their scroll container, so the
 sheet holds them at its left edge with `top: auto`, and they stop sticking under the file
 header.
+
+## Click anywhere on a line to comment
+
+[`entrypoints/content/diffs/click-to-comment.ts`](../entrypoints/content/diffs/click-to-comment.ts)
+builds the second item in gh-prism's diff settings group, "Click anywhere on a line to
+comment", with the subtitle "Hold Shift to select text". It saves the choice to
+`sync:clickToComment` in [`utils/prefs.ts`](../utils/prefs.ts), where a missing or
+unreadable value means off. gh-prism only drives GitHub's own controls: it never calls
+GitHub's endpoints, writes into a comment box, or posts.
+
+While the item is checked, the gate is open, and the page hasn't given up (see below), the
+module sets `data-gh-prism-click-comment` on `<html>`, mounts
+`diffs/click-to-comment.css`, and adds one delegated `pointerdown` listener on the diff
+list. Unchecking removes all three, so with the option off gh-prism does no work per line.
+The sheet's hover tint is keyed on GitHub's "+", `button[aria-label="Add comment"]`, which
+GitHub mounts only in the hovered cell of a line it lets you comment on. So the tint lands
+on exactly those lines, never on hunk headers, fillers, or a signed-out page, with no
+script per row.
+
+A plain left mouse press on a line, which `diffLineAt` in
+[`files-page.ts`](../entrypoints/content/files-page.ts) resolves, starts a drag when the
+line shows its "+". Touch, pen, and modified presses stay GitHub's. A Shift press
+collapses the selection to the press point and leaves the native text drag to run. The
+drag cancels the press's default and blocks `selectstart`, so no text gets selected. Its
+move, release, cancel, Escape, and blur listeners live only for that drag. Each move finds
+the row under the pointer in the start line's column. `columnSlots` walks the rows from
+the start line to that row, in either direction, and `rangeEnd` ends the range at the last
+line before the first hunk header on the way, skipping rows with no line in that column.
+The covered cells carry `data-gh-prism-comment-range`, tinted with GitHub's selected-line
+colour.
+
+On release, the module replays the presses GitHub answers to. For a range, it presses the
+first line's number cell, which `lineNumberCellOf` finds, then Shift-presses the last's. A
+single line needs no presses. If the URL hash already names a line, though, the module
+presses the line's number cell first, so the stale range doesn't widen the box. It then
+hovers the last line and clicks its "+" once it mounts. When a number cell is missing, or
+the "+" hasn't mounted within 5 frames, the page gives up: gh-prism logs one warning, and
+the option turns off until the next page.
 
 ## Structural painter
 

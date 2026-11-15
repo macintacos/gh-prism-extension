@@ -26,6 +26,7 @@ export type MenuGate = "closed" | "open" | "given up";
 export interface PrismMenuItem {
   readonly id: string;
   readonly text: string;
+  readonly subtitle?: string;
   readonly checked: () => boolean;
   readonly pick: () => void;
   /** Runs on every gate change, and once at start. */
@@ -82,6 +83,7 @@ export function showPrismMenu(
         menuEntry(compact, {
           id: item.id,
           text: item.text,
+          subtitle: item.subtitle,
           role: "menuitemcheckbox",
           checked: item.checked(),
           pick: item.pick,

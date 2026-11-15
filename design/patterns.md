@@ -644,8 +644,10 @@ its own that could drift. `menuEntry` in `files-page.ts` builds it from a templa
 fresh `id`, a label that the item's `aria-labelledby` names, the role and `aria-checked`
 state, and `tabindex="-1"`, as Primer's focus zone expects. A pick by click, Enter, or
 Space runs the item's action, then closes the menu with the `Escape` `keydown` Primer
-listens for. The owner section's entries in the file-tree filter menu and Wrap lines in
-the diff settings menu use it.
+listens for. An optional subtitle adds a muted second line under the label, which the
+item's `aria-describedby` names. gh-prism styles it in `diffs/prism-menu.css`, because the
+commit page's menu has no description item to copy. The owner section's entries in the
+file-tree filter menu and both diff settings items use it.
 
 gh-prism's diff settings items sit in a group headed "gh-prism", at the end of the menu,
 so a reader can tell them from GitHub's own items. The heading is a copy of GitHub's

@@ -524,6 +524,8 @@ export interface MenuEntryParts {
   readonly role: "menuitemradio" | "menuitemcheckbox";
   readonly checked: boolean;
   readonly pick: () => void;
+  /** A muted second line under the label, which also describes the item. */
+  readonly subtitle?: string;
 }
 
 /**
@@ -532,7 +534,7 @@ export interface MenuEntryParts {
  */
 export function menuEntry(
   template: HTMLElement,
-  { id, text, role, checked, pick }: MenuEntryParts,
+  { id, text, role, checked, pick, subtitle }: MenuEntryParts,
 ): HTMLElement {
   const { item, label } = copyMenuItem(template);
   item.id = id;
@@ -542,6 +544,20 @@ export function menuEntry(
   item.setAttribute("aria-checked", String(checked));
   label.id = `${id}--label`;
   label.textContent = text;
+
+  if (subtitle !== undefined) {
+    const doc = item.ownerDocument;
+    const stack = doc.createElement("span");
+    stack.setAttribute("data-gh-prism-label-stack", "");
+    const description = Object.assign(doc.createElement("span"), {
+      id: `${id}--description`,
+      textContent: subtitle,
+    });
+    description.setAttribute("data-gh-prism-subtitle", "");
+    label.replaceWith(stack);
+    stack.append(label, description);
+    item.setAttribute("aria-describedby", description.id);
+  }
 
   const pickAndClose = () => {
     pick();
@@ -1173,6 +1189,75 @@ export const lineRowOfAnchor = (page: FilesPage, anchor: string): HTMLTableRowEl
     ? (page.diffs.querySelector(`[data-line-anchor="${line}"]`)?.closest("tr") ?? null)
     : null;
 };
+
+/** GitHub's "+" that opens a line's comment box; it mounts only in the hovered code cell. */
+const ADD_COMMENT = 'button[aria-label="Add comment"]';
+
+/** A commentable line's code cell, with the row and table it sits in. */
+export interface DiffLine {
+  readonly cell: HTMLTableCellElement;
+  readonly row: HTMLTableRowElement;
+  readonly table: HTMLTableElement;
+}
+
+/** What a press on a line's own controls lands in, rather than on the line. */
+const LINE_CONTROL =
+  "a, button, input, textarea, select, summary, label, [role='button'], [contenteditable]";
+
+/**
+ * The line whose code cell `target` is, or whose code text holds it; `undefined` inside a thread,
+ * an open box, a control, a hunk header, a filler, or a cell without an anchor.
+ */
+export function diffLineAt(target: EventTarget | null): DiffLine | undefined {
+  if (!(target instanceof Element) || target.closest(LINE_CONTROL)) return undefined;
+  const cell = target.closest<HTMLTableCellElement>("td.diff-text-cell");
+  if (!cell || (target !== cell && !target.closest("td.diff-text-cell > code.diff-text")))
+    return undefined;
+  if (cell.querySelector(":scope > code.hunk") || cell.hasAttribute("data-gh-prism-filler"))
+    return undefined;
+  if (!cell.hasAttribute("data-line-anchor")) return undefined;
+  const row = cell.closest("tr");
+  const table = row?.closest("table");
+  return row && table ? { cell, row, table } : undefined;
+}
+
+/** `line`'s mounted "+", or `undefined` while GitHub shows none there. */
+export const addCommentButton = (line: DiffLine): HTMLButtonElement | undefined =>
+  line.cell.querySelector<HTMLButtonElement>(ADD_COMMENT) ?? undefined;
+
+/**
+ * `line`'s number cell: the `td` before its code, past a Unified deletion's empty new-side number.
+ * Split, Unified, both page kinds, and Structural's moved pairs all keep the two adjacent.
+ */
+export function lineNumberCellOf(line: DiffLine): HTMLTableCellElement | undefined {
+  let before = line.cell.previousElementSibling;
+  if (before?.matches(".empty-diff-line")) before = before.previousElementSibling;
+  return before instanceof HTMLTableCellElement ? before : undefined;
+}
+
+/**
+ * `table`'s rows from `from` to `to`, inclusive and in either direction, each read in `column`:
+ * its line, `"stop"` for a hunk header, or `"gap"` for any row with no line there.
+ */
+export function columnSlots(
+  table: HTMLTableElement,
+  from: HTMLTableRowElement,
+  to: HTMLTableRowElement,
+  column: number,
+): readonly (DiffLine | "gap" | "stop")[] {
+  const rows = [...table.rows];
+  const start = rows.indexOf(from);
+  const end = rows.indexOf(to);
+  const step = end < start ? -1 : 1;
+  const slots: (DiffLine | "gap" | "stop")[] = [];
+  for (let i = start; i !== end + step; i += step) slots.push(slotOf(rows[i], column));
+  return slots;
+}
+
+function slotOf(row: HTMLTableRowElement | undefined, column: number): DiffLine | "gap" | "stop" {
+  if (row?.querySelector("td.diff-hunk-cell")) return "stop";
+  return diffLineAt(row?.cells[column] ?? null) ?? "gap";
+}
 
 /** Which version of a file a diff cell shows. */
 export type DiffSide = "old" | "new";

@@ -1,6 +1,8 @@
 /* GitHub hooks: the copied Layout group's [data-component="ActionList.Group"], its
    [data-component="GroupHeadingWrap"] and the span inside it, and its ul[role="group"], which
-   prism-menu.ts labels "gh-prism"; the aria-hidden glyph it appends to that span. */
+   prism-menu.ts labels "gh-prism"; the aria-hidden glyph it appends to that span. gh-prism
+   hooks: [data-gh-prism-label-stack], which menuEntry puts in a label's place to hold it over
+   [data-gh-prism-subtitle]. */
 @import "../ui/tailwind.css" prefix(tw);
 
 [data-component="ActionList.Group"]:has(> ul[aria-label="gh-prism"])
@@ -8,4 +10,17 @@
   svg[aria-hidden="true"] {
   margin-inline-start: var(--base-size-4, 4px);
   vertical-align: text-bottom;
+}
+
+[data-gh-prism-label-stack] {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The commit page's menu has no description item to copy, so this matches GitHub's own
+   "Whitespace changes" subtitle by hand. */
+[data-gh-prism-subtitle] {
+  color: var(--fgColor-muted);
+  font-size: var(--text-body-size-small);
+  line-height: var(--text-body-lineHeight-small);
 }
