@@ -71,8 +71,9 @@ export default defineWebExtConfig({ disabled: true });
 ```
 
 To preview the sidebar's what's-new block, pass release notes into the build:
-`WXT_RELEASE_NOTES="$(cat notes.md)" mise run dev`. A fresh install, a dismissal, or a
-3-day-old first view hides it. If it doesn't show, run
+`WXT_RELEASE_NOTES="$(cat notes.md)" mise run dev`. A fresh install, a dismissal, a
+3-day-old first view, or the onboarding's veil over the sidebar hides it. If it doesn't
+show, dismiss the onboarding (or run `mise run dev --tenured`), then run
 `chrome.storage.local.remove("whatsNewSeen")` in the extension's service-worker console in
 Chrome, or `browser.storage.local.remove("whatsNewSeen")` in the console that gh-prism's
 **Inspect** opens in Firefox's `about:debugging`. Then reload a Files view.

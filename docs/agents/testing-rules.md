@@ -10,6 +10,8 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
 
 ## Vitest and happy-dom
 
+- **Expect `index-wiring` tests to start with the onboarding dismissed.** Its global
+  `beforeEach` stores `sync:onboarded`; a test of the veil removes it first.
 - **Opt a sheet in before a test reads it.** Vitest returns `""` for every CSS import,
   `?raw` and `?inline` included, unless the file matches `test.css.include` in
   `vitest.config.ts`.
@@ -114,6 +116,11 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
 
 ## End-to-end and bench
 
+- **Expect every smoke test to start as a tenured user.** The `context` fixture stores
+  `sync:onboarded` before the test runs: through the service worker in Chromium, and by
+  clicking "Start reviewing" on a throwaway `PR_URL` page in Firefox, which runs before a
+  Firefox `test.skip`. Opt out with `test.use({ onboarded: false })` to test the
+  onboarding.
 - **Name end-to-end tests `*.e2e.ts`.** Vitest's default include would collect a
   `.spec.ts` and try to run a Playwright test.
 - **Route fixtures to a github.com URL.** The content script matches github.com, so

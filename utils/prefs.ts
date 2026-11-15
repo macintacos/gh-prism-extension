@@ -112,10 +112,7 @@ export const structuralIntroDismissed = storage.defineItem<boolean>(
   { fallback: false },
 );
 
-/**
- * Whether the user revealed the sidebar past its onboarding; synced, so one reveal ends it in every
- * browser.
- */
+/** Whether the user dismissed the onboarding; browser sync carries it to their other browsers when on. */
 export const onboarded = storage.defineItem<boolean>("sync:onboarded", { fallback: false });
 
 /**

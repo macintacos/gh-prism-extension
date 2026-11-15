@@ -77,8 +77,9 @@ describe("j and k", () => {
     document.body.removeEventListener("keydown", later);
   });
 
-  it("hold still while the onboarding covers the sections, and step once it lifts", async () => {
-    const choice = { onboarded: false, lifts: new EventTarget() };
+  it("hold still while the veil shows, and step once it lifts", async () => {
+    const veiled = new AbortController();
+    const choice = { whileVeiled: veiled.signal, lift: () => veiled.abort() };
     remountWith(undefined, undefined, { onboarding: { choice, save: () => {} } });
     await afterDebounce();
 
@@ -87,7 +88,7 @@ describe("j and k", () => {
     expect(held.defaultPrevented).toBe(false);
     expect(clicked()).toEqual([]);
 
-    choice.onboarded = true;
+    choice.lift();
     press("j");
 
     expect(clicked()).toEqual(["src/generated/schema.rs"]);

@@ -35,7 +35,7 @@ import {
   readChangedFiles,
 } from "../files-page";
 import { type DiffstatOptions, showDiffstat } from "../header/diffstat-view";
-import { type OnboardingChoice, showOnboarding } from "../sidebar/onboarding";
+import { type OnboardingOptions, showOnboarding } from "../sidebar/onboarding";
 import { showSections } from "../sidebar/sections-view";
 import { type WhatsNew, whatsNewBlock } from "../sidebar/whats-new";
 import type { OwnerFilter } from "../ui/owners-dialog";
@@ -251,7 +251,7 @@ export function showVisit(
     whatsNew?: WhatsNew;
     landHash: () => void;
     structural?: StructuralMode;
-    onboarding?: { choice: OnboardingChoice; save: () => void };
+    onboarding?: OnboardingOptions;
   },
 ): { startStructural: (mode: StructuralMode) => void } {
   const sidebar = showSections(page, signal, { teamMembers, teamAvatar, teamRoster, filter });
@@ -265,7 +265,7 @@ export function showVisit(
   const views: LandingView[] = [
     sidebar,
     showDiffOrder(page, signal, { landHash }),
-    followFileKeys(page, signal, () => onboarding?.choice.onboarded === false),
+    followFileKeys(page, signal, () => onboarding?.choice.whileVeiled.aborted === false),
     showDiffstat(headerOf(page), { ...diffstat, files: page, signal }),
     followOnScreen(
       page,

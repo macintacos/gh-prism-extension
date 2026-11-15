@@ -37,7 +37,7 @@ and a leftover rule still matches only that tab's marked URL. It also clears the
 cache whenever the extension is installed, updated, or reloaded in development, and on a
 fresh install it marks the installed version's what's-new notes and the Structural popup
 dismissed. On install it also marks this browser's install as one the onboarding greets;
-on an update without that mark it stores the sidebar as revealed, since that user had
+on an update without that mark it stores the onboarding as dismissed, since that user had
 gh-prism before the onboarding shipped. A dev build applies `mise run dev`'s onboarding
 flag on install, reload, and browser start.
 
@@ -382,32 +382,35 @@ and watches it only if, at the tab's startup, the block can still show, since a 
 or expired version never shows again. A dismissal in one tab drops the block from the
 others on their next page. On `runtime.onInstalled` with reason `install`,
 [`entrypoints/background.ts`](../entrypoints/background.ts) marks the installed version
-dismissed, so only an update shows the notes. While the onboarding covers the sidebar, the
+dismissed, so only an update shows the notes. While the onboarding veils the sidebar, the
 block waits: `index.ts` doesn't ask for it, so its first view, and its 3 days, start on
-the first page after the reveal.
+the first page after the user dismisses the onboarding.
 
 ## The onboarding
 
 A new user's Files changed view, on a pull request or a commit, opens with the sidebar's
-sections covered, built by
+sections under a veil, built by
 [`entrypoints/content/sidebar/onboarding.ts`](../entrypoints/content/sidebar/onboarding.ts):
-the cover blurs the sections, makes them inert, and holds a short introduction and a
-button that reveals them. The diffs stay usable throughout.
+the veil blurs the sections, makes them inert, and holds a short introduction and a button
+that dismisses it. The diffs stay usable throughout.
 
-The `sync:onboarded` item in [`utils/prefs.ts`](../utils/prefs.ts) holds the reveal, so
+The `sync:onboarded` item in [`utils/prefs.ts`](../utils/prefs.ts) holds the dismissal, so
 browser sync carries it to the user's other browsers, best effort. The background sets it
 on an update that lacks the local install mark, since that user had gh-prism before the
-onboarding shipped; a fresh install sets the mark, so it keeps showing across updates
-until the reveal.
+onboarding shipped; a fresh install sets the mark, so the veil keeps showing across
+updates until the user dismisses it.
 
-`index.ts` reads `onboarded` with the other prefs before the first render, so a tenured
-user's sidebar is never drawn covered and a new user's cover mounts with the sections, in
-the same task. A failed read counts as revealed: better to skip the introduction than to
-cover a tenured user's sections. A tab that starts unrevealed watches the item, and a
-reveal in any tab, or one sync delivers late, lifts the covers already drawn. While the
-cover shows, `j` and `k` don't step through the files
+`index.ts` reads `onboarded` with the other prefs before the first render, so once the
+background has settled the install rule, a tenured user's sidebar is never drawn veiled
+and a new user's veil mounts with the sections, in the same task. A failed read counts as
+dismissed: better to skip the introduction than to veil a tenured user's sections. On the
+update that ships the onboarding, a content script that starts before the background's
+write lands reads `false` and veils a tenured user's sections; only the watch below lifts
+that veil. A tab that starts with the veil watches the item, and a dismissal in any tab,
+or one sync delivers late, lifts the veils already drawn. While the veil shows, `j` and
+`k` don't step through the files
 ([`entrypoints/content/diffs/file-keys.ts`](../entrypoints/content/diffs/file-keys.ts)),
-and the what's-new block waits for the first page after the reveal.
+and the what's-new block waits for the first page after the dismissal.
 
 ## The report link
 

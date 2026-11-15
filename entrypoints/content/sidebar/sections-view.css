@@ -307,7 +307,7 @@
   }
 }
 
-/* The onboarding veil overlays the nav, so the nav keeps at least its height. */
+/* The veil overlays the nav, so the nav keeps the veil's height at the default pane width (220px). */
 .gh-prism-sections:has(> .gh-prism-onboarding) {
   position: relative;
   min-height: 220px;
@@ -358,10 +358,13 @@
   .gh-prism-files,
   .gh-prism-whats-new-body,
   .gh-prism-whats-new,
-  .gh-prism-onboarding,
-  .gh-prism-sections:has(> .gh-prism-onboarding) > * {
+  .gh-prism-onboarding {
     transition: none;
     animation: none;
+  }
+
+  .gh-prism-sections:has(> .gh-prism-onboarding) > :not(.gh-prism-onboarding) {
+    transition: none;
   }
 
   .gh-prism-onboarding[inert] {

@@ -139,6 +139,16 @@ const recordFirstCommitView = () => {
 };
 // Runs the MutationObserver's pending microtask, and no timer.
 const afterMutations = () => vi.advanceTimersByTimeAsync(0);
+const FILES_PAGES = [
+  { page: "a pull request", path: PR, load: loadFixture },
+  { page: "a commit", path: "/o/r/commit/dd95cdc", load: loadCommitFixture },
+] as const;
+async function useRealShowVisit(): Promise<void> {
+  const actual = await vi.importActual<typeof import("../../entrypoints/content/visit/land")>(
+    "../../entrypoints/content/visit/land",
+  );
+  vi.mocked(showVisit).mockImplementation(actual.showVisit);
+}
 
 beforeEach(async () => {
   fakeBrowser.reset();
@@ -1179,29 +1189,26 @@ describe("content script", () => {
         name: "gh-prism",
         version: VERSION,
       });
-      const actual = await vi.importActual<typeof import("../../entrypoints/content/visit/land")>(
-        "../../entrypoints/content/visit/land",
-      );
-      vi.mocked(showVisit).mockImplementation(actual.showVisit);
+      await useRealShowVisit();
     });
 
-    it.each([
-      { page: "a pull request", path: PR, load: loadFixture },
-      { page: "a commit", path: "/o/r/commit/dd95cdc", load: loadCommitFixture },
-    ])("shows the block atop the sidebar on $page and stamps it", async ({ path, load }) => {
-      history.replaceState(null, "", path);
-      load();
-      const at = Date.now();
+    it.each(FILES_PAGES)(
+      "shows the block atop the sidebar on $page and stamps it",
+      async ({ path, load }) => {
+        history.replaceState(null, "", path);
+        load();
+        const at = Date.now();
 
-      await run();
+        await run();
 
-      expect(block()).toBeInstanceOf(HTMLElement);
-      expect(block()?.parentElement?.firstElementChild).toBe(block());
-      expect(block()?.closest(".gh-prism-sections")).not.toBeNull();
-      await vi.waitFor(async () =>
-        expect(await seen()).toEqual({ shown: { version: VERSION, at } }),
-      );
-    });
+        expect(block()).toBeInstanceOf(HTMLElement);
+        expect(block()?.parentElement?.firstElementChild).toBe(block());
+        expect(block()?.closest(".gh-prism-sections")).not.toBeNull();
+        await vi.waitFor(async () =>
+          expect(await seen()).toEqual({ shown: { version: VERSION, at } }),
+        );
+      },
+    );
 
     it("shows nothing once the version is dismissed", async () => {
       await fakeBrowser.storage.local.set({ whatsNewSeen: { dismissed: VERSION } });
@@ -1278,16 +1285,10 @@ describe("content script", () => {
 
     beforeEach(async () => {
       await fakeBrowser.storage.sync.remove("onboarded");
-      const actual = await vi.importActual<typeof import("../../entrypoints/content/visit/land")>(
-        "../../entrypoints/content/visit/land",
-      );
-      vi.mocked(showVisit).mockImplementation(actual.showVisit);
+      await useRealShowVisit();
     });
 
-    it.each([
-      { page: "a pull request", path: PR, load: loadFixture },
-      { page: "a commit", path: "/o/r/commit/dd95cdc", load: loadCommitFixture },
-    ])("covers a new user's sections on $page", async ({ path, load }) => {
+    it.each(FILES_PAGES)("covers a new user's sections on $page", async ({ path, load }) => {
       history.replaceState(null, "", path);
       load();
 
@@ -1337,7 +1338,7 @@ describe("content script", () => {
       await vi.waitFor(() => expect(lifted()).toBe(true));
     });
 
-    it("holds What's New back while it covers, and shows it on the first page after the reveal", async () => {
+    it("holds What's New back unstamped while the veil shows, and shows it on the first page after it lifts", async () => {
       vi.stubEnv("WXT_RELEASE_NOTES", "- Faster sections");
       vi.spyOn(fakeBrowser.runtime, "getManifest").mockReturnValue({
         manifest_version: 3,
@@ -1345,9 +1346,11 @@ describe("content script", () => {
         version: "1.2.3",
       });
       const block = () => document.querySelector(".gh-prism-whats-new");
+      const seen = async () => (await fakeBrowser.storage.local.get("whatsNewSeen")).whatsNewSeen;
       await run();
       expect(cover()).not.toBeNull();
       expect(block()).toBeNull();
+      expect(await seen()).toBeUndefined();
 
       reveal();
       const sidebar = byId("pr-file-tree");
@@ -1355,6 +1358,7 @@ describe("content script", () => {
       await afterMutations();
 
       expect(block()).not.toBeNull();
+      await vi.waitFor(async () => expect(await seen()).toBeDefined());
     });
 
     it("leaves other tabs' storage writes unwatched once revealed", async () => {

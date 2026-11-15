@@ -67,11 +67,12 @@ main() {
 		echo "Pass --fresh-install or --tenured, not both." >&2
 		exit 2
 	fi
+
 	# The background's dev build applies it on install, reload, and browser start.
-	WXT_DEV_ONBOARDING=
+	local -x WXT_DEV_ONBOARDING=
 	[[ ${usage_fresh_install:-false} != true ]] || WXT_DEV_ONBOARDING=fresh
 	[[ ${usage_tenured:-false} != true ]] || WXT_DEV_ONBOARDING=tenured
-	export WXT_DEV_ONBOARDING
+
 	free_profile Chrome --user-data-dir= "$chrome_profile"
 	free_profile Firefox "$firefox_launch_arg" "$firefox_profile"
 	# A fresh clone may skip setup; postinstall (wxt prepare) generates .wxt/.

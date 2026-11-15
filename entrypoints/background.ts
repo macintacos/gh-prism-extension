@@ -1,4 +1,4 @@
-import { browser } from "wxt/browser";
+import { type Browser, browser } from "wxt/browser";
 import { defineBackground } from "wxt/utils/define-background";
 import { storage } from "wxt/utils/storage";
 import { CONVERSATION_FRAME_PORT, conversationFraming } from "../utils/github/conversation-frame";
@@ -21,8 +21,9 @@ import { dismissWhatsNew } from "../utils/whats-new";
 /**
  * Serves pull request data and, on request, a file's structural changes to content scripts, lets
  * a tab's Conversation panel frame its pull request's Conversation tab, clears the intent cache
- * and retired storage keys on install, and marks a fresh install's what's-new notes and Structural
- * popup dismissed.
+ * and retired storage keys on install, marks a fresh install's what's-new notes and Structural
+ * popup dismissed, and settles the onboarding on install and update. A dev build also applies
+ * `mise run dev`'s onboarding flag on install, reload, and browser start.
  */
 export default defineBackground(() => {
   // Intents clear on installs, updates, and dev reloads alike: a new build may place files
@@ -79,10 +80,10 @@ export default defineBackground(() => {
 });
 
 /**
- * Marks a fresh install as this browser's new user, and stores the sidebar as revealed on an
+ * Marks a fresh install as this browser's new user, and stores the onboarding as dismissed on an
  * update without that mark: that user had gh-prism before the onboarding shipped.
  */
-async function settleOnboarding(reason: string): Promise<void> {
+async function settleOnboarding(reason: Browser.runtime.InstalledDetails["reason"]): Promise<void> {
   if (reason === "install") await installedWithOnboarding.setValue(true);
   else if (reason === "update" && !(await installedWithOnboarding.getValue())) {
     await onboarded.setValue(true);

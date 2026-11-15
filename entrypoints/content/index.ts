@@ -97,7 +97,8 @@ const CACHED_DIFFS = 50;
  * diffstat, docks the sidebar on the saved side with a switch, adds a link to report a
  * miscategorized file, adds an "Only files owned by…" section to GitHub's filter menu, on a pull
  * request adds a button opening its Conversation in a panel, and, after an update, opens the
- * sidebar with that release's notes. On a pull request's header tabs, stands in for the diffstat,
+ * sidebar with that release's notes, and, for a new user, veils the sidebar's sections with an
+ * introduction until they dismiss it. On a pull request's header tabs, stands in for the diffstat,
  * and on Conversation lists a code owner's files from their Reviewers sidebar shield. On
  * Conversation and Files changed, lists them from the shield beside their comments. On a commit's
  * page, shows its message rendered as Markdown, above the diffs or in a column beside them, with a
@@ -281,13 +282,12 @@ export default defineContentScript({
               teamRoster,
               owner,
               filter,
-              // Not calling whatsNewForPage leaves its first showing for the page after the reveal.
-              whatsNew: onboarding.onboarded ? whatsNewForPage?.() : undefined,
               landHash,
               structural: structuralFor(),
-              onboarding: onboarding.onboarded
-                ? undefined
-                : { choice: onboarding, save: saveOnboarded },
+              // Not calling whatsNewForPage leaves its first showing for the page after the lift.
+              ...(onboarding.whileVeiled.aborted
+                ? { whatsNew: whatsNewForPage?.() }
+                : { onboarding: { choice: onboarding, save: saveOnboarded } }),
             });
             showDiffViewControl(page, signal, {
               choice: pageStructural(structural, () => {
@@ -720,17 +720,17 @@ const saveOnboarded = () =>
     );
 
 /**
- * The tab's onboarding choice, lifting its drawn covers once any tab reveals the sidebar, until
- * `ctx` ends. Revealed at startup, it never shows again, so its tab skips the watch.
+ * The tab's onboarding choice, lifting its drawn veils once any tab dismisses one, until `ctx`
+ * ends. Dismissed at startup, it never shows again, so its tab skips the watch.
  */
 async function followOnboarding(ctx: ContentScriptContext): Promise<OnboardingChoice> {
-  const choice: OnboardingChoice = { onboarded: await readOnboarded(), lifts: new EventTarget() };
-  if (!choice.onboarded) {
+  const veiled = new AbortController();
+  const choice: OnboardingChoice = { whileVeiled: veiled.signal, lift: () => veiled.abort() };
+  if (await readOnboarded()) choice.lift();
+  else {
     ctx.onInvalidated(
       onboarded.watch((saved) => {
-        if (saved !== true) return;
-        choice.onboarded = true;
-        choice.lifts.dispatchEvent(new Event("lift"));
+        if (saved === true) choice.lift();
       }),
     );
   }

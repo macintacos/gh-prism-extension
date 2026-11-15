@@ -21,8 +21,9 @@ at the top, dated.
   - a translucent veil that fills the nav, led by the spectrum, over the sections blurred
     8px, with "Start reviewing".
 - **Won:** the veil, picked by the maintainer.
-  - **Layout:** overlay. The veil is the nav's first child and covers the nav's other
-    children, which are blurred and carry the `inert` attribute. Its ground is
+  - **Layout:** overlay. The veil is a child of the nav, absolutely placed over its other
+    children, and covers the nav's other children, which are blurred and carry the `inert`
+    attribute. Its ground is
     `color-mix(in srgb, var(--bgColor-default) 55%, transparent)`, so the blurred sections
     show through. From the top, with 10px gaps: the spectrum, the heading with the mark,
     the blurb, the note, and a full-width primary button.
@@ -1783,7 +1784,6 @@ This entry replaces the sweep recorded in the entry below it.
 
     A literal three-quarter triangular prism was drawn and dropped before the mockup,
     because at 16px it read as a triangle beside a slab;
-
   - on hover: the bars alone cycling the hues, the whole mark cycling them, or the
     spectrum drifting along the bars.
 - **Won:** the faceted pyramid, and the whole mark cycling.

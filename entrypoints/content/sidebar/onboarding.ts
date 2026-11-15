@@ -9,10 +9,15 @@ import { el } from "../ui/dom";
 import { prismMark } from "../ui/mark";
 import { SECTION_SPECTRUM } from "../ui/section-catalog";
 
-/** A tab's onboarding state; `lifts` fires `lift` once any tab reveals the sidebar. */
+/** A tab's onboarding; `whileVeiled` aborts once `lift` runs, after a dismissal in any tab. */
 export interface OnboardingChoice {
-  onboarded: boolean;
-  readonly lifts: EventTarget;
+  readonly whileVeiled: AbortSignal;
+  readonly lift: () => void;
+}
+
+export interface OnboardingOptions {
+  readonly choice: OnboardingChoice;
+  readonly save: () => void;
 }
 
 const ATTRIBUTE = "data-gh-prism-onboarding";
@@ -20,7 +25,7 @@ const ATTRIBUTE = "data-gh-prism-onboarding";
 /** Keep at the stylesheet's `.gh-prism-onboarding` lift transition duration. */
 const LIFT_MS = 280;
 
-/** The veil's content: the spectrum, the heading with the mark, the blurb, the note, the button. */
+/** Builds the veil, and returns its button for the caller to wire. */
 function veil(doc: Document): { cover: HTMLElement; button: HTMLButtonElement } {
   const spectrum = el(doc, "div", "tw:h-[3px] tw:rounded-full");
   spectrum.style.background = SECTION_SPECTRUM;
@@ -68,14 +73,14 @@ function veil(doc: Document): { cover: HTMLElement; button: HTMLButtonElement } 
 }
 
 /**
- * Covers `nav`'s sections with the onboarding until the reader reveals them, saving through
- * `save`, or `choice.lifts` fires, or `signal` aborts. Everything else in `nav`, now or added
- * later, is inert while it covers.
+ * Veils `nav`'s sections until `choice.whileVeiled` or `signal` aborts. Its button saves through
+ * `save` and lifts every veil in the tab through `choice.lift`. Everything else in `nav`, now or
+ * added later, is inert while the veil shows.
  */
 export function showOnboarding(
   nav: HTMLElement,
   signal: AbortSignal,
-  { choice, save }: { choice: OnboardingChoice; save: () => void },
+  { choice, save }: OnboardingOptions,
 ): void {
   const { cover, button } = veil(nav.ownerDocument);
   const inerted = new Set<HTMLElement>();
@@ -95,15 +100,15 @@ export function showOnboarding(
   observer.observe(nav, { childList: true });
   signal.addEventListener("abort", () => observer.disconnect(), { once: true });
 
-  choice.lifts.addEventListener(
-    "lift",
+  choice.whileVeiled.addEventListener(
+    "abort",
     () => {
       const focused = cover.contains(nav.ownerDocument.activeElement);
       observer.disconnect();
       for (const node of inerted) node.inert = false;
       nav.removeAttribute(ATTRIBUTE);
       cover.inert = true;
-      if (focused) nav.querySelector<HTMLElement>(".gh-prism-section-toggle")?.focus();
+      if (focused) focusAfterLift(nav);
       // A timer, not transitionend: it also fires in a hidden tab and under reduced motion.
       setTimeout(() => cover.remove(), LIFT_MS);
     },
@@ -111,8 +116,14 @@ export function showOnboarding(
   );
 
   button.addEventListener("click", () => {
-    choice.onboarded = true;
     save();
-    choice.lifts.dispatchEvent(new Event("lift"));
+    choice.lift();
   });
+}
+
+/** Focuses the first section's toggle, or the nav itself while no section has landed. */
+function focusAfterLift(nav: HTMLElement): void {
+  const toggle = nav.querySelector<HTMLElement>(".gh-prism-section-toggle");
+  if (!toggle) nav.tabIndex = -1;
+  (toggle ?? nav).focus();
 }

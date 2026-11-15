@@ -27,7 +27,8 @@ beforeEach(() => {
   nav.className = "gh-prism-sections";
   nav.append(section(), section());
   document.body.replaceChildren(nav);
-  choice = { onboarded: false, lifts: new EventTarget() };
+  const veiled = new AbortController();
+  choice = { whileVeiled: veiled.signal, lift: () => veiled.abort() };
   controller = new AbortController();
 });
 
@@ -66,7 +67,7 @@ describe("showOnboarding", () => {
     vi.useRealTimers();
 
     expect(save).toHaveBeenCalledOnce();
-    expect(choice.onboarded).toBe(true);
+    expect(choice.whileVeiled.aborted).toBe(true);
     expect(cover()).toBeNull();
     expect(nav.hasAttribute("data-gh-prism-onboarding")).toBe(false);
     expect((nav.children[0] as HTMLElement).inert).toBe(false);
@@ -74,10 +75,20 @@ describe("showOnboarding", () => {
     expect(focused).toBe(nav.querySelector(".gh-prism-section-toggle"));
   });
 
-  it("lifts without saving when another tab reveals the sidebar", () => {
+  it("focuses the nav when dismissed before any section lands", () => {
+    nav.replaceChildren();
+    show();
+    button()?.focus();
+
+    button()?.click();
+
+    expect(document.activeElement).toBe(nav);
+  });
+
+  it("lifts without saving when another tab dismisses it", () => {
     show();
 
-    choice.lifts.dispatchEvent(new Event("lift"));
+    choice.lift();
 
     expect(save).not.toHaveBeenCalled();
     expect(nav.hasAttribute("data-gh-prism-onboarding")).toBe(false);
