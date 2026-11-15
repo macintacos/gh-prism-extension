@@ -178,7 +178,8 @@ changed, an optional `!` for a breaking change, then a colon.
 the type, such as Feature for `feat`. The label and the scope after it are the title's
 badge. _Avoid_: tag; pill, which names the diffstat's per-section labels
 
-**Diffstat**: The header's lines-changed counter, shown as a breakout or a total.
+**Diffstat**: A lines-changed counter gh-prism stands in for, the header's or a file
+header's, shown as a breakout or a total. One view applies to every diffstat on the page.
 
 **Breakout**: The diffstat view with one pill per section.
 

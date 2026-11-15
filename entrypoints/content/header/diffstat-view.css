@@ -1,12 +1,18 @@
-/* GitHub hooks: the header's lines-changed counter, the sibling after .gh-prism-diffstat. Every
-   other rule selects only gh-prism's own classes. */
+/* GitHub hooks: the header's lines-changed counter, the sibling after the page's
+   .gh-prism-diffstat, and a file header's count spans, the span siblings after
+   .gh-prism-file-diffstat. Every other rule selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @import "../ui/mark.css";
 @source "./diffstat-view.ts";
 @source "../ui/line-counts.ts";
 
 /* GitHub's counter, while the breakout stands in for it. Primer's .d-flex is !important too. */
-.gh-prism-diffstat + * {
+.gh-prism-diffstat:not(.gh-prism-file-diffstat) + * {
+  display: none !important;
+}
+
+/* A file header's +N, -M, and screen-reader text; the squares' div after them stays. */
+.gh-prism-file-diffstat ~ span {
   display: none !important;
 }
 
@@ -17,7 +23,8 @@
   font-weight: var(--base-text-weight-semibold);
 }
 
-.gh-prism-diffstat svg {
+.gh-prism-diffstat svg,
+.gh-prism-tip[popover] svg {
   flex-shrink: 0;
   width: 14px;
   height: 14px;
@@ -53,10 +60,28 @@
     visibility 120ms;
 }
 
-.gh-prism-pill:hover > .gh-prism-tip,
-.gh-prism-diffstat[data-view="total"]:is(:hover, :focus-visible) > .gh-prism-tip {
+/* A file stand-in's own tips never show: its region clips them, so the popover below shows a copy. */
+.gh-prism-diffstat:not(.gh-prism-file-diffstat) > .gh-prism-pill:hover > .gh-prism-tip,
+.gh-prism-diffstat:not(.gh-prism-file-diffstat)[data-view="total"]:is(:hover, :focus-visible)
+  > .gh-prism-tip,
+.gh-prism-tip[popover]:popover-open {
   opacity: 1;
   visibility: visible;
+}
+
+/* The file stand-ins' tip, in the top layer: placed by script, so the popover's inset and margin go. */
+.gh-prism-tip[popover] {
+  inset: auto;
+  margin: 0;
+  overflow: visible;
+  border: 0;
+  font-size: var(--text-body-size-small);
+}
+
+@starting-style {
+  .gh-prism-tip[popover]:popover-open {
+    opacity: 0;
+  }
 }
 
 /* The mark's tooltip never opens here; laid out, it would widen the page past the window's edge. */

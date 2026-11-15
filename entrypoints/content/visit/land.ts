@@ -261,7 +261,7 @@ export function showVisit(
     sidebar,
     showDiffOrder(page, signal, { landHash }),
     followFileKeys(page, signal),
-    showDiffstat(headerOf(page), { ...diffstat, signal }),
+    showDiffstat(headerOf(page), { ...diffstat, files: page, signal }),
     followOnScreen(
       page,
       (paths) => {

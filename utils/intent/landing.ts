@@ -113,11 +113,14 @@ export const sum = (counts: readonly LineCounts[]): LineCounts =>
   );
 
 /**
- * Each section's lines across the whole diff, in `SECTIONS` order, for sections that changed any. A
- * binary file counts in none.
+ * Each section's lines across `paths`, the whole diff by default, in `SECTIONS` order, for sections
+ * that changed any. A binary file counts in none.
  */
-export function totalsOf(landing: Landing): SectionLines[] {
-  const counted = [...landing.lines.keys()].flatMap((path) =>
+export function totalsOf(
+  landing: Landing,
+  paths: Iterable<string> = landing.lines.keys(),
+): SectionLines[] {
+  const counted = [...paths].flatMap((path) =>
     entriesOf(landing, path).flatMap(({ section, lines, moved }) => [
       ...(isCounted(lines) ? [{ section, lines }] : []),
       ...(moved ? [{ section: "docs" as const, lines: moved }] : []),

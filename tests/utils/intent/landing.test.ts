@@ -9,6 +9,7 @@ import {
   totalsOf,
 } from "../../../utils/intent/landing";
 import type { FileLines, Placement } from "../../../utils/intent/read";
+import { SECTIONS } from "../../../utils/sections";
 
 const split = {
   kind: "split",
@@ -167,6 +168,24 @@ describe("totalsOf", () => {
     expect(totalsOf(unchanged)).toEqual([]);
   });
 
+  it("gives a whole file's own lines in its section", () => {
+    expect(totalsOf(landing, ["src/notes.rs"])).toEqual([
+      { section: "docs", lines: { added: 4, removed: 4 } },
+    ]);
+  });
+
+  it("gives a split file one entry per share, in section order", () => {
+    expect(totalsOf(landing, ["src/render.rs"])).toEqual([
+      { section: "implementation", lines: { added: 5, removed: 1 } },
+      { section: "docs", lines: { added: 2, removed: 0 } },
+    ]);
+  });
+
+  it("gives nothing for a binary file or a path outside the diff", () => {
+    expect(totalsOf(landing, ["config/app.toml"])).toEqual([]);
+    expect(totalsOf(landing, ["src/absent.rs"])).toEqual([]);
+  });
+
   it("gives no totals from paths alone", () => {
     expect(totalsOf(landingOf(undefined))).toEqual([]);
   });
@@ -243,6 +262,25 @@ describe("comment lines", () => {
       { section: "docs", lines: { added: 2, removed: 0 } },
     ]);
     expect(commentLinesOf(outside)).toEqual(undefined);
+  });
+
+  it("move an Implementation file's own comment lines to docs in its per-file totals", () => {
+    expect(totalsOf(commented, ["src/parser.rs"])).toEqual([
+      { section: "implementation", lines: { added: 7, removed: 3 } },
+      { section: "docs", lines: { added: 3, removed: 0 } },
+    ]);
+  });
+
+  it("sum per file, section by section, to the whole diff's totals", () => {
+    const perFile = [...commented.lines.keys()].flatMap((path) => totalsOf(commented, [path]));
+    const summed = SECTIONS.flatMap((section) => {
+      const lines = sum(
+        perFile.filter((entry) => entry.section === section).map(({ lines }) => lines),
+      );
+      return lines.added + lines.removed > 0 ? [{ section, lines }] : [];
+    });
+
+    expect(summed).toEqual(totalsOf(commented));
   });
 
   it("list docs after the files that land there", () => {

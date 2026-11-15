@@ -755,10 +755,10 @@ on a private one.
 
 ## The file card
 
-- **Insert a node of gh-prism's own before a file's table, never inside GitHub's header.**
-  A file's region has two children: the sticky header wrapper
-  (`[class*="diffHeaderWrapper__"]`), then a card,
-  `div.border.position-relative.rounded-bottom-2`, whose only child is
+- **Insert a node of gh-prism's own before a file's table, never inside GitHub's header,
+  except the stand-in in [§ A file header's counter](#a-file-headers-counter).** A file's
+  region has two children: the sticky header wrapper (`[class*="diffHeaderWrapper__"]`),
+  then a card, `div.border.position-relative.rounded-bottom-2`, whose only child is
   `table[data-diff-anchor]`. A commit page has the same shape. A node placed with
   `table.before()` renders full width in the card under the header; the header's `top` and
   box stay the same, the page does not jump, and React logs nothing. The region's shape
@@ -851,7 +851,7 @@ on a private one.
   server renders the header's `rightContentWrapper__` slot with a skeleton (`skeleton__`)
   in it. The counter is a client-only child that waits on its own `page_data/diffstat`
   request, so on a large pull request it lands long after a cached intent does.
-  `showCounter` in
+  `followHeader` in
   [`header/diffstat-view.ts`](../../entrypoints/content/header/diffstat-view.ts) follows
   the slot through `observeDiffstat` for this reason. A commit page server-renders its
   counter.
@@ -883,6 +883,32 @@ on a private one.
   `pullRequestsChangesRoute.diffContents`. On the code-owners sandbox's PR #1, which
   serves the overview to the saved `storageState`, read the `branchGroup__`'s children in
   the server's HTML and after hydration, and the two slots' document order.
+
+## A file header's counter
+
+- **Expect pull request and commit pages to share the counts row's markup.** In each
+  `[class*="diff-file-header__"]`, a flex row holds the `+N` and `-M` spans, an `sr-only`
+  "Lines changed" span, and a `div` of five `[data-testid$=" diffstat"]` squares. Observed
+  on sandbox PR #3's Changes signed in and on public commit pages signed out on 2026-11-14
+  (Firefox unchecked), as are the bullets below.
+- **Put gh-prism's stand-in first in the counts row.** It is the one node gh-prism puts
+  inside GitHub's header. GitHub re-renders the row, so gh-prism re-derives the stand-in
+  on every pass. React's console and hydration with it in place are unchecked.
+- **Don't select by `hide-on-mobile__`.** The row sits inside one, hidden at 767.98px wide
+  and below, but the same class also tags the header's copy-path button.
+- **Expect a zero side's span to be omitted.** An additions-only file has only `+N`; a
+  deletions-only file has only `-M`, so `.fgColor-success` misses it.
+- **Expect no counts row on a pure rename or a binary file.** A binary file shows its size
+  instead.
+- **Expect React to split a pull request's numbers with a comment** (`+<!-- -->12`). The
+  `textContent` is the same as a commit page's `+12`.
+- **Expect the header itself not to be a click target.** Only the chevron collapses the
+  file; clicks on an empty spot or the counts do nothing (checked on commit pages
+  2026-11-14).
+- **Re-check:** load sandbox PR #3's `/changes` signed in (`storageState`) and a public
+  commit page, then count `findFileDiffstat`'s matches against
+  `[class*="diff-file-header__"]`: one per header with counted lines. Read the console
+  while the stand-in is mounted.
 
 ## The filter row and repo visibility
 

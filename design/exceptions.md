@@ -49,8 +49,9 @@ the departure as intended.
   theme would brighten the section. `tokens.md` § Section edge has the recipe.
 - **Header icons: grey until hover, not in their section's hue.** `patterns.md` gives
   every section's icon its hue. Beside GitHub's own header controls, hued icons pulled the
-  eye away from the review, so the header counter's icons stay `--fgColor-muted` until the
-  counter is hovered or focused. The sidebar's icons keep their hue.
+  eye away from the review, so the header counter's icons, and each file header's
+  counter's, stay `--fgColor-muted` until the counter is hovered or focused. The sidebar's
+  icons keep their hue.
 - **Keycap edges: GitHub's, below the 3:1 floor.** gh-prism's keycaps take GitHub's own
   `kbd` rule, whose border and raised bottom edge are `--borderColor-neutral-muted`: 1.2:1
   against Older's and Newer's buttons in a light theme and 1.3:1 in a dark one. The
@@ -61,9 +62,9 @@ the departure as intended.
   text holds the text floor, and the keycap is no control of its own, so its edge only
   frames a key that already reads.
 - **Header hairlines: decoration, below the 3:1 floor.** The floor holds hairlines to 3:1.
-  The short rules between the header counter's pills only echo the spacing and icons that
-  already separate the sections, so they stay `--borderColor-default`. `decisions.md` has
-  the pick.
+  The short rules between the pills of the header counter and each file header's counter
+  only echo the spacing and icons that already separate the sections, so they stay
+  `--borderColor-default`. `decisions.md` has the pick.
 - **Team box edges: Primer's Box border, below the 3:1 floor.** The floor holds non-text
   UI to 3:1. Each team's box in the code owner details dialog takes Primer's Box border,
   `--borderColor-default`, which is 1.43:1 against `--overlay-bgColor` in a light theme
