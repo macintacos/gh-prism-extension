@@ -608,8 +608,8 @@ Three controls hold the mark's glyph as their icon, which is not a mark: it has 
 and no tooltip, and says only that the control is gh-prism's. The classic page's "Why is
 gh-prism off?" button holds the bare glyph in its text colour. The diff view control's
 Structural segment holds the glyph and the coloured copy that pulses, and hovering or
-keyboard-focusing the segment runs the pulse (§ Switches). The Wrap lines item in the diff
-settings menu holds the bare glyph as its trailing icon (§ Menu items).
+keyboard-focusing the segment runs the pulse (§ Switches). The "gh-prism" group heading in
+the diff settings menu holds the bare glyph after its text (§ Menu items).
 
 At rest the mark is `--fgColor-muted`. Hovering cross-fades it to a coloured copy of the
 glyph on `tokens.md`'s "State, opening" row. While the pointer stays, the copy pulses on

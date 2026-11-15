@@ -1032,7 +1032,7 @@ every open that `followLayoutMenu` in
 [`files-page.ts`](../entrypoints/content/files-page.ts) reports. The group is a copy of
 the menu's Layout group, made by `copyMenuGroup`, after a copy of its first divider, made
 by `copyMenuDivider`. Its heading reads "gh-prism" and ends with the mark's glyph.
-`diffs/prism-menu.css` adds the gap between the text and the glyph. Each item is a copy of
+Tailwind classes on the glyph add the gap between it and the text. Each item is a copy of
 Compact line height, which `findCompactLineHeight` finds, built by `menuEntry`, the same
 builder the owner section's entries use. The items carry no glyph. An item with a subtitle
 gets a `data-gh-prism-label-stack` span in its label's place. The span holds the label
@@ -1108,13 +1108,15 @@ The covered cells carry `data-gh-prism-comment-range`, tinted with GitHub's sele
 colour.
 
 While the pointer rests within 48 px of the window's top or bottom, the drag scrolls the
-page once per animation frame. The scroll distance grows linearly from 0 at 48 px from the
-edge to 24 px per frame at the edge itself. After each frame's scroll, the drag finds the
-row under the pointer again, so the range follows the rows that scroll under it. That
-lookup uses `elementsFromPoint`, not `elementFromPoint`: near the top, the topmost element
-under the pointer is GitHub's sticky header, but the full stack still holds the row
-beneath it. So the range reaches rows the header covers. Scrolling stops when the pointer
-moves more than 48 px from the edge or the drag ends.
+page once per animation frame. Each scroll is instant (`behavior: "instant"`), because
+GitHub sets `scroll-behavior: smooth` on `html`, and a smooth scroll restarted every frame
+barely moves. The scroll distance grows linearly from 0 at 48 px from the edge to 24 px
+per frame at the edge itself. After each frame's scroll, the drag finds the row under the
+pointer again, so the range follows the rows that scroll under it. That lookup uses
+`elementsFromPoint`, not `elementFromPoint`: near the top, the topmost element under the
+pointer is GitHub's sticky header, but the full stack still holds the row beneath it. So
+the range reaches rows the header covers. Scrolling stops when the pointer moves more than
+48 px from the edge or the drag ends.
 
 On release, the module replays the presses GitHub answers to. For a range, it presses the
 first line's number cell, which `lineNumberCellOf` finds, then Shift-presses the last's. A
@@ -1122,7 +1124,8 @@ single line needs no presses. If the URL hash already names a line, though, the 
 presses the line's number cell first, so the stale range doesn't widen the box. It then
 hovers the last line and clicks its "+" once it mounts. When a number cell is missing, or
 the "+" hasn't mounted within 5 frames, the page gives up: gh-prism logs one warning, and
-the option turns off until the next page.
+click to comment stops responding on this page, though its diff settings item stays
+checked.
 
 ## Structural painter
 
@@ -1361,7 +1364,7 @@ entrypoints/
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, onboarding, report link, owner section
-    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet; structural-files.ts, a visit's structural answers; structural-mode.ts, Structural mode on a page; structural-notices.ts and structural-notices.css, its per-file notices and loading line; view-control.ts and view-control.css, the Unified, Split, and Structural control before the layout gear; structural-intro.ts, the Structural segment's popover and popup; prism-menu.ts and prism-menu.css, gh-prism's group in the diff settings menu; wrap-lines.ts and wrap-lines.css, the Wrap lines item and the unwrapped view; side-scroll.ts, each file's sideways scroll
+    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet; structural-files.ts, a visit's structural answers; structural-mode.ts, Structural mode on a page; structural-notices.ts and structural-notices.css, its per-file notices and loading line; view-control.ts and view-control.css, the Unified, Split, and Structural control before the layout gear; structural-intro.ts, the Structural segment's popover and popup; prism-menu.ts and prism-menu.css, gh-prism's group in the diff settings menu; click-to-comment.ts and click-to-comment.css, click anywhere on a line to comment; wrap-lines.ts and wrap-lines.css, the Wrap lines item and the unwrapped view; side-scroll.ts, each file's sideways scroll
     header/              diffstat breakout
     conversation/        a code owner's files popup and gh-prism's shield, in the Reviewers lists and beside Conversation and Files changed comment authors; the Conversation panel and its button, dressing its frame, and the messages the frame posts
     ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, column separator, view-transition glide, keycaps and the Shift+\ toolbar button, a visit's press guard for controls GitHub re-mounts mid-press, Tailwind tokens

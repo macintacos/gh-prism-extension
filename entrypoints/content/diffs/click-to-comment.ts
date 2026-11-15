@@ -29,47 +29,17 @@ export interface ClickToCommentOptions {
   readonly save: (on: boolean) => void;
 }
 
-const RANGE_ATTR = "data-gh-prism-comment-range";
-
-/** How near the window's top or bottom, in px, a drag's pointer scrolls the page. */
-const EDGE = 48;
-/** The most a drag scrolls per frame, in px, reached with the pointer at the window's edge. */
-const MAX_STEP = 24;
-
-/**
- * Pixels to scroll this frame for a drag's pointer at height `y` in a window `height` tall:
- * negative near the top, positive near the bottom, 0 elsewhere.
- */
-// ponytail: fixed linear speed curve; ease or accelerate it over time if drags overshoot.
-function edgeStep(y: number, height: number): number {
-  const depth = y < EDGE ? y - EDGE : y > height - EDGE ? y - (height - EDGE) : 0;
-  return Math.round((MAX_STEP * Math.max(-EDGE, Math.min(EDGE, depth))) / EDGE);
-}
-
-/** Frames to wait for GitHub to mount a hovered line's "+" before giving up. */
-const PLUS_FRAMES = 5;
-
-/** Index in `slots` (0 = the pressed line) where a range from slot 0 may end: the last line before the first "stop". */
-export function rangeEnd<L extends object>(slots: readonly (L | "gap" | "stop")[]): number {
-  let end = 0;
-  for (const [index, slot] of slots.entries()) {
-    if (slot === "stop") break;
-    if (slot !== "gap") end = index;
-  }
-  return end;
-}
-
 /**
  * The click-to-comment item, which turns presses on `page`'s diff lines into GitHub comment boxes
  * while it is checked, its group's gate is open, and GitHub's controls have answered, until
  * `signal` aborts.
  */
 export function clickToCommentItem(
-  page: FilesPage,
+  page: Pick<FilesPage, "diffs">,
   signal: AbortSignal,
   { choice, save }: ClickToCommentOptions,
 ): PrismMenuItem {
-  const doc = page.sidebar.ownerDocument;
+  const doc = page.diffs.ownerDocument;
   let gate: MenuGate = "closed";
   let gaveUp = false;
 
@@ -139,22 +109,33 @@ function onPress(doc: Document, event: PointerEvent, active: AbortSignal, giveUp
   }
 
   if (!addCommentButton(line)) return;
+  // Cancelling `pointerdown` suppresses the compatibility `mousedown`, so GitHub starts no cell selection of its own.
   event.preventDefault();
-  drag(doc, line, active, (first, last) => {
-    void openCommentBox(doc, first, last).then((opened) => opened || giveUp());
+  drag(doc, line, event.pointerId, active, (first, last) => {
+    void openCommentBox(doc, first, last).then((opened) => {
+      if (!opened) giveUp();
+    });
   });
 }
 
-/** Follows one drag from `start` until release, marking the range; `release` gets its lines in row order. */
+const RANGE_ATTR = "data-gh-prism-comment-range";
+
+/**
+ * Follows one drag by pointer `pointerId` from `start` until release, marking the range; `release`
+ * gets its lines in row order.
+ */
 function drag(
   doc: Document,
   start: DiffLine,
+  pointerId: number,
   active: AbortSignal,
   release: (first: DiffLine, last: DiffLine) => void,
 ) {
   const dragging = new AbortController();
   const whileDragging = AbortSignal.any([active, dragging.signal]);
-  const options = { signal: whileDragging };
+  // Captured so a release over a review thread, whose React root stops propagation, still lands.
+  const options = { signal: whileDragging, capture: true };
+  const ours = (event: Event) => event instanceof PointerEvent && event.pointerId === pointerId;
   let end = start;
   let marked: readonly DiffLine[] = [start];
   start.cell.setAttribute(RANGE_ATTR, "");
@@ -162,13 +143,15 @@ function drag(
     for (const line of marked) line.cell.removeAttribute(RANGE_ATTR);
   });
 
+  let lastRow: HTMLTableRowElement | undefined;
   const follow = (y: number) => {
     const row = rowUnder(doc, start, y);
-    if (!row) return;
+    if (!row || row === lastRow) return;
+    lastRow = row;
     const slots = columnSlots(start.table, start.row, row, start.cell.cellIndex);
     const endAt = rangeEnd(slots);
     const slot = slots[endAt];
-    if (!slot || typeof slot === "string") return;
+    if (!slot || typeof slot === "string" || slot === end) return;
     end = slot;
     for (const line of marked) line.cell.removeAttribute(RANGE_ATTR);
     marked = slots.slice(0, endAt + 1).filter((s): s is DiffLine => typeof s !== "string");
@@ -184,7 +167,7 @@ function drag(
     frame = undefined;
     const step = win ? edgeStep(pointerY, win.innerHeight) : 0;
     if (!win || step === 0) return;
-    win.scrollBy(0, step);
+    win.scrollBy({ top: step, behavior: "instant" });
     follow(pointerY);
     frame = win.requestAnimationFrame(scroll);
   };
@@ -195,6 +178,7 @@ function drag(
   doc.addEventListener(
     "pointermove",
     (event) => {
+      if (!ours(event) || !(event instanceof PointerEvent)) return;
       pointerY = event.clientY;
       follow(pointerY);
       if (frame === undefined) scroll();
@@ -203,14 +187,22 @@ function drag(
   );
   doc.addEventListener(
     "pointerup",
-    () => {
+    (event) => {
+      if (!ours(event)) return;
       dragging.abort();
       const forward = start.row.rowIndex <= end.row.rowIndex;
       release(forward ? start : end, forward ? end : start);
     },
     options,
   );
-  doc.addEventListener("pointercancel", () => dragging.abort(), options);
+  doc.addEventListener(
+    "pointercancel",
+    (event) => {
+      if (ours(event)) dragging.abort();
+    },
+    options,
+  );
+  // Stopped so GitHub's own Escape handling doesn't also run.
   doc.addEventListener(
     "keydown",
     (event) => {
@@ -219,10 +211,36 @@ function drag(
       event.stopPropagation();
       dragging.abort();
     },
-    { ...options, capture: true },
+    options,
   );
+  // Cancelling `pointerdown` doesn't stop text selection in every engine.
   doc.addEventListener("selectstart", (event) => event.preventDefault(), options);
   doc.defaultView?.addEventListener("blur", () => dragging.abort(), options);
+}
+
+/** Index in `slots` (0 = the pressed line) where a range from slot 0 may end: the last line before the first "stop". */
+export function rangeEnd(slots: readonly (object | "gap" | "stop")[]): number {
+  let end = 0;
+  for (const [index, slot] of slots.entries()) {
+    if (slot === "stop") break;
+    if (slot !== "gap") end = index;
+  }
+  return end;
+}
+
+/** How near the window's top or bottom, in px, a drag's pointer scrolls the page. */
+const EDGE = 48;
+/** The most a drag scrolls per frame, in px, reached with the pointer at the window's edge. */
+const MAX_STEP = 24;
+
+/**
+ * Pixels to scroll this frame for a drag's pointer at height `y` in a window `height` tall:
+ * negative near the top, positive near the bottom, 0 elsewhere.
+ */
+export function edgeStep(y: number, height: number): number {
+  const depth = y < EDGE ? y - EDGE : y > height - EDGE ? y - (height - EDGE) : 0;
+  // ponytail: fixed linear speed curve; ease or accelerate it over time if drags overshoot.
+  return Math.round((MAX_STEP * Math.max(-EDGE, Math.min(EDGE, depth))) / EDGE);
 }
 
 /**
@@ -238,9 +256,9 @@ function rowUnder(doc: Document, start: DiffLine, y: number): HTMLTableRowElemen
   if (row) return row;
 
   const { top, bottom } = start.table.getBoundingClientRect();
-  const rows = start.table.tBodies[0]?.rows;
-  if (y < top) return rows?.[0];
-  if (y > bottom) return rows?.[rows.length - 1];
+  const { rows } = start.table;
+  if (y < top) return rows[0];
+  if (y > bottom) return rows[rows.length - 1];
   return undefined;
 }
 
@@ -261,23 +279,31 @@ async function openCommentBox(doc: Document, first: DiffLine, last: DiffLine): P
     press(to, true);
   }
 
+  // Only a `mouseover` mounts GitHub's "+"; `pointerover` and `mousemove` don't.
   last.cell.dispatchEvent(new MouseEvent("mouseover", mouseInit(last.cell, false)));
   const plus = await mountedPlus(doc, last);
   plus?.click();
   return plus !== undefined;
 }
 
+/** Frames to wait for GitHub to mount a hovered line's "+" before giving up. */
+const PLUS_FRAMES = 5;
+
 /** `line`'s "+", polled once a frame for up to `PLUS_FRAMES` frames. */
 async function mountedPlus(doc: Document, line: DiffLine): Promise<HTMLButtonElement | undefined> {
-  for (let frame = 0; frame <= PLUS_FRAMES; frame++) {
+  for (let i = 0; i < PLUS_FRAMES; i++) {
     const plus = addCommentButton(line);
-    if (plus || frame === PLUS_FRAMES) return plus;
+    if (plus) return plus;
     await new Promise((resolve) => doc.defaultView?.requestAnimationFrame(resolve));
   }
-  return undefined;
+  return addCommentButton(line);
 }
 
-/** A left mouse press and release on `target`, as GitHub's own line-number handlers expect it. */
+/**
+ * A left mouse press and release on `target`, as GitHub's own line-number handlers expect it.
+ * Presses only number cells, which `diffLineAt` rejects, and `click()` sends no `pointerdown`, so
+ * the replay never re-enters `onPress`.
+ */
 function press(target: Element, shiftKey: boolean) {
   const mouse = mouseInit(target, shiftKey);
   const pointer = { ...mouse, pointerId: 1, pointerType: "mouse", isPrimary: true };

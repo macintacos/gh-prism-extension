@@ -1,24 +1,12 @@
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  type BrowserContext,
-  test as base,
-  chromium,
-  expect,
-  firefox,
-  type Page,
-} from "@playwright/test";
-import { withExtension } from "playwright-webextext";
+import { type BrowserContext, expect, type Page } from "@playwright/test";
 import { MARKS_ATTR } from "../entrypoints/content/diffs/structural-attrs";
 import { installLayoutMenu } from "../tests/fixtures/layout-menu";
+import { addFile, extensionTest } from "./harness";
 import type { NoticesHarness } from "./structural-notices-page";
 import type { StructuralHarness } from "./structural-page";
 
-const CHROME_EXTENSION = join(import.meta.dirname, "../.output/chrome-mv3");
-const FIREFOX_EXTENSION = join(import.meta.dirname, "../.output/firefox-mv3");
 const PR_URL = "https://github.com/o/r/pull/1/changes";
 const ANCHOR = "diff-ff278ec599adfd033d35a083ebe8948db8bf177c9817dee8ddc4f3a9e3f5728e";
 
@@ -53,44 +41,7 @@ const pageBody = (layout: Layout) =>
  * `bundle` is `wrap-lines-page.ts` with the structural painter's and notices' harnesses, built once
  * per worker. A content script can't be reached on a routed page, which has no repository to compare.
  */
-const test = base.extend<{ context: BrowserContext }, { bundle: string }>({
-  bundle: [
-    // Playwright requires a destructured first parameter; this fixture depends on nothing in it.
-    async ({ browserName: _ }, use) => {
-      await use(
-        execFileSync(
-          "bun",
-          [
-            join(import.meta.dirname, "../bench/bundle.ts"),
-            join(import.meta.dirname, "wrap-lines-page.ts"),
-          ],
-          { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
-        ),
-      );
-    },
-    { scope: "worker" },
-  ],
-  context: async ({ browserName }, use) => {
-    const profile = await mkdtemp(join(tmpdir(), "gh-prism-e2e-"));
-    const context = await (browserName === "firefox"
-      ? withExtension(firefox, FIREFOX_EXTENSION).launchPersistentContext(profile, {
-          proxy: { server: "http://127.0.0.1:9" },
-        })
-      : chromium.launchPersistentContext(profile, {
-          channel: "chromium",
-          args: [
-            `--disable-extensions-except=${CHROME_EXTENSION}`,
-            `--load-extension=${CHROME_EXTENSION}`,
-          ],
-        }));
-    await context.route("https://github.com/**", (route) => route.fulfill({ status: 404 }));
-
-    await use(context);
-
-    await context.close();
-    await rm(profile, { recursive: true, force: true });
-  },
-});
+const test = extensionTest("wrap-lines-page.ts");
 
 declare const window: Window & {
   readonly structural: StructuralHarness;
@@ -248,20 +199,6 @@ const inners = (page: Page, selector: string) =>
     })),
   );
 
-/** A copy of the page's diff region under a new anchor, appended after it, as a file that loads late. */
-const addFile = (page: Page, anchor: string) =>
-  page.evaluate(
-    ({ from, anchor }) => {
-      const region = document.getElementById(from);
-      if (!region) throw new Error("no diff region");
-      const copy = region.cloneNode(true) as HTMLElement;
-      copy.id = anchor;
-      copy.querySelector("table")?.setAttribute("data-diff-anchor", anchor);
-      region.after(copy);
-    },
-    { from: ANCHOR, anchor },
-  );
-
 test("Wrap lines is a checked item in the gh-prism group that Space unchecks from the keyboard", async ({
   context,
   page,
@@ -364,7 +301,7 @@ test("scrolling one unified file sideways leaves another file's offset alone", a
       .querySelector("table[data-diff-anchor] td.diff-text-cell .diff-text-inner")
       ?.append(" // a comment long enough to run past the cell".repeat(8));
   });
-  await addFile(page, "diff-0b7e");
+  await addFile(page, ANCHOR, "diff-0b7e");
   await unwrap(page);
   await expect.poll(async () => (await scrollRanges(page))[0]).toBeGreaterThan(0);
 
@@ -385,7 +322,7 @@ test("a file that loads after Wrap lines is unchecked comes up unwrapped and mea
   await openPage(context, page);
   await unwrap(page);
 
-  await addFile(page, "diff-0b7e");
+  await addFile(page, ANCHOR, "diff-0b7e");
 
   const late = page.locator("#diff-0b7e");
   await expect

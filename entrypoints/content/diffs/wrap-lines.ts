@@ -23,7 +23,7 @@ export interface WrapLinesOptions {
 
 /**
  * The Wrap lines item, which unwraps `page`'s diffs while it is unchecked and its group's gate is
- * open, until `signal` aborts. Diffs stay wrapped while the gate is closed or given up.
+ * open, until `signal` aborts.
  */
 export function wrapLinesItem(
   page: FilesPage,

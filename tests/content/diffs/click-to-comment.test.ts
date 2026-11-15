@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type ClickToCommentChoice,
   clickToCommentItem,
+  edgeStep,
   rangeEnd,
 } from "../../../entrypoints/content/diffs/click-to-comment";
 import type { MenuGate, PrismMenuItem } from "../../../entrypoints/content/diffs/prism-menu";
@@ -28,6 +29,21 @@ describe("rangeEnd", () => {
     { slots: [line, "gap", "gap"], end: 0 },
   ] as const)("ends $slots at $end", ({ slots, end }) => {
     expect(rangeEnd(slots)).toBe(end);
+  });
+});
+
+describe("edgeStep", () => {
+  it.each([
+    { y: 500, step: 0 },
+    { y: 48, step: 0 },
+    { y: 24, step: -12 },
+    { y: 0, step: -24 },
+    { y: -100, step: -24 },
+    { y: 976, step: 12 },
+    { y: 1000, step: 24 },
+    { y: 1100, step: 24 },
+  ])("scrolls $step px for a pointer at $y in a 1000 px window", ({ y, step }) => {
+    expect(edgeStep(y, 1000)).toBe(step);
   });
 });
 
@@ -129,11 +145,11 @@ describe("clickToCommentItem", () => {
       document.dispatchEvent(pointer("pointermove"));
     }
     document.dispatchEvent(pointer("pointerup"));
-    await vi
-      .waitFor(() => expect(log.some((entry) => entry.startsWith("+"))).toBe(true), {
-        timeout: 200,
-      })
-      .catch(() => {});
+    await frames(2);
+  }
+
+  async function frames(count: number) {
+    for (let i = 0; i < count; i++) await new Promise((resolve) => requestAnimationFrame(resolve));
   }
 
   beforeEach(() => {
@@ -214,7 +230,7 @@ describe("clickToCommentItem", () => {
     await hover(cell(anchor));
     await drag(textOf(cell(anchor)));
 
-    expect(log).toEqual([`+ ${anchor}`]);
+    await vi.waitFor(() => expect(log).toEqual([`+ ${anchor}`]));
   });
 
   it("presses the number cell first while the hash names a line", async () => {
@@ -225,7 +241,7 @@ describe("clickToCommentItem", () => {
     await hover(cell(`${SPLIT}R4`, 1));
     await drag(textOf(cell(`${SPLIT}R4`, 1)));
 
-    expect(log).toEqual([`press ${SPLIT}R4`, `+ ${SPLIT}R4`]);
+    await vi.waitFor(() => expect(log).toEqual([`press ${SPLIT}R4`, `+ ${SPLIT}R4`]));
   });
 
   it("selects a dragged range through the number cells, then clicks the last line's +", async () => {
@@ -244,6 +260,39 @@ describe("clickToCommentItem", () => {
 
     expect(log).toEqual([`press ${SPLIT}R4`, `shift-press ${SPLIT}R6`, `+ ${SPLIT}R6`]);
     expect(ranged()).toEqual([]);
+  });
+
+  it("leaves the marks untouched while the pointer moves within the same row", async () => {
+    standInGitHub();
+    show(pageOf(prSplit));
+    const start = cell(`${SPLIT}R4`, 1);
+    await hover(start);
+    start.dispatchEvent(pointer("pointerdown"));
+    document.elementsFromPoint = () => [textOf(cell(`${SPLIT}R6`, 1))];
+    document.dispatchEvent(pointer("pointermove"));
+    const writes = new MutationObserver(() => {});
+    writes.observe(document.body, { attributes: true, subtree: true });
+
+    document.dispatchEvent(pointer("pointermove"));
+
+    expect(writes.takeRecords()).toEqual([]);
+    expect(ranged()).toEqual([`${SPLIT}R4`, `${SPLIT}R5`, `${SPLIT}R6`]);
+  });
+
+  it("follows only the pointer that pressed, even when a thread stops its release", async () => {
+    standInGitHub();
+    show(pageOf(prSplit));
+    const start = cell(`${SPLIT}R4`, 1);
+    await hover(start);
+    start.addEventListener("pointerup", (event) => event.stopPropagation());
+    start.dispatchEvent(pointer("pointerdown", { pointerId: 1 }));
+
+    document.dispatchEvent(pointer("pointerup", { pointerId: 2 }));
+    await frames(2);
+    expect(log).toEqual([]);
+
+    start.dispatchEvent(pointer("pointerup", { pointerId: 1 }));
+    await vi.waitFor(() => expect(log).toEqual([`+ ${SPLIT}R4`]));
   });
 
   it("cancels a drag on Escape, clearing its marks and opening nothing", async () => {

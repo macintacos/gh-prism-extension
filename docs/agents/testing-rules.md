@@ -295,6 +295,8 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
 - **Await the sections' reveal animations, from `getAnimations({ subtree: true })`, with
   `Promise.allSettled`, not `Promise.all`.** A cancelled animation's `finished` rejects
   with an `AbortError`, which fails the wait even though the reveal has settled.
+  [`e2e/click-to-comment.e2e.ts`](../../e2e/click-to-comment.e2e.ts)'s `settle` is the
+  pattern.
 - **Aim a press or drag on a line's text at the text's own box.** Get it from
   `getBoundingClientRect()` on a `Range` over the text. A short line's `.diff-text-inner`
   runs past its last character. A hovered line's add-comment "+" covers the cell's left

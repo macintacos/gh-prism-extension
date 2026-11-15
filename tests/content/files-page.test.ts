@@ -20,6 +20,7 @@ import {
   diffLineAt,
   diffTables,
   fileCountsOf,
+  fillerCells,
   findClassicPage,
   findCommentAuthors,
   findCommitColumnRow,
@@ -1986,11 +1987,11 @@ describe("diff lines", () => {
       expect(diffLineAt(code)?.cell).toBe(code);
     });
 
-    it("rejects a number cell, a hunk header, a filler, and a review thread", () => {
+    it("rejects a number cell, a press on a hunk row's code, a filler, and a review thread", () => {
       document.body.innerHTML = prSplit;
       const code = cell(`${SPLIT}R4`);
-      const filler = cell(`${SPLIT}R5`);
-      filler.setAttribute("data-gh-prism-filler", "");
+      const [, filler] = fillerCells(document, prPage.emptySide.new, "data-x");
+      code.closest("tr")?.append(filler);
       const thread = document.createElement("div");
       thread.innerHTML = '<div data-testid="review-thread"><p>a comment</p></div>';
       code.append(thread);
@@ -2022,6 +2023,13 @@ describe("diff lines", () => {
     it("skips a unified deletion's empty new-side number cell", () => {
       document.body.innerHTML = prRename;
       const deletion = cell(`${RENAME}L14`);
+
+      expect(lineNumberCellOf(lineOf(deletion))).toBe(deletion.closest("tr")?.cells[0]);
+    });
+
+    it("skips a commit's unified deletion's blank new-side number cell", () => {
+      document.body.innerHTML = commitUnified;
+      const deletion = cell(`${COMMIT}L137`);
 
       expect(lineNumberCellOf(lineOf(deletion))).toBe(deletion.closest("tr")?.cells[0]);
     });
@@ -2060,8 +2068,10 @@ describe("diff lines", () => {
     it("reads a filler as a gap", () => {
       document.body.innerHTML = prSplit;
       const start = lineOf(cell(`${SPLIT}R2`, 1));
-      cell(`${SPLIT}R3`, 1).setAttribute("data-gh-prism-filler", "");
       const end = cell(`${SPLIT}R3`, 1).closest("tr") as HTMLTableRowElement;
+      const [numberCell, filler] = fillerCells(document, prPage.emptySide.new, "data-x");
+      end.cells[2]?.replaceWith(numberCell);
+      end.cells[3]?.replaceWith(filler);
 
       expect(columnSlots(start.table, start.row, end, 3)[1]).toBe("gap");
     });

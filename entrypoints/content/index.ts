@@ -167,9 +167,8 @@ export default defineContentScript({
     } satisfies DiffstatOptions;
     // Shared by every visit, so Unified seen on one keeps the next one off.
     const structural = structuralChoiceOf(savedStructural === true, saveStructural);
-    // Shared by every visit, so a soft navigation keeps the diffs as the reader last left them.
+    // Shared by every visit, so a soft navigation keeps both diff settings as the reader left them.
     const wrap: WrapChoice = { on: savedWrap !== false };
-    // Shared by every visit, so a soft navigation keeps the diffs as the reader last left them.
     const clickComment: ClickToCommentChoice = { on: savedClickComment === true };
     const notice: NoticeChoice = { dismissed };
     const conversation = conversationChoiceOf(

@@ -524,7 +524,10 @@ export interface MenuEntryParts {
   readonly role: "menuitemradio" | "menuitemcheckbox";
   readonly checked: boolean;
   readonly pick: () => void;
-  /** A muted second line under the label, which also describes the item. */
+  /**
+   * A muted second line under the label, which also describes the item. Only `diffs/prism-menu.css`
+   * styles it, so it renders as a second line only inside gh-prism's diff settings group.
+   */
   readonly subtitle?: string;
 }
 
@@ -943,7 +946,7 @@ export interface LayoutMenu {
   readonly split: HTMLElement;
   /** The headed Layout group; absent when GitHub drops its heading. */
   readonly headedGroup: MenuHeadedGroup | undefined;
-  /** The menu's first divider. */
+  /** The menu's first divider; absent when it has none. */
   readonly divider: Element | undefined;
 }
 
@@ -1206,14 +1209,12 @@ const LINE_CONTROL =
 
 /**
  * The line whose code cell `target` is, or whose code text holds it; `undefined` inside a thread,
- * an open box, a control, a hunk header, a filler, or a cell without an anchor.
+ * an open box, a control, a hunk header, or a cell without an anchor.
  */
 export function diffLineAt(target: EventTarget | null): DiffLine | undefined {
   if (!(target instanceof Element) || target.closest(LINE_CONTROL)) return undefined;
   const cell = target.closest<HTMLTableCellElement>("td.diff-text-cell");
   if (!cell || (target !== cell && !target.closest("td.diff-text-cell > code.diff-text")))
-    return undefined;
-  if (cell.querySelector(":scope > code.hunk") || cell.hasAttribute("data-gh-prism-filler"))
     return undefined;
   if (!cell.hasAttribute("data-line-anchor")) return undefined;
   const row = cell.closest("tr");
@@ -1226,12 +1227,14 @@ export const addCommentButton = (line: DiffLine): HTMLButtonElement | undefined 
   line.cell.querySelector<HTMLButtonElement>(ADD_COMMENT) ?? undefined;
 
 /**
- * `line`'s number cell: the `td` before its code, past a Unified deletion's empty new-side number.
+ * `line`'s number cell: the `td` before its code, past a Unified deletion's empty or blank new-side
+ * number.
  * Split, Unified, both page kinds, and Structural's moved pairs all keep the two adjacent.
  */
 export function lineNumberCellOf(line: DiffLine): HTMLTableCellElement | undefined {
   let before = line.cell.previousElementSibling;
-  if (before?.matches(".empty-diff-line")) before = before.previousElementSibling;
+  if (before?.matches(".empty-diff-line") || before?.textContent?.trim() === "")
+    before = before.previousElementSibling;
   return before instanceof HTMLTableCellElement ? before : undefined;
 }
 
@@ -1245,12 +1248,11 @@ export function columnSlots(
   to: HTMLTableRowElement,
   column: number,
 ): readonly (DiffLine | "gap" | "stop")[] {
-  const rows = [...table.rows];
-  const start = rows.indexOf(from);
-  const end = rows.indexOf(to);
+  const start = from.rowIndex;
+  const end = to.rowIndex;
   const step = end < start ? -1 : 1;
   const slots: (DiffLine | "gap" | "stop")[] = [];
-  for (let i = start; i !== end + step; i += step) slots.push(slotOf(rows[i], column));
+  for (let i = start; i !== end + step; i += step) slots.push(slotOf(table.rows[i], column));
   return slots;
 }
 

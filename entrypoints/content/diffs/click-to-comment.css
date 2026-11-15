@@ -4,8 +4,8 @@
    click-to-comment.ts mounts this sheet and writes data-gh-prism-click-comment on <html> while
    the option is on, and data-gh-prism-comment-range on each code cell a drag covers. */
 
-/* The cell, not its code.diff-text, which stops short of the cell's edges. A cell holding a
-   thread or an open box stays untinted, so neither takes the tint. An overlay, not a background
+/* The cell, not its code.diff-text, which stops short of the cell's edges. A thread or open
+   box renders inside the cell, so a cell holding one stays untinted. An overlay, not a background
    colour, so added and deleted lines keep GitHub's inline tint under it. */
 html[data-gh-prism-click-comment]
   td.diff-text-cell:hover:has(button[aria-label="Add comment"]):not(

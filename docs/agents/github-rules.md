@@ -493,6 +493,9 @@ on a private one.
     column's code `user-select: none`. Nothing clears it, but it never blocks a selection
     on the pressed side, so it needs no clearing.
   - **Number cells.** A commit's are `td.diff-line-number`, not `td.new-diff-line-number`.
+    On a commit's Unified deletion row, the new-side number cell is an empty
+    `td.diff-line-number`. A pull request uses `.empty-diff-line` there. So the old-side
+    number cell is two cells before the code cell.
   - **Structural.** The "+", number-cell selection, and the box all follow Structural's
     moved cells.
   - **Tint the `td`.** `code.diff-text` stops about 20px short of its cell's left edge.

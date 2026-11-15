@@ -29,7 +29,7 @@ export interface PrismMenuItem {
   readonly subtitle?: string;
   readonly checked: () => boolean;
   readonly pick: () => void;
-  /** Runs on every gate change, and once at start. */
+  /** Runs on every gate change. */
   readonly follow: (gate: MenuGate) => void;
 }
 
@@ -77,7 +77,7 @@ export function showPrismMenu(
     }
     const dividerCopy = copyMenuDivider({ divider });
     const { group, list, heading } = copyMenuGroup({ headedGroup }, "gh-prism");
-    heading.append(prismGlyph(doc, {}));
+    heading.append(prismGlyph(doc, { class: "tw:ms-1 tw:align-text-bottom" }));
     for (const item of items)
       list.append(
         menuEntry(compact, {
@@ -102,5 +102,4 @@ export function showPrismMenu(
     { signal },
   );
   openGate();
-  if (gate === "closed") setGate(gate);
 }

@@ -1,27 +1,15 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { showPrismMenu } from "../../../entrypoints/content/diffs/prism-menu";
 import { type WrapChoice, wrapLinesItem } from "../../../entrypoints/content/diffs/wrap-lines";
-import {
-  type FilesPage,
-  findFilesPage,
-  findFilesToolbar,
-  findLayoutGear,
-} from "../../../entrypoints/content/files-page";
-import commitSplit from "../../fixtures/commit-page-diff-split.html?raw";
-import commitUnified from "../../fixtures/commit-page-diff-unified.html?raw";
-import commitToolbar from "../../fixtures/commit-page-toolbar.html?raw";
-import { loadCommitFixture, loadFixture } from "../../fixtures/files-page";
-import prUnified from "../../fixtures/files-page-diff-rename.html?raw";
-import prSplit from "../../fixtures/files-page-diff-split.html?raw";
+import { type FilesPage, findFilesToolbar } from "../../../entrypoints/content/files-page";
 import prToolbar from "../../fixtures/files-page-toolbar.html?raw";
-import { installLayoutMenu } from "../../fixtures/layout-menu";
-import commitMenu from "../../fixtures/layout-menu-commit.html?raw";
 import prMenu from "../../fixtures/layout-menu-pr.html?raw";
+import { openMenu, useMenuTest } from "./menu-page";
 
 describe("wrapLinesItem", () => {
-  let controller: AbortController;
-  let warn: ReturnType<typeof vi.spyOn>;
+  const harness = useMenuTest();
+  const { pageOf } = harness;
   const flush = () => vi.advanceTimersByTimeAsync(100);
   const unwrapped = () => document.documentElement.dataset.ghPrismWrap === "off";
   const labelled = (text: string) =>
@@ -30,68 +18,16 @@ describe("wrapLinesItem", () => {
     );
   const wrapItem = () => labelled("Wrap lines");
 
-  /** A page of `kind` with one diff table and, unless `gear` is false, its toolbar's gear. */
-  function pageOf(
-    kind: "pr" | "commit",
-    { gear = true, menu }: { gear?: boolean; menu?: string } = {},
-  ): FilesPage {
-    const fixtures =
-      kind === "pr"
-        ? {
-            load: loadFixture,
-            toolbar: prToolbar,
-            menu: prMenu,
-            unified: prUnified,
-            split: prSplit,
-          }
-        : {
-            load: loadCommitFixture,
-            toolbar: commitToolbar,
-            menu: commitMenu,
-            unified: commitUnified,
-            split: commitSplit,
-          };
-    fixtures.load();
-    const page = findFilesPage(document);
-    const toolbar = page && findFilesToolbar(page);
-    if (!page || !toolbar) throw new Error("fixture has no page or toolbar");
-    if (gear) toolbar.outerHTML = fixtures.toolbar;
-    else findLayoutGear(page)?.remove();
-    const region = document.createElement("div");
-    region.innerHTML = fixtures.split;
-    page.diffs.append(region);
-    installLayoutMenu({
-      menu: menu ?? fixtures.menu,
-      tables: { unified: fixtures.unified, split: fixtures.split },
-      signal: controller.signal,
-    });
-    return page;
-  }
-
   function show(page: FilesPage, on = true) {
     const wrap: WrapChoice = { on };
     const save = vi.fn<(on: boolean) => void>();
-    showPrismMenu(page, controller.signal, [
-      wrapLinesItem(page, controller.signal, { choice: wrap, save }),
+    showPrismMenu(page, harness.signal, [
+      wrapLinesItem(page, harness.signal, { choice: wrap, save }),
     ]);
     return { wrap, save };
   }
 
-  async function openMenu(page: FilesPage) {
-    findLayoutGear(page)?.click();
-    await flush();
-  }
-
-  beforeEach(() => {
-    vi.useFakeTimers();
-    controller = new AbortController();
-    warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-  });
-
   afterEach(() => {
-    controller.abort();
-    warn.mockRestore();
-    vi.useRealTimers();
     delete document.documentElement.dataset.ghPrismWrap;
   });
 
@@ -171,7 +107,7 @@ describe("wrapLinesItem", () => {
 
     expect(wrapItem()).toBeUndefined();
     expect(unwrapped()).toBe(false);
-    expect(warn).toHaveBeenCalledOnce();
+    expect(harness.warn).toHaveBeenCalledOnce();
   });
 
   it("stays wrapped and warns once on a page whose diffs render with no gear", async () => {
@@ -183,7 +119,7 @@ describe("wrapLinesItem", () => {
     await flush();
 
     expect(unwrapped()).toBe(false);
-    expect(warn).toHaveBeenCalledOnce();
+    expect(harness.warn).toHaveBeenCalledOnce();
   });
 
   it("unwraps as the page starts when the saved choice is off", () => {
@@ -252,7 +188,7 @@ describe("wrapLinesItem", () => {
 
     await openMenu(page);
 
-    expect(warn).toHaveBeenCalledTimes(2);
+    expect(harness.warn).toHaveBeenCalledTimes(2);
   });
 
   it("leaves lines and their box as GitHub draws them while wrapped", () => {
@@ -273,7 +209,7 @@ describe("wrapLinesItem", () => {
   it("wraps again once the page is torn down", () => {
     show(pageOf("pr"), false);
 
-    controller.abort();
+    harness.abort();
 
     expect(unwrapped()).toBe(false);
   });

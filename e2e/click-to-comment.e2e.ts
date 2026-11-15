@@ -1,28 +1,15 @@
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  type BrowserContext,
-  test as base,
-  chromium,
-  expect,
-  firefox,
-  type Locator,
-  type Page,
-} from "@playwright/test";
-import { withExtension } from "playwright-webextext";
+import { type BrowserContext, expect, type Locator, type Page } from "@playwright/test";
 import { installLayoutMenu } from "../tests/fixtures/layout-menu";
 import { inputFor, parserFor, regionsOf } from "../tests/fixtures/structural";
 import { PAIRING_NEW_TEXT, PAIRING_OLD_TEXT } from "../tests/fixtures/structural-pairing";
 import type { StructuralFile } from "../utils/structural/changes";
 import { structuralChanges } from "../utils/structural/engine";
 import { grammarOf } from "../utils/structural/grammar";
+import { addFile, extensionTest } from "./harness";
 import type { StructuralHarness } from "./structural-page";
 
-const CHROME_EXTENSION = join(import.meta.dirname, "../.output/chrome-mv3");
-const FIREFOX_EXTENSION = join(import.meta.dirname, "../.output/firefox-mv3");
 const PR_URL = "https://github.com/o/r/pull/1/changes";
 const COMMIT_URL = "https://github.com/o/r/commit/dd95cdc0d7a9a6817998ee6663563e888761f329";
 const ANCHOR = "diff-ff278ec599adfd033d35a083ebe8948db8bf177c9817dee8ddc4f3a9e3f5728e";
@@ -55,10 +42,10 @@ type Kind = keyof typeof PAGES;
 
 /**
  * The fixture loads no GitHub sheet, so this stands in for the rules that fit a table to its file
- * and position a code cell, which GitHub's "+" hangs from.
+ * and position a code cell, which GitHub's "+" hangs from, and for its smooth-scrolling `html`.
  */
 const FIT_TABLES =
-  '<style>.width-full { width: 100%; } [class*="tableLayoutFixed"] { table-layout: fixed; } td.diff-text-cell { position: relative; }</style>';
+  '<style>html { scroll-behavior: smooth; } .width-full { width: 100%; } [class*="tableLayoutFixed"] { table-layout: fixed; } td.diff-text-cell { position: relative; }</style>';
 
 /** `kind`'s page with its captured toolbar, gear and all, and one split diff table. */
 function pageBody(kind: Kind): string {
@@ -80,44 +67,7 @@ function pageBody(kind: Kind): string {
 }
 
 /** `bundle` is `click-to-comment-page.ts` with the structural painter's harness, built once per worker. */
-const test = base.extend<{ context: BrowserContext }, { bundle: string }>({
-  bundle: [
-    // Playwright requires a destructured first parameter; this fixture depends on nothing in it.
-    async ({ browserName: _ }, use) => {
-      await use(
-        execFileSync(
-          "bun",
-          [
-            join(import.meta.dirname, "../bench/bundle.ts"),
-            join(import.meta.dirname, "click-to-comment-page.ts"),
-          ],
-          { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
-        ),
-      );
-    },
-    { scope: "worker" },
-  ],
-  context: async ({ browserName }, use) => {
-    const profile = await mkdtemp(join(tmpdir(), "gh-prism-e2e-"));
-    const context = await (browserName === "firefox"
-      ? withExtension(firefox, FIREFOX_EXTENSION).launchPersistentContext(profile, {
-          proxy: { server: "http://127.0.0.1:9" },
-        })
-      : chromium.launchPersistentContext(profile, {
-          channel: "chromium",
-          args: [
-            `--disable-extensions-except=${CHROME_EXTENSION}`,
-            `--load-extension=${CHROME_EXTENSION}`,
-          ],
-        }));
-    await context.route("https://github.com/**", (route) => route.fulfill({ status: 404 }));
-
-    await use(context);
-
-    await context.close();
-    await rm(profile, { recursive: true, force: true });
-  },
-});
+const test = extensionTest("click-to-comment-page.ts");
 
 declare const window: Window & {
   readonly structural: StructuralHarness;
@@ -237,20 +187,6 @@ async function drag(page: Page, from: Locator, to: Locator, held = async () => {
   await page.mouse.up();
 }
 
-/** A copy of the page's diff region under a new anchor, appended after it, as a file that loads late. */
-const addFile = (page: Page, anchor: string) =>
-  page.evaluate(
-    ({ from, anchor }) => {
-      const region = document.getElementById(from);
-      if (!region) throw new Error("no diff region");
-      const copy = region.cloneNode(true) as HTMLElement;
-      copy.id = anchor;
-      copy.querySelector("table")?.setAttribute("data-diff-anchor", anchor);
-      region.after(copy);
-    },
-    { from: ANCHOR, anchor },
-  );
-
 test("the gh-prism group offers click to comment unchecked after Wrap lines, and Space checks it for good", async ({
   context,
   page,
@@ -337,7 +273,7 @@ test("a split drag that drifts into the other side stays on the side it started"
 
 test("a drag into the next file ends at its own file's last line", async ({ context, page }) => {
   await openPage(context, page);
-  await addFile(page, "diff-0b7e");
+  await addFile(page, ANCHOR, "diff-0b7e");
   await turnOn(page);
   const last = await page
     .locator("table[data-diff-anchor]")
@@ -374,8 +310,8 @@ test("holding a drag at the window's bottom edge scrolls the page and carries th
   page,
 }) => {
   await openPage(context, page);
-  await addFile(page, "diff-0b7e");
-  await addFile(page, "diff-0b7f");
+  await addFile(page, ANCHOR, "diff-0b7e");
+  await addFile(page, ANCHOR, "diff-0b7f");
   await turnOn(page);
   const start = line(page, 4);
   await start.evaluate((cell) => window.scrollBy(0, cell.getBoundingClientRect().top - 560));
@@ -385,9 +321,14 @@ test("holding a drag at the window's bottom edge scrolls the page and carries th
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2, 700);
   const first = (await marked(page)).length;
-  const top = await page.evaluate(() => scrollY);
+  const moved = await page.evaluate(async () => {
+    const top = scrollY;
+    for (let frame = 0; frame < 10; frame++) await new Promise(requestAnimationFrame);
+    return scrollY - top;
+  });
 
-  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(top + 50);
+  // 14px a frame at this depth; a smooth scroll restarted each frame lags far behind.
+  expect(moved).toBeGreaterThan(100);
   await expect.poll(async () => (await marked(page)).length).toBeGreaterThan(first);
   await page.mouse.up();
 });
@@ -397,7 +338,7 @@ test("a Shift drag on a line's code selects its text in place of opening a box",
   page,
 }) => {
   await openPage(context, page);
-  await addFile(page, "diff-0b7e");
+  await addFile(page, ANCHOR, "diff-0b7e");
   await turnOn(page);
   await line(page, 4, { file: 1 })
     .locator(".diff-text-inner")
@@ -466,7 +407,7 @@ test("a file that loads after click to comment is turned on takes clicks too", a
   await openPage(context, page);
   await turnOn(page);
 
-  await addFile(page, "diff-0b7e");
+  await addFile(page, ANCHOR, "diff-0b7e");
   await hoverLine(line(page, 4, { file: 1 }));
   await line(page, 4, { file: 1 }).click();
 

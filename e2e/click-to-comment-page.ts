@@ -5,7 +5,6 @@
  */
 import "./structural-page";
 import { clickToCommentItem } from "../entrypoints/content/diffs/click-to-comment";
-import type { FilesPage } from "../entrypoints/content/files-page";
 
 declare global {
   interface Window {
@@ -17,8 +16,7 @@ declare global {
 window.clickToComment = () => {
   const diffs = document.querySelector("#diffs");
   if (!diffs) throw new Error("no #diffs");
-  const page = { sidebar: document.body, tree: document.body, diffs } as unknown as FilesPage;
-  const item = clickToCommentItem(page, new AbortController().signal, {
+  const item = clickToCommentItem({ diffs }, new AbortController().signal, {
     choice: { on: true },
     save: () => {},
   });
