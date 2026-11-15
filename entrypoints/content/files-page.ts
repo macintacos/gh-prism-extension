@@ -1490,11 +1490,17 @@ const VIEWED_COUNTER = '[class*="file-controls__"] [class*="ProgressContainer__"
 // The row is the square's grandparent; happy-dom reads `:has(> div > …)` as a descendant match.
 const FILE_DIFFSTAT_SQUARE = '[class*="diff-file-header__"] [data-testid$=" diffstat"]';
 
-/** The flex row holding a file header's `+N -M` and squares, or `null` when GitHub draws no counts. */
+/**
+ * The flex row holding a file header's `+N -M` and squares, or `null` when GitHub draws no
+ * counts.
+ */
 export const findFileDiffstat = (region: Element): Element | null =>
   region.querySelector(FILE_DIFFSTAT_SQUARE)?.parentElement?.parentElement ?? null;
 
-/** A file header counts row's own count spans (`+N`, `-M`, screen-reader text), without the squares. */
+/**
+ * A file header counts row's own count spans (`+N`, `-M`, screen-reader text), without the
+ * squares.
+ */
 export const fileCountsOf = (row: Element): Element[] => [...row.querySelectorAll(":scope > span")];
 
 /**

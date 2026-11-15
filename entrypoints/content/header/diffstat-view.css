@@ -1,6 +1,6 @@
-/* GitHub hooks: the header's lines-changed counter, the sibling after the page's .gh-prism-diffstat, and a
-   file header's count spans, the span siblings after .gh-prism-file-diffstat. Every other rule
-   selects only gh-prism's own classes. */
+/* GitHub hooks: the header's lines-changed counter, the sibling after the page's
+   .gh-prism-diffstat, and a file header's count spans, the span siblings after
+   .gh-prism-file-diffstat. Every other rule selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @import "../ui/mark.css";
 @source "./diffstat-view.ts";

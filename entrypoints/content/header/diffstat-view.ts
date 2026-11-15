@@ -30,8 +30,8 @@ import css from "./diffstat-view.css?inline";
 
 /**
  * Which view every diffstat on the page shows, and the breakout it last showed for a pull request's
- * whole diff. One per browser tab, shared by every page in it, so a switch carries to the next page, and
- * the next page of that pull request shows its breakout until its own intent lands.
+ * whole diff. One per browser tab, shared by every page in it, so a switch carries to the next page,
+ * and the next page of that pull request shows its breakout until its own intent lands.
  */
 export interface DiffstatChoice {
   view: DiffstatView;
