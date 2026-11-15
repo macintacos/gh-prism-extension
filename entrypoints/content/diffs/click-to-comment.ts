@@ -43,12 +43,12 @@ export function clickToCommentItem(
   let gate: MenuGate = "closed";
   let gaveUp = false;
 
-  let active: AbortController | undefined;
+  let activation: AbortController | undefined;
   const apply = () => {
     if (gate === "open" && choice.on && !gaveUp) {
-      if (active) return;
-      active = new AbortController();
-      const whileActive = AbortSignal.any([signal, active.signal]);
+      if (activation) return;
+      activation = new AbortController();
+      const whileActive = AbortSignal.any([signal, activation.signal]);
       const style = Object.assign(doc.createElement("style"), { textContent: css });
       doc.head.append(style);
       doc.documentElement.dataset.ghPrismClickComment = "";
@@ -64,8 +64,8 @@ export function clickToCommentItem(
         { signal: whileActive },
       );
     } else {
-      active?.abort();
-      active = undefined;
+      activation?.abort();
+      activation = undefined;
     }
   };
   const giveUp = () => {
@@ -95,7 +95,7 @@ export function clickToCommentItem(
 }
 
 /** Starts a drag for a plain left mouse press on a commentable line; leaves every other press to GitHub. */
-function onPress(doc: Document, event: PointerEvent, active: AbortSignal, giveUp: () => void) {
+function onPress(doc: Document, event: PointerEvent, whileActive: AbortSignal, giveUp: () => void) {
   if (event.pointerType !== "mouse" || event.button !== 0) return;
   if (event.ctrlKey || event.metaKey || event.altKey) return;
   const line = diffLineAt(event.target);
@@ -111,7 +111,7 @@ function onPress(doc: Document, event: PointerEvent, active: AbortSignal, giveUp
   if (!addCommentButton(line)) return;
   // Cancelling `pointerdown` suppresses the compatibility `mousedown`, so GitHub starts no cell selection of its own.
   event.preventDefault();
-  drag(doc, line, event.pointerId, active, (first, last) => {
+  drag(doc, line, event.pointerId, whileActive, (first, last) => {
     void openCommentBox(doc, first, last).then((opened) => {
       if (!opened) giveUp();
     });
@@ -128,11 +128,11 @@ function drag(
   doc: Document,
   start: DiffLine,
   pointerId: number,
-  active: AbortSignal,
+  whileActive: AbortSignal,
   release: (first: DiffLine, last: DiffLine) => void,
 ) {
   const dragging = new AbortController();
-  const whileDragging = AbortSignal.any([active, dragging.signal]);
+  const whileDragging = AbortSignal.any([whileActive, dragging.signal]);
   // Captured so a release over a review thread, whose React root stops propagation, still lands.
   const options = { signal: whileDragging, capture: true };
   const ours = (event: Event) => event instanceof PointerEvent && event.pointerId === pointerId;
@@ -149,12 +149,12 @@ function drag(
     if (!row || row === lastRow) return;
     lastRow = row;
     const slots = columnSlots(start.table, start.row, row, start.cell.cellIndex);
-    const endAt = rangeEnd(slots);
-    const slot = slots[endAt];
+    const endIndex = rangeEnd(slots);
+    const slot = slots[endIndex];
     if (!slot || typeof slot === "string" || slot === end) return;
     end = slot;
     for (const line of marked) line.cell.removeAttribute(RANGE_ATTR);
-    marked = slots.slice(0, endAt + 1).filter((s): s is DiffLine => typeof s !== "string");
+    marked = slots.slice(0, endIndex + 1).filter((s): s is DiffLine => typeof s !== "string");
     for (const line of marked) line.cell.setAttribute(RANGE_ATTR, "");
   };
 
@@ -267,13 +267,13 @@ function rowUnder(doc: Document, start: DiffLine, y: number): HTMLTableRowElemen
  * hovering `last` and clicking its "+". `false` when one of those controls is missing.
  */
 async function openCommentBox(doc: Document, first: DiffLine, last: DiffLine): Promise<boolean> {
-  const range = first !== last;
-  if (range || isLineAnchor(doc.location.hash.slice(1))) {
+  const spansLines = first !== last;
+  if (spansLines || isLineAnchor(doc.location.hash.slice(1))) {
     const from = lineNumberCellOf(first);
     if (!from) return false;
     press(from, false);
   }
-  if (range) {
+  if (spansLines) {
     const to = lineNumberCellOf(last);
     if (!to) return false;
     press(to, true);
