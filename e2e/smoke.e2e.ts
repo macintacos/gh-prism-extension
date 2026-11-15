@@ -5481,6 +5481,8 @@ for (const kind of ["pr", "commit"] as const) {
     await segment(page, "Structural").scrollIntoViewIfNeeded();
     const popup = page.locator(".gh-prism-structural-popup");
     if ((await popup.count()) > 0) await popup.getByRole("button", { name: "Close" }).click();
+    // A scroll's `scroll` event waits for the next frame, and the card closes on any scroll it hears.
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
     const boxes = () =>
       page.evaluate(() =>
         // In the document, since a focus can scroll the window.
