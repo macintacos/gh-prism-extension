@@ -312,6 +312,7 @@ syncs these to your other computers:
 - Whether diffs wrap long lines.
 - Whether you've revealed the sidebar past its first-run introduction.
 - Whether clicking a line opens a comment box.
+- Whether collapsing a file marks it viewed.
 
 It keeps these on this computer only:
 

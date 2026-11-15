@@ -52,6 +52,7 @@ import prRename from "../fixtures/files-page-diff-rename.html?raw";
 import prSplit from "../fixtures/files-page-diff-split.html?raw";
 import prToolbar from "../fixtures/files-page-toolbar.html?raw";
 import { installLayoutMenu } from "../fixtures/layout-menu";
+import commitLayoutMenu from "../fixtures/layout-menu-commit.html?raw";
 import prLayoutMenu from "../fixtures/layout-menu-pr.html?raw";
 import { setViewport } from "../fixtures/viewport";
 
@@ -1004,6 +1005,55 @@ describe("content script", () => {
         ).toBe(checked);
       },
     );
+
+    it.each<{ saved?: unknown; checked: string }>([
+      { checked: "false" },
+      { saved: false, checked: "false" },
+      { saved: true, checked: "true" },
+    ])(
+      "checks Mark files viewed when collapsed: $checked (saved: $saved)",
+      async ({ saved, checked }) => {
+        installLayoutMenu({
+          menu: prLayoutMenu,
+          tables: { unified: prRename, split: prSplit },
+          signal: controller.signal,
+        });
+        // Raw key on purpose, so the test outlives a move to typed storage items.
+        if (saved !== undefined)
+          await fakeBrowser.storage.sync.set({ markViewedOnCollapse: saved });
+        await run();
+
+        const page = findFilesPage(document);
+        if (page) findLayoutGear(page)?.click();
+        await afterMutations();
+
+        expect(
+          document.querySelector("#gh-prism-mark-viewed-on-collapse")?.getAttribute("aria-checked"),
+        ).toBe(checked);
+      },
+    );
+
+    it("offers no Mark files viewed when collapsed on a commit page", async () => {
+      history.replaceState(null, "", "/o/r/commit/dd95cdc");
+      loadCommitFixture();
+      const page = findFilesPage(document);
+      const row = page && findFilesToolbar(page);
+      if (!page || !row) throw new Error("fixture has no toolbar");
+      row.outerHTML = commitToolbar;
+      installLayoutMenu({
+        menu: commitLayoutMenu,
+        tables: { unified: prRename, split: prSplit },
+        signal: controller.signal,
+      });
+      await run();
+
+      const gear = findFilesPage(document);
+      if (gear) findLayoutGear(gear)?.click();
+      await afterMutations();
+
+      expect(document.querySelector("#gh-prism-click-to-comment")).not.toBeNull();
+      expect(document.querySelector("#gh-prism-mark-viewed-on-collapse")).toBeNull();
+    });
 
     it("keeps the diffs unwrapped across a soft navigation to another files page", async () => {
       await fakeBrowser.storage.sync.set({ wrapLines: false });

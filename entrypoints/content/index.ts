@@ -40,6 +40,7 @@ import {
   conversationWidth,
   type DiffstatView,
   diffstatView,
+  markViewedOnCollapse,
   onboarded,
   sidebarSide,
   structuralIntroDismissed,
@@ -69,6 +70,7 @@ import {
 import { showReviewerFiles } from "./conversation/reviewer-files";
 import { type ClickToCommentChoice, clickToCommentItem } from "./diffs/click-to-comment";
 import { showClickableHeaders } from "./diffs/file-headers";
+import { type MarkOnCollapseChoice, markOnCollapseItem } from "./diffs/mark-on-collapse";
 import { showPrismMenu } from "./diffs/prism-menu";
 import { hashLanding } from "./diffs/reveal";
 import { structuralFiles } from "./diffs/structural-files";
@@ -136,6 +138,7 @@ export default defineContentScript({
       savedStructural,
       savedWrap,
       savedClickComment,
+      savedMarkOnCollapse,
       whatsNewForPage,
       introChoice,
       onboarding,
@@ -152,6 +155,7 @@ export default defineContentScript({
       readSavedStructural(),
       readSavedWrap(),
       readSavedClickToComment(),
+      readSavedMarkViewedOnCollapse(),
       release && followWhatsNew(release, ctx),
       followIntro(ctx),
       followOnboarding(ctx),
@@ -171,6 +175,7 @@ export default defineContentScript({
     // Shared by every visit, so a soft navigation keeps both diff settings as the reader left them.
     const wrap: WrapChoice = { on: savedWrap !== false };
     const clickComment: ClickToCommentChoice = { on: savedClickComment === true };
+    const markOnCollapse: MarkOnCollapseChoice = { on: savedMarkOnCollapse === true };
     const notice: NoticeChoice = { dismissed };
     const conversation = conversationChoiceOf(
       { pinned: savedPinned, open: savedOpen, width: savedConversationWidth },
@@ -223,6 +228,7 @@ export default defineContentScript({
             });
           // Route data is fresh only until GitHub's first navigation.
           const viewed = visitViewed(fullLoad ? readViewedSeed(document, route.diff) : undefined);
+          const collapseMarked = new Set<string>();
           fullLoad = false;
           const reportOptions = {
             repo: route.diff,
@@ -313,6 +319,15 @@ export default defineContentScript({
                 choice: clickComment,
                 save: saveClickToComment,
               }),
+              ...(route.diff.kind === "pr"
+                ? [
+                    markOnCollapseItem(page, signal, {
+                      choice: markOnCollapse,
+                      save: saveMarkViewedOnCollapse,
+                      marked: collapseMarked,
+                    }),
+                  ]
+                : []),
             ]);
             showClickableHeaders(page, signal);
             showCommitMessage(page, signal, {
@@ -640,6 +655,23 @@ const saveClickToComment = (on: boolean) =>
     .setValue(on)
     .catch((error: unknown) =>
       console.error("gh-prism: saving whether click to comment is on failed", error),
+    );
+
+/** Whether marking files viewed on collapse was left on; off when unset or when storage won't read. */
+const readSavedMarkViewedOnCollapse = (): Promise<unknown> =>
+  markViewedOnCollapse.getValue().catch((error: unknown) => {
+    console.error("gh-prism: reading whether marking files viewed on collapse is on failed", error);
+    return markViewedOnCollapse.fallback;
+  });
+
+const saveMarkViewedOnCollapse = (on: boolean) =>
+  markViewedOnCollapse
+    .setValue(on)
+    .catch((error: unknown) =>
+      console.error(
+        "gh-prism: saving whether marking files viewed on collapse is on failed",
+        error,
+      ),
     );
 
 /**
