@@ -38,7 +38,8 @@ export interface MarkOnCollapseOptions {
 
 /**
  * The mark-on-collapse item, which marks `page`'s files Viewed as their chevrons collapse them,
- * and unmarks those it marked as they expand, while it is checked and its group's gate is open, until `signal` aborts.
+ * and unmarks those it marked as they expand, while it is checked and its group's gate is open,
+ * until `signal` aborts.
  */
 export function markOnCollapseItem(
   page: FilesPage,
