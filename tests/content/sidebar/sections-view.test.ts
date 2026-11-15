@@ -473,6 +473,22 @@ describe("showSections", () => {
       expect(partTexts(COMMENT_LINES, "src/parser.rs")).toEqual(["Partial", "+2", "−0"]);
     });
 
+    it("lists a test file with comment lines, marked Partial, which Tests lists too", async () => {
+      await landed(
+        landedWith(
+          new Map(),
+          new Map([["tests/integration.rs", { added: 6, removed: 2 }]]),
+          new Map([["tests/integration.rs", { added: 2, removed: 1 }]]),
+        ),
+      );
+      commentLinesToggle().click();
+
+      expect(filesIn("tests")).toEqual(["tests/integration.rs"]);
+      expect(fileRows()).toEqual(["tests/integration.rs"]);
+      expect(partTexts(COMMENT_LINES, "tests/integration.rs")).toEqual(["Partial", "+2", "−1"]);
+      expect(commentLinesToggle().textContent).toContain("Comment lines");
+    });
+
     it("counts its viewed files in its header once any file is Viewed", () => {
       viewed("src/engine.rs");
 
