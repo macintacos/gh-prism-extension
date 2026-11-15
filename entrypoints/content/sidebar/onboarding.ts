@@ -103,12 +103,12 @@ export function showOnboarding(
   choice.whileVeiled.addEventListener(
     "abort",
     () => {
-      const focused = cover.contains(nav.ownerDocument.activeElement);
+      const coverHadFocus = cover.contains(nav.ownerDocument.activeElement);
       observer.disconnect();
       for (const node of inerted) node.inert = false;
       nav.removeAttribute(ATTRIBUTE);
       cover.inert = true;
-      if (focused) focusAfterLift(nav);
+      if (coverHadFocus) focusAfterLift(nav);
       // A timer, not transitionend: it also fires in a hidden tab and under reduced motion.
       setTimeout(() => cover.remove(), LIFT_MS);
     },

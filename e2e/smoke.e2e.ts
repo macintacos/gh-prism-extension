@@ -147,7 +147,7 @@ async function revealOnPage(context: BrowserContext) {
 }
 
 /** Records, every frame `.gh-prism-sections` exists, whether it carries the onboarding cover. */
-const sampleCover = (page: Page) =>
+const recordCoverEachFrame = (page: Page) =>
   page.addInitScript(() => {
     const covered: boolean[] = [];
     Object.assign(window, { covered });
@@ -159,7 +159,7 @@ const sampleCover = (page: Page) =>
     requestAnimationFrame(sample);
   });
 
-const sampledCover = async (page: Page) => {
+const coverByFrame = async (page: Page) => {
   await expect(page.locator(".gh-prism-section").first()).toBeVisible();
   return page.evaluate(() => (window as unknown as { covered: boolean[] }).covered);
 };
@@ -5682,11 +5682,11 @@ test.describe("onboarding", () => {
 
   test("a new user never sees a frame of uncovered sections", async ({ context, page }) => {
     await serve(context, PR_URL, PR_BODY);
-    await sampleCover(page);
+    await recordCoverEachFrame(page);
 
     await page.goto(PR_URL);
 
-    const covered = await sampledCover(page);
+    const covered = await coverByFrame(page);
     expect(covered.length).toBeGreaterThan(0);
     expect(covered.every(Boolean)).toBe(true);
   });
@@ -5694,11 +5694,11 @@ test.describe("onboarding", () => {
 
 test("a tenured user never sees a frame of the onboarding", async ({ context, page }) => {
   await serve(context, PR_URL, PR_BODY);
-  await sampleCover(page);
+  await recordCoverEachFrame(page);
 
   await page.goto(PR_URL);
 
-  const covered = await sampledCover(page);
+  const covered = await coverByFrame(page);
   expect(covered.length).toBeGreaterThan(0);
   expect(covered.some(Boolean)).toBe(false);
 });
