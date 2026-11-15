@@ -18,6 +18,15 @@ import { afterDebounce, mountsVisit, sectionKeys, sheetsStyling } from "../../fi
 
 const { remountWith, landed, abort } = mountsVisit();
 
+// happy-dom has no Popover API.
+const popoversShown = new Set<HTMLElement>();
+HTMLElement.prototype.showPopover = function (this: HTMLElement) {
+  popoversShown.add(this);
+};
+HTMLElement.prototype.hidePopover = function (this: HTMLElement) {
+  popoversShown.delete(this);
+};
+
 function sectionToggle(section: string): HTMLButtonElement {
   const toggle = document.querySelector(`.gh-prism-section[data-section="${section}"] h3 button`);
   if (!(toggle instanceof HTMLButtonElement)) throw new Error(`${section} has no header button`);
@@ -521,7 +530,9 @@ describe("each file header's lines-changed counter", () => {
       rows().every((row) => row?.lastElementChild?.querySelector('[data-testid$=" diffstat"]'));
 
     expect(squaresLast()).toBe(true);
+
     standIns()[0]?.click();
+
     expect(squaresLast()).toBe(true);
     for (const button of standIns())
       expect(button.querySelector('[data-testid$=" diffstat"]')).toBeNull();
@@ -549,6 +560,7 @@ describe("each file header's lines-changed counter", () => {
     const [row] = rows();
     const fresh = row?.cloneNode(true);
     if (!(fresh instanceof Element)) throw new Error("no counts row");
+    const replaced = row?.querySelector<HTMLElement>(".gh-prism-file-diffstat");
     fresh.querySelector(".gh-prism-file-diffstat")?.remove();
 
     row?.replaceWith(fresh);
@@ -556,6 +568,10 @@ describe("each file header's lines-changed counter", () => {
 
     expect(fresh.firstElementChild?.getAttribute("data-view")).toBe("total");
     expect(standIns()).toHaveLength(2);
+
+    standIns()[0]?.click();
+
+    expect(replaced?.dataset.view).toBe("total");
   });
 
   it("shows the pull request's held breakout while intent is pending, then the landed one", () => {
@@ -586,16 +602,60 @@ describe("each file header's lines-changed counter", () => {
     expect(sheetsStyling("gh-prism-file-diffstat")).toHaveLength(0);
   });
 
-  it("titles each file pill's tooltip with its section", () => {
-    show(loadCommitFixture).landed(commit);
-    const tip = standIns()[1]?.querySelector(".gh-prism-pill > .gh-prism-tip");
-    expect(tip?.querySelector("strong")?.textContent).toBe("Tests");
-    expect(tip?.lastElementChild?.textContent).not.toBe("");
+  describe("tooltip, in the top layer", () => {
+    const popover = () => document.querySelector<HTMLElement>("body > [popover]");
+    const shownTip = () => {
+      const node = popover();
+      return node && popoversShown.has(node) ? node : null;
+    };
+    const point = (type: string, target: Element | null | undefined, relatedTarget?: Element) =>
+      target?.dispatchEvent(new PointerEvent(type, { bubbles: true, relatedTarget }));
+
+    it("titles a hovered file pill's tooltip with its section", () => {
+      show(loadCommitFixture).landed(commit);
+
+      point("pointerover", standIns()[1]?.querySelector(".gh-prism-pill svg"));
+
+      expect(shownTip()?.querySelector("strong")?.textContent).toBe("Tests");
+      expect(shownTip()?.getAttribute("aria-hidden")).toBe("true");
+    });
+
+    it("hides once the pointer leaves the pill", () => {
+      show(loadCommitFixture).landed(commit);
+      const pill = standIns()[1]?.querySelector(".gh-prism-pill");
+      point("pointerover", pill);
+
+      point("pointerout", pill, document.body);
+
+      expect(shownTip()).toBeNull();
+    });
+
+    it.each([
+      ["hovered", (button: HTMLElement) => point("pointerover", button)],
+      ["keyboard-focused", (button: HTMLElement) => button.focus()],
+    ])("shows the breakdown while a total view is %s", (_, reach) => {
+      show(loadCommitFixture, { choice: { view: "total" } }).landed(commit);
+      const [launcher] = standIns();
+      if (!launcher) throw new Error("no stand-in");
+
+      reach(launcher);
+
+      expect(shownTip()?.querySelector(".gh-prism-tip-total")?.textContent).toBe("Total+36−8");
+    });
+
+    it("goes with the stand-ins once aborted", () => {
+      show(loadCommitFixture).landed(commit);
+
+      controller.abort();
+
+      expect(popover()).toBeNull();
+    });
   });
 
   it("is a button whose pills say their lines in words, numbers hidden from screen readers", () => {
     show(loadCommitFixture).landed(commit);
     const [launcher] = standIns();
+
     expect(launcher?.tagName).toBe("BUTTON");
     expect(launcher?.querySelector(".sr-only")?.textContent).toBe(
       "Implementation: 36 added, 8 removed.",
@@ -606,8 +666,9 @@ describe("each file header's lines-changed counter", () => {
 
   it("hides GitHub's count spans after it, and not the squares", () => {
     show(loadCommitFixture).landed(commit);
-    expect(sheetsStyling("gh-prism-file-diffstat")).toHaveLength(1);
     const [row] = rows();
+
+    expect(sheetsStyling("gh-prism-file-diffstat")).toHaveLength(1);
     for (const span of row?.querySelectorAll(":scope > span") ?? [])
       expect(getComputedStyle(span).display).toBe("none");
     expect(getComputedStyle(row?.lastElementChild ?? document.body).display).not.toBe("none");

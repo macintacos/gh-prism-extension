@@ -443,7 +443,7 @@ const readSavedDiffstat = (): Promise<unknown> =>
     return diffstatView.fallback;
   });
 
-/** The view the header counter opens on: `saved`, when it names one, else the default. */
+/** The view the diffstat opens on: `saved`, when it names one, else the default. */
 function diffstatChoiceOf(saved: unknown): DiffstatChoice {
   // `fallback` covers only a missing view; a corrupt one reads back as stored.
   return { view: saved === "breakout" || saved === "total" ? saved : diffstatView.fallback };

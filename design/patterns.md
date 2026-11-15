@@ -11,9 +11,9 @@ to `entrypoints/content/`.
 
 A section is its label, its 16px Octicon, and its hue, all from one `SECTION_CATALOG` row
 in `ui/section-catalog.ts`. Only the icon takes the hue. The label and its file counter
-stay in `--fgColor-default`. The header counter's pills draw from the same row, but their
-icons stay in `--fgColor-muted` until the counter is hovered or focused, and short
-hairlines rule the pills apart. `exceptions.md` says why.
+stay in `--fgColor-default`. The header counter's pills, and each file header's counter's,
+draw from the same row, but their icons stay in `--fgColor-muted` until the counter is
+hovered or focused, and short hairlines rule the pills apart. `exceptions.md` says why.
 
 The icon gives way to a chevron while the header is hovered or focused, and the chevron's
 turn shows whether the section is open. A folder row inside a section does the same with a
@@ -155,8 +155,18 @@ clips at an edge. `sidebar/side.css`, `sidebar/report.css`, `commit/step-links.c
 hold the seven in use. The code owners button beside a Reviewers heading sits near the
 sidebar's inline end, so `conversation/reviewer-files.css` overrides `ui/pr-owners.css`'s
 tooltip for it to open leftward from the button's end. Only the mark's opens on hover
-alone, since the mark takes no focus. Inside the header counter's tooltips, which take no
-pointer, the mark's own tooltip never opens.
+alone, since the mark takes no focus. Inside the header counter's tooltips, and each file
+header's counter's, which take no pointer, the mark's own tooltip never opens.
+
+The file headers' counter tooltips look the same as the header counter's but sit in the
+top layer, because each file's region clips whatever leaves its box. A collapsed file's
+region is only its header, so a tooltip opening below it would never show. The page holds
+one `popover="manual"` tooltip for all of them. In the breakout, it shows a copy of the
+hovered pill's tooltip. In the total view, GitHub's own counts, it shows the breakdown
+while the counter is hovered or keyboard-focused. `ui/place.ts` places it 6px below the
+pill or counter, start-aligned, or above it where the viewport has no room below.
+`header/diffstat-view.ts` builds it and hides it from assistive technology, because each
+pill's hidden words already say the same.
 
 The owner filter icons' tooltips (§ Owner identities) look the same but sit in the top
 layer, because their surfaces scroll, and an `::after` there would widen the scroller's
@@ -566,10 +576,10 @@ and `ui/mark.css` styles it. It carries no setting to hide it.
 
 Each of these nine surfaces carries one mark:
 
-- **Header counter's tooltips:** each pill's tooltip, at the end of its label's row, with
-  the description below at the tooltip's full width; and the total view's tooltip, at the
-  end of its last row, "Click to split by section". The mark stays still there, because
-  the tooltip takes no pointer.
+- **Header counter's tooltips, and each file header's counter's:** each pill's tooltip, at
+  the end of its label's row, with the description below at the tooltip's full width; and
+  the total view's tooltip, at the end of its last row, "Click to split by section". The
+  mark stays still there, because the tooltip takes no pointer.
 - **Sidebar:** the nav's last row, at the end corner, below the sections, so it moves none
   of them. Its tooltip opens up and inward, because `sidebar/side.css` clips the sidebar.
 - **Code owners popover:** the end corner of the footer row that reads "Click the shield

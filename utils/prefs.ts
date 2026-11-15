@@ -17,11 +17,11 @@ export type Side = "left" | "right";
  */
 export const sidebarSide = storage.defineItem<Side>("sync:sidebarSide", { fallback: "right" });
 
-/** Which view the header's lines-changed counter shows: a pill per section, or GitHub's total. */
+/** Which view every diffstat on the page shows, the header's and each file header's: a pill per section, or GitHub's total. */
 export type DiffstatView = "breakout" | "total";
 
 /**
- * The view the user last switched the header counter to; Chrome sync carries it to their other
+ * The view the user last switched the diffstat to; Chrome sync carries it to their other
  * computers when on.
  */
 export const diffstatView = storage.defineItem<DiffstatView>("sync:diffstatView", {

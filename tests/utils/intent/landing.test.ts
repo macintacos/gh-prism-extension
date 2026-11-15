@@ -9,6 +9,7 @@ import {
   totalsOf,
 } from "../../../utils/intent/landing";
 import type { FileLines, Placement } from "../../../utils/intent/read";
+import { SECTIONS } from "../../../utils/sections";
 
 const split = {
   kind: "split",
@@ -272,19 +273,14 @@ describe("comment lines", () => {
 
   it("sum per file, section by section, to the whole diff's totals", () => {
     const perFile = [...commented.lines.keys()].flatMap((path) => totalsOf(commented, [path]));
-    const summed = Map.groupBy(perFile, ({ section }) => section);
+    const summed = SECTIONS.flatMap((section) => {
+      const lines = sum(
+        perFile.filter((entry) => entry.section === section).map(({ lines }) => lines),
+      );
+      return lines.added + lines.removed > 0 ? [{ section, lines }] : [];
+    });
 
-    expect(
-      totalsOf(commented).map(({ section }) => ({
-        section,
-        lines: sum((summed.get(section) ?? []).map(({ lines }) => lines)),
-      })),
-    ).toEqual(totalsOf(commented));
-    expect([...summed.keys()].sort()).toEqual(
-      totalsOf(commented)
-        .map(({ section }) => section)
-        .sort(),
-    );
+    expect(summed).toEqual(totalsOf(commented));
   });
 
   it("list docs after the files that land there", () => {

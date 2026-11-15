@@ -218,21 +218,23 @@ and its per-file notices and loading line) only once it is started, either at on
 `showVisit` is given `structural`, which `index.ts` gives only while Structural mode is
 on, or later through the `startStructural` that `showVisit` returns. On a Files view the
 diffstat also stands in for each mounted file header's counts (`findFileDiffstat`) with
-that file's own breakout, and one switch flips the header and every file header. Then
-`land` passes the intent read's steps to the views: pending while the read runs, and with
-an owner filter until the code owners land too; progress as files are placed, landed with
-the result, and then each file's section. Every view gets a step before any view gets the
-next. `land` owns the only observer of the native tree, and it re-lists the sections after
-each change to the tree. While a pull request's narrow layout has its "Files" overlay
-open, `land` also observes the overlay's copy of the tree and lists from it, telling each
-view through `shownIn` before it re-lists. One visit reads intent once: `index.ts` wraps
-the read in `shareIntent`, so every page of the visit joins the same read. A header tab's
-visit reads intent the same way, and `showHeaderTab` mounts only the diffstat on each of
-its pages. A visit to a pull request's whole diff names that pull request to the diffstat,
-and the browser tab's `DiffstatChoice` holds the breakout last landed for it. A later
-visit to the same pull request shows that breakout while its own read runs, so moving
-between Files changed and a header tab never flashes GitHub's total, and its own breakout
-replaces it once the read lands. A commit and a commit filter hold none.
+that file's own breakout, and one switch flips the header and every file header. It maps
+each header to its path from the native tree directly, since `land`'s sections don't
+arrive while intent is pending. Then `land` passes the intent read's steps to the views:
+pending while the read runs, and with an owner filter until the code owners land too;
+progress as files are placed, landed with the result, and then each file's section. Every
+view gets a step before any view gets the next. `land` owns the only observer of the
+native tree, and it re-lists the sections after each change to the tree. While a pull
+request's narrow layout has its "Files" overlay open, `land` also observes the overlay's
+copy of the tree and lists from it, telling each view through `shownIn` before it
+re-lists. One visit reads intent once: `index.ts` wraps the read in `shareIntent`, so
+every page of the visit joins the same read. A header tab's visit reads intent the same
+way, and `showHeaderTab` mounts only the diffstat on each of its pages. A visit to a pull
+request's whole diff names that pull request to the diffstat, and the browser tab's
+`DiffstatChoice` holds the breakout last landed for it. A later visit to the same pull
+request shows that breakout while its own read runs, so moving between Files changed and a
+header tab never flashes GitHub's total, and its own breakout replaces it once the read
+lands. A commit and a commit filter hold none.
 
 ## The Conversation panel
 
@@ -1241,16 +1243,15 @@ follow GitHub. Each feature's sheet sits beside its module and is imported with 
 then mounted only on the pages that need it. The rules for writing styles are in
 [`docs/agents/styling-rules.md`](agents/styling-rules.md).
 
-The sidebar, the header counter's tooltips, the code owner details dialog, the classic
-page notice, the commit message column, and the Structural popup
-(`diffs/structural-intro.ts`) each append the `prismMark` built by
-[`ui/mark.ts`](../entrypoints/content/ui/mark.ts). The code owners popover and the code
-owner's files popup get theirs from `detailsHint`, the footer they share. Every one of
-these surfaces' sheets `@import`s the mark's partial, `ui/mark.css`. The diff view
-control's sheet imports it too. `diffs/view-control.ts` builds the Structural segment's
-icon, the mark's glyph and the coloured copy that pulses, from `prismGlyph` in
-`ui/mark.ts`, with no name. `diffs/view-control.css` runs the pulse while the segment is
-hovered or shows keyboard focus.
+The sidebar, the diffstat's tooltips, the code owner details dialog, the classic page
+notice, the commit message column, and the Structural popup (`diffs/structural-intro.ts`)
+each append the `prismMark` built by [`ui/mark.ts`](../entrypoints/content/ui/mark.ts).
+The code owners popover and the code owner's files popup get theirs from `detailsHint`,
+the footer they share. Every one of these surfaces' sheets `@import`s the mark's partial,
+`ui/mark.css`. The diff view control's sheet imports it too. `diffs/view-control.ts`
+builds the Structural segment's icon, the mark's glyph and the coloured copy that pulses,
+from `prismGlyph` in `ui/mark.ts`, with no name. `diffs/view-control.css` runs the pulse
+while the segment is hovered or shows keyboard focus.
 
 ## Source layout
 
@@ -1262,7 +1263,7 @@ entrypoints/
   conversation-frame.content.ts  content script in the Conversation panel's frame
   content/
     index.ts             content script entry: wires the watchers, intent, and views
-    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; the filter-options menu; the Reviewers lists' rows and code-owner shields; Conversation and Files changed comments' authors; a commit's message box and the row its message column joins; the toolbar row the Conversation button or a commit's message toggle starts; a diff's changed cells, its layout, and the layout gear; the diff settings menu and its Compact line height item
+    files-page.ts        every GitHub Files view selector; page kinds; the classic page; the header tabs' counter slot; a file header's lines-changed counts; the filter-options menu; the Reviewers lists' rows and code-owner shields; Conversation and Files changed comments' authors; a commit's message box and the row its message column joins; the toolbar row the Conversation button or a commit's message toggle starts; a diff's changed cells, its layout, and the layout gear; the diff settings menu and its Compact line height item
     commit/              a commit's message rendered as Markdown in GitHub's box's place, or in a resizable column beside the diffs, with its switch back to GitHub's box and the toolbar toggle that hides it; a conventional title's type label
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
