@@ -1119,8 +1119,9 @@ the range reaches rows the header covers. Scrolling stops when the pointer moves
 48 px from the edge or the drag ends.
 
 On release, the module replays the presses GitHub answers to. For a range, it presses the
-first line's number cell, which `lineNumberCellOf` finds, then Shift-presses the last's. A
-single line needs no presses. If the URL hash already names a line, though, the module
+first line's number cell, which `lineNumberCellOf` finds, then Shift-presses the last's.
+It waits a microtask between the two, because GitHub's commit page applies a press in one.
+A single line needs no presses. If the URL hash already names a line, though, the module
 presses the line's number cell first, so the stale range doesn't widen the box. It then
 hovers the last line and clicks its "+" once it mounts. When a number cell is missing, or
 the "+" hasn't mounted within 5 frames, the page gives up: gh-prism logs one warning, and

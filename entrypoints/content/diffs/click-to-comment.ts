@@ -151,7 +151,7 @@ function drag(
     const slots = columnSlots(start.table, start.row, row, start.cell.cellIndex);
     const endIndex = rangeEnd(slots);
     const slot = slots[endIndex];
-    if (!slot || typeof slot === "string" || slot === end) return;
+    if (!slot || typeof slot === "string" || slot.cell === end.cell) return;
     end = slot;
     for (const line of marked) line.cell.removeAttribute(RANGE_ATTR);
     marked = slots.slice(0, endIndex + 1).filter((s): s is DiffLine => typeof s !== "string");
@@ -267,7 +267,7 @@ function rowUnder(doc: Document, start: DiffLine, y: number): HTMLTableRowElemen
  * hovering `last` and clicking its "+". `false` when one of those controls is missing.
  */
 async function openCommentBox(doc: Document, first: DiffLine, last: DiffLine): Promise<boolean> {
-  const spansLines = first !== last;
+  const spansLines = first.cell !== last.cell;
   if (spansLines || isLineAnchor(doc.location.hash.slice(1))) {
     const from = lineNumberCellOf(first);
     if (!from) return false;
@@ -276,6 +276,8 @@ async function openCommentBox(doc: Document, first: DiffLine, last: DiffLine): P
   if (spansLines) {
     const to = lineNumberCellOf(last);
     if (!to) return false;
+    // GitHub's commit page applies a press in a microtask; a Shift-press before then extends the old selection.
+    await Promise.resolve();
     press(to, true);
   }
 

@@ -262,6 +262,38 @@ describe("clickToCommentItem", () => {
     expect(ranged()).toEqual([]);
   });
 
+  it("waits for a press to apply before Shift-pressing, as GitHub's commit page needs", async () => {
+    standInGitHub();
+    let anchor: string | undefined;
+    document.addEventListener(
+      "mousedown",
+      (event) => {
+        const line = (event.target as Element).nextElementSibling?.getAttribute("data-line-anchor");
+        if (!event.shiftKey) queueMicrotask(() => (anchor = line ?? undefined));
+        else log.push(`range ${anchor ?? "none"}-${line}`);
+      },
+      { signal: controller.signal },
+    );
+    show(pageOf(prSplit));
+    const start = cell(`${SPLIT}R4`, 1);
+    await hover(start);
+
+    await drag(start, [cell(`${SPLIT}R6`, 1)]);
+
+    await vi.waitFor(() => expect(log).toContain(`range ${SPLIT}R4-${SPLIT}R6`));
+  });
+
+  it("opens one line's box when the pointer moves within that line before release", async () => {
+    standInGitHub();
+    show(pageOf(prSplit));
+    const start = cell(`${SPLIT}R4`, 1);
+    await hover(start);
+
+    await drag(textOf(start), [start]);
+
+    await vi.waitFor(() => expect(log).toEqual([`+ ${SPLIT}R4`]));
+  });
+
   it("leaves the marks untouched while the pointer moves within the same row", async () => {
     standInGitHub();
     show(pageOf(prSplit));

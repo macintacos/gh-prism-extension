@@ -483,9 +483,12 @@ on a private one.
     the cell mounts it a frame later; `mousemove` or `pointerover` alone doesn't.
   - **A range.** A press (`pointerdown`, `mousedown` with `buttons: 1`, `pointerup`,
     `mouseup`, `click`) on a number cell, then the same press with `shiftKey` on another,
-    writes that range into the hash with `history.pushState`. Each press adds a history
-    entry, with no scroll, focus move, or `hashchange`. Clicking the end line's "+" then
-    opens the box for the range. GitHub clamps no range, across hunks or Split's sides.
+    writes that range into the hash, with no scroll, focus move, or `hashchange`. A pull
+    request writes each press with `history.pushState`, a history entry each; a commit
+    page only with `replaceState`. A commit page applies a press in a microtask, so a
+    Shift-press sent before that extends the previous selection. A pull request deselects
+    a lone selected line when it is pressed again. Clicking the end line's "+" then opens
+    the box for the range. GitHub clamps no range, across hunks or Split's sides.
   - **A synthetic drag from "+" does nothing.**
   - **Boxes coexist.** Opening one keeps another's draft.
   - **Text selection.** A `mousedown` on a code cell sets
