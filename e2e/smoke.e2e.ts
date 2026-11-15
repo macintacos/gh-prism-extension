@@ -2121,13 +2121,15 @@ const CHAIN_ACCESSIBLE_NAME = "managed / dot_config / opencode / skills / sentry
 /**
  * Samples every frame, in the page and the trees' shadow roots, for each shown full-name copy:
  * the distinct transforms its text took, and any copy shown on a row neither hovered nor
- * focus-visible, or reading another row's name.
+ * focus-visible, or reading another row's name. Also notes each frame a hovered or focused
+ * row's name dims: its at-rest text hidden while its copy isn't yet fully shown.
  */
 const sampleReveals = (page: Page) =>
   page.addInitScript(() => {
     const seen: Record<string, string[]> = {};
     const strays: string[] = [];
-    Object.assign(window, { revealSeen: seen, revealStrays: strays });
+    const dims: string[] = [];
+    Object.assign(window, { revealSeen: seen, revealStrays: strays, revealDims: dims });
     const tick = () => {
       const roots = [
         document,
@@ -2136,8 +2138,15 @@ const sampleReveals = (page: Page) =>
         ),
       ];
       for (const copy of roots.flatMap((root) => [...root.querySelectorAll("[data-full-name]")])) {
-        if (getComputedStyle(copy).visibility !== "visible") continue;
         const text = copy.textContent ?? "";
+        const style = getComputedStyle(copy);
+        const held = copy.closest("button")?.matches(":hover, :focus-visible");
+        const atRestHidden =
+          copy.parentElement && getComputedStyle(copy.parentElement).visibility !== "visible";
+        const copyShown = style.visibility === "visible" && style.opacity === "1";
+        if (held && atRestHidden && !copyShown) dims.push(text);
+
+        if (style.visibility !== "visible") continue;
         const transform = getComputedStyle(copy.firstElementChild ?? copy).transform;
         seen[text] = [...new Set([...(seen[text] ?? []), transform])];
         const button = copy.closest("button");
@@ -2216,6 +2225,18 @@ test("hovering a truncated row scrolls its full name, and leaving restores it", 
     atRestShown: true,
     animations: 0,
   });
+});
+
+test("a truncated row's name never dims as its full name takes over", async ({ context, page }) => {
+  await servesNarrowChain(context, page);
+  const row = page.locator(`[data-item-path="${CHAIN_PATH}"]`);
+
+  await row.hover();
+  await expectScrollingReveal(page, row, CHAIN_FULL_NAME);
+
+  expect(
+    await page.evaluate(() => (window as unknown as { revealDims: string[] }).revealDims),
+  ).toEqual([]);
 });
 
 test("keyboard focus reveals a truncated row's full name", async ({ context, page }) => {

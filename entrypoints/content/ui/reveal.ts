@@ -5,8 +5,8 @@
 
 import { el } from "./dom";
 
-/** Average scroll speed, px/s, and the pause at each end, ms. The wait and fade-in live only in
- * reveal.css: the scroll starts when the fade-in ends. */
+/** Average scroll speed, px/s, and the pause at each end, ms. The wait lives only in
+ * reveal.css: the scroll starts when the copy shows. */
 const SPEED = 60;
 const HOLD = 1000;
 // Keep in sync with reveal.css's end padding, so the last letter scrolls clear of the fade.
@@ -44,7 +44,7 @@ export function revealFrames(distance: number): { keyframes: Keyframe[]; duratio
 
 /**
  * Under `root`, marks a hovered or focused button's `[data-full-name]` as `data-overflows` when
- * its name doesn't fit, scrolls it once reveal.css has faded it in unless `reducedMotion`
+ * its name doesn't fit, scrolls it once reveal.css shows it unless `reducedMotion`
  * matches, and cancels the scroll once the button is neither hovered nor focus-visible.
  */
 export function followReveals(root: ShadowRoot | HTMLElement, reducedMotion: MediaQueryList): void {
@@ -64,7 +64,7 @@ export function followReveals(root: ShadowRoot | HTMLElement, reducedMotion: Med
     if (!(copy instanceof HTMLElement) || !copy.matches("[data-full-name]")) return;
     const inner = copy.firstElementChild;
     if (!inner || reducedMotion.matches || scrolls.has(copy)) return;
-    if ((event as TransitionEvent).propertyName !== "opacity") return;
+    if ((event as TransitionEvent).propertyName !== "visibility") return;
 
     const { keyframes, duration } = revealFrames(
       inner.scrollWidth - copy.clientWidth + END_PADDING,

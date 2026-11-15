@@ -57,9 +57,9 @@ describe("followReveals", () => {
     Object.defineProperty(inner, "scrollWidth", { value: width, configurable: true });
   const fire = (type: string) => button.dispatchEvent(new Event(type, { bubbles: true }));
   // happy-dom's TransitionEvent drops `propertyName` from its init.
-  const fadedIn = () =>
+  const shown = () =>
     Object.defineProperty(new Event("transitionend", { bubbles: true }), "propertyName", {
-      value: "opacity",
+      value: "visibility",
     });
 
   it("marks a name too wide for its copy, and clears the mark once it fits", () => {
@@ -72,11 +72,11 @@ describe("followReveals", () => {
     expect(copy.hasAttribute("data-overflows")).toBe(false);
   });
 
-  it("scrolls the overflow and its end padding once the copy has faded in", () => {
+  it("scrolls the overflow and its end padding once the copy shows", () => {
     widen(160);
     fire("pointerover");
 
-    copy.dispatchEvent(fadedIn());
+    copy.dispatchEvent(shown());
 
     expect(inner.animate).toHaveBeenCalledWith(revealFrames(72).keyframes, {
       duration: revealFrames(72).duration,
@@ -89,7 +89,7 @@ describe("followReveals", () => {
     widen(160);
     fire("pointerover");
 
-    copy.dispatchEvent(fadedIn());
+    copy.dispatchEvent(shown());
 
     expect(inner.animate).not.toHaveBeenCalled();
   });
@@ -97,7 +97,7 @@ describe("followReveals", () => {
   it("cancels the scroll once the pointer leaves the button", () => {
     widen(160);
     fire("pointerover");
-    copy.dispatchEvent(fadedIn());
+    copy.dispatchEvent(shown());
 
     hovered = false;
     fire("pointerout");

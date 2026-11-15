@@ -965,7 +965,7 @@ A truncated tree row or section header shows its full name on hover and focus, f
 imported by both the tree's and the sections view's sheets, decides when the copy shows:
 after a wait, while its button is hovered or focus-visible.
 [`ui/reveal.ts`](../entrypoints/content/ui/reveal.ts) decides how it moves: it marks a
-copy whose name overflows and scrolls it back and forth once it has faded in.
+copy whose name overflows and scrolls it back and forth once it shows.
 
 Docs & Comments ends with the comment-lines sub-section when an Implementation or Tests
 file has comment lines. It has its own header and tree inside Docs & Comments' collapsible

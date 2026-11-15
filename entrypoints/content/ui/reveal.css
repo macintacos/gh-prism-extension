@@ -15,7 +15,6 @@
   position: absolute;
   inset: 0;
   visibility: hidden;
-  opacity: 0;
   overflow: hidden;
   white-space: nowrap;
   padding-inline-end: 12px;
@@ -32,13 +31,11 @@
 :host button:is(:hover, :focus-visible) [data-full-name][data-overflows],
 .gh-prism-sections button:is(:hover, :focus-visible) [data-full-name][data-overflows] {
   visibility: visible;
-  opacity: 1;
-  transition:
-    opacity 150ms ease-out 500ms,
-    visibility 0s 500ms;
+  transition: visibility 0s 500ms;
 }
 
-/* The at-rest text hides as the copy starts fading in; the copy overrides the inherited hidden. */
+/* The at-rest text hides on the frame the copy shows, so keep the two delays equal: any gap
+   between them blinks the name. The copy overrides the inherited hidden. */
 :host button:is(:hover, :focus-visible) :has(> [data-full-name][data-overflows]),
 .gh-prism-sections button:is(:hover, :focus-visible) :has(> [data-full-name][data-overflows]) {
   visibility: hidden;
@@ -50,10 +47,5 @@
   .gh-prism-sections [data-full-name] {
     overflow-x: auto;
     scrollbar-width: none;
-  }
-
-  :host button:is(:hover, :focus-visible) [data-full-name][data-overflows],
-  .gh-prism-sections button:is(:hover, :focus-visible) [data-full-name][data-overflows] {
-    transition-duration: 0s;
   }
 }

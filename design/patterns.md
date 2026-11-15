@@ -106,6 +106,10 @@ header keeps its end ellipsis at rest and scrolls its label. Under reduced motio
 shows its full name as a strip the reviewer scrolls by hand. `ui/reveal.ts`'s `fullName()`
 builds the copy; `ui/reveal.css` and `ui/reveal.ts` show and scroll it.
 
+The copy replaces the at-rest name in one frame, with its leading letters on the same
+pixels, so only the cut end changes. Never fade or crossfade between the two: a fade
+blanks the name while it runs, and a crossfade dims the letters they share.
+
 A code owner's name and a team member's display name (§ Owner identities) don't scroll,
 because scrolling belongs to the sidebar's rows. Each ends in an ellipsis at rest, and the
 owner tooltip (§ Tooltips) shows it whole on hover and keyboard focus.

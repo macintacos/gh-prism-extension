@@ -6,6 +6,26 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-15: A revealed name replaces the cut one in a single frame
+
+- **Asked:** the maintainer saw a truncated file name blink on hover, just before it
+  scrolled, and asked for a seamless change from rest to hover.
+- **Compared:**
+  - the copy's 150 ms `ease-out` fade-in, with the at-rest name hidden as the fade began,
+    which left the name close to blank for most of the fade;
+  - a crossfade, the at-rest name fading out as the copy fades in, which dims the letters
+    the two share by about a quarter at its midpoint;
+  - the copy fading in over the at-rest name, which hides when the fade ends. Both names
+    draw the shared letters during the fade, so the letters thicken and then thin again;
+  - the copy replacing the at-rest name in a single frame.
+- **Won:** the single-frame swap. After the 500 ms wait, the at-rest name hides and the
+  copy shows on the same frame, and the scroll's first 1,000 ms hold starts from there. In
+  the section tree the copy sits 1px higher than elsewhere, matching the -1px margin that
+  the tree's library, @pierre/trees, gives its at-rest name, so the leading letters land
+  on the same pixels.
+- **Why:** the shared letters never change, so the cut end is the only part that does,
+  where `…ts` gives way to the rest of the name.
+
 ## 2026-11-14: The onboarding cover veils the sections under the spectrum
 
 - **Asked:**
