@@ -1107,6 +1107,15 @@ line before the first hunk header on the way, skipping rows with no line in that
 The covered cells carry `data-gh-prism-comment-range`, tinted with GitHub's selected-line
 colour.
 
+While the pointer rests within 48 px of the window's top or bottom, the drag scrolls the
+page once per animation frame. The scroll distance grows linearly from 0 at 48 px from the
+edge to 24 px per frame at the edge itself. After each frame's scroll, the drag finds the
+row under the pointer again, so the range follows the rows that scroll under it. That
+lookup uses `elementsFromPoint`, not `elementFromPoint`: near the top, the topmost element
+under the pointer is GitHub's sticky header, but the full stack still holds the row
+beneath it. So the range reaches rows the header covers. Scrolling stops when the pointer
+moves more than 48 px from the edge or the drag ends.
+
 On release, the module replays the presses GitHub answers to. For a range, it presses the
 first line's number cell, which `lineNumberCellOf` finds, then Shift-presses the last's. A
 single line needs no presses. If the URL hash already names a line, though, the module

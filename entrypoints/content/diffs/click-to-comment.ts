@@ -31,6 +31,21 @@ export interface ClickToCommentOptions {
 
 const RANGE_ATTR = "data-gh-prism-comment-range";
 
+/** How near the window's top or bottom, in px, a drag's pointer scrolls the page. */
+const EDGE = 48;
+/** The most a drag scrolls per frame, in px, reached with the pointer at the window's edge. */
+const MAX_STEP = 24;
+
+/**
+ * Pixels to scroll this frame for a drag's pointer at height `y` in a window `height` tall:
+ * negative near the top, positive near the bottom, 0 elsewhere.
+ */
+// ponytail: fixed linear speed curve; ease or accelerate it over time if drags overshoot.
+function edgeStep(y: number, height: number): number {
+  const depth = y < EDGE ? y - EDGE : y > height - EDGE ? y - (height - EDGE) : 0;
+  return Math.round((MAX_STEP * Math.max(-EDGE, Math.min(EDGE, depth))) / EDGE);
+}
+
 /** Frames to wait for GitHub to mount a hovered line's "+" before giving up. */
 const PLUS_FRAMES = 5;
 
@@ -147,8 +162,8 @@ function drag(
     for (const line of marked) line.cell.removeAttribute(RANGE_ATTR);
   });
 
-  const move = (event: PointerEvent) => {
-    const row = rowUnder(doc, start, event.clientY);
+  const follow = (y: number) => {
+    const row = rowUnder(doc, start, y);
     if (!row) return;
     const slots = columnSlots(start.table, start.row, row, start.cell.cellIndex);
     const endAt = rangeEnd(slots);
@@ -160,7 +175,32 @@ function drag(
     for (const line of marked) line.cell.setAttribute(RANGE_ATTR, "");
   };
 
-  doc.addEventListener("pointermove", move, options);
+  // Scrolls while the pointer rests near the window's top or bottom, re-following the rows that
+  // scroll under it.
+  const win = doc.defaultView;
+  let pointerY = 0;
+  let frame: number | undefined;
+  const scroll = () => {
+    frame = undefined;
+    const step = win ? edgeStep(pointerY, win.innerHeight) : 0;
+    if (!win || step === 0) return;
+    win.scrollBy(0, step);
+    follow(pointerY);
+    frame = win.requestAnimationFrame(scroll);
+  };
+  whileDragging.addEventListener("abort", () => {
+    if (frame !== undefined) win?.cancelAnimationFrame(frame);
+  });
+
+  doc.addEventListener(
+    "pointermove",
+    (event) => {
+      pointerY = event.clientY;
+      follow(pointerY);
+      if (frame === undefined) scroll();
+    },
+    options,
+  );
   doc.addEventListener(
     "pointerup",
     () => {
