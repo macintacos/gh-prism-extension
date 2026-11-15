@@ -2283,6 +2283,52 @@ index 1111111..2222222 100644
  export const c = 3;
 `;
 
+test("a click on a file header's counts or the page header's switches every counter between breakout and total", async ({
+  browserName,
+  context,
+  page,
+}) => {
+  test.skip(browserName === "firefox", BACKGROUND_ROUTE_LIMIT);
+  const diff = ["bin/caret-launcher", "test/core/commands/install/launcher.test.ts"]
+    .map(
+      (path) => `diff --git a/${path} b/${path}
+index 1111111..2222222 100644
+--- a/${path}
++++ b/${path}
+@@ -1,2 +1,2 @@
+ const a = 1;
+-const b = 2;
++const b = 3;
+`,
+    )
+    .join("");
+  await serve(context, COMMIT_URL, COMMIT_BODY);
+  await context.route(`${COMMIT_URL}.diff`, (route) =>
+    route.fulfill({ contentType: "text/plain", body: diff }),
+  );
+  await page.goto(COMMIT_URL);
+  const header = page.locator(".gh-prism-diffstat:not(.gh-prism-file-diffstat)");
+  const files = page.locator(".gh-prism-file-diffstat");
+  const squares = page.locator('[class*="diff-file-header__"] [data-testid$=" diffstat"]');
+  const expectViews = async (view: string) => {
+    await expect(header).toHaveAttribute("data-view", view);
+    for (const file of await files.all()) await expect(file).toHaveAttribute("data-view", view);
+    // The fixture has none of GitHub's CSS, so the empty squares are zero-sized for toBeVisible.
+    for (const square of await squares.all())
+      expect(await square.evaluate((element) => element.checkVisibility())).toBe(true);
+  };
+
+  await expect(files).toHaveCount(2);
+  for (const file of await files.all()) await expect(file.locator(".gh-prism-pill")).toHaveCount(1);
+  await expectViews("breakout");
+
+  await files.first().click();
+  await expectViews("total");
+
+  await header.click();
+  await expectViews("breakout");
+});
+
 const COMMIT_WITH_COMMENTS = COMMIT_BODY.replace(
   'aria-label="paths.ts"',
   'aria-label="paths.ts has 3 comments"',
