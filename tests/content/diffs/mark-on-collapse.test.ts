@@ -33,26 +33,26 @@ describe("markOnCollapseItem", () => {
     const diff = region(anchor);
     const body = document.createElement("div");
     const icon = () => chevronOf(anchor).querySelector("svg") as SVGElement;
-    const show = (open: boolean) => {
+    const setOpen = (open: boolean) => {
       if (open) diff.append(body);
       else body.remove();
       // GitHub swaps the chevron's svg, detaching the clicked target.
-      const next = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      next.setAttribute("class", `octicon octicon-chevron-${open ? "down" : "right"}`);
-      icon().replaceWith(next);
+      const nextIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      nextIcon.setAttribute("class", `octicon octicon-chevron-${open ? "down" : "right"}`);
+      icon().replaceWith(nextIcon);
     };
     if (diff.children.length === 1) body.remove();
     else diff.replaceChildren(diff.children[0] as Element, body);
-    chevronOf(anchor).addEventListener("click", () => show(collapsed(anchor)));
+    chevronOf(anchor).addEventListener("click", () => setOpen(collapsed(anchor)));
     toggleOf(anchor).addEventListener("click", () => {
       toggleClicks.push(anchor);
       const pressed = !viewed(anchor);
       toggleOf(anchor).setAttribute("aria-pressed", String(pressed));
-      show(!pressed);
+      setOpen(!pressed);
     });
   }
 
-  function show({ on = true, gate = "open" as MenuGate } = {}) {
+  function createItem({ on = true, gate = "open" as MenuGate } = {}) {
     const choice: MarkOnCollapseChoice = { on };
     const save = vi.fn<(on: boolean) => void>();
     const marked = new Set<string>();
@@ -81,7 +81,7 @@ describe("markOnCollapseItem", () => {
   });
 
   it("leaves Viewed alone on a collapse while unchecked", async () => {
-    show({ on: false });
+    createItem({ on: false });
 
     click(chevronOf(VIEWED_LIB_RS).querySelector("svg") as Element);
     await settle();
@@ -91,7 +91,7 @@ describe("markOnCollapseItem", () => {
   });
 
   it("marks a collapsed file Viewed and unmarks it when expanded again", async () => {
-    const { marked } = show();
+    const { marked } = createItem();
 
     click(chevronOf(VIEWED_LIB_RS).querySelector("svg") as Element);
     await settle();
@@ -109,7 +109,7 @@ describe("markOnCollapseItem", () => {
   });
 
   it("marks a file collapsed from its header bar Viewed", async () => {
-    show();
+    createItem();
     showClickableHeaders(page, controller.signal);
 
     click(region(VIEWED_LIB_RS).querySelector('[class*="diff-file-header__"] > div') as Element);
@@ -119,7 +119,7 @@ describe("markOnCollapseItem", () => {
   });
 
   it("never toggles a file the reviewer marked Viewed", async () => {
-    show();
+    createItem();
 
     click(chevronOf(VIEWED_APP_TOML));
     await settle();
@@ -131,7 +131,7 @@ describe("markOnCollapseItem", () => {
   });
 
   it("keeps a file Viewed once the reviewer re-ticks it by hand", async () => {
-    const { marked } = show();
+    const { marked } = createItem();
     click(chevronOf(VIEWED_LIB_RS));
     await settle();
 
@@ -148,7 +148,7 @@ describe("markOnCollapseItem", () => {
   });
 
   it("ignores an Alt-click, which collapses every file", async () => {
-    show();
+    createItem();
 
     click(chevronOf(VIEWED_LIB_RS), true);
     await settle();
@@ -157,7 +157,7 @@ describe("markOnCollapseItem", () => {
   });
 
   it("does not count a Viewed toggle click as a collapse", async () => {
-    const { marked } = show();
+    const { marked } = createItem();
 
     click(toggleOf(VIEWED_LIB_RS));
     await settle();
@@ -167,7 +167,7 @@ describe("markOnCollapseItem", () => {
   });
 
   it("does nothing while its gate is closed", async () => {
-    show({ gate: "closed" });
+    createItem({ gate: "closed" });
 
     click(chevronOf(VIEWED_LIB_RS));
     await settle();
@@ -176,7 +176,7 @@ describe("markOnCollapseItem", () => {
   });
 
   it("forgets marked files and stops once unchecked", async () => {
-    const { item, save, marked } = show();
+    const { item, save, marked } = createItem();
     click(chevronOf(VIEWED_LIB_RS));
     await settle();
 
@@ -191,7 +191,7 @@ describe("markOnCollapseItem", () => {
   });
 
   it("stops once its signal aborts", async () => {
-    show();
+    createItem();
 
     controller.abort();
     click(chevronOf(VIEWED_LIB_RS));

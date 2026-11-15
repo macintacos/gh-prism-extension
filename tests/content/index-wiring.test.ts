@@ -1047,8 +1047,8 @@ describe("content script", () => {
       });
       await run();
 
-      const gear = findFilesPage(document);
-      if (gear) findLayoutGear(gear)?.click();
+      const pageAfterRun = findFilesPage(document);
+      if (pageAfterRun) findLayoutGear(pageAfterRun)?.click();
       await afterMutations();
 
       expect(document.querySelector("#gh-prism-click-to-comment")).not.toBeNull();

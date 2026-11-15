@@ -75,13 +75,13 @@ describe("showClickableHeaders", () => {
   );
 
   it("removes its style and stops forwarding once its signal aborts", async () => {
-    const styles = document.head.querySelectorAll("style").length;
+    const stylesBefore = document.head.querySelectorAll("style").length;
 
     controller.abort();
     click(bar());
     await vi.runAllTimersAsync();
 
-    expect(document.head.querySelectorAll("style").length).toBe(styles - 1);
+    expect(document.head.querySelectorAll("style").length).toBe(stylesBefore - 1);
     expect(chevronClicks).toBe(0);
   });
 });
