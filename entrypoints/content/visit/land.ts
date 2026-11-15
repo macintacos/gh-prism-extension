@@ -35,6 +35,7 @@ import {
   readChangedFiles,
 } from "../files-page";
 import { type DiffstatOptions, showDiffstat } from "../header/diffstat-view";
+import { type OnboardingChoice, showOnboarding } from "../sidebar/onboarding";
 import { showSections } from "../sidebar/sections-view";
 import { type WhatsNew, whatsNewBlock } from "../sidebar/whats-new";
 import type { OwnerFilter } from "../ui/owners-dialog";
@@ -215,7 +216,8 @@ const orFailed = (read: Promise<IntentResult>): Promise<IntentResult> =>
  * given, makes each code owner's name in the sidebar's popovers and dialogs filter by that owner.
  * `landHash`, the visit's, lands the URL's hash once the diffs are revealed. `structural`, when
  * given, shows Structural mode on the diffs, requesting the files on screen; the returned
- * `startStructural` shows a mode later, ignored while a started mode is still live.
+ * `startStructural` shows a mode later, ignored while a started mode is still live. `onboarding`,
+ * when given, covers the sidebar's sections and holds the j/k keys until it lifts.
  */
 export function showVisit(
   page: FilesPage,
@@ -234,6 +236,7 @@ export function showVisit(
     whatsNew,
     landHash,
     structural,
+    onboarding,
   }: {
     intent: PendingIntent;
     diffstat: DiffstatOptions;
@@ -248,9 +251,11 @@ export function showVisit(
     whatsNew?: WhatsNew;
     landHash: () => void;
     structural?: StructuralMode;
+    onboarding?: { choice: OnboardingChoice; save: () => void };
   },
 ): { startStructural: (mode: StructuralMode) => void } {
   const sidebar = showSections(page, signal, { teamMembers, teamAvatar, teamRoster, filter });
+  if (onboarding) showOnboarding(sidebar.root, signal, onboarding);
   void codeOwners?.then((read) => {
     if (read && !signal.aborted) sidebar.owners(read);
   });
@@ -260,7 +265,7 @@ export function showVisit(
   const views: LandingView[] = [
     sidebar,
     showDiffOrder(page, signal, { landHash }),
-    followFileKeys(page, signal),
+    followFileKeys(page, signal, () => onboarding?.choice.onboarded === false),
     showDiffstat(headerOf(page), { ...diffstat, files: page, signal }),
     followOnScreen(
       page,

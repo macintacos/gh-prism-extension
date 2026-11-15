@@ -77,6 +77,22 @@ describe("j and k", () => {
     document.body.removeEventListener("keydown", later);
   });
 
+  it("hold still while the onboarding covers the sections, and step once it lifts", async () => {
+    const choice = { onboarded: false, lifts: new EventTarget() };
+    remountWith(undefined, undefined, { onboarding: { choice, save: () => {} } });
+    await afterDebounce();
+
+    const held = press("j");
+
+    expect(held.defaultPrevented).toBe(false);
+    expect(clicked()).toEqual([]);
+
+    choice.onboarded = true;
+    press("j");
+
+    expect(clicked()).toEqual(["src/generated/schema.rs"]);
+  });
+
   it("leave the key alone while the reviewer types", () => {
     const field = document.body.appendChild(document.createElement("textarea"));
 

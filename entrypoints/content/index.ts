@@ -39,6 +39,7 @@ import {
   conversationWidth,
   type DiffstatView,
   diffstatView,
+  onboarded,
   sidebarSide,
   structuralIntroDismissed,
   structuralMode,
@@ -78,6 +79,7 @@ import { visitViewed } from "./diffs/viewed";
 import { showWrapLines, type WrapChoice } from "./diffs/wrap-lines";
 import { findCommentAuthors, findFilesCommentAuthors, followRightPanel } from "./files-page";
 import type { DiffstatChoice, DiffstatOptions } from "./header/diffstat-view";
+import type { OnboardingChoice } from "./sidebar/onboarding";
 import { showOwnerSection } from "./sidebar/owner-section";
 import { showReportLink } from "./sidebar/report";
 import { dockSidebar, type Side, type SideChoice } from "./sidebar/side";
@@ -130,6 +132,7 @@ export default defineContentScript({
       savedWrap,
       whatsNewForPage,
       introChoice,
+      onboarding,
     ] = await Promise.all([
       readSavedSide(),
       readSavedDiffstat(),
@@ -144,6 +147,7 @@ export default defineContentScript({
       readSavedWrap(),
       release && followWhatsNew(release, ctx),
       followIntro(ctx),
+      followOnboarding(ctx),
     ]);
     const side = sideChoiceOf(savedSide);
     const commitMessage = commitMessageChoiceOf(savedCommitMessage, savedColumnWidth);
@@ -277,9 +281,13 @@ export default defineContentScript({
               teamRoster,
               owner,
               filter,
-              whatsNew: whatsNewForPage?.(),
+              // Not calling whatsNewForPage leaves its first showing for the page after the reveal.
+              whatsNew: onboarding.onboarded ? whatsNewForPage?.() : undefined,
               landHash,
               structural: structuralFor(),
+              onboarding: onboarding.onboarded
+                ? undefined
+                : { choice: onboarding, save: saveOnboarded },
             });
             showDiffViewControl(page, signal, {
               choice: pageStructural(structural, () => {
@@ -686,6 +694,44 @@ async function followIntro(ctx: ContentScriptContext): Promise<IntroChoice> {
   if (!choice.dismissed) {
     ctx.onInvalidated(
       structuralIntroDismissed.watch((saved) => (choice.dismissed = saved === true)),
+    );
+  }
+  return choice;
+}
+
+/**
+ * Whether the user revealed the sidebar past the onboarding; revealed, when storage won't read:
+ * better to skip the introduction than to cover a tenured user's sections.
+ */
+const readOnboarded = (): Promise<boolean> =>
+  onboarded
+    .getValue()
+    .then((saved: unknown) => saved === true)
+    .catch((error: unknown) => {
+      console.error("gh-prism: reading the onboarding's reveal failed", error);
+      return true;
+    });
+
+const saveOnboarded = () =>
+  onboarded
+    .setValue(true)
+    .catch((error: unknown) =>
+      console.error("gh-prism: saving the onboarding's reveal failed", error),
+    );
+
+/**
+ * The tab's onboarding choice, lifting its drawn covers once any tab reveals the sidebar, until
+ * `ctx` ends. Revealed at startup, it never shows again, so its tab skips the watch.
+ */
+async function followOnboarding(ctx: ContentScriptContext): Promise<OnboardingChoice> {
+  const choice: OnboardingChoice = { onboarded: await readOnboarded(), lifts: new EventTarget() };
+  if (!choice.onboarded) {
+    ctx.onInvalidated(
+      onboarded.watch((saved) => {
+        if (saved !== true) return;
+        choice.onboarded = true;
+        choice.lifts.dispatchEvent(new Event("lift"));
+      }),
     );
   }
   return choice;

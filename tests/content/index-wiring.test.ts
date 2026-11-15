@@ -29,7 +29,12 @@ import { readFilesRoute } from "../../utils/github/files-route";
 import { readNextCommit } from "../../utils/github/next-commit";
 import { connectPrData, type PrDataClient } from "../../utils/github/pr-port";
 import { intentFor } from "../../utils/intent/read";
-import { type CommitMessageView, type DiffstatView, whatsNewSeen } from "../../utils/prefs";
+import {
+  type CommitMessageView,
+  type DiffstatView,
+  onboarded,
+  whatsNewSeen,
+} from "../../utils/prefs";
 import commitToolbar from "../fixtures/commit-page-toolbar.html?raw";
 import { routedFetch } from "../fixtures/fetch";
 import {
@@ -135,8 +140,9 @@ const recordFirstCommitView = () => {
 // Runs the MutationObserver's pending microtask, and no timer.
 const afterMutations = () => vi.advanceTimersByTimeAsync(0);
 
-beforeEach(() => {
+beforeEach(async () => {
   fakeBrowser.reset();
+  await fakeBrowser.storage.sync.set({ onboarded: true });
   vi.resetAllMocks();
   // main reads the version on every run; fakeBrowser leaves runtime.getManifest unmocked.
   vi.spyOn(fakeBrowser.runtime, "getManifest").mockReturnValue({
@@ -1260,6 +1266,104 @@ describe("content script", () => {
 
       expect(block()).toBeNull();
       expect(await seen()).toBeUndefined();
+    });
+  });
+
+  describe("onboarding", () => {
+    const cover = () => document.querySelector(".gh-prism-onboarding");
+    const lifted = () =>
+      document.querySelector(".gh-prism-sections")?.hasAttribute("data-gh-prism-onboarding") ===
+      false;
+    const reveal = () => cover()?.querySelector<HTMLButtonElement>("button")?.click();
+
+    beforeEach(async () => {
+      await fakeBrowser.storage.sync.remove("onboarded");
+      const actual = await vi.importActual<typeof import("../../entrypoints/content/visit/land")>(
+        "../../entrypoints/content/visit/land",
+      );
+      vi.mocked(showVisit).mockImplementation(actual.showVisit);
+    });
+
+    it.each([
+      { page: "a pull request", path: PR, load: loadFixture },
+      { page: "a commit", path: "/o/r/commit/dd95cdc", load: loadCommitFixture },
+    ])("covers a new user's sections on $page", async ({ path, load }) => {
+      history.replaceState(null, "", path);
+      load();
+
+      await run();
+
+      expect(cover()?.closest(".gh-prism-sections")).toBeInstanceOf(HTMLElement);
+    });
+
+    it.each([
+      {
+        name: "once revealed",
+        setUp: () => fakeBrowser.storage.sync.set({ onboarded: true }),
+      },
+      {
+        name: "when the reveal won't read",
+        setUp: () => {
+          vi.spyOn(onboarded, "getValue").mockRejectedValue(new Error("invalidated"));
+          vi.spyOn(console, "error").mockImplementation(() => {});
+        },
+      },
+    ])("covers nothing $name", async ({ setUp }) => {
+      await setUp();
+
+      await run();
+
+      expect(document.querySelector(".gh-prism-sections")).not.toBeNull();
+      expect(cover()).toBeNull();
+    });
+
+    it("stores the reveal in sync storage and lifts the cover", async () => {
+      await run();
+
+      reveal();
+
+      expect(lifted()).toBe(true);
+      await vi.waitFor(async () =>
+        expect(await fakeBrowser.storage.sync.get("onboarded")).toEqual({ onboarded: true }),
+      );
+    });
+
+    it("lifts a drawn cover once another tab stores the reveal", async () => {
+      await run();
+      expect(lifted()).toBe(false);
+
+      await fakeBrowser.storage.sync.set({ onboarded: true });
+
+      await vi.waitFor(() => expect(lifted()).toBe(true));
+    });
+
+    it("holds What's New back while it covers, and shows it on the first page after the reveal", async () => {
+      vi.stubEnv("WXT_RELEASE_NOTES", "- Faster sections");
+      vi.spyOn(fakeBrowser.runtime, "getManifest").mockReturnValue({
+        manifest_version: 3,
+        name: "gh-prism",
+        version: "1.2.3",
+      });
+      const block = () => document.querySelector(".gh-prism-whats-new");
+      await run();
+      expect(cover()).not.toBeNull();
+      expect(block()).toBeNull();
+
+      reveal();
+      const sidebar = byId("pr-file-tree");
+      sidebar.replaceWith(sidebar.cloneNode(true));
+      await afterMutations();
+
+      expect(block()).not.toBeNull();
+    });
+
+    it("leaves other tabs' storage writes unwatched once revealed", async () => {
+      await fakeBrowser.storage.sync.set({ onboarded: true });
+      const watch = vi.spyOn(onboarded, "watch");
+
+      await run();
+
+      expect(watch).not.toHaveBeenCalled();
     });
   });
 

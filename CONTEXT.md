@@ -148,6 +148,10 @@ _Avoid_: glide
 the sections after an update until the reviewer dismisses it or 3 days after it first
 shows. _Avoid_: section, changelog
 
+**Onboarding**: The cover over a new user's sidebar sections that introduces gh-prism,
+until they reveal the sections; once revealed, it never shows again in any of their tabs
+or synced browsers. _Avoid_: tour, welcome, intro (the Structural popup's term)
+
 **Current file**: GitHub's `aria-current` file, shown as the sidebar's selected row. There
 is at most one.
 

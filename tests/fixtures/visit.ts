@@ -79,7 +79,11 @@ export function mountsVisit() {
       teamMembers = async () => undefined,
       filter,
       structural,
-    }: Pick<VisitOptions, "owner" | "codeOwners" | "prReviewers" | "filter" | "structural"> &
+      onboarding,
+    }: Pick<
+      VisitOptions,
+      "owner" | "codeOwners" | "prReviewers" | "filter" | "structural" | "onboarding"
+    > &
       Partial<Pick<VisitOptions, "teamMembers">> = {},
   ): ((mode: StructuralMode) => void) => {
     controller.abort();
@@ -103,6 +107,7 @@ export function mountsVisit() {
         teamRoster: async () => undefined,
         filter,
         structural,
+        onboarding,
         landHash,
       }));
     };

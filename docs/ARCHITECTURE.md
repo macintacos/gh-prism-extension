@@ -382,7 +382,32 @@ and watches it only if, at the tab's startup, the block can still show, since a 
 or expired version never shows again. A dismissal in one tab drops the block from the
 others on their next page. On `runtime.onInstalled` with reason `install`,
 [`entrypoints/background.ts`](../entrypoints/background.ts) marks the installed version
-dismissed, so only an update shows the notes.
+dismissed, so only an update shows the notes. While the onboarding covers the sidebar, the
+block waits: `index.ts` doesn't ask for it, so its first view, and its 3 days, start on
+the first page after the reveal.
+
+## The onboarding
+
+A new user's Files changed view, on a pull request or a commit, opens with the sidebar's
+sections covered, built by
+[`entrypoints/content/sidebar/onboarding.ts`](../entrypoints/content/sidebar/onboarding.ts):
+the cover blurs the sections, makes them inert, and holds a short introduction and a
+button that reveals them. The diffs stay usable throughout.
+
+The `sync:onboarded` item in [`utils/prefs.ts`](../utils/prefs.ts) holds the reveal, so
+browser sync carries it to the user's other browsers, best effort. The background sets it
+on an update that lacks the local install mark, since that user had gh-prism before the
+onboarding shipped; a fresh install sets the mark, so it keeps showing across updates
+until the reveal.
+
+`index.ts` reads `onboarded` with the other prefs before the first render, so a tenured
+user's sidebar is never drawn covered and a new user's cover mounts with the sections, in
+the same task. A failed read counts as revealed: better to skip the introduction than to
+cover a tenured user's sections. A tab that starts unrevealed watches the item, and a
+reveal in any tab, or one sync delivers late, lifts the covers already drawn. While the
+cover shows, `j` and `k` don't step through the files
+([`entrypoints/content/diffs/file-keys.ts`](../entrypoints/content/diffs/file-keys.ts)),
+and the what's-new block waits for the first page after the reveal.
 
 ## The report link
 
@@ -1270,7 +1295,7 @@ entrypoints/
     commit/              a commit's message rendered as Markdown in GitHub's box's place, or in a resizable column beside the diffs, with its switch back to GitHub's box and the toolbar toggle that hides it; a conventional title's type label
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
-    sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, report link, owner section
+    sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, onboarding, report link, owner section
     diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet; structural-files.ts, a visit's structural answers; structural-mode.ts, Structural mode on a page; structural-notices.ts and structural-notices.css, its per-file notices and loading line; view-control.ts and view-control.css, the Unified, Split, and Structural control before the layout gear; structural-intro.ts, the Structural segment's popover and popup; wrap-lines.ts and wrap-lines.css, the Wrap lines item and the unwrapped view; side-scroll.ts, each file's sideways scroll
     header/              diffstat breakout
     conversation/        a code owner's files popup and gh-prism's shield, in the Reviewers lists and beside Conversation and Files changed comment authors; the Conversation panel and its button, dressing its frame, and the messages the frame posts
