@@ -159,6 +159,12 @@ svg:not([data-icon-token]):has(> use[href="#gh-prism-pkl"]) {
   min-width: 6ch;
 }
 
+/* @pierre/trees' [data-truncate-container] has margin-block: -1px, so the at-rest name sits 1px
+   above the content box its revealed copy fills. */
+:host [data-item-section="content"] > [data-full-name] {
+  inset-block: -1px;
+}
+
 /* Hidden units stay laid out, never display: none, so the fit can still measure them. */
 [data-item-flattened-ellipsis] {
   position: absolute;
