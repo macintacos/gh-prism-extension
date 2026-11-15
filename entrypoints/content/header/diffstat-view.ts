@@ -328,8 +328,8 @@ function followFileTips(diffs: Element, signal: AbortSignal): void {
     "pointerout",
     (event) => {
       const owner = ownerAt(event.target);
-      const to = event instanceof MouseEvent ? event.relatedTarget : null;
-      if (owner && !(to instanceof Node && owner.contains(to))) hide();
+      const entered = event instanceof MouseEvent ? event.relatedTarget : null;
+      if (owner && !(entered instanceof Node && owner.contains(entered))) hide();
     },
     options,
   );
