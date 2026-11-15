@@ -16,11 +16,15 @@ export function showClickableHeaders(page: Pick<FilesPage, "diffs">, signal: Abo
 
   page.diffs.addEventListener(
     "click",
-    ({ target }) => {
+    (event) => {
+      const { target } = event;
+      if (!(event instanceof MouseEvent)) return;
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
       if (!(target instanceof Element)) return;
       const header = fileHeaderAt(target);
       if (!header || onHeaderControl(header, target)) return;
-      // Deferred so GitHub sees the chevron's click outside this click's dispatch.
+      // Deferred so GitHub sees the chevron's click outside this click's dispatch. A plain chevron
+      // click, so mark-on-collapse.ts counts it as one.
       setTimeout(() => header.chevron.click());
     },
     { signal },

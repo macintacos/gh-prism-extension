@@ -1055,6 +1055,23 @@ describe("content script", () => {
       expect(document.querySelector("#gh-prism-mark-viewed-on-collapse")).toBeNull();
     });
 
+    it("offers no Mark files viewed when collapsed on a pull request filtered to a commit", async () => {
+      history.replaceState(null, "", "/o/r/pull/1/changes/dd95cdc");
+      installLayoutMenu({
+        menu: prLayoutMenu,
+        tables: { unified: prRename, split: prSplit },
+        signal: controller.signal,
+      });
+      await run();
+
+      const page = findFilesPage(document);
+      if (page) findLayoutGear(page)?.click();
+      await afterMutations();
+
+      expect(document.querySelector("#gh-prism-click-to-comment")).not.toBeNull();
+      expect(document.querySelector("#gh-prism-mark-viewed-on-collapse")).toBeNull();
+    });
+
     it("keeps the diffs unwrapped across a soft navigation to another files page", async () => {
       await fakeBrowser.storage.sync.set({ wrapLines: false });
       await run();

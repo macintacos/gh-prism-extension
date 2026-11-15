@@ -1,11 +1,15 @@
-/* GitHub hooks: [class*="diff-file-header__"] and the controls in it. gh-prism hooks: file-headers.ts mounts this sheet on every Files changed page and forwards a click on the bar's blank area to its chevron. */
+/* GitHub hooks: [class*="diff-file-header__"] and the controls in it. gh-prism hooks:
+   file-headers.ts mounts this sheet on every Files changed page and forwards a click on the bar's
+   blank area to its chevron. Keep the :has() list in sync with HEADER_CONTROL in files-page.ts. */
 
+/* An overlay, not a background colour, so GitHub's own bar background stays under it. */
 [class*="diff-file-header__"]:hover:not(
     :has(:is(a, button, input, label, select, summary, textarea, [role="button"]):hover)
   ) {
   background-image: linear-gradient(var(--bgColor-neutral-muted), var(--bgColor-neutral-muted));
 }
 
+/* Every descendant too, since an element's own cursor beats an inherited one. */
 [class*="diff-file-header__"] {
   &,
   & * {

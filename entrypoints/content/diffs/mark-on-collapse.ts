@@ -1,5 +1,5 @@
 /**
- * The mark-on-collapse item in gh-prism's diff settings group: while it is
+ * The "Mark files viewed when collapsed" item in gh-prism's diff settings group: while it is
  * checked, collapsing a file with its chevron marks it Viewed, and expanding it again unmarks it
  * when collapsing was what marked it.
  */
@@ -28,13 +28,17 @@ export interface MarkOnCollapseOptions {
   readonly choice: MarkOnCollapseChoice;
   /** Remembers the choice the item flipped to. */
   readonly save: (on: boolean) => void;
-  /** The visit's files that collapsing marked Viewed, by diff anchor; shared by the visit's pages. */
+  /**
+   * The visit's files that collapsing marked Viewed, by diff anchor; shared by the visit's pages.
+   * The item adds and removes entries, drops any a read finds unviewed, and clears it when
+   * unchecked.
+   */
   readonly marked: Set<string>;
 }
 
 /**
- * The mark-on-collapse item, which marks `page`'s files Viewed as their chevrons collapse them
- * while it is checked and its group's gate is open, until `signal` aborts.
+ * The mark-on-collapse item, which marks `page`'s files Viewed as their chevrons collapse them,
+ * and unmarks those it marked as they expand, while it is checked and its group's gate is open, until `signal` aborts.
  */
 export function markOnCollapseItem(
   page: FilesPage,
@@ -87,6 +91,7 @@ export function markOnCollapseItem(
 
 /** Marks or unmarks the file whose chevron `event` clicked, once GitHub has collapsed or expanded it. */
 function onClick(page: FilesPage, event: Event, marked: Set<string>, whileActive: AbortSignal) {
+  // Alt-click collapses or expands every file at once; leave those to the reviewer.
   if (event instanceof MouseEvent && event.altKey) return;
   const { target } = event;
   if (!(target instanceof Element)) return;
@@ -101,6 +106,7 @@ function onClick(page: FilesPage, event: Event, marked: Set<string>, whileActive
     const collapsed = expandButtonOf(findDiff(page, link)) !== null;
     if (collapsed) {
       const toggle = viewedToggleOf(page, link);
+      // Already viewed means viewed by hand, so it never enters the set and expanding leaves it.
       if (!toggle || showsViewed(toggle)) return;
       marked.add(anchor);
       void markViewed(page, link, true, { signal: whileActive });

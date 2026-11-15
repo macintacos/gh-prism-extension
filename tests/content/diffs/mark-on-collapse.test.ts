@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { showClickableHeaders } from "../../../entrypoints/content/diffs/file-headers";
 import {
   type MarkOnCollapseChoice,
   markOnCollapseItem,
@@ -105,6 +106,16 @@ describe("markOnCollapseItem", () => {
     expect(viewed(VIEWED_LIB_RS)).toBe(false);
     expect(collapsed(VIEWED_LIB_RS)).toBe(false);
     expect([...marked]).toEqual([]);
+  });
+
+  it("marks a file collapsed from its header bar Viewed", async () => {
+    show();
+    showClickableHeaders(page, controller.signal);
+
+    click(region(VIEWED_LIB_RS).querySelector('[class*="diff-file-header__"] > div') as Element);
+    await settle();
+
+    expect(viewed(VIEWED_LIB_RS)).toBe(true);
   });
 
   it("never toggles a file the reviewer marked Viewed", async () => {

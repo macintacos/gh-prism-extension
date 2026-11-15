@@ -172,7 +172,7 @@ export default defineContentScript({
     } satisfies DiffstatOptions;
     // Shared by every visit, so Unified seen on one keeps the next one off.
     const structural = structuralChoiceOf(savedStructural === true, saveStructural);
-    // Shared by every visit, so a soft navigation keeps both diff settings as the reader left them.
+    // Shared by every visit, so a soft navigation keeps the diff settings as the reader left them.
     const wrap: WrapChoice = { on: savedWrap !== false };
     const clickComment: ClickToCommentChoice = { on: savedClickComment === true };
     const markOnCollapse: MarkOnCollapseChoice = { on: savedMarkOnCollapse === true };
@@ -319,7 +319,7 @@ export default defineContentScript({
                 choice: clickComment,
                 save: saveClickToComment,
               }),
-              ...(route.diff.kind === "pr"
+              ...(route.diff.kind === "pr" && !route.commitFiltered
                 ? [
                     markOnCollapseItem(page, signal, {
                       choice: markOnCollapse,

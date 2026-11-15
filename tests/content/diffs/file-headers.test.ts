@@ -63,6 +63,17 @@ describe("showClickableHeaders", () => {
     expect(chevronClicks).toBe(ownClicks);
   });
 
+  it.each(["altKey", "ctrlKey", "metaKey", "shiftKey"])(
+    "leaves a bar click with %s held to GitHub",
+    async (modifier) => {
+      bar().dispatchEvent(new MouseEvent("click", { bubbles: true, [modifier]: true }));
+
+      await vi.runAllTimersAsync();
+
+      expect(chevronClicks).toBe(0);
+    },
+  );
+
   it("removes its style and stops forwarding once its signal aborts", async () => {
     const styles = document.head.querySelectorAll("style").length;
 

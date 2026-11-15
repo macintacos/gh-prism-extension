@@ -56,7 +56,9 @@ A hovered line takes `--bgColor-neutral-muted`, and a dragged range takes
 `--bgColor-attention-muted`, GitHub's own selected-line colour. On the line under the
 pointer, the range colour replaces the hover colour. Both are overlays above GitHub's line
 tint, so added and deleted lines keep theirs. Neither animates: each switches on and off
-with no transition.
+with no transition. A hovered file header bar takes the same `--bgColor-neutral-muted`
+overlay, in
+[`entrypoints/content/diffs/file-headers.css`](../entrypoints/content/diffs/file-headers.css).
 
 The spectrum is `SECTION_SPECTRUM` in `ui/section-catalog.ts`: a left-to-right band of
 every section's hue, in section order.
