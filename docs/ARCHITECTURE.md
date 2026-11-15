@@ -1095,6 +1095,15 @@ GitHub mounts only in the hovered cell of a line it lets you comment on. So the 
 on exactly those lines, never on hunk headers, fillers, or a signed-out page, with no
 script per row.
 
+The same lines, and the cells a drag covers, show the `pointer` cursor, set on every
+descendant too because an element's own cursor beats an inherited one. A cell holding a
+thread or an open box keeps GitHub's cursors. While Shift is held, the module sets
+`data-gh-prism-click-comment-select` on `<html>` from window key events, and the sheet
+swaps the pointer for the `text` cursor, since a Shift press selects text. CSS can't see a
+modifier key, and a pointer event's `shiftKey` only updates on the next move. The
+attribute also clears on window `blur`, because a Shift released in another window sends
+no `keyup` here, and it goes when the option turns off.
+
 A plain left mouse press on a line, which `diffLineAt` in
 [`files-page.ts`](../entrypoints/content/files-page.ts) resolves, starts a drag when the
 line shows its "+". Touch, pen, and modified presses stay GitHub's. A Shift press

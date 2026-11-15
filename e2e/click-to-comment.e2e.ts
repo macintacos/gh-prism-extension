@@ -430,6 +430,43 @@ test("the diff takes clicks after a switch to Unified", async ({ context, page }
   await expect.poll(() => opens(page)).toEqual(["plus 0:R12"]);
 });
 
+/** The cursor over whatever sits at `target`'s centre, where `hover` rests the pointer. */
+async function cursorAt(page: Page, target: Locator) {
+  const box = await target.boundingBox();
+  if (!box) throw new Error("target has no box");
+  return page.evaluate(
+    ({ x, y }) => {
+      const under = document.elementFromPoint(x, y);
+      return under ? getComputedStyle(under).cursor : "";
+    },
+    { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+  );
+}
+
+test("a line shows the pointer, through a drag, and the text cursor while Shift is held", async ({
+  context,
+  page,
+}) => {
+  await openPage(context, page);
+  const code = (n: number) => line(page, n).locator(".diff-text-inner");
+  expect(await cursorAt(page, code(4))).not.toBe("pointer");
+  await turnOn(page);
+
+  await hoverLine(line(page, 4));
+  await code(4).hover();
+  expect(await cursorAt(page, code(4))).toBe("pointer");
+
+  await page.keyboard.down("Shift");
+  await expect.poll(() => cursorAt(page, code(4))).toBe("text");
+  await page.keyboard.up("Shift");
+  await expect.poll(() => cursorAt(page, code(4))).toBe("pointer");
+
+  await drag(page, line(page, 4), code(5), async () => {
+    await expect.poll(() => marked(page)).toEqual(["R4", "R5"]);
+    expect(await cursorAt(page, code(5))).toBe("pointer");
+  });
+});
+
 test("with click to comment off, a drag on code selects text and opens nothing", async ({
   context,
   page,

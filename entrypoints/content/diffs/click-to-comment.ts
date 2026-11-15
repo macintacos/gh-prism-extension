@@ -63,6 +63,7 @@ export function clickToCommentItem(
         },
         { signal: whileActive },
       );
+      followShift(doc, whileActive);
     } else {
       activation?.abort();
       activation = undefined;
@@ -92,6 +93,26 @@ export function clickToCommentItem(
       apply();
     },
   };
+}
+
+/**
+ * Marks `<html>` `data-gh-prism-click-comment-select` while Shift is held, until `signal` aborts,
+ * so the sheet swaps the pointer for the text cursor. A Shift released in another window sends no
+ * keyup here, so losing focus clears it too.
+ */
+function followShift(doc: Document, signal: AbortSignal) {
+  const root = doc.documentElement;
+  const set = (on: boolean) => root.toggleAttribute("data-gh-prism-click-comment-select", on);
+  const view = doc.defaultView;
+  if (!view) return;
+
+  const onKey = (event: KeyboardEvent) => {
+    if (event.key === "Shift") set(event.type === "keydown");
+  };
+  view.addEventListener("keydown", onKey, { signal });
+  view.addEventListener("keyup", onKey, { signal });
+  view.addEventListener("blur", () => set(false), { signal });
+  signal.addEventListener("abort", () => set(false));
 }
 
 /** Starts a drag for a plain left mouse press on a commentable line; leaves every other press to GitHub. */

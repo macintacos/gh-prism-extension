@@ -210,6 +210,57 @@ describe("clickToCommentItem", () => {
     expect(log).toEqual([]);
   });
 
+  describe("select mode", () => {
+    const selecting = () =>
+      document.documentElement.hasAttribute("data-gh-prism-click-comment-select");
+    const key = (type: string, key = "Shift") =>
+      window.dispatchEvent(new KeyboardEvent(type, { key, shiftKey: type === "keydown" }));
+
+    it("follows Shift while the option is on", () => {
+      show(pageOf(prSplit));
+
+      key("keydown");
+      expect(selecting()).toBe(true);
+
+      key("keyup");
+      expect(selecting()).toBe(false);
+    });
+
+    it("leaves select mode when the window loses focus", () => {
+      show(pageOf(prSplit));
+      key("keydown");
+
+      window.dispatchEvent(new Event("blur"));
+
+      expect(selecting()).toBe(false);
+    });
+
+    it("ignores other keys", () => {
+      show(pageOf(prSplit));
+
+      key("keydown", "a");
+
+      expect(selecting()).toBe(false);
+    });
+
+    it("ignores Shift while the option is off", () => {
+      show(pageOf(prSplit), { on: false });
+
+      key("keydown");
+
+      expect(selecting()).toBe(false);
+    });
+
+    it("leaves select mode once the option turns off", () => {
+      const { item } = show(pageOf(prSplit));
+      key("keydown");
+
+      item.pick();
+
+      expect(selecting()).toBe(false);
+    });
+  });
+
   it("stays off while the menu's gate is given up", () => {
     const { item } = show(pageOf(prSplit), { on: false, gate: "given up" });
 
