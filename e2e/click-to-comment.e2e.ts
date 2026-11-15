@@ -195,7 +195,11 @@ test("the gh-prism group offers click to comment unchecked after Wrap lines, and
   await gear(page).click();
 
   const group = page.getByRole("group", { name: "gh-prism" });
-  await expect(group.getByRole("menuitemcheckbox")).toHaveText([/Wrap lines/, new RegExp(ITEM)]);
+  await expect(group.getByRole("menuitemcheckbox")).toHaveText([
+    /Wrap lines/,
+    new RegExp(ITEM),
+    /Mark files viewed when collapsed/,
+  ]);
   await expect(item(page)).toContainText("Hold Shift to select text");
   await expect(item(page)).toHaveAttribute("aria-checked", "false");
   await item(page).focus();
