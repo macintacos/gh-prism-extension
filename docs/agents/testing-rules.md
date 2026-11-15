@@ -287,6 +287,18 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   menu from `layout-menu-pr.html` or `layout-menu-commit.html`. A pull request's
   three-column table counts as Unified only when it changes both sides, so the pull
   request pages use `files-page-diff-rename.html` for Unified.
+- **Switch a routed page's layout through gh-prism's Diff view control, not the gear's
+  Layout items.** gh-prism hides those `menuitemradio` items while its control shows, so a
+  click on one waits until the test times out.
+  [`e2e/click-to-comment.e2e.ts`](../../e2e/click-to-comment.e2e.ts)'s "the diff takes
+  clicks after a switch to Unified" is the pattern.
+- **Await the sections' reveal animations, from `getAnimations({ subtree: true })`, with
+  `Promise.allSettled`, not `Promise.all`.** A cancelled animation's `finished` rejects
+  with an `AbortError`, which fails the wait even though the reveal has settled.
+- **Aim a press or drag on a line's text at the text's own box.** Get it from
+  `getBoundingClientRect()` on a `Range` over the text. A short line's `.diff-text-inner`
+  runs past its last character. A hovered line's add-comment "+" covers the cell's left
+  edge. So a press at the inner's edges lands on no text, or on the "+".
 - **Keep a live check's screenshots outside `test-results/`.** Playwright empties it at
   the start of every run.
 - **Keep each end-to-end test independent of the others.** `playwright.config.ts` sets
