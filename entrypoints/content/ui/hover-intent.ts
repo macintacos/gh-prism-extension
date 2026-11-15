@@ -171,6 +171,10 @@ export function followHoverIntent(
       },
       { signal },
     );
+
+    // A pointer already resting on a trigger the page drew before this started sends no pointerover.
+    const trigger = triggerAt([...root.querySelectorAll(":hover")].at(-1) ?? null);
+    if (trigger) openAfter(trigger, OPEN_DELAY_MS);
   };
 
   follow(doc);

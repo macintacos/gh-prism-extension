@@ -154,6 +154,10 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   so a hover rests the pointer on a line that scrolls away before the press.
   [`e2e/click-to-comment.e2e.ts`](../../e2e/click-to-comment.e2e.ts)'s "holding a drag at
   the window's bottom edge…" scrolls its start line into place this way.
+- **Don't retry a `hover()` to wait for the content script.** A routed fixture's markup is
+  hoverable before gh-prism starts, and a second `hover()` at the same point sends no
+  `pointerover`, so a `toPass` around it never recovers. `followHoverIntent` opens a card
+  for a trigger the pointer already rests on when it starts, so one `hover()` is enough.
 - **Retry a jump and its check together after a test wheels the sidebar.** A wheel's
   scroll can land after a later `scrollTop` write and carry the sidebar past the target. A
   poll for `scrollTop > 0` only proves that the wheel started. In

@@ -5704,3 +5704,26 @@ test("a tenured user never sees a frame of the onboarding", async ({ context, pa
   expect(covered.length).toBeGreaterThan(0);
   expect(covered.some(Boolean)).toBe(false);
 });
+
+test("a code owner's shield the pointer rests on before gh-prism starts opens their files", async ({
+  context,
+  page,
+}) => {
+  // gh-prism starts on Conversation once the header's counter slot mounts; mount it after the hover.
+  await serve(
+    context,
+    "https://github.com/o/r/pull/1",
+    `<!doctype html>${readFixture("conversation-page.html").replace("rightContentWrapper__", "unmounted__")}`,
+  );
+  await routeSandboxOwnership(context);
+  await page.goto("https://github.com/o/r/pull/1");
+
+  await page.locator('[id="codeowner-excessive-dev/frontend"]').hover();
+  await page.locator('[class*="unmounted__"]').evaluate((slot) => {
+    const mounted = slot.cloneNode(true) as Element;
+    mounted.className = mounted.className.replace("unmounted__", "rightContentWrapper__");
+    slot.replaceWith(mounted);
+  });
+
+  await expect(page.locator(".gh-prism-reviewer-files")).toContainText("api/generated/client.ts");
+});
