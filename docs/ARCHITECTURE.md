@@ -36,7 +36,10 @@ worker stopped while idle never hears the port close. Closing the tab removes it
 and a leftover rule still matches only that tab's marked URL. It also clears the intent
 cache whenever the extension is installed, updated, or reloaded in development, and on a
 fresh install it marks the installed version's what's-new notes and the Structural popup
-dismissed.
+dismissed. On install it also marks this browser's install as one the onboarding greets;
+on an update without that mark it stores the sidebar as revealed, since that user had
+gh-prism before the onboarding shipped. A dev build applies `mise run dev`'s onboarding
+flag on install, reload, and browser start.
 
 The structural diff engine runs in a dedicated Worker, off the background's thread, so a
 long parse never delays port traffic. The Worker's script is
@@ -1257,7 +1260,7 @@ while the segment is hovered or shows keyboard focus.
 
 ```text
 entrypoints/
-  background.ts          service worker: PR data port, the Conversation panel's framing rule, cache clearing and what's-new mark on install
+  background.ts          service worker: PR data port, the Conversation panel's framing rule, cache clearing, what's-new mark, and onboarding rule on install
   structural-engine.ts   the structural engine's dedicated Worker script
   structural-offscreen/  Chrome only: the offscreen document that owns the engine's Worker and answers the service worker's relayed requests
   conversation-frame.content.ts  content script in the Conversation panel's frame
