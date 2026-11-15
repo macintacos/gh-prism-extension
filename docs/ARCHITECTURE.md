@@ -645,16 +645,18 @@ didn't render.
 
 gh-prism lists each changed file in one of five sections, such as Implementation or Tests.
 A file's path picks its section, unless a hunk rule claims some of its changed blocks for
-Docs & Comments or Tests by what they change. The docstring rule moves an Implementation
-file whole when every hunk is docstring-only, and moves its docstring-only hunks alone
-only when no hunk stays in Implementation as code. GitHub's generated flag on the page
+Docs & Comments or Tests by what they change. The docstring rule moves a file whole when
+every hunk is docstring-only. Otherwise an Implementation or Tests file keeps its
+docstring-only hunks while a hunk stays in its path section as code, and any other file's
+docstring-only hunks go to Docs & Comments as a share. GitHub's generated flag on the page
 (`readGeneratedPaths` in [`utils/github/pr-ref.ts`](../utils/github/pr-ref.ts)), or a
 generator's marker in a file's leading comment block (scanned by
 [`utils/hunk-rules/generated.ts`](../utils/hunk-rules/generated.ts)), moves a file whole
 to Generated. Intent is where these rules place a diff's files. It also counts, per file,
 the changed lines the comment scan confirms are comments or docstrings in hunks that stay
-in Implementation; a line only an unread head could confirm counts as code. `intentFor` in
-[`utils/intent/read.ts`](../utils/intent/read.ts) finds it in three steps, cheapest first:
+in Implementation or Tests; a line only an unread head could confirm counts as code.
+`intentFor` in [`utils/intent/read.ts`](../utils/intent/read.ts) finds it in three steps,
+cheapest first:
 
 1. **Pin hit.** The diff pin, the base and head commits that the page's embedded data
    names, keys a cache entry. A hit returns without connecting to the service worker.
@@ -697,10 +699,10 @@ keys, so an outlined result and a line-scanned one never stand in for each other
 `index.ts` sizes it to 50 entries; a pinned diff takes two, one under its diff key and one
 under its pin. Each store moves its key to the front of an index and drops the entries
 past the limit, so the cache keeps the 50 most recently stored keys. A cache hit alone
-does not refresh its entry. Entries live under the `intent.v2` key prefix; a new stored
+does not refresh its entry. Entries live under the `intent.v3` key prefix; a new stored
 shape takes a new prefix, so an older entry never validates. The service worker clears the
 cache on install, update, and dev reload, because a new build may place files differently,
-and the clear also drops the retired `intent.v1` entries.
+and the clear also drops the retired `intent.v2` entries.
 
 ## Code owners and reviewers
 
@@ -965,12 +967,12 @@ after a wait, while its button is hovered or focus-visible.
 [`ui/reveal.ts`](../entrypoints/content/ui/reveal.ts) decides how it moves: it marks a
 copy whose name overflows and scrolls it back and forth once it has faded in.
 
-Docs & Comments ends with the comment-lines sub-section when an Implementation file has
-comment lines. It has its own header and tree inside Docs & Comments' collapsible region,
-and its rows go through the same handlers that open, mark Viewed, count, and scroll to
-file rows. `listingOf` resolves a row to the sub-section, so opening one reveals the whole
-file, and `scrollToCurrent` prefers the Implementation row unless the reviewer clicked the
-sub-section's.
+Docs & Comments ends with the comment-lines sub-section when an Implementation or Tests
+file has comment lines. It has its own header and tree inside Docs & Comments' collapsible
+region, and its rows go through the same handlers that open, mark Viewed, count, and
+scroll to file rows. `listingOf` resolves a row to the sub-section, so opening one reveals
+the whole file, and `scrollToCurrent` prefers the file's own section row unless the
+reviewer clicked the sub-section's.
 
 [`entrypoints/content/diffs/on-screen.ts`](../entrypoints/content/diffs/on-screen.ts)
 tracks which files' diffs are on screen. It observes the mounted diff regions with one
