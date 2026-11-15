@@ -197,6 +197,11 @@ links to example pull requests.
   drag across lines opens GitHub's comment box for the line or the range. Hold Shift,
   which shows the text cursor, while you drag to select text instead. gh-prism only opens
   GitHub's own box, and never writes or posts a comment.
+- On a pull request, the group also holds **Mark files viewed when collapsed**, off by
+  default. When it's on, collapsing a file marks it Viewed, and expanding it again unmarks
+  it. A file you marked Viewed yourself stays viewed.
+- A click anywhere on a file header's blank area collapses or expands the file, as its
+  chevron does, and the header tints on hover.
 
 <details>
 <summary>Screenshot: a Python file in Structural, with only the changed words highlighted</summary>

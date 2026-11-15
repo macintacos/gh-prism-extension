@@ -1139,6 +1139,48 @@ the "+" hasn't mounted within 5 frames, the page gives up: gh-prism logs one war
 click to comment stops responding on this page, though its diff settings item stays
 checked.
 
+## Mark files viewed when collapsed
+
+[`entrypoints/content/diffs/mark-on-collapse.ts`](../entrypoints/content/diffs/mark-on-collapse.ts)
+builds the "Mark files viewed when collapsed" item in gh-prism's diff settings group,
+offered on pull requests only, since a commit page has no Viewed. It saves the choice to
+`sync:markViewedOnCollapse` in [`utils/prefs.ts`](../utils/prefs.ts), off by default.
+
+While the item is checked and the gate is open, the module adds one capture-phase `click`
+listener on the diff list. GitHub collapses the diff during the click's dispatch and
+detaches the chevron's `<svg>` target before the click bubbles, so the header must be
+resolved, with `fileHeaderAt`, while capturing. Only a click inside the chevron counts.
+After a `setTimeout`, outside GitHub's dispatch, it reads whether the file is collapsed
+and calls `markViewed`.
+
+A set of diff anchors, scoped to the visit and shared by its pages, records which files
+collapsing marked:
+
+- A collapse marks the file and adds it, unless it is already viewed.
+- An expand unmarks the file only if it was in the set, so a file marked Viewed by hand
+  stays viewed.
+- A file the reviewer unticks by hand, seen through `observeViewed`, leaves the set.
+  Turning the item off clears it.
+
+An Alt-click, which collapses or expands every file, marks nothing. The set lives in
+memory only, so a reload forgets which files collapsing marked, and expanding them then
+leaves them viewed.
+
+## Clickable file headers
+
+[`entrypoints/content/diffs/file-headers.ts`](../entrypoints/content/diffs/file-headers.ts)
+makes a file header's whole bar toggle its diff on every Files changed page, whatever the
+settings. GitHub's bar ignores clicks; only its chevron collapses or expands. One
+delegated `click` listener on the diff list forwards a click on the bar's blank area to
+the chevron, deferred with `setTimeout` so GitHub sees it outside the original dispatch. A
+click on a control in the bar, which `onHeaderControl` in
+[`files-page.ts`](../entrypoints/content/files-page.ts) matches against `HEADER_CONTROL`,
+stays the control's.
+
+Its sheet, `diffs/file-headers.css`, tints a hovered bar unless the pointer is over a
+control, and shows the pointer cursor. The sheet's `:has()` list repeats `HEADER_CONTROL`,
+so the two change together.
+
 ## Structural painter
 
 [`entrypoints/content/diffs/structural.ts`](../entrypoints/content/diffs/structural.ts)
