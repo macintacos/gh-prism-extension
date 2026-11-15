@@ -1,5 +1,6 @@
-/* GitHub hooks: the header's lines-changed counter, the sibling after .gh-prism-diffstat. Every
-   other rule selects only gh-prism's own classes. */
+/* GitHub hooks: the header's lines-changed counter, the sibling after .gh-prism-diffstat, and a
+   file header's count spans, the span siblings after .gh-prism-file-diffstat. Every other rule
+   selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @import "../ui/mark.css";
 @source "./diffstat-view.ts";
@@ -8,6 +9,16 @@
 /* GitHub's counter, while the breakout stands in for it. Primer's .d-flex is !important too. */
 .gh-prism-diffstat + * {
   display: none !important;
+}
+
+/* A file header's +N, -M, and screen-reader text; the squares' div after them stays. */
+.gh-prism-file-diffstat ~ span {
+  display: none !important;
+}
+
+/* GitHub's gap-1 between the counts its clones came from. */
+.gh-prism-file-diffstat[data-view="total"] {
+  gap: var(--base-size-4);
 }
 
 /* CSS, not utilities: the shorthand must precede its longhands, and Tailwind sorts it after them. */

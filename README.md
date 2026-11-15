@@ -104,6 +104,8 @@ The lines-changed count in the header splits into one count per section.
 
 - It shows on Files changed and commit pages, and on a pull request's Conversation,
   Commits, and Checks tabs.
+- Each file header splits that file's own count the same way. Clicking any count switches
+  them all.
 - Click the counts to switch to GitHub's total and back. gh-prism remembers your choice.
 
 <details>

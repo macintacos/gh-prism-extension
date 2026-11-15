@@ -1,12 +1,18 @@
 // @vitest-environment happy-dom
-import { describe, expect, it, vi } from "vitest";
-import { findFilesPage, headerOf } from "../../../entrypoints/content/files-page";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  findFileDiffstat,
+  findFilesPage,
+  headerOf,
+  mountedDiffs,
+} from "../../../entrypoints/content/files-page";
 import {
   type DiffstatChoice,
   type DiffstatOptions,
   showDiffstat,
 } from "../../../entrypoints/content/header/diffstat-view";
 import type { FileLines, Placement } from "../../../utils/intent/read";
+import { foundPage, loadCommitFixture, loadViewedFixture } from "../../fixtures/files-page";
 import { landedWith, pendingIntent, whole } from "../../fixtures/intent";
 import { afterDebounce, mountsVisit, sectionKeys, sheetsStyling } from "../../fixtures/visit";
 
@@ -387,5 +393,223 @@ describe("the header's lines-changed counter", () => {
       );
       expect(iconOf(pill)).toBe(iconOf(heading));
     }
+  });
+});
+
+describe("each file header's lines-changed counter", () => {
+  const LAUNCHER = "bin/caret-launcher";
+  const LAUNCHER_TEST = "test/core/commands/install/launcher.test.ts";
+
+  let controller = new AbortController();
+  beforeEach(() => {
+    abort();
+    controller = new AbortController();
+  });
+  afterEach(() => controller.abort());
+
+  type Shown = Pick<DiffstatOptions, "pr"> & {
+    readonly choice?: DiffstatChoice;
+    save?: () => void;
+  };
+  function show(
+    load: () => void,
+    { choice = { view: "breakout" }, save = () => {}, pr }: Shown = {},
+  ) {
+    load();
+    const page = foundPage();
+    return showDiffstat(headerOf(page), {
+      choice,
+      save,
+      pr,
+      files: page,
+      signal: controller.signal,
+    });
+  }
+
+  const rows = () =>
+    [...mountedDiffs(foundPage()).values()].map((region) => findFileDiffstat(region));
+  const standIns = () => [
+    ...document.querySelectorAll<HTMLButtonElement>(".gh-prism-file-diffstat"),
+  ];
+  const pageCounter = () =>
+    document.querySelector<HTMLButtonElement>(".gh-prism-diffstat:not(.gh-prism-file-diffstat)");
+  const pillsOf = (owner: Element | undefined) =>
+    [...(owner?.querySelectorAll<HTMLElement>(":scope > .gh-prism-pill") ?? [])].map((pill) => [
+      pill.dataset.section,
+      [...pill.querySelectorAll(".gh-prism-pill-count")].map((node) => node.textContent),
+    ]);
+
+  const commit = landedWith(
+    new Map([[LAUNCHER_TEST, whole("tests")]]),
+    new Map<string, FileLines>([
+      [LAUNCHER, { added: 36, removed: 8 }],
+      [LAUNCHER_TEST, { added: 39, removed: 0 }],
+      ["src/adapters/opencode/paths.ts", { added: 100, removed: 50 }],
+    ]),
+  );
+
+  it("shows a file all in one section as one pill with that file's own lines", () => {
+    show(loadCommitFixture).landed(commit);
+    expect(pillsOf(rows()[1]?.firstElementChild ?? undefined)).toEqual([["tests", ["+39", "−0"]]]);
+  });
+
+  it("shows a pill per section a file's lines land in, its comment lines under Docs & Comments", () => {
+    show(loadCommitFixture).landed(
+      landedWith(
+        new Map(),
+        new Map<string, FileLines>([[LAUNCHER, { added: 36, removed: 8 }]]),
+        new Map([[LAUNCHER, { added: 6, removed: 1 }]]),
+      ),
+    );
+    expect(pillsOf(standIns()[0])).toEqual([
+      ["implementation", ["+30", "−7"]],
+      ["docs", ["+6", "−1"]],
+    ]);
+  });
+
+  it("shows a pill per share of a split file", () => {
+    const split: Placement = {
+      kind: "split",
+      shares: [
+        { section: "implementation", hunks: [], lines: { added: 30, removed: 8 } },
+        { section: "tests", hunks: [], lines: { added: 6, removed: 0 } },
+      ],
+    };
+    show(loadCommitFixture).landed(
+      landedWith(new Map([[LAUNCHER, split]]), new Map([[LAUNCHER, { added: 36, removed: 8 }]])),
+    );
+    expect(pillsOf(standIns()[0])).toEqual([
+      ["implementation", ["+30", "−8"]],
+      ["tests", ["+6", "−0"]],
+    ]);
+  });
+
+  it("switches every counter on the page from a click on any one, saving each switch", () => {
+    const save = vi.fn();
+    show(loadCommitFixture, { save }).landed(commit);
+    const views = () => [pageCounter(), ...standIns()].map((button) => button?.dataset.view);
+
+    standIns()[0]?.click();
+    expect(views()).toEqual(["total", "total", "total"]);
+
+    pageCounter()?.click();
+    expect(views()).toEqual(["breakout", "breakout", "breakout"]);
+    expect(save.mock.calls).toEqual([["total"], ["breakout"]]);
+  });
+
+  it("shows GitHub's own counts in the total view, and the pills again on the way back", () => {
+    show(loadCommitFixture).landed(commit);
+    const [launcher] = standIns();
+
+    launcher?.click();
+    expect(
+      [...(launcher?.querySelectorAll(":scope > [aria-hidden]:not(.gh-prism-tip)") ?? [])].map(
+        (node) => node.textContent,
+      ),
+    ).toEqual(["+36", "-8"]);
+    expect(launcher?.querySelector(":scope > .gh-prism-tip .gh-prism-tip-total")?.textContent).toBe(
+      "Total+36−8",
+    );
+
+    launcher?.click();
+    expect(pillsOf(launcher)).toEqual([["implementation", ["+36", "−8"]]]);
+  });
+
+  it("keeps GitHub's squares out of the counter, last in their row, in either view", () => {
+    show(loadCommitFixture).landed(commit);
+    const squaresLast = () =>
+      rows().every((row) => row?.lastElementChild?.querySelector('[data-testid$=" diffstat"]'));
+
+    expect(squaresLast()).toBe(true);
+    standIns()[0]?.click();
+    expect(squaresLast()).toBe(true);
+    for (const button of standIns())
+      expect(button.querySelector('[data-testid$=" diffstat"]')).toBeNull();
+  });
+
+  it("leaves a file with no counts row, or only binary lines, with GitHub's counts", () => {
+    show(loadViewedFixture).landed(
+      landedWith(
+        new Map(),
+        new Map<string, FileLines>([
+          ["config/app.toml", { added: 3, removed: 1 }],
+          ["src/lib.rs", { added: 12, removed: 4 }],
+          ["Cargo.lock", "binary"],
+        ]),
+      ),
+    );
+    expect(
+      rows().map((row) => row?.firstElementChild?.classList.contains("gh-prism-file-diffstat")),
+    ).toEqual([undefined, true, false]);
+  });
+
+  it("stands in again, in the current view, when GitHub re-renders a file header's counts", async () => {
+    show(loadCommitFixture).landed(commit);
+    standIns()[0]?.click();
+    const [row] = rows();
+    const fresh = row?.cloneNode(true);
+    if (!(fresh instanceof Element)) throw new Error("no counts row");
+    fresh.querySelector(".gh-prism-file-diffstat")?.remove();
+
+    row?.replaceWith(fresh);
+    await afterDebounce();
+
+    expect(fresh.firstElementChild?.getAttribute("data-view")).toBe("total");
+    expect(standIns()).toHaveLength(2);
+  });
+
+  it("shows the pull request's held breakout while intent is pending, then the landed one", () => {
+    const choice: DiffstatChoice = { view: "breakout" };
+    const libLines = (added: number) =>
+      landedWith(new Map(), new Map([["src/lib.rs", { added, removed: 4 }]]));
+    show(loadViewedFixture, { choice, pr: "o/r#1" }).landed(libLines(12));
+    controller.abort();
+    controller = new AbortController();
+
+    const view = show(loadViewedFixture, { choice, pr: "o/r#1" });
+    view.pending();
+    expect(pillsOf(standIns()[0])).toEqual([["implementation", ["+12", "−4"]]]);
+
+    view.landed(libLines(9));
+    expect(pillsOf(standIns()[0])).toEqual([["implementation", ["+9", "−4"]]]);
+  });
+
+  it("leaves every file header's counts alone when intent fails", () => {
+    show(loadCommitFixture).landed({ ok: false, problem: "failed" });
+    expect(standIns()).toEqual([]);
+  });
+
+  it("gives every file header's counts back, with the stylesheet, once aborted", () => {
+    show(loadCommitFixture).landed(commit);
+    controller.abort();
+    expect(standIns()).toEqual([]);
+    expect(sheetsStyling("gh-prism-file-diffstat")).toHaveLength(0);
+  });
+
+  it("titles each file pill's tooltip with its section", () => {
+    show(loadCommitFixture).landed(commit);
+    const tip = standIns()[1]?.querySelector(".gh-prism-pill > .gh-prism-tip");
+    expect(tip?.querySelector("strong")?.textContent).toBe("Tests");
+    expect(tip?.lastElementChild?.textContent).not.toBe("");
+  });
+
+  it("is a button whose pills say their lines in words, numbers hidden from screen readers", () => {
+    show(loadCommitFixture).landed(commit);
+    const [launcher] = standIns();
+    expect(launcher?.tagName).toBe("BUTTON");
+    expect(launcher?.querySelector(".sr-only")?.textContent).toBe(
+      "Implementation: 36 added, 8 removed.",
+    );
+    for (const count of launcher?.querySelectorAll(".gh-prism-pill-count") ?? [])
+      expect(count.closest("[aria-hidden]")).not.toBeNull();
+  });
+
+  it("hides GitHub's count spans after it, and not the squares", () => {
+    show(loadCommitFixture).landed(commit);
+    expect(sheetsStyling("gh-prism-file-diffstat")).toHaveLength(1);
+    const [row] = rows();
+    for (const span of row?.querySelectorAll(":scope > span") ?? [])
+      expect(getComputedStyle(span).display).toBe("none");
+    expect(getComputedStyle(row?.lastElementChild ?? document.body).display).not.toBe("none");
   });
 });

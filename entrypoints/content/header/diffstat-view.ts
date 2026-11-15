@@ -1,12 +1,24 @@
 /**
  * Breaks the header's lines-changed counter out by section once intent lands, on a commit's page
- * or any of a pull request's tabs: a pill per section with the lines it adds and removes. A click
- * switches between that breakout and GitHub's own total.
+ * or any of a pull request's tabs, and each file header's counts on a Files view: a pill per
+ * section with the lines it adds and removes. A click on any of them switches them all between
+ * that breakout and GitHub's own totals.
  */
 
 import { type Landing, landingOf, type SectionLines, sum, totalsOf } from "@/utils/intent/landing";
 import type { DiffstatView } from "@/utils/prefs";
-import { findDiffstat, type Header, observeDiffstat } from "../files-page";
+import {
+  anchorOf,
+  type FilesPage,
+  fileCountsOf,
+  findDiffstat,
+  findFileDiffstat,
+  type Header,
+  mountedDiffs,
+  observeDiffs,
+  observeDiffstat,
+  readChangedFiles,
+} from "../files-page";
 import { el } from "../ui/dom";
 import { count, counts } from "../ui/line-counts";
 import { prismMark } from "../ui/mark";
@@ -115,21 +127,27 @@ function breakdown(doc: Document, sections: readonly SectionLines[]): HTMLElemen
   );
 }
 
-/**
- * Stands in for `header`'s lines-changed counter until `signal` aborts: a pill per section with the
- * lines `landing` places there, or GitHub's total, as `choice` says. A click switches view,
- * records it in `choice`, and `save`s it. GitHub's counter stays in the page, hidden by the
- * stylesheet while this sits just before it. A pull request's counter can mount long after intent
- * lands, and GitHub can swap it for a skeleton again, so this follows it, stepping aside while
- * there is none.
- */
-function showCounter(
-  header: Header,
-  landing: Landing,
-  { choice, save, signal }: DiffstatOptions & { readonly signal: AbortSignal },
-): void {
-  const { doc } = header;
-  const sections = totalsOf(landing);
+/** What every stand-in on a page shares: the view, the switch, and the redraws it calls. */
+interface Counters {
+  readonly choice: DiffstatChoice;
+  /** Flips `choice.view`, saves it, and redraws every stand-in in `renders`. */
+  readonly toggle: () => void;
+  readonly renders: Set<() => void>;
+  readonly signal: AbortSignal;
+}
+
+interface StandIn {
+  readonly button: HTMLButtonElement;
+  readonly render: () => void;
+}
+
+/** A button standing in for one counter: `sections`' pills, or `total()`'s copy of GitHub's counts and the breakdown. */
+function standIn(
+  doc: Document,
+  sections: readonly SectionLines[],
+  total: () => Node[],
+  { choice, toggle }: Counters,
+): StandIn {
   const pills = sections.map((lines) => pill(doc, lines));
   const breakout = breakdown(doc, sections);
 
@@ -139,53 +157,149 @@ function showCounter(
     "gh-prism-diffstat tw:relative tw:flex tw:items-center tw:p-0 tw:border-0 tw:rounded-medium tw:[background:none] tw:text-fg-default tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-focus-outline",
   );
   button.type = "button";
-  let native: Element | undefined;
-  const render = (counter: Element) => {
+  button.addEventListener("click", toggle);
+
+  const render = () => {
     button.dataset.view = choice.view;
-    button.replaceChildren(
-      ...(choice.view === "breakout" ? pills : [counter.cloneNode(true), breakout]),
-    );
+    button.replaceChildren(...(choice.view === "breakout" ? pills : [...total(), breakout]));
   };
-  button.addEventListener("click", () => {
-    choice.view = choice.view === "breakout" ? "total" : "breakout";
-    save(choice.view);
-    if (native) render(native);
-  });
+  return { button, render };
+}
+
+/**
+ * Stands in for `header`'s lines-changed counter just before it, which the stylesheet hides. A pull
+ * request's counter can mount long after intent lands, and GitHub can swap it for a skeleton
+ * again, so this follows it, stepping aside while there is none.
+ */
+function followHeader(header: Header, sections: readonly SectionLines[], counters: Counters): void {
+  let native: Element | undefined;
+  const { button, render } = standIn(
+    header.doc,
+    sections,
+    () => (native ? [native.cloneNode(true)] : []),
+    counters,
+  );
+  counters.renders.add(render);
 
   const follow = () => {
     native = findDiffstat(header);
     if (!native) button.remove();
     else if (button.nextElementSibling !== native) {
       native.before(button);
-      render(native);
+      render();
     }
   };
 
-  const style = Object.assign(doc.createElement("style"), { textContent: css });
   follow();
-  doc.head.append(style);
-  observeDiffstat(header, follow, { signal });
-  signal.addEventListener("abort", () => {
+  observeDiffstat(header, follow, counters);
+  counters.signal.addEventListener("abort", () => button.remove());
+}
+
+/** Paths of the files the native tree lists, by diff anchor. */
+const pathsByAnchor = (files: FilesPage): Map<string, string> =>
+  new Map(
+    readChangedFiles(files.sidebar).flatMap(({ link, path }) => {
+      const anchor = anchorOf(link);
+      return anchor ? [[anchor, path] as const] : [];
+    }),
+  );
+
+/**
+ * Stands in for each mounted file header's counts with that file's own breakout, first in the
+ * counts row so the stylesheet hides GitHub's count spans after it; a file with no counted lines
+ * keeps GitHub's. Follows diffs as they mount, and rows GitHub re-renders.
+ */
+function followFileHeaders(files: FilesPage, landing: Landing, counters: Counters): void {
+  const doc = files.diffs.ownerDocument;
+  const shown = new Map<Element, StandIn>();
+
+  const drop = (row: Element, { button, render }: StandIn) => {
     button.remove();
-    style.remove();
+    counters.renders.delete(render);
+    shown.delete(row);
+  };
+  const standInFor = (row: Element, sections: readonly SectionLines[]) => {
+    const total = () => fileCountsOf(row).map((span) => span.cloneNode(true));
+    const counter = standIn(doc, sections, total, counters);
+    counter.button.classList.add("gh-prism-file-diffstat");
+    row.prepend(counter.button);
+    counter.render();
+    counters.renders.add(counter.render);
+    shown.set(row, counter);
+  };
+
+  const follow = () => {
+    for (const [row, counter] of shown) if (!row.isConnected) drop(row, counter);
+
+    // ponytail: re-reads the native tree's rows on every diff mutation; cache by anchor if a profile ever shows it.
+    const paths = pathsByAnchor(files);
+    for (const [anchor, region] of mountedDiffs(files)) {
+      const row = findFileDiffstat(region);
+      const path = paths.get(anchor);
+      if (!row || path === undefined || row.firstElementChild === shown.get(row)?.button) continue;
+      const old = shown.get(row);
+      if (old) drop(row, old);
+      const sections = totalsOf(landing, [path]);
+      if (sections.length > 0) standInFor(row, sections);
+    }
+  };
+
+  follow();
+  observeDiffs(files.diffs, follow, counters);
+  counters.signal.addEventListener("abort", () => {
+    for (const [row, counter] of shown) drop(row, counter);
   });
 }
 
 /**
- * Stands in for the header's lines-changed counter as `choice` says, until `signal` aborts: while
- * intent is pending, with the breakout `choice` holds for `pr`, if any; once it lands, with its
- * own, which `choice` then holds for `pr`. A path-only landing leaves GitHub's counter as is.
+ * Stands in for the header's lines-changed counter, and each of `files`' file headers' counts, until
+ * `signal` aborts: a pill per section with the lines `landing` places there, or GitHub's total, as
+ * `choice` says. A click on any of them switches them all, records the view in `choice`, and
+ * `save`s it.
+ */
+function showCounters(
+  header: Header,
+  landing: Landing,
+  files: FilesPage | undefined,
+  { choice, save, signal }: DiffstatOptions & { readonly signal: AbortSignal },
+): void {
+  const renders = new Set<() => void>();
+  const toggle = () => {
+    choice.view = choice.view === "breakout" ? "total" : "breakout";
+    save(choice.view);
+    for (const render of renders) render();
+  };
+  const counters: Counters = { choice, toggle, renders, signal };
+
+  const style = Object.assign(header.doc.createElement("style"), { textContent: css });
+  followHeader(header, totalsOf(landing), counters);
+  header.doc.head.append(style);
+  if (files) followFileHeaders(files, landing, counters);
+  signal.addEventListener("abort", () => style.remove());
+}
+
+/**
+ * Stands in for the header's lines-changed counter, and each of `files`' file headers' counts, as
+ * `choice` says, until `signal` aborts: while intent is pending, with the breakout `choice` holds
+ * for `pr`, if any; once it lands, with its own, which `choice` then holds for `pr`. A path-only
+ * landing leaves GitHub's counters as they are.
  */
 export function showDiffstat(
   header: Header,
-  { choice, save, pr, signal }: DiffstatOptions & { readonly signal: AbortSignal },
+  {
+    choice,
+    save,
+    pr,
+    files,
+    signal,
+  }: DiffstatOptions & { readonly files?: FilesPage; readonly signal: AbortSignal },
 ): Required<Pick<LandingView, "pending" | "landed">> {
   let shown = new AbortController();
   const show = (landing: Landing | undefined) => {
     shown.abort();
     shown = new AbortController();
     const until = AbortSignal.any([signal, shown.signal]);
-    if (landing) showCounter(header, landing, { choice, save, signal: until });
+    if (landing) showCounters(header, landing, files, { choice, save, signal: until });
   };
 
   return {
