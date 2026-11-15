@@ -87,6 +87,10 @@ them (`N/M`).
 - Tick a row's checkbox, or Alt-click the row (Option-click on macOS), to mark the file
   Viewed. Do either again to unmark it.
 - It stays in step with GitHub's own Viewed toggle.
+- A click anywhere on a file header's blank area collapses or expands the file, as its
+  chevron does. With **Mark files viewed when collapsed** checked in gh-prism's diff
+  settings group (off by default), collapsing a file marks it Viewed, and expanding it
+  again unmarks it; a file you marked Viewed yourself stays viewed.
 
 <details>
 <summary>Screenshot: three files marked Viewed and each section's count</summary>
@@ -312,6 +316,7 @@ syncs these to your other computers:
 - Whether diffs wrap long lines.
 - Whether you've revealed the sidebar past its first-run introduction.
 - Whether clicking a line opens a comment box.
+- Whether collapsing a file marks it Viewed.
 
 It keeps these on this computer only:
 

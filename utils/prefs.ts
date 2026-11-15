@@ -103,6 +103,14 @@ export const clickToComment = storage.defineItem<boolean>("sync:clickToComment",
   fallback: false,
 });
 
+/**
+ * Whether the user turned on marking a file Viewed when they collapse it; Chrome sync carries it
+ * to their other computers when on.
+ */
+export const markViewedOnCollapse = storage.defineItem<boolean>("sync:markViewedOnCollapse", {
+  fallback: false,
+});
+
 /** A retired key a released version wrote: the commits whose message the user hid, one by one. */
 export const RETIRED_HIDDEN_COMMITS = "local:hiddenCommitMessages";
 

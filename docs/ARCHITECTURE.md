@@ -1139,6 +1139,52 @@ the "+" hasn't mounted within 5 frames, the page gives up: gh-prism logs one war
 click to comment stops responding on this page, though its diff settings item stays
 checked.
 
+## Mark files viewed when collapsed
+
+[`entrypoints/content/diffs/mark-on-collapse.ts`](../entrypoints/content/diffs/mark-on-collapse.ts)
+builds the "Mark files viewed when collapsed" item in gh-prism's diff settings group,
+offered on a pull request's full Files changed view only, since a commit page and a
+commit-filtered pull request have no Viewed. It saves the choice to
+`sync:markViewedOnCollapse` in [`utils/prefs.ts`](../utils/prefs.ts), off by default.
+
+While the item is checked and the gate is open, the module adds one capture-phase `click`
+listener on the diff list. GitHub collapses the diff during the click's dispatch and
+detaches the chevron's `<svg>` target before the click bubbles, so the header must be
+resolved, with `fileHeaderAt`, while capturing. A click counts only when it lands inside
+the chevron, but any chevron click counts, gh-prism's own included, so a sidebar jump
+(`revealDiffLine` in `diffs/reveal.ts`) that expands a collapse-marked file unmarks it, as
+the chevron would. After a `setTimeout`, outside GitHub's dispatch, it reads whether the
+file is collapsed and calls `markViewed`.
+
+A set of diff anchors, scoped to the visit and shared by its pages, records which files
+collapsing marked:
+
+- A collapse marks the file and adds it, unless it is already viewed.
+- An expand unmarks the file only if it was in the set, so a file marked Viewed by hand
+  stays viewed.
+- A file the reviewer unticks by hand, seen through `observeViewed`, leaves the set.
+  Turning the item off clears it.
+
+An Alt-click, which collapses or expands every file, marks nothing. The set lives in
+memory only, so a reload forgets which files collapsing marked, and expanding them then
+leaves them viewed.
+
+## Clickable file headers
+
+[`entrypoints/content/diffs/file-headers.ts`](../entrypoints/content/diffs/file-headers.ts)
+makes a file header's whole bar toggle its diff on every Files changed page, whatever the
+settings. GitHub's bar ignores clicks; only its chevron collapses or expands. One
+delegated `click` listener on the diff list forwards a click on the bar's blank area to
+the chevron, deferred with `setTimeout` so GitHub sees it outside the original dispatch. A
+click on a control in the bar, which `onHeaderControl` in
+[`files-page.ts`](../entrypoints/content/files-page.ts) matches against `HEADER_CONTROL`,
+stays the control's. A click held with Alt, Ctrl, Meta, or Shift is not forwarded. The
+forwarded click is a plain chevron click, so mark-on-collapse counts it like any other.
+
+Its sheet, `diffs/file-headers.css`, tints a hovered bar unless the pointer is over a
+control, and shows the pointer cursor. The sheet's `:has()` list repeats `HEADER_CONTROL`,
+so the two change together.
+
 ## Structural painter
 
 [`entrypoints/content/diffs/structural.ts`](../entrypoints/content/diffs/structural.ts)
@@ -1376,7 +1422,7 @@ entrypoints/
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, onboarding, report link, owner section
-    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet; structural-files.ts, a visit's structural answers; structural-mode.ts, Structural mode on a page; structural-notices.ts and structural-notices.css, its per-file notices and loading line; view-control.ts and view-control.css, the Unified, Split, and Structural control before the layout gear; structural-intro.ts, the Structural segment's popover and popup; prism-menu.ts and prism-menu.css, gh-prism's group in the diff settings menu; click-to-comment.ts and click-to-comment.css, click anywhere on a line to comment; wrap-lines.ts and wrap-lines.css, the Wrap lines item and the unwrapped view; side-scroll.ts, each file's sideways scroll
+    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet; structural-files.ts, a visit's structural answers; structural-mode.ts, Structural mode on a page; structural-notices.ts and structural-notices.css, its per-file notices and loading line; view-control.ts and view-control.css, the Unified, Split, and Structural control before the layout gear; structural-intro.ts, the Structural segment's popover and popup; prism-menu.ts and prism-menu.css, gh-prism's group in the diff settings menu; click-to-comment.ts and click-to-comment.css, click anywhere on a line to comment; mark-on-collapse.ts, marking files Viewed when collapsed; file-headers.ts and file-headers.css, the clickable file header bar; wrap-lines.ts and wrap-lines.css, the Wrap lines item and the unwrapped view; side-scroll.ts, each file's sideways scroll
     header/              diffstat breakout
     conversation/        a code owner's files popup and gh-prism's shield, in the Reviewers lists and beside Conversation and Files changed comment authors; the Conversation panel and its button, dressing its frame, and the messages the frame posts
     ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, column separator, view-transition glide, keycaps and the Shift+\ toolbar button, a visit's press guard for controls GitHub re-mounts mid-press, Tailwind tokens

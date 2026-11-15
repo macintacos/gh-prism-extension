@@ -942,9 +942,11 @@ on a private one.
   instead.
 - **Expect React to split a pull request's numbers with a comment** (`+<!-- -->12`). The
   `textContent` is the same as a commit page's `+12`.
-- **Expect the header itself not to be a click target.** Only the chevron collapses the
-  file; clicks on an empty spot or the counts do nothing (checked on commit pages
-  2026-11-14).
+- **Expect the header itself not to be a click target.** Only the chevron collapses or
+  expands the file; clicks on the bar's blank area or the counts do nothing (checked on
+  commit pages 2026-11-14, and on sandbox PR #3's `/changes` signed in 2026-11-15).
+  Re-check: click a header's blank area with a `MutationObserver` on header `class`, and
+  see no `collapsed__` change.
 - **Re-check:** load sandbox PR #3's `/changes` signed in (`storageState`) and a public
   commit page, then count `findFileDiffstat`'s matches against
   `[class*="diff-file-header__"]`: one per header with counted lines. Read the console
@@ -1022,8 +1024,20 @@ on a private one.
   returns: the header gains `[class*="collapsed__"]`, the button gains
   `[class*="viewed__"]`, and the counter increments. Unviewing expands it again. With
   route data's `isSingleFileMode`, a click navigates to the next file instead (read from
-  the bundle, not observed). The survey ran with the "Viewed files" filter on; with it off
-  (`showViewedFiles: false`), viewed files drop from the list, which was not surveyed.
+  the bundle, not observed). With the "Viewed files" filter off
+  (`?show-viewed-files=false`, set only in the URL), marking a file viewed unmounts its
+  diff region at once (2026-11-15).
+- **Expect the chevron to leave Viewed alone.** Collapsing or expanding a file with its
+  chevron never changes its toggle, while ticking Viewed collapses the file and unticking
+  expands it (sandbox PR #3, 2026-11-15).
+- **Resolve a chevron click's header in the capture phase.** GitHub commits the collapse
+  during the click's dispatch, before it bubbles to `document`, and the chevron's `<svg>`
+  target is detached by then, so `closest()` from it finds no header. Nothing stops
+  propagation, so one listener on the diff list sees every header click. A `setTimeout`
+  click on the Viewed toggle after the chevron's collapse or expand causes no flicker
+  (2026-11-15).
+- **Expect Alt/Option-click on a chevron to collapse or expand every file**, with one
+  click event (2026-11-15).
 - **Click the toggle outside another element's click dispatch.** React flips it in the
   microtask after the click, so a toggle clicked from inside another click's dispatch
   flips before that dispatch ends, and a caller that cancels its own click undoes the
@@ -1049,7 +1063,11 @@ on a private one.
   `markedAsViewed` with a header's `aria-pressed`. Fail the save with a `route` that
   answers 500, click, and read the header and counter. Find the handler by grepping
   GitHub's assets for `file_review`, as [§ Re-checking GitHub](#re-checking-github)
-  describes. Restore every toggled file.
+  describes. For the chevron, Alt-click, and the filter-off unmount, load signed-in
+  sandbox PR #3 (with and without `?show-viewed-files=false`), put a `MutationObserver` on
+  header `class` and `aria-pressed`, click a chevron (plain and with `altKey`) and a
+  Viewed toggle, and log each `click` event's target `isConnected` from `document`.
+  Restore every toggled file.
 
 ## Generated files
 

@@ -1457,6 +1457,45 @@ test("the sidebar dims viewed files and follows GitHub's Viewed toggle", async (
   await expect.poll(() => viewedOf("src/lib.rs")).toMatchObject({ flag: "", dimmed: false });
 });
 
+test("a file header's bar tints on hover and forwards a blank-area click to its chevron", async ({
+  context,
+  page,
+}) => {
+  const url = "https://github.com/macintacos/gh-prism-sandbox/pull/3/changes";
+  await serve(context, url, VIEWED_BODY);
+  await page.goto(url);
+  await expect(page.locator('[data-item-path="src/lib.rs"]')).toBeVisible();
+  // The fixture lacks GitHub's Primer sheet, which defines the tint.
+  await page.addStyleTag({ content: ":root { --bgColor-neutral-muted: #818b981f; }" });
+  const bar = page.locator(`#${VIEWED_LIB_RS} [class*="diff-file-header__"]`);
+  const barStyle = () =>
+    bar.evaluate((el) => {
+      const { backgroundImage, cursor } = getComputedStyle(el);
+      return { backgroundImage, cursor };
+    });
+  // The counts row holds no control, so it is the bar's blank area.
+  const blank = bar.locator(":scope > div");
+  await bar
+    .locator("button")
+    .first()
+    .evaluate((chevron) => {
+      chevron.addEventListener("click", () => {
+        chevron.dataset.e2eClicks = String(Number(chevron.dataset.e2eClicks ?? 0) + 1);
+      });
+    });
+
+  await blank.hover();
+  await expect
+    .poll(barStyle)
+    .toEqual({ backgroundImage: expect.not.stringMatching(/^none$/), cursor: "pointer" });
+
+  await bar.locator("button[aria-pressed]").hover();
+  await expect.poll(async () => (await barStyle()).backgroundImage).toBe("none");
+
+  await blank.click();
+  await expect.poll(() => bar.locator("button").first().getAttribute("data-e2e-clicks")).toBe("1");
+});
+
 test("section headers count viewed files once any file is Viewed", async ({ context, page }) => {
   const url = "https://github.com/macintacos/gh-prism-sandbox/pull/3/changes";
   await serve(context, url, `<!doctype html>${readFixture("viewed-files-page.html")}`);

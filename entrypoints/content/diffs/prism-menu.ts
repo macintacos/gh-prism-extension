@@ -61,7 +61,7 @@ export function showPrismMenu(
     if (findLayoutGear(page)) setGate("open");
     else if (diffTables(page.diffs).length > 0)
       warnOnce(
-        "the diff settings gear is missing, so diffs keep wrapping long lines and click to comment stays off",
+        "the diff settings gear is missing, so gh-prism's diff settings keep their defaults",
       );
   };
 
@@ -71,7 +71,7 @@ export function showPrismMenu(
     if (!compact || !headedGroup || !divider) {
       setGate("given up");
       warnOnce(
-        "the diff settings menu can't hold gh-prism's group, so diffs keep wrapping long lines and click to comment stays off",
+        "the diff settings menu can't hold gh-prism's group, so gh-prism's diff settings keep their defaults",
       );
       return;
     }

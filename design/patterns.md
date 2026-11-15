@@ -651,7 +651,7 @@ Space runs the item's action, then closes the menu with the `Escape` `keydown` P
 listens for. An optional subtitle adds a muted second line under the label, which the
 item's `aria-describedby` names. gh-prism styles it in `diffs/prism-menu.css`, because the
 commit page's menu has no description item to copy. The owner section's entries in the
-file-tree filter menu and both diff settings items use it.
+file-tree filter menu and every diff settings item use it.
 
 gh-prism's diff settings items sit in a group headed "gh-prism", at the end of the menu,
 so a reader can tell them from GitHub's own items. The heading is a copy of GitHub's
@@ -659,6 +659,13 @@ Layout group heading, so it keeps Primer's styling. The mark's bare glyph, a 16p
 sits after its text. The glyph is hidden from screen readers. The group takes its name,
 "gh-prism", from its list's `aria-label`. Neither the group's items nor the owner
 section's entries carry a glyph.
+
+## Clickable surface
+
+A surface gh-prism makes clickable shows it on hover: a `--bgColor-neutral-muted`
+`linear-gradient` overlay above GitHub's own background, and `cursor: pointer` on the
+element and every descendant. Click to comment's line, in `diffs/click-to-comment.css`,
+and the file header bar, in `diffs/file-headers.css`, use it.
 
 ## Notices
 
