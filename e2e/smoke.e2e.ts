@@ -4897,7 +4897,7 @@ test("the header counter's hidden tooltips never widen the page, closed or pinne
   await worker.evaluate(
     (key) =>
       (globalThis as unknown as { chrome: WxtBrowser }).chrome.storage.local.set({
-        [`intent.v2:${key}`]: {
+        [`intent.v3:${key}`]: {
           placements: [
             ["README.md", { kind: "whole", section: "docs" }],
             ["src/lib.rs", { kind: "whole", section: "implementation" }],

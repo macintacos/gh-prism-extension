@@ -37,10 +37,10 @@ type StoredPlacement =
 
 // The entries' shape is versioned in their keys; a new shape takes a new prefix, and
 // forgetIntents drops the old one.
-const INDEX: LocalKey = "local:intent.v2";
-const entryKey = (key: string): LocalKey => `local:intent.v2:${key}`;
-const RETIRED_INDEX: LocalKey = "local:intent.v1";
-const retiredEntryKey = (key: string): LocalKey => `local:intent.v1:${key}`;
+const INDEX: LocalKey = "local:intent.v3";
+const entryKey = (key: string): LocalKey => `local:intent.v3:${key}`;
+const RETIRED_INDEX: LocalKey = "local:intent.v2";
+const retiredEntryKey = (key: string): LocalKey => `local:intent.v2:${key}`;
 
 const toStored = ({ placements, lines, commentLines }: LandedIntent): StoredIntent => ({
   placements: [...placements].map(([path, placement]) => [
@@ -148,7 +148,7 @@ export function storedIntents(storage: IntentStorage, limit: number): IntentCach
 }
 
 /**
- * Drops every result {@link storedIntents} keeps in `storage`, and the retired `intent.v1` entries
+ * Drops every result {@link storedIntents} keeps in `storage`, and the retired `intent.v2` entries
  * no build reads, as another build may place files differently. Never rejects: a storage failure
  * is logged.
  */
