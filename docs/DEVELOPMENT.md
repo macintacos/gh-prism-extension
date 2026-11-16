@@ -265,15 +265,15 @@ inside), <https://github.com/macintacos/gh-prism-sandbox/pull/15> (comment updat
 there, and the fifth reworks files in all four folders. Each body says, file by file, what
 GitHub's Split diff shows and what Structural mode shows instead. Step through the stack
 to check Structural mode by hand. Each body also names the gh-prism commit it was checked
-against, and says Structural mode is in no store release. When a store release ships
-Structural mode, update the five bodies with `gh pr edit`, which changes no branch. The
-bodies are also documentation for people using gh-prism. When a change to what Structural
-mode shows reaches `main`, rewrite every entry it makes wrong, and set all five bodies'
-commit to that `main` commit. On a pull request branch, draft the rewritten entries under
-a `## Showcase` heading in its description, and push them after the merge. The stack is a
-public showcase, and links to it must keep working, so keep the five pull requests open,
-and never merge or rebase them. Don't change `showcase/` in other sandbox work, because
-the showcase pull requests build on those files.
+against, and says Structural mode was released in gh-prism 1.2.0. Edit the bodies with
+`gh pr edit`, which changes no branch. The bodies are also documentation for people using
+gh-prism. When a change to what Structural mode shows reaches `main`, rewrite every entry
+it makes wrong, and set all five bodies' commit to that `main` commit. On a pull request
+branch, draft the rewritten entries under a `## Showcase` heading in its description, and
+push them after the merge. The stack is a public showcase, and links to it must keep
+working, so keep the five pull requests open, and never merge or rebase them. Don't change
+`showcase/` in other sandbox work, because the showcase pull requests build on those
+files.
 
 `scripts/create-codeowners-sandbox.sh excessive-dev/gh-prism-codeowners-sandbox` creates
 the code-owners sandbox, a public repository under the `excessive-dev` organization. It is
