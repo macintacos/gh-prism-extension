@@ -316,6 +316,12 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
 - **Keep each end-to-end test independent of the others.** `playwright.config.ts` sets
   `fullyParallel`, so the tests in one file run across workers in no fixed order. The
   `context` fixture gives each test its own browser profile.
+- **Launch a test's browser through `launchExtension` in
+  [`e2e/harness.ts`](../../e2e/harness.ts).** A launch sets up in under 2 s, yet a Firefox
+  one on CI hung past the 30 s test timeout (2026-11-16), and 1,600 launches on a 4-CPU
+  Linux runner never repeated it. So `launchExtension` abandons a launch still pending
+  after 10 s and retries once on a fresh profile, logging `a browser launch stalled`. That
+  line in a CI log means the hang recurred.
 - **Leave a wait its default timeout unless the work itself is slow.** On CI
   `playwright.config.ts` gives every `expect` 15 s, because a runner under 4 workers
   stalls for seconds at a time: a hover card, a smooth scroll, and a refit each missed 5 s
