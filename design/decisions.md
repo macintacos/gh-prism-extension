@@ -6,6 +6,28 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-15: A file's diff folds into its header as it collapses
+
+- **Asked:** the maintainer asked for a subtle, quick animation as a click on a file
+  header collapses or expands the file, like a sheet going into the header and coming back
+  out.
+- **Compared:**
+  - holding the chevron's click while the diff folds shut, then passing it on to GitHub,
+    which drops the diff's body the moment it collapses;
+  - putting the dropped body back on the page as a copy that folds away, outside the diff
+    list so gh-prism's own reads skip it. Out there it can lose styles GitHub scopes to
+    the list, and GitHub's reads of the whole document still find its rows;
+  - letting GitHub collapse at once and wiping the diff away with a clip. The files below
+    jump up before the wipe starts.
+- **Won:** holding the click. The diff folds on the "State, closing" row and, when the
+  file expands, folds back out on "State, opening". The chevron turns a quarter beside it,
+  and only the on-screen part of the diff moves. Under a stuck header the diff clips up to
+  the header instead.
+- **Why:** the fold moves GitHub's own diff, so nothing on the page is drawn twice, and
+  the files below rise with its edge. The fold starts on the click, so the 160 ms before
+  GitHub collapses the file shows the click took effect, and a second click turns the fold
+  around.
+
 ## 2026-11-15: A revealed name replaces the cut one in a single frame
 
 - **Asked:** the maintainer saw a truncated file name blink on hover, just before it

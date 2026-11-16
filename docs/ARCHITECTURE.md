@@ -1175,8 +1175,12 @@ leaves them viewed.
 makes a file header's whole bar toggle its diff on every Files changed page, whatever the
 settings. GitHub's bar ignores clicks; only its chevron collapses or expands. One
 delegated `click` listener on the diff list forwards a click on the bar's blank area to
-the chevron, deferred with `setTimeout` so GitHub sees it outside the original dispatch. A
-click on a control in the bar, which `onHeaderControl` in
+the chevron, deferred with `setTimeout` so GitHub sees it outside the original dispatch.
+The forward is dropped when anything clicked the chevron during that dispatch, as Refined
+GitHub's `easy-toggle-files` does from `document`. A second toggle would undo the first.
+The listener that notices those chevron clicks is a capture listener on `document`, so it
+sees them before [`file-fold.ts`](#file-folds) can stop them on the diff list. A click on
+a control in the bar, which `onHeaderControl` in
 [`files-page.ts`](../entrypoints/content/files-page.ts) matches against `HEADER_CONTROL`,
 stays the control's. A click held with Alt, Ctrl, Meta, or Shift is not forwarded. The
 forwarded click is a plain chevron click, so mark-on-collapse counts it like any other.
@@ -1184,6 +1188,31 @@ forwarded click is a plain chevron click, so mark-on-collapse counts it like any
 Its sheet, `diffs/file-headers.css`, tints a hovered bar unless the pointer is over a
 control, and shows the pointer cursor. The sheet's `:has()` list repeats `HEADER_CONTROL`,
 so the two change together.
+
+## File folds
+
+[`entrypoints/content/diffs/file-fold.ts`](../entrypoints/content/diffs/file-fold.ts)
+folds a file's diff up into its header as a chevron click collapses the file, and back out
+as one expands it, on every Files changed page. GitHub keeps the diff region's header and
+drops its body, the region's second child, during the click's dispatch, so there is
+nothing left to fold once GitHub has collapsed it. A capture listener on the diff list
+therefore holds the chevron's click with `stopPropagation()` while the body folds shut,
+then clicks the chevron again to hand the click to GitHub. A flag set around that click
+lets it past the listener. A second chevron click while the fold runs reverses it, and
+nothing reaches GitHub. An expanding click goes straight through, and the next animation
+frame folds open the body GitHub has just added. Both directions fold only the part of the
+body the window shows, and the chevron's `<svg>` turns a quarter alongside.
+
+While the header is stuck over its diff, a fold would shrink the region under the sticky
+header and pull the header off screen, so the body clips up to the header instead, and
+GitHub then scrolls the header back to where it stuck. An Alt-click, which toggles every
+file, and a reader who prefers reduced motion get no fold. The keyframes come from
+[`ui/fold.ts`](../entrypoints/content/ui/fold.ts), which the commit message's fold shares.
+Timings follow the "State, closing" and "State, opening" rows of the motion scale in
+[`design/tokens.md`](../design/tokens.md).
+
+Mark-on-collapse's capture listener sees a held click too. The file is still open then, so
+it marks nothing; the handed-on click collapses the file, and that click marks it.
 
 ## Structural painter
 
@@ -1422,10 +1451,10 @@ entrypoints/
     classic/             dialog on a pull request's classic Files changed page
     visit/               visit and page lifecycle; landing intent on views
     sidebar/             section trees, sidebar side switch, code owners popover, what's-new block, onboarding, report link, owner section
-    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet; structural-files.ts, a visit's structural answers; structural-mode.ts, Structural mode on a page; structural-notices.ts and structural-notices.css, its per-file notices and loading line; view-control.ts and view-control.css, the Unified, Split, and Structural control before the layout gear; structural-intro.ts, the Structural segment's popover and popup; prism-menu.ts and prism-menu.css, gh-prism's group in the diff settings menu; click-to-comment.ts and click-to-comment.css, click anywhere on a line to comment; mark-on-collapse.ts, marking files Viewed when collapsed; file-headers.ts and file-headers.css, the clickable file header bar; wrap-lines.ts and wrap-lines.css, the Wrap lines item and the unwrapped view; side-scroll.ts, each file's sideways scroll
+    diffs/               diff order, reveal, j/k file keys, on-screen and Viewed tracking; structural.ts and structural.css, the structural painter and its sheet; structural-files.ts, a visit's structural answers; structural-mode.ts, Structural mode on a page; structural-notices.ts and structural-notices.css, its per-file notices and loading line; view-control.ts and view-control.css, the Unified, Split, and Structural control before the layout gear; structural-intro.ts, the Structural segment's popover and popup; prism-menu.ts and prism-menu.css, gh-prism's group in the diff settings menu; click-to-comment.ts and click-to-comment.css, click anywhere on a line to comment; mark-on-collapse.ts, marking files Viewed when collapsed; file-headers.ts and file-headers.css, the clickable file header bar; file-fold.ts, a file's diff folding into and out of its header; wrap-lines.ts and wrap-lines.css, the Wrap lines item and the unwrapped view; side-scroll.ts, each file's sideways scroll
     header/              diffstat breakout
     conversation/        a code owner's files popup and gh-prism's shield, in the Reviewers lists and beside Conversation and Files changed comment authors; the Conversation panel and its button, dressing its frame, and the messages the frame posts
-    ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, column separator, view-transition glide, keycaps and the Shift+\ toolbar button, a visit's press guard for controls GitHub re-mounts mid-press, Tailwind tokens
+    ui/                  shared DOM helpers, file list, popup placer, hover intent, loading view, code owner details dialog, gh-prism's mark, Markdown subset, name reveal, column separator, block fold keyframes, view-transition glide, keycaps and the Shift+\ toolbar button, a visit's press guard for controls GitHub re-mounts mid-press, Tailwind tokens
 utils/
   github/                routes, diff parsing, the PR data port and source, code owners and reviewers
     conversation-frame.ts  the per-tab session rule that lets only the Conversation panel frame a PR's Conversation tab, and the panel's request for it

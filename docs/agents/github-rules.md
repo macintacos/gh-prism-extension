@@ -947,6 +947,12 @@ on a private one.
   commit pages 2026-11-14, and on sandbox PR #3's `/changes` signed in 2026-11-15).
   Re-check: click a header's blank area with a `MutationObserver` on header `class`, and
   see no `collapsed__` change.
+- **Expect Refined GitHub to click the chevron for a header click.** Its
+  `easy-toggle-files` feature delegates `click` on `[class*="diffHeaderWrapper"]` from
+  `document` and dispatches a click on the chevron during that dispatch. Anything else
+  that forwards the same header click toggles the file a second time, collapsing and
+  expanding it at once (Refined GitHub 26.11.6, 2026-11-15). Re-check: read
+  `assets/features/easy-toggle-files.js` in the installed extension's folder.
 - **Re-check:** load sandbox PR #3's `/changes` signed in (`storageState`) and a public
   commit page, then count `findFileDiffstat`'s matches against
   `[class*="diff-file-header__"]`: one per header with counted lines. Read the console
@@ -1038,6 +1044,16 @@ on a private one.
   (2026-11-15).
 - **Expect Alt/Option-click on a chevron to collapse or expand every file**, with one
   click event (2026-11-15).
+- **Expect a collapse to drop the diff's body and an expand to build a new one.** A diff
+  region (`[role="region"]`) keeps its sticky header wrapper as its first child, and its
+  body, a `div.border`, is the second. A collapse removes the body and an expand inserts a
+  new one, both during the chevron click's dispatch, and the chevron's `<svg>` is replaced
+  each time. The region itself stays. Animate a collapse by holding the click until the
+  animation ends (sandbox PR #3, 2026-11-15).
+- **Expect a collapse under a stuck header to scroll the window.** When a file collapses
+  while its header is stuck over its diff, GitHub scrolls so the header stays where it
+  stuck. It paints one frame first with the header at its own place, often off screen
+  (sandbox PR #10 at `scrollY` 2000: 2000 to 264, 2026-11-15).
 - **Click the toggle outside another element's click dispatch.** React flips it in the
   microtask after the click, so a toggle clicked from inside another click's dispatch
   flips before that dispatch ends, and a caller that cancels its own click undoes the
@@ -1066,8 +1082,12 @@ on a private one.
   describes. For the chevron, Alt-click, and the filter-off unmount, load signed-in
   sandbox PR #3 (with and without `?show-viewed-files=false`), put a `MutationObserver` on
   header `class` and `aria-pressed`, click a chevron (plain and with `altKey`) and a
-  Viewed toggle, and log each `click` event's target `isConnected` from `document`.
-  Restore every toggled file.
+  Viewed toggle, and log each `click` event's target `isConnected` from `document`. For a
+  collapse's body and scroll, load sandbox PR #3 and PR #10 with no extension. Put a
+  `MutationObserver` with `childList` and `subtree` on a file's diff entry, and a
+  `requestAnimationFrame` loop logging the region's child count, its header's `top`, and
+  `scrollY`. Click the chevron with the file in place, and again at `scrollY` 2000 on PR
+  #10's first file. Restore every toggled file.
 
 ## Generated files
 

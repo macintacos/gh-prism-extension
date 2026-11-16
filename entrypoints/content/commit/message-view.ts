@@ -17,6 +17,7 @@ import {
 } from "../files-page";
 import { type ColumnWidthChoice, columnSeparator, fitsColumn } from "../ui/column-width";
 import { el, icon } from "../ui/dom";
+import { foldFrames } from "../ui/fold";
 import { prismMark } from "../ui/mark";
 import { renderCommitMessage, withinCaps } from "./message";
 import { showMessageToggle } from "./message-toggle";
@@ -321,25 +322,7 @@ function slideColumn(column: HTMLElement, to: "in" | "out"): Animation {
 
 /** Folds `part`, a block above the diffs, shut or open, so what follows it moves with its edge. */
 function fold(win: Window, part: Element, to: "in" | "out"): Animation {
-  const { paddingTop, paddingBottom, borderTopWidth, borderBottomWidth } =
-    win.getComputedStyle(part);
-  const held = { boxSizing: "border-box", minHeight: "0px", overflow: "clip" };
-  const open = {
-    ...held,
-    height: `${part.getBoundingClientRect().height}px`,
-    paddingTop,
-    paddingBottom,
-    borderTopWidth,
-    borderBottomWidth,
-  };
-  const shut = {
-    ...held,
-    height: "0px",
-    paddingTop: "0px",
-    paddingBottom: "0px",
-    borderTopWidth: "0px",
-    borderBottomWidth: "0px",
-  };
+  const { open, shut } = foldFrames(win, part);
   return part.animate(to === "in" ? [shut, open] : [open, shut], slideTiming(to));
 }
 

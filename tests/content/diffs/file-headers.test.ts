@@ -51,13 +51,8 @@ describe("showClickableHeaders", () => {
     expect(chevronClicks).toBe(1);
   });
 
-  it("forwards nothing once another extension has toggled the file, as Refined GitHub does", async () => {
+  it("forwards nothing once another extension has clicked the chevron, as Refined GitHub does", async () => {
     const chevron = inBar("button");
-    chevron.addEventListener("click", () =>
-      chevron
-        .querySelector("svg")
-        ?.classList.replace("octicon-chevron-down", "octicon-chevron-right"),
-    );
     document.addEventListener(
       "click",
       (event) => {

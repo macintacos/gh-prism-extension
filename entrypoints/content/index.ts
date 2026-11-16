@@ -69,6 +69,7 @@ import {
 } from "./conversation/panel";
 import { showReviewerFiles } from "./conversation/reviewer-files";
 import { type ClickToCommentChoice, clickToCommentItem } from "./diffs/click-to-comment";
+import { foldFiles } from "./diffs/file-fold";
 import { showClickableHeaders } from "./diffs/file-headers";
 import { type MarkOnCollapseChoice, markOnCollapseItem } from "./diffs/mark-on-collapse";
 import { showPrismMenu } from "./diffs/prism-menu";
@@ -330,6 +331,7 @@ export default defineContentScript({
                 : []),
             ]);
             showClickableHeaders(page, signal);
+            foldFiles(page, signal);
             showCommitMessage(page, signal, {
               afterSections: afterLanding(intent),
               choice: commitMessage,

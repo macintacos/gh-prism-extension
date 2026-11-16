@@ -23,13 +23,18 @@ export function showClickableHeaders(page: Pick<FilesPage, "diffs">, signal: Abo
       if (!(target instanceof Element)) return;
       const header = fileHeaderAt(target);
       if (!header || onHeaderControl(header, target)) return;
-      const collapsed = () => header.chevron.querySelector(".octicon-chevron-right") !== null;
-      const before = collapsed();
-      // Deferred so GitHub sees the chevron's click outside this click's dispatch. A plain chevron
-      // click, so mark-on-collapse.ts counts it as one. Skipped once the file has toggled anyway:
       // Refined GitHub's easy-toggle-files clicks the chevron for the same bar click.
+      let clicked = false;
+      const noteChevron = (chevronClick: Event) => {
+        clicked ||=
+          chevronClick.target instanceof Node && header.chevron.contains(chevronClick.target);
+      };
+      doc.addEventListener("click", noteChevron, { capture: true });
+      // Deferred so GitHub sees the chevron's click outside this click's dispatch. A plain chevron
+      // click, so mark-on-collapse.ts counts it as one.
       setTimeout(() => {
-        if (collapsed() === before) header.chevron.click();
+        doc.removeEventListener("click", noteChevron, { capture: true });
+        if (!clicked) header.chevron.click();
       });
     },
     { signal },

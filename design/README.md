@@ -16,7 +16,8 @@ why, and the diff view control beside GitHub's diff settings gear, which picks U
 Split, or Structural, and the gh-prism group in that gear's menu, holding Wrap lines,
 "Click anywhere on a line to comment", and, on a pull request's full Files changed view
 only, "Mark files viewed when collapsed", and the hover tint on a file header's bar, which
-a click on its blank area collapses or expands. [`CONTEXT.md`](../CONTEXT.md) defines the
+a click on its blank area collapses or expands, and the fold of a file's diff into and out
+of its header as the file collapses and expands. [`CONTEXT.md`](../CONTEXT.md) defines the
 domain terms these files use, such as section, Viewed, and what's new.
 [`docs/agents/styling-rules.md`](../docs/agents/styling-rules.md) says how a stylesheet is
 written, imported, and scoped.

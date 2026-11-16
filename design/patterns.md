@@ -397,6 +397,21 @@ row. Under reduced motion it takes its new state at once. Two columns do this:
   (`commit/message-view.ts`). Above the diffs, where the message is no column, it folds
   its height shut and open on the same two rows.
 
+## Folds
+
+A block that shuts and opens in the page's flow folds its height, clipped, so what follows
+it moves with its edge. `ui/fold.ts` builds the keyframes. A pressed control turns a
+running fold around, and under reduced motion the block takes its new state at once. Two
+blocks fold:
+
+- The commit message above the diffs, on the rows its column slides on.
+- A file's diff, up into its header as the file collapses and back out as it expands, on
+  the "State, closing" and "State, opening" rows of the [motion scale](tokens.md#motion)
+  (`diffs/file-fold.ts`). Its chevron turns a quarter on the same rows. Only the part of
+  the diff the window shows folds, so a long file shuts as quickly as a short one. Under a
+  stuck header, the diff clips up to the header instead, because a fold would carry the
+  header off screen with it. An Alt-click, which toggles every file, folds nothing.
+
 ## Code owner's files
 
 On a pull request's Conversation and Files changed tabs, a code-owner shield beside a team

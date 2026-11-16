@@ -88,9 +88,10 @@ them (`N/M`).
   Viewed. Do either again to unmark it.
 - It stays in step with GitHub's own Viewed toggle.
 - A click anywhere on a file header's blank area collapses or expands the file, as its
-  chevron does. With **Mark files viewed when collapsed** checked in gh-prism's diff
-  settings group (off by default), collapsing a file marks it Viewed, and expanding it
-  again unmarks it; a file you marked Viewed yourself stays viewed.
+  chevron does. Either way, the diff folds up into the header and back out of it. With
+  **Mark files viewed when collapsed** checked in gh-prism's diff settings group (off by
+  default), collapsing a file marks it Viewed, and expanding it again unmarks it; a file
+  you marked Viewed yourself stays viewed.
 
 <details>
 <summary>Screenshot: three files marked Viewed and each section's count</summary>
