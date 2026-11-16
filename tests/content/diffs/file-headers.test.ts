@@ -51,6 +51,28 @@ describe("showClickableHeaders", () => {
     expect(chevronClicks).toBe(1);
   });
 
+  it("forwards nothing once another extension has toggled the file, as Refined GitHub does", async () => {
+    const chevron = inBar("button");
+    chevron.addEventListener("click", () =>
+      chevron
+        .querySelector("svg")
+        ?.classList.replace("octicon-chevron-down", "octicon-chevron-right"),
+    );
+    document.addEventListener(
+      "click",
+      (event) => {
+        if (event.target === bar())
+          chevron.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      },
+      { signal: controller.signal },
+    );
+
+    click(bar());
+    await vi.runAllTimersAsync();
+
+    expect(chevronClicks).toBe(1);
+  });
+
   it.each([
     ["the chevron", () => inBar("button svg"), 1],
     ["the Viewed toggle", () => inBar("button[aria-pressed]"), 0],
