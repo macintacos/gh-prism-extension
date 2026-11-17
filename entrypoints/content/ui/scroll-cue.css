@@ -1,0 +1,94 @@
+/* No GitHub hooks: every rule selects only gh-prism's own classes.
+   A list that holds more below fades its bottom 32px and shows a "Scroll down" arrow over the
+   fade. One scroll timeline drives both, so they show and clear together; where the timeline
+   is inactive (a list that fits) or unsupported (Firefox before 159), neither shows. Reduced
+   motion keeps it: it moves only with the scroll. Longhands only: the minifier folds a
+   timeline into the shorthand, which Chrome rejects. */
+@property --gh-prism-scroll-fade {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+.gh-prism-scroll-cue {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  timeline-scope: --gh-prism-scroll-cue;
+}
+
+/* Keep 32px in step with the keyframe below and PAGE_OVERLAP in scroll-cue.ts. */
+.gh-prism-scroll-cue-list,
+.gh-prism-scroll-cue-arrow {
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+  animation-timeline: --gh-prism-scroll-cue;
+  animation-range: calc(100% - 32px) 100%;
+}
+
+.gh-prism-scroll-cue-list {
+  overflow-y: auto;
+  scroll-padding-block-end: 32px;
+  scroll-timeline-name: --gh-prism-scroll-cue;
+  mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - var(--gh-prism-scroll-fade)),
+    transparent
+  );
+  animation-name: gh-prism-scroll-fade;
+}
+
+/* The list's mask would fade its own ring, so the unmasked wrapper draws it. */
+.gh-prism-scroll-cue:has(> .gh-prism-scroll-cue-list:focus-visible),
+.gh-prism-scroll-cue-arrow:focus-visible {
+  outline: 2px solid var(--focus-outlineColor);
+  outline-offset: -2px;
+}
+
+.gh-prism-scroll-cue-arrow {
+  position: absolute;
+  inset-block-end: 4px;
+  /* 16px clears a classic 15px scrollbar. */
+  inset-inline-end: 16px;
+  display: grid;
+  place-content: center;
+  box-sizing: border-box;
+  inline-size: var(--control-xsmall-size, 24px);
+  block-size: var(--control-xsmall-size, 24px);
+  padding: 0;
+  border: 1px solid var(--borderColor-default);
+  border-radius: 2em;
+  background: var(--overlay-bgColor, var(--bgColor-default));
+  box-shadow: var(--shadow-resting-small);
+  color: var(--fgColor-muted);
+  cursor: pointer;
+  visibility: hidden;
+  animation-name: gh-prism-scroll-arrow;
+}
+
+.gh-prism-scroll-cue-arrow:hover {
+  color: var(--fgColor-default);
+}
+
+@keyframes gh-prism-scroll-fade {
+  from {
+    --gh-prism-scroll-fade: 32px;
+  }
+
+  to {
+    --gh-prism-scroll-fade: 0px;
+  }
+}
+
+@keyframes gh-prism-scroll-arrow {
+  from {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}

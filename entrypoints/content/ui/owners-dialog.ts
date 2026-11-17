@@ -113,18 +113,17 @@ export function openOwnersDialog(doc: Document, options: OwnersDialogOptions): v
   signal.addEventListener("abort", remove, { signal: closed.signal });
 }
 
-// Each matches its popup's own padding; the popup keeps no bottom padding, so a long list
-// scrolls under the footer.
+// Each matches the padding its card gives the content of its scroll cue.
 const HINT_FOOTER = {
   small:
-    "gh-prism-owners-hint tw:sticky tw:bottom-0 tw:-mx-3 tw:mt-3 tw:px-3 tw:py-2 tw:flex tw:items-center tw:gap-2 tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:0_-1px_0_var(--borderColor-default)]",
+    "gh-prism-owners-hint tw:px-3 tw:py-2 tw:flex tw:items-center tw:gap-2 tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:0_-1px_0_var(--borderColor-default)]",
   medium:
-    "gh-prism-owners-hint tw:sticky tw:bottom-0 tw:-mx-4 tw:mt-4 tw:px-4 tw:py-2 tw:flex tw:items-center tw:gap-2 tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:0_-1px_0_var(--borderColor-default)]",
+    "gh-prism-owners-hint tw:px-4 tw:py-2 tw:flex tw:items-center tw:gap-2 tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:0_-1px_0_var(--borderColor-default)]",
 } as const;
 
 // The medium footer as a row beside a 28px action, in 4px padding rather than 8px.
 const ACTION_FOOTER =
-  "gh-prism-owners-hint tw:sticky tw:bottom-0 tw:-mx-4 tw:mt-4 tw:px-4 tw:py-1 tw:flex tw:items-center tw:gap-2 tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:0_-1px_0_var(--borderColor-default)]";
+  "gh-prism-owners-hint tw:px-4 tw:py-1 tw:flex tw:items-center tw:gap-2 tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:0_-1px_0_var(--borderColor-default)]";
 
 /**
  * The footer a hover popup ends in, hinting that a click on its shield opens the dialog, with
@@ -142,8 +141,8 @@ export function detailsHint(
     "Click the shield for details",
   );
   return action
-    ? el(doc, "div", ACTION_FOOTER, hint, prismMark(doc), action)
-    : el(doc, "div", HINT_FOOTER[inset], hint, prismMark(doc));
+    ? el(doc, "div", ACTION_FOOTER, prismMark(doc), hint, action)
+    : el(doc, "div", HINT_FOOTER[inset], prismMark(doc), hint);
 }
 
 /**

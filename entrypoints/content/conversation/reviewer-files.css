@@ -8,6 +8,7 @@
    which GitHub positions. Every other rule selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @import "../ui/mark.css";
+@import "../ui/scroll-cue.css";
 @import "../ui/owner-identity.css";
 @import "../ui/pr-owners.css";
 @source "./reviewer-files.ts";
@@ -56,13 +57,6 @@ tool-tip:is([for^="codeowner-"], [for^="assigned-codeowner-"]),
     opacity: 0;
     scale: 0.96;
   }
-}
-
-/* Without an action the mark sits at the footer's inline-end corner, which clips a tooltip that
-   opens outward. */
-.gh-prism-reviewer-files .gh-prism-owners-hint > .gh-prism-mark:last-child::after {
-  inset-inline-start: auto;
-  inset-inline-end: 0;
 }
 
 /* GitHub's full-width heading paints over the button and would take the pointer. */

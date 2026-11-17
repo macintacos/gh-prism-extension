@@ -912,7 +912,10 @@ and folder shields' popover share one placer,
 [`ui/place.ts`](../entrypoints/content/ui/place.ts): below, else above, else on the
 roomier side, capped so it never covers its anchor. They also share one file list,
 [`ui/file-list.ts`](../entrypoints/content/ui/file-list.ts), which groups their files
-under folders as the sidebar's tree flattens them.
+under folders as the sidebar's tree flattens them, and one scroll cue,
+[`ui/scroll-cue.ts`](../entrypoints/content/ui/scroll-cue.ts), which scrolls their list
+above the footer and, through `ui/scroll-cue.css`, fades its bottom edge and offers a
+"Scroll down" button while more sits below.
 
 Every account the popover, the popup, and the dialog name is drawn by
 [`ui/owner-identity.ts`](../entrypoints/content/ui/owner-identity.ts): its avatar and

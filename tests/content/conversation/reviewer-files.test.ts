@@ -10,6 +10,7 @@ import {
   findFilesCommentAuthors,
   findReviewerRows,
 } from "../../../entrypoints/content/files-page";
+import { CLOSE_DELAY_MS } from "../../../entrypoints/content/ui/hover-intent";
 import type { OwnerFilter } from "../../../entrypoints/content/ui/owners-dialog";
 import {
   codeOwnerOf,
@@ -448,6 +449,30 @@ describe("showReviewerFiles", () => {
     expect(popups()).toEqual([open]);
   });
 
+  it("holds its body in a list that scrolls above its footer", async () => {
+    show();
+    await hoverOpen("frontend");
+
+    const list = popup()?.querySelector(".gh-prism-scroll-cue-list");
+    const footer = popup()?.querySelector(".gh-prism-owners-hint");
+    expect(list?.textContent).toContain("Code owner of 2 files in this pull request");
+    expect(list?.querySelector("ul")).not.toBeNull();
+    expect(footer?.parentElement).toBe(popup());
+    expect(footer?.previousElementSibling).toBe(list?.parentElement);
+  });
+
+  it("stays open, opening no dialog, when its Scroll down button is clicked", async () => {
+    show();
+    await hoverOpen("frontend");
+    const open = popup() as HTMLElement;
+
+    (open.querySelector('button[aria-label="Scroll down"]') as HTMLButtonElement).click();
+    await vi.advanceTimersByTimeAsync(CLOSE_DELAY_MS + 1);
+
+    expect(open.isConnected).toBe(true);
+    expect(document.querySelector("dialog")).toBeNull();
+  });
+
   it("shows one reviewer's files at a time", async () => {
     show();
     await hoverOpen("frontend");
@@ -648,14 +673,16 @@ describe("showReviewerFiles", () => {
       ).toBe(`${FILES}?gh-prism-owner=@nodejs/crypto`);
     });
 
-    it("follows gh-prism's mark in the popup's footer", async () => {
+    it("ends the popup's footer, after gh-prism's mark and the hint", async () => {
       show(undefined, undefined, filter);
 
       await hoverOpen("frontend");
 
-      const marks = popup()?.querySelectorAll(".gh-prism-mark") ?? [];
-      expect(marks).toHaveLength(1);
-      expect(marks[0]?.nextElementSibling).toBe(action());
+      const footer = popup()?.querySelector(".gh-prism-owners-hint");
+      const mark = footer?.firstElementChild;
+      expect(mark?.classList.contains("gh-prism-mark")).toBe(true);
+      expect(mark?.nextElementSibling?.textContent).toBe("Click the shield for details");
+      expect(footer?.lastElementChild).toBe(action());
     });
 
     it("is left out of a popup that lists no files", async () => {
@@ -765,7 +792,7 @@ describe("showReviewerFiles", () => {
       await clickOn(shieldOf("frontend"));
 
       expect(cardMarks).toHaveLength(1);
-      expect(cardMarks[0]?.parentElement?.lastElementChild).toBe(cardMarks[0]);
+      expect(cardMarks[0]?.parentElement?.firstElementChild).toBe(cardMarks[0]);
       expect(cardMarks[0]?.closest(".gh-prism-owners-hint")).not.toBeNull();
       expect(dialog()?.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
       expect(

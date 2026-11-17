@@ -77,7 +77,9 @@ markup a sheet targets are in [`github-rules.md`](github-rules.md).
   CSS on its base rule.** As a utility it could outrank the override.
 - **Put no display utility on a `<dialog>` or on an element the `hidden` attribute
   toggles.** Their `display: none` comes from the user-agent sheet, which any author rule
-  beats, so `tw:flex` on a closed dialog shows it.
+  beats, so `tw:flex` on a closed dialog shows it. The same holds for a `[popover]`: give
+  it its display through `tw:open:` (Tailwind 4 matches `:popover-open`), as both code
+  owner hover cards do.
 - **In the section tree's shadow root, use no utility that reads a `--tw-*` variable.**
   Shadow roots ignore `@property`, so those variables have no initial value. That rules
   out border, outline, shadow, ring, transform, gradient, leading, font-weight, and

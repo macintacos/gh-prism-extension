@@ -6,6 +6,24 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-16: The mark leads a hover card's footer, and a scroll cue marks more below
+
+- **Asked:** EXC-2400 asked for the code owner hover cards to show they hold more below,
+  and for each card's footer to lead with the mark.
+- **Compared:**
+  - for the mark, the footer's end corner, the 2026-10-29 winner, against its start
+    corner, before the hint;
+  - for the cue, a script-driven fade and arrow, kept in step by a scroll listener and a
+    `ResizeObserver`, against one named scroll timeline driving both;
+  - masking the card itself, which fades the footer and clips the popover's shadow,
+    against giving the list its own scroller.
+- **Won:** the start corner, and a fade plus a 24px circled arrow over it, both driven by
+  the list's own scroll timeline.
+- **Why:** the footer reads mark, hint, action, as the details dialog's footer does, and
+  the mark's tooltip opens inward with no per-host flip. One timeline makes the fade and
+  arrow show and clear together with no observer, and Firefox before 159 degrades to
+  neither.
+
 ## 2026-11-15: A file's diff folds into its header as it collapses
 
 - **Asked:** the maintainer asked for a subtle, quick animation as a click on a file

@@ -96,12 +96,13 @@ Sizes, line heights, and weights are the `--text-body-*`, `--leading-body-*`, an
 
 Sections and the controls inside them share Primer's medium radius,
 `--borderRadius-medium`, which GitHub's file cards beside the sidebar use too. The
-sidebar's file-row decorations, such as the `Partial` pill, and section counters use
-`2em`, so they stay fully round. The Viewed box and the loading bar keep small fixed radii
-of their own, in `sidebar/section-tree.css` and `ui/loading-view.ts`, because they are too
-small for the medium radius. The skeleton lines in `diffs/order.css` and
-`sidebar/sections-view.css` take a fixed radius of half their height, so they stay round
-too. `exceptions.md` says why sections don't step up to a larger radius.
+sidebar's file-row decorations, such as the `Partial` pill, section counters, and the
+scroll cue's arrow in `ui/scroll-cue.css` use `2em`, so they stay fully round. The Viewed
+box and the loading bar keep small fixed radii of their own, in `sidebar/section-tree.css`
+and `ui/loading-view.ts`, because they are too small for the medium radius. The skeleton
+lines in `diffs/order.css` and `sidebar/sections-view.css` take a fixed radius of half
+their height, so they stay round too. `exceptions.md` says why sections don't step up to a
+larger radius.
 
 ## Spacing
 
