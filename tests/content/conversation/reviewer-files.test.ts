@@ -10,6 +10,7 @@ import {
   findFilesCommentAuthors,
   findReviewerRows,
 } from "../../../entrypoints/content/files-page";
+import { CLOSE_DELAY_MS } from "../../../entrypoints/content/ui/hover-intent";
 import type { OwnerFilter } from "../../../entrypoints/content/ui/owners-dialog";
 import {
   codeOwnerOf,
@@ -446,6 +447,30 @@ describe("showReviewerFiles", () => {
     await vi.advanceTimersByTimeAsync(500);
 
     expect(popups()).toEqual([open]);
+  });
+
+  it("holds its body in a list that scrolls above its footer", async () => {
+    show();
+    await hoverOpen("frontend");
+
+    const list = popup()?.querySelector(".gh-prism-scroll-cue-list");
+    const footer = popup()?.querySelector(".gh-prism-owners-hint");
+    expect(list?.textContent).toContain("Code owner of 2 files in this pull request");
+    expect(list?.querySelector("ul")).not.toBeNull();
+    expect(footer?.parentElement).toBe(popup());
+    expect(footer?.previousElementSibling).toBe(list?.parentElement);
+  });
+
+  it("stays open, opening no dialog, when its Scroll down button is clicked", async () => {
+    show();
+    await hoverOpen("frontend");
+    const open = popup() as HTMLElement;
+
+    (open.querySelector('button[aria-label="Scroll down"]') as HTMLButtonElement).click();
+    await vi.advanceTimersByTimeAsync(CLOSE_DELAY_MS + 1);
+
+    expect(open.isConnected).toBe(true);
+    expect(document.querySelector("dialog")).toBeNull();
   });
 
   it("shows one reviewer's files at a time", async () => {

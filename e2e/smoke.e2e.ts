@@ -19,6 +19,8 @@ const PR_URL = "https://github.com/o/r/pull/1/changes";
 const COMMIT_URL = "https://github.com/o/r/commit/dd95cdc0d7a9a6817998ee6663563e888761f329";
 const BACKGROUND_ROUTE_LIMIT =
   "Playwright's Firefox can't route an add-on's background fetch, so this test can't route the commit's .diff";
+const SCROLL_TIMELINE_LIMIT =
+  "Playwright's Firefox 157 predates scroll-driven animations (Firefox 159), so it shows no scroll cue";
 
 const readFixture = (name: string) =>
   readFileSync(join(import.meta.dirname, "../tests/fixtures", name), "utf8");
@@ -2863,7 +2865,7 @@ test("a shield lists its file's code owners in a popover, and Tab walks its link
       const style = getComputedStyle(element);
       return [style.position, style.padding, style.maxHeight !== "none", style.boxSizing];
     }),
-  ).toEqual(["fixed", "12px 12px 0px", true, "border-box"]);
+  ).toEqual(["fixed", "0px", true, "border-box"]);
   const avatars = popover.locator("a.gh-prism-owner");
   await expect(avatars).toHaveCount(2);
   expect(
@@ -3088,12 +3090,15 @@ const routeMembers = async (context: BrowserContext, team: string, fixture: stri
   return hits;
 };
 
-/** How far the hint's footer sits from `scroller`'s inner bottom edge, once scrolled midway. */
-const hintFooterGapMidway = (scroller: Locator) =>
-  scroller.evaluate(async (element) => {
+/** How far the hint's footer sits from `card`'s inner bottom edge, once its list is scrolled midway. */
+const hintFooterGapMidway = (card: Locator) =>
+  card.evaluate(async (element) => {
+    // The card's own animations only: a scroll-driven one inside never finishes.
     await Promise.all(element.getAnimations().map(({ finished }) => finished));
-    if (element.scrollHeight <= element.clientHeight) throw new Error("the list doesn't overflow");
-    element.scrollTop = (element.scrollHeight - element.clientHeight) / 2;
+    const list = element.querySelector(".gh-prism-scroll-cue-list");
+    if (!list || list.scrollHeight <= list.clientHeight)
+      throw new Error("the list doesn't overflow");
+    list.scrollTop = (list.scrollHeight - list.clientHeight) / 2;
     const footer = element.querySelector(".gh-prism-owners-hint");
     if (!footer) throw new Error("no hint");
     // Not clientHeight, which rounds to a whole pixel.
@@ -3399,6 +3404,55 @@ test("a scrolled owners popover keeps its hint flush with its bottom", async ({
   await expect(popover.locator(".gh-prism-owners-hint")).toBeVisible();
 });
 
+const scrollFade = (list: Locator) =>
+  list.evaluate((element) => getComputedStyle(element).getPropertyValue("--gh-prism-scroll-fade"));
+
+test("an overflowing code owners popover fades its list and offers Scroll down until its end", async ({
+  browserName,
+  context,
+  page,
+}) => {
+  test.skip(browserName === "firefox", SCROLL_TIMELINE_LIMIT);
+  await openOwned(context, page);
+  await page.addStyleTag({ content: ".gh-prism-owners { max-height: 120px !important; }" });
+  await treeRow(page, "src/").hover();
+  await shieldOf(page, "src/").hover();
+  const popover = page.locator(".gh-prism-owners:popover-open");
+  const list = popover.locator(".gh-prism-scroll-cue-list");
+  const arrow = popover.getByRole("button", { name: "Scroll down" });
+
+  await expect(arrow).toBeVisible();
+  expect(await scrollFade(list)).toBe("32px");
+  expect(
+    await popover
+      .locator(".gh-prism-owners-hint")
+      .evaluate((element) => getComputedStyle(element).maskImage),
+  ).toBe("none");
+
+  await list.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect(arrow).toBeHidden();
+  await expect.poll(() => scrollFade(list)).toBe("0px");
+
+  await list.evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  await expect(arrow).toBeVisible();
+  await expect.poll(() => scrollFade(list)).toBe("32px");
+});
+
+test("a code owners popover whose list fits shows no scroll cue", async ({ context, page }) => {
+  await openOwned(context, page);
+  await treeRow(page, "README.md").hover();
+  await shieldOf(page, "README.md").hover();
+  const popover = page.locator(".gh-prism-owners:popover-open");
+  await expect(popover).toHaveCount(1);
+
+  await expect(popover.getByRole("button", { name: "Scroll down" })).toBeHidden();
+  expect(await scrollFade(popover.locator(".gh-prism-scroll-cue-list"))).toBe("0px");
+});
+
 test("an owned folder's row shows a shield at its end and keeps its chevron", async ({
   context,
   page,
@@ -3654,6 +3708,46 @@ test("a scrolled code owner reviewer's card keeps its hint flush with its bottom
 
   expect(await hintFooterGapMidway(card)).toBeLessThanOrEqual(0.5);
   await expect(card.locator(".gh-prism-owners-hint")).toBeVisible();
+});
+
+test("a Scroll down click pages a code owner reviewer's card and keeps it open", async ({
+  browserName,
+  context,
+  page,
+}) => {
+  test.skip(browserName === "firefox", SCROLL_TIMELINE_LIMIT);
+  await serveSandboxConversation(context);
+  await page.goto("https://github.com/o/r/pull/1");
+  await page.addStyleTag({ content: ".gh-prism-reviewer-files { max-height: 160px !important; }" });
+  const card = page.locator(".gh-prism-reviewer-files");
+  await page.locator('[id="codeowner-excessive-dev/frontend"]').hover();
+  await expect(card).toBeVisible();
+  const list = card.locator(".gh-prism-scroll-cue-list");
+  const lastShown = await list.evaluate((element) => {
+    const bottom = element.getBoundingClientRect().bottom;
+    const rows = [...element.querySelectorAll("li")];
+    return rows.findLastIndex((row) => row.getBoundingClientRect().top < bottom);
+  });
+
+  await card.getByRole("button", { name: "Scroll down" }).click();
+  await expect.poll(() => list.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await list.evaluate(async (element) => {
+    let last = -1;
+    while (element.scrollTop !== last) {
+      last = element.scrollTop;
+      await new Promise((settle) => setTimeout(settle, 100));
+    }
+  });
+
+  expect(
+    await list.evaluate((element, index) => {
+      const box = element.getBoundingClientRect();
+      const row = element.querySelectorAll("li")[index]?.getBoundingClientRect();
+      return !!row && row.bottom > box.top && row.top < box.bottom;
+    }, lastShown),
+  ).toBe(true);
+  await expect(card).toBeVisible();
+  await expect(page.locator("dialog")).toHaveCount(0);
 });
 
 const DEEP_OWNED_PATHS = [
@@ -4049,10 +4143,8 @@ test("a user's code-owner shield lists their team's files when assigned on its b
   await expect(page.locator("button[data-gh-prism-owner]")).toHaveCount(0);
 });
 
-test("Tab from a code owner's shield enters their long list's filter action, which scrolls it, then moves on through the sidebar", async ({
-  context,
-  page,
-}) => {
+/** Serves a Conversation whose frontend team owns 24 files, and focuses into its card's list. */
+async function tabIntoLongOwnerList(context: BrowserContext, page: Page): Promise<Locator> {
   await serve(
     context,
     "https://github.com/o/r/pull/1",
@@ -4080,11 +4172,26 @@ test("Tab from a code owner's shield enters their long list's filter action, whi
     await expect(page.locator(".gh-prism-reviewer-files")).toBeVisible({ timeout: 1000 });
   }).toPass();
   await page.keyboard.press("Tab");
-  const action = page.locator(".gh-prism-reviewer-files a.gh-prism-owner-filter");
-  await expect(action).toBeFocused();
-  const scrolled = page.locator(".gh-prism-reviewer-files");
+  const list = page.locator(".gh-prism-reviewer-files .gh-prism-scroll-cue-list");
+  await expect(list).toBeFocused();
+  return list;
+}
+
+const scrolledToEnd = (list: Locator) =>
+  list.evaluate((el) => el.scrollTop >= el.scrollHeight - el.clientHeight - 1);
+
+test("Tab from a code owner's shield enters their long list, which scrolls by key to its end, then its filter action, then moves on through the sidebar", async ({
+  context,
+  page,
+}) => {
+  const list = await tabIntoLongOwnerList(context, page);
+
   await page.keyboard.press("ArrowDown");
-  await expect.poll(() => scrolled.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  await expect.poll(() => list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  await page.keyboard.press("End");
+  await expect.poll(() => scrolledToEnd(list)).toBe(true);
+  await page.keyboard.press("Tab");
+  await expect(page.locator(".gh-prism-reviewer-files a.gh-prism-owner-filter")).toBeFocused();
   await page.keyboard.press("Tab");
 
   await expect(page.locator(".gh-prism-reviewer-files")).toHaveCount(0);
@@ -4095,6 +4202,37 @@ test("Tab from a code owner's shield enters their long list's filter action, whi
         !!document.activeElement?.closest("#partial-discussion-sidebar"),
     ),
   ).toBe(true);
+});
+
+test("Enter on a code owner card's Scroll down pages its list to the end, then hands focus to the list", async ({
+  browserName,
+  context,
+  page,
+}) => {
+  test.skip(browserName === "firefox", SCROLL_TIMELINE_LIMIT);
+  const list = await tabIntoLongOwnerList(context, page);
+  const card = page.locator(".gh-prism-reviewer-files");
+  const arrow = card.getByRole("button", { name: "Scroll down" });
+
+  await page.keyboard.press("Tab");
+  await expect(arrow).toBeFocused();
+
+  for (let page_ = 0; page_ < 20 && !(await scrolledToEnd(list)); page_++) {
+    await page.keyboard.press("Enter");
+    await list.evaluate(async (el) => {
+      let last = -1;
+      while (el.scrollTop !== last) {
+        last = el.scrollTop;
+        await new Promise((settle) => setTimeout(settle, 100));
+      }
+    });
+  }
+
+  expect(await scrolledToEnd(list)).toBe(true);
+  await expect(card).toBeVisible();
+  await expect(list).toBeFocused();
+  await expect(page.locator("dialog")).toHaveCount(0);
+  await expect(arrow).toBeHidden();
 });
 
 const CONVERSATION_FRAME_URL = "https://github.com/o/r/pull/1?gh-prism-panel=1";

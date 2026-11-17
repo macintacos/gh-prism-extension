@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
+import { CLOSE_DELAY_MS } from "../../../entrypoints/content/ui/hover-intent";
 import { codeOwnerOf, type PrCodeOwners } from "../../../utils/github/code-owners";
 import { outline } from "../../fixtures/file-list";
 import { byId, openOverlay } from "../../fixtures/files-page";
@@ -474,8 +475,10 @@ describe("showSections", () => {
       await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"] }));
       await focusOpen(shieldOf("implementation", "src/engine.rs"));
 
-      popovers()[0]?.dispatchEvent(new Event("scroll"));
+      const list = popovers()[0]?.querySelector(".gh-prism-scroll-cue-list");
+      list?.dispatchEvent(new Event("scroll"));
 
+      expect(list).toBeTruthy();
       expect(popovers()).toHaveLength(1);
     });
 
@@ -616,6 +619,34 @@ describe("showSections", () => {
           ["https://github.com/orgs/o/teams/other", "_blank", "noopener noreferrer"],
           ["https://github.com/orgs/o/teams/team", "_blank", "noopener noreferrer"],
         ]);
+      });
+
+      it("holds its body in a list that scrolls above its footer", async () => {
+        await owned();
+
+        await focusOpen(src());
+
+        const [popover] = popovers();
+        const list = popover?.querySelector(".gh-prism-scroll-cue-list");
+        const footer = popover?.querySelector(".gh-prism-owners-hint");
+        expect(list?.querySelector("h2")).not.toBeNull();
+        expect(list?.querySelector("ul")).not.toBeNull();
+        expect(footer?.parentElement).toBe(popover);
+        expect(footer?.previousElementSibling).toBe(list?.parentElement);
+      });
+
+      it("stays open, opening no dialog, when its Scroll down button is clicked", async () => {
+        await owned();
+        await focusOpen(src());
+        const [popover] = popovers();
+        const arrow = popover?.querySelector<HTMLButtonElement>('button[aria-label="Scroll down"]');
+
+        arrow?.click();
+        await vi.advanceTimersByTimeAsync(CLOSE_DELAY_MS + 1);
+
+        expect(arrow).toBeTruthy();
+        expect(popovers()).toEqual([popover]);
+        expect(document.querySelector("dialog")).toBeNull();
       });
 
       it("shows paths and tokens as text, never markup", async () => {

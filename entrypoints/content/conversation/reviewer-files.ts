@@ -43,6 +43,7 @@ import {
 } from "../ui/owners-dialog";
 import { place } from "../ui/place";
 import { openPrOwners, PR_OWNERS, PR_OWNERS_KIND, prOwnersButton } from "../ui/pr-owners";
+import { scrollCue } from "../ui/scroll-cue";
 // ?inline: a plain import would ship in the manifest, styling every github.com page.
 import css from "./reviewer-files.css?inline";
 
@@ -369,16 +370,13 @@ function show(shield: HTMLElement, body: readonly Node[], action: HTMLElement | 
   const popover = el(
     doc,
     "div",
-    "gh-prism-reviewer-files tw:inset-auto tw:m-0 tw:w-max tw:max-w-[min(440px,calc(100vw-16px))] tw:box-border tw:max-h-[min(320px,calc(100vh-16px))] tw:overflow-y-auto tw:pt-4 tw:px-4 tw:pb-0 tw:text-body-medium tw:leading-body-medium tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:border tw:border-border-default tw:rounded-medium tw:wrap-anywhere",
-    ...body,
+    "gh-prism-reviewer-files tw:inset-auto tw:m-0 tw:w-max tw:max-w-[min(440px,calc(100vw-16px))] tw:box-border tw:max-h-[min(320px,calc(100vh-16px))] tw:overflow-hidden tw:p-0 tw:open:flex tw:flex-col tw:text-body-medium tw:leading-body-medium tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:border tw:border-border-default tw:rounded-medium tw:wrap-anywhere",
+    scrollCue(doc, el(doc, "div", "tw:pt-4 tw:px-4 tw:pb-4", ...body)),
     detailsHint(doc, "medium", action),
   );
   popover.id = ID;
   popover.popover = "manual";
   followOwnerTooltips(popover);
-  // Firefox tabs into any scroller. Keep this one a Tab stop only where Chromium does: when no
-  // control inside can scroll it.
-  if (popover.querySelector("a[href], button")) popover.tabIndex = -1;
   doc.body.append(popover);
   // source: Tab from the shield enters it, and Tab past its end goes on from the shield.
   popover.showPopover({ source: shield });

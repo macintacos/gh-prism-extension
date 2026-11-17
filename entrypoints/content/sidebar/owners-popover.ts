@@ -30,6 +30,7 @@ import {
 } from "../ui/owner-identity";
 import { detailsHint, type OwnersDialogContent } from "../ui/owners-dialog";
 import { place } from "../ui/place";
+import { scrollCue } from "../ui/scroll-cue";
 
 /** Octicons 19.15.0 (MIT, GitHub Inc.): alert. */
 const ALERT_ICON =
@@ -309,9 +310,17 @@ function openPopover(
   const popover = el(
     doc,
     "div",
-    "gh-prism-owners tw:inset-auto tw:m-0 tw:box-border tw:max-w-[min(400px,calc(100vw-16px))] tw:max-h-[calc(100vh-16px)] tw:overflow-y-auto tw:pt-3 tw:px-3 tw:pb-0 tw:text-body-small tw:leading-body-small tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:rounded-medium tw:[border:0] tw:[box-shadow:var(--shadow-floating-small)] tw:wrap-anywhere",
-    el(doc, "h2", "tw:mt-0 tw:mb-2 tw:text-body-small tw:font-semibold", "Code owners"),
-    body,
+    "gh-prism-owners tw:inset-auto tw:m-0 tw:box-border tw:max-w-[min(400px,calc(100vw-16px))] tw:max-h-[calc(100vh-16px)] tw:overflow-hidden tw:p-0 tw:open:flex tw:flex-col tw:text-body-small tw:leading-body-small tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:rounded-medium tw:[border:0] tw:[box-shadow:var(--shadow-floating-small)] tw:wrap-anywhere",
+    scrollCue(
+      doc,
+      el(
+        doc,
+        "div",
+        "tw:pt-3 tw:px-3 tw:pb-3",
+        el(doc, "h2", "tw:mt-0 tw:mb-2 tw:text-body-small tw:font-semibold", "Code owners"),
+        body,
+      ),
+    ),
     detailsHint(doc, "small"),
   );
   popover.popover = "auto";

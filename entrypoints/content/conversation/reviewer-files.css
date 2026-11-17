@@ -8,6 +8,7 @@
    which GitHub positions. Every other rule selects only gh-prism's own classes. */
 @import "../ui/tailwind.css" prefix(tw);
 @import "../ui/mark.css";
+@import "../ui/scroll-cue.css";
 @import "../ui/owner-identity.css";
 @import "../ui/pr-owners.css";
 @source "./reviewer-files.ts";
