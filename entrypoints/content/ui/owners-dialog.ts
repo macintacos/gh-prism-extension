@@ -113,7 +113,7 @@ export function openOwnersDialog(doc: Document, options: OwnersDialogOptions): v
   signal.addEventListener("abort", remove, { signal: closed.signal });
 }
 
-// Each matches its popup's own padding.
+// Each matches the padding its card gives the content of its scroll cue.
 const HINT_FOOTER = {
   small:
     "gh-prism-owners-hint tw:px-3 tw:py-2 tw:flex tw:items-center tw:gap-2 tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:[box-shadow:0_-1px_0_var(--borderColor-default)]",

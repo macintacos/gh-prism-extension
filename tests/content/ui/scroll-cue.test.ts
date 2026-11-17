@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { scrollCue } from "../../../entrypoints/content/ui/scroll-cue";
 
+/** Sets the media feature happy-dom reports for `prefers-reduced-motion`. */
 const prefersReducedMotion = (preference: string) => {
   const { happyDOM } = window as unknown as {
     happyDOM: { settings: { device: { prefersReducedMotion: string } } };
@@ -12,14 +13,23 @@ const prefersReducedMotion = (preference: string) => {
 function mount(layout: { clientHeight: number; scrollHeight?: number }, ...content: Node[]) {
   const cue = scrollCue(document, ...content);
   document.body.replaceChildren(cue);
+
   const list = cue.querySelector<HTMLElement>(".gh-prism-scroll-cue-list");
-  const arrow = cue.querySelector<HTMLButtonElement>("button");
+  const arrow = cue.querySelector<HTMLButtonElement>(".gh-prism-scroll-cue-arrow");
   if (!list || !arrow) throw new Error("cue lacks its list or arrow");
+
   Object.defineProperty(list, "clientHeight", { value: layout.clientHeight });
   Object.defineProperty(list, "scrollHeight", { value: layout.scrollHeight ?? 1000 });
+
   const scrollBy = vi.fn();
   list.scrollBy = scrollBy;
   return { cue, list, arrow, scrollBy };
+}
+
+function link(): HTMLAnchorElement {
+  const anchor = document.createElement("a");
+  anchor.href = "https://example.com";
+  return anchor;
 }
 
 afterEach(() => {
@@ -41,15 +51,12 @@ describe("scrollCue", () => {
     expect(arrow.querySelector("svg")).not.toBeNull();
   });
 
-  it("makes the list a Tab stop only when nothing inside it is focusable", () => {
-    const link = document.createElement("a");
-    link.href = "https://example.com";
-
+  it("leaves the list's Tab stop to the browser unless it holds a link or button", () => {
     const plain = mount({ clientHeight: 300 }, document.createElement("p"));
-    const linked = mount({ clientHeight: 300 }, link);
+    const linked = mount({ clientHeight: 300 }, link());
     const withButton = mount({ clientHeight: 300 }, document.createElement("button"));
 
-    expect(plain.list.tabIndex).toBe(0);
+    expect(plain.list.hasAttribute("tabindex")).toBe(false);
     expect(linked.list.tabIndex).toBe(-1);
     expect(withButton.list.tabIndex).toBe(-1);
     expect(plain.arrow.tabIndex).toBe(0);
@@ -81,7 +88,7 @@ describe("scrollCue", () => {
   });
 
   it("hands focus to the list when a page reaches the end", () => {
-    const { list, arrow } = mount({ clientHeight: 300, scrollHeight: 500 });
+    const { list, arrow } = mount({ clientHeight: 300, scrollHeight: 500 }, link());
     arrow.focus();
 
     arrow.click();
@@ -90,7 +97,7 @@ describe("scrollCue", () => {
   });
 
   it("keeps focus on the arrow while more sits below", () => {
-    const { arrow } = mount({ clientHeight: 300, scrollHeight: 1000 });
+    const { arrow } = mount({ clientHeight: 300, scrollHeight: 1000 }, link());
     arrow.focus();
 
     arrow.click();

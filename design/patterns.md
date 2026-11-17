@@ -131,10 +131,11 @@ corner, sits a 24px circled Octicons `arrow-down` button named "Scroll down": a 
 ring on focus. A click scrolls the list down a page, keeping its last 64px in view,
 smoothly unless the reviewer prefers reduced motion, and leaves the card open. One scroll
 timeline drives the fade and the button, so they show and clear together; a list that fits
-shows neither, and neither does Firefox before 159 (`ui/scroll-cue.css`). A list with no
-link or button in it is a Tab stop of its own, so Tab from the shield reaches the list
-first, where arrow keys scroll it, then "Scroll down" while it shows, then the footer's
-action. A press that reaches the end hands focus to the list, so the card stays open.
+shows neither, and neither does Firefox before 159 (`ui/scroll-cue.css`). A list that
+overflows and holds no link or button is a Tab stop, so Tab from the shield reaches it
+first, where arrow keys scroll it, then "Scroll down", then the footer's action; a list
+that fits is not one. A press that reaches the end hands focus to the list, so the card
+stays open.
 
 ## Viewed
 

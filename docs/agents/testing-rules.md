@@ -244,6 +244,9 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   content script's fetch is routed, but Firefox holds it to the page's CSP, so a routed
   page's policy keeps GitHub's `connect-src 'self'`. A test that routes such a fetch skips
   in Firefox with `BACKGROUND_ROUTE_LIMIT`.
+- **Skip a test of a scroll-driven animation in Firefox with `SCROLL_TIMELINE_LIMIT` while
+  Playwright's Firefox predates 159.** Drop the skips and the constant once
+  `firefox-*/application.ini` reads 159 or later.
 - **Prove a module that takes an injected dependency in real browsers by bundling it, not
   through the built extension.** No spec can reach a content script's parameters.
   [`bench/bundle.ts`](../../bench/bundle.ts) bundles the module with a harness, and the
@@ -307,6 +310,9 @@ tests stand in for are in [`github-rules.md`](github-rules.md).
   with an `AbortError`, which fails the wait even though the reveal has settled.
   [`e2e/click-to-comment.e2e.ts`](../../e2e/click-to-comment.e2e.ts)'s `settle` is the
   pattern.
+- **Leave scroll-driven animations out of an animation wait.** One's `finished` settles
+  only once its scroller reaches the end, so the wait hangs until the test times out. The
+  scroll cue (`ui/scroll-cue.css`) and the what's-new notes run one each.
 - **Aim a press or drag on a line's text at the text's own box.** Get it from
   `getBoundingClientRect()` on a `Range` over the text. A short line's `.diff-text-inner`
   runs past its last character. A hovered line's add-comment "+" covers the cell's left

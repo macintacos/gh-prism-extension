@@ -367,11 +367,12 @@ const bare = (token: string) => token.replace(/^@/, "");
  */
 function show(shield: HTMLElement, body: readonly Node[], action: HTMLElement | undefined): Card {
   const doc = shield.ownerDocument;
+  // open:flex: a display utility would show the popover hidden; p-0 clears [popover]'s padding.
   const popover = el(
     doc,
     "div",
     "gh-prism-reviewer-files tw:inset-auto tw:m-0 tw:w-max tw:max-w-[min(440px,calc(100vw-16px))] tw:box-border tw:max-h-[min(320px,calc(100vh-16px))] tw:overflow-hidden tw:p-0 tw:open:flex tw:flex-col tw:text-body-medium tw:leading-body-medium tw:text-fg-default tw:bg-[var(--overlay-bgColor,var(--bgColor-default))] tw:border tw:border-border-default tw:rounded-medium tw:wrap-anywhere",
-    scrollCue(doc, el(doc, "div", "tw:pt-4 tw:px-4 tw:pb-4", ...body)),
+    scrollCue(doc, el(doc, "div", "tw:p-4", ...body)),
     detailsHint(doc, "medium", action),
   );
   popover.id = ID;

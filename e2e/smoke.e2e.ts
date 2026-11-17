@@ -3442,6 +3442,32 @@ test("an overflowing code owners popover fades its list and offers Scroll down u
   await expect.poll(() => scrollFade(list)).toBe("32px");
 });
 
+test("Tab through an overflowing code owners popover keeps each focused link clear of its fade", async ({
+  context,
+  page,
+}) => {
+  const owners = Array.from({ length: 12 }, (_, i) => `@owner-${i}`);
+  await openOwned(context, page, owners);
+  await page.addStyleTag({ content: ".gh-prism-owners { max-height: 120px !important; }" });
+  await treeRow(page, "README.md").hover();
+  await shieldOf(page, "README.md").hover();
+  const popover = page.locator(".gh-prism-owners:popover-open");
+  const list = popover.locator(".gh-prism-scroll-cue-list");
+  await popover.locator("a.gh-prism-owner").first().focus();
+
+  for (const _ of owners.slice(1)) {
+    await page.keyboard.press("Tab");
+    await scrollSettled(list);
+    expect(
+      await list.evaluate(
+        (element) =>
+          element.getBoundingClientRect().bottom -
+          (element.ownerDocument.activeElement?.getBoundingClientRect().bottom ?? 0),
+      ),
+    ).toBeGreaterThanOrEqual(32);
+  }
+});
+
 test("a code owners popover whose list fits shows no scroll cue", async ({ context, page }) => {
   await openOwned(context, page);
   await treeRow(page, "README.md").hover();
@@ -3731,13 +3757,7 @@ test("a Scroll down click pages a code owner reviewer's card and keeps it open",
 
   await card.getByRole("button", { name: "Scroll down" }).click();
   await expect.poll(() => list.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-  await list.evaluate(async (element) => {
-    let last = -1;
-    while (element.scrollTop !== last) {
-      last = element.scrollTop;
-      await new Promise((settle) => setTimeout(settle, 100));
-    }
-  });
+  await scrollSettled(list);
 
   expect(
     await list.evaluate((element, index) => {
@@ -4143,15 +4163,15 @@ test("a user's code-owner shield lists their team's files when assigned on its b
   await expect(page.locator("button[data-gh-prism-owner]")).toHaveCount(0);
 });
 
-/** Serves a Conversation whose frontend team owns 24 files, and focuses into its card's list. */
-async function tabIntoLongOwnerList(context: BrowserContext, page: Page): Promise<Locator> {
+/** Serves a Conversation whose frontend team owns `files` files, and focuses its shield. */
+async function focusOwnerShield(context: BrowserContext, page: Page, files: number) {
   await serve(
     context,
     "https://github.com/o/r/pull/1",
     `<!doctype html>${readFixture("conversation-page.html")}`,
   );
   const ownershipByPath = Object.fromEntries(
-    Array.from({ length: 24 }, (_, i) => [
+    Array.from({ length: files }, (_, i) => [
       `web/components/file-${i}.ts`,
       { isOwnedByViewer: false, owners: ["@excessive-dev/frontend"] },
     ]),
@@ -4171,6 +4191,11 @@ async function tabIntoLongOwnerList(context: BrowserContext, page: Page): Promis
     await shield.focus();
     await expect(page.locator(".gh-prism-reviewer-files")).toBeVisible({ timeout: 1000 });
   }).toPass();
+}
+
+/** Serves a Conversation whose frontend team owns 24 files, and focuses into its card's list. */
+async function tabIntoLongOwnerList(context: BrowserContext, page: Page): Promise<Locator> {
+  await focusOwnerShield(context, page, 24);
   await page.keyboard.press("Tab");
   const list = page.locator(".gh-prism-reviewer-files .gh-prism-scroll-cue-list");
   await expect(list).toBeFocused();
@@ -4179,6 +4204,27 @@ async function tabIntoLongOwnerList(context: BrowserContext, page: Page): Promis
 
 const scrolledToEnd = (list: Locator) =>
   list.evaluate((el) => el.scrollTop >= el.scrollHeight - el.clientHeight - 1);
+
+/** Waits until `list`'s scroll holds still for 100 ms. */
+const scrollSettled = (list: Locator) =>
+  list.evaluate(async (element) => {
+    let last = -1;
+    while (element.scrollTop !== last) {
+      last = element.scrollTop;
+      await new Promise((settle) => setTimeout(settle, 100));
+    }
+  });
+
+test("Tab from a code owner's shield skips their short list for its filter action", async ({
+  context,
+  page,
+}) => {
+  await focusOwnerShield(context, page, 2);
+
+  await page.keyboard.press("Tab");
+
+  await expect(page.locator(".gh-prism-reviewer-files a.gh-prism-owner-filter")).toBeFocused();
+});
 
 test("Tab from a code owner's shield enters their long list, which scrolls by key to its end, then its filter action, then moves on through the sidebar", async ({
   context,
@@ -4217,15 +4263,9 @@ test("Enter on a code owner card's Scroll down pages its list to the end, then h
   await page.keyboard.press("Tab");
   await expect(arrow).toBeFocused();
 
-  for (let page_ = 0; page_ < 20 && !(await scrolledToEnd(list)); page_++) {
+  for (let presses = 0; presses < 20 && !(await scrolledToEnd(list)); presses++) {
     await page.keyboard.press("Enter");
-    await list.evaluate(async (el) => {
-      let last = -1;
-      while (el.scrollTop !== last) {
-        last = el.scrollTop;
-        await new Promise((settle) => setTimeout(settle, 100));
-      }
-    });
+    await scrollSettled(list);
   }
 
   expect(await scrolledToEnd(list)).toBe(true);

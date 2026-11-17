@@ -307,6 +307,7 @@ function openPopover(
   { root, signal, returnFocus }: PopoverOptions,
 ): Card {
   const doc = shield.ownerDocument;
+  // open:flex: a display utility would show the popover hidden; p-0 clears [popover]'s padding.
   const popover = el(
     doc,
     "div",
@@ -316,7 +317,7 @@ function openPopover(
       el(
         doc,
         "div",
-        "tw:pt-3 tw:px-3 tw:pb-3",
+        "tw:p-3",
         el(doc, "h2", "tw:mt-0 tw:mb-2 tw:text-body-small tw:font-semibold", "Code owners"),
         body,
       ),
