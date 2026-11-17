@@ -1438,6 +1438,20 @@ describe.each([
       expect(headerShields()).toEqual(authors().map(() => ["sandbox-user is a code owner"]));
     });
 
+    it("keeps one shield when another extension inserts beside the name", async () => {
+      showHere();
+      await settle();
+
+      for (const { name } of authors()) {
+        const fullName = document.createElement("span");
+        fullName.textContent = "(Full Name)";
+        name.after(fullName);
+      }
+      await settle();
+
+      expect(headerShields()).toEqual(authors().map(() => ["sandbox-user is a code owner"]));
+    });
+
     it("draws one shield per header across mutation batches with a lookup settling between them", async () => {
       const members = Promise.withResolvers<{ total: number; members: string[] } | undefined>();
       showHere(undefined, () => members.promise);

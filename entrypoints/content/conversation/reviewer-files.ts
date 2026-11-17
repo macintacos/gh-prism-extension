@@ -148,12 +148,12 @@ export function showReviewerFiles(
   }
 
   /**
-   * Adds gh-prism's shield after each of `authors`' names that has none yet and whose author owns
-   * changed files. Synchronous, so overlapping batches can't draw a header two shields.
+   * Adds gh-prism's shield after each of `authors`' names whose header holds none yet and whose author
+   * owns changed files. Synchronous, so overlapping batches can't draw a header two shields.
    */
   function addAuthorShields(authors: readonly CommentAuthor[], settled: Ownership): void {
     for (const { kind, token, name } of authors) {
-      if (name.nextElementSibling?.matches(OWN_SHIELD)) continue;
+      if (name.parentElement?.querySelector(`:scope > ${OWN_SHIELD}`)) continue;
       const owned = authorOwned(settled, token);
       if (owned && owned !== "pending")
         name.after(shieldFor(doc, COMMENT_SHIELD_LOOKS[kind], token, owned));
