@@ -56,12 +56,12 @@ An owned file's icon gives way to a shield while its row is hovered or focused, 
 folder's icon gives way to its chevron. The shield is Octicons `shield-lock`, muted at
 rest and `--fgColor-default` on hover. Resting the pointer on it opens a popover listing
 the file's code owners, one per 24px row, each drawn as § Owner identities says, with the
-code owner's files popup's timing below, and so does focusing it. The popover ends in a
-footer that stays put while the list scrolls. Below a hairline, the footer holds one small
-muted sentence, "Click the shield for details". Clicking the shield, or Enter or Space on
-it, closes the popover and opens the code owner details dialog (§ Dialogs).
-`sidebar/section-tree.css` swaps the icon for the shield; `sidebar/owners-popover.ts`
-builds the popover.
+code owner's files popup's timing below, and so does focusing it. Its list scrolls above a
+footer that stays put, with the scroll cue (§ Overflow edges). Below a hairline, the
+footer holds gh-prism's mark (§ The mark), then one small muted sentence, "Click the
+shield for details". Clicking the shield, or Enter or Space on it, closes the popover and
+opens the code owner details dialog (§ Dialogs). `sidebar/section-tree.css` swaps the icon
+for the shield; `sidebar/owners-popover.ts` builds the popover.
 
 A folder holding an owned file shows the same shield while its row is hovered or focused,
 at its row's end, centred on the file rows' Viewed box column, because its icon already
@@ -121,6 +121,20 @@ gradient painted in the ground's colour, so the fade works on any tint in either
 truncated name's revealed copy fades its end over 12px (`ui/reveal.css`). The what's-new
 notes fade their bottom 32px while more sit below, clearing as the reviewer scrolls to the
 end (`sidebar/sections-view.css`).
+
+A code owner hover card's list, in the code owner's files popup and the file-row and
+folder code owners popovers, scrolls on its own above the card's footer and fades its
+bottom 32px the same way while more sits below. Over that fade, at the list's bottom end
+corner, sits a 24px circled Octicons `arrow-down` button named "Scroll down": a 1px
+`--borderColor-default` ring on `--overlay-bgColor` with Primer's resting shadow, its icon
+`--fgColor-muted` turning `--fgColor-default` on hover, and the 2px `--focus-outlineColor`
+ring on focus. A click scrolls the list down a page, keeping its last 64px in view,
+smoothly unless the reviewer prefers reduced motion, and leaves the card open. One scroll
+timeline drives the fade and the button, so they show and clear together; a list that fits
+shows neither, and neither does Firefox before 159 (`ui/scroll-cue.css`). A list with no
+link or button in it is a Tab stop of its own, so Tab from the shield reaches the list
+first, where arrow keys scroll it, then "Scroll down" while it shows, then the footer's
+action. A press that reaches the end hands focus to the list, so the card stays open.
 
 ## Viewed
 
@@ -454,7 +468,8 @@ the two cards never share a trigger.
   folder's path is in muted monospace and breaks only after a slash, unless one folder
   name alone is wider than the popup. Its files sit indented below it in monospace.
   `ui/file-list.ts` builds this tree for the popup, the folder popover (§ File rows), and
-  through them the details dialog. A long list scrolls inside the popup.
+  through them the details dialog. A long list scrolls above the footer, with the scroll
+  cue (§ Overflow edges).
 - **"N teams":** a `<button>` drawn as an owner link's name, in the same colour and
   weight, underlined on hover and while its list is open. Octicons `triangle-down` follows
   it at 16px in `--fgColor-muted`. It carries `aria-expanded` and `aria-controls`, and
@@ -471,17 +486,17 @@ the two cards never share a trigger.
   puts focus back on the button, leaving the popup or dialog open.
 - **The hint:** like a file row's code owners popover (§ File rows), the popup ends in a
   footer that stays put while the list scrolls: below a hairline, "Click the shield for
-  details" in small muted text. gh-prism's mark sits in the same footer (§ The mark).
-- **The filter action:** on a popup that lists files, the footer is one row: the hint on
-  the left, taking the free width, and "Show only their files" on the right, both centred
-  vertically. The footer's vertical padding drops to 4px, so the row stays 36px tall. The
-  action is a link drawn as Primer's small invisible Button, with Octicons `filter` before
-  its label, and it opens Files changed narrowed to that code owner's files. A plain click
-  loads it as a new page; Cmd-click or Ctrl-click opens a new tab. The popup and the
-  dialog filter to the reviewer through this action rather than a filter icon: the popup
-  never draws the reviewer's name, and the dialog's box for them has no icon (§ Dialogs).
-  The "GitHub hides the team" popup has no action. On a commit page there is no owner
-  filter, so no surface shows the action.
+  details" in small muted text. gh-prism's mark leads the same footer (§ The mark).
+- **The filter action:** on a popup that lists files, the footer is one row: gh-prism's
+  mark, then the hint, taking the free width, then "Show only their files" at the end, all
+  centred vertically. The footer's vertical padding drops to 4px, so the row stays 36px
+  tall. The action is a link drawn as Primer's small invisible Button, with Octicons
+  `filter` before its label, and it opens Files changed narrowed to that code owner's
+  files. A plain click loads it as a new page; Cmd-click or Ctrl-click opens a new tab.
+  The popup and the dialog filter to the reviewer through this action rather than a filter
+  icon: the popup never draws the reviewer's name, and the dialog's box for them has no
+  icon (§ Dialogs). The "GitHub hides the team" popup has no action. On a commit page
+  there is no owner filter, so no surface shows the action.
 - **The click:** clicking the shield, or Enter or Space on it, closes the popup and opens
   the code owner details dialog (§ Dialogs), headed by the code owner's `@user` or
   `@org/team` name. Closing the dialog returns focus to the shield. Focus opens the popup
@@ -601,11 +616,11 @@ Each of these nine surfaces carries one mark:
   mark stays still there, because the tooltip takes no pointer.
 - **Sidebar:** the nav's last row, at the end corner, below the sections, so it moves none
   of them. Its tooltip opens up and inward, because `sidebar/side.css` clips the sidebar.
-- **Code owners popover:** the end corner of the footer row that reads "Click the shield
-  for details", so it adds no row.
-- **Code owner's files popup:** in the footer, just before "Show only their files", or at
-  the footer's end corner when the popup has no action. Its tooltip opens inward at that
-  corner.
+- **Code owners popover:** the footer's start corner, before "Click the shield for
+  details", so it adds no row.
+- **Code owner's files popup:** the footer's start corner, before "Click the shield for
+  details", with "Show only their files", where the popup has it, at the end. Its tooltip
+  opens inward from that corner.
 - **Code owner details dialog:** the footer's start corner, with the filter action at the
   end. The footer always renders, and the header is untouched.
 - **Classic Files-changed dialog:** the footer's start corner, with the buttons at the
