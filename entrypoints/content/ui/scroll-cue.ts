@@ -33,8 +33,8 @@ function scrollPage(list: HTMLElement, arrow: HTMLElement): void {
   if (list.ownerDocument.activeElement === arrow && list.scrollTop + top >= end)
     list.focus({ preventScroll: true });
 
-  const reduce = list.ownerDocument.defaultView?.matchMedia(
+  const reducedMotion = list.ownerDocument.defaultView?.matchMedia(
     "(prefers-reduced-motion: reduce)",
   ).matches;
-  list.scrollBy({ top, behavior: reduce ? "instant" : "smooth" });
+  list.scrollBy({ top, behavior: reducedMotion ? "instant" : "smooth" });
 }

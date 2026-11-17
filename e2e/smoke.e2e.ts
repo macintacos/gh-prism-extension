@@ -3749,7 +3749,7 @@ test("a Scroll down click pages a code owner reviewer's card and keeps it open",
   await page.locator('[id="codeowner-excessive-dev/frontend"]').hover();
   await expect(card).toBeVisible();
   const list = card.locator(".gh-prism-scroll-cue-list");
-  const lastShown = await list.evaluate((element) => {
+  const lastRowInView = await list.evaluate((element) => {
     const bottom = element.getBoundingClientRect().bottom;
     const rows = [...element.querySelectorAll("li")];
     return rows.findLastIndex((row) => row.getBoundingClientRect().top < bottom);
@@ -3764,7 +3764,7 @@ test("a Scroll down click pages a code owner reviewer's card and keeps it open",
       const box = element.getBoundingClientRect();
       const row = element.querySelectorAll("li")[index]?.getBoundingClientRect();
       return !!row && row.bottom > box.top && row.top < box.bottom;
-    }, lastShown),
+    }, lastRowInView),
   ).toBe(true);
   await expect(card).toBeVisible();
   await expect(page.locator("dialog")).toHaveCount(0);
@@ -4208,9 +4208,9 @@ const scrolledToEnd = (list: Locator) =>
 /** Waits until `list`'s scroll holds still for 100 ms. */
 const scrollSettled = (list: Locator) =>
   list.evaluate(async (element) => {
-    let last = -1;
-    while (element.scrollTop !== last) {
-      last = element.scrollTop;
+    let previousScrollTop = -1;
+    while (element.scrollTop !== previousScrollTop) {
+      previousScrollTop = element.scrollTop;
       await new Promise((settle) => setTimeout(settle, 100));
     }
   });
