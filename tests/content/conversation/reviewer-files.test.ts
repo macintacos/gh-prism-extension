@@ -648,14 +648,16 @@ describe("showReviewerFiles", () => {
       ).toBe(`${FILES}?gh-prism-owner=@nodejs/crypto`);
     });
 
-    it("follows gh-prism's mark in the popup's footer", async () => {
+    it("ends the popup's footer, after gh-prism's mark and the hint", async () => {
       show(undefined, undefined, filter);
 
       await hoverOpen("frontend");
 
-      const marks = popup()?.querySelectorAll(".gh-prism-mark") ?? [];
-      expect(marks).toHaveLength(1);
-      expect(marks[0]?.nextElementSibling).toBe(action());
+      const footer = popup()?.querySelector(".gh-prism-owners-hint");
+      const mark = footer?.firstElementChild;
+      expect(mark?.classList.contains("gh-prism-mark")).toBe(true);
+      expect(mark?.nextElementSibling?.textContent).toBe("Click the shield for details");
+      expect(footer?.lastElementChild).toBe(action());
     });
 
     it("is left out of a popup that lists no files", async () => {
@@ -765,7 +767,7 @@ describe("showReviewerFiles", () => {
       await clickOn(shieldOf("frontend"));
 
       expect(cardMarks).toHaveLength(1);
-      expect(cardMarks[0]?.parentElement?.lastElementChild).toBe(cardMarks[0]);
+      expect(cardMarks[0]?.parentElement?.firstElementChild).toBe(cardMarks[0]);
       expect(cardMarks[0]?.closest(".gh-prism-owners-hint")).not.toBeNull();
       expect(dialog()?.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
       expect(

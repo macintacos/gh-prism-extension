@@ -372,9 +372,8 @@
   }
 }
 
-/* Both marks here sit at an inline-end corner, which clips a tooltip that opens outward. */
-.gh-prism-sections-mark .gh-prism-mark::after,
-.gh-prism-owners-hint .gh-prism-mark::after {
+/* The sections mark sits at an inline-end corner, which clips a tooltip that opens outward. */
+.gh-prism-sections-mark .gh-prism-mark::after {
   inset-inline-start: auto;
   inset-inline-end: 0;
 }

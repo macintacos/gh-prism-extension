@@ -58,13 +58,6 @@ tool-tip:is([for^="codeowner-"], [for^="assigned-codeowner-"]),
   }
 }
 
-/* Without an action the mark sits at the footer's inline-end corner, which clips a tooltip that
-   opens outward. */
-.gh-prism-reviewer-files .gh-prism-owners-hint > .gh-prism-mark:last-child::after {
-  inset-inline-start: auto;
-  inset-inline-end: 0;
-}
-
 /* GitHub's full-width heading paints over the button and would take the pointer. */
 .gh-prism-pr-owners[data-gh-prism-list] {
   z-index: 1;

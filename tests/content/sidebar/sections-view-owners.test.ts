@@ -352,6 +352,26 @@ describe("showSections", () => {
       expect(popovers()[0]?.querySelectorAll(".gh-prism-mark")).toHaveLength(1);
     });
 
+    it("leads a file's and a folder's footer with the mark, before the hint", async () => {
+      await landedOwned(tokensOf({ "src/engine.rs": ["@o/team"] }));
+
+      const footerHeads = [];
+      for (const shield of ["src/engine.rs", "src/"]) {
+        await focusOpen(shieldOf("implementation", shield));
+        const footer = popovers().at(-1)?.querySelector(".gh-prism-owners-hint");
+        const mark = footer?.firstElementChild;
+        footerHeads.push([
+          mark?.classList.contains("gh-prism-mark"),
+          mark?.nextElementSibling?.textContent,
+        ]);
+      }
+
+      expect(footerHeads).toEqual([
+        [true, "Click the shield for details"],
+        [true, "Click the shield for details"],
+      ]);
+    });
+
     it("lists every owner, linking teams' and users' avatars in a new tab", async () => {
       await landedOwned(tokensOf({ "src/engine.rs": ["@o/team", "@someone", "dev@example.com"] }));
 

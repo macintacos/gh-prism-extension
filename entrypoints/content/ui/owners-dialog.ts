@@ -142,8 +142,8 @@ export function detailsHint(
     "Click the shield for details",
   );
   return action
-    ? el(doc, "div", ACTION_FOOTER, hint, prismMark(doc), action)
-    : el(doc, "div", HINT_FOOTER[inset], hint, prismMark(doc));
+    ? el(doc, "div", ACTION_FOOTER, prismMark(doc), hint, action)
+    : el(doc, "div", HINT_FOOTER[inset], prismMark(doc), hint);
 }
 
 /**
