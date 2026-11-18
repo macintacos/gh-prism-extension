@@ -21,7 +21,11 @@ export function scrollCue(doc: Document, ...content: Node[]): HTMLElement {
   arrow.setAttribute("aria-label", "Scroll down");
   arrow.addEventListener("click", () => scrollPage(list, arrow));
 
-  return el(doc, "div", "gh-prism-scroll-cue", list, arrow);
+  const cue = el(doc, "div", "gh-prism-scroll-cue", list, arrow);
+  new ResizeObserver(() =>
+    cue.style.setProperty("--gh-prism-scrollbar", `${list.offsetWidth - list.clientWidth}px`),
+  ).observe(list);
+  return cue;
 }
 
 /** Scrolls `list` down a page, first moving focus from `arrow` to `list` if the page reaches the end. */

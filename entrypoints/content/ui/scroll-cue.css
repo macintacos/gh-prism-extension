@@ -48,9 +48,9 @@
 
 .gh-prism-scroll-cue-arrow {
   position: absolute;
-  inset-block-end: 4px;
-  /* 16px clears a classic 15px scrollbar. */
-  inset-inline-end: 16px;
+  /* As far from a classic scrollbar, which scroll-cue.ts measures, as from the footer. */
+  inset-block-end: 8px;
+  inset-inline-end: calc(8px + var(--gh-prism-scrollbar, 0px));
   display: grid;
   place-content: center;
   box-sizing: border-box;

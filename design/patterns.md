@@ -128,14 +128,16 @@ bottom 32px the same way while more sits below. Over that fade, at the list's bo
 corner, sits a 24px circled Octicons `arrow-down` button named "Scroll down": a 1px
 `--borderColor-default` ring on `--overlay-bgColor` with Primer's resting shadow, its icon
 `--fgColor-muted` turning `--fgColor-default` on hover, and the 2px `--focus-outlineColor`
-ring on focus. A click scrolls the list down a page, keeping its last 64px in view,
-smoothly unless the reviewer prefers reduced motion, and leaves the card open. One scroll
-timeline drives the fade and the button, so they show and clear together; a list that fits
-shows neither, and neither does Firefox before 159 (`ui/scroll-cue.css`). A list that
-overflows and holds no link or button is a Tab stop, so Tab from the shield reaches it
-first, where arrow keys scroll it, then "Scroll down", then the footer's action; a list
-that fits is not one. A press that reaches the end hands focus to the list, so the card
-stays open.
+ring on focus. It sits 8px above the footer's hairline and 8px from the card's end edge. A
+classic scrollbar takes up width inside the list, where an overlay scrollbar floats over
+it, so with a classic one the 8px counts from the scrollbar's edge (`ui/scroll-cue.ts`). A
+click scrolls the list down a page, keeping its last 64px in view, smoothly unless the
+reviewer prefers reduced motion, and leaves the card open. One scroll timeline drives the
+fade and the button, so they show and clear together; a list that fits shows neither, and
+neither does Firefox before 159 (`ui/scroll-cue.css`). A list that overflows and holds no
+link or button is a Tab stop, so Tab from the shield reaches it first, where arrow keys
+scroll it, then "Scroll down", then the footer's action; a list that fits is not one. A
+press that reaches the end hands focus to the list, so the card stays open.
 
 ## Viewed
 

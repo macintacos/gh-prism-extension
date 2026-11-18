@@ -6,6 +6,21 @@ maintain its design direction.*
 Each entry records one design pick: what was compared, what won, and why. Add new entries
 at the top, dated.
 
+## 2026-11-18: The scroll cue's arrow sits as far from the card's edge as from the footer
+
+- **Asked:** the maintainer found the "Scroll down" arrow in a code owner hover card too
+  close to the footer's hairline, 4px above it, and too far from the card's end edge, at
+  16px. They asked for it to sit as far from one as from the other.
+- **Compared:**
+  - 8px from each, against 12px from each, both rendered on a live pull request;
+  - for a classic scrollbar, a fixed inset that the scrollbar can overlap, against
+    measuring the scrollbar's width and keeping the arrow clear of it.
+- **Won:** 8px from each, counted from a classic scrollbar's edge when the list has one.
+- **Why:** 8px moves the arrow up a little and closer to the card's end edge, as asked.
+  The old 16px inset kept the arrow clear of a classic 15px scrollbar. Measuring the
+  scrollbar keeps that clearance without moving the arrow away from the card's edge under
+  overlay scrollbars, which take up no width.
+
 ## 2026-11-16: The mark leads a hover card's footer, and a scroll cue marks more below
 
 - **Asked:** EXC-2400 asked for the code owner hover cards to show they hold more below,
