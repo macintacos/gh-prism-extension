@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { scrollCue } from "../../../entrypoints/content/ui/scroll-cue";
+import { stubResizeObserver } from "../../fixtures/resize-observer";
 
 /** Sets the media feature happy-dom reports for `prefers-reduced-motion`. */
 const prefersReducedMotion = (preference: string) => {
@@ -38,6 +39,14 @@ afterEach(() => {
 });
 
 describe("scrollCue", () => {
+  let resizes: ReturnType<typeof stubResizeObserver>;
+
+  beforeEach(() => {
+    resizes = stubResizeObserver();
+  });
+
+  afterEach(() => resizes.restore());
+
   it("wraps the content in a list followed by a Scroll down button", () => {
     const row = document.createElement("p");
 
@@ -60,6 +69,16 @@ describe("scrollCue", () => {
     expect(linked.list.tabIndex).toBe(-1);
     expect(withButton.list.tabIndex).toBe(-1);
     expect(plain.arrow.tabIndex).toBe(0);
+  });
+
+  it("gives the cue its list's classic scrollbar width, which the arrow's inset clears", () => {
+    const { cue, list } = mount({ clientHeight: 300 });
+    Object.defineProperty(list, "offsetWidth", { value: 300 });
+    Object.defineProperty(list, "clientWidth", { value: 285 });
+
+    resizes.deliver();
+
+    expect(cue.style.getPropertyValue("--gh-prism-scrollbar")).toBe("15px");
   });
 
   it("scrolls a page less the overlap that keeps the last row in view", () => {
