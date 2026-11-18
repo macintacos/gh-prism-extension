@@ -5075,6 +5075,32 @@ test("a GitHub dialog opened beside a pinned Conversation panel keeps the page's
   expect(await columns(page)).toEqual(before);
 });
 
+// GitHub's toolbar row with the tree and right-hand panel closed: GitHub's rule widens it to the
+// window, out past its parent's padding to both edges.
+const PR_WINDOW_WIDE_TOOLBAR_BODY = PR_TOOLBAR_BODY.replace(
+  '<section class="toolbar__ztHN6">',
+  '<style>.updatedHeaderToolbar__x { box-sizing: border-box; --container-padding: 32px; } .updatedHeaderToolbar__x[data-file-tree-expanded="false"][data-side-panel-open="false"] { width: 100vw; margin-inline: calc(var(--container-padding) * -1); padding-inline: var(--container-padding); }</style><section class="toolbar__ztHN6 updatedHeaderToolbar__x" data-file-tree-expanded="false" data-side-panel-open="false">',
+);
+
+test("a pinned Conversation panel keeps GitHub's window-wide toolbar on the page while the tree is closed", async ({
+  context,
+  page,
+}) => {
+  await serveConversation(context);
+  // Routed after serveConversation's copy, so this one answers.
+  await serve(context, PR_URL, PR_WINDOW_WIDE_TOOLBAR_BODY);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(PR_URL);
+
+  await openPinned(page);
+
+  const panel = await page.locator("#gh-prism-conversation").boundingBox();
+  const toolbar = await page.locator('section[class*="toolbar__"]').boundingBox();
+  const pageWidth = await page.evaluate(() => document.documentElement.clientWidth);
+  expect(toHundredths(toolbar?.x ?? NaN)).toBe(toHundredths(boxRight(panel)));
+  expect(toHundredths(boxRight(toolbar))).toBe(pageWidth);
+});
+
 test("the header counter's hidden tooltips never widen the page, closed or pinned", async ({
   browserName,
   context,

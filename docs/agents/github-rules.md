@@ -1484,6 +1484,18 @@ Below 1012px, a pull request's tree toggle opens the file tree as a "Files" over
   commits, the end group the review controls. A third item prepended to the row splits the
   free space and strands the start group mid-row, so `panel.css` gives the end group
   `margin-inline-start: auto`.
+- **Expect the toolbar row to be `100vw` wide while the tree and the right-hand panel are
+  closed.** The row, `[class*="updatedHeaderToolbar__"]`, then carries
+  `data-file-tree-expanded="false"` and `data-side-panel-open="false"`, and GitHub gives
+  it `width: 100vw` with `-var(--container-padding)` inline margins. The variable is 16,
+  24, or 32px by viewport, and the row's parent sits that far in from each edge of
+  `<html>`'s content box, never capped, from 1110px to 2560px wide. `100vw` ignores the
+  padding `<html>` gets beside the pinned panel, so the row would run its end group off
+  the page; `panel.css` sizes it `calc(100% + 2 * var(--container-padding))` while pinned.
+  With the tree or the panel open, the row is `calc(100% + extend)` and fits on its own
+  (Chromium, signed in,
+  [PR #161](https://github.com/macintacos/gh-prism-extension/pull/161/changes),
+  2026-11-18).
 - **Expect the `diffComparisonViewer` container to carry 32px of inline padding against
   its `width >= 1012px` query.** GitHub swaps `RegularTreeToggle` for `MobileTreeToggle`
   and undocks the tree below a 1076px page, not a 1012px one. Both toggles stay in the
